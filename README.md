@@ -1,4 +1,4 @@
-# CLAUDE.md — 24Therapy.ai Platform Intelligence
+# README.md — 24Therapy.ai Platform Intelligence
 
 Complete platform understanding and actionable execution plan for building the 24Therapy.ai AI-native Mental Health Operating System.
 
