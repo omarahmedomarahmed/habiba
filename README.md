@@ -609,8 +609,7 @@ GET /api/patients?cursor=uuid&limit=20&direction=next
 │   ├── part-33-investor-deck.md
 │   ├── part-34-acquisition-readiness.md
 │   └── part-35-product-roadmap.md
-├── README.md                   # Master 15,245-line PRD
-└── CLAUDE.md                   # This file
+└── Readme.md                   # This file
 ```
 
 ---
@@ -793,10 +792,9 @@ The moat is not the product. The moat is the **accumulated clinical intelligence
 
 **You have everything you need:**
 
-1. **Complete PRD** — README.md (15,245 lines)
-2. **40 documentation files** — Every part of the product specified
-3. **14 SQL migration files** — Ready to run, fully complete
-4. **This CLAUDE.md** — Complete context, execution plan, decisions
+1. **40 documentation files** — Every part of the product specified
+2. **14 SQL migration files** — Ready to run, fully complete
+3. **This readme.md** — Complete context, execution plan, decisions
 
 **Start here:**
 1. Run all 14 SQL migrations in order
