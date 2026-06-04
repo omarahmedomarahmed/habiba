@@ -29,10 +29,11 @@ const navItems = [
     ],
   },
   {
-    label: "Radar",
+    label: "Find Therapy",
     href: "/find-therapist",
     children: [
       { label: "Find a Therapist", href: "/find-therapist", desc: "AI-powered matching to your needs" },
+      { label: "Therapist Directory", href: "/therapists", desc: "Browse all verified therapists" },
       { label: "How Radar Works", href: "/find-therapist#how", desc: "Our intelligent matching system" },
       { label: "Urgent Support", href: "/find-therapist?urgency=now", desc: "Connect with a therapist today" },
     ],
@@ -42,6 +43,7 @@ const navItems = [
     href: "/blog",
     children: [
       { label: "Blog", href: "/blog", desc: "AI, clinical practice, and mental health technology" },
+      { label: "Success Stories", href: "/testimonials", desc: "Therapist & patient stories" },
       { label: "Enterprise", href: "/enterprise", desc: "Group practices, clinics, and health systems" },
       { label: "Security & HIPAA", href: "/security", desc: "Compliance, encryption, and privacy" },
       { label: "About Us", href: "/about", desc: "Mission, team, and company story" },
