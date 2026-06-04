@@ -33,6 +33,7 @@ const NAV = [
       { href: '/billing', label: 'Billing & Revenue', icon: CreditCard },
       { href: '/marketplace', label: 'Marketplace', icon: Store },
       { href: '/analytics', label: 'Analytics', icon: BarChart2 },
+      { href: '/crm', label: 'CRM & Sales', icon: Target },
     ],
   },
   {
