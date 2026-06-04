@@ -24,7 +24,7 @@
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0"
   },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": "20.x",
     "pnpm": ">=9.x"

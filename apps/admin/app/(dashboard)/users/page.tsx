@@ -226,7 +226,7 @@ export default function UsersPage() {
                       </div>
                     )}
                     {user.verified && (
-                      <CheckCircle className="w-3.5 h-3.5 text-blue-400" title="Verified" />
+                      <CheckCircle className="w-3.5 h-3.5 text-blue-400" />
                     )}
                   </div>
                 </td>

@@ -106,11 +106,12 @@ export async function generateStaticParams() {
 }
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
-export default function BlogPostPage({ params }: PageProps) {
-  const post = BLOG_POST_DATA[params.slug] || BLOG_POST_DATA["ai-copilot-session-notes"];
+export default async function BlogPostPage({ params }: PageProps) {
+  const { slug } = await params;
+  const post = BLOG_POST_DATA[slug] || BLOG_POST_DATA["ai-copilot-session-notes"];
 
   return (
     <div className="min-h-screen bg-white">

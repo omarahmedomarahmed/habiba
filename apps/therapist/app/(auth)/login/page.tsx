@@ -25,7 +25,6 @@ export default function LoginPage() {
       const res = await authAPI.login(email, password);
       localStorage.setItem("access_token", res.access_token);
       localStorage.setItem("refresh_token", res.refresh_token);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setAuth(res.user as any, res.access_token, res.refresh_token);
       router.push("/dashboard");
     } catch (err: unknown) {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   User, Settings, Bell, Shield, CreditCard, Brain, Building2,
   Save, Camera, Eye, EyeOff, CheckCircle, AlertCircle, Trash2,
-  Plus, X, Toggle, Globe, Lock, Smartphone, Key, Download,
+  Plus, X, Globe, Lock, Smartphone, Key, Download,
   LogOut, RefreshCw, Zap, Network, FileText, ClipboardList,
   Clock, DollarSign, Mail, Phone, MapPin, Link2, Upload,
   AlertTriangle, ChevronRight, Palette, Monitor, Volume2,
@@ -255,7 +255,7 @@ export default function TherapistSettingsPage() {
                           <field.icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <input
                             type={field.type}
-                            value={(profile as Record<string, string>)[field.key]}
+                            value={(profile as unknown as Record<string, string>)[field.key]}
                             onChange={(e) => setProfile({ ...profile, [field.key]: e.target.value })}
                             className="w-full border border-gray-300 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
                           />
@@ -289,7 +289,7 @@ export default function TherapistSettingsPage() {
                         <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
                         <input
                           type={field.type || "text"}
-                          value={(profile as Record<string, string>)[field.key]}
+                          value={(profile as unknown as Record<string, string>)[field.key]}
                           onChange={(e) => setProfile({ ...profile, [field.key]: e.target.value })}
                           className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
                         />
@@ -463,7 +463,7 @@ export default function TherapistSettingsPage() {
                         <div className="text-xs text-gray-400">{item.desc}</div>
                       </div>
                       <ToggleSwitch
-                        enabled={(aiPrefs as Record<string, boolean>)[item.key] as boolean}
+                        enabled={(aiPrefs as unknown as Record<string, boolean>)[item.key] as boolean}
                         onChange={(v) => setAiPrefs({ ...aiPrefs, [item.key]: v })}
                       />
                     </div>
@@ -579,7 +579,7 @@ export default function TherapistSettingsPage() {
                         <div className="text-xs text-gray-400">{item.desc}</div>
                       </div>
                       <ToggleSwitch
-                        enabled={(notifPrefs as Record<string, boolean>)[item.key] as boolean}
+                        enabled={(notifPrefs as unknown as Record<string, boolean>)[item.key] as boolean}
                         onChange={(v) => setNotifPrefs({ ...notifPrefs, [item.key]: v })}
                       />
                     </div>
@@ -602,7 +602,7 @@ export default function TherapistSettingsPage() {
                         <div className="text-xs text-gray-400">{item.desc}</div>
                       </div>
                       <ToggleSwitch
-                        enabled={(notifPrefs as Record<string, boolean>)[item.key] as boolean}
+                        enabled={(notifPrefs as unknown as Record<string, boolean>)[item.key] as boolean}
                         onChange={(v) => setNotifPrefs({ ...notifPrefs, [item.key]: v })}
                       />
                     </div>

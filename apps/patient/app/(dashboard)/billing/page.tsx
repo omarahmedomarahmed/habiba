@@ -448,7 +448,6 @@ export default function PatientBillingPage() {
             <button
               onClick={() => {
                 setShowPayModal(null);
-                setNotifications?.((prev: PatientNotification[]) => prev);
               }}
               className="w-full bg-[#0A2342] hover:bg-[#0d2d56] text-white py-3 rounded-xl font-semibold"
             >

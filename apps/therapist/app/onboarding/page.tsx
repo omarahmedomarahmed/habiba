@@ -6,7 +6,7 @@ import {
   Brain, CheckCircle2, ChevronRight, ChevronLeft, User, Building2,
   Stethoscope, Shield, CreditCard, Users, Calendar, Sparkles,
   Upload, Globe, Phone, Mail, MapPin, Award, BookOpen, Zap,
-  AlertTriangle, Check, Lock, ArrowRight, Camera, FileText
+  AlertTriangle, Check, Lock, ArrowRight, Camera, FileText, Network
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

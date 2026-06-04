@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock,
   User, Video, Phone, MapPin, CheckCircle, AlertCircle, X, Edit3,
@@ -630,9 +631,9 @@ export default function CalendarPage() {
               </div>
             )}
             {selectedEvent.status === "completed" && (
-              <a href="/notes" className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold text-center block">
+              <Link href="/notes" className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold text-center block">
                 View Session Notes
-              </a>
+              </Link>
             )}
           </div>
         </div>

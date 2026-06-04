@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Search, Filter, Star, MapPin, Clock, Video, CheckCircle,
+  Search, Filter, Star, MapPin, Clock, Video,
   Brain, Shield, ChevronRight, Users, Award, Sparkles,
   Heart, BookOpen, Zap, SlidersHorizontal, X, Globe,
   BadgeCheck, Calendar, DollarSign, ChevronDown

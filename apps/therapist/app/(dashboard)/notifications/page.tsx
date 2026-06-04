@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Bell, AlertTriangle, Calendar, MessageSquare, FileText,
   Activity, Brain, User, CheckCircle2, Clock, Filter,
-  MarkAsUnread, Settings, Trash2, Archive, ChevronRight,
+  MailOpen, Settings, Trash2, Archive, ChevronRight,
   Shield, Heart, Zap, TrendingUp, CreditCard, BookOpen,
   Check, X, RefreshCw, Sparkles, Star, Users, ClipboardList
 } from "lucide-react";

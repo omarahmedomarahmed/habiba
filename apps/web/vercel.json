@@ -1,25 +1,27 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
   "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm build --filter=@24therapy/web",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter @24therapy/web build",
   "outputDirectory": ".next",
-  "devCommand": "next dev -p 3004",
-  "installCommand": "pnpm install",
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
       ]
     }
-  ],
-  "redirects": [
-    { "source": "/app", "destination": "https://app.24therapy.com", "permanent": false },
-    { "source": "/portal", "destination": "https://therapist.24therapy.com", "permanent": false }
-  ],
-  "env": {
-    "NEXT_PUBLIC_APP_ENV": "production"
-  }
+  ]
 }
