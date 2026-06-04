@@ -20,6 +20,8 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AssessmentsModule } from './modules/assessments/assessments.module';
+import { MemoryModule } from './modules/memory/memory.module';
+import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { GatewaysModule } from './gateways/gateways.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
@@ -76,6 +78,8 @@ import appConfig from './config/app.config';
     AnalyticsModule,
     AdminModule,
     AssessmentsModule,
+    MemoryModule,
+    WorkflowsModule,
 
     // ─── WebSocket Gateways ───────────────────────────────────────────────────
     GatewaysModule,
