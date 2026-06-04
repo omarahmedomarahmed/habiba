@@ -1,331 +1,655 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
-  Brain, Search, Plus, Filter, Network, Clock, CheckCircle2,
-  AlertCircle, Tag, ChevronRight, Eye, Star, TrendingUp,
-  User, Activity, Pill, Calendar, Zap, Shield, Heart,
-  BookOpen, Target, Lightbulb, RefreshCw, Database
+  Brain, Search, Filter, Plus, ChevronRight, Tag, Calendar,
+  User, AlertTriangle, Heart, Lightbulb, Flag, Target, Pill,
+  TrendingUp, Clock, Link2, Edit3, Trash2, Star, Network,
+  Activity, BookOpen, MessageSquare, Shield, Sparkles,
+  ArrowRight, Eye, Layers, Database, Zap, RefreshCw, Hash
 } from "lucide-react";
-import { cn, formatDate, getInitials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
-const MEMORY_TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; label: string }> = {
-  symptom: { icon: Activity, color: "text-red-600 bg-red-50", label: "Symptom" },
-  medication: { icon: Pill, color: "text-blue-600 bg-blue-50", label: "Medication" },
-  diagnosis: { icon: Shield, color: "text-purple-600 bg-purple-50", label: "Diagnosis" },
-  life_event: { icon: Calendar, color: "text-amber-600 bg-amber-50", label: "Life Event" },
-  relationship: { icon: User, color: "text-pink-600 bg-pink-50", label: "Relationship" },
-  belief: { icon: Lightbulb, color: "text-yellow-600 bg-yellow-50", label: "Belief" },
-  behavior: { icon: Zap, color: "text-orange-600 bg-orange-50", label: "Behavior" },
-  trigger: { icon: AlertCircle, color: "text-red-600 bg-red-50", label: "Trigger" },
-  coping_skill: { icon: Heart, color: "text-green-600 bg-green-50", label: "Coping Skill" },
-  goal: { icon: Target, color: "text-primary-600 bg-primary-50", label: "Goal" },
-  trauma: { icon: Shield, color: "text-red-700 bg-red-100", label: "Trauma" },
-  strength: { icon: Star, color: "text-amber-600 bg-amber-50", label: "Strength" },
-  insight: { icon: Lightbulb, color: "text-cyan-600 bg-cyan-50", label: "Insight" },
-  treatment_response: { icon: TrendingUp, color: "text-green-600 bg-green-50", label: "Treatment Response" },
-};
+type MemoryCategory =
+  | "all"
+  | "relationship"
+  | "trigger"
+  | "pattern"
+  | "progress"
+  | "preference"
+  | "trauma"
+  | "family"
+  | "medication"
+  | "goal"
+  | "life_event"
+  | "observation";
 
-const MOCK_PATIENTS_WITH_MEMORY = [
+type MemoryImportance = "critical" | "high" | "medium" | "low";
+
+interface MemoryNode {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  category: Exclude<MemoryCategory, "all">;
+  subcategory?: string;
+  content: string;
+  evidence: string[];
+  source_sessions: string[];
+  created_at: string;
+  updated_at: string;
+  importance: MemoryImportance;
+  confidence: number;
+  tags: string[];
+  related_memories?: string[];
+  ai_generated: boolean;
+  therapist_verified: boolean;
+  is_active: boolean;
+  context_window?: string;
+}
+
+interface PatientMemoryProfile {
+  patient_id: string;
+  patient_name: string;
+  total_memories: number;
+  last_updated: string;
+  intelligence_score: number;
+  sessions_analyzed: number;
+}
+
+const MEMORY_NODES: MemoryNode[] = [
   {
-    id: "p1", name: "Sarah Chen", avatar: "SC",
-    total_nodes: 48, last_updated: "2025-12-15T10:00:00Z",
-    top_nodes: [
-      { id: "m1", type: "diagnosis", label: "Major Depressive Disorder", confidence: "confirmed", times_observed: 24 },
-      { id: "m2", type: "symptom", label: "Sleep disturbance, difficulty falling asleep", confidence: "high", times_observed: 12 },
-      { id: "m3", type: "trigger", label: "Work deadlines and performance pressure", confidence: "high", times_observed: 8 },
-      { id: "m4", type: "coping_skill", label: "Deep breathing exercises", confidence: "confirmed", times_observed: 15 },
-      { id: "m5", type: "goal", label: "Return to gym 3x/week", confidence: "medium", times_observed: 3 },
-    ],
+    id: "m001",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "relationship",
+    subcategory: "family_of_origin",
+    content: "Father was emotionally unavailable during childhood — worked long hours, dismissive of emotional expression. This pattern established an internal belief: 'I must perform to receive love.' Still affects adult relationships, particularly with authority figures and romantic partners.",
+    evidence: ["Session #8: 'My dad never had time for me unless I was doing something impressive'", "Session #12: Visible emotional shift when discussing father's approval", "Session #15: Directly linked to current people-pleasing at work"],
+    source_sessions: ["Session #8", "Session #12", "Session #15", "Session #20"],
+    created_at: "2024-11-15",
+    updated_at: "2025-10-22",
+    importance: "critical",
+    confidence: 0.94,
+    tags: ["father-wound", "attachment", "people-pleasing", "schema"],
+    ai_generated: true,
+    therapist_verified: true,
+    is_active: true,
+    context_window: "Activate before any session discussing relationships, self-worth, or performance anxiety"
   },
   {
-    id: "p3", name: "James Rodriguez", avatar: "JR",
-    total_nodes: 72, last_updated: "2025-12-14T14:00:00Z",
-    top_nodes: [
-      { id: "m6", type: "diagnosis", label: "PTSD", confidence: "confirmed", times_observed: 36 },
-      { id: "m7", type: "trauma", label: "Military combat exposure (2019)", confidence: "confirmed", times_observed: 5 },
-      { id: "m8", type: "symptom", label: "Hypervigilance and startle response", confidence: "high", times_observed: 20 },
-      { id: "m9", type: "medication", label: "Sertraline 100mg", confidence: "confirmed", times_observed: 18 },
-      { id: "m10", type: "behavior", label: "Avoidance of crowded spaces", confidence: "high", times_observed: 10 },
-    ],
+    id: "m002",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "trigger",
+    subcategory: "occupational",
+    content: "Work performance evaluations trigger acute anxiety with physiological symptoms (racing heart, difficulty breathing). Root mechanism: performance = worthiness. Perfectionist standards internalized from father. Directly activates abandonment schema.",
+    evidence: ["Session #12: Reported 8/10 anxiety before annual review", "Mood log 2025-09-15: Anxiety spike to 9/10 on review day", "Session #18: Physical symptoms described in detail"],
+    source_sessions: ["Session #12", "Session #18", "Session #22"],
+    created_at: "2024-12-08",
+    updated_at: "2025-11-15",
+    importance: "high",
+    confidence: 0.91,
+    tags: ["anxiety-trigger", "performance", "work", "physiological"],
+    ai_generated: true,
+    therapist_verified: true,
+    is_active: true,
+    context_window: "Alert before sessions in Q4 (review season). Prepare anxiety coping toolkit activation."
   },
   {
-    id: "p2", name: "Michael Torres", avatar: "MT",
-    total_nodes: 31, last_updated: "2025-12-10T11:00:00Z",
-    top_nodes: [
-      { id: "m11", type: "diagnosis", label: "Generalized Anxiety Disorder", confidence: "confirmed", times_observed: 12 },
-      { id: "m12", type: "trigger", label: "Financial uncertainty and job insecurity", confidence: "high", times_observed: 7 },
-      { id: "m13", type: "strength", label: "Strong family support network", confidence: "high", times_observed: 6 },
-    ],
+    id: "m003",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "pattern",
+    subcategory: "seasonal",
+    content: "Seasonal mood worsening consistently observed November–January. 40% higher anxiety scores, reduced social activity, sleep quality decrease. Correlates with reduced sunlight and holiday family stress. Now in 2nd documented cycle — establishing as reliable pattern.",
+    evidence: ["PHQ-9 Nov 2024: 17 (vs 13 in Oct)", "PHQ-9 Nov 2025: 15 (vs 11 in Oct)", "Mood log analysis: 34% lower Nov-Jan scores"],
+    source_sessions: ["Session #15", "Session #22", "Session #24"],
+    created_at: "2025-11-20",
+    updated_at: "2025-12-01",
+    importance: "high",
+    confidence: 0.85,
+    tags: ["seasonal", "depression", "SAD", "mood-pattern"],
+    ai_generated: true,
+    therapist_verified: true,
+    is_active: true,
+    context_window: "Proactively prepare seasonal coping plan each October. Consider light therapy recommendation."
+  },
+  {
+    id: "m004",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "preference",
+    subcategory: "therapeutic_approach",
+    content: "Responds excellently to Socratic questioning — arrives at insights independently. Does not respond well to direct advice or interpretation. Prefers collaborative exploration over directive guidance. Self-efficacy is a key therapeutic lever.",
+    evidence: ["Session #6: Resistance when given direct interpretation", "Session #10: Breakthrough after Socratic question sequence", "Session #14: Explicitly stated 'I like figuring it out myself'"],
+    source_sessions: ["Session #6", "Session #10", "Session #14"],
+    created_at: "2024-10-30",
+    updated_at: "2025-01-15",
+    importance: "high",
+    confidence: 0.96,
+    tags: ["therapeutic-style", "Socratic", "self-efficacy", "technique"],
+    ai_generated: false,
+    therapist_verified: true,
+    is_active: true,
+    context_window: "Always suggest open questions over statements. Copilot: use Socratic mode."
+  },
+  {
+    id: "m005",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "progress",
+    subcategory: "cognitive",
+    content: "Significant improvement in real-time cognitive reframing since Session #15. Now able to identify cognitive distortions (catastrophizing, all-or-nothing thinking) independently during sessions without prompting. This represents a clinically meaningful skill acquisition.",
+    evidence: ["Session #18: Independently identified catastrophizing mid-sentence", "Session #21: Corrected thought distortion before therapist commented", "Mood logs: Evidence of self-applied reframing"],
+    source_sessions: ["Session #15", "Session #18", "Session #21", "Session #24"],
+    created_at: "2025-02-10",
+    updated_at: "2025-12-15",
+    importance: "medium",
+    confidence: 0.92,
+    tags: ["CBT", "cognitive-reframing", "milestone", "skill-acquisition"],
+    ai_generated: true,
+    therapist_verified: true,
+    is_active: true,
+  },
+  {
+    id: "m006",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "trauma",
+    subcategory: "grief",
+    content: "Lost close friend unexpectedly in October 2025. Processing ongoing. Grief complicated by survivor guilt and fear of expressing sadness (learned: 'strong people don't cry'). This belief learned from father — connects to core schema work.",
+    evidence: ["Session #19: First disclosure of loss", "Session #20: Resistance to labeling grief", "Session #21: Opened up after reframing strength/vulnerability"],
+    source_sessions: ["Session #19", "Session #20", "Session #21"],
+    created_at: "2025-10-20",
+    updated_at: "2025-11-05",
+    importance: "high",
+    confidence: 0.88,
+    tags: ["grief", "loss", "survivor-guilt", "vulnerability"],
+    ai_generated: true,
+    therapist_verified: true,
+    is_active: true,
+    context_window: "Handle with particular care. Connected to core father schema. Don't rush grief work."
+  },
+  {
+    id: "m007",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "medication",
+    content: "Lexapro (Escitalopram) 10mg — positive response documented. Sleep improvement first observed within 3 weeks of dosage increase (5mg → 10mg). Reports feeling 'more level' emotionally. No significant side effects reported. Prescribed by Dr. Jennifer Walsh.",
+    evidence: ["Session #18: 'I feel more stable since the dose increase'", "Sleep log: 6.2hrs avg → 7.1hrs avg after Lexapro increase", "PHQ-9 correlation: -4 pts in 6 weeks post-increase"],
+    source_sessions: ["Session #16", "Session #18", "Session #22"],
+    created_at: "2025-09-15",
+    updated_at: "2025-12-01",
+    importance: "high",
+    confidence: 0.95,
+    tags: ["Lexapro", "SSRI", "medication-response", "sleep"],
+    ai_generated: false,
+    therapist_verified: true,
+    is_active: true,
+  },
+  {
+    id: "m008",
+    patient_id: "p1",
+    patient_name: "Sarah Chen",
+    category: "family",
+    subcategory: "current",
+    content: "Strong relationship with sister Lisa (emergency contact). Sister aware of therapy but doesn't know details. Mother relationship described as 'better' than with father but emotionally dependent dynamic present. No current romantic relationship — avoidance pattern noted.",
+    evidence: ["Session #5: 'Lisa is the one person I can really talk to'", "Session #9: Mother described as 'supportive but needs a lot in return'", "Session #14: Dating mentioned briefly, followed by topic change"],
+    source_sessions: ["Session #5", "Session #9", "Session #14"],
+    created_at: "2024-10-10",
+    updated_at: "2025-06-15",
+    importance: "medium",
+    confidence: 0.82,
+    tags: ["family", "sister", "mother", "attachment-style", "relationship-avoidance"],
+    ai_generated: true,
+    therapist_verified: true,
+    is_active: true,
   },
 ];
 
-const CONFIDENCE_CONFIG = {
-  confirmed: { color: "text-green-700 bg-green-50 border-green-200", label: "Confirmed" },
-  high: { color: "text-blue-700 bg-blue-50 border-blue-200", label: "High" },
-  medium: { color: "text-amber-700 bg-amber-50 border-amber-200", label: "Medium" },
-  low: { color: "text-ink-500 bg-surface-tertiary border-surface-quaternary", label: "Low" },
+const PATIENT_PROFILES: PatientMemoryProfile[] = [
+  { patient_id: "p1", patient_name: "Sarah Chen", total_memories: 47, last_updated: "2025-12-15", intelligence_score: 87, sessions_analyzed: 24 },
+  { patient_id: "p2", patient_name: "Marcus Webb", total_memories: 31, last_updated: "2025-12-12", intelligence_score: 72, sessions_analyzed: 16 },
+  { patient_id: "p3", patient_name: "Priya Nair", total_memories: 62, last_updated: "2025-12-10", intelligence_score: 94, sessions_analyzed: 35 },
+];
+
+const CATEGORY_CONFIG: Record<Exclude<MemoryCategory, "all">, { label: string; icon: React.ElementType; color: string; bg: string }> = {
+  relationship: { label: "Relationships", icon: Heart, color: "text-rose-600", bg: "bg-rose-50" },
+  trigger: { label: "Triggers", icon: AlertTriangle, color: "text-orange-600", bg: "bg-orange-50" },
+  pattern: { label: "Patterns", icon: Activity, color: "text-blue-600", bg: "bg-blue-50" },
+  progress: { label: "Progress", icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
+  preference: { label: "Preferences", icon: Star, color: "text-purple-600", bg: "bg-purple-50" },
+  trauma: { label: "Trauma/Grief", icon: Shield, color: "text-rose-700", bg: "bg-rose-50" },
+  family: { label: "Family", icon: User, color: "text-amber-600", bg: "bg-amber-50" },
+  medication: { label: "Medication", icon: Pill, color: "text-teal-600", bg: "bg-teal-50" },
+  goal: { label: "Goals", icon: Target, color: "text-indigo-600", bg: "bg-indigo-50" },
+  life_event: { label: "Life Events", icon: Flag, color: "text-slate-600", bg: "bg-slate-100" },
+  observation: { label: "Observations", icon: Eye, color: "text-gray-600", bg: "bg-gray-50" },
+};
+
+const IMPORTANCE_CONFIG: Record<MemoryImportance, { label: string; color: string; bg: string }> = {
+  critical: { label: "Critical", color: "text-rose-700", bg: "bg-rose-50 border-rose-200" },
+  high: { label: "High", color: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
+  medium: { label: "Medium", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
+  low: { label: "Low", color: "text-gray-600", bg: "bg-gray-100 border-gray-200" },
 };
 
 export default function MemoryPage() {
-  const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<string>("p1");
+  const [activeCategory, setActiveCategory] = useState<MemoryCategory>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMemory, setSelectedMemory] = useState<MemoryNode | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "graph" | "timeline">("list");
+  const [importanceFilter, setImportanceFilter] = useState<MemoryImportance | "all">("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMemoryContent, setNewMemoryContent] = useState("");
+  const [newMemoryCategory, setNewMemoryCategory] = useState<Exclude<MemoryCategory, "all">>("observation");
 
-  const selected = MOCK_PATIENTS_WITH_MEMORY.find((p) => p.id === selectedPatient);
+  const currentPatient = PATIENT_PROFILES.find(p => p.patient_id === selectedPatient);
 
-  const filteredNodes = selected ? selected.top_nodes.filter((n) => {
-    const matchType = !typeFilter || n.type === typeFilter;
-    const matchSearch = !search || n.label.toLowerCase().includes(search.toLowerCase());
-    return matchType && matchSearch;
-  }) : [];
+  const patientMemories = MEMORY_NODES.filter(m => {
+    const matchesPatient = m.patient_id === selectedPatient;
+    const matchesCategory = activeCategory === "all" || m.category === activeCategory;
+    const matchesSearch = !searchQuery || m.content.toLowerCase().includes(searchQuery.toLowerCase()) || m.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesImportance = importanceFilter === "all" || m.importance === importanceFilter;
+    return matchesPatient && matchesCategory && matchesSearch && matchesImportance;
+  });
+
+  const criticalMemories = MEMORY_NODES.filter(m => m.patient_id === selectedPatient && m.importance === "critical");
+  const categoryCounts = Object.keys(CATEGORY_CONFIG).reduce((acc, cat) => {
+    acc[cat] = MEMORY_NODES.filter(m => m.patient_id === selectedPatient && m.category === cat).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-surface-secondary">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-ink-900 flex items-center gap-2">
-              <Brain className="w-6 h-6 text-primary-600" />
-              Mental Health Memory Layer
-            </h1>
-            <p className="text-ink-500 text-sm mt-1">
-              Longitudinal patient intelligence — knowledge accumulated across all sessions
-            </p>
+    <div className="flex h-full gap-0 -mx-6 -mt-6">
+      {/* Left sidebar - Patient selector + category nav */}
+      <div className="w-72 border-r border-gray-200 bg-white flex flex-col h-screen overflow-y-auto">
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex items-center gap-2 mb-3">
+            <Database className="h-5 w-5 text-[#0A2342]" />
+            <h2 className="font-bold text-[#0A2342]">Memory Layer</h2>
+            <span className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">AI</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="btn-secondary flex items-center gap-2 text-sm">
-              <RefreshCw className="w-4 h-4" />
-              Sync Memory
-            </button>
-            <button className="btn-secondary flex items-center gap-2 text-sm">
-              <Network className="w-4 h-4" />
-              Knowledge Graph
-            </button>
-          </div>
+          <p className="text-xs text-gray-500">Longitudinal patient intelligence accumulated across all sessions</p>
         </div>
 
-        {/* Intelligence Banner */}
-        <div className="card p-4 bg-gradient-to-r from-primary-50 to-purple-50 border-primary-200">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center flex-shrink-0">
-              <Database className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-primary-900">Patient Intelligence Active</h3>
-              <p className="text-sm text-primary-700 mt-0.5">
-                The Memory Layer is continuously learning from sessions, notes, and assessments.
-                Every interaction improves AI assistance quality for all your patients.
-              </p>
-              <div className="flex items-center gap-6 mt-3 text-xs">
-                <span className="flex items-center gap-1 text-primary-700">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  {MOCK_PATIENTS_WITH_MEMORY.reduce((s, p) => s + p.total_nodes, 0)} total memory nodes
-                </span>
-                <span className="flex items-center gap-1 text-primary-700">
-                  <Brain className="w-3.5 h-3.5" />
-                  {MOCK_PATIENTS_WITH_MEMORY.length} patients tracked
-                </span>
-                <span className="flex items-center gap-1 text-primary-700">
-                  <Zap className="w-3.5 h-3.5" />
-                  AI extraction: active
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Patient List */}
-          <div className="space-y-3">
-            <h2 className="text-base font-semibold text-ink-900">Patients</h2>
-            {MOCK_PATIENTS_WITH_MEMORY.map((patient) => (
+        {/* Patient selector */}
+        <div className="p-4 border-b border-gray-100">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Patient</p>
+          <div className="space-y-1">
+            {PATIENT_PROFILES.map(p => (
               <button
-                key={patient.id}
-                onClick={() => setSelectedPatient(patient.id)}
+                key={p.patient_id}
+                onClick={() => { setSelectedPatient(p.patient_id); setSelectedMemory(null); }}
                 className={cn(
-                  "w-full text-left card p-4 hover:shadow-card-hover transition-all",
-                  selectedPatient === patient.id && "border-primary-300 bg-primary-50/30"
+                  "w-full flex items-center gap-3 p-2.5 rounded-xl text-sm transition-all",
+                  selectedPatient === p.patient_id ? "bg-[#0A2342] text-white" : "hover:bg-gray-50 text-gray-700"
                 )}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-                    <span className="text-sm font-bold text-primary-700">{patient.avatar}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm text-ink-900">{patient.name}</div>
-                    <div className="text-xs text-ink-500 mt-0.5 flex items-center gap-2">
-                      <Brain className="w-3 h-3" />
-                      {patient.total_nodes} memory nodes
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-ink-400" />
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold", selectedPatient === p.patient_id ? "bg-white/10 text-white" : "bg-gray-200 text-gray-600")}>
+                  {p.patient_name.split(" ").map(n => n[0]).join("")}
                 </div>
-
-                {/* Mini breakdown by type */}
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {[...new Set(patient.top_nodes.map((n) => n.type))].slice(0, 5).map((type) => {
-                    const config = MEMORY_TYPE_CONFIG[type] || { color: "text-ink-600 bg-surface-tertiary", label: type };
-                    const Icon = config.icon || Brain;
-                    return (
-                      <span key={type} className={cn("flex items-center gap-1 text-xs px-1.5 py-0.5 rounded", config.color)}>
-                        <Icon className="w-3 h-3" />
-                        {config.label}
-                      </span>
-                    );
-                  })}
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="font-medium text-xs truncate">{p.patient_name}</p>
+                  <p className={cn("text-xs", selectedPatient === p.patient_id ? "text-white/60" : "text-gray-400")}>
+                    {p.total_memories} memories · {p.sessions_analyzed} sessions
+                  </p>
+                </div>
+                <div className={cn("text-xs font-bold", selectedPatient === p.patient_id ? "text-emerald-300" : "text-emerald-600")}>
+                  {p.intelligence_score}%
                 </div>
               </button>
             ))}
           </div>
+        </div>
 
-          {/* Memory Detail */}
-          <div className="lg:col-span-2">
-            {selected ? (
-              <div className="space-y-4">
-                {/* Patient Header */}
-                <div className="card p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-                      <span className="text-sm font-bold text-primary-700">{selected.avatar}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-ink-900">{selected.name}</h3>
-                      <p className="text-xs text-ink-500">{selected.total_nodes} memory nodes · Last updated {formatDate(selected.last_updated)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/patients/${selected.id}`}
-                      className="btn-secondary text-sm flex items-center gap-1.5"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Full Profile
-                    </Link>
-                    <button className="btn-primary text-sm flex items-center gap-1.5">
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Memory
-                    </button>
-                  </div>
-                </div>
-
-                {/* Search & Type Filter */}
-                <div className="card p-3 flex items-center gap-3">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-400" />
-                    <input
-                      type="text"
-                      placeholder="Search memories..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="input-field pl-8 w-full py-1.5 text-sm"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 overflow-x-auto">
-                    <button
-                      onClick={() => setTypeFilter(null)}
-                      className={cn("px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors",
-                        !typeFilter ? "bg-primary-600 text-white" : "bg-surface-tertiary text-ink-600"
-                      )}
-                    >
-                      All
-                    </button>
-                    {Object.entries(MEMORY_TYPE_CONFIG).slice(0, 8).map(([type, config]) => {
-                      const TypeIcon = config.icon;
-                      return (
-                        <button
-                          key={type}
-                          onClick={() => setTypeFilter(typeFilter === type ? null : type)}
-                          className={cn("flex items-center gap-1 px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors",
-                            typeFilter === type ? "bg-primary-600 text-white" : "bg-surface-tertiary text-ink-600 hover:bg-surface-quaternary"
-                          )}
-                        >
-                          <TypeIcon className="w-3 h-3" />
-                          {config.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Memory Nodes */}
-                <div className="space-y-2">
-                  {filteredNodes.length === 0 && (
-                    <div className="card p-8 text-center">
-                      <Brain className="w-10 h-10 text-ink-300 mx-auto mb-2" />
-                      <p className="text-ink-500 text-sm">No memory nodes found</p>
-                    </div>
-                  )}
-                  {filteredNodes.map((node) => {
-                    const typeConfig = MEMORY_TYPE_CONFIG[node.type] || { icon: Brain, color: "text-ink-600 bg-surface-tertiary", label: node.type };
-                    const confConfig = CONFIDENCE_CONFIG[node.confidence as keyof typeof CONFIDENCE_CONFIG] || CONFIDENCE_CONFIG.low;
-                    const TypeIcon = typeConfig.icon;
-                    return (
-                      <div key={node.id} className="card p-4 hover:shadow-sm transition-all group">
-                        <div className="flex items-start gap-3">
-                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", typeConfig.color)}>
-                            <TypeIcon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium text-sm text-ink-900">{node.label}</p>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", confConfig.color)}>
-                                  {confConfig.label}
-                                </span>
-                                <span className="text-xs text-ink-400">×{node.times_observed}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 mt-1.5">
-                              <span className={cn("text-xs px-1.5 py-0.5 rounded", typeConfig.color)}>
-                                {typeConfig.label}
-                              </span>
-                              {node.confidence === "confirmed" && (
-                                <span className="flex items-center gap-1 text-xs text-green-600">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Validated
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-1.5 hover:bg-surface-tertiary rounded-lg transition-colors" title="Edit">
-                              <Tag className="w-3.5 h-3.5 text-ink-400" />
-                            </button>
-                            <button className="p-1.5 hover:bg-green-50 rounded-lg transition-colors" title="Validate">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Add Memory Form */}
-                <div className="card p-4 border-dashed border-surface-quaternary">
-                  <button className="w-full flex items-center justify-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium py-2 transition-colors">
-                    <Plus className="w-4 h-4" />
-                    Add Memory Node Manually
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="card p-16 text-center">
-                <Brain className="w-16 h-16 text-primary-200 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-ink-700">Select a Patient</h3>
-                <p className="text-sm text-ink-500 mt-2 max-w-sm mx-auto">
-                  Choose a patient to explore their Mental Health Memory Layer —
-                  a structured knowledge graph that grows with every session.
-                </p>
-              </div>
-            )}
+        {/* Category filter */}
+        <div className="p-4 flex-1">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Category</p>
+          <div className="space-y-0.5">
+            <button
+              onClick={() => setActiveCategory("all")}
+              className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all", activeCategory === "all" ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50")}
+            >
+              <Layers className="h-4 w-4" />
+              <span>All Memories</span>
+              <span className="ml-auto text-xs text-gray-400">{MEMORY_NODES.filter(m => m.patient_id === selectedPatient).length}</span>
+            </button>
+            {Object.entries(CATEGORY_CONFIG).map(([cat, config]) => {
+              const count = categoryCounts[cat] || 0;
+              if (count === 0) return null;
+              const Icon = config.icon;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat as MemoryCategory)}
+                  className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all", activeCategory === cat ? `${config.bg} ${config.color} font-medium` : "text-gray-600 hover:bg-gray-50")}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{config.label}</span>
+                  <span className="ml-auto text-xs text-gray-400">{count}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="font-bold text-gray-900">
+                {currentPatient?.patient_name} — Patient Intelligence
+              </h1>
+              <p className="text-xs text-gray-500">
+                {currentPatient?.total_memories} memory nodes · {currentPatient?.sessions_analyzed} sessions analyzed · Updated {currentPatient?.last_updated}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-xs font-medium text-emerald-700">Intelligence: {currentPatient?.intelligence_score}%</span>
+              </div>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#0A2342] text-white rounded-xl text-sm hover:bg-[#123A63]"
+              >
+                <Plus className="h-4 w-4" /> Add Memory
+              </button>
+            </div>
+          </div>
+
+          {/* Intelligence score bar */}
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-xs text-gray-500 w-32">Clinical Intelligence</span>
+            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
+                style={{ width: `${currentPatient?.intelligence_score}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium text-gray-700">{currentPatient?.intelligence_score}%</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search memories, tags, or content..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2342]/20 focus:border-[#0A2342]"
+              />
+            </div>
+
+            {/* Importance filter */}
+            <select
+              value={importanceFilter}
+              onChange={e => setImportanceFilter(e.target.value as MemoryImportance | "all")}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
+            >
+              <option value="all">All Importance</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+            </select>
+
+            {/* View mode */}
+            <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+              {(["list", "timeline"] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={cn("px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all", viewMode === mode ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Critical memories banner */}
+        {criticalMemories.length > 0 && activeCategory === "all" && (
+          <div className="mx-6 mt-4 bg-rose-50 border border-rose-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-rose-600" />
+              <span className="text-sm font-semibold text-rose-800">Critical Clinical Context — Always Load</span>
+            </div>
+            <div className="space-y-1">
+              {criticalMemories.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedMemory(m)}
+                  className="w-full text-left text-xs text-rose-700 hover:text-rose-900 flex items-center gap-2"
+                >
+                  <span className="w-1 h-1 rounded-full bg-rose-400 shrink-0" />
+                  {m.content.substring(0, 100)}...
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Memory list / detail split */}
+        <div className="flex-1 flex overflow-hidden mt-4">
+          {/* Memory list */}
+          <div className={cn("overflow-y-auto px-6 pb-6 space-y-3", selectedMemory ? "w-1/2 border-r border-gray-200 pr-4" : "w-full")}>
+            {patientMemories.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <Brain className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">No memories found for this filter</p>
+              </div>
+            ) : (
+              patientMemories.map(memory => {
+                const catConfig = CATEGORY_CONFIG[memory.category];
+                const importanceConf = IMPORTANCE_CONFIG[memory.importance];
+                const Icon = catConfig?.icon || Brain;
+
+                return (
+                  <button
+                    key={memory.id}
+                    onClick={() => setSelectedMemory(selectedMemory?.id === memory.id ? null : memory)}
+                    className={cn(
+                      "w-full text-left bg-white rounded-2xl border p-4 transition-all hover:shadow-sm",
+                      selectedMemory?.id === memory.id ? "border-[#0A2342] ring-1 ring-[#0A2342]/20" : "border-gray-200 hover:border-gray-300"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", catConfig?.bg)}>
+                        <Icon className={cn("h-4 w-4", catConfig?.color)} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", importanceConf.bg, importanceConf.color)}>
+                            {importanceConf.label}
+                          </span>
+                          <span className="text-xs text-gray-400">{catConfig?.label}</span>
+                          {memory.ai_generated && (
+                            <span className="flex items-center gap-1 text-xs text-indigo-500 ml-auto">
+                              <Sparkles className="h-2.5 w-2.5" /> AI
+                            </span>
+                          )}
+                          {memory.therapist_verified && (
+                            <Shield className="h-3 w-3 text-emerald-500" />
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-800 leading-relaxed line-clamp-2 mb-2">{memory.content}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap gap-1">
+                            {memory.tags.slice(0, 3).map(tag => (
+                              <span key={tag} className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">#{tag}</span>
+                            ))}
+                          </div>
+                          <span className="ml-auto text-xs text-gray-400">{memory.source_sessions.length} sessions</span>
+                          <div className="flex items-center gap-1 text-xs text-gray-400">
+                            <span className="w-10 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <span className="block h-full bg-blue-500 rounded-full" style={{ width: `${memory.confidence * 100}%` }} />
+                            </span>
+                            {Math.round(memory.confidence * 100)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Memory detail panel */}
+          {selectedMemory && (
+            <div className="w-1/2 overflow-y-auto px-6 pb-6">
+              <div className="bg-white rounded-2xl border border-gray-200">
+                {/* Header */}
+                <div className="p-5 border-b border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const cfg = CATEGORY_CONFIG[selectedMemory.category];
+                        const Icon = cfg?.icon || Brain;
+                        return (
+                          <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center", cfg?.bg)}>
+                            <Icon className={cn("h-4 w-4", cfg?.color)} />
+                          </div>
+                        );
+                      })()}
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">{CATEGORY_CONFIG[selectedMemory.category]?.label}</p>
+                        {selectedMemory.subcategory && (
+                          <p className="text-xs text-gray-400">{selectedMemory.subcategory.replace(/_/g, " ")}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => setSelectedMemory(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">✕</button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", IMPORTANCE_CONFIG[selectedMemory.importance].bg, IMPORTANCE_CONFIG[selectedMemory.importance].color)}>
+                      {IMPORTANCE_CONFIG[selectedMemory.importance].label} Importance
+                    </span>
+                    <span className="text-xs text-gray-400">Confidence: {Math.round(selectedMemory.confidence * 100)}%</span>
+                    {selectedMemory.ai_generated && <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full flex items-center gap-1"><Sparkles className="h-2.5 w-2.5" /> AI Generated</span>}
+                    {selectedMemory.therapist_verified && <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full flex items-center gap-1"><Shield className="h-2.5 w-2.5" /> Verified</span>}
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* Content */}
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Memory Content</p>
+                    <p className="text-sm text-gray-800 leading-relaxed">{selectedMemory.content}</p>
+                  </div>
+
+                  {/* Context window */}
+                  {selectedMemory.context_window && (
+                    <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                      <p className="text-xs text-amber-600 font-medium flex items-center gap-1 mb-1">
+                        <Zap className="h-3 w-3" /> AI Context Instruction
+                      </p>
+                      <p className="text-xs text-amber-700">{selectedMemory.context_window}</p>
+                    </div>
+                  )}
+
+                  {/* Evidence */}
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Supporting Evidence</p>
+                    <div className="space-y-1.5">
+                      {selectedMemory.evidence.map((e, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs">
+                          <span className="w-4 h-4 bg-gray-100 rounded text-gray-500 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{i + 1}</span>
+                          <span className="text-gray-600">{e}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Source sessions */}
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Source Sessions</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedMemory.source_sessions.map(s => (
+                        <span key={s} className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-xl text-xs font-medium border border-blue-100 cursor-pointer hover:bg-blue-100">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Tags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedMemory.tags.map(tag => (
+                        <span key={tag} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs">#{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Timestamps */}
+                  <div className="border-t border-gray-100 pt-3 flex items-center justify-between text-xs text-gray-400">
+                    <span>Created: {selectedMemory.created_at}</span>
+                    <span>Updated: {selectedMemory.updated_at}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add Memory Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900">Add Memory Node</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-700 font-medium">Category</label>
+                <select
+                  value={newMemoryCategory}
+                  onChange={e => setNewMemoryCategory(e.target.value as Exclude<MemoryCategory, "all">)}
+                  className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
+                >
+                  {Object.entries(CATEGORY_CONFIG).map(([cat, cfg]) => (
+                    <option key={cat} value={cat}>{cfg.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-gray-700 font-medium">Memory Content</label>
+                <textarea
+                  value={newMemoryContent}
+                  onChange={e => setNewMemoryContent(e.target.value)}
+                  placeholder="Document the clinical observation, pattern, or insight..."
+                  className="w-full mt-1 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none h-28 resize-none"
+                />
+              </div>
+              <div className="bg-amber-50 rounded-xl p-3">
+                <p className="text-xs text-amber-700">
+                  <strong>Tip:</strong> Add supporting evidence from sessions to increase AI confidence in this memory node.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm">Cancel</button>
+              <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium">Save Memory</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
