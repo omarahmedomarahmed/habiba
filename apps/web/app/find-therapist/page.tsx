@@ -1,0 +1,410 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import {
+  Search, MapPin, Star, Clock, Video, MessageSquare, Heart,
+  Filter, ChevronRight, CheckCircle2, Brain, Shield, Award,
+  Globe, Sparkles, X, Sliders, Users, Calendar, ArrowRight,
+  Phone, User, BookOpen, Zap
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface Therapist {
+  id: string;
+  name: string;
+  title: string;
+  license: string;
+  photo_initials: string;
+  gradient: string;
+  specializations: string[];
+  approaches: string[];
+  languages: string[];
+  rating: number;
+  reviews: number;
+  sessions: number;
+  years_experience: number;
+  availability: "today" | "this_week" | "next_week";
+  video: boolean;
+  messaging: boolean;
+  phone: boolean;
+  rate_per_session: number;
+  accepting_new: boolean;
+  verified: boolean;
+  premium: boolean;
+  location: string;
+  bio: string;
+  match_score: number;
+  next_available: string;
+}
+
+const THERAPISTS: Therapist[] = [
+  {
+    id: "t1", name: "Dr. Alexandra Smith", title: "Licensed Clinical Psychologist", license: "NY-PSY-28471",
+    photo_initials: "AS", gradient: "from-rose-500 to-pink-600",
+    specializations: ["Anxiety", "Depression", "Trauma", "Work Stress"],
+    approaches: ["CBT", "Psychodynamic", "Mindfulness"],
+    languages: ["English", "Spanish"],
+    rating: 4.9, reviews: 127, sessions: 450, years_experience: 12,
+    availability: "today", video: true, messaging: true, phone: true,
+    rate_per_session: 180, accepting_new: true, verified: true, premium: true,
+    location: "New York, NY (Telehealth)",
+    bio: "I specialize in helping high-achieving professionals overcome anxiety and perfectionism. My approach combines evidence-based CBT with deeper psychodynamic exploration.",
+    match_score: 97,
+    next_available: "Today, 3:00 PM"
+  },
+  {
+    id: "t2", name: "Marcus Williams, LCSW", title: "Licensed Clinical Social Worker", license: "CA-LCSW-89234",
+    photo_initials: "MW", gradient: "from-blue-500 to-indigo-600",
+    specializations: ["PTSD", "Men's Mental Health", "Grief", "Life Transitions"],
+    approaches: ["EMDR", "Trauma-Focused CBT", "Narrative Therapy"],
+    languages: ["English"],
+    rating: 4.8, reviews: 89, sessions: 320, years_experience: 8,
+    availability: "this_week", video: true, messaging: true, phone: false,
+    rate_per_session: 150, accepting_new: true, verified: true, premium: false,
+    location: "Los Angeles, CA (Telehealth)",
+    bio: "Trauma-informed therapist specializing in PTSD, grief, and major life transitions. I provide a safe, non-judgmental space for healing.",
+    match_score: 91,
+    next_available: "Tomorrow, 10:00 AM"
+  },
+  {
+    id: "t3", name: "Dr. Priya Nair", title: "Psychiatrist & Therapist", license: "TX-MD-47821",
+    photo_initials: "PN", gradient: "from-emerald-500 to-teal-600",
+    specializations: ["Bipolar Disorder", "ADHD", "OCD", "Medication Management"],
+    approaches: ["CBT", "DBT", "Medication Management"],
+    languages: ["English", "Hindi", "Tamil"],
+    rating: 5.0, reviews: 203, sessions: 780, years_experience: 15,
+    availability: "this_week", video: true, messaging: false, phone: true,
+    rate_per_session: 250, accepting_new: true, verified: true, premium: true,
+    location: "Austin, TX (Telehealth)",
+    bio: "Board-certified psychiatrist combining psychotherapy and medication management. Particular expertise in complex mood and anxiety disorders.",
+    match_score: 88,
+    next_available: "Wednesday, 2:00 PM"
+  },
+  {
+    id: "t4", name: "Sofia Martinez, LMFT", title: "Marriage & Family Therapist", license: "FL-LMFT-18923",
+    photo_initials: "SM", gradient: "from-amber-500 to-orange-600",
+    specializations: ["Relationships", "Family Dynamics", "Postpartum", "Cultural Identity"],
+    approaches: ["EFT", "Family Systems", "Culturally Responsive"],
+    languages: ["English", "Spanish"],
+    rating: 4.7, reviews: 64, sessions: 215, years_experience: 6,
+    availability: "today", video: true, messaging: true, phone: true,
+    rate_per_session: 130, accepting_new: true, verified: true, premium: false,
+    location: "Miami, FL (Telehealth)",
+    bio: "I help individuals and couples navigate relationship challenges, family dynamics, and cultural identity. Bilingual in English and Spanish.",
+    match_score: 85,
+    next_available: "Today, 5:30 PM"
+  },
+];
+
+const SPECIALIZATIONS = [
+  "Anxiety", "Depression", "Trauma / PTSD", "OCD", "Bipolar Disorder",
+  "ADHD", "Grief & Loss", "Work Stress", "Relationships", "Family Issues",
+  "Life Transitions", "LGBTQ+", "Men's Health", "Women's Health", "Teen Issues",
+  "Addiction", "Eating Disorders", "Chronic Illness"
+];
+
+const APPROACHES = [
+  "CBT", "DBT", "EMDR", "Psychodynamic", "Mindfulness", "ACT",
+  "EFT", "Narrative Therapy", "Person-Centered"
+];
+
+function AvailabilityBadge({ availability }: { availability: Therapist["availability"] }) {
+  const styles = {
+    today: "bg-emerald-100 text-emerald-700",
+    this_week: "bg-blue-100 text-blue-700",
+    next_week: "bg-gray-100 text-gray-600"
+  };
+  const labels = { today: "Available Today", this_week: "Available This Week", next_week: "Available Next Week" };
+  return (
+    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", styles[availability])}>
+      {labels[availability]}
+    </span>
+  );
+}
+
+function MatchScore({ score }: { score: number }) {
+  return (
+    <div className="flex items-center gap-1.5 bg-indigo-50 rounded-xl px-2.5 py-1.5">
+      <Sparkles className="h-3 w-3 text-indigo-600" />
+      <span className="text-xs font-semibold text-indigo-700">{score}% Match</span>
+    </div>
+  );
+}
+
+export default function FindTherapistPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSpecs, setSelectedSpecs] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [availabilityFilter, setAvailabilityFilter] = useState<string>("any");
+  const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
+  const [aiMatchStarted, setAiMatchStarted] = useState(false);
+
+  const toggleSpec = (spec: string) => {
+    setSelectedSpecs(prev => prev.includes(spec) ? prev.filter(s => s !== spec) : [...prev, spec]);
+  };
+
+  const filteredTherapists = THERAPISTS.filter(t => {
+    const matchesSearch = !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.specializations.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSpecs = selectedSpecs.length === 0 || selectedSpecs.some(s => t.specializations.includes(s));
+    const matchesAvailability = availabilityFilter === "any" || t.availability === availabilityFilter;
+    return matchesSearch && matchesSpecs && matchesAvailability;
+  });
+
+  if (selectedTherapist) {
+    const t = selectedTherapist;
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <nav className="bg-white border-b border-slate-200 sticky top-0 z-40">
+          <div className="max-w-4xl mx-auto px-4 h-16 flex items-center gap-4">
+            <button onClick={() => setSelectedTherapist(null)} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+              ← Back
+            </button>
+            <span className="text-gray-300">|</span>
+            <span className="font-semibold text-[#0A2342]">{t.name}</span>
+          </div>
+        </nav>
+
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-6">
+            <div className={`bg-gradient-to-r ${t.gradient} p-8 text-white`}>
+              <div className="flex items-start gap-6">
+                <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">{t.photo_initials}</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h1 className="text-2xl font-bold mb-1">{t.name}</h1>
+                      <p className="text-white/80">{t.title}</p>
+                      <p className="text-xs text-white/60 mt-1">License: {t.license}</p>
+                    </div>
+                    <MatchScore score={t.match_score} />
+                  </div>
+                  <div className="flex items-center gap-4 mt-4">
+                    <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-amber-400 text-amber-400" /> <span className="font-bold">{t.rating}</span> <span className="text-white/60">({t.reviews} reviews)</span></span>
+                    <span>{t.sessions}+ sessions</span>
+                    <span>{t.years_experience} years exp.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-700 leading-relaxed mb-6">{t.bio}</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h3 className="font-semibold text-[#0A2342] mb-2">Specializations</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {t.specializations.map(s => <span key={s} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm border border-indigo-100">{s}</span>)}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#0A2342] mb-2">Therapeutic Approaches</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {t.approaches.map(a => <span key={a} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm border border-emerald-100">{a}</span>)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-sm text-gray-600 mb-6 p-4 bg-slate-50 rounded-xl">
+                <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {t.location}</span>
+                <span className="flex items-center gap-1"><Globe className="h-4 w-4" /> {t.languages.join(", ")}</span>
+              </div>
+
+              <div className="bg-gradient-to-r from-[#0A2342] to-[#1E4F8C] rounded-2xl p-5 text-white">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="font-semibold">Next available: {t.next_available}</p>
+                    <p className="text-white/60 text-sm">${t.rate_per_session} per session</p>
+                  </div>
+                  <AvailabilityBadge availability={t.availability} />
+                </div>
+                <div className="flex gap-3">
+                  <button className="flex-1 py-3 bg-white text-[#0A2342] rounded-xl font-semibold hover:bg-white/90 text-sm">
+                    Book Session
+                  </button>
+                  {t.messaging && (
+                    <button className="px-4 py-3 bg-white/10 text-white rounded-xl border border-white/20 hover:bg-white/20 text-sm">
+                      <MessageSquare className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] text-white py-16 pt-24">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h1 className="text-4xl font-bold mb-4">Find Your Therapist</h1>
+          <p className="text-white/70 text-lg mb-8">Match with licensed therapists based on your needs, availability, and preferences</p>
+
+          {/* AI Match Banner */}
+          {!aiMatchStarted && (
+            <button
+              onClick={() => setAiMatchStarted(true)}
+              className="inline-flex items-center gap-3 bg-white/10 border border-white/20 rounded-2xl px-6 py-4 hover:bg-white/20 transition-all mb-8 w-full max-w-md text-left"
+            >
+              <div className="w-10 h-10 bg-[#1F5EFF] rounded-xl flex items-center justify-center shrink-0">
+                <Brain className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold">Try AI Matching</p>
+                <p className="text-xs text-white/60">Answer 3 questions to get perfectly matched</p>
+              </div>
+              <ArrowRight className="h-5 w-5 ml-auto text-white/60" />
+            </button>
+          )}
+
+          {/* Search */}
+          <div className="flex gap-3 max-w-2xl mx-auto">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by name, specialty, or approach..."
+                className="w-full pl-12 pr-4 py-3.5 rounded-2xl text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-white/50 text-sm"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl hover:bg-white/20 flex items-center gap-2 text-sm"
+            >
+              <Sliders className="h-4 w-4" />
+              Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Filters */}
+        {showFilters && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-[#0A2342]">Filters</h3>
+              <button onClick={() => { setSelectedSpecs([]); setAvailabilityFilter("any"); }} className="text-xs text-gray-400 hover:text-gray-600">Clear all</button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Availability</p>
+              <div className="flex gap-2">
+                {[["any", "Any Time"], ["today", "Today"], ["this_week", "This Week"]].map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setAvailabilityFilter(val)}
+                    className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all", availabilityFilter === val ? "bg-[#0A2342] text-white border-[#0A2342]" : "border-gray-200 text-gray-600 hover:border-[#0A2342]")}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Specialization</p>
+              <div className="flex flex-wrap gap-2">
+                {SPECIALIZATIONS.map(spec => (
+                  <button
+                    key={spec}
+                    onClick={() => toggleSpec(spec)}
+                    className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all", selectedSpecs.includes(spec) ? "bg-[#0A2342] text-white border-[#0A2342]" : "border-gray-200 text-gray-600 hover:border-[#0A2342]")}
+                  >
+                    {spec}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-gray-600">{filteredTherapists.length} therapists found</p>
+          <select className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm text-gray-600 focus:outline-none">
+            <option>Best Match</option>
+            <option>Highest Rated</option>
+            <option>Available Soonest</option>
+            <option>Lowest Rate</option>
+          </select>
+        </div>
+
+        <div className="space-y-4">
+          {filteredTherapists.map(t => (
+            <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:border-[#1F5EFF]/30 hover:shadow-md transition-all">
+              <div className="flex items-start gap-4">
+                <div className={`w-14 h-14 bg-gradient-to-br ${t.gradient} rounded-2xl flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-lg font-bold text-white">{t.photo_initials}</span>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="font-bold text-[#0A2342]">{t.name}</h3>
+                        {t.verified && <Shield className="h-4 w-4 text-emerald-500" />}
+                        {t.premium && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
+                      </div>
+                      <p className="text-sm text-slate-500">{t.title}</p>
+                    </div>
+                    <MatchScore score={t.match_score} />
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {t.specializations.slice(0, 4).map(s => (
+                      <span key={s} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs">{s}</span>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
+                    <span className="flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      <span className="font-medium text-slate-700">{t.rating}</span>
+                      <span className="text-slate-400">({t.reviews})</span>
+                    </span>
+                    <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {t.location.split("(")[0]}</span>
+                    <span className="flex items-center gap-1">
+                      {t.languages.map(l => l.substring(0, 2)).join(" · ")}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <AvailabilityBadge availability={t.availability} />
+                    <span className="text-xs text-slate-400">Next: {t.next_available}</span>
+                    <div className="flex items-center gap-1 ml-auto">
+                      {t.video && <Video className="h-4 w-4 text-blue-400" />}
+                      {t.messaging && <MessageSquare className="h-4 w-4 text-green-400" />}
+                      {t.phone && <Phone className="h-4 w-4 text-amber-400" />}
+                    </div>
+                    <span className="font-semibold text-[#0A2342] text-sm">${t.rate_per_session}/session</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setSelectedTherapist(t)}
+                  className="flex-1 py-2.5 border border-[#0A2342] text-[#0A2342] rounded-xl text-sm font-medium hover:bg-slate-50"
+                >
+                  View Profile
+                </button>
+                <button className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63]">
+                  Book Now
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
