@@ -7,7 +7,7 @@ import {
   Settings, CreditCard, Zap, ChevronLeft, ChevronRight,
   AlertTriangle, Activity, MessageSquare, ClipboardList, Bell,
   Target, Network, Workflow, Send, BarChart3, Stethoscope,
-  BookMarked, Wrench
+  BookMarked, Wrench, GitBranch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
@@ -31,6 +31,7 @@ const NAV_ITEMS = [
       { href: "/clinical-tools", icon: Stethoscope, label: "Clinical Tools" },
       { href: "/referrals", icon: Send, label: "Referrals" },
       { href: "/reports", icon: BarChart3, label: "Reports" },
+      { href: "/risk-monitor", icon: AlertTriangle, label: "Risk Monitor", badge: "AI" },
       { href: "/radar", icon: Zap, label: "Radar", badge: "LIVE" },
       { href: "/messages", icon: MessageSquare, label: "Messages" },
     ],
@@ -47,6 +48,7 @@ const NAV_ITEMS = [
     items: [
       { href: "/crm", icon: BookMarked, label: "CRM" },
       { href: "/analytics", icon: BarChart2, label: "Analytics" },
+      { href: "/workflow", icon: GitBranch, label: "Workflows" },
       { href: "/billing", icon: CreditCard, label: "Billing" },
     ],
   },
