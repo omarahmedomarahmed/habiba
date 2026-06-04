@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, Shield, Brain, CreditCard,
   Store, Settings, LogOut, Activity, AlertTriangle, ChevronRight,
-  Zap, BarChart2, UserCheck
+  Zap, BarChart2, UserCheck, Target
 } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
 import { cn } from '@/lib/utils';
