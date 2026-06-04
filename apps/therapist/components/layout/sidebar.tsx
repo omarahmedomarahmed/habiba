@@ -20,6 +20,7 @@ const NAV_ITEMS = [
       { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
       { href: "/patients", icon: Users, label: "Patients" },
       { href: "/sessions", icon: Calendar, label: "Sessions" },
+      { href: "/calendar", icon: Calendar, label: "Calendar" },
       { href: "/notes", icon: FileText, label: "Notes & Reports" },
     ],
   },
