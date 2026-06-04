@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, Shield, Brain, CreditCard,
   Store, Settings, LogOut, Activity, AlertTriangle, ChevronRight,
-  Zap, BarChart2, UserCheck, Target, Layers
+  Zap, BarChart2, UserCheck, Target, Layers,
+  Wrench, ToggleLeft, DollarSign, FileSearch
 } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,15 @@ const NAV = [
       { href: '/marketplace', label: 'Marketplace', icon: Store },
       { href: '/analytics', label: 'Analytics', icon: BarChart2 },
       { href: '/crm', label: 'CRM & Sales', icon: Target },
+    ],
+  },
+  {
+    section: 'TOOLS',
+    items: [
+      { href: '/support-tools', label: 'Support Tools', icon: Wrench },
+      { href: '/feature-flags', label: 'Feature Flags', icon: ToggleLeft },
+      { href: '/ai-costs', label: 'AI Costs', icon: DollarSign },
+      { href: '/audit-logs', label: 'Audit Logs', icon: FileSearch },
     ],
   },
   {

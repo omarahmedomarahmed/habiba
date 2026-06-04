@@ -7,7 +7,7 @@ import {
   Settings, CreditCard, Zap, ChevronLeft, ChevronRight,
   AlertTriangle, Activity, MessageSquare, ClipboardList, Bell,
   Target, Network, Workflow, Send, BarChart3, Stethoscope,
-  BookMarked, Wrench, GitBranch
+  BookMarked, Wrench, GitBranch, Shield, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
@@ -51,6 +51,13 @@ const NAV_ITEMS = [
       { href: "/analytics", icon: BarChart2, label: "Analytics" },
       { href: "/workflow", icon: GitBranch, label: "Workflows" },
       { href: "/billing", icon: CreditCard, label: "Billing" },
+      { href: "/team", icon: UserCog, label: "Team" },
+    ],
+  },
+  {
+    section: "COMPLIANCE",
+    items: [
+      { href: "/audit-logs", icon: Shield, label: "Audit Logs" },
     ],
   },
 ];

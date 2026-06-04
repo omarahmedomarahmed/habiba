@@ -1,5 +1,3 @@
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 import { HeroSection } from "@/components/sections/hero";
 import { TrustSection } from "@/components/sections/trust";
 import { FeaturesSection } from "@/components/sections/features";
@@ -11,8 +9,7 @@ import { CTASection } from "@/components/sections/cta";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen">
-      <Navbar />
+    <div className="min-h-screen">
       <HeroSection />
       <TrustSection />
       <FeaturesSection />
@@ -21,7 +18,6 @@ export default function HomePage() {
       <PricingSection />
       <TestimonialsSection />
       <CTASection />
-      <Footer />
-    </main>
+    </div>
   );
 }
