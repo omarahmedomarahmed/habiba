@@ -866,3 +866,314 @@ Expected response:
 | Compliance / HIPAA | compliance@24therapy.com | 4h |
 | Security Incidents | security@24therapy.com | 1h |
 | Customer Support | support@24therapy.com | 8h |
+
+---
+
+## Vercel Monorepo Deployment — Complete Guide
+
+> **For non-technical founders:** This section explains exactly how to deploy all 4 web apps to Vercel in ~30 minutes. You will create 4 separate Vercel projects — one per app. Each gets its own URL, environment variables, and deployment pipeline.
+
+### Why 4 separate Vercel projects?
+
+Each app serves a completely different audience:
+
+| App | Who uses it | URL |
+|-----|-------------|-----|
+| `apps/web` | General public (marketing) | `24therapy.com` |
+| `apps/therapist` | Licensed therapists only | `app.24therapy.com` |
+| `apps/patient` | Patients only | `my.24therapy.com` |
+| `apps/admin` | Internal team only | `admin.24therapy.com` |
+
+Separate projects means separate deploys — a therapist portal release never touches the marketing site.
+
+---
+
+### Step-by-Step: Deploy Each App to Vercel
+
+#### Before you start
+
+1. Make sure the repo is on GitHub (it is — `github.com/omarahmedomarahmed/habiba`)
+2. Create a free account at [vercel.com](https://vercel.com)
+3. Install Vercel CLI (optional but useful): `npm install -g vercel`
+
+---
+
+#### Deploy `apps/web` (Marketing Website)
+
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Click **"Import Git Repository"** → select `omarahmedomarahmed/habiba`
+3. Under **"Configure Project"**:
+   - **Project Name**: `24therapy-web`
+   - **Framework Preset**: Next.js (auto-detected)
+   - **Root Directory**: `apps/web`  ← **CRITICAL — must set this**
+   - Leave Build & Output Settings as default (vercel.json handles it)
+4. Under **"Environment Variables"**, add:
+   ```
+   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_APP_ENV = production
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = pk_live_...
+   NEXT_PUBLIC_POSTHOG_KEY = phc_...
+   ```
+5. Click **Deploy**
+6. After deploy, go to **Settings → Domains** → add `24therapy.com` and `www.24therapy.com`
+
+---
+
+#### Deploy `apps/therapist` (Therapist Portal)
+
+1. Go to [vercel.com/new](https://vercel.com/new) again
+2. Import same GitHub repo
+3. **Root Directory**: `apps/therapist`
+4. **Project Name**: `24therapy-therapist`
+5. Environment Variables:
+   ```
+   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_APP_ENV = production
+   NEXT_PUBLIC_DAILY_API_KEY = your_daily_key
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = pk_live_...
+   NEXT_PUBLIC_SENTRY_DSN = https://...@sentry.io/...
+   ```
+6. Deploy → add domain `app.24therapy.com`
+
+---
+
+#### Deploy `apps/patient` (Patient Portal)
+
+1. Import same repo
+2. **Root Directory**: `apps/patient`
+3. **Project Name**: `24therapy-patient`
+4. Environment Variables:
+   ```
+   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_APP_ENV = production
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = pk_live_...
+   NEXT_PUBLIC_DAILY_API_KEY = your_daily_key
+   ```
+5. Deploy → add domain `my.24therapy.com`
+
+---
+
+#### Deploy `apps/admin` (Admin Portal)
+
+1. Import same repo
+2. **Root Directory**: `apps/admin`
+3. **Project Name**: `24therapy-admin`
+4. Environment Variables:
+   ```
+   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_APP_ENV = production
+   NEXT_PUBLIC_ADMIN_SECRET = your_admin_secret
+   ```
+5. Deploy → add domain `admin.24therapy.com`
+6. **Security**: Go to Settings → Password Protection → Enable (or use Vercel Access policies to restrict by IP)
+
+---
+
+### How Vercel Knows How to Build Each App
+
+Each `apps/*/vercel.json` tells Vercel exactly what to run:
+
+```json
+// apps/web/vercel.json
+{
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter @24therapy/web build",
+  "outputDirectory": ".next"
+}
+```
+
+The `cd ../..` moves up to the monorepo root before running pnpm — this is required so pnpm can resolve all workspace packages correctly.
+
+---
+
+### Vercel + pnpm — How It Works
+
+Vercel detects the correct pnpm version via two mechanisms (both now in place):
+
+1. **`pnpm-lock.yaml`** at repo root — Vercel reads `lockfileVersion: '9.0'` and activates pnpm 9 via Corepack
+2. **`packageManager: "pnpm@9.15.4"`** in root `package.json` — explicit version declaration
+
+Without `pnpm-lock.yaml`, Vercel falls back to its bundled pnpm v6.35.1, which fails the `engines: { pnpm: ">=9.x" }` check.
+
+---
+
+### Domain Architecture
+
+```
+24therapy.com               → apps/web        (marketing, SEO-optimised)
+  └── www.24therapy.com     → redirect to apex
+
+app.24therapy.com           → apps/therapist  (HIPAA-scoped, therapist auth)
+my.24therapy.com            → apps/patient    (HIPAA-scoped, patient auth)
+admin.24therapy.com         → apps/admin      (internal, IP-restricted, noindex)
+
+api.24therapy.com           → NestJS backend  (Railway / Render / AWS ECS)
+docs.24therapy.com          → API docs        (optional, Swagger UI)
+```
+
+#### Future path-based approach (optional)
+
+If you ever want everything under one domain (simpler SSL, single Vercel project):
+
+```
+24therapy.com/              → marketing
+24therapy.com/app/*         → therapist portal (Next.js rewrites)
+24therapy.com/my/*          → patient portal (Next.js rewrites)
+```
+
+This requires a reverse proxy (Vercel Edge Middleware or Nginx) to route by path prefix. The current subdomain approach is simpler and preferred for HIPAA separation.
+
+#### DNS Records to create
+
+In your DNS provider (Cloudflare recommended for proxy + DDoS protection):
+
+```
+A     @               → Vercel IP (from Vercel Dashboard → Domain settings)
+CNAME www             → cname.vercel-dns.com
+CNAME app             → cname.vercel-dns.com
+CNAME my              → cname.vercel-dns.com
+CNAME admin           → cname.vercel-dns.com
+CNAME api             → your-railway-app.up.railway.app
+```
+
+---
+
+### Automatic Deploy on Push
+
+Once GitHub is connected to Vercel:
+- Every push to `main` → triggers a production deploy of all 4 apps simultaneously
+- Every push to a feature branch → creates a preview URL (e.g. `24therapy-web-git-feat-my-branch.vercel.app`)
+- Preview URLs are posted as GitHub PR comments automatically
+
+To disable auto-deploy for a specific app (e.g. admin — you may want manual deploys only):
+- Vercel project → Settings → Git → Production Branch → disable automatic deployments
+
+---
+
+## Deployment Troubleshooting
+
+### ERR_PNPM_UNSUPPORTED_ENGINE
+
+**Symptom:** Vercel build fails with `ERR_PNPM_UNSUPPORTED_ENGINE` — pnpm@6.35.1 used instead of 9.x.
+
+**Root cause:** `pnpm-lock.yaml` was missing. Vercel cannot activate the correct pnpm version via Corepack without it.
+
+**Fix (already applied):**
+1. `pnpm-lock.yaml` — now committed at repo root (`lockfileVersion: '9.0'`)
+2. `.npmrc` — `shamefully-hoist=true`, `node-linker=hoisted`
+3. `packageManager: "pnpm@9.15.4"` in root `package.json`
+
+If this error recurs after adding new packages, regenerate the lockfile:
+```bash
+pnpm install --no-frozen-lockfile
+git add pnpm-lock.yaml
+git commit -m "chore: update pnpm-lock.yaml"
+git push
+```
+
+---
+
+### Build Error: react/no-unescaped-entities
+
+**Symptom:** `Error: \`'\` can be escaped with \`&apos;\`` in JSX.
+
+**Root cause:** Next.js ESLint config flags literal apostrophes/quotes in JSX.
+
+**Fix (already applied):** `"react/no-unescaped-entities": "off"` in all 4 `eslint.config.mjs` files.
+
+This is safe — the rule is a code style preference, not a functional issue.
+
+---
+
+### Build Error: Module has no exported member
+
+**Symptom:** `Type error: Module '"lucide-react"' has no exported member 'XYZ'`
+
+**Cause:** Icon name doesn't exist in the installed version of lucide-react.
+
+**Fix:**
+```bash
+# Find the correct icon name
+node -e "const lr = require('lucide-react'); console.log(Object.keys(lr).filter(k => k.toLowerCase().includes('search_term')))"
+
+# Or browse: https://lucide.dev/icons/
+```
+
+---
+
+### Build Error: Import declaration conflicts with local declaration
+
+**Symptom:** `Import declaration conflicts with local declaration of 'ComponentName'`
+
+**Cause:** Importing a name from lucide-react that's also defined as a local function/component in the same file.
+
+**Fix:** Remove the icon from the lucide import statement. The local function takes precedence.
+
+---
+
+### Build Error: Next.js 15 async params
+
+**Symptom:** `Type error: params.slug is not a string` or component renders wrong on dynamic routes.
+
+**Cause:** Next.js 15 changed dynamic route `params` to be a `Promise`.
+
+**Fix:**
+```tsx
+// Before (Next.js 14)
+export default function Page({ params }: { params: { slug: string } }) {
+  const { slug } = params;
+}
+
+// After (Next.js 15)
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+}
+
+// Or for client components — use useParams() hook instead:
+"use client";
+import { useParams } from "next/navigation";
+export default function Page() {
+  const { slug } = useParams();
+}
+```
+
+---
+
+### Build Error: @tailwindcss/postcss not found
+
+**Symptom:** `Cannot find module '@tailwindcss/postcss'`
+
+**Cause:** `@tailwindcss/postcss` is a Tailwind v4 package. The repo uses Tailwind v3.
+
+**Fix (already applied):** Use `tailwindcss: {}` + `autoprefixer: {}` in `postcss.config.mjs`:
+```js
+// postcss.config.mjs — correct for Tailwind v3
+const config = {
+  plugins: { tailwindcss: {}, autoprefixer: {} },
+};
+export default config;
+```
+
+---
+
+### Vercel: Build succeeds locally but fails on Vercel
+
+**Common causes and fixes:**
+
+| Symptom | Fix |
+|---------|-----|
+| `Cannot find module '@/components/...'` | Check `paths` in `tsconfig.json` — `"@/*": ["./*"]` |
+| `NEXT_PUBLIC_*` variables are undefined | Add them in Vercel project Settings → Environment Variables |
+| `pnpm install` installs wrong versions | Commit and push `pnpm-lock.yaml` |
+| TypeScript errors only on Vercel | Vercel runs `tsc --noEmit` — fix the TS errors locally first |
+| Build times out | Add `TURBO_TOKEN` + `TURBO_TEAM` env vars to enable remote caching |
+
+---
+
+### Re-deploying after env variable changes
+
+Changing environment variables in Vercel does **not** automatically re-deploy. You must trigger a new deploy:
+- Vercel dashboard → Deployments → click **"Redeploy"** on the latest deployment
+- Or push a new commit (even an empty one): `git commit --allow-empty -m "chore: trigger redeploy" && git push`
+

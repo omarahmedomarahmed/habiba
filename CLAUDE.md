@@ -13,10 +13,10 @@
 | **Project** | 24Therapy Mental Health OS |
 | **Repo** | https://github.com/omarahmedomarahmed/habiba |
 | **Branch** | `main` |
-| **Stack** | Next.js 14 · NestJS · PostgreSQL + pgvector · Redis · TypeScript |
-| **Monorepo** | Turbo + PNPM workspaces |
-| **Last Commit** | `a871cef` — feat: complete therapist + admin portals with full page suite |
-| **Last Updated** | 2025-01-15 (session 3) |
+| **Stack** | Next.js 15 · NestJS · PostgreSQL + pgvector · Redis · TypeScript |
+| **Monorepo** | Turbo + PNPM 9 workspaces |
+| **Last Commit** | `fe0b495` — fix: move CI file from .github/workflows/ to infra/ci/ |
+| **Last Updated** | 2026-06-04 (session 4 — Deployment Audit) |
 
 ---
 
@@ -24,11 +24,11 @@
 
 ```
 apps/
-  web/           → Marketing site         (24therapy.com)       port 3004
-  therapist/     → Therapist portal        (app.24therapy.com)   port 3000
+  web/           → Marketing site         (24therapy.com)       port 3000
+  therapist/     → Therapist portal        (app.24therapy.com)   port 3001
   patient/       → Patient portal          (my.24therapy.com)    port 3002
   admin/         → Super admin portal      (admin.24therapy.com) port 3003
-backend/         → NestJS API              (api.24therapy.com)   port 3001
+backend/         → NestJS API              (api.24therapy.com)   port 3001 (backend)
 packages/
   types/         → @24therapy/types — 1,860+ line shared TS types
 ```
@@ -57,6 +57,63 @@ packages/
 | AI Models | GPT-4o (scribe/copilot), Whisper (transcription), text-embedding-3-large (memory) | Best-in-class for clinical use |
 | Vector DB | pgvector extension on PostgreSQL | Avoids separate vector DB service |
 | Video | Daily.co | HIPAA-compliant WebRTC |
+| Package Manager | pnpm 9.15.4 | lockfileVersion 9.0 in pnpm-lock.yaml |
+| ESLint | FlatCompat + @eslint/eslintrc | Required for next/core-web-vitals in ESLint 9 flat config |
+| PostCSS | tailwindcss:{} + autoprefixer:{} | Tailwind v3 syntax (NOT @tailwindcss/postcss which is v4) |
+
+---
+
+## Deployment Configuration (Critical)
+
+### pnpm + Vercel Setup
+
+The repo now has all required files for Vercel to detect pnpm@9.x correctly:
+
+| File | Purpose |
+|------|---------|
+| `pnpm-lock.yaml` | **PRIMARY** — Vercel reads lockfileVersion:'9.0' to activate pnpm 9 via Corepack |
+| `.npmrc` | `shamefully-hoist=true`, `node-linker=hoisted`, `auto-install-peers=true` |
+| `packageManager: "pnpm@9.15.4"` | In root package.json — explicit version declaration |
+| `vercel.json` (root) | `installCommand: "pnpm install --frozen-lockfile"` |
+| `apps/*/vercel.json` | Per-app: `installCommand: "cd ../.. && pnpm install --frozen-lockfile"` + `buildCommand` |
+
+### Per-App Vercel Projects
+
+| App | Root Directory | Vercel Project Name | Domain |
+|-----|---------------|---------------------|--------|
+| `apps/web` | `apps/web` | `24therapy-web` | `24therapy.com` |
+| `apps/therapist` | `apps/therapist` | `24therapy-therapist` | `app.24therapy.com` |
+| `apps/patient` | `apps/patient` | `24therapy-patient` | `my.24therapy.com` |
+| `apps/admin` | `apps/admin` | `24therapy-admin` | `admin.24therapy.com` |
+
+### ESLint Config Pattern (all 4 apps)
+
+```js
+// apps/*/eslint.config.mjs
+import { FlatCompat } from "@eslint/eslintrc";
+const compat = new FlatCompat({ baseDirectory: __dirname });
+const eslintConfig = [
+  ...compat.extends("next/core-web-vitals"),
+  { rules: {
+    "react/no-unescaped-entities": "off",  // prose JSX with quotes/apostrophes OK
+    "react/display-name": "off",           // anonymous components OK
+  }},
+];
+export default eslintConfig;
+```
+
+---
+
+## Build Status — All Apps
+
+> Last validated: 2026-06-04 (commit `7150495`)
+
+| App | Build | Routes | Notes |
+|-----|-------|--------|-------|
+| `@24therapy/web` | ✅ PASS | 32 routes | Next.js 15.3.3 |
+| `@24therapy/therapist` | ✅ PASS | 28 routes | Next.js 15.3.3 |
+| `@24therapy/patient` | ✅ PASS | 17 routes | Next.js 15.1.0 |
+| `@24therapy/admin` | ✅ PASS | 17 routes | Next.js 15.1.0 |
 
 ---
 
@@ -77,6 +134,8 @@ packages/
 | `/features/ai-scribe` | ✅ Complete | prior |
 | `/features/risk-radar` | ✅ Complete | prior |
 | `/blog` | ✅ Complete | prior |
+| `/blog/[slug]` | ✅ Fixed async params | `7150495` |
+| `/therapists` | ✅ Fixed import conflict | `7150495` |
 | `/press` | ❌ Not created | low priority |
 | `/status` | ❌ Not created | low priority |
 | `/gdpr` | ❌ Not created | low priority |
@@ -94,7 +153,7 @@ packages/
 | `/messages` | ✅ Complete | prior |
 | `/assessments` | ✅ Complete | prior |
 | `/resources` | ✅ Complete | prior |
-| `/billing` | ✅ Complete | prior |
+| `/billing` | ✅ Fixed (stale setNotifications ref removed) | `7150495` |
 | `/homework` | ✅ Complete | `f467147` |
 | `/profile` | ✅ Complete | `f467147` |
 | Sidebar | ✅ Updated with homework + profile | `f467147` |
@@ -105,18 +164,20 @@ packages/
 
 | Route | Status | Commit |
 |-------|--------|--------|
-| `/login` | ✅ Complete | prior |
+| `/login` | ✅ Fixed (removed stale eslint-disable) | `7150495` |
 | `/dashboard` | ✅ Complete | prior |
 | `/patients` | ✅ Complete | prior |
 | `/sessions` | ✅ Complete | prior |
 | `/notes` | ✅ Complete | prior |
 | `/assessments` | ✅ Complete | prior |
-| `/calendar` | ✅ Complete | `8ad7fbf` |
+| `/calendar` | ✅ Fixed (<a> → <Link>, added import) | `7150495` |
 | `/messages` | ✅ Complete | prior |
 | `/billing` | ✅ Complete | prior |
-| `/settings` | ✅ Complete (6-tab deep) | `7c0a3a8` |
+| `/notifications` | ✅ Fixed (MarkAsUnread → MailOpen) | `7150495` |
+| `/settings` | ✅ Fixed (Toggle removed, Record<> casts fixed) | `7150495` |
 | `/team` | ✅ Complete | `a871cef` |
 | `/audit-logs` | ✅ Complete | `a871cef` |
+| `/onboarding` | ✅ Fixed (Network icon added to import) | `7150495` |
 | Sidebar | ✅ Updated with team + audit-logs + COMPLIANCE section | `a871cef` |
 
 ---
@@ -128,21 +189,21 @@ packages/
 | `/login` | ✅ Complete | prior |
 | `/dashboard` | ✅ Complete | prior |
 | `/organizations` | ✅ Complete | prior |
-| `/users` | ✅ Complete | prior |
+| `/users` | ✅ Fixed (removed invalid title prop from CheckCircle) | `7150495` |
 | `/therapists` | ✅ Complete | prior |
 | `/practice-management` | ✅ Complete | prior |
 | `/compliance` | ✅ Complete | prior |
 | `/ai-governance` | ✅ Complete | prior |
 | `/billing` | ✅ Complete | prior |
 | `/marketplace` | ✅ Complete | prior |
-| `/analytics` | ✅ Complete (5-tab deep: Revenue, Clinical, AI Perf, Growth, Cohorts) | `a871cef` |
+| `/analytics` | ✅ Complete (5-tab deep) | `a871cef` |
 | `/crm` | ✅ Complete | prior |
-| `/support-tools` | ✅ Complete (3-tab: tickets, impersonation, account actions) | `a871cef` |
-| `/feature-flags` | ✅ Complete (boolean/percentage/variant flags, per-org overrides) | `a871cef` |
-| `/ai-costs` | ✅ Complete (model breakdown, per-org table, spend trend) | `a871cef` |
-| `/audit-logs` | ✅ Complete (platform-wide, 15 events, 13 categories, expandable rows) | `a871cef` |
-| `/settings` | ✅ Complete | prior |
-| Admin Sidebar | ✅ Updated with TOOLS section (support-tools, feature-flags, ai-costs, audit-logs) | `a871cef` |
+| `/support-tools` | ✅ Complete | `a871cef` |
+| `/feature-flags` | ✅ Complete | `a871cef` |
+| `/ai-costs` | ✅ Complete | `a871cef` |
+| `/audit-logs` | ✅ Complete | `a871cef` |
+| `/settings` | ✅ Fixed (Webhook icon import conflict removed) | `7150495` |
+| Admin Sidebar | ✅ Updated with TOOLS section | `a871cef` |
 
 ---
 
@@ -155,17 +216,17 @@ packages/
 | `therapists` | ✅ | ✅ | ✅ | ✅ |
 | `patients` | ✅ | ✅ | ✅ | ✅ |
 | `sessions` | ✅ | ✅ | ✅ | ✅ |
-| `memory` | ✅ | ✅ | ✅ Added | ✅ Added |
-| `ai` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `memory` | ✅ | ✅ | ✅ | ✅ |
+| `ai` | ✅ | ✅ | ✅ | ✅ |
 | `radar` | ✅ | ✅ | ⚠️ Pending | ⚠️ Pending |
-| `assessments` | ✅ | ✅ | ✅ Added | ✅ Added |
-| `billing` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `assessments` | ✅ | ✅ | ✅ | ✅ |
+| `billing` | ✅ | ✅ | ✅ | ✅ |
 | `marketplace` | ✅ | ✅ | ⚠️ Pending | ⚠️ Pending |
-| `organizations` | ✅ | ✅ | ✅ Added | ✅ Added |
-| `workflows` | ✅ | ✅ | ✅ Added | ✅ Added |
-| `notifications` | ✅ | ✅ | ✅ Added | ✅ Added |
-| `analytics` | ✅ | ✅ | ✅ Added | ✅ Added |
-| `admin` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `organizations` | ✅ | ✅ | ✅ | ✅ |
+| `workflows` | ✅ | ✅ | ✅ | ✅ |
+| `notifications` | ✅ | ✅ | ✅ | ✅ |
+| `analytics` | ✅ | ✅ | ✅ | ✅ |
+| `admin` | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -173,26 +234,66 @@ packages/
 
 | File | Status | Notes |
 |------|--------|-------|
+| `pnpm-lock.yaml` | ✅ Created | lockfileVersion:'9.0' — PRIMARY Vercel fix |
+| `.npmrc` | ✅ Created | shamefully-hoist, node-linker=hoisted |
+| `.gitignore` | ✅ Created | Was entirely absent before session 4 |
+| `vercel.json` (root) | ✅ Created | installCommand override |
+| `apps/web/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/web build |
+| `apps/therapist/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/therapist build |
+| `apps/patient/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/patient build |
+| `apps/admin/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/admin build |
 | `docker-compose.yml` | ✅ Created | Full stack: postgres, redis, all 5 services; debug + monitoring profiles |
 | `apps/web/.env.example` | ✅ Created | Analytics, CMS, Calendly, SEO vars |
 | `apps/therapist/.env.example` | ✅ Created | JWT, video, AI flags, HIPAA vars |
 | `apps/patient/.env.example` | ✅ Created | JWT, payments, crisis resources |
 | `apps/admin/.env.example` | ✅ Created | IP allowlist, impersonation flags |
 | `backend/.env.example` | ✅ Existed | Already comprehensive |
-| `.github/workflows/ci.yml` | ✅ Created | 7-job pipeline: setup, typecheck, lint, build (matrix), backend-build, security, gate |
-| `SETUP.md` | ✅ Expanded | 347 → 868 lines; added Docker, GitHub Actions, prod phases, HIPAA checklist, scaling |
+| `infra/ci/ci.yml` | ✅ Created | 7-job pipeline (in infra/ not .github/ — GitHub App lacks workflows permission) |
+| `SETUP.md` | ✅ Expanded | 868 → 1,179 lines; added Vercel monorepo guide, domain arch, deployment troubleshooting |
+| `CLAUDE.md` | ✅ This file | Updated session 4 |
 
 ---
 
-## Commit History (This Session)
+## Commit History
 
-| Hash | Message | Files |
-|------|---------|-------|
-| `a871cef` | feat: complete therapist + admin portals with full page suite | 10 files, +3058 lines |
-| `f467147` | feat: marketing pages, patient portal homework+profile, web layout | ~12 files |
-| `7c0a3a8` | feat(therapist): deep 6-tab settings page | settings page |
-| `8ad7fbf` | feat(therapist): full calendar page | calendar page |
-| `fe39646` | docs(claude): update persistent AI session memory | CLAUDE.md |
+| Hash | Message | Key Changes |
+|------|---------|-------------|
+| `fe0b495` | fix: move CI file from .github/workflows/ to infra/ci/ | Remove workflow file (no perms) |
+| `7150495` | fix(deploy): resolve all Vercel build failures | 41 files, PRIMARY deployment fix |
+| `fc0720d` | Update packageManager and engines in package.json | pnpm@9.15.0, node: 20.x |
+| `65be339` | fix: move CI workflow to infra/ci/ | CI location fix |
+| `b647564` | feat: infrastructure, backend DTOs, env examples, CI/CD | 9 DTO files, docker-compose, SETUP.md |
+| `a871cef` | feat: complete therapist + admin portals | 10 files, +3058 lines |
+| `f467147` | feat: marketing pages, patient homework+profile | ~12 files |
+
+---
+
+## Deployment Audit Session (2026-06-04) — Summary
+
+### Problem
+Vercel deployments failing with `ERR_PNPM_UNSUPPORTED_ENGINE`:
+Vercel used bundled pnpm@6.35.1 instead of required pnpm@9.x.
+
+### Root Cause Chain
+1. **`pnpm-lock.yaml` missing** (PRIMARY) → Vercel can't read lockfileVersion → falls back to pnpm 6
+2. **No `.npmrc`** → missing hoisting config for Vercel/Next.js compatibility
+3. **No `vercel.json` files** → Vercel doesn't know buildCommand/installCommand overrides
+4. **`@radix-ui/react-badge`** in `apps/web` → package doesn't exist on npm (404)
+5. **All 4 postcss configs** using `@tailwindcss/postcss` (Tailwind v4 API) with Tailwind v3 installed
+6. **All 4 eslint configs** using broken flat config (missing FlatCompat + wrong import)
+7. **`apps/web/app/blog/[slug]/page.tsx`** using sync params (Next.js 14 pattern)
+8. **13 additional TypeScript/import errors** across all 4 apps (see files fixed above)
+
+### Fixes Applied
+- Created `pnpm-lock.yaml` (333KB, lockfileVersion:'9.0') — THE fix
+- Created `.npmrc`, `.gitignore`, root `vercel.json`, 4× per-app `vercel.json`
+- Fixed all 4 `postcss.config.mjs` → Tailwind v3 syntax
+- Fixed all 4 `eslint.config.mjs` → FlatCompat pattern + `react/no-unescaped-entities: off`
+- Fixed 13 TypeScript/import errors across apps (icon conflicts, undefined vars, type casts)
+- Added `@eslint/eslintrc ^3.2.0` to all 4 app devDependencies
+
+### Validation Result
+All 4 apps build successfully: web (32 routes), therapist (28), patient (17), admin (17).
 
 ---
 
@@ -201,35 +302,32 @@ packages/
 ### Priority 1 — Backend Completeness
 - [ ] `radar` module DTOs — RiskAlert, SafetyPlan, CrisisProtocol DTOs
 - [ ] `marketplace` module DTOs — Integration, AppListing, InstallRequest DTOs
-- [ ] Wire DTOs into controllers (currently controllers use validated DTO types but services still accept `any` — add explicit typing in services)
-- [ ] `ValidationPipe` global config in `main.ts` — ensure class-validator runs on all endpoints
+- [ ] `ValidationPipe` global config in `backend/src/main.ts`
+- [ ] Add `@ApiResponse` decorators to remaining controllers
 
-### Priority 2 — Backend Swagger Setup
-- [ ] Verify `main.ts` has `SwaggerModule.setup('api/docs', app, document)` configured
-- [ ] Add `@ApiResponse` decorators to remaining controllers (ai, assessments, billing, organizations)
-
-### Priority 3 — Web App Pages (Lower Priority)
+### Priority 2 — Web App Pages (Lower Priority)
 - [ ] `/press` — press kit, media coverage, brand assets
 - [ ] `/status` — system status page (can use Statuspage.io embed)
-- [ ] `/gdpr` — GDPR compliance center (similar pattern to `/hipaa`)
+- [ ] `/gdpr` — GDPR compliance center
 - [ ] `/changelog` — product changelog
 
-### Priority 4 — Testing
-- [ ] Backend unit tests for memory service (AI extraction logic)
+### Priority 3 — Testing
+- [ ] Backend unit tests for memory service
 - [ ] Backend unit tests for billing service (Stripe webhook handling)
-- [ ] E2E tests for auth flows across all 4 apps
+- [ ] E2E tests for auth flows
 
-### Priority 5 — DevOps
+### Priority 4 — DevOps
 - [ ] Dockerfiles for each app (Next.js multi-stage builds)
-- [ ] `infra/prometheus.yml` — Prometheus config for monitoring profile
-- [ ] `infra/grafana/` — Grafana dashboard provisioning files
-- [ ] `scripts/db/init.sql` — Docker init script referenced in docker-compose
+- [ ] `infra/prometheus.yml` — Prometheus config
+- [ ] `infra/grafana/` — Grafana dashboard provisioning
+- [ ] `scripts/db/init.sql` — Docker init script
+- [ ] Move CI back to `.github/workflows/` once GitHub App has workflows permission
 
 ---
 
 ## Reusable Patterns
 
-### Admin Page Pattern (for reference)
+### Admin Page Pattern
 ```tsx
 'use client';
 import { useState } from 'react';
@@ -244,21 +342,30 @@ import { useState } from 'react';
 // 9. Pagination
 ```
 
-### Therapist Page Pattern
-```tsx
-'use client';
-// Same as admin but with teal/navy brand colors instead of red/orange
-// Uses therapist-specific sidebar (not admin sidebar)
-```
-
 ### DTO Pattern (NestJS)
 ```typescript
 // 1. Enums at top
 // 2. Query DTOs (for GET endpoints)
-// 3. Create DTOs (for POST endpoints)  
+// 3. Create DTOs (for POST endpoints)
 // 4. Update DTOs (all fields optional, same as Create but IsOptional)
 // 5. Use @ApiProperty on everything for Swagger
 // 6. Use class-validator decorators: @IsString, @IsEnum, @IsUUID, @IsOptional
+```
+
+### Lucide Icon Debugging
+```bash
+# Icon doesn't exist in lucide-react?
+node -e "const lr = require('lucide-react'); console.log(Object.keys(lr).filter(k => k.toLowerCase().includes('SEARCH')))"
+# Browse: https://lucide.dev/icons/
+```
+
+### Next.js 15 Dynamic Route Params
+```tsx
+// Server component (async):
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+}
+// Client component: use useParams() hook — params prop pattern doesn't apply
 ```
 
 ---
@@ -268,12 +375,13 @@ import { useState } from 'react';
 | File | Purpose |
 |------|---------|
 | `packages/types/src/index.ts` | 1,860+ line shared types — check before adding new types |
-| `apps/admin/components/layout/admin-sidebar.tsx` | Admin nav — 4 sections: PLATFORM, COMPLIANCE & SAFETY, BUSINESS, TOOLS, SYSTEM |
+| `apps/admin/components/layout/admin-sidebar.tsx` | Admin nav — sections: PLATFORM, COMPLIANCE, BUSINESS, TOOLS, SYSTEM |
 | `apps/therapist/components/layout/sidebar.tsx` | Therapist nav — sections: PATIENT CARE, PRACTICE, COMPLIANCE |
 | `apps/patient/components/layout/patient-sidebar.tsx` | Patient nav — includes homework + profile |
-| `apps/web/app/layout.tsx` | Global layout — wraps ALL web pages with `<Navbar />` + `<Footer />` |
+| `apps/web/app/layout.tsx` | Global layout — wraps ALL web pages with Navbar + Footer |
 | `backend/src/modules/auth/guards/jwt-auth.guard.ts` | JWT guard used on all protected routes |
-| `backend/src/modules/auth/decorators/current-user.decorator.ts` | `@CurrentUser()` decorator |
+| `pnpm-lock.yaml` | MUST be kept committed — regenerate after adding deps |
+| `.npmrc` | Hoisting config — MUST stay committed for Vercel |
 
 ---
 
@@ -286,40 +394,3 @@ import { useState } from 'react';
 - **Session timeout**: 4 hours max (configurable); idle timeout 30 min
 - **MFA**: required for all org_admin and above roles
 - **Retention**: audit logs retained 6 years per HIPAA §164.312(b)
-
----
-
-## Session Notes (What Was Just Built)
-
-**Session 3 (current) — 2025-01-15:**
-
-Built and committed (`a871cef`):
-1. `apps/admin/app/(dashboard)/audit-logs/page.tsx` — Platform-wide audit log viewer
-   - 15 mock events across 13 categories, 5 severity levels
-   - Expandable rows with IP, user agent, geo, metadata, session/log IDs
-   - Filters: search, category, severity, outcome, org, actor-role
-   - Compliance footer: retention schedule, high-risk event types, certifications
-   
-2. `apps/admin/components/layout/admin-sidebar.tsx` — Added TOOLS section
-   - support-tools (Wrench), feature-flags (ToggleLeft), ai-costs (DollarSign), audit-logs (FileSearch)
-
-3. `apps/web/app/page.tsx` — Removed duplicate `<Navbar />` + `<Footer />` (now in layout.tsx)
-
-Also created (infrastructure batch, not yet committed):
-- `apps/web/.env.example`
-- `apps/therapist/.env.example`
-- `apps/patient/.env.example`
-- `apps/admin/.env.example`
-- `docker-compose.yml` (root)
-- `.github/workflows/ci.yml`
-- `backend/src/modules/memory/dto/memory.dto.ts`
-- `backend/src/modules/workflows/dto/workflows.dto.ts`
-- `backend/src/modules/ai/dto/ai.dto.ts`
-- `backend/src/modules/assessments/dto/assessments.dto.ts`
-- `backend/src/modules/notifications/dto/notifications.dto.ts`
-- `backend/src/modules/organizations/dto/organizations.dto.ts`
-- `backend/src/modules/billing/dto/billing.dto.ts`
-- `backend/src/modules/analytics/dto/analytics.dto.ts`
-- `backend/src/modules/admin/dto/admin.dto.ts`
-- `SETUP.md` expanded (347 → 868 lines)
-- `CLAUDE.md` (this file) updated
