@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Brain, ChevronDown } from "lucide-react";
+import { Menu, X, Brain, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -10,22 +10,31 @@ const navItems = [
     label: "Features",
     href: "/features",
     children: [
-      { label: "AI Scribe", href: "/features/ai-scribe", desc: "Auto-generate clinical notes" },
-      { label: "Clinical Copilot", href: "/features/clinical-copilot", desc: "Live session guidance" },
-      { label: "Radar Matching", href: "/features/radar", desc: "Instant therapist matching" },
-      { label: "Telehealth", href: "/features/teletherapy", desc: "Secure video sessions" },
-      { label: "Practice Management", href: "/features/practice-management", desc: "Multi-therapist practices" },
-      { label: "Analytics", href: "/features/analytics", desc: "Outcome intelligence" },
+      { label: "AI Scribe", href: "/ai-scribe", desc: "Auto-generate clinical notes from sessions" },
+      { label: "Clinical Copilot", href: "/ai-scribe#copilot", desc: "Live session guidance & suggestions" },
+      { label: "Patient Memory", href: "/ai-scribe#memory", desc: "Longitudinal patient intelligence" },
+      { label: "Risk Detection", href: "/ai-scribe#risk", desc: "Real-time safety monitoring" },
+      { label: "Telehealth", href: "/features/teletherapy", desc: "HIPAA-secure video sessions" },
+      { label: "Practice Analytics", href: "/features/analytics", desc: "Revenue & outcome intelligence" },
     ],
   },
   {
-    label: "Solutions",
-    href: "/solutions",
+    label: "For Therapists",
+    href: "/for-therapists",
     children: [
-      { label: "For Therapists", href: "/solutions/therapists", desc: "Solo practitioners" },
-      { label: "For Practices", href: "/solutions/practices", desc: "Group practices" },
-      { label: "For Clinics", href: "/solutions/clinics", desc: "Mental health clinics" },
-      { label: "For Enterprise", href: "/solutions/enterprise", desc: "Hospitals & universities" },
+      { label: "Solo Practitioners", href: "/for-therapists", desc: "Full AI suite for independent therapists" },
+      { label: "Group Practices", href: "/for-therapists#practice", desc: "Multi-therapist management" },
+      { label: "Clinics & Hospitals", href: "/for-therapists#enterprise", desc: "Enterprise & white-label solutions" },
+      { label: "Apply as Therapist", href: "/therapist-join", desc: "Join the 24Therapy network" },
+    ],
+  },
+  {
+    label: "Radar",
+    href: "/find-therapist",
+    children: [
+      { label: "Find a Therapist", href: "/find-therapist", desc: "AI-powered matching to your needs" },
+      { label: "How Radar Works", href: "/find-therapist#how", desc: "Our intelligent matching system" },
+      { label: "Urgent Support", href: "/find-therapist?urgency=now", desc: "Connect with a therapist today" },
     ],
   },
   { label: "Pricing", href: "/pricing" },
@@ -69,12 +78,13 @@ export function Navbar() {
                 </Link>
 
                 {item.children && activeDropdown === item.label && (
-                  <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 animate-fade-in">
+                  <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 animate-fade-in z-50">
                     {item.children.map((child) => (
                       <Link
                         key={child.href}
                         href={child.href}
                         className="flex flex-col p-3 rounded-xl hover:bg-slate-50 transition-colors group"
+                        onClick={() => setActiveDropdown(null)}
                       >
                         <span className="text-sm font-semibold text-slate-900 group-hover:text-[#1F5EFF]">
                           {child.label}
@@ -91,16 +101,29 @@ export function Navbar() {
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-3">
             <Link
-              href="/login"
+              href="https://admin.24therapy.ai"
+              className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5"
+            >
+              Admin
+            </Link>
+            <Link
+              href="https://portal.24therapy.ai"
               className="text-sm font-medium text-slate-700 hover:text-[#1F5EFF] px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors"
             >
               Log in
             </Link>
             <Link
-              href="/signup"
-              className="text-sm font-semibold text-white bg-[#1F5EFF] hover:bg-[#0A2342] px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all"
+              href="/find-therapist"
+              className="text-sm font-medium text-slate-700 hover:text-[#1F5EFF] px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors border border-slate-200"
             >
-              Get Started Free
+              Find Therapist
+            </Link>
+            <Link
+              href="/signup?role=therapist"
+              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1F5EFF] hover:bg-[#0A2342] px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Start Free Trial
             </Link>
           </div>
 
@@ -117,29 +140,53 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="lg:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-2 animate-fade-in">
+        <div className="lg:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-1 animate-fade-in">
           {navItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="block px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#1F5EFF] rounded-xl hover:bg-slate-50 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              {item.label}
-            </Link>
+            <div key={item.label}>
+              <Link
+                href={item.href}
+                className="block px-4 py-3 text-sm font-semibold text-slate-800 hover:text-[#1F5EFF] rounded-xl hover:bg-slate-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                {item.label}
+              </Link>
+              {item.children && (
+                <div className="ml-4 space-y-0.5">
+                  {item.children.map(child => (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className="block px-4 py-2 text-xs text-slate-600 hover:text-[#1F5EFF] rounded-xl hover:bg-slate-50"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      {child.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
-          <div className="pt-2 space-y-2">
+          <div className="pt-3 space-y-2 border-t border-slate-100">
             <Link
               href="/login"
               className="block px-4 py-3 text-sm font-medium text-slate-700 text-center rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+              onClick={() => setIsOpen(false)}
             >
               Log in
             </Link>
             <Link
-              href="/signup"
-              className="block px-4 py-3 text-sm font-semibold text-white text-center bg-[#1F5EFF] rounded-xl hover:bg-[#0A2342] transition-colors"
+              href="/find-therapist"
+              className="block px-4 py-3 text-sm font-medium text-slate-700 text-center rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+              onClick={() => setIsOpen(false)}
             >
-              Get Started Free
+              Find a Therapist
+            </Link>
+            <Link
+              href="/signup?role=therapist"
+              className="block px-4 py-3 text-sm font-semibold text-white text-center bg-[#1F5EFF] rounded-xl hover:bg-[#0A2342] transition-colors"
+              onClick={() => setIsOpen(false)}
+            >
+              Start Free Trial
             </Link>
           </div>
         </div>
