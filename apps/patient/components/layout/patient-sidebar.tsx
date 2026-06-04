@@ -22,6 +22,9 @@ const NAV_ITEMS = [
   { href: "/ai-companion", icon: Brain, label: "AI Companion" },
   { href: "/messages", icon: MessageCircle, label: "Messages" },
   { href: "/resources", icon: BookOpen, label: "Resources" },
+  { href: "/sessions", icon: Activity, label: "Sessions" },
+  { href: "/reports", icon: ClipboardList, label: "My Reports" },
+  { href: "/crisis", icon: Phone, label: "Crisis Support", urgent: true },
 ];
 
 export function PatientSidebar() {
@@ -95,6 +98,9 @@ export function PatientSidebar() {
             {item.label}
             {item.href === "/ai-companion" && (
               <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            )}
+            {(item as { urgent?: boolean }).urgent && (
+              <span className="ml-auto text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded font-bold">SOS</span>
             )}
           </Link>
         ))}
