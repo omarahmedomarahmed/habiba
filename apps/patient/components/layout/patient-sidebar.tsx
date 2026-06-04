@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, Calendar, ClipboardList, MessageCircle,
   TrendingUp, BookOpen, Settings, Heart, Bell, LogOut, Menu, X,
-  Smile, BookOpenCheck, Brain, Phone, Activity
+  Smile, BookOpenCheck, Brain, Phone, Activity, CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
@@ -24,6 +24,8 @@ const NAV_ITEMS = [
   { href: "/resources", icon: BookOpen, label: "Resources" },
   { href: "/sessions", icon: Activity, label: "Sessions" },
   { href: "/reports", icon: ClipboardList, label: "My Reports" },
+  { href: "/notifications", icon: Bell, label: "Notifications" },
+  { href: "/billing", icon: CreditCard, label: "Billing" },
   { href: "/crisis", icon: Phone, label: "Crisis Support", urgent: true },
 ];
 
