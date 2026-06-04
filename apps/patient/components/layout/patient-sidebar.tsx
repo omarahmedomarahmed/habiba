@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, Calendar, ClipboardList, MessageCircle,
-  TrendingUp, BookOpen, Settings, Heart, Bell, LogOut, Menu, X
+  TrendingUp, BookOpen, Settings, Heart, Bell, LogOut, Menu, X,
+  Smile, BookOpenCheck, Brain, Phone, Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
@@ -13,9 +14,12 @@ import { useState } from "react";
 
 const NAV_ITEMS = [
   { href: "/home", icon: Home, label: "Home" },
-  { href: "/sessions", icon: Calendar, label: "My Sessions" },
-  { href: "/assessments", icon: ClipboardList, label: "Assessments" },
+  { href: "/appointments", icon: Calendar, label: "Appointments" },
+  { href: "/mood", icon: Smile, label: "Mood Tracker" },
+  { href: "/journal", icon: BookOpenCheck, label: "Journal" },
   { href: "/progress", icon: TrendingUp, label: "My Progress" },
+  { href: "/assessments", icon: ClipboardList, label: "Assessments" },
+  { href: "/ai-companion", icon: Brain, label: "AI Companion" },
   { href: "/messages", icon: MessageCircle, label: "Messages" },
   { href: "/resources", icon: BookOpen, label: "Resources" },
 ];
@@ -31,11 +35,11 @@ export function PatientSidebar() {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-        <div className="w-9 h-9 bg-gradient-to-br from-secondary-500 to-accent rounded-xl flex items-center justify-center">
+        <div className="w-9 h-9 bg-gradient-to-br from-[#0A2342] to-[#2F80ED] rounded-xl flex items-center justify-center">
           <Heart className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
         </div>
         <div>
-          <div className="font-bold text-primary-900 text-sm">24Therapy</div>
+          <div className="font-bold text-[#0A2342] text-sm">24Therapy</div>
           <div className="text-[10px] text-slate-400 font-medium">Patient Portal</div>
         </div>
         <button
@@ -48,9 +52,9 @@ export function PatientSidebar() {
 
       {/* Patient card */}
       {user && (
-        <div className="mx-3 my-3 p-3 bg-gradient-to-r from-secondary-50 to-blue-50 rounded-xl border border-secondary-100">
+        <div className="mx-3 my-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-secondary-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#0A2342] flex items-center justify-center flex-shrink-0">
               <span className="text-xs font-bold text-white">
                 {getInitials(`${user.first_name} ${user.last_name}`)}
               </span>
@@ -63,6 +67,12 @@ export function PatientSidebar() {
                 <p className="text-[10px] text-slate-500 truncate">Dr. {user.therapist_name}</p>
               )}
             </div>
+          </div>
+          <div className="mt-2 flex items-center gap-1">
+            <div className="flex-1 h-1.5 bg-blue-100 rounded-full overflow-hidden">
+              <div className="h-full w-[65%] bg-[#0A2342] rounded-full" />
+            </div>
+            <span className="text-[10px] text-slate-500 font-medium">65% goals</span>
           </div>
         </div>
       )}
@@ -77,26 +87,33 @@ export function PatientSidebar() {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
               isActive(item.href)
-                ? "bg-secondary-600 text-white shadow-sm"
+                ? "bg-[#0A2342] text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
             )}
           >
             <item.icon className="w-4 h-4" />
             {item.label}
+            {item.href === "/ai-companion" && (
+              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            )}
           </Link>
         ))}
       </nav>
 
       {/* Crisis Line */}
-      <div className="mx-3 mb-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-        <p className="text-xs font-semibold text-red-700">Crisis Support</p>
-        <p className="text-xs text-red-600 mt-0.5">Call 988 · Text HOME to 741741</p>
+      <div className="mx-3 mb-3 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+        <div className="flex items-center gap-2 mb-1">
+          <Phone className="h-3 w-3 text-rose-600" />
+          <p className="text-xs font-semibold text-rose-700">Crisis Support</p>
+        </div>
+        <p className="text-xs text-rose-600">Call or text <strong>988</strong></p>
+        <p className="text-xs text-rose-600">Text HOME to <strong>741741</strong></p>
       </div>
 
       {/* Bottom */}
       <div className="border-t border-slate-100 px-3 py-2 space-y-0.5">
         <Link href="/settings" onClick={() => setMobileOpen(false)}
-          className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-slate-600 hover:bg-slate-100")}>
+          className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors", isActive("/settings") ? "bg-[#0A2342] text-white" : "text-slate-600 hover:bg-slate-100")}>
           <Settings className="w-4 h-4" />
           Settings
         </Link>
@@ -135,7 +152,7 @@ export function PatientSidebar() {
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[240px] bg-white border-r border-slate-200 shadow-sidebar z-30">
+      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[240px] bg-white border-r border-slate-200 z-30">
         <SidebarContent />
       </aside>
     </>
