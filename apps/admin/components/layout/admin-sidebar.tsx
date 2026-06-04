@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, Shield, Brain, CreditCard,
   Store, Settings, LogOut, Activity, AlertTriangle, ChevronRight,
-  Zap, BarChart2, UserCheck, Target
+  Zap, BarChart2, UserCheck, Target, Layers
 } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ const NAV = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/organizations', label: 'Organizations', icon: Building2 },
+      { href: '/practice-management', label: 'Practice Mgmt', icon: Layers },
       { href: '/users', label: 'All Users', icon: Users },
       { href: '/therapists', label: 'Therapists', icon: UserCheck },
     ],
