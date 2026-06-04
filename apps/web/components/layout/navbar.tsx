@@ -37,8 +37,17 @@ const navItems = [
       { label: "Urgent Support", href: "/find-therapist?urgency=now", desc: "Connect with a therapist today" },
     ],
   },
+  {
+    label: "Resources",
+    href: "/blog",
+    children: [
+      { label: "Blog", href: "/blog", desc: "AI, clinical practice, and mental health technology" },
+      { label: "Enterprise", href: "/enterprise", desc: "Group practices, clinics, and health systems" },
+      { label: "Security & HIPAA", href: "/security", desc: "Compliance, encryption, and privacy" },
+      { label: "About Us", href: "/about", desc: "Mission, team, and company story" },
+    ],
+  },
   { label: "Pricing", href: "/pricing" },
-  { label: "About", href: "/about" },
 ];
 
 export function Navbar() {
