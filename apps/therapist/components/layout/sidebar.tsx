@@ -6,7 +6,8 @@ import {
   Brain, LayoutDashboard, Users, Calendar, FileText, BarChart2,
   Settings, CreditCard, Zap, ChevronLeft, ChevronRight,
   AlertTriangle, Activity, MessageSquare, ClipboardList, Bell,
-  Target, Network, Workflow
+  Target, Network, Workflow, Send, BarChart3, Stethoscope,
+  BookMarked, Wrench
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
@@ -27,8 +28,10 @@ const NAV_ITEMS = [
     items: [
       { href: "/assessments", icon: ClipboardList, label: "Assessments" },
       { href: "/treatment-plans", icon: Target, label: "Treatment Plans" },
+      { href: "/clinical-tools", icon: Stethoscope, label: "Clinical Tools" },
+      { href: "/referrals", icon: Send, label: "Referrals" },
+      { href: "/reports", icon: BarChart3, label: "Reports" },
       { href: "/radar", icon: Zap, label: "Radar", badge: "LIVE" },
-      { href: "/risk-monitor", icon: AlertTriangle, label: "Risk Monitor" },
       { href: "/messages", icon: MessageSquare, label: "Messages" },
     ],
   },
@@ -42,6 +45,7 @@ const NAV_ITEMS = [
   {
     section: "PRACTICE",
     items: [
+      { href: "/crm", icon: BookMarked, label: "CRM" },
       { href: "/analytics", icon: BarChart2, label: "Analytics" },
       { href: "/billing", icon: CreditCard, label: "Billing" },
     ],
