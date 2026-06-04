@@ -345,3 +345,524 @@ pnpm --filter @24therapy/types add -D typescript
 - Technical: engineering@24therapy.com
 - Compliance: compliance@24therapy.com
 - Security: security@24therapy.com
+
+---
+
+## Docker Compose (Full Local Stack)
+
+The `docker-compose.yml` at the repo root runs the full stack — all 5 services plus PostgreSQL and Redis.
+
+### Start full stack
+
+```bash
+# 1. Copy all env files
+cp backend/.env.example backend/.env
+cp apps/web/.env.example apps/web/.env.local
+cp apps/therapist/.env.example apps/therapist/.env.local
+cp apps/patient/.env.example apps/patient/.env.local
+cp apps/admin/.env.example apps/admin/.env.local
+
+# 2. Edit backend/.env with real API keys (OpenAI, Stripe, SendGrid)
+
+# 3. Start everything
+docker-compose up -d
+
+# 4. Check status
+docker-compose ps
+docker-compose logs backend --tail=50
+```
+
+### Service URLs (Docker)
+
+| Service | URL |
+|---------|-----|
+| Therapist Portal | http://localhost:3000 |
+| Patient Portal | http://localhost:3002 |
+| Admin Portal | http://localhost:3003 |
+| Marketing Web | http://localhost:3004 |
+| Backend API | http://localhost:3001 |
+| API Swagger | http://localhost:3001/api/docs |
+
+### Debug services
+
+```bash
+# Start with debug tools (Adminer, Mailhog, Redis Commander)
+docker-compose --profile debug up -d
+
+# Adminer (DB UI)     → http://localhost:8080
+# Redis Commander     → http://localhost:8081
+# Mailhog (email)     → http://localhost:8025
+```
+
+### Monitoring stack
+
+```bash
+# Start Prometheus + Grafana
+docker-compose --profile monitoring up -d
+
+# Prometheus → http://localhost:9090
+# Grafana    → http://localhost:3500 (admin / admin)
+```
+
+---
+
+## GitHub Actions CI/CD
+
+The `.github/workflows/ci.yml` pipeline runs on every push and PR:
+
+| Job | Trigger | What it does |
+|-----|---------|-------------|
+| `setup` | All pushes | Install + cache pnpm dependencies |
+| `typecheck` | After setup | `tsc --noEmit` on all 5 workspaces |
+| `lint` | After setup | ESLint on all workspaces |
+| `build` | After typecheck+lint | `next build` for all 4 frontend apps (matrix) |
+| `backend-build` | After setup | NestJS compile + unit tests with live Postgres+Redis |
+| `security` | After setup | `pnpm audit` + Gitleaks secrets scan |
+| `ci-success` | After all | Gate job — fails if any critical job failed |
+
+### Required GitHub Secrets
+
+Go to **Settings → Secrets and variables → Actions** and add:
+
+| Secret | Value |
+|--------|-------|
+| `GITLEAKS_LICENSE` | Your Gitleaks license key (for secrets scanning) |
+
+No deployment secrets are needed unless you add a deployment job.
+
+### Branch Protection Rules (Recommended)
+
+In **Settings → Branches → main**:
+- ✅ Require status checks: `typecheck`, `build`, `backend-build`
+- ✅ Require branches to be up to date before merging
+- ✅ Require pull request reviews: 1 approver
+- ✅ Dismiss stale reviews on push
+
+---
+
+## Production Deployment — Step by Step
+
+### Phase 1: Infrastructure
+
+#### 1.1 — Database (Supabase)
+
+```bash
+# Create project at supabase.com
+# In SQL Editor, run:
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "vector";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+# Run migrations in order:
+# 001_core_schema.sql → 014_analytics_schema.sql
+```
+
+Copy the connection string (Pooler → Transaction mode for serverless, or Session mode for Railway):
+```
+DATABASE_URL=postgresql://user:pass@host:5432/postgres?sslmode=require
+```
+
+#### 1.2 — Redis (Upstash)
+
+1. Create database at [upstash.com](https://upstash.com) — select region closest to backend
+2. Enable TLS
+3. Copy Redis URL: `rediss://default:password@hostname.upstash.io:6379`
+
+#### 1.3 — Storage (AWS S3 or Cloudflare R2)
+
+**AWS S3:**
+```bash
+# Create bucket
+aws s3 mb s3://24therapy-recordings --region us-east-1
+aws s3 mb s3://24therapy-attachments --region us-east-1
+
+# Apply HIPAA-compliant bucket policy (no public access)
+aws s3api put-public-access-block \
+  --bucket 24therapy-recordings \
+  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+# Enable server-side encryption
+aws s3api put-bucket-encryption \
+  --bucket 24therapy-recordings \
+  --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms"}}]}'
+```
+
+**Cloudflare R2 (cheaper, no egress fees):**
+```bash
+# Create bucket in Cloudflare Dashboard
+# Generate R2 API tokens
+# Configure CORS for your frontend domains
+```
+
+---
+
+### Phase 2: Backend Deployment
+
+#### Option A: Railway (Recommended)
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+railway login
+
+# Create project (run from repo root)
+railway new 24therapy-backend
+
+# Link to backend directory
+cd backend
+railway link
+
+# Set environment variables (or use Railway dashboard)
+railway variables set \
+  NODE_ENV=production \
+  DATABASE_URL="postgresql://..." \
+  REDIS_URL="rediss://..." \
+  JWT_SECRET="$(openssl rand -hex 64)" \
+  JWT_REFRESH_SECRET="$(openssl rand -hex 64)" \
+  OPENAI_API_KEY="sk-..." \
+  STRIPE_SECRET_KEY="sk_live_..."
+
+# Deploy
+railway up
+
+# Set custom domain
+railway domain 24therapy-backend.up.railway.app
+# Add CNAME: api.24therapy.com → 24therapy-backend.up.railway.app
+```
+
+#### Option B: Render
+
+1. Create a **Web Service** at [render.com](https://render.com)
+2. Connect GitHub repo
+3. **Build Command**: `pnpm install --frozen-lockfile && pnpm --filter @24therapy/backend build`
+4. **Start Command**: `pnpm --filter @24therapy/backend start:prod`
+5. Set **Root Directory**: (blank — runs from repo root)
+6. Set **Plan**: Standard ($25/mo minimum for production)
+7. Add all environment variables from `backend/.env.example`
+8. Add custom domain: `api.24therapy.com`
+
+#### Option C: AWS ECS (Enterprise)
+
+```bash
+# Build and push Docker image
+docker build -t 24therapy-backend ./backend
+docker tag 24therapy-backend:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/24therapy-backend:latest
+docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/24therapy-backend:latest
+
+# Deploy via ECS Fargate (see infra/ecs/ for task definitions)
+aws ecs update-service \
+  --cluster 24therapy-prod \
+  --service backend \
+  --force-new-deployment
+```
+
+---
+
+### Phase 3: Frontend Deployment (Vercel)
+
+Each app deploys independently as a separate Vercel project.
+
+#### Step-by-step for each app:
+
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import the GitHub repository
+3. Set **Framework**: Next.js
+4. Set **Root Directory**: `apps/web` (or `apps/therapist`, etc.)
+5. Add **Environment Variables** from the corresponding `.env.example`
+6. Click **Deploy**
+
+#### Vercel project settings per app:
+
+| App | Root Dir | Domain | Team Access |
+|-----|----------|--------|-------------|
+| Marketing | `apps/web` | `24therapy.com` | Public |
+| Therapist | `apps/therapist` | `app.24therapy.com` | Team only |
+| Patient | `apps/patient` | `my.24therapy.com` | Team only |
+| Admin | `apps/admin` | `admin.24therapy.com` | IP restricted |
+
+#### Monorepo Turbo caching on Vercel:
+
+```json
+// vercel.json (at repo root)
+{
+  "buildCommand": "pnpm turbo build --filter={YOUR_APP}...",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
+```
+
+---
+
+### Phase 4: Third-Party Service Setup
+
+#### Stripe Configuration
+
+```bash
+# 1. Create products and prices in Stripe Dashboard
+# Starter Monthly, Pro Monthly, Growth Monthly, Enterprise
+
+# 2. Configure webhooks
+# Endpoint: https://api.24therapy.com/billing/webhook
+# Events: checkout.session.completed, customer.subscription.updated,
+#         customer.subscription.deleted, invoice.payment_failed
+
+# 3. Enable Stripe Connect (for marketplace/provider payouts)
+# Dashboard → Connect → Settings → Enable
+
+# 4. Test with Stripe CLI
+stripe listen --forward-to localhost:3001/billing/webhook
+```
+
+#### Daily.co Video Setup
+
+```bash
+# 1. Create account at daily.co
+# 2. Create a domain: your-practice.daily.co
+# 3. Enable recording (for session audio → Whisper transcription)
+# 4. Configure HIPAA settings (Dashboard → Security → HIPAA)
+# 5. Set API key in backend .env: DAILY_API_KEY=...
+```
+
+#### SendGrid Email Setup
+
+```bash
+# 1. Create account at sendgrid.com
+# 2. Verify sender identity (domain authentication)
+# 3. Create API key with Mail Send permissions
+# 4. Configure dynamic templates:
+#    - session_reminder
+#    - homework_assigned
+#    - assessment_assigned
+#    - weekly_progress_report
+#    - crisis_alert
+# 5. Add DKIM/SPF records to DNS
+```
+
+---
+
+### Phase 5: HIPAA Compliance Checklist
+
+Before going live with real patient data, complete:
+
+**Organizational**
+- [ ] Sign HIPAA Business Associate Agreements (BAAs) with:
+  - [ ] AWS or Cloudflare (storage)
+  - [ ] OpenAI (via ChatGPT Enterprise / API HIPAA BAA)
+  - [ ] Twilio
+  - [ ] SendGrid / Twilio SendGrid
+  - [ ] Daily.co
+  - [ ] Supabase (they have a HIPAA BAA)
+  - [ ] Vercel Enterprise (for frontend hosting)
+- [ ] Complete HIPAA Security Risk Assessment (SRA)
+- [ ] Implement HIPAA Workforce Training for all staff
+- [ ] Draft Breach Notification Procedures
+
+**Technical**
+- [ ] All data encrypted at rest (AES-256)
+- [ ] All data encrypted in transit (TLS 1.3)
+- [ ] PHI never stored in logs
+- [ ] Minimum Necessary Access enforced (RBAC)
+- [ ] Session timeout: 4 hours max (8 hours for clinical contexts)
+- [ ] MFA required for all workforce members
+- [ ] Audit logging active (6-year retention)
+- [ ] Automatic session termination on inactivity
+- [ ] IP allowlist for admin portal
+
+**Verification**
+- [ ] Run `GET /compliance/hipaa-check` against production API
+- [ ] Verify audit logs are writing to persistent storage
+- [ ] Test encryption by attempting to read DB directly (should be ciphertext)
+- [ ] Verify no PHI appears in Sentry error reports
+- [ ] Penetration test by qualified firm (annually)
+
+---
+
+## Production Environment Variables — Complete Reference
+
+### Backend (Critical)
+
+| Variable | Description | Required |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string with `?sslmode=require` | ✅ |
+| `REDIS_URL` | Redis URL with TLS (`rediss://`) | ✅ |
+| `JWT_SECRET` | 64+ char random string — **never reuse** | ✅ |
+| `JWT_REFRESH_SECRET` | 64+ char random string — **different from JWT_SECRET** | ✅ |
+| `OPENAI_API_KEY` | OpenAI API key for GPT-4o + Whisper | ✅ |
+| `STRIPE_SECRET_KEY` | Stripe live secret key | ✅ |
+| `STRIPE_WEBHOOK_SECRET` | From Stripe webhook dashboard | ✅ |
+| `SENDGRID_API_KEY` | For transactional email | ✅ |
+| `DATA_ENCRYPTION_KEY` | 32-char key for PHI field encryption | ✅ |
+| `DAILY_API_KEY` | For video session room creation | ✅ |
+| `AWS_S3_BUCKET` | For recordings and file uploads | ✅ |
+
+### Generate Secure Secrets
+
+```bash
+# JWT secrets
+openssl rand -hex 64
+
+# Encryption key (must be exactly 32 chars)
+openssl rand -hex 16
+
+# Or using Node.js
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+---
+
+## Performance Tuning
+
+### PostgreSQL
+
+```sql
+-- Indexes for common queries (run after migrations)
+CREATE INDEX CONCURRENTLY idx_sessions_org_date
+  ON sessions(organization_id, scheduled_at DESC);
+
+CREATE INDEX CONCURRENTLY idx_memory_nodes_patient_type
+  ON memory_nodes(patient_id, node_type, status);
+
+CREATE INDEX CONCURRENTLY idx_audit_logs_org_created
+  ON audit_logs(organization_id, created_at DESC);
+
+-- pgvector index for fast similarity search
+CREATE INDEX CONCURRENTLY idx_memory_embeddings_ivfflat
+  ON memory_embeddings USING ivfflat(embedding vector_cosine_ops)
+  WITH (lists = 100);
+```
+
+### Redis Configuration
+
+```bash
+# In production, set these in Redis config or via env:
+maxmemory 2gb
+maxmemory-policy allkeys-lru
+appendonly yes
+```
+
+### Backend (NestJS) — Cluster Mode
+
+```bash
+# In production, run 2+ workers using PM2
+pm2 start dist/main.js -i max --name "24therapy-backend"
+pm2 save
+pm2 startup
+```
+
+---
+
+## Scaling Guide
+
+### Traffic Tiers
+
+| Monthly Sessions | Architecture |
+|-----------------|-------------|
+| < 1,000 | Single Railway/Render instance, Supabase free tier |
+| 1,000–10,000 | 2x backend replicas, Supabase Pro, Upstash paid |
+| 10,000–100,000 | AWS ECS (3+ tasks), RDS Aurora, ElastiCache |
+| 100,000+ | Kubernetes, read replicas, CDN caching, Kafka for events |
+
+### Key Bottlenecks
+
+1. **AI API calls** — implement caching for repeated context building (Redis TTL: 5 min)
+2. **pgvector similarity search** — tune IVFFLAT `probes` parameter, add connection pooling via PgBouncer
+3. **Session transcription** — queue Whisper jobs via Redis + BullMQ, async processing
+4. **Audit logging** — write-behind pattern; buffer to Redis, flush to DB in batches
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Backend won't start
+
+```bash
+# Check database connection
+psql $DATABASE_URL -c "SELECT 1"
+
+# Check Redis
+redis-cli -u $REDIS_URL ping
+
+# Check if pgvector is installed
+psql $DATABASE_URL -c "SELECT * FROM pg_extension WHERE extname = 'vector'"
+```
+
+#### JWT auth errors
+
+```bash
+# Ensure JWT_SECRET is the same across all backend instances
+# Check that clock skew between services is < 5 minutes
+# Verify tokens aren't being stored across environment resets
+```
+
+#### AI features not working
+
+```bash
+# Test OpenAI key
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $OPENAI_API_KEY"
+
+# Check AI cost budget hasn't been exceeded
+# AI_MONTHLY_BUDGET_USD limit will block new requests when exceeded
+```
+
+#### Build fails on Vercel
+
+```bash
+# Common fix: set NEXT_PUBLIC_API_URL before build
+# In Vercel dashboard → Settings → Environment Variables
+# Add NEXT_PUBLIC_API_URL = https://api.24therapy.com
+```
+
+#### Docker containers not communicating
+
+```bash
+# All services must be on the same Docker network (therapy_net)
+# Use service names not localhost: postgres, redis, backend
+# Check: docker network inspect 24therapy_therapy_net
+```
+
+---
+
+## Health Checks
+
+```bash
+# Backend health
+curl https://api.24therapy.com/health
+
+# Database connectivity
+curl https://api.24therapy.com/health/db
+
+# Redis connectivity
+curl https://api.24therapy.com/health/redis
+
+# AI service connectivity
+curl https://api.24therapy.com/health/ai
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "services": {
+    "database": "healthy",
+    "redis": "healthy",
+    "ai": "healthy"
+  },
+  "uptime": 3600,
+  "timestamp": "2025-01-15T14:00:00Z"
+}
+```
+
+---
+
+## Contacts & SLAs
+
+| Team | Email | Response SLA |
+|------|-------|-------------|
+| Engineering | engineering@24therapy.com | 24h |
+| Compliance / HIPAA | compliance@24therapy.com | 4h |
+| Security Incidents | security@24therapy.com | 1h |
+| Customer Support | support@24therapy.com | 8h |

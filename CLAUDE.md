@@ -1,402 +1,325 @@
-# CLAUDE.md — 24Therapy.ai Persistent Project Memory
-# Mental Health Operating System — AI Session Context File
-# Last Updated: 2026-06-04 | Latest Commit: f467147
+# CLAUDE.md — 24Therapy Mental Health OS — Persistent AI Session Memory
+
+> **PURPOSE**: This file is the authoritative session state for AI coding assistants.
+> Read this file at the START of every session. Update it at the END of every session
+> (after each commit). Never skip updating this file.
 
 ---
 
-## Project Overview
+## Project Identity
 
-**24Therapy.ai** is a full-stack Mental Health Operating System (MH-OS) — not just an AI scribe.
-
-The platform serves as the complete operational infrastructure for mental health practices:
-- AI-powered session documentation (scribe, notes, summaries)
-- Longitudinal Patient Memory Layer (knowledge graphs, intelligence)
-- Clinical Workflow Engine (automation, triggers, actions)
-- Radar Matching System (patient-to-therapist AI matching)
-- Multi-tenant Practice Management
-- HIPAA-compliant telehealth infrastructure
-- Enterprise / white-label ready
-- Acquisition-ready architecture with full API, webhooks, EHR integrations
-
-**GitHub Repository:** `https://github.com/omarahmedomarahmed/habiba.git`
-**Branch:** `main`
-**Stack:** Next.js 14 App Router + TypeScript + Tailwind CSS + NestJS + PostgreSQL + Redis + OpenAI
+| Field | Value |
+|-------|-------|
+| **Project** | 24Therapy Mental Health OS |
+| **Repo** | https://github.com/omarahmedomarahmed/habiba |
+| **Branch** | `main` |
+| **Stack** | Next.js 14 · NestJS · PostgreSQL + pgvector · Redis · TypeScript |
+| **Monorepo** | Turbo + PNPM workspaces |
+| **Last Commit** | `a871cef` — feat: complete therapist + admin portals with full page suite |
+| **Last Updated** | 2025-01-15 (session 3) |
 
 ---
 
-## Vision
+## Architecture Overview
 
-24Therapy.ai empowers therapists by eliminating administrative burden, enabling better clinical outcomes, and connecting patients with care faster. The AI assists, never replaces, the therapist.
-
-Primary revenue: SaaS subscriptions per therapist seat + AI usage overages + marketplace transaction fees.
-Target: Solo therapists → Group practices → Clinics → Health systems → Enterprise.
-
----
-
-## Current Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Marketing Site | Next.js 14, TypeScript, Tailwind CSS |
-| Therapist Portal | Next.js 14 App Router, TypeScript, Tailwind CSS, Zustand |
-| Patient Portal | Next.js 14 App Router, TypeScript, Tailwind CSS |
-| Admin Portal | Next.js 14 App Router, TypeScript, Tailwind CSS |
-| Backend API | NestJS, TypeScript, PostgreSQL (Drizzle ORM), Redis |
-| AI | OpenAI GPT-4o, Whisper ASR, Anthropic Claude |
-| Real-time | Socket.io (WebSocket gateway) |
-| Payments | Stripe (subscriptions + one-time) |
-| Email | Not yet configured (planned: Resend/SendGrid) |
-| Storage | Not yet configured (planned: AWS S3 / Cloudflare R2) |
-| Auth | JWT + Refresh tokens + MFA (TOTP, SMS) |
-| Deployment | Vercel (frontends) + Railway/Render (backend) + Supabase/Neon (DB) |
+```
+apps/
+  web/           → Marketing site         (24therapy.com)       port 3004
+  therapist/     → Therapist portal        (app.24therapy.com)   port 3000
+  patient/       → Patient portal          (my.24therapy.com)    port 3002
+  admin/         → Super admin portal      (admin.24therapy.com) port 3003
+backend/         → NestJS API              (api.24therapy.com)   port 3001
+packages/
+  types/         → @24therapy/types — 1,860+ line shared TS types
+```
 
 ---
 
 ## Brand Tokens
 
-```css
---primary: #0A2342      /* Deep navy */
---accent:  #2EC4B6      /* Teal */
---blue:    #1F5EFF      /* Bright blue */
---bg:      #F8FAFC      /* Off-white */
---text:    #0F172A      /* Slate 900 */
+| Token | Value | Usage |
+|-------|-------|-------|
+| Navy | `#0A2342` | Primary backgrounds, headings |
+| Teal | `#2EC4B6` | Accent, CTA, active states |
+| Blue | `#1F5EFF` | Links, interactive elements |
+| Red (Admin) | gradient `red-500 → orange-500` | Admin portal accent |
+
+---
+
+## Key Technology Decisions
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| State Management | Zustand (`useAuthStore`, `useUIStore`, `useAdminAuth`) | Lightweight, no boilerplate |
+| Icons | Lucide React | Consistent icon set across all apps |
+| Forms | React `useState` + inline validation | Simpler than react-hook-form for current scope |
+| Backend DTOs | class-validator + @nestjs/swagger @ApiProperty | Validation + Swagger auto-docs |
+| AI Models | GPT-4o (scribe/copilot), Whisper (transcription), text-embedding-3-large (memory) | Best-in-class for clinical use |
+| Vector DB | pgvector extension on PostgreSQL | Avoids separate vector DB service |
+| Video | Daily.co | HIPAA-compliant WebRTC |
+
+---
+
+## Page Status — Marketing Website (`apps/web`)
+
+| Route | Status | Commit |
+|-------|--------|--------|
+| `/` | ✅ Complete | `a871cef` (fixed duplicate Navbar/Footer) |
+| `/pricing` | ✅ Complete | prior |
+| `/about` | ✅ Complete | prior |
+| `/hipaa` | ✅ Complete | `f467147` |
+| `/features/use-cases` | ✅ Complete | `f467147` |
+| `/features/integrations` | ✅ Complete | `f467147` |
+| `/features/memory-layer` | ✅ Complete | `f467147` |
+| `/features/workflow-engine` | ✅ Complete | `f467147` |
+| `/features/ai-copilot` | ✅ Complete | `f467147` |
+| `/features/ai-workspace` | ✅ Complete | `f467147` |
+| `/features/ai-scribe` | ✅ Complete | prior |
+| `/features/risk-radar` | ✅ Complete | prior |
+| `/blog` | ✅ Complete | prior |
+| `/press` | ❌ Not created | low priority |
+| `/status` | ❌ Not created | low priority |
+| `/gdpr` | ❌ Not created | low priority |
+| `layout.tsx` | ✅ Global Navbar + Footer | `f467147` |
+
+---
+
+## Page Status — Patient Portal (`apps/patient`)
+
+| Route | Status | Commit |
+|-------|--------|--------|
+| `/login` | ✅ Complete | prior |
+| `/dashboard` | ✅ Complete | prior |
+| `/sessions` | ✅ Complete | prior |
+| `/messages` | ✅ Complete | prior |
+| `/assessments` | ✅ Complete | prior |
+| `/resources` | ✅ Complete | prior |
+| `/billing` | ✅ Complete | prior |
+| `/homework` | ✅ Complete | `f467147` |
+| `/profile` | ✅ Complete | `f467147` |
+| Sidebar | ✅ Updated with homework + profile | `f467147` |
+
+---
+
+## Page Status — Therapist Portal (`apps/therapist`)
+
+| Route | Status | Commit |
+|-------|--------|--------|
+| `/login` | ✅ Complete | prior |
+| `/dashboard` | ✅ Complete | prior |
+| `/patients` | ✅ Complete | prior |
+| `/sessions` | ✅ Complete | prior |
+| `/notes` | ✅ Complete | prior |
+| `/assessments` | ✅ Complete | prior |
+| `/calendar` | ✅ Complete | `8ad7fbf` |
+| `/messages` | ✅ Complete | prior |
+| `/billing` | ✅ Complete | prior |
+| `/settings` | ✅ Complete (6-tab deep) | `7c0a3a8` |
+| `/team` | ✅ Complete | `a871cef` |
+| `/audit-logs` | ✅ Complete | `a871cef` |
+| Sidebar | ✅ Updated with team + audit-logs + COMPLIANCE section | `a871cef` |
+
+---
+
+## Page Status — Admin Portal (`apps/admin`)
+
+| Route | Status | Commit |
+|-------|--------|--------|
+| `/login` | ✅ Complete | prior |
+| `/dashboard` | ✅ Complete | prior |
+| `/organizations` | ✅ Complete | prior |
+| `/users` | ✅ Complete | prior |
+| `/therapists` | ✅ Complete | prior |
+| `/practice-management` | ✅ Complete | prior |
+| `/compliance` | ✅ Complete | prior |
+| `/ai-governance` | ✅ Complete | prior |
+| `/billing` | ✅ Complete | prior |
+| `/marketplace` | ✅ Complete | prior |
+| `/analytics` | ✅ Complete (5-tab deep: Revenue, Clinical, AI Perf, Growth, Cohorts) | `a871cef` |
+| `/crm` | ✅ Complete | prior |
+| `/support-tools` | ✅ Complete (3-tab: tickets, impersonation, account actions) | `a871cef` |
+| `/feature-flags` | ✅ Complete (boolean/percentage/variant flags, per-org overrides) | `a871cef` |
+| `/ai-costs` | ✅ Complete (model breakdown, per-org table, spend trend) | `a871cef` |
+| `/audit-logs` | ✅ Complete (platform-wide, 15 events, 13 categories, expandable rows) | `a871cef` |
+| `/settings` | ✅ Complete | prior |
+| Admin Sidebar | ✅ Updated with TOOLS section (support-tools, feature-flags, ai-costs, audit-logs) | `a871cef` |
+
+---
+
+## Backend Module Status (`backend/src/modules/`)
+
+| Module | Controller | Service | DTOs | Swagger |
+|--------|-----------|---------|------|---------|
+| `auth` | ✅ | ✅ | ✅ | ✅ |
+| `users` | ✅ | ✅ | ✅ | ✅ |
+| `therapists` | ✅ | ✅ | ✅ | ✅ |
+| `patients` | ✅ | ✅ | ✅ | ✅ |
+| `sessions` | ✅ | ✅ | ✅ | ✅ |
+| `memory` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `ai` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `radar` | ✅ | ✅ | ⚠️ Pending | ⚠️ Pending |
+| `assessments` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `billing` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `marketplace` | ✅ | ✅ | ⚠️ Pending | ⚠️ Pending |
+| `organizations` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `workflows` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `notifications` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `analytics` | ✅ | ✅ | ✅ Added | ✅ Added |
+| `admin` | ✅ | ✅ | ✅ Added | ✅ Added |
+
+---
+
+## Infrastructure Status
+
+| File | Status | Notes |
+|------|--------|-------|
+| `docker-compose.yml` | ✅ Created | Full stack: postgres, redis, all 5 services; debug + monitoring profiles |
+| `apps/web/.env.example` | ✅ Created | Analytics, CMS, Calendly, SEO vars |
+| `apps/therapist/.env.example` | ✅ Created | JWT, video, AI flags, HIPAA vars |
+| `apps/patient/.env.example` | ✅ Created | JWT, payments, crisis resources |
+| `apps/admin/.env.example` | ✅ Created | IP allowlist, impersonation flags |
+| `backend/.env.example` | ✅ Existed | Already comprehensive |
+| `.github/workflows/ci.yml` | ✅ Created | 7-job pipeline: setup, typecheck, lint, build (matrix), backend-build, security, gate |
+| `SETUP.md` | ✅ Expanded | 347 → 868 lines; added Docker, GitHub Actions, prod phases, HIPAA checklist, scaling |
+
+---
+
+## Commit History (This Session)
+
+| Hash | Message | Files |
+|------|---------|-------|
+| `a871cef` | feat: complete therapist + admin portals with full page suite | 10 files, +3058 lines |
+| `f467147` | feat: marketing pages, patient portal homework+profile, web layout | ~12 files |
+| `7c0a3a8` | feat(therapist): deep 6-tab settings page | settings page |
+| `8ad7fbf` | feat(therapist): full calendar page | calendar page |
+| `fe39646` | docs(claude): update persistent AI session memory | CLAUDE.md |
+
+---
+
+## Remaining Work — Priority Ordered
+
+### Priority 1 — Backend Completeness
+- [ ] `radar` module DTOs — RiskAlert, SafetyPlan, CrisisProtocol DTOs
+- [ ] `marketplace` module DTOs — Integration, AppListing, InstallRequest DTOs
+- [ ] Wire DTOs into controllers (currently controllers use validated DTO types but services still accept `any` — add explicit typing in services)
+- [ ] `ValidationPipe` global config in `main.ts` — ensure class-validator runs on all endpoints
+
+### Priority 2 — Backend Swagger Setup
+- [ ] Verify `main.ts` has `SwaggerModule.setup('api/docs', app, document)` configured
+- [ ] Add `@ApiResponse` decorators to remaining controllers (ai, assessments, billing, organizations)
+
+### Priority 3 — Web App Pages (Lower Priority)
+- [ ] `/press` — press kit, media coverage, brand assets
+- [ ] `/status` — system status page (can use Statuspage.io embed)
+- [ ] `/gdpr` — GDPR compliance center (similar pattern to `/hipaa`)
+- [ ] `/changelog` — product changelog
+
+### Priority 4 — Testing
+- [ ] Backend unit tests for memory service (AI extraction logic)
+- [ ] Backend unit tests for billing service (Stripe webhook handling)
+- [ ] E2E tests for auth flows across all 4 apps
+
+### Priority 5 — DevOps
+- [ ] Dockerfiles for each app (Next.js multi-stage builds)
+- [ ] `infra/prometheus.yml` — Prometheus config for monitoring profile
+- [ ] `infra/grafana/` — Grafana dashboard provisioning files
+- [ ] `scripts/db/init.sql` — Docker init script referenced in docker-compose
+
+---
+
+## Reusable Patterns
+
+### Admin Page Pattern (for reference)
+```tsx
+'use client';
+import { useState } from 'react';
+// 1. Define interfaces at top
+// 2. Mock data array
+// 3. Helper maps (colors, labels, icons)
+// 4. Small components (StatCard, Row, Badge)
+// 5. Main page with filter state + useMemo for filtered data
+// 6. Stat cards (4-5 across top)
+// 7. Filter bar (search + selects)
+// 8. Table with expandable rows
+// 9. Pagination
 ```
 
----
-
-## Monorepo Structure
-
-```
-/home/user/webapp/
-├── apps/
-│   ├── web/              # Marketing site — 24therapy.ai
-│   ├── therapist/        # Therapist portal — app.24therapy.ai
-│   ├── patient/          # Patient portal — my.24therapy.ai
-│   └── admin/            # Admin portal — admin.24therapy.ai
-├── backend/              # NestJS API — api.24therapy.ai
-│   └── src/
-│       ├── modules/      # 16 feature modules
-│       ├── gateways/     # WebSocket gateway
-│       ├── database/     # Drizzle ORM service
-│       └── config/       # App configuration
-├── packages/
-│   └── types/            # Shared TypeScript types (@24therapy/types)
-│       └── src/index.ts  # 1,860+ lines, full platform coverage
-├── migrations/           # SQL migration files (001-014)
-├── *.sql                 # Schema files (14 schema files at root)
-├── part-*.md             # PRD documents (35 parts)
-├── SETUP.md              # Deployment guide (347 lines — needs expansion)
-├── CLAUDE.md             # THIS FILE — AI session memory
-├── README.md             # Project overview
-├── package.json          # Root monorepo config
-├── pnpm-workspace.yaml   # PNPM workspaces
-└── turbo.json            # Turborepo config
+### Therapist Page Pattern
+```tsx
+'use client';
+// Same as admin but with teal/navy brand colors instead of red/orange
+// Uses therapist-specific sidebar (not admin sidebar)
 ```
 
----
-
-## Database Status
-
-**14 SQL schema files** at repository root, fully designed:
-- users, organizations, therapists, patients, sessions, transcripts
-- memory_nodes, memory_edges, knowledge_graphs
-- assessments, treatment_plans, clinical_notes
-- workflows, workflow_runs, notifications
-- billing (subscriptions, invoices, payments)
-- marketplace, referrals, radar_scores
-- ai_usage_metrics, audit_logs
-
----
-
-## Backend Module Status (16 Modules)
-
-| Module | Controller | Service | DTOs | Swagger | Validation | Audit |
-|--------|-----------|---------|------|---------|------------|-------|
-| auth | ✅ | ✅ | partial | partial | partial | ❌ |
-| users | ✅ | ✅ | partial | partial | partial | ❌ |
-| therapists | ✅ | ✅ | partial | partial | partial | ❌ |
-| patients | ✅ | ✅ | partial | partial | partial | ❌ |
-| sessions | ✅ | ✅ | partial | partial | partial | ❌ |
-| **memory** | ✅ | ✅ (752L) | ❌ | ❌ | ❌ | ❌ |
-| **ai** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **radar** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **assessments** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **billing** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **marketplace** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **organizations** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **workflows** | ✅ | ✅ (494L) | ❌ | ❌ | ❌ | ❌ |
-| **notifications** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **analytics** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **admin** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-
-**Critical gap: 11 modules need DTOs, Swagger decorators, class-validator, and audit logging**
-
----
-
-## Marketing Website Status (`apps/web`)
-
-| Page | Route | Status |
-|------|-------|--------|
-| Home | `/` | ✅ Complete |
-| About | `/about` | ✅ Complete |
-| Pricing | `/pricing` | ✅ Complete |
-| Features Hub | `/features` | ✅ Complete |
-| AI Copilot | `/features/ai-copilot` | ✅ NEW — Complete |
-| AI Workspace | `/features/ai-workspace` | ✅ NEW — Complete |
-| Memory Layer | `/features/memory-layer` | ✅ NEW — Complete |
-| Workflow Engine | `/features/workflow-engine` | ✅ NEW — Complete |
-| Use Cases | `/features/use-cases` | ✅ NEW — Complete |
-| Integrations | `/features/integrations` | ✅ NEW — Complete |
-| Teletherapy | `/features/teletherapy` | ✅ Complete |
-| Analytics | `/features/analytics` | ✅ Complete |
-| AI Scribe | `/ai-scribe` | ✅ Complete |
-| HIPAA | `/hipaa` | ✅ NEW — Complete |
-| Security | `/security` | ✅ Complete |
-| Privacy | `/privacy` | ✅ Complete |
-| Terms | `/terms` | ✅ Complete |
-| Contact | `/contact` | ✅ Complete |
-| Careers | `/careers` | ✅ Complete |
-| Docs | `/docs` | ✅ Complete |
-| Blog | `/blog` | ✅ Complete |
-| Enterprise | `/enterprise` | ✅ Complete |
-| Find Therapist | `/find-therapist` | ✅ Complete |
-| For Therapists | `/for-therapists` | ✅ Complete |
-| Therapist Join | `/therapist-join` | ✅ Complete |
-| Therapist Directory | `/therapists` | ✅ Complete |
-| Therapist Profile | `/therapists/[id]` | ✅ Complete |
-| Testimonials | `/testimonials` | ✅ Complete |
-| Global Footer | component | ✅ NEW — Updated |
-| Global Layout (Navbar+Footer) | layout.tsx | ✅ NEW — Fixed |
-
-**Missing web pages (lower priority):**
-- `/blog/[slug]` dynamic page (template exists, no CMS)
-- `/press` — press/media page
-- `/status` — system status page
-- `/gdpr` — GDPR-specific page
-
----
-
-## Patient Portal Status (`apps/patient`)
-
-| Page | Route | Status |
-|------|-------|--------|
-| Home/Dashboard | `/home` | ✅ Complete |
-| Appointments | `/appointments` | ✅ Complete |
-| Sessions | `/sessions` | ✅ Complete |
-| Reports | `/reports` | ✅ Complete |
-| Mood Tracker | `/mood` | ✅ Complete |
-| Journal | `/journal` | ✅ Complete |
-| Progress | `/progress` | ✅ Complete |
-| Assessments | `/assessments` | ✅ Complete |
-| AI Companion | `/ai-companion` | ✅ Complete |
-| Messages | `/messages` | ✅ Complete |
-| Resources | `/resources` | ✅ Complete |
-| Crisis Support | `/crisis` | ✅ Complete |
-| Notifications | `/notifications` | ✅ Complete |
-| Billing | `/billing` | ✅ Complete |
-| Homework | `/homework` | ✅ NEW — Complete |
-| Profile | `/profile` | ✅ NEW — Complete |
-| Settings | `/settings` | ✅ Complete |
-| Login | `/login` | ✅ Complete |
-
-**All patient portal pages complete ✅**
-
----
-
-## Therapist Portal Status (`apps/therapist`)
-
-| Page | Route | Status |
-|------|-------|--------|
-| Dashboard | `/dashboard` | ✅ Complete |
-| Patients | `/patients` | ✅ Complete |
-| Patient Profile | `/patients/[id]` | ✅ Complete |
-| Patient Intake | `/patients/intake` | ✅ Complete |
-| Sessions | `/sessions` | ✅ Complete |
-| Session Room | `/sessions/[id]/room` | ✅ Complete |
-| Session Prepare | `/sessions/[id]/prepare` | ✅ Complete |
-| New Session | `/sessions/new` | ✅ Complete |
-| Calendar | `/calendar` | ✅ Complete |
-| Notes | `/notes` | ✅ Complete |
-| Note Detail | `/notes/[id]` | ✅ Complete |
-| Assessments | `/assessments` | ✅ Complete |
-| Treatment Plans | `/treatment-plans` | ✅ Complete |
-| Clinical Tools | `/clinical-tools` | ✅ Complete |
-| Memory Layer | `/memory` | ✅ Complete |
-| Memory Graph | `/memory/graph` | ✅ Complete |
-| AI Workspace | `/ai-workspace` | ✅ Complete |
-| Risk Monitor | `/risk-monitor` | ✅ Complete |
-| Radar | `/radar` | ✅ Complete |
-| CRM | `/crm` | ✅ Complete |
-| Referrals | `/referrals` | ✅ Complete |
-| Workflow | `/workflow` | ✅ Complete |
-| Analytics | `/analytics` | ✅ Complete |
-| Billing | `/billing` | ✅ Complete |
-| Reports | `/reports` | ✅ Complete |
-| Messages | `/messages` | ✅ Complete |
-| Notifications | `/notifications` | ✅ Complete |
-| Settings | `/settings` | ✅ DEEP — 6 tabs complete |
-| Onboarding | `/onboarding` | ✅ Complete |
-| **Team Management** | `/team` | ❌ NOT YET BUILT |
-| **Audit Logs** | `/audit-logs` | ❌ NOT YET BUILT |
-
----
-
-## Admin Portal Status (`apps/admin`)
-
-| Page | Route | Status |
-|------|-------|--------|
-| Dashboard | `/dashboard` | ✅ Complete |
-| Organizations | `/organizations` | ✅ Complete |
-| Practice Management | `/practice-management` | ✅ Complete |
-| Therapists | `/therapists` | ✅ Complete |
-| Users | `/users` | ✅ Complete |
-| CRM | `/crm` | ✅ Complete (Sales Pipeline) |
-| Marketplace | `/marketplace` | ✅ Complete |
-| Billing | `/billing` | ✅ Complete |
-| Compliance | `/compliance` | ✅ Complete |
-| AI Governance | `/ai-governance` | ✅ Complete |
-| Settings | `/settings` | ✅ Complete |
-| **Analytics** | `/analytics` | ⚠️ EXISTS but MINIMAL — needs deep expansion |
-| **Support Tools** | `/support-tools` | ❌ NOT YET BUILT |
-| **Feature Flags** | `/feature-flags` | ❌ NOT YET BUILT |
-| **AI Costs** | `/ai-costs` | ❌ NOT YET BUILT |
-| **Audit Logs** | `/audit-logs` | ❌ NOT YET BUILT |
-
----
-
-## Recent Commits Log
-
-| Hash | Date | Description |
-|------|------|-------------|
-| f467147 | 2026-06-04 | feat(platform): 8 web feature pages, patient homework+profile, global footer+layout |
-| 7c0a3a8 | 2026-06-04 | feat(therapist): deep settings — 6 tabs: profile, practice, AI, notifications, security, billing |
-| 8ad7fbf | 2026-06-04 | feat(therapist): full calendar — month/week/day/list views |
-| 1bc498e | 2026-06-04 | feat(patient): notifications page, billing page with insurance tracker |
-| 269f0af | 2026-06-04 | feat(web): 8 marketing pages — features, contact, careers, privacy, terms, docs |
-| f27e178 | 2026-06-04 | docs(claude): create persistent AI session memory file |
-| cbbecaf | 2026-06-04 | feat(types): expand shared TypeScript types to 1,860+ lines |
-| d3c7c5c | 2026-06-04 | feat(marketplace): therapist profile page |
-| bcc6ffe | 2026-06-04 | feat(admin): practice management page |
-| 537da9b | 2026-06-04 | feat(admin): CRM sales pipeline |
-
----
-
-## Architecture Decisions
-
-1. **No CMS yet** — Blog uses static mock data. CMS integration (Contentful/Sanity) planned for post-MVP.
-2. **Web layout now includes Navbar+Footer globally** — Individual pages no longer need to import these.
-3. **Shared types at `@24therapy/types`** — All apps import from this package. 1,860+ lines covering all domains.
-4. **Drizzle ORM** — Not Prisma. Schema files are raw SQL (14 files at root).
-5. **Patient portal uses Zustand `useAuthStore`** — Not Next-Auth.
-6. **Therapist settings uses ToggleSwitch + SectionCard reusable patterns** — Reuse in other settings pages.
-7. **Memory Layer = KnowledgeGraph of MemoryNode records** — 21 node types, semantic edges, timestamped.
-8. **All 4 apps are separate Next.js projects** — Not a single app with sub-routes.
-
----
-
-## Known Issues / Technical Debt
-
-1. **Backend DTOs missing** — 11 modules have no `class-validator` DTOs or `@ApiProperty` Swagger decorators
-2. **No audit logging** — Backend modules don't log PHI access to audit trail
-3. **No email service** — Notifications use stub service; Resend/SendGrid not configured
-4. **No file storage** — Document uploads not wired to S3/R2
-5. **No real WebSocket** — Gateway exists but frontends use polling in some places
-6. **Web layout duplication** — `page.tsx` (home) still imports Footer directly — should be removed since layout now handles it
-7. **No CI/CD** — No `.github/workflows/` pipeline exists
-8. **No Docker Compose** — No `docker-compose.yml` at root
-9. **SETUP.md** — Only 347 lines, needs full production deployment guide
-10. **No `.env.example` files** — Each app/backend needs these
-
----
-
-## Remaining Work — Priority Order
-
-### 🔴 HIGH PRIORITY (Next Session)
-
-#### Therapist Portal
-- [ ] `/team` — Team management page (invite therapists, roles, permissions, capacity)
-- [ ] `/audit-logs` — Audit log viewer (access logs, PHI access, note changes)
-
-#### Admin Portal
-- [ ] `/analytics` — Deep analytics (MRR, ARR, churn, AI costs, clinical outcomes, cohorts)
-- [ ] `/support-tools` — Support ticket system, user impersonation, account actions
-- [ ] `/feature-flags` — Feature flag management UI per org/therapist
-- [ ] `/audit-logs` — Platform-wide audit log viewer
-- [ ] `/ai-costs` — AI usage cost dashboard (tokens, sessions, per-org costs)
-
-#### Backend DTOs (Critical for Production)
-All 11 modules need:
+### DTO Pattern (NestJS)
 ```typescript
-// Example pattern needed in each module:
-export class CreatePatientDto {
-  @IsString() @IsNotEmpty() @ApiProperty()
-  first_name: string;
-  // ... all fields with class-validator + @ApiProperty
-}
+// 1. Enums at top
+// 2. Query DTOs (for GET endpoints)
+// 3. Create DTOs (for POST endpoints)  
+// 4. Update DTOs (all fields optional, same as Create but IsOptional)
+// 5. Use @ApiProperty on everything for Swagger
+// 6. Use class-validator decorators: @IsString, @IsEnum, @IsUUID, @IsOptional
 ```
-Modules: memory, ai, radar, assessments, billing, marketplace, organizations, workflows, notifications, analytics, admin
-
-### 🟡 MEDIUM PRIORITY
-
-#### Infrastructure
-- [ ] `docker-compose.yml` — Full stack local dev (postgres, redis, all apps, backend)
-- [ ] `.env.example` files — For each app (`apps/web`, `apps/therapist`, `apps/patient`, `apps/admin`, `backend`)
-- [ ] `.github/workflows/ci.yml` — TypeScript check + lint + build on PR
-- [ ] SETUP.md expansion — Full production deployment guide (Docker, AWS, Vercel, Railway, Render, Supabase)
-
-#### Web Marketing
-- [ ] `/press` — Press/media page
-- [ ] `/status` — System status page
-- [ ] `/gdpr` — GDPR-specific compliance page
-- [ ] Fix home `page.tsx` — Remove duplicate Footer import (now handled by layout.tsx)
-
-### 🟢 LOW PRIORITY (Polish)
-- [ ] Blog CMS integration (Contentful/Sanity)
-- [ ] Real WebSocket wiring to frontend components
-- [ ] Email service (Resend) integration
-- [ ] File storage (S3/R2) integration
-- [ ] Payment webhook handlers (Stripe)
 
 ---
 
-## Deployment Status
+## Important File Locations
 
-| Component | Status | URL |
-|-----------|--------|-----|
-| Marketing Site | Not deployed | https://24therapy.ai |
-| Therapist Portal | Not deployed | https://app.24therapy.ai |
-| Patient Portal | Not deployed | https://my.24therapy.ai |
-| Admin Portal | Not deployed | https://admin.24therapy.ai |
-| Backend API | Not deployed | https://api.24therapy.ai |
-| Database | Not provisioned | Supabase/Neon planned |
-| Redis | Not provisioned | Upstash planned |
-
----
-
-## Session History
-
-| Session | Date | Major Accomplishments |
-|---------|------|----------------------|
-| Session 1 | 2026-06-04 | Initial build — all 4 portals, backend 16 modules, types, marketplace, admin CRM, notifications |
-| Session 2 | 2026-06-04 | CLAUDE.md, types expansion, 8 web pages, patient billing+notifications, therapist calendar |
-| Session 3 | 2026-06-04 | Therapist settings (6 tabs), 8 more web feature pages, HIPAA page, patient homework+profile, footer |
+| File | Purpose |
+|------|---------|
+| `packages/types/src/index.ts` | 1,860+ line shared types — check before adding new types |
+| `apps/admin/components/layout/admin-sidebar.tsx` | Admin nav — 4 sections: PLATFORM, COMPLIANCE & SAFETY, BUSINESS, TOOLS, SYSTEM |
+| `apps/therapist/components/layout/sidebar.tsx` | Therapist nav — sections: PATIENT CARE, PRACTICE, COMPLIANCE |
+| `apps/patient/components/layout/patient-sidebar.tsx` | Patient nav — includes homework + profile |
+| `apps/web/app/layout.tsx` | Global layout — wraps ALL web pages with `<Navbar />` + `<Footer />` |
+| `backend/src/modules/auth/guards/jwt-auth.guard.ts` | JWT guard used on all protected routes |
+| `backend/src/modules/auth/decorators/current-user.decorator.ts` | `@CurrentUser()` decorator |
 
 ---
 
-## Next Recommended Priorities
+## HIPAA Requirements (Technical)
 
-A new AI session should immediately:
-
-1. **Build `/team` page** in therapist portal — invite modal, role management, capacity tracking, seat management
-2. **Build `/audit-logs` page** in therapist portal — paginated log table, filter by action/patient/date
-3. **Expand admin `/analytics`** — MRR charts, churn, AI costs, clinical outcome aggregates
-4. **Build 4 missing admin pages** — support-tools, feature-flags, ai-costs, audit-logs
-5. **Backend DTOs** — Start with `memory` and `workflows` modules (highest business value), then billing, assessments
-6. **Create `docker-compose.yml`** — postgres + redis + all 5 services
-7. **Expand SETUP.md** — Full production deployment guide
-8. **Fix home page** — Remove duplicate Footer import from `apps/web/app/page.tsx`
+- **PHI** = any patient-identifiable information in session notes, assessments, records
+- **Audit logging**: every PHI access, modification, export must be logged with actor, target, IP, outcome
+- **Encryption**: PHI fields encrypted at rest using `DATA_ENCRYPTION_KEY` (AES-256-GCM)
+- **Access control**: minimum necessary — therapists only see their own patients
+- **Session timeout**: 4 hours max (configurable); idle timeout 30 min
+- **MFA**: required for all org_admin and above roles
+- **Retention**: audit logs retained 6 years per HIPAA §164.312(b)
 
 ---
 
-*This file is maintained as persistent AI session memory. Update after every commit batch.*
-*Any AI session reading this file should have full project context within 5 minutes.*
+## Session Notes (What Was Just Built)
+
+**Session 3 (current) — 2025-01-15:**
+
+Built and committed (`a871cef`):
+1. `apps/admin/app/(dashboard)/audit-logs/page.tsx` — Platform-wide audit log viewer
+   - 15 mock events across 13 categories, 5 severity levels
+   - Expandable rows with IP, user agent, geo, metadata, session/log IDs
+   - Filters: search, category, severity, outcome, org, actor-role
+   - Compliance footer: retention schedule, high-risk event types, certifications
+   
+2. `apps/admin/components/layout/admin-sidebar.tsx` — Added TOOLS section
+   - support-tools (Wrench), feature-flags (ToggleLeft), ai-costs (DollarSign), audit-logs (FileSearch)
+
+3. `apps/web/app/page.tsx` — Removed duplicate `<Navbar />` + `<Footer />` (now in layout.tsx)
+
+Also created (infrastructure batch, not yet committed):
+- `apps/web/.env.example`
+- `apps/therapist/.env.example`
+- `apps/patient/.env.example`
+- `apps/admin/.env.example`
+- `docker-compose.yml` (root)
+- `.github/workflows/ci.yml`
+- `backend/src/modules/memory/dto/memory.dto.ts`
+- `backend/src/modules/workflows/dto/workflows.dto.ts`
+- `backend/src/modules/ai/dto/ai.dto.ts`
+- `backend/src/modules/assessments/dto/assessments.dto.ts`
+- `backend/src/modules/notifications/dto/notifications.dto.ts`
+- `backend/src/modules/organizations/dto/organizations.dto.ts`
+- `backend/src/modules/billing/dto/billing.dto.ts`
+- `backend/src/modules/analytics/dto/analytics.dto.ts`
+- `backend/src/modules/admin/dto/admin.dto.ts`
+- `SETUP.md` expanded (347 → 868 lines)
+- `CLAUDE.md` (this file) updated
