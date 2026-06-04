@@ -1,266 +1,307 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
-  Calendar, Heart, TrendingUp, Clock, CheckCircle2, AlertCircle,
-  Sparkles, ChevronRight, Activity, Brain, Sun, Wind, Target,
-  MessageCircle, BookOpen, Bell, Zap, Shield, Star
+  Calendar, Clock, Video, Brain, Heart, TrendingUp, BookOpen,
+  MessageSquare, CheckCircle2, AlertCircle, Smile, Moon, Zap,
+  ArrowRight, Star, Target, Pill, ChevronRight, Activity,
+  Sparkles, Shield, Plus, Bell, BookOpenCheck, Users
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
-const MOCK_PATIENT = {
-  name: "Sarah Chen",
-  therapist_name: "Dr. Smith",
-  next_session: "2025-12-22T10:00:00Z",
-  sessions_completed: 24,
-  streak_days: 7,
-  mood_today: null,
-  phq9_score: 13,
-  gad7_score: 8,
-  phq9_trend: "improving",
-  goals_active: 3,
-  goals_completed: 1,
-  pending_assessments: 1,
-  unread_messages: 2,
+const UPCOMING_SESSION = {
+  date: "December 22, 2025",
+  time: "10:00 AM",
+  therapist: "Dr. Alex Smith",
+  type: "Video Session",
+  session_number: 25,
+  days_until: 6,
+  focus: "CBT + Year-end stress management"
 };
 
-const MOOD_OPTIONS = [
-  { value: 1, emoji: "😔", label: "Very Low", color: "text-red-600 hover:bg-red-50 border-red-200" },
-  { value: 2, emoji: "😟", label: "Low", color: "text-orange-600 hover:bg-orange-50 border-orange-200" },
-  { value: 3, emoji: "😐", label: "Okay", color: "text-yellow-600 hover:bg-yellow-50 border-yellow-200" },
-  { value: 4, emoji: "😊", label: "Good", color: "text-green-600 hover:bg-green-50 border-green-200" },
-  { value: 5, emoji: "😄", label: "Great", color: "text-emerald-600 hover:bg-emerald-50 border-emerald-200" },
+const TODAY_HOMEWORK = [
+  { id: "h1", task: "Practice 4-7-8 breathing (morning)", done: true },
+  { id: "h2", task: "Thought record — work stress", done: false },
+  { id: "h3", task: "Write 1 gratitude item", done: true },
+  { id: "h4", task: "Social event this week", done: false },
 ];
 
-const QUICK_TOOLS = [
-  { label: "Breathing Exercise", icon: Wind, desc: "4-7-8 technique", href: "/resources?type=breathing", color: "bg-blue-50 text-blue-600" },
-  { label: "Mood Journal", icon: Heart, desc: "Log how you feel", href: "/progress?tab=journal", color: "bg-pink-50 text-pink-600" },
-  { label: "Crisis Resources", icon: Shield, desc: "Get help now", href: "/resources?type=crisis", color: "bg-red-50 text-red-600" },
-  { label: "Homework", icon: BookOpen, desc: "From your therapist", href: "/resources?type=homework", color: "bg-purple-50 text-purple-600" },
+const RECENT_MOOD = [
+  { day: "Mon", value: 6 },
+  { day: "Tue", value: 5 },
+  { day: "Wed", value: 7 },
+  { day: "Thu", value: 7 },
+  { day: "Fri", value: 8 },
+  { day: "Sat", value: 7 },
+  { day: "Sun", value: 7 },
 ];
+
+const QUICK_ACTIONS = [
+  { label: "Log Mood", href: "/mood", icon: Smile, color: "bg-amber-50 text-amber-600 border-amber-100" },
+  { label: "Journal", href: "/journal", icon: BookOpenCheck, color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
+  { label: "AI Companion", href: "/ai-companion", icon: Brain, color: "bg-blue-50 text-blue-600 border-blue-100" },
+  { label: "Resources", href: "/resources", icon: BookOpen, color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
+];
+
+const GOALS_PREVIEW = [
+  { title: "Reduce PHQ-9 below 9", progress: 52, change: 5, category: "Depression" },
+  { title: "Sleep 7+ hrs consistently", progress: 70, change: 5, category: "Sleep" },
+  { title: "Re-engage social activities", progress: 40, change: 10, category: "Social" },
+];
+
+const AI_INSIGHTS = [
+  {
+    id: "i1",
+    type: "pattern",
+    title: "Exercise improves your mood by ~2pts",
+    short: "On exercise days, your mood averages 7.8 vs 5.9 on non-exercise days.",
+    icon: Zap,
+    color: "bg-amber-50 border-amber-100 text-amber-800"
+  },
+  {
+    id: "i2",
+    type: "progress",
+    title: "Best mood week in 2 months!",
+    short: "Your average mood this week (6.9) is the highest since mid-October.",
+    icon: TrendingUp,
+    color: "bg-emerald-50 border-emerald-100 text-emerald-800"
+  },
+];
+
+const MEDICATIONS = [
+  { name: "Lexapro 10mg", schedule: "Morning · Daily", taken_today: true },
+];
+
+function MoodBar({ value }: { value: number }) {
+  const color = value >= 7 ? "bg-emerald-400" : value >= 5 ? "bg-blue-400" : "bg-amber-400";
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="h-12 w-6 bg-gray-100 rounded-full overflow-hidden flex items-end">
+        <div className={cn("w-full rounded-full", color)} style={{ height: `${(value / 10) * 100}%` }} />
+      </div>
+    </div>
+  );
+}
 
 export default function PatientHomePage() {
-  const daysUntilSession = Math.ceil(
-    (new Date(MOCK_PATIENT.next_session).getTime() - Date.now()) / 86400000,
-  );
+  const [toggleTaken, setToggleTaken] = useState(MEDICATIONS.map(m => m.taken_today));
+  const completedHomework = TODAY_HOMEWORK.filter(h => h.done).length;
+  const homeworkPct = Math.round((completedHomework / TODAY_HOMEWORK.length) * 100);
 
-  const hourOfDay = new Date().getHours();
-  const greeting = hourOfDay < 12 ? "Good morning" : hourOfDay < 17 ? "Good afternoon" : "Good evening";
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-5">
+    <div className="max-w-2xl mx-auto space-y-5">
+      {/* Greeting */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{greeting}, Sarah 👋</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{today}</p>
+        </div>
+        <Link href="/home" className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+          <Bell className="h-4 w-4 text-gray-400" />
+        </Link>
+      </div>
 
-        {/* Greeting */}
-        <div className="bg-gradient-to-r from-secondary-600 to-secondary-700 rounded-2xl p-6 text-white">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Sun className="w-4 h-4 opacity-80" />
-                <span className="text-sm text-secondary-200">{greeting}</span>
-              </div>
-              <h1 className="text-2xl font-bold">Hi, {MOCK_PATIENT.name.split(" ")[0]} 👋</h1>
-              <p className="text-secondary-200 text-sm mt-1">
-                You&apos;re doing great — {MOCK_PATIENT.streak_days} day streak!
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold">{MOCK_PATIENT.streak_days}</div>
-              <div className="text-xs text-secondary-300">day streak</div>
-            </div>
+      {/* Next Session — prominent */}
+      <div className="bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] rounded-2xl p-5 text-white">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs text-white/60 uppercase tracking-wide font-medium">Next Session</span>
+          <span className="text-xs bg-white/10 px-2.5 py-1 rounded-full font-medium">
+            In {UPCOMING_SESSION.days_until} days
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+            <Users className="h-5 w-5 text-white/80" />
           </div>
-
-          {/* Next session */}
-          <div className="mt-4 bg-white/10 rounded-xl p-3.5 flex items-center gap-3">
-            <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">Next session with {MOCK_PATIENT.therapist_name}</p>
-              <p className="text-xs text-secondary-300">
-                {formatDate(MOCK_PATIENT.next_session)} ·{" "}
-                {new Date(MOCK_PATIENT.next_session).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} ·{" "}
-                {daysUntilSession === 0 ? "Today!" : daysUntilSession === 1 ? "Tomorrow" : `${daysUntilSession} days`}
-              </p>
-            </div>
-            <Link href="/sessions" className="bg-white text-secondary-600 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-secondary-50 transition-colors">
-              View
-            </Link>
+          <div>
+            <p className="font-semibold">{UPCOMING_SESSION.therapist}</p>
+            <p className="text-xs text-white/60">Session #{UPCOMING_SESSION.session_number}</p>
           </div>
         </div>
 
-        {/* Alerts */}
-        {(MOCK_PATIENT.pending_assessments > 0 || MOCK_PATIENT.unread_messages > 0) && (
-          <div className="space-y-2">
-            {MOCK_PATIENT.pending_assessments > 0 && (
-              <Link href="/assessments" className="flex items-center gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors">
-                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-800">
-                    Assessment pending — PHQ-9 due
-                  </p>
-                  <p className="text-xs text-amber-600">Takes about 5 minutes · Requested by your therapist</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-amber-400" />
-              </Link>
-            )}
-            {MOCK_PATIENT.unread_messages > 0 && (
-              <Link href="/messages" className="flex items-center gap-3 p-3.5 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors">
-                <MessageCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-800">
-                    {MOCK_PATIENT.unread_messages} new message{MOCK_PATIENT.unread_messages > 1 ? "s" : ""} from {MOCK_PATIENT.therapist_name}
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-blue-400" />
-              </Link>
-            )}
+        <div className="flex items-center gap-4 mb-4 text-sm text-white/70">
+          <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {UPCOMING_SESSION.date}</span>
+          <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {UPCOMING_SESSION.time}</span>
+          <span className="flex items-center gap-1.5"><Video className="h-3.5 w-3.5" /> Video</span>
+        </div>
+
+        {UPCOMING_SESSION.focus && (
+          <div className="bg-white/10 rounded-xl px-3 py-2 mb-4">
+            <p className="text-xs text-white/50 mb-0.5">Planned focus</p>
+            <p className="text-sm text-white">{UPCOMING_SESSION.focus}</p>
           </div>
         )}
 
-        {/* Today's Mood */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-5">
-          <h2 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <Heart className="w-4 h-4 text-pink-500" />
-            How are you feeling today?
-          </h2>
-          <div className="flex items-center justify-between gap-2">
-            {MOOD_OPTIONS.map((mood) => (
-              <button
-                key={mood.value}
-                className={cn(
-                  "flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border transition-all hover:scale-105",
-                  "border-slate-200 hover:border-current",
-                  mood.color
-                )}
-              >
-                <span className="text-2xl">{mood.emoji}</span>
-                <span className="text-xs font-medium">{mood.label}</span>
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-2">
+          <button className="flex-1 py-2.5 bg-white text-[#0A2342] rounded-xl text-sm font-semibold hover:bg-white/90 flex items-center justify-center gap-1.5">
+            <Video className="h-4 w-4" /> Join Session
+          </button>
+          <Link href="/appointments" className="px-4 py-2.5 bg-white/10 text-white rounded-xl text-sm hover:bg-white/20 flex items-center gap-1.5">
+            <Calendar className="h-4 w-4" />
+          </Link>
         </div>
+      </div>
 
-        {/* Progress Snapshot */}
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            {
-              label: "PHQ-9 Score",
-              value: MOCK_PATIENT.phq9_score,
-              sub: "Moderate depression",
-              icon: Activity,
-              trend: MOCK_PATIENT.phq9_trend,
-              color: "text-orange-600",
-              bg: "bg-orange-50",
-            },
-            {
-              label: "GAD-7 Score",
-              value: MOCK_PATIENT.gad7_score,
-              sub: "Mild anxiety",
-              icon: Brain,
-              trend: "stable",
-              color: "text-yellow-600",
-              bg: "bg-yellow-50",
-            },
-            {
-              label: "Sessions Done",
-              value: MOCK_PATIENT.sessions_completed,
-              sub: "Total sessions",
-              icon: Calendar,
-              color: "text-blue-600",
-              bg: "bg-blue-50",
-            },
-            {
-              label: "Active Goals",
-              value: MOCK_PATIENT.goals_active,
-              sub: `${MOCK_PATIENT.goals_completed} completed`,
-              icon: Target,
-              color: "text-green-600",
-              bg: "bg-green-50",
-            },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl border border-slate-200 shadow-card p-4">
-              <div className="flex items-start justify-between">
-                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", stat.bg)}>
-                  <stat.icon className={cn("w-4 h-4", stat.color)} />
-                </div>
-                {stat.trend && (
-                  <span className={cn(
-                    "text-xs font-medium px-1.5 py-0.5 rounded",
-                    stat.trend === "improving" ? "text-green-600 bg-green-50" : "text-slate-500 bg-slate-100"
-                  )}>
-                    {stat.trend === "improving" ? "↓ Improving" : "→ Stable"}
-                  </span>
-                )}
+      {/* Quick actions */}
+      <div className="grid grid-cols-4 gap-2">
+        {QUICK_ACTIONS.map(action => (
+          <Link
+            key={action.label}
+            href={action.href}
+            className={cn("flex flex-col items-center gap-2 p-3 rounded-2xl border text-center transition-all hover:shadow-sm", action.color)}
+          >
+            <action.icon className="h-5 w-5" />
+            <span className="text-xs font-medium">{action.label}</span>
+          </Link>
+        ))}
+      </div>
+
+      {/* Today's homework */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-amber-500" /> Today's Tasks
+          </h3>
+          <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+            {completedHomework}/{TODAY_HOMEWORK.length} done
+          </span>
+        </div>
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
+          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${homeworkPct}%` }} />
+        </div>
+        <div className="space-y-2">
+          {TODAY_HOMEWORK.map((hw) => (
+            <div key={hw.id} className="flex items-center gap-3">
+              <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2", hw.done ? "bg-emerald-500 border-emerald-500" : "border-gray-300")}>
+                {hw.done && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
               </div>
-              <div className="mt-3">
-                <div className={cn("text-2xl font-bold", stat.color)}>{stat.value}</div>
-                <div className="text-sm font-medium text-slate-700">{stat.label}</div>
-                <div className="text-xs text-slate-500">{stat.sub}</div>
+              <p className={cn("text-sm", hw.done ? "line-through text-gray-400" : "text-gray-700")}>{hw.task}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mood this week */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Smile className="h-4 w-4 text-blue-500" /> This Week's Mood
+          </h3>
+          <Link href="/mood" className="text-xs text-[#0A2342] flex items-center gap-1">
+            Log today <Plus className="h-3 w-3" />
+          </Link>
+        </div>
+        <div className="flex items-end justify-between gap-2">
+          {RECENT_MOOD.map((d) => (
+            <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
+              <span className="text-xs font-medium text-gray-700">{d.value}</span>
+              <MoodBar value={d.value} />
+              <span className="text-xs text-gray-400">{d.day}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+          <span className="text-xs text-gray-500">Avg: <strong>6.9</strong></span>
+          <span className="text-xs text-emerald-600 font-medium">↑ +0.8 vs last week</span>
+        </div>
+      </div>
+
+      {/* Goals preview */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Target className="h-4 w-4 text-indigo-500" /> Treatment Goals
+          </h3>
+          <Link href="/progress" className="text-xs text-[#0A2342] flex items-center gap-1">
+            View all <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <div className="space-y-3">
+          {GOALS_PREVIEW.map(goal => (
+            <div key={goal.title}>
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <p className="text-xs font-medium text-gray-700">{goal.title}</p>
+                  <p className="text-xs text-gray-400">{goal.category}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-900">{goal.progress}%</p>
+                  <p className="text-xs text-emerald-600">+{goal.change}% this month</p>
+                </div>
+              </div>
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={cn("h-full rounded-full", goal.progress >= 70 ? "bg-emerald-500" : goal.progress >= 40 ? "bg-blue-500" : "bg-amber-400")}
+                  style={{ width: `${goal.progress}%` }}
+                />
               </div>
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Quick Tools */}
-        <div>
-          <h2 className="font-semibold text-slate-800 mb-3">Quick Tools</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {QUICK_TOOLS.map((tool) => (
-              <Link
-                key={tool.label}
-                href={tool.href}
-                className="bg-white rounded-xl border border-slate-200 shadow-card p-4 hover:shadow-card-hover transition-all flex items-center gap-3"
-              >
-                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", tool.color)}>
-                  <tool.icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">{tool.label}</p>
-                  <p className="text-xs text-slate-500">{tool.desc}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* AI Insights */}
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl border border-purple-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            <h2 className="font-semibold text-slate-800 text-sm">This Week&apos;s Insight</h2>
-          </div>
-          <p className="text-sm text-slate-700 leading-relaxed">
-            Your PHQ-9 score has improved by 4 points over the past month. 
-            The breathing exercises you&apos;ve been practicing appear to be helping with sleep quality.
-            Keep up the great work — consistency is key to progress.
-          </p>
-          <button className="mt-3 text-xs text-purple-600 font-semibold hover:text-purple-700 flex items-center gap-1">
-            View full progress report
-            <ChevronRight className="w-3 h-3" />
-          </button>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-5">
-          <h2 className="font-semibold text-slate-800 mb-3">Recent Activity</h2>
-          <div className="space-y-3">
-            {[
-              { icon: CheckCircle2, color: "text-green-600 bg-green-50", text: "Session completed with Dr. Smith", time: "Yesterday, 10:00 AM" },
-              { icon: Activity, color: "text-blue-600 bg-blue-50", text: "PHQ-9 assessment completed — score: 13", time: "Dec 15" },
-              { icon: Calendar, color: "text-purple-600 bg-purple-50", text: "Next session scheduled for Dec 22", time: "Dec 14" },
-              { icon: Star, color: "text-amber-600 bg-amber-50", text: "Goal achieved: '3 coping strategies developed'", time: "Dec 10" },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", item.color)}>
-                  <item.icon className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-700 truncate">{item.text}</p>
-                  <p className="text-xs text-slate-400">{item.time}</p>
-                </div>
+      {/* AI Insights */}
+      <div className="space-y-2">
+        {AI_INSIGHTS.map(insight => {
+          const Icon = insight.icon;
+          return (
+            <div key={insight.id} className={cn("rounded-2xl border p-4 flex gap-3", insight.color)}>
+              <div className="w-8 h-8 bg-white/60 rounded-xl flex items-center justify-center shrink-0">
+                <Icon className="h-4 w-4" />
               </div>
-            ))}
+              <div>
+                <p className="text-sm font-semibold">{insight.title}</p>
+                <p className="text-xs mt-0.5 opacity-80">{insight.short}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Medication reminder */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Pill className="h-4 w-4 text-teal-500" /> Medication
+          </h3>
+        </div>
+        {MEDICATIONS.map((med, i) => (
+          <div key={med.name} className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                const newTaken = [...toggleTaken];
+                newTaken[i] = !newTaken[i];
+                setToggleTaken(newTaken);
+              }}
+              className={cn(
+                "w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all shrink-0",
+                toggleTaken[i] ? "bg-teal-500 border-teal-500" : "border-gray-300"
+              )}
+            >
+              {toggleTaken[i] && <CheckCircle2 className="h-4 w-4 text-white" />}
+            </button>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">{med.name}</p>
+              <p className="text-xs text-gray-400">{med.schedule}</p>
+            </div>
+            {toggleTaken[i] && <span className="text-xs text-teal-600 font-medium">Taken ✓</span>}
+          </div>
+        ))}
+      </div>
+
+      {/* Crisis support (always visible) */}
+      <div className="bg-rose-50 rounded-2xl border border-rose-100 p-4">
+        <div className="flex items-center gap-3">
+          <Heart className="h-5 w-5 text-rose-500 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-rose-700">Need immediate support?</p>
+            <p className="text-xs text-rose-600">If you're in crisis: call/text <strong>988</strong> · Text HOME to <strong>741741</strong></p>
           </div>
         </div>
       </div>
