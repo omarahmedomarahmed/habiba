@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   Brain, LayoutDashboard, Users, Calendar, FileText, BarChart2,
   Settings, CreditCard, Zap, ChevronLeft, ChevronRight,
-  AlertTriangle, Activity, MessageSquare, ClipboardList, Bell
+  AlertTriangle, Activity, MessageSquare, ClipboardList, Bell,
+  Target, Network, Workflow
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
@@ -25,16 +26,23 @@ const NAV_ITEMS = [
     section: "CLINICAL",
     items: [
       { href: "/assessments", icon: ClipboardList, label: "Assessments" },
+      { href: "/treatment-plans", icon: Target, label: "Treatment Plans" },
       { href: "/radar", icon: Zap, label: "Radar", badge: "LIVE" },
-      { href: "/messages", icon: MessageSquare, label: "Messages" },
       { href: "/risk-monitor", icon: AlertTriangle, label: "Risk Monitor" },
+      { href: "/messages", icon: MessageSquare, label: "Messages" },
+    ],
+  },
+  {
+    section: "INTELLIGENCE",
+    items: [
+      { href: "/memory", icon: Network, label: "Memory Layer" },
+      { href: "/ai-workspace", icon: Brain, label: "AI Workspace" },
     ],
   },
   {
     section: "PRACTICE",
     items: [
       { href: "/analytics", icon: BarChart2, label: "Analytics" },
-      { href: "/ai-workspace", icon: Brain, label: "AI Workspace" },
       { href: "/billing", icon: CreditCard, label: "Billing" },
     ],
   },
