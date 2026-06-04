@@ -1,0 +1,25 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && pnpm build --filter=@24therapy/web",
+  "outputDirectory": ".next",
+  "devCommand": "next dev -p 3004",
+  "installCommand": "pnpm install",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" }
+      ]
+    }
+  ],
+  "redirects": [
+    { "source": "/app", "destination": "https://app.24therapy.com", "permanent": false },
+    { "source": "/portal", "destination": "https://therapist.24therapy.com", "permanent": false }
+  ],
+  "env": {
+    "NEXT_PUBLIC_APP_ENV": "production"
+  }
+}
