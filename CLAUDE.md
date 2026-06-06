@@ -15,8 +15,8 @@
 | **Branch** | `main` |
 | **Stack** | Next.js 15 · NestJS · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turbo + PNPM 9 workspaces |
-| **Last Commit** | `fe0b495` — fix: move CI file from .github/workflows/ to infra/ci/ |
-| **Last Updated** | 2026-06-04 (session 4 — Deployment Audit) |
+| **Last Commit** | `00d512c` — feat(pricing): centralized pricing management system |
+| **Last Updated** | 2026-06-06 (session 5 — Pricing Audit & Standardization) |
 
 ---
 
@@ -194,7 +194,8 @@ export default eslintConfig;
 | `/practice-management` | ✅ Complete | prior |
 | `/compliance` | ✅ Complete | prior |
 | `/ai-governance` | ✅ Complete | prior |
-| `/billing` | ✅ Complete | prior |
+| `/billing` | ✅ Updated (removed hardcoded plans, redirects to /pricing) | `00d512c` |
+| `/pricing` | ✅ **NEW** — Full CRUD pricing management | `00d512c` |
 | `/marketplace` | ✅ Complete | prior |
 | `/analytics` | ✅ Complete (5-tab deep) | `a871cef` |
 | `/crm` | ✅ Complete | prior |
@@ -203,7 +204,7 @@ export default eslintConfig;
 | `/ai-costs` | ✅ Complete | `a871cef` |
 | `/audit-logs` | ✅ Complete | `a871cef` |
 | `/settings` | ✅ Fixed (Webhook icon import conflict removed) | `7150495` |
-| Admin Sidebar | ✅ Updated with TOOLS section | `a871cef` |
+| Admin Sidebar | ✅ Updated with TOOLS section + Pricing Management | `00d512c` |
 
 ---
 
@@ -258,10 +259,11 @@ export default eslintConfig;
 
 | Hash | Message | Key Changes |
 |------|---------|-------------|
+| `00d512c` | feat(pricing): centralized pricing management system | 11 files, +3629 lines — session 5 |
+| `b597672` | docs: comprehensive platform audit | AUDIT_REPORT, PRODUCTION_GAP_ANALYSIS, FEATURE_MATRIX |
+| `0260e68` | Merge pull request #1 (React Server Components CVE) | Security patch |
 | `fe0b495` | fix: move CI file from .github/workflows/ to infra/ci/ | Remove workflow file (no perms) |
 | `7150495` | fix(deploy): resolve all Vercel build failures | 41 files, PRIMARY deployment fix |
-| `fc0720d` | Update packageManager and engines in package.json | pnpm@9.15.0, node: 20.x |
-| `65be339` | fix: move CI workflow to infra/ci/ | CI location fix |
 | `b647564` | feat: infrastructure, backend DTOs, env examples, CI/CD | 9 DTO files, docker-compose, SETUP.md |
 | `a871cef` | feat: complete therapist + admin portals | 10 files, +3058 lines |
 | `f467147` | feat: marketing pages, patient homework+profile | ~12 files |
@@ -297,30 +299,98 @@ All 4 apps build successfully: web (32 routes), therapist (28), patient (17), ad
 
 ---
 
+## Session 5 Summary (2026-06-06 — Pricing Audit & Standardization)
+
+### What Was Audited
+- Full codebase audit from scratch (3 audit documents created)
+- AUDIT_REPORT.md: All 5 apps + backend + infrastructure
+- PRODUCTION_GAP_ANALYSIS.md: Build failures, security, deployment blockers
+- FEATURE_MATRIX.md: 117 features scored (18 complete, 52 mock, 22 missing)
+
+### Critical Issue Found & Fixed
+**Three conflicting pricing sources** → now ONE source of truth:
+| Location | Old (hardcoded) | New (dynamic) |
+|----------|----------------|---------------|
+| `apps/web/pricing` | Starter $79, Pro $149, Practice $399 | Fetches from `/billing/plans` API |
+| `apps/admin/billing` | Starter $59, Pro $149, Growth $599 | Removed, redirects to /pricing mgmt |
+| `010_billing_schema.sql` | Professional $99, Practice $299 | Canonical DB source |
+
+### What Was Built (commit `00d512c`)
+1. **Backend**: 8 new admin plan management endpoints
+2. **Admin Portal**: New `/pricing` management page (full CRUD)
+3. **Shared API client**: `pricing-api.ts` in all 4 apps
+4. **Web pricing page**: Now dynamic Server Component (fetches API, graceful fallback)
+5. **Database migration**: `015_pricing_management.sql` (adds admin metadata columns)
+6. **Admin sidebar**: Pricing Management added to BUSINESS section
+
+### Architecture: Pricing Data Flow
+```
+Database (subscription_plans)
+    ↓
+Backend GET /billing/plans (public, no auth)
+Backend GET /billing/admin/plans (admin, JWT required)
+    ↓
+apps/*/lib/pricing-api.ts (shared fetch client, 5-min cache)
+    ↓
+apps/web/pricing    → Server Component, fetches at render time
+apps/admin/pricing  → Client Component, admin CRUD
+apps/therapist/billing → (TODO: upgrade section)
+apps/patient/billing   → (TODO: plan display)
+```
+
+---
+
 ## Remaining Work — Priority Ordered
 
-### Priority 1 — Backend Completeness
+### Priority 1 — Authentication (CRITICAL)
+- [ ] Connect all login pages to real backend JWT (`/auth/login`)
+- [ ] Implement token refresh (`/auth/refresh`)
+- [ ] Replace Zustand-only auth with real JWT flow
+- [ ] Session timeout enforcement (30 min idle, 4 hr absolute)
+- [ ] Registration/signup pages (missing from all portals)
+- [ ] Password reset flow
+
+### Priority 2 — Replace Mock Data with Real APIs
+- [ ] Therapist dashboard → real patient/session counts from API
+- [ ] Patient list → real `/patients` API with pagination
+- [ ] Sessions list → real `/sessions` API
+- [ ] Notes → real session notes from API
+- [ ] AI workspace → real `/ai` API calls
+- [ ] Messages → real WebSocket messaging
+- [ ] Notifications → real notification events
+- [ ] Therapist billing → real invoice data from `/billing/invoices`
+- [ ] Patient billing → real invoice data from API
+
+### Priority 3 — AI Systems Connection
+- [ ] Connect AI workspace to backend `ai.service.ts`
+- [ ] Real session transcription via Whisper
+- [ ] AI Copilot with real GPT-4o context injection
+- [ ] Memory engine: trigger updates from session completion
+- [ ] Risk detection: connect risk-monitor to radar service
+
+### Priority 4 — Backend Completeness
 - [ ] `radar` module DTOs — RiskAlert, SafetyPlan, CrisisProtocol DTOs
 - [ ] `marketplace` module DTOs — Integration, AppListing, InstallRequest DTOs
 - [ ] `ValidationPipe` global config in `backend/src/main.ts`
 - [ ] Add `@ApiResponse` decorators to remaining controllers
 
-### Priority 2 — Web App Pages (Lower Priority)
+### Priority 5 — Web App Pages (Lower Priority)
 - [ ] `/press` — press kit, media coverage, brand assets
-- [ ] `/status` — system status page (can use Statuspage.io embed)
+- [ ] `/status` — system status page
 - [ ] `/gdpr` — GDPR compliance center
 - [ ] `/changelog` — product changelog
+- [ ] `/demo` — demo booking page (currently broken link)
+- [ ] `/signup` — registration page (currently broken link)
 
-### Priority 3 — Testing
+### Priority 6 — Testing
 - [ ] Backend unit tests for memory service
 - [ ] Backend unit tests for billing service (Stripe webhook handling)
 - [ ] E2E tests for auth flows
 
-### Priority 4 — DevOps
+### Priority 7 — DevOps
 - [ ] Dockerfiles for each app (Next.js multi-stage builds)
 - [ ] `infra/prometheus.yml` — Prometheus config
 - [ ] `infra/grafana/` — Grafana dashboard provisioning
-- [ ] `scripts/db/init.sql` — Docker init script
 - [ ] Move CI back to `.github/workflows/` once GitHub App has workflows permission
 
 ---
@@ -367,6 +437,37 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 }
 // Client component: use useParams() hook — params prop pattern doesn't apply
 ```
+
+---
+
+## PRICING ARCHITECTURE (Critical — Do Not Break)
+
+### Single Source of Truth Rule
+**ALL pricing data MUST come from the database `subscription_plans` table.**
+
+| NEVER DO THIS | ALWAYS DO THIS |
+|--------------|----------------|
+| Hardcode prices in TSX files | Fetch from `GET /billing/plans` |
+| Add static plan arrays to pages | Use `fetchPublicPlans()` from `pricing-api.ts` |
+| Create separate pricing constants | Edit plans via `/admin/pricing` |
+
+### Price Data Flow
+```
+Admin edits plan via /admin/pricing
+  → PUT /billing/admin/plans/:id
+  → PostgreSQL subscription_plans table
+  → GET /billing/plans (public, 5-min ISR cache)
+  → apps/web/app/pricing/page.tsx (Server Component)
+```
+
+### Key Pricing Files
+| File | Purpose |
+|------|---------|
+| `apps/*/lib/pricing-api.ts` | Shared API client (in all 4 apps) |
+| `apps/admin/app/(dashboard)/pricing/page.tsx` | Admin CRUD interface |
+| `backend/src/modules/billing/billing.service.ts` | Plan management methods |
+| `backend/src/modules/billing/billing.controller.ts` | `/billing/admin/plans/*` endpoints |
+| `migrations/015_pricing_management.sql` | Schema extensions for admin metadata |
 
 ---
 
