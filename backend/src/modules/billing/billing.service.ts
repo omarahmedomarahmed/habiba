@@ -1,5 +1,5 @@
 import {
-  Injectable, NotFoundException, BadRequestException
+  Injectable, NotFoundException, BadRequestException, ForbiddenException
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseService } from "../../database/database.service";
@@ -20,12 +20,18 @@ export class BillingService {
   }
 
   // ============================================================
-  // SUBSCRIPTION PLANS
+  // SUBSCRIPTION PLANS — Public
   // ============================================================
 
   async getPlans() {
     return this.db.query(
-      `SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY price_monthly_usd ASC`
+      `SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY display_order ASC, monthly_price_usd ASC`
+    );
+  }
+
+  async getAllPlans() {
+    return this.db.query(
+      `SELECT * FROM subscription_plans ORDER BY display_order ASC, monthly_price_usd ASC NULLS LAST`
     );
   }
 
@@ -36,6 +42,206 @@ export class BillingService {
     );
     if (!plan) throw new NotFoundException("Plan not found");
     return plan;
+  }
+
+  // ============================================================
+  // PLAN MANAGEMENT — Admin Only
+  // ============================================================
+
+  async createPlan(data: {
+    plan_key: string;
+    name: string;
+    tagline?: string;
+    description?: string;
+    monthly_price_usd?: number;
+    annual_price_usd?: number;
+    max_therapists?: number;
+    max_patients?: number;
+    max_sessions_month?: number;
+    ai_notes_included?: number;
+    features?: Record<string, unknown>;
+    stripe_price_id_monthly?: string;
+    stripe_price_id_annual?: string;
+    is_active?: boolean;
+    is_featured?: boolean;
+    badge_text?: string;
+    cta_text?: string;
+    display_order?: number;
+    trial_days?: number;
+    add_ons?: Array<{ name: string; price: string; description: string }>;
+    highlight_color?: string;
+  }) {
+    const existing = await this.db.queryOne(
+      `SELECT id FROM subscription_plans WHERE plan_key = $1`,
+      [data.plan_key]
+    );
+    if (existing) throw new BadRequestException(`Plan key "${data.plan_key}" already exists`);
+
+    return this.db.queryOne(
+      `INSERT INTO subscription_plans (
+        id, plan_key, name, tagline, description,
+        monthly_price_usd, annual_price_usd,
+        max_therapists, max_patients, max_sessions_month, ai_notes_included,
+        features, stripe_price_id_monthly, stripe_price_id_annual,
+        is_active, is_featured, badge_text, cta_text,
+        display_order, trial_days, add_ons, highlight_color,
+        created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(), $1, $2, $3, $4,
+        $5, $6,
+        $7, $8, $9, $10,
+        $11, $12, $13,
+        $14, $15, $16, $17,
+        $18, $19, $20, $21,
+        NOW(), NOW()
+      ) RETURNING *`,
+      [
+        data.plan_key, data.name, data.tagline || null, data.description || null,
+        data.monthly_price_usd ?? null, data.annual_price_usd ?? null,
+        data.max_therapists ?? null, data.max_patients ?? null,
+        data.max_sessions_month ?? null, data.ai_notes_included ?? null,
+        JSON.stringify(data.features ?? {}),
+        data.stripe_price_id_monthly || null, data.stripe_price_id_annual || null,
+        data.is_active ?? true, data.is_featured ?? false,
+        data.badge_text || null, data.cta_text || 'Get Started',
+        data.display_order ?? 0, data.trial_days ?? 14,
+        JSON.stringify(data.add_ons ?? []), data.highlight_color || null,
+      ]
+    );
+  }
+
+  async updatePlan(planId: string, data: {
+    name?: string;
+    tagline?: string;
+    description?: string;
+    monthly_price_usd?: number | null;
+    annual_price_usd?: number | null;
+    max_therapists?: number | null;
+    max_patients?: number | null;
+    max_sessions_month?: number | null;
+    ai_notes_included?: number | null;
+    features?: Record<string, unknown>;
+    stripe_price_id_monthly?: string | null;
+    stripe_price_id_annual?: string | null;
+    is_active?: boolean;
+    is_featured?: boolean;
+    badge_text?: string | null;
+    cta_text?: string;
+    display_order?: number;
+    trial_days?: number;
+    add_ons?: Array<{ name: string; price: string; description: string }>;
+    highlight_color?: string | null;
+  }) {
+    const plan = await this.getPlan(planId);
+    if (!plan) throw new NotFoundException("Plan not found");
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    const addField = (col: string, val: unknown) => {
+      fields.push(`${col} = $${idx++}`);
+      values.push(val);
+    };
+
+    if (data.name !== undefined) addField('name', data.name);
+    if (data.tagline !== undefined) addField('tagline', data.tagline);
+    if (data.description !== undefined) addField('description', data.description);
+    if (data.monthly_price_usd !== undefined) addField('monthly_price_usd', data.monthly_price_usd);
+    if (data.annual_price_usd !== undefined) addField('annual_price_usd', data.annual_price_usd);
+    if (data.max_therapists !== undefined) addField('max_therapists', data.max_therapists);
+    if (data.max_patients !== undefined) addField('max_patients', data.max_patients);
+    if (data.max_sessions_month !== undefined) addField('max_sessions_month', data.max_sessions_month);
+    if (data.ai_notes_included !== undefined) addField('ai_notes_included', data.ai_notes_included);
+    if (data.features !== undefined) addField('features', JSON.stringify(data.features));
+    if (data.stripe_price_id_monthly !== undefined) addField('stripe_price_id_monthly', data.stripe_price_id_monthly);
+    if (data.stripe_price_id_annual !== undefined) addField('stripe_price_id_annual', data.stripe_price_id_annual);
+    if (data.is_active !== undefined) addField('is_active', data.is_active);
+    if (data.is_featured !== undefined) addField('is_featured', data.is_featured);
+    if (data.badge_text !== undefined) addField('badge_text', data.badge_text);
+    if (data.cta_text !== undefined) addField('cta_text', data.cta_text);
+    if (data.display_order !== undefined) addField('display_order', data.display_order);
+    if (data.trial_days !== undefined) addField('trial_days', data.trial_days);
+    if (data.add_ons !== undefined) addField('add_ons', JSON.stringify(data.add_ons));
+    if (data.highlight_color !== undefined) addField('highlight_color', data.highlight_color);
+
+    if (fields.length === 0) return plan;
+
+    fields.push(`updated_at = NOW()`);
+    values.push(planId);
+
+    return this.db.queryOne(
+      `UPDATE subscription_plans SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+  }
+
+  async togglePlanActive(planId: string) {
+    const plan = await this.getPlan(planId);
+    if (!plan) throw new NotFoundException("Plan not found");
+
+    return this.db.queryOne(
+      `UPDATE subscription_plans SET is_active = NOT is_active, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [planId]
+    );
+  }
+
+  async deletePlan(planId: string) {
+    // Check if any active subscriptions use this plan
+    const activeCount = await this.db.queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM subscriptions WHERE plan_id = $1 AND status IN ('active', 'trialing', 'past_due')`,
+      [planId]
+    );
+    if (parseInt(activeCount?.count || '0') > 0) {
+      throw new BadRequestException('Cannot delete a plan with active subscriptions. Deactivate it instead.');
+    }
+
+    await this.db.execute(
+      `DELETE FROM subscription_plans WHERE id = $1`,
+      [planId]
+    );
+    return { deleted: true, plan_id: planId };
+  }
+
+  async reorderPlans(planIds: string[]) {
+    for (let i = 0; i < planIds.length; i++) {
+      await this.db.execute(
+        `UPDATE subscription_plans SET display_order = $1, updated_at = NOW() WHERE id = $2`,
+        [i, planIds[i]]
+      );
+    }
+    return this.getAllPlans();
+  }
+
+  async getPlanMetrics(planId: string) {
+    const metrics = await this.db.queryOne(
+      `SELECT
+        sp.id, sp.name, sp.plan_key,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status IN ('active', 'trialing')) AS active_subscriptions,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'cancelled') AS cancelled_subscriptions,
+        SUM(sp.monthly_price_usd) FILTER (WHERE s.status = 'active') AS mrr,
+        COUNT(DISTINCT s.organization_id) AS total_organizations
+       FROM subscription_plans sp
+       LEFT JOIN subscriptions s ON s.plan_id = sp.id
+       WHERE sp.id = $1
+       GROUP BY sp.id, sp.name, sp.plan_key`,
+      [planId]
+    );
+    return metrics;
+  }
+
+  async getPlatformPricingMetrics() {
+    return this.db.query(
+      `SELECT
+        sp.id, sp.name, sp.plan_key, sp.monthly_price_usd, sp.is_active, sp.is_featured,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status IN ('active', 'trialing')) AS active_subscriptions,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'cancelled') AS cancelled_subscriptions,
+        COALESCE(SUM(sp.monthly_price_usd) FILTER (WHERE s.status = 'active'), 0) AS mrr_contribution
+       FROM subscription_plans sp
+       LEFT JOIN subscriptions s ON s.plan_id = sp.id
+       GROUP BY sp.id, sp.name, sp.plan_key, sp.monthly_price_usd, sp.is_active, sp.is_featured
+       ORDER BY sp.display_order ASC, sp.monthly_price_usd ASC NULLS LAST`
+    );
   }
 
   // ============================================================
