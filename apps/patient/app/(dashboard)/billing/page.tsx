@@ -1,124 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   CreditCard, DollarSign, Receipt, Download, CheckCircle,
   Clock, AlertCircle, ChevronRight, Shield, Building2,
-  FileText, Calendar, Plus, ExternalLink, HelpCircle,
-  RefreshCw, X, ArrowRight
+  FileText, Calendar, ExternalLink, RefreshCw, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { billingAPI } from "@/lib/api";
 
 type PaymentStatus = "paid" | "pending" | "overdue" | "insurance_pending" | "write_off";
-type InvoiceType = "session" | "copay" | "no_show" | "subscription";
 
-interface PatientInvoice {
-  id: string;
-  invoice_number: string;
-  type: InvoiceType;
-  description: string;
-  service_date: string;
-  due_date?: string;
-  amount_cents: number;
-  insurance_paid_cents?: number;
-  patient_responsibility_cents: number;
-  status: PaymentStatus;
-  cpt_code?: string;
-  paid_at?: string;
-  provider: string;
-}
-
-const MOCK_INVOICES: PatientInvoice[] = [
-  {
-    id: "inv1",
-    invoice_number: "INV-2024-0234",
-    type: "session",
-    description: "Individual Therapy Session — 50 min",
-    service_date: "Dec 23, 2024",
-    due_date: "Jan 6, 2025",
-    amount_cents: 20000,
-    insurance_paid_cents: 15000,
-    patient_responsibility_cents: 5000,
-    status: "pending",
-    cpt_code: "90837",
-    provider: "Dr. Sarah Chen, PsyD",
-  },
-  {
-    id: "inv2",
-    invoice_number: "INV-2024-0221",
-    type: "session",
-    description: "Individual Therapy Session — 50 min",
-    service_date: "Dec 16, 2024",
-    due_date: "Dec 30, 2024",
-    amount_cents: 20000,
-    insurance_paid_cents: 15000,
-    patient_responsibility_cents: 5000,
-    status: "paid",
-    cpt_code: "90837",
-    paid_at: "Dec 20, 2024",
-    provider: "Dr. Sarah Chen, PsyD",
-  },
-  {
-    id: "inv3",
-    invoice_number: "INV-2024-0208",
-    type: "session",
-    description: "Individual Therapy Session — 50 min",
-    service_date: "Dec 9, 2024",
-    amount_cents: 20000,
-    insurance_paid_cents: 15000,
-    patient_responsibility_cents: 5000,
-    status: "paid",
-    cpt_code: "90837",
-    paid_at: "Dec 14, 2024",
-    provider: "Dr. Sarah Chen, PsyD",
-  },
-  {
-    id: "inv4",
-    invoice_number: "INV-2024-0190",
-    type: "session",
-    description: "Initial Intake Session — 90 min",
-    service_date: "Nov 18, 2024",
-    amount_cents: 35000,
-    insurance_paid_cents: 28000,
-    patient_responsibility_cents: 7000,
-    status: "paid",
-    cpt_code: "90791",
-    paid_at: "Nov 25, 2024",
-    provider: "Dr. Sarah Chen, PsyD",
-  },
-  {
-    id: "inv5",
-    invoice_number: "INV-2024-0175",
-    type: "no_show",
-    description: "Late Cancellation Fee (< 24h notice)",
-    service_date: "Nov 4, 2024",
-    amount_cents: 5000,
-    patient_responsibility_cents: 5000,
-    status: "overdue",
-    due_date: "Nov 18, 2024",
-    provider: "Dr. Sarah Chen, PsyD",
-  },
-];
-
-const INSURANCE_INFO = {
-  provider: "Blue Cross Blue Shield",
-  plan: "PPO Gold",
-  member_id: "XY12345678",
-  group_number: "GRP-9021",
-  copay: "$50",
-  deductible_annual: 1000,
-  deductible_met: 650,
-  oop_max: 3000,
-  oop_spent: 1200,
-  verification_status: "verified",
-};
-
-const STATUS_CONFIG: Record<PaymentStatus, {
-  label: string;
-  icon: React.ElementType;
-  color: string;
-  bg: string;
-}> = {
+const STATUS_CONFIG: Record<PaymentStatus, { label: string; icon: React.ElementType; color: string; bg: string }> = {
   paid: { label: "Paid", icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
   pending: { label: "Due", icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
   overdue: { label: "Overdue", icon: AlertCircle, color: "text-red-600", bg: "bg-red-50" },
@@ -127,74 +20,130 @@ const STATUS_CONFIG: Record<PaymentStatus, {
 };
 
 const formatCents = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const formatAmount = (amount: number | undefined) => {
+  if (!amount) return "$0.00";
+  // Handle both cents (>1000) and dollars
+  return amount > 1000 ? formatCents(amount) : `$${amount.toFixed(2)}`;
+};
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="bg-white rounded-2xl border border-gray-200 p-4 animate-pulse">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
+              <div className="h-3 bg-gray-100 rounded w-1/2" />
+            </div>
+            <div className="w-16 h-6 bg-gray-200 rounded-full" />
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-3">
+            {[1,2,3].map(j => <div key={j} className="h-8 bg-gray-100 rounded" />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function PatientBillingPage() {
   const [activeTab, setActiveTab] = useState<"invoices" | "insurance" | "payments">("invoices");
-  const [showPayModal, setShowPayModal] = useState<PatientInvoice | null>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 10;
 
-  const pendingTotal = MOCK_INVOICES.filter((i) => i.status === "pending" || i.status === "overdue")
-    .reduce((sum, i) => sum + i.patient_responsibility_cents, 0);
+  const fetchBillingData = useCallback(async () => {
+    try {
+      setError(null);
+      const [invoiceData, subData] = await Promise.allSettled([
+        billingAPI.invoices({ page, limit: LIMIT }),
+        billingAPI.subscription(),
+      ]);
 
-  const ytdPaid = MOCK_INVOICES.filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + i.patient_responsibility_cents, 0);
+      if (invoiceData.status === "fulfilled") {
+        const d = invoiceData.value as any;
+        const list = d?.data || d || [];
+        setInvoices(Array.isArray(list) ? list : []);
+        setTotal(d?.total || list.length);
+      }
+
+      if (subData.status === "fulfilled") {
+        setSubscription(subData.value);
+      }
+    } catch (err: any) {
+      setError("Unable to load billing data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
+  useEffect(() => { fetchBillingData(); }, [fetchBillingData]);
+
+  // Compute summary from real invoice data
+  const pendingTotal = invoices
+    .filter((i) => i.status === "pending" || i.status === "overdue")
+    .reduce((sum, i) => sum + (i.patient_responsibility_cents || i.amount_cents || 0), 0);
+
+  const ytdPaid = invoices
+    .filter((i) => i.status === "paid")
+    .reduce((sum, i) => sum + (i.patient_responsibility_cents || i.amount_paid_cents || i.amount_cents || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Billing & Payments</h1>
-          <p className="text-sm text-gray-500 mt-1">Your invoices, insurance details, and payment history</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Billing & Payments</h1>
+            <p className="text-sm text-gray-500 mt-1">Your invoices, insurance details, and payment history</p>
+          </div>
+          <button onClick={() => { setLoading(true); fetchBillingData(); }} className="p-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
+
+        {error && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+            <span className="text-sm text-amber-700">{error}</span>
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className={cn(
-            "bg-white rounded-2xl border p-4",
-            pendingTotal > 0 ? "border-orange-200" : "border-gray-200"
-          )}>
-            <div className="text-xs text-gray-500 mb-1">Balance Due</div>
-            <div className={cn("text-2xl font-bold", pendingTotal > 0 ? "text-orange-600" : "text-gray-900")}>
-              {formatCents(pendingTotal)}
-            </div>
-            {pendingTotal > 0 && (
-              <div className="text-xs text-orange-500 mt-1">Includes overdue</div>
-            )}
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <div className="text-xs text-gray-500 mb-1">Paid This Year</div>
-            <div className="text-2xl font-bold text-gray-900">{formatCents(ytdPaid)}</div>
-            <div className="text-xs text-gray-400 mt-1">Out-of-pocket</div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <div className="text-xs text-gray-500 mb-1">Deductible</div>
-            <div className="text-2xl font-bold text-gray-900">
-              ${INSURANCE_INFO.deductible_met}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">of ${INSURANCE_INFO.deductible_annual} met</div>
-          </div>
-        </div>
-
-        {/* Deductible Progress */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Annual Deductible Progress</span>
-            <span className="text-sm text-gray-500">
-              ${INSURANCE_INFO.deductible_met} / ${INSURANCE_INFO.deductible_annual}
-            </span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-            <div
-              className="h-full bg-[#2EC4B6] rounded-full"
-              style={{ width: `${(INSURANCE_INFO.deductible_met / INSURANCE_INFO.deductible_annual) * 100}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>
-              ${INSURANCE_INFO.deductible_annual - INSURANCE_INFO.deductible_met} remaining
-            </span>
-            <span>Resets Jan 1, 2025</span>
-          </div>
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-200 p-4 animate-pulse">
+                <div className="h-3 bg-gray-200 rounded w-2/3 mb-3" />
+                <div className="h-7 bg-gray-200 rounded w-1/2" />
+              </div>
+            ))
+          ) : (
+            <>
+              <div className={cn("bg-white rounded-2xl border p-4", pendingTotal > 0 ? "border-orange-200" : "border-gray-200")}>
+                <div className="text-xs text-gray-500 mb-1">Balance Due</div>
+                <div className={cn("text-2xl font-bold", pendingTotal > 0 ? "text-orange-600" : "text-gray-900")}>
+                  {formatCents(pendingTotal)}
+                </div>
+                {pendingTotal > 0 && <div className="text-xs text-orange-500 mt-1">Action required</div>}
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div className="text-xs text-gray-500 mb-1">Paid This Year</div>
+                <div className="text-2xl font-bold text-gray-900">{formatCents(ytdPaid)}</div>
+                <div className="text-xs text-gray-400 mt-1">Out-of-pocket</div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div className="text-xs text-gray-500 mb-1">Plan</div>
+                <div className="text-lg font-bold text-gray-900 truncate">{subscription?.plan_name || "–"}</div>
+                <div className="text-xs text-gray-400 mt-1 capitalize">{subscription?.status || "–"}</div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Tabs */}
@@ -209,9 +158,7 @@ export default function PatientBillingPage() {
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
-                activeTab === tab.id
-                  ? "bg-white text-[#0A2342] shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                activeTab === tab.id ? "bg-white text-[#0A2342] shadow-sm" : "text-gray-500 hover:text-gray-700"
               )}
             >
               {tab.label}
@@ -221,244 +168,141 @@ export default function PatientBillingPage() {
 
         {/* Invoices Tab */}
         {activeTab === "invoices" && (
-          <div className="space-y-3">
-            {MOCK_INVOICES.map((invoice) => {
-              const statusCfg = STATUS_CONFIG[invoice.status];
-              const StatusIcon = statusCfg.icon;
-              return (
-                <div
-                  key={invoice.id}
-                  className="bg-white rounded-2xl border border-gray-200 p-4 hover:shadow-sm transition-all"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <div className="font-semibold text-gray-900 text-sm">{invoice.description}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {invoice.service_date} · {invoice.provider}
-                        {invoice.cpt_code && ` · CPT ${invoice.cpt_code}`}
-                      </div>
-                    </div>
-                    <div className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0",
-                      statusCfg.bg, statusCfg.color
-                    )}>
-                      <StatusIcon className="w-3 h-3" />
-                      {statusCfg.label}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3 mb-3 text-xs">
-                    <div>
-                      <div className="text-gray-400 mb-0.5">Billed</div>
-                      <div className="font-medium text-gray-700">{formatCents(invoice.amount_cents)}</div>
-                    </div>
-                    {invoice.insurance_paid_cents !== undefined && (
+          loading ? <LoadingSkeleton /> : invoices.length > 0 ? (
+            <div className="space-y-3">
+              {invoices.map((invoice: any) => {
+                const status = (invoice.status || "pending") as PaymentStatus;
+                const statusCfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+                const StatusIcon = statusCfg.icon;
+                const amountCents = invoice.amount_cents || Math.round((invoice.amount || 0) * 100);
+                const insuranceCents = invoice.insurance_paid_cents || Math.round((invoice.insurance_paid || 0) * 100);
+                const patientCents = invoice.patient_responsibility_cents || amountCents - insuranceCents;
+                return (
+                  <div key={invoice.id} className="bg-white rounded-2xl border border-gray-200 p-4 hover:shadow-sm transition-all">
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
-                        <div className="text-gray-400 mb-0.5">Insurance</div>
-                        <div className="font-medium text-emerald-600">-{formatCents(invoice.insurance_paid_cents)}</div>
+                        <div className="font-semibold text-gray-900 text-sm">
+                          {invoice.description || `Invoice ${invoice.invoice_number || invoice.id}`}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {invoice.service_date || (invoice.created_at ? new Date(invoice.created_at).toLocaleDateString() : "–")}
+                          {invoice.provider_name && ` · ${invoice.provider_name}`}
+                        </div>
                       </div>
-                    )}
-                    <div>
-                      <div className="text-gray-400 mb-0.5">Your Share</div>
-                      <div className="font-bold text-gray-900">{formatCents(invoice.patient_responsibility_cents)}</div>
+                      <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0", statusCfg.bg, statusCfg.color)}>
+                        <StatusIcon className="w-3 h-3" />
+                        {statusCfg.label}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-gray-400">
-                      {invoice.status === "paid" && invoice.paid_at && `Paid ${invoice.paid_at}`}
-                      {invoice.status === "pending" && invoice.due_date && `Due ${invoice.due_date}`}
-                      {invoice.status === "overdue" && invoice.due_date && `Was due ${invoice.due_date}`}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
-                        <Download className="w-3 h-3" /> Receipt
-                      </button>
-                      {(invoice.status === "pending" || invoice.status === "overdue") && (
-                        <button
-                          onClick={() => setShowPayModal(invoice)}
-                          className="bg-[#0A2342] hover:bg-[#0d2d56] text-white text-xs px-3 py-1.5 rounded-lg font-medium"
-                        >
-                          Pay {formatCents(invoice.patient_responsibility_cents)}
-                        </button>
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      <div>
+                        <div className="text-gray-400 mb-0.5">Billed</div>
+                        <div className="font-medium text-gray-700">{formatCents(amountCents)}</div>
+                      </div>
+                      {insuranceCents > 0 && (
+                        <div>
+                          <div className="text-gray-400 mb-0.5">Insurance</div>
+                          <div className="font-medium text-emerald-600">-{formatCents(insuranceCents)}</div>
+                        </div>
                       )}
+                      <div>
+                        <div className="text-gray-400 mb-0.5">Your Share</div>
+                        <div className="font-semibold text-gray-900">{formatCents(patientCents)}</div>
+                      </div>
                     </div>
+                    {(status === "pending" || status === "overdue") && (
+                      <button className="mt-3 w-full h-9 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#0A2342]/90 transition-colors">
+                        Pay {formatCents(patientCents)}
+                      </button>
+                    )}
                   </div>
+                );
+              })}
+
+              {/* Pagination */}
+              {total > LIMIT && (
+                <div className="flex items-center justify-center gap-2 pt-4">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-4 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / LIMIT)}</span>
+                  <button
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={page * LIMIT >= total}
+                    className="px-4 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+              <Receipt className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-gray-700 mb-1">No invoices yet</h3>
+              <p className="text-sm text-gray-400">Your billing history will appear here after your first session.</p>
+            </div>
+          )
         )}
 
         {/* Insurance Tab */}
         {activeTab === "insurance" && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#2EC4B6]" />
-                  Active Insurance
-                </h2>
-                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> Verified
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            {subscription?.insurance ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">{subscription.insurance.provider}</div>
+                    <div className="text-xs text-gray-500">{subscription.insurance.plan}</div>
+                  </div>
+                  <span className="ml-auto text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full font-medium">Verified</span>
+                </div>
                 {[
-                  { label: "Provider", value: INSURANCE_INFO.provider },
-                  { label: "Plan", value: INSURANCE_INFO.plan },
-                  { label: "Member ID", value: INSURANCE_INFO.member_id },
-                  { label: "Group Number", value: INSURANCE_INFO.group_number },
-                  { label: "Therapy Copay", value: INSURANCE_INFO.copay },
-                  { label: "Out-of-Pocket Max", value: `$${INSURANCE_INFO.oop_max}` },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="text-xs text-gray-400 mb-0.5">{item.label}</div>
-                    <div className="text-sm font-medium text-gray-800">{item.value}</div>
+                  { label: "Member ID", value: subscription.insurance.member_id },
+                  { label: "Group Number", value: subscription.insurance.group_number },
+                  { label: "Copay", value: subscription.insurance.copay },
+                ].map(({ label, value }) => value && (
+                  <div key={label} className="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span className="text-sm text-gray-500">{label}</span>
+                    <span className="text-sm font-medium text-gray-900">{value}</span>
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h2 className="font-semibold text-gray-900 mb-4">Out-of-Pocket Tracker</h2>
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-600">Out-of-Pocket Maximum</span>
-                  <span className="font-medium">${INSURANCE_INFO.oop_spent} / ${INSURANCE_INFO.oop_max}</span>
-                </div>
-                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#1F5EFF] rounded-full"
-                    style={{ width: `${(INSURANCE_INFO.oop_spent / INSURANCE_INFO.oop_max) * 100}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  ${INSURANCE_INFO.oop_max - INSURANCE_INFO.oop_spent} remaining until 100% coverage
-                </p>
+            ) : (
+              <div className="text-center py-8">
+                <Shield className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <h3 className="text-base font-semibold text-gray-700 mb-1">No insurance on file</h3>
+                <p className="text-sm text-gray-400">Contact your provider to add insurance information.</p>
               </div>
-              <div className="bg-blue-50 rounded-xl p-3">
-                <p className="text-xs text-blue-700">
-                  Once you meet your out-of-pocket maximum, insurance covers 100% of covered services for the rest of the year.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <HelpCircle className="w-4 h-4 text-gray-400" />
-                <h2 className="font-semibold text-gray-900 text-sm">Understanding Your Benefits</h2>
-              </div>
-              <p className="text-sm text-gray-500 mb-3">
-                Questions about your insurance coverage for mental health services? We can help you understand your benefits.
-              </p>
-              <a
-                href="mailto:billing@24therapy.ai"
-                className="text-sm text-[#2EC4B6] hover:text-[#26b0a3] font-medium flex items-center gap-1"
-              >
-                Contact our billing team <ArrowRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
+            )}
           </div>
         )}
 
         {/* Payment Methods Tab */}
         {activeTab === "payments" && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-[#2EC4B6]" />
-                Saved Payment Methods
-              </h2>
-              <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-6 bg-[#1F5EFF] rounded flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">VISA</span>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">Visa ending in 4242</div>
-                    <div className="text-xs text-gray-400">Expires 08/2027</div>
-                  </div>
-                </div>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Default</span>
-              </div>
-              <button className="w-full border border-dashed border-gray-300 rounded-xl p-3 text-sm text-gray-500 hover:border-[#2EC4B6] hover:text-[#2EC4B6] transition-colors flex items-center justify-center gap-2">
-                <Plus className="w-4 h-4" /> Add payment method
-              </button>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Shield className="w-4 h-4 text-[#2EC4B6]" />
-                <h2 className="font-semibold text-gray-900 text-sm">Payment Security</h2>
-              </div>
-              <p className="text-sm text-gray-500">
-                All payments are processed securely by Stripe. Your card details are encrypted and never stored on our servers. Transactions are protected by 256-bit SSL encryption.
-              </p>
-            </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center">
+            <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-base font-semibold text-gray-700 mb-1">Manage Payment Methods</h3>
+            <p className="text-sm text-gray-400 mb-4">Securely add or update your payment information.</p>
+            <button className="h-10 px-6 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#0A2342]/90 transition-colors">
+              Add Payment Method
+            </button>
           </div>
         )}
 
         {/* HIPAA Notice */}
-        <div className="mt-8 bg-gray-100 rounded-xl p-4 flex items-start gap-3">
-          <Shield className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-gray-500">
-            Billing information is protected under HIPAA. For billing questions, contact{" "}
-            <a href="mailto:billing@24therapy.ai" className="text-[#2EC4B6] hover:underline">
-              billing@24therapy.ai
-            </a>
-          </p>
+        <div className="mt-8 flex items-start gap-2 text-xs text-gray-400">
+          <Shield className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>Your billing information is protected under HIPAA. All payment processing is handled via Stripe with PCI-DSS compliance.</span>
         </div>
       </div>
-
-      {/* Pay Modal */}
-      {showPayModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Pay Invoice</h2>
-              <button onClick={() => setShowPayModal(null)}>
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 mb-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-500">Invoice</span>
-                <span className="font-medium">{showPayModal.invoice_number}</span>
-              </div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-500">Service</span>
-                <span className="font-medium">{showPayModal.description}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Amount Due</span>
-                <span className="font-bold text-gray-900">{formatCents(showPayModal.patient_responsibility_cents)}</span>
-              </div>
-            </div>
-            <div className="border border-gray-200 rounded-xl p-4 flex items-center gap-3 mb-4">
-              <div className="w-10 h-6 bg-[#1F5EFF] rounded flex items-center justify-center">
-                <span className="text-white text-xs font-bold">VISA</span>
-              </div>
-              <div className="text-sm">
-                <div className="font-medium text-gray-900">Visa ending in 4242</div>
-                <div className="text-xs text-gray-400">Default payment method</div>
-              </div>
-              <button className="ml-auto text-xs text-[#2EC4B6] hover:underline">Change</button>
-            </div>
-            <button
-              onClick={() => {
-                setShowPayModal(null);
-              }}
-              className="w-full bg-[#0A2342] hover:bg-[#0d2d56] text-white py-3 rounded-xl font-semibold"
-            >
-              Pay {formatCents(showPayModal.patient_responsibility_cents)}
-            </button>
-            <p className="text-xs text-gray-400 text-center mt-3">
-              Secured by Stripe · SSL encrypted
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
