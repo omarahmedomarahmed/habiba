@@ -24,8 +24,9 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
-  updateTokens: (accessToken: string, refreshToken: string) => void;
+  expiresAt: number | null;
+  setAuth: (user: User, accessToken: string, refreshToken: string, expiresIn?: number) => void;
+  updateTokens: (accessToken: string, refreshToken: string, expiresIn?: number) => void;
   clearAuth: () => void;
 }
 
@@ -36,12 +37,13 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      setAuth: (user, accessToken, refreshToken) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
-      updateTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken }),
+      expiresAt: null,
+      setAuth: (user, accessToken, refreshToken, expiresIn = 900) =>
+        set({ user, accessToken, refreshToken, isAuthenticated: true, expiresAt: Date.now() + expiresIn * 1000 }),
+      updateTokens: (accessToken, refreshToken, expiresIn = 900) =>
+        set({ accessToken, refreshToken, expiresAt: Date.now() + expiresIn * 1000 }),
       clearAuth: () =>
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, expiresAt: null }),
     }),
     {
       name: "24therapy-auth",
@@ -50,6 +52,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
+        expiresAt: state.expiresAt,
       }),
     }
   )

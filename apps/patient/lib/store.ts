@@ -10,13 +10,17 @@ interface User {
   patient_id?: string;
   organization_id: string;
   therapist_name?: string;
+  avatar_url?: string;
 }
 
 interface AuthState {
   user: User | null;
   accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, accessToken: string) => void;
+  expiresAt: number | null;
+  setAuth: (user: User, accessToken: string, refreshToken?: string, expiresIn?: number) => void;
+  updateTokens: (accessToken: string, refreshToken: string, expiresIn?: number) => void;
   clearAuth: () => void;
 }
 
@@ -25,10 +29,44 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
+      refreshToken: null,
       isAuthenticated: false,
-      setAuth: (user, accessToken) => set({ user, accessToken, isAuthenticated: true }),
-      clearAuth: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+      expiresAt: null,
+
+      setAuth: (user, accessToken, refreshToken = "", expiresIn = 900) =>
+        set({
+          user,
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+          expiresAt: Date.now() + expiresIn * 1000,
+        }),
+
+      updateTokens: (accessToken, refreshToken, expiresIn = 900) =>
+        set({
+          accessToken,
+          refreshToken,
+          expiresAt: Date.now() + expiresIn * 1000,
+        }),
+
+      clearAuth: () =>
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          expiresAt: null,
+        }),
     }),
-    { name: "24therapy-patient-auth", partialize: (state) => ({ user: state.user, accessToken: state.accessToken, isAuthenticated: state.isAuthenticated }) },
-  ),
+    {
+      name: "24therapy-patient-auth",
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+        expiresAt: state.expiresAt,
+      }),
+    }
+  )
 );

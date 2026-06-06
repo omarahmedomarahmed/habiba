@@ -1,103 +1,245 @@
 /**
  * 24Therapy Patient Portal — API Client
+ * Handles all communication with the NestJS backend
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
-async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-  token?: string
-): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+// ============================================================
+// TOKEN HELPERS
+// ============================================================
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("patient_access_token");
+}
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("patient_refresh_token");
+}
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || 'API error');
-  }
-  return res.json();
+function setStoredTokens(access: string, refresh: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("patient_access_token", access);
+  localStorage.setItem("patient_refresh_token", refresh);
+}
+
+export function clearStoredTokens() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("patient_access_token");
+  localStorage.removeItem("patient_refresh_token");
 }
 
 // ============================================================
-// Auth
+// API ERROR CLASS
+// ============================================================
+export class APIError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public data?: unknown
+  ) {
+    super(message);
+    this.name = "APIError";
+  }
+}
+
+// ============================================================
+// TOKEN REFRESH
+// ============================================================
+let _isRefreshing = false;
+let _refreshQueue: ((t: string) => void)[] = [];
+
+async function refreshAccessToken(): Promise<string | null> {
+  const rt = getRefreshToken();
+  if (!rt) return null;
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: rt }),
+    });
+    if (!res.ok) {
+      clearStoredTokens();
+      return null;
+    }
+    const json = await res.json();
+    const { access_token, refresh_token } = json.data?.tokens || {};
+    if (access_token) {
+      setStoredTokens(access_token, refresh_token || rt);
+      return access_token;
+    }
+    clearStoredTokens();
+    return null;
+  } catch {
+    clearStoredTokens();
+    return null;
+  }
+}
+
+// ============================================================
+// CORE FETCH
+// ============================================================
+interface FetchOptions extends RequestInit {
+  params?: Record<string, string | number | boolean | undefined>;
+}
+
+async function apiFetch<T>(endpoint: string, options: FetchOptions = {}, retry = true): Promise<T> {
+  const { params, ...fetchOptions } = options;
+
+  let url = `${API_URL}${endpoint}`;
+  if (params) {
+    const qs = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join("&");
+    if (qs) url += `?${qs}`;
+  }
+
+  const token = getAccessToken();
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...fetchOptions.headers,
+  };
+
+  const response = await fetch(url, { ...fetchOptions, headers });
+
+  // Handle 401 with token refresh
+  if (response.status === 401 && retry) {
+    if (!_isRefreshing) {
+      _isRefreshing = true;
+      const newToken = await refreshAccessToken();
+      _isRefreshing = false;
+
+      if (!newToken) {
+        if (typeof window !== "undefined") window.location.href = "/login";
+        throw new APIError(401, "Session expired. Please log in again.");
+      }
+
+      _refreshQueue.forEach((cb) => cb(newToken));
+      _refreshQueue = [];
+    } else {
+      await new Promise<void>((resolve) => {
+        _refreshQueue.push(() => resolve());
+      });
+    }
+    return apiFetch<T>(endpoint, options, false);
+  }
+
+  if (!response.ok) {
+    let errorData: any;
+    try { errorData = await response.json(); } catch { /* empty */ }
+    throw new APIError(
+      response.status,
+      errorData?.message || `HTTP ${response.status}`,
+      errorData
+    );
+  }
+
+  if (response.status === 204) return undefined as T;
+  const json = await response.json();
+  return (json.data !== undefined ? json.data : json) as T;
+}
+
+// ============================================================
+// AUTH API
 // ============================================================
 export const authAPI = {
-  login: (email: string, password: string) =>
-    apiRequest<{ user: any; token: string }>('/auth/patient/login', {
-      method: 'POST',
+  login: async (email: string, password: string) => {
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
-    }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new APIError(res.status, json.message || "Login failed", json);
+    const data = json.data;
+    if (data?.tokens?.access_token) {
+      setStoredTokens(data.tokens.access_token, data.tokens.refresh_token || "");
+    }
+    return data as {
+      user: Record<string, any>;
+      tokens: { access_token: string; refresh_token: string; expires_in: number };
+      organization: Record<string, any>;
+    };
+  },
+
+  logout: async () => {
+    try { await apiFetch("/auth/logout", { method: "POST" }); } catch { /* empty */ }
+    clearStoredTokens();
+  },
+
+  me: () => apiFetch<Record<string, any>>("/auth/me"),
 };
 
 // ============================================================
-// Sessions
+// PATIENT API
+// ============================================================
+export const patientAPI = {
+  me: () => apiFetch<Record<string, any>>("/patients/me"),
+  update: (data: Record<string, any>) =>
+    apiFetch<Record<string, any>>("/patients/me", { method: "PATCH", body: JSON.stringify(data) }),
+  moodTrend: (days?: number) =>
+    apiFetch<Record<string, any>[]>("/patients/me/mood-trend", { params: { days } } as any),
+  addMoodEntry: (data: Record<string, any>) =>
+    apiFetch("/patients/me/mood", { method: "POST", body: JSON.stringify(data) }),
+};
+
+// ============================================================
+// SESSIONS API
 // ============================================================
 export const sessionsAPI = {
-  getUpcoming: (token: string) =>
-    apiRequest<any[]>('/sessions/patient/upcoming', {}, token),
-  getPast: (token: string) =>
-    apiRequest<any[]>('/sessions/patient/past', {}, token),
-  getOne: (id: string, token: string) =>
-    apiRequest<any>(`/sessions/${id}`, {}, token),
-  joinRoom: (id: string, token: string) =>
-    apiRequest<{ room_url: string; token: string }>(`/sessions/${id}/join`, {}, token),
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, any>[]; total: number }>("/sessions", { params } as any),
+  get: (id: string) => apiFetch<Record<string, any>>(`/sessions/${id}`),
+  upcomingSessions: () =>
+    apiFetch<Record<string, any>[]>("/sessions?status=scheduled&limit=5"),
 };
 
 // ============================================================
-// Assessments
+// BILLING API
+// ============================================================
+export const billingAPI = {
+  invoices: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, any>[]; total: number }>("/billing/invoices", { params } as any),
+  subscription: () => apiFetch<Record<string, any>>("/billing/subscription"),
+  plans: () => apiFetch<Record<string, any>[]>("/billing/plans"),
+};
+
+// ============================================================
+// NOTIFICATIONS API
+// ============================================================
+export const notificationsAPI = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, any>[]; unread_count: number }>("/notifications", { params } as any),
+  markRead: (id: string) => apiFetch(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAllRead: () => apiFetch("/notifications/mark-all-read", { method: "PATCH" }),
+};
+
+// ============================================================
+// AI COMPANION API
+// ============================================================
+export const aiAPI = {
+  chat: (message: string, context?: Record<string, any>) =>
+    apiFetch<Record<string, any>>("/ai/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, context, role: "patient" }),
+    }),
+  memories: (patientId: string) =>
+    apiFetch<Record<string, any>[]>(`/ai/patients/${patientId}/memories`),
+};
+
+// ============================================================
+// ASSESSMENTS API
 // ============================================================
 export const assessmentsAPI = {
-  getPending: (token: string) =>
-    apiRequest<any[]>('/assessments/patient/pending', {}, token),
-  getCompleted: (token: string) =>
-    apiRequest<any[]>('/assessments/patient/completed', {}, token),
-  submit: (assessmentId: string, answers: any, token: string) =>
-    apiRequest<any>(`/assessments/${assessmentId}/submit`, {
-      method: 'POST',
-      body: JSON.stringify({ answers }),
-    }, token),
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, any>[] }>("/assessments", { params } as any),
+  submit: (id: string, answers: Record<string, any>) =>
+    apiFetch(`/assessments/${id}/submit`, { method: "POST", body: JSON.stringify({ answers }) }),
 };
 
-// ============================================================
-// Messages
-// ============================================================
-export const messagesAPI = {
-  getConversation: (therapistId: string, token: string) =>
-    apiRequest<any[]>(`/messages/conversation/${therapistId}`, {}, token),
-  send: (message: string, token: string) =>
-    apiRequest<any>('/messages', {
-      method: 'POST',
-      body: JSON.stringify({ content: message }),
-    }, token),
-};
-
-// ============================================================
-// Progress
-// ============================================================
-export const progressAPI = {
-  getScores: (token: string) =>
-    apiRequest<any>('/patients/progress/scores', {}, token),
-  getMoodHistory: (token: string) =>
-    apiRequest<any[]>('/patients/progress/mood', {}, token),
-  logMood: (score: number, note: string, token: string) =>
-    apiRequest<any>('/patients/mood', {
-      method: 'POST',
-      body: JSON.stringify({ score, note }),
-    }, token),
-};
-
-// ============================================================
-// Resources
-// ============================================================
-export const resourcesAPI = {
-  getAll: (token: string) =>
-    apiRequest<any[]>('/resources', {}, token),
-  getByCategory: (category: string, token: string) =>
-    apiRequest<any[]>(`/resources?category=${category}`, {}, token),
-};
+export { setStoredTokens, getAccessToken, getRefreshToken };
+export default apiFetch;

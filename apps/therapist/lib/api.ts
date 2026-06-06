@@ -25,7 +25,38 @@ function getAccessToken(): string | null {
   return localStorage.getItem("access_token");
 }
 
-async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
+function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("refresh_token");
+}
+
+function setStoredTokens(access: string, refresh: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("access_token", access);
+  localStorage.setItem("refresh_token", refresh);
+}
+
+let _isRefreshing = false;
+let _refreshQueue: ((t: string) => void)[] = [];
+
+async function refreshAccessToken(): Promise<string | null> {
+  const rt = getRefreshToken();
+  if (!rt) return null;
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: rt }),
+    });
+    if (!res.ok) { localStorage.removeItem("access_token"); localStorage.removeItem("refresh_token"); return null; }
+    const json = await res.json();
+    const { access_token, refresh_token } = json.data?.tokens || {};
+    if (access_token) { setStoredTokens(access_token, refresh_token || rt); return access_token; }
+    return null;
+  } catch { return null; }
+}
+
+async function apiFetch<T>(endpoint: string, options: FetchOptions = {}, _retry = true): Promise<T> {
   const { params, ...fetchOptions } = options;
 
   let url = `${API_URL}${endpoint}`;
@@ -46,6 +77,24 @@ async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promis
 
   const response = await fetch(url, { ...fetchOptions, headers });
 
+  // Token refresh on 401
+  if (response.status === 401 && _retry) {
+    if (!_isRefreshing) {
+      _isRefreshing = true;
+      const newToken = await refreshAccessToken();
+      _isRefreshing = false;
+      if (!newToken) {
+        if (typeof window !== "undefined") window.location.href = "/login";
+        throw new APIError(401, "Session expired");
+      }
+      _refreshQueue.forEach(cb => cb(newToken));
+      _refreshQueue = [];
+    } else {
+      await new Promise<void>(resolve => { _refreshQueue.push(() => resolve()); });
+    }
+    return apiFetch<T>(endpoint, options, false);
+  }
+
   if (!response.ok) {
     let errorData;
     try { errorData = await response.json(); } catch { /* empty */ }
@@ -57,27 +106,38 @@ async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promis
   }
 
   if (response.status === 204) return undefined as T;
-  return response.json();
+  const json = await response.json();
+  // Unwrap NestJS standard { success, data, meta } wrapper
+  return (json.data !== undefined ? json.data : json) as T;
 }
 
 // ============================================================
 // AUTH
 // ============================================================
 export const authAPI = {
-  login: (email: string, password: string) =>
-    apiFetch<{ access_token: string; refresh_token: string; user: Record<string, unknown> }>(
-      "/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }
-    ),
+  login: async (email: string, password: string) => {
+    // Direct fetch to handle the wrapper correctly
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new APIError(res.status, json.message || "Login failed", json);
+    // json.data = { user, tokens, organization }
+    const data = json.data;
+    if (data?.tokens?.access_token) {
+      setStoredTokens(data.tokens.access_token, data.tokens.refresh_token || "");
+    }
+    return data as { user: Record<string, unknown>; tokens: { access_token: string; refresh_token: string; expires_in: number }; organization: Record<string, unknown> };
+  },
 
   register: (data: Record<string, string>) =>
-    apiFetch<{ access_token: string; refresh_token: string; user: Record<string, unknown> }>(
+    apiFetch<{ user: Record<string, unknown>; tokens: { access_token: string; refresh_token: string } }>(
       "/auth/register", { method: "POST", body: JSON.stringify(data) }
     ),
 
-  refresh: (refreshToken: string) =>
-    apiFetch<{ access_token: string; refresh_token: string }>(
-      "/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: refreshToken }) }
-    ),
+  refresh: () => refreshAccessToken(),
 
   logout: () => apiFetch("/auth/logout", { method: "POST" }),
 

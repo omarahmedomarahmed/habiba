@@ -6,27 +6,75 @@ import { persist } from 'zustand/middleware';
 interface AdminUser {
   id: string;
   email: string;
-  name: string;
-  role: 'super_admin';
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  role: 'super_admin' | 'admin';
+  organization_id?: string;
 }
 
 interface AdminAuthState {
   user: AdminUser | null;
-  token: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
-  login: (user: AdminUser, token: string) => void;
+  expiresAt: number | null; // Unix timestamp ms
+  // Actions
+  login: (user: AdminUser, accessToken: string, refreshToken: string, expiresIn?: number) => void;
+  updateTokens: (accessToken: string, refreshToken: string, expiresIn?: number) => void;
   logout: () => void;
+  // Legacy compat
+  token: string | null;
 }
 
 export const useAdminAuth = create<AdminAuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: null,
+      accessToken: null,
+      refreshToken: null,
       isAuthenticated: false,
-      login: (user, token) => set({ user, token, isAuthenticated: true }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      expiresAt: null,
+      token: null, // legacy compat
+
+      login: (user, accessToken, refreshToken, expiresIn = 900) =>
+        set({
+          user,
+          accessToken,
+          refreshToken,
+          token: accessToken, // legacy compat
+          isAuthenticated: true,
+          expiresAt: Date.now() + expiresIn * 1000,
+        }),
+
+      updateTokens: (accessToken, refreshToken, expiresIn = 900) =>
+        set({
+          accessToken,
+          refreshToken,
+          token: accessToken,
+          expiresAt: Date.now() + expiresIn * 1000,
+        }),
+
+      logout: () =>
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          token: null,
+          isAuthenticated: false,
+          expiresAt: null,
+        }),
     }),
-    { name: 'admin-auth' }
+    {
+      name: 'admin-auth',
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
+        expiresAt: state.expiresAt,
+      }),
+    }
   )
 );

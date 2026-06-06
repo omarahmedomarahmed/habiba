@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Zap, Eye, EyeOff, AlertCircle, Lock } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
-import { apiRequest } from '@/lib/api';
+import { authAPI, APIError } from '@/lib/api';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -23,34 +23,55 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      // For development, allow demo login
-      if (email === 'admin@24therapy.com' && password === 'admin') {
-        login(
-          { id: '1', email, name: 'Platform Admin', role: 'super_admin' },
-          'demo-token-admin'
-        );
-        router.push('/dashboard');
-        return;
-      }
+      const data = await authAPI.login(email, password, showMfa ? mfaCode : undefined);
 
-      const data = await apiRequest<{ user: any; token: string }>('/auth/admin/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password, mfa_code: mfaCode }),
-      });
-
-      if (data.user.role !== 'super_admin' && data.user.role !== 'admin') {
+      // Validate admin role
+      if (!data.user || !['super_admin', 'admin', 'org_admin'].includes(data.user.role)) {
         setError('Unauthorized: Admin access only.');
         return;
       }
 
-      login(data.user, data.token);
+      const userName =
+        data.user.first_name && data.user.last_name
+          ? `${data.user.first_name} ${data.user.last_name}`
+          : data.user.email;
+
+      login(
+        {
+          id: data.user.id,
+          email: data.user.email,
+          first_name: data.user.first_name,
+          last_name: data.user.last_name,
+          name: userName,
+          role: data.user.role,
+          organization_id: data.user.organization_id,
+        },
+        data.tokens.access_token,
+        data.tokens.refresh_token,
+        data.tokens.expires_in
+      );
+
       router.push('/dashboard');
     } catch (err: any) {
-      if (err.message?.includes('MFA')) {
-        setShowMfa(true);
-        setError('');
+      if (err instanceof APIError) {
+        if (err.status === 401) {
+          const msg = err.message?.toLowerCase() || '';
+          if (msg.includes('mfa') || msg.includes('two-factor') || msg.includes('otp')) {
+            setShowMfa(true);
+            setError('Please enter your MFA code.');
+          } else {
+            setError('Invalid credentials. Please try again.');
+          }
+        } else if (err.status === 403) {
+          setError('Account suspended. Contact support.');
+        } else {
+          setError(err.message || 'Login failed. Please try again.');
+        }
       } else {
-        setError(err.message || 'Invalid credentials. Please try again.');
+        // Network error or backend down
+        setError(
+          'Cannot connect to server. Please check your connection or try again later.'
+        );
       }
     } finally {
       setIsLoading(false);
@@ -93,6 +114,7 @@ export default function AdminLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@24therapy.com"
                 required
+                autoComplete="email"
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-all"
               />
             </div>
@@ -108,6 +130,7 @@ export default function AdminLoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  autoComplete="current-password"
                   className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-all pr-10"
                 />
                 <button
@@ -174,10 +197,6 @@ export default function AdminLoginPage() {
           <span className="text-gray-700">·</span>
           <span className="text-xs text-gray-600">HITECH</span>
         </div>
-
-        <p className="text-center text-xs text-gray-700 mt-3">
-          Demo: admin@24therapy.com / admin
-        </p>
       </div>
     </div>
   );

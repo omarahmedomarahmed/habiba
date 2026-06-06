@@ -22,14 +22,56 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // authAPI.login returns { user, tokens: { access_token, refresh_token, expires_in } }
       const res = await authAPI.login(email, password);
-      localStorage.setItem("access_token", res.access_token);
-      localStorage.setItem("refresh_token", res.refresh_token);
-      setAuth(res.user as any, res.access_token, res.refresh_token);
+
+      // Validate therapist role
+      if (!["therapist", "org_admin"].includes(res.user?.role || "")) {
+        setError("Access denied: Therapist credentials required.");
+        return;
+      }
+
+      const { access_token, refresh_token } = res.tokens;
+
+      // Persist tokens to localStorage for API client access
+      if (typeof window !== "undefined") {
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token || "");
+      }
+
+      // Update Zustand auth store
+      setAuth(
+        {
+          id: res.user.id,
+          email: res.user.email,
+          first_name: res.user.first_name,
+          last_name: res.user.last_name,
+          role: res.user.role,
+          avatar_url: res.user.avatar_url,
+          organization_id: res.user.organization_id,
+          organization_name: res.organization?.name,
+          therapist_id: res.user.therapist_id,
+        },
+        access_token,
+        refresh_token || ""
+      );
+
       router.push("/dashboard");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Invalid email or password";
-      setError(message);
+      if (err instanceof Error) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes("invalid") || msg.includes("unauthorized") || msg.includes("401")) {
+          setError("Invalid email or password. Please try again.");
+        } else if (msg.includes("suspended") || msg.includes("locked")) {
+          setError("Account is suspended. Please contact support.");
+        } else if (msg.includes("connect") || msg.includes("network") || msg.includes("fetch")) {
+          setError("Cannot reach server. Please check your connection.");
+        } else {
+          setError(err.message || "Login failed. Please try again.");
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
