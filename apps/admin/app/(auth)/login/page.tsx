@@ -112,7 +112,7 @@ export default function AdminLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@24therapy.ai"
+                placeholder="admin@company.com"
                 required
                 autoComplete="email"
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-all"
@@ -181,6 +181,15 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
+
+          <div className="mt-5 text-center">
+            <a
+              href="/forgot-password"
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Forgot password?
+            </a>
+          </div>
         </div>
 
         {/* Footer */}

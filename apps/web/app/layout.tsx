@@ -13,6 +13,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "24Therapy.ai — AI-Powered Mental Health Platform",
     template: "%s | 24Therapy.ai",
