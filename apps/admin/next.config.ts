@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "24therapy.com" },
-      { protocol: "https", hostname: "api.24therapy.com" },
+      { protocol: "https", hostname: "24therapy.ai" },
+      { protocol: "https", hostname: "api.24therapy.ai" },
     ],
   },
   async headers() {

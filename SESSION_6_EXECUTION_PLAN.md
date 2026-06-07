@@ -15,7 +15,7 @@
 ### Authentication State (CRITICAL GAP)
 | Portal | Auth Method | Status |
 |--------|-------------|--------|
-| Admin | `useAdminAuth` Zustand + demo bypass (`admin@24therapy.com`/`admin`) | ❌ FAKE — no real JWT |
+| Admin | `useAdminAuth` Zustand + demo bypass (`admin@24therapy.ai`/`admin`) | ❌ FAKE — no real JWT |
 | Therapist | `useAuthStore` Zustand + `authAPI.login()` → calls backend BUT stores in localStorage without validation | ⚠️ PARTIAL — API call exists but no token refresh, no role check |
 | Patient | `useAuthStore` Zustand + **`await new Promise(r => setTimeout(r, 800)); router.push('/home')`** | ❌ COMPLETELY FAKE — pure timeout |
 
@@ -104,7 +104,7 @@
 
 #### 1.3 Fix Admin Login (Replace Demo Bypass)
 - File: `apps/admin/app/(auth)/login/page.tsx`
-- Remove hardcoded `admin@24therapy.com` / `admin` bypass
+- Remove hardcoded `admin@24therapy.ai` / `admin` bypass
 - Call real `POST /auth/login` endpoint
 - Validate `role in ['super_admin', 'admin']`
 - Store tokens in localStorage + Zustand

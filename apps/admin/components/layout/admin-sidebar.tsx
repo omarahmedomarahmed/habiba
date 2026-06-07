@@ -131,7 +131,7 @@ export default function AdminSidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{user?.name || 'Admin'}</p>
-            <p className="text-xs text-gray-400 truncate">{user?.email || 'admin@24therapy.com'}</p>
+            <p className="text-xs text-gray-400 truncate">{user?.email || 'admin@24therapy.ai'}</p>
           </div>
           <button
             onClick={logout}

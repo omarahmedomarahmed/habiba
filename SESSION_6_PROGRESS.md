@@ -38,7 +38,7 @@
 - [x] Created SESSION_6_PROGRESS.md
 
 ### Key Findings
-**Admin**: Demo bypass (`admin@24therapy.com`/`admin`) in login page. Wrong API base URL.
+**Admin**: Demo bypass (`admin@24therapy.ai`/`admin`) in login page. Wrong API base URL.
 **Therapist**: API call exists but response shape mismatch (expects flat, gets nested).
 **Patient**: Completely fake — 800ms timeout, no API call at all.
 **Backend auth response**: `{ success, data: { user, tokens: { access_token, refresh_token, expires_in } } }`

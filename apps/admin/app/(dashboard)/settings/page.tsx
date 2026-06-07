@@ -80,10 +80,10 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   {[
                     { label: 'Platform Name', value: '24Therapy Mental Health OS', type: 'text' },
-                    { label: 'Support Email', value: 'support@24therapy.com', type: 'email' },
-                    { label: 'Legal Contact', value: 'legal@24therapy.com', type: 'email' },
-                    { label: 'Privacy Policy URL', value: 'https://24therapy.com/privacy', type: 'url' },
-                    { label: 'Terms of Service URL', value: 'https://24therapy.com/terms', type: 'url' },
+                    { label: 'Support Email', value: 'support@24therapy.ai', type: 'email' },
+                    { label: 'Legal Contact', value: 'legal@24therapy.ai', type: 'email' },
+                    { label: 'Privacy Policy URL', value: 'https://24therapy.ai/privacy', type: 'url' },
+                    { label: 'Terms of Service URL', value: 'https://24therapy.ai/terms', type: 'url' },
                   ].map(({ label, value, type }) => (
                     <div key={label}>
                       <label className="block text-xs font-medium text-gray-400 mb-1.5">{label}</label>

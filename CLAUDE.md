@@ -24,11 +24,11 @@
 
 ```
 apps/
-  web/           → Marketing site         (24therapy.com)       port 3000
-  therapist/     → Therapist portal        (app.24therapy.com)   port 3001
-  patient/       → Patient portal          (my.24therapy.com)    port 3002
-  admin/         → Super admin portal      (admin.24therapy.com) port 3003
-backend/         → NestJS API              (api.24therapy.com)   port 3001 (backend)
+  web/           → Marketing site         (24therapy.ai)       port 3000
+  therapist/     → Therapist portal        (app.24therapy.ai)   port 3001
+  patient/       → Patient portal          (my.24therapy.ai)    port 3002
+  admin/         → Super admin portal      (admin.24therapy.ai) port 3003
+backend/         → NestJS API              (api.24therapy.ai)   port 3001 (backend)
 packages/
   types/         → @24therapy/types — 1,860+ line shared TS types
 ```
@@ -81,10 +81,10 @@ The repo now has all required files for Vercel to detect pnpm@9.x correctly:
 
 | App | Root Directory | Vercel Project Name | Domain |
 |-----|---------------|---------------------|--------|
-| `apps/web` | `apps/web` | `24therapy-web` | `24therapy.com` |
-| `apps/therapist` | `apps/therapist` | `24therapy-therapist` | `app.24therapy.com` |
-| `apps/patient` | `apps/patient` | `24therapy-patient` | `my.24therapy.com` |
-| `apps/admin` | `apps/admin` | `24therapy-admin` | `admin.24therapy.com` |
+| `apps/web` | `apps/web` | `24therapy-web` | `24therapy.ai` |
+| `apps/therapist` | `apps/therapist` | `24therapy-therapist` | `app.24therapy.ai` |
+| `apps/patient` | `apps/patient` | `24therapy-patient` | `my.24therapy.ai` |
+| `apps/admin` | `apps/admin` | `24therapy-admin` | `admin.24therapy.ai` |
 
 ### ESLint Config Pattern (all 4 apps)
 

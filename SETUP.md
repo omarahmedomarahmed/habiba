@@ -15,11 +15,11 @@
 ```
 24therapy/
 ├── apps/
-│   ├── web/          # Marketing website (24therapy.com)
-│   ├── therapist/    # Therapist portal (app.24therapy.com)
-│   ├── patient/      # Patient portal (my.24therapy.com)
-│   └── admin/        # Admin portal (admin.24therapy.com)
-├── backend/          # NestJS API (api.24therapy.com)
+│   ├── web/          # Marketing website (24therapy.ai)
+│   ├── therapist/    # Therapist portal (app.24therapy.ai)
+│   ├── patient/      # Patient portal (my.24therapy.ai)
+│   └── admin/        # Admin portal (admin.24therapy.ai)
+├── backend/          # NestJS API (api.24therapy.ai)
 ├── packages/
 │   └── types/        # Shared TypeScript types
 ├── migrations/       # Database migration files
@@ -124,7 +124,7 @@ pnpm --filter @24therapy/web dev           # Port 3004
 |-----|-----|-----------|
 | Therapist Portal | http://localhost:3000 | therapist@demo.com / demo |
 | Patient Portal | http://localhost:3002 | patient@demo.com / demo |
-| Admin Portal | http://localhost:3003 | admin@24therapy.com / admin |
+| Admin Portal | http://localhost:3003 | admin@24therapy.ai / admin |
 | Web | http://localhost:3004 | N/A |
 | Backend API | http://localhost:3001 | N/A |
 
@@ -142,7 +142,7 @@ Each frontend app deploys independently to Vercel.
 2. Set framework: Next.js
 3. Set root directory: `apps/therapist`
 4. Add environment variables:
-   - `NEXT_PUBLIC_API_URL` = `https://api.24therapy.com`
+   - `NEXT_PUBLIC_API_URL` = `https://api.24therapy.ai`
    - `NEXT_PUBLIC_APP_ENV` = `production`
    - `NEXT_PUBLIC_DAILY_API_KEY` = your Daily.co key
    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` = your Stripe key
@@ -161,7 +161,7 @@ Each frontend app deploys independently to Vercel.
 #### Marketing Website
 
 1. Import `apps/web` to Vercel
-2. Configure custom domain `24therapy.com`
+2. Configure custom domain `24therapy.ai`
 
 ---
 
@@ -232,11 +232,11 @@ CMD ["pnpm", "--filter", "@24therapy/backend", "start:prod"]
 
 | App | Domain | Vercel Project |
 |-----|--------|---------------|
-| Marketing | 24therapy.com | 24therapy-web |
-| Therapist | app.24therapy.com | 24therapy-therapist |
-| Patient | my.24therapy.com | 24therapy-patient |
-| Admin | admin.24therapy.com | 24therapy-admin |
-| API | api.24therapy.com | Railway/Render |
+| Marketing | 24therapy.ai | 24therapy-web |
+| Therapist | app.24therapy.ai | 24therapy-therapist |
+| Patient | my.24therapy.ai | 24therapy-patient |
+| Admin | admin.24therapy.ai | 24therapy-admin |
+| API | api.24therapy.ai | Railway/Render |
 
 ---
 
@@ -342,9 +342,9 @@ pnpm --filter @24therapy/types add -D typescript
 
 ## Support
 
-- Technical: engineering@24therapy.com
-- Compliance: compliance@24therapy.com
-- Security: security@24therapy.com
+- Technical: engineering@24therapy.ai
+- Compliance: compliance@24therapy.ai
+- Security: security@24therapy.ai
 
 ---
 
@@ -528,7 +528,7 @@ railway up
 
 # Set custom domain
 railway domain 24therapy-backend.up.railway.app
-# Add CNAME: api.24therapy.com → 24therapy-backend.up.railway.app
+# Add CNAME: api.24therapy.ai → 24therapy-backend.up.railway.app
 ```
 
 #### Option B: Render
@@ -540,7 +540,7 @@ railway domain 24therapy-backend.up.railway.app
 5. Set **Root Directory**: (blank — runs from repo root)
 6. Set **Plan**: Standard ($25/mo minimum for production)
 7. Add all environment variables from `backend/.env.example`
-8. Add custom domain: `api.24therapy.com`
+8. Add custom domain: `api.24therapy.ai`
 
 #### Option C: AWS ECS (Enterprise)
 
@@ -576,10 +576,10 @@ Each app deploys independently as a separate Vercel project.
 
 | App | Root Dir | Domain | Team Access |
 |-----|----------|--------|-------------|
-| Marketing | `apps/web` | `24therapy.com` | Public |
-| Therapist | `apps/therapist` | `app.24therapy.com` | Team only |
-| Patient | `apps/patient` | `my.24therapy.com` | Team only |
-| Admin | `apps/admin` | `admin.24therapy.com` | IP restricted |
+| Marketing | `apps/web` | `24therapy.ai` | Public |
+| Therapist | `apps/therapist` | `app.24therapy.ai` | Team only |
+| Patient | `apps/patient` | `my.24therapy.ai` | Team only |
+| Admin | `apps/admin` | `admin.24therapy.ai` | IP restricted |
 
 #### Monorepo Turbo caching on Vercel:
 
@@ -602,7 +602,7 @@ Each app deploys independently as a separate Vercel project.
 # Starter Monthly, Pro Monthly, Growth Monthly, Enterprise
 
 # 2. Configure webhooks
-# Endpoint: https://api.24therapy.com/billing/webhook
+# Endpoint: https://api.24therapy.ai/billing/webhook
 # Events: checkout.session.completed, customer.subscription.updated,
 #         customer.subscription.deleted, invoice.payment_failed
 
@@ -812,7 +812,7 @@ curl https://api.openai.com/v1/models \
 ```bash
 # Common fix: set NEXT_PUBLIC_API_URL before build
 # In Vercel dashboard → Settings → Environment Variables
-# Add NEXT_PUBLIC_API_URL = https://api.24therapy.com
+# Add NEXT_PUBLIC_API_URL = https://api.24therapy.ai
 ```
 
 #### Docker containers not communicating
@@ -829,16 +829,16 @@ curl https://api.openai.com/v1/models \
 
 ```bash
 # Backend health
-curl https://api.24therapy.com/health
+curl https://api.24therapy.ai/health
 
 # Database connectivity
-curl https://api.24therapy.com/health/db
+curl https://api.24therapy.ai/health/db
 
 # Redis connectivity
-curl https://api.24therapy.com/health/redis
+curl https://api.24therapy.ai/health/redis
 
 # AI service connectivity
-curl https://api.24therapy.com/health/ai
+curl https://api.24therapy.ai/health/ai
 ```
 
 Expected response:
@@ -862,10 +862,10 @@ Expected response:
 
 | Team | Email | Response SLA |
 |------|-------|-------------|
-| Engineering | engineering@24therapy.com | 24h |
-| Compliance / HIPAA | compliance@24therapy.com | 4h |
-| Security Incidents | security@24therapy.com | 1h |
-| Customer Support | support@24therapy.com | 8h |
+| Engineering | engineering@24therapy.ai | 24h |
+| Compliance / HIPAA | compliance@24therapy.ai | 4h |
+| Security Incidents | security@24therapy.ai | 1h |
+| Customer Support | support@24therapy.ai | 8h |
 
 ---
 
@@ -879,10 +879,10 @@ Each app serves a completely different audience:
 
 | App | Who uses it | URL |
 |-----|-------------|-----|
-| `apps/web` | General public (marketing) | `24therapy.com` |
-| `apps/therapist` | Licensed therapists only | `app.24therapy.com` |
-| `apps/patient` | Patients only | `my.24therapy.com` |
-| `apps/admin` | Internal team only | `admin.24therapy.com` |
+| `apps/web` | General public (marketing) | `24therapy.ai` |
+| `apps/therapist` | Licensed therapists only | `app.24therapy.ai` |
+| `apps/patient` | Patients only | `my.24therapy.ai` |
+| `apps/admin` | Internal team only | `admin.24therapy.ai` |
 
 Separate projects means separate deploys — a therapist portal release never touches the marketing site.
 
@@ -909,13 +909,13 @@ Separate projects means separate deploys — a therapist portal release never to
    - Leave Build & Output Settings as default (vercel.json handles it)
 4. Under **"Environment Variables"**, add:
    ```
-   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_API_URL = https://api.24therapy.ai
    NEXT_PUBLIC_APP_ENV = production
    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = pk_live_...
    NEXT_PUBLIC_POSTHOG_KEY = phc_...
    ```
 5. Click **Deploy**
-6. After deploy, go to **Settings → Domains** → add `24therapy.com` and `www.24therapy.com`
+6. After deploy, go to **Settings → Domains** → add `24therapy.ai` and `www.24therapy.ai`
 
 ---
 
@@ -927,13 +927,13 @@ Separate projects means separate deploys — a therapist portal release never to
 4. **Project Name**: `24therapy-therapist`
 5. Environment Variables:
    ```
-   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_API_URL = https://api.24therapy.ai
    NEXT_PUBLIC_APP_ENV = production
    NEXT_PUBLIC_DAILY_API_KEY = your_daily_key
    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = pk_live_...
    NEXT_PUBLIC_SENTRY_DSN = https://...@sentry.io/...
    ```
-6. Deploy → add domain `app.24therapy.com`
+6. Deploy → add domain `app.24therapy.ai`
 
 ---
 
@@ -944,12 +944,12 @@ Separate projects means separate deploys — a therapist portal release never to
 3. **Project Name**: `24therapy-patient`
 4. Environment Variables:
    ```
-   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_API_URL = https://api.24therapy.ai
    NEXT_PUBLIC_APP_ENV = production
    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = pk_live_...
    NEXT_PUBLIC_DAILY_API_KEY = your_daily_key
    ```
-5. Deploy → add domain `my.24therapy.com`
+5. Deploy → add domain `my.24therapy.ai`
 
 ---
 
@@ -960,11 +960,11 @@ Separate projects means separate deploys — a therapist portal release never to
 3. **Project Name**: `24therapy-admin`
 4. Environment Variables:
    ```
-   NEXT_PUBLIC_API_URL = https://api.24therapy.com
+   NEXT_PUBLIC_API_URL = https://api.24therapy.ai
    NEXT_PUBLIC_APP_ENV = production
    NEXT_PUBLIC_ADMIN_SECRET = your_admin_secret
    ```
-5. Deploy → add domain `admin.24therapy.com`
+5. Deploy → add domain `admin.24therapy.ai`
 6. **Security**: Go to Settings → Password Protection → Enable (or use Vercel Access policies to restrict by IP)
 
 ---
@@ -1001,15 +1001,15 @@ Without `pnpm-lock.yaml`, Vercel falls back to its bundled pnpm v6.35.1, which f
 ### Domain Architecture
 
 ```
-24therapy.com               → apps/web        (marketing, SEO-optimised)
-  └── www.24therapy.com     → redirect to apex
+24therapy.ai               → apps/web        (marketing, SEO-optimised)
+  └── www.24therapy.ai     → redirect to apex
 
-app.24therapy.com           → apps/therapist  (HIPAA-scoped, therapist auth)
-my.24therapy.com            → apps/patient    (HIPAA-scoped, patient auth)
-admin.24therapy.com         → apps/admin      (internal, IP-restricted, noindex)
+app.24therapy.ai           → apps/therapist  (HIPAA-scoped, therapist auth)
+my.24therapy.ai            → apps/patient    (HIPAA-scoped, patient auth)
+admin.24therapy.ai         → apps/admin      (internal, IP-restricted, noindex)
 
-api.24therapy.com           → NestJS backend  (Railway / Render / AWS ECS)
-docs.24therapy.com          → API docs        (optional, Swagger UI)
+api.24therapy.ai           → NestJS backend  (Railway / Render / AWS ECS)
+docs.24therapy.ai          → API docs        (optional, Swagger UI)
 ```
 
 #### Future path-based approach (optional)
@@ -1017,9 +1017,9 @@ docs.24therapy.com          → API docs        (optional, Swagger UI)
 If you ever want everything under one domain (simpler SSL, single Vercel project):
 
 ```
-24therapy.com/              → marketing
-24therapy.com/app/*         → therapist portal (Next.js rewrites)
-24therapy.com/my/*          → patient portal (Next.js rewrites)
+24therapy.ai/              → marketing
+24therapy.ai/app/*         → therapist portal (Next.js rewrites)
+24therapy.ai/my/*          → patient portal (Next.js rewrites)
 ```
 
 This requires a reverse proxy (Vercel Edge Middleware or Nginx) to route by path prefix. The current subdomain approach is simpler and preferred for HIPAA separation.
