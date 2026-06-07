@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Brain, ArrowLeft, CheckCircle, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DOMAINS } from "@/lib/domains";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
@@ -43,7 +44,7 @@ export default function PatientForgotPasswordPage() {
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 via-white to-primary-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <a href="https://24therapy.ai" className="flex items-center gap-2 mb-8 justify-center">
+        <a href={DOMAINS.web} className="flex items-center gap-2 mb-8 justify-center">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary-500 to-secondary-600 flex items-center justify-center shadow-sm">
             <Brain className="w-5 h-5 text-white" />
           </div>

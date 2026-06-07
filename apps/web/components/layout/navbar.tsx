@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, Brain, ChevronDown, Sparkles, ArrowRight } from "lucide-react";
+import { Menu, X, Brain, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AUTH_URLS } from "@/lib/domains";
 
 const navItems = [
   {
@@ -34,8 +35,9 @@ const navItems = [
     href: "/blog",
     children: [
       { label: "Blog", href: "/blog", desc: "AI, clinical practice & mental health tech" },
-      { label: "Security & HIPAA", href: "/security", desc: "Compliance, encryption & privacy" },
+      { label: "Security & HIPAA", href: "/hipaa", desc: "Compliance, encryption & privacy" },
       { label: "About Us", href: "/about", desc: "Mission, team & company story" },
+      { label: "Book a Demo", href: "/demo", desc: "30-minute personalized walkthrough" },
     ],
   },
 ];
@@ -120,17 +122,17 @@ export function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-2">
-            <Link
-              href="https://app.24therapy.ai/login"
+            <a
+              href={AUTH_URLS.therapistLogin}
               className="text-sm font-medium text-slate-600 hover:text-[#1F5EFF] px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors"
             >
               Log in
-            </Link>
+            </a>
             <Link
-              href="/find-therapist"
+              href="/chat"
               className="text-sm font-medium text-slate-700 hover:text-[#1F5EFF] px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors border border-slate-200 hover:border-[#1F5EFF]/30"
             >
-              Find a Therapist
+              Try AI Free
             </Link>
             <Link
               href="/signup"
@@ -181,19 +183,19 @@ export function Navbar() {
             </div>
           ))}
           <div className="pt-3 space-y-2 border-t border-slate-100">
-            <Link
-              href="https://app.24therapy.ai/login"
+            <a
+              href={AUTH_URLS.therapistLogin}
               className="block px-4 py-3 text-sm font-medium text-slate-700 text-center rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
               onClick={() => setIsOpen(false)}
             >
               Log in
-            </Link>
+            </a>
             <Link
-              href="/find-therapist"
+              href="/chat"
               className="block px-4 py-3 text-sm font-medium text-slate-700 text-center rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
               onClick={() => setIsOpen(false)}
             >
-              Find a Therapist
+              Try AI Free
             </Link>
             <Link
               href="/signup"

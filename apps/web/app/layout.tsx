@@ -4,6 +4,8 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://24therapy.ai";
+
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://24therapy.ai",
+    url: SITE_URL,
     siteName: "24Therapy.ai",
     title: "24Therapy.ai — AI-Powered Mental Health Platform",
     description:

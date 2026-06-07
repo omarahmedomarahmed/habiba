@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Brain, ArrowRight, Shield, Zap } from "lucide-react";
 import { authAPI } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
+import { DOMAINS } from "@/lib/domains";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -206,7 +207,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-slate-500">
             Don&apos;t have an account?{" "}
-            <Link href="https://24therapy.ai/signup?role=therapist" className="text-secondary hover:underline font-medium">
+            <Link href={`${DOMAINS.web}/signup?role=therapist`} className="text-secondary hover:underline font-medium">
               Apply to join
             </Link>
           </div>

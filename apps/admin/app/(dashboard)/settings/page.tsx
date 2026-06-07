@@ -6,6 +6,7 @@ import {
   Mail, Code, Save, Eye, EyeOff, AlertTriangle,
   CheckCircle, Lock, RefreshCw, Plus, Trash2
 } from 'lucide-react';
+import { DOMAINS, EMAILS } from '@/lib/domains';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'security' | 'ai' | 'notifications' | 'api' | 'integrations'>('general');
@@ -80,10 +81,10 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   {[
                     { label: 'Platform Name', value: '24Therapy Mental Health OS', type: 'text' },
-                    { label: 'Support Email', value: 'support@24therapy.ai', type: 'email' },
-                    { label: 'Legal Contact', value: 'legal@24therapy.ai', type: 'email' },
-                    { label: 'Privacy Policy URL', value: 'https://24therapy.ai/privacy', type: 'url' },
-                    { label: 'Terms of Service URL', value: 'https://24therapy.ai/terms', type: 'url' },
+                    { label: 'Support Email', value: EMAILS.support, type: 'email' },
+                    { label: 'Legal Contact', value: EMAILS.legal, type: 'email' },
+                    { label: 'Privacy Policy URL', value: `${DOMAINS.web}/privacy`, type: 'url' },
+                    { label: 'Terms of Service URL', value: `${DOMAINS.web}/terms`, type: 'url' },
                   ].map(({ label, value, type }) => (
                     <div key={label}>
                       <label className="block text-xs font-medium text-gray-400 mb-1.5">{label}</label>
