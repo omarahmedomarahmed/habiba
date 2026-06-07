@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AIController } from './ai.controller';
+import { AIPublicController } from './ai.public.controller';
 import { AIService } from './ai.service';
 import { ModelGatewayService } from './model-gateway.service';
 import { ContextBuilderService } from './context-builder.service';
@@ -9,7 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [DatabaseModule, AuthModule],
-  controllers: [AIController],
+  controllers: [AIController, AIPublicController],
   providers: [AIService, ModelGatewayService, ContextBuilderService, DatabaseService],
   exports: [AIService, ModelGatewayService, ContextBuilderService],
 })
