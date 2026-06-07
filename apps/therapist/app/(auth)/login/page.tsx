@@ -203,7 +203,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-slate-500">
             Don&apos;t have an account?{" "}
-            <Link href="https://24therapy.ai/therapist/signup" className="text-secondary hover:underline font-medium">
+            <Link href="https://24therapy.ai/signup?role=therapist" className="text-secondary hover:underline font-medium">
               Apply to join
             </Link>
           </div>
