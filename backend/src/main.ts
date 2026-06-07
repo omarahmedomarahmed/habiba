@@ -29,8 +29,21 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Slug', 'X-Request-ID'],
   });
 
-  // Global prefix
-  app.setGlobalPrefix('api/v1');
+  // Global prefix (applied AFTER health route so /health stays at root)
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health'], // Public health check at GET /health
+  });
+
+  // Public health check endpoint (used by Railway/Render/ALB)
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/health', (_req: any, res: any) => {
+    res.status(200).json({
+      status: 'ok',
+      service: '24therapy-api',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+    });
+  });
 
   // Validation pipe
   app.useGlobalPipes(

@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../../database/database.service';
+import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthTokens, User } from '@24therapy/types';
@@ -20,6 +21,7 @@ export class AuthService {
     private readonly db: DatabaseService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto): Promise<{ user: User; tokens: AuthTokens; organization: any }> {
@@ -91,6 +93,11 @@ export class AuthService {
 
       // Generate tokens
       const tokens = await this.generateTokens(user, client);
+
+      // Send welcome email (fire-and-forget)
+      this.mailService
+        .sendWelcome(dto.email, dto.first_name, dto.role || 'therapist')
+        .catch((err) => console.error('[auth] Welcome email failed:', err?.message));
 
       return { user: this.sanitizeUser(user), tokens, organization: org };
     });
@@ -215,8 +222,18 @@ export class AuthService {
       [uuidv4(), user.id, `reset_${tokenHash}`],
     );
 
-    // TODO: Send password reset email via notification service
-    console.log(`Password reset token for ${email}: ${token}`);
+    // Look up user role so we can link to the correct portal
+    const userRecord = await this.db.queryOne<any>(
+      'SELECT role FROM users WHERE id = $1',
+      [user.id],
+    );
+    const role = userRecord?.role || 'therapist';
+
+    // Send password reset email (fire-and-forget — don't block response)
+    this.mailService.sendPasswordReset(email, token, role).catch((err) => {
+      // Log error but don't throw — user flow must not break if email fails
+      console.error('[auth] Failed to send password reset email:', err?.message);
+    });
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {

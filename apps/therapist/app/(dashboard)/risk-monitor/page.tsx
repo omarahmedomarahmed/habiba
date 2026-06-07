@@ -71,10 +71,11 @@ function normalizePatient(raw: Record<string, unknown>): PatientRisk {
     ? (raw.risk_flags as string[])
     : [];
 
-  const recentSignals = Array.isArray(raw.recent_signals)
-    ? (raw.recent_signals as Array<{ type: string; label: string; detail: string; severity: "high" | "medium" | "low"; date: string }>)
+  type SignalItem = { type: string; label: string; detail: string; severity: "high" | "medium" | "low"; date: string };
+  const recentSignals: SignalItem[] = Array.isArray(raw.recent_signals)
+    ? (raw.recent_signals as SignalItem[])
     : Array.isArray(raw.signals)
-    ? (raw.signals as typeof recentSignals)
+    ? (raw.signals as SignalItem[])
     : [];
 
   return {

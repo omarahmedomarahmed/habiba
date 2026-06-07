@@ -1,31 +1,24 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm --filter @24therapy/therapist build",
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=@24therapy/therapist",
   "outputDirectory": ".next",
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Strict-Transport-Security",
-          "value": "max-age=63072000; includeSubDomains; preload"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(self), microphone=(self), geolocation=()" }
       ]
     }
-  ]
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://api.24therapy.ai/api/v1",
+    "NEXT_PUBLIC_SITE_URL": "https://app.24therapy.ai",
+    "NEXT_PUBLIC_WEB_URL": "https://24therapy.ai",
+    "NEXT_PUBLIC_PATIENT_APP_URL": "https://my.24therapy.ai"
+  }
 }

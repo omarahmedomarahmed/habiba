@@ -26,7 +26,8 @@ export default function LoginPage() {
       const res = await authAPI.login(email, password);
 
       // Validate therapist role
-      if (!["therapist", "org_admin"].includes(res.user?.role || "")) {
+      const userRole = String((res.user as Record<string, unknown>)?.role ?? "");
+      if (!["therapist", "org_admin"].includes(userRole)) {
         setError("Access denied: Therapist credentials required.");
         return;
       }
@@ -40,17 +41,19 @@ export default function LoginPage() {
       }
 
       // Update Zustand auth store
+      const u = res.user as Record<string, unknown>;
+      const org = res.organization as Record<string, unknown> | undefined;
       setAuth(
         {
-          id: res.user.id,
-          email: res.user.email,
-          first_name: res.user.first_name,
-          last_name: res.user.last_name,
-          role: res.user.role,
-          avatar_url: res.user.avatar_url,
-          organization_id: res.user.organization_id,
-          organization_name: res.organization?.name,
-          therapist_id: res.user.therapist_id,
+          id: String(u.id ?? ""),
+          email: String(u.email ?? ""),
+          first_name: String(u.first_name ?? ""),
+          last_name: String(u.last_name ?? ""),
+          role: String(u.role ?? ""),
+          avatar_url: u.avatar_url ? String(u.avatar_url) : undefined,
+          organization_id: String(u.organization_id ?? ""),
+          organization_name: org?.name ? String(org.name) : undefined,
+          therapist_id: u.therapist_id ? String(u.therapist_id) : undefined,
         },
         access_token,
         refresh_token || ""

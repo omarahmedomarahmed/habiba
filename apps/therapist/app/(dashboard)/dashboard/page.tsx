@@ -69,7 +69,7 @@ export default function DashboardPage() {
       const [dashStats, sessionsList, notifData] = await Promise.allSettled([
         sessionsAPI.dashboardStats(),
         sessionsAPI.list({ status: "scheduled", date: new Date().toISOString().split("T")[0], limit: 5 }),
-        notificationsAPI.list({ limit: 10, unread: true }),
+        notificationsAPI.list({ limit: 10, unread_only: "true" }),
       ]);
 
       if (dashStats.status === "fulfilled" && dashStats.value) {
