@@ -1,38 +1,28 @@
 import Link from "next/link";
-import { Brain, Twitter, Linkedin, Mail, Github } from "lucide-react";
+import { Brain, Twitter, Linkedin, Mail } from "lucide-react";
 
 const footerLinks = {
   Product: [
     { label: "AI Scribe", href: "/ai-scribe" },
-    { label: "AI Copilot", href: "/features/ai-copilot" },
-    { label: "AI Workspace", href: "/features/ai-workspace" },
-    { label: "Memory Layer", href: "/features/memory-layer" },
-    { label: "Workflow Engine", href: "/features/workflow-engine" },
+    { label: "Clinical Copilot", href: "/features/ai-copilot" },
+    { label: "Patient Memory", href: "/features/memory-layer" },
     { label: "Telehealth", href: "/features/teletherapy" },
     { label: "Analytics", href: "/features/analytics" },
+    { label: "Integrations", href: "/features/integrations" },
     { label: "Pricing", href: "/pricing" },
   ],
   Solutions: [
-    { label: "Solo Practitioners", href: "/features/use-cases" },
-    { label: "Group Practices", href: "/features/use-cases" },
-    { label: "Clinics & CMHCs", href: "/features/use-cases" },
-    { label: "Health Systems", href: "/features/use-cases" },
-    { label: "Integrations", href: "/features/integrations" },
+    { label: "For Therapists", href: "/for-therapists" },
+    { label: "Group Practices", href: "/for-therapists#practice" },
     { label: "Enterprise", href: "/enterprise" },
     { label: "Find a Therapist", href: "/find-therapist" },
-    { label: "For Therapists", href: "/for-therapists" },
+    { label: "Join as Therapist", href: "/therapist-join" },
   ],
   Company: [
     { label: "About", href: "/about" },
     { label: "Blog", href: "/blog" },
     { label: "Careers", href: "/careers" },
     { label: "Contact", href: "/contact" },
-    { label: "Testimonials", href: "/testimonials" },
-  ],
-  Developers: [
-    { label: "Documentation", href: "/docs" },
-    { label: "API Reference", href: "/docs" },
-    { label: "Integrations", href: "/features/integrations" },
   ],
   Legal: [
     { label: "Privacy Policy", href: "/privacy" },
@@ -47,9 +37,9 @@ export function Footer() {
     <footer className="bg-[#0A2342] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Top section */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-8 mb-12">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8 mb-12">
           {/* Brand */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+          <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
                 <Brain className="w-5 h-5 text-white" />
