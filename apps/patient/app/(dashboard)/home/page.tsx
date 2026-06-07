@@ -1,76 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Calendar, Clock, Video, Brain, Heart, TrendingUp, BookOpen,
-  MessageSquare, CheckCircle2, AlertCircle, Smile, Moon, Zap,
-  ArrowRight, Star, Target, Pill, ChevronRight, Activity,
-  Sparkles, Shield, Plus, Bell, BookOpenCheck, Users
+  CheckCircle2, Smile, Zap,
+  Target, Pill, ChevronRight,
+  Sparkles, Plus, Bell, BookOpenCheck, Users, AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const UPCOMING_SESSION = {
-  date: "December 22, 2025",
-  time: "10:00 AM",
-  therapist: "Dr. Alex Smith",
-  type: "Video Session",
-  session_number: 25,
-  days_until: 6,
-  focus: "CBT + Year-end stress management"
-};
-
-const TODAY_HOMEWORK = [
-  { id: "h1", task: "Practice 4-7-8 breathing (morning)", done: true },
-  { id: "h2", task: "Thought record — work stress", done: false },
-  { id: "h3", task: "Write 1 gratitude item", done: true },
-  { id: "h4", task: "Social event this week", done: false },
-];
-
-const RECENT_MOOD = [
-  { day: "Mon", value: 6 },
-  { day: "Tue", value: 5 },
-  { day: "Wed", value: 7 },
-  { day: "Thu", value: 7 },
-  { day: "Fri", value: 8 },
-  { day: "Sat", value: 7 },
-  { day: "Sun", value: 7 },
-];
+import { patientAPI, sessionsAPI, APIError } from "@/lib/api";
+import { useAuthStore } from "@/lib/store";
 
 const QUICK_ACTIONS = [
   { label: "Log Mood", href: "/mood", icon: Smile, color: "bg-amber-50 text-amber-600 border-amber-100" },
   { label: "Journal", href: "/journal", icon: BookOpenCheck, color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
   { label: "AI Companion", href: "/ai-companion", icon: Brain, color: "bg-blue-50 text-blue-600 border-blue-100" },
   { label: "Resources", href: "/resources", icon: BookOpen, color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-];
-
-const GOALS_PREVIEW = [
-  { title: "Reduce PHQ-9 below 9", progress: 52, change: 5, category: "Depression" },
-  { title: "Sleep 7+ hrs consistently", progress: 70, change: 5, category: "Sleep" },
-  { title: "Re-engage social activities", progress: 40, change: 10, category: "Social" },
-];
-
-const AI_INSIGHTS = [
-  {
-    id: "i1",
-    type: "pattern",
-    title: "Exercise improves your mood by ~2pts",
-    short: "On exercise days, your mood averages 7.8 vs 5.9 on non-exercise days.",
-    icon: Zap,
-    color: "bg-amber-50 border-amber-100 text-amber-800"
-  },
-  {
-    id: "i2",
-    type: "progress",
-    title: "Best mood week in 2 months!",
-    short: "Your average mood this week (6.9) is the highest since mid-October.",
-    icon: TrendingUp,
-    color: "bg-emerald-50 border-emerald-100 text-emerald-800"
-  },
-];
-
-const MEDICATIONS = [
-  { name: "Lexapro 10mg", schedule: "Morning · Daily", taken_today: true },
 ];
 
 function MoodBar({ value }: { value: number }) {
@@ -84,69 +30,181 @@ function MoodBar({ value }: { value: number }) {
   );
 }
 
-export default function PatientHomePage() {
-  const [toggleTaken, setToggleTaken] = useState(MEDICATIONS.map(m => m.taken_today));
-  const completedHomework = TODAY_HOMEWORK.filter(h => h.done).length;
-  const homeworkPct = Math.round((completedHomework / TODAY_HOMEWORK.length) * 100);
+function SkeletonBlock({ className }: { className?: string }) {
+  return <div className={cn("bg-gray-100 rounded-xl animate-pulse", className)} />;
+}
 
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+export default function PatientHomePage() {
+  const user = useAuthStore(s => s.user);
+  const [patientData, setPatientData] = useState<any>(null);
+  const [upcomingSession, setUpcomingSession] = useState<any>(null);
+  const [moodTrend, setMoodTrend] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [medTaken, setMedTaken] = useState<Record<string, boolean>>({});
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  const fetchHomeData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [profileResult, sessionsResult, moodResult] = await Promise.allSettled([
+        patientAPI.me(),
+        sessionsAPI.list({ status: "scheduled", limit: 1, sort: "scheduled_at" }),
+        patientAPI.moodTrend(7),
+      ]);
+
+      if (profileResult.status === "fulfilled") {
+        setPatientData(profileResult.value);
+        // Initialize medication taken states
+        const meds = (profileResult.value as any).medications ?? [];
+        const medState: Record<string, boolean> = {};
+        meds.forEach((m: any) => { medState[m.id || m.name] = m.taken_today ?? false; });
+        setMedTaken(medState);
+      }
+
+      if (sessionsResult.status === "fulfilled") {
+        const sessions = sessionsResult.value;
+        const data = Array.isArray(sessions) ? sessions : (sessions as any).data ?? [];
+        setUpcomingSession(data[0] ?? null);
+      }
+
+      if (moodResult.status === "fulfilled") {
+        const trend = moodResult.value;
+        setMoodTrend(Array.isArray(trend) ? trend : (trend as any).data ?? []);
+      }
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) return;
+      setError("Some data could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchHomeData(); }, [fetchHomeData]);
+
+  const firstName = patientData?.first_name || user?.first_name || user?.email?.split("@")[0] || "there";
+  const goals = patientData?.goals ?? [];
+  const homework = patientData?.homework ?? patientData?.today_tasks ?? [];
+  const medications = patientData?.medications ?? [];
+  const insights = patientData?.ai_insights ?? [];
+
+  const completedHomework = homework.filter((h: any) => h.done || h.completed).length;
+  const homeworkPct = homework.length > 0 ? Math.round((completedHomework / homework.length) * 100) : 0;
+
+  // Compute upcoming session display info
+  const upcomingDate = upcomingSession
+    ? new Date(upcomingSession.scheduled_at || upcomingSession.date || "")
+    : null;
+  const daysUntil = upcomingDate
+    ? Math.ceil((upcomingDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       {/* Greeting */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{greeting}, Sarah 👋</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{greeting}, {firstName} 👋</h1>
           <p className="text-sm text-gray-500 mt-0.5">{today}</p>
         </div>
-        <Link href="/home" className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+        <Link href="/notifications" className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
           <Bell className="h-4 w-4 text-gray-400" />
         </Link>
       </div>
 
-      {/* Next Session — prominent */}
-      <div className="bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] rounded-2xl p-5 text-white">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-xs text-white/60 uppercase tracking-wide font-medium">Next Session</span>
-          <span className="text-xs bg-white/10 px-2.5 py-1 rounded-full font-medium">
-            In {UPCOMING_SESSION.days_until} days
-          </span>
+      {/* Error Banner */}
+      {error && !loading && (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 text-xs">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+          <button onClick={fetchHomeData} className="ml-auto underline">Retry</button>
         </div>
+      )}
 
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-            <Users className="h-5 w-5 text-white/80" />
+      {/* Next Session */}
+      {loading ? (
+        <SkeletonBlock className="h-52 bg-gray-200" />
+      ) : upcomingSession ? (
+        <div className="bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] rounded-2xl p-5 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs text-white/60 uppercase tracking-wide font-medium">Next Session</span>
+            {daysUntil !== null && (
+              <span className="text-xs bg-white/10 px-2.5 py-1 rounded-full font-medium">
+                {daysUntil === 0 ? "Today!" : `In ${daysUntil} days`}
+              </span>
+            )}
           </div>
-          <div>
-            <p className="font-semibold">{UPCOMING_SESSION.therapist}</p>
-            <p className="text-xs text-white/60">Session #{UPCOMING_SESSION.session_number}</p>
+
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+              <Users className="h-5 w-5 text-white/80" />
+            </div>
+            <div>
+              <p className="font-semibold">
+                {upcomingSession.therapist
+                  ? `${upcomingSession.therapist.first_name || ""} ${upcomingSession.therapist.last_name || ""}`.trim()
+                  : upcomingSession.therapist_name || "Your Therapist"}
+              </p>
+              {upcomingSession.session_number && (
+                <p className="text-xs text-white/60">Session #{upcomingSession.session_number}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 mb-4 text-sm text-white/70">
+            {upcomingDate && (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {upcomingDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  {upcomingDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                </span>
+              </>
+            )}
+            <span className="flex items-center gap-1.5">
+              <Video className="h-3.5 w-3.5" />
+              {upcomingSession.type === "phone" ? "Phone" : "Video"}
+            </span>
+          </div>
+
+          {upcomingSession.focus_areas && (
+            <div className="bg-white/10 rounded-xl px-3 py-2 mb-4">
+              <p className="text-xs text-white/50 mb-0.5">Planned focus</p>
+              <p className="text-sm text-white">{upcomingSession.focus_areas}</p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              disabled={daysUntil === null || daysUntil > 0}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-all",
+                daysUntil === 0
+                  ? "bg-white text-[#0A2342] hover:bg-white/90"
+                  : "bg-white/20 text-white/50 cursor-not-allowed"
+              )}
+            >
+              <Video className="h-4 w-4" /> Join Session
+            </button>
+            <Link href="/sessions" className="px-4 py-2.5 bg-white/10 text-white rounded-xl text-sm hover:bg-white/20 flex items-center gap-1.5">
+              <Calendar className="h-4 w-4" />
+            </Link>
           </div>
         </div>
-
-        <div className="flex items-center gap-4 mb-4 text-sm text-white/70">
-          <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {UPCOMING_SESSION.date}</span>
-          <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {UPCOMING_SESSION.time}</span>
-          <span className="flex items-center gap-1.5"><Video className="h-3.5 w-3.5" /> Video</span>
+      ) : (
+        <div className="bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] rounded-2xl p-5 text-white text-center">
+          <Calendar className="h-10 w-10 text-white/30 mx-auto mb-2" />
+          <p className="text-white/70 text-sm">No upcoming sessions scheduled</p>
+          <p className="text-white/40 text-xs mt-1">Contact your therapist to schedule a session</p>
         </div>
-
-        {UPCOMING_SESSION.focus && (
-          <div className="bg-white/10 rounded-xl px-3 py-2 mb-4">
-            <p className="text-xs text-white/50 mb-0.5">Planned focus</p>
-            <p className="text-sm text-white">{UPCOMING_SESSION.focus}</p>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button className="flex-1 py-2.5 bg-white text-[#0A2342] rounded-xl text-sm font-semibold hover:bg-white/90 flex items-center justify-center gap-1.5">
-            <Video className="h-4 w-4" /> Join Session
-          </button>
-          <Link href="/appointments" className="px-4 py-2.5 bg-white/10 text-white rounded-xl text-sm hover:bg-white/20 flex items-center gap-1.5">
-            <Calendar className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
+      )}
 
       {/* Quick actions */}
       <div className="grid grid-cols-4 gap-2">
@@ -163,29 +221,43 @@ export default function PatientHomePage() {
       </div>
 
       {/* Today's homework */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-amber-500" /> Today's Tasks
-          </h3>
-          <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-            {completedHomework}/{TODAY_HOMEWORK.length} done
-          </span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
-          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${homeworkPct}%` }} />
-        </div>
-        <div className="space-y-2">
-          {TODAY_HOMEWORK.map((hw) => (
-            <div key={hw.id} className="flex items-center gap-3">
-              <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2", hw.done ? "bg-emerald-500 border-emerald-500" : "border-gray-300")}>
-                {hw.done && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+      {loading ? (
+        <SkeletonBlock className="h-32" />
+      ) : homework.length > 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-amber-500" /> Today's Tasks
+            </h3>
+            <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              {completedHomework}/{homework.length} done
+            </span>
+          </div>
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
+            <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${homeworkPct}%` }} />
+          </div>
+          <div className="space-y-2">
+            {homework.map((hw: any) => (
+              <div key={hw.id} className="flex items-center gap-3">
+                <div className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2",
+                  (hw.done || hw.completed) ? "bg-emerald-500 border-emerald-500" : "border-gray-300"
+                )}>
+                  {(hw.done || hw.completed) && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                </div>
+                <p className={cn("text-sm", (hw.done || hw.completed) ? "line-through text-gray-400" : "text-gray-700")}>
+                  {hw.task || hw.title || hw.description}
+                </p>
               </div>
-              <p className={cn("text-sm", hw.done ? "line-through text-gray-400" : "text-gray-700")}>{hw.task}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : !loading && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+          <CheckCircle2 className="h-8 w-8 text-emerald-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No homework tasks for today</p>
+        </div>
+      )}
 
       {/* Mood this week */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4">
@@ -197,103 +269,134 @@ export default function PatientHomePage() {
             Log today <Plus className="h-3 w-3" />
           </Link>
         </div>
-        <div className="flex items-end justify-between gap-2">
-          {RECENT_MOOD.map((d) => (
-            <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
-              <span className="text-xs font-medium text-gray-700">{d.value}</span>
-              <MoodBar value={d.value} />
-              <span className="text-xs text-gray-400">{d.day}</span>
+        {loading ? (
+          <div className="flex items-end justify-between gap-2">
+            {[...Array(7)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                <div className="h-3 w-4 bg-gray-100 rounded animate-pulse" />
+                <div className="h-12 w-6 bg-gray-100 rounded-full animate-pulse" />
+                <div className="h-3 w-6 bg-gray-100 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : moodTrend.length > 0 ? (
+          <>
+            <div className="flex items-end justify-between gap-2">
+              {moodTrend.slice(-7).map((d: any, i: number) => {
+                const dayLabel = d.day || new Date(d.date || d.logged_at || 0).toLocaleDateString("en-US", { weekday: "short" }).slice(0, 3);
+                const val = d.value ?? d.mood_score ?? d.score ?? 5;
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                    <span className="text-xs font-medium text-gray-700">{val}</span>
+                    <MoodBar value={val} />
+                    <span className="text-xs text-gray-400">{dayLabel}</span>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-xs text-gray-500">Avg: <strong>6.9</strong></span>
-          <span className="text-xs text-emerald-600 font-medium">↑ +0.8 vs last week</span>
-        </div>
+            {moodTrend.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-500">
+                  Avg: <strong>
+                    {(moodTrend.slice(-7).reduce((s: number, d: any) => s + (d.value ?? d.mood_score ?? d.score ?? 5), 0) / Math.min(moodTrend.length, 7)).toFixed(1)}
+                  </strong>
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-400">No mood entries this week</p>
+            <Link href="/mood" className="text-xs text-blue-500 hover:underline mt-1 inline-block">Log your mood</Link>
+          </div>
+        )}
       </div>
 
       {/* Goals preview */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <Target className="h-4 w-4 text-indigo-500" /> Treatment Goals
-          </h3>
-          <Link href="/progress" className="text-xs text-[#0A2342] flex items-center gap-1">
-            View all <ChevronRight className="h-3 w-3" />
-          </Link>
+      {goals.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Target className="h-4 w-4 text-indigo-500" /> Treatment Goals
+            </h3>
+            <Link href="/progress" className="text-xs text-[#0A2342] flex items-center gap-1">
+              View all <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {goals.slice(0, 3).map((goal: any) => {
+              const progress = goal.progress ?? goal.completion_percentage ?? 0;
+              return (
+                <div key={goal.id || goal.title}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <p className="text-xs font-medium text-gray-700">{goal.title || goal.name}</p>
+                      {goal.category && <p className="text-xs text-gray-400">{goal.category}</p>}
+                    </div>
+                    <p className="text-sm font-bold text-gray-900">{progress}%</p>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full", progress >= 70 ? "bg-emerald-500" : progress >= 40 ? "bg-blue-500" : "bg-amber-400")}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="space-y-3">
-          {GOALS_PREVIEW.map(goal => (
-            <div key={goal.title}>
-              <div className="flex items-center justify-between mb-1">
-                <div>
-                  <p className="text-xs font-medium text-gray-700">{goal.title}</p>
-                  <p className="text-xs text-gray-400">{goal.category}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">{goal.progress}%</p>
-                  <p className="text-xs text-emerald-600">+{goal.change}% this month</p>
-                </div>
+      )}
+
+      {/* AI Insights */}
+      {insights.length > 0 && (
+        <div className="space-y-2">
+          {insights.slice(0, 2).map((insight: any) => (
+            <div key={insight.id} className="rounded-2xl border p-4 flex gap-3 bg-amber-50 border-amber-100 text-amber-800">
+              <div className="w-8 h-8 bg-white/60 rounded-xl flex items-center justify-center shrink-0">
+                <Sparkles className="h-4 w-4" />
               </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full", goal.progress >= 70 ? "bg-emerald-500" : goal.progress >= 40 ? "bg-blue-500" : "bg-amber-400")}
-                  style={{ width: `${goal.progress}%` }}
-                />
+              <div>
+                <p className="text-sm font-semibold">{insight.title}</p>
+                <p className="text-xs mt-0.5 opacity-80">{insight.body || insight.short}</p>
               </div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* AI Insights */}
-      <div className="space-y-2">
-        {AI_INSIGHTS.map(insight => {
-          const Icon = insight.icon;
-          return (
-            <div key={insight.id} className={cn("rounded-2xl border p-4 flex gap-3", insight.color)}>
-              <div className="w-8 h-8 bg-white/60 rounded-xl flex items-center justify-center shrink-0">
-                <Icon className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">{insight.title}</p>
-                <p className="text-xs mt-0.5 opacity-80">{insight.short}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      )}
 
       {/* Medication reminder */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <Pill className="h-4 w-4 text-teal-500" /> Medication
-          </h3>
-        </div>
-        {MEDICATIONS.map((med, i) => (
-          <div key={med.name} className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const newTaken = [...toggleTaken];
-                newTaken[i] = !newTaken[i];
-                setToggleTaken(newTaken);
-              }}
-              className={cn(
-                "w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all shrink-0",
-                toggleTaken[i] ? "bg-teal-500 border-teal-500" : "border-gray-300"
-              )}
-            >
-              {toggleTaken[i] && <CheckCircle2 className="h-4 w-4 text-white" />}
-            </button>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">{med.name}</p>
-              <p className="text-xs text-gray-400">{med.schedule}</p>
-            </div>
-            {toggleTaken[i] && <span className="text-xs text-teal-600 font-medium">Taken ✓</span>}
+      {medications.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Pill className="h-4 w-4 text-teal-500" /> Medication
+            </h3>
           </div>
-        ))}
-      </div>
+          {medications.map((med: any) => {
+            const key = med.id || med.name;
+            const taken = medTaken[key] ?? med.taken_today ?? false;
+            return (
+              <div key={key} className="flex items-center gap-3">
+                <button
+                  onClick={() => setMedTaken(prev => ({ ...prev, [key]: !prev[key] }))}
+                  className={cn(
+                    "w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all shrink-0",
+                    taken ? "bg-teal-500 border-teal-500" : "border-gray-300"
+                  )}
+                >
+                  {taken && <CheckCircle2 className="h-4 w-4 text-white" />}
+                </button>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{med.name}</p>
+                  <p className="text-xs text-gray-400">{med.schedule || med.dosage || ""}</p>
+                </div>
+                {taken && <span className="text-xs text-teal-600 font-medium">Taken ✓</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Crisis support (always visible) */}
       <div className="bg-rose-50 rounded-2xl border border-rose-100 p-4">

@@ -1,30 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Bell, Calendar, MessageSquare, ClipboardList, Heart, Brain,
-  AlertTriangle, CheckCircle, Clock, Archive, Trash2, Settings,
-  X, ChevronRight, Sparkles, Shield, Filter, MoreHorizontal,
-  BookOpen, Star, Activity, Video, Phone
+  AlertTriangle, CheckCircle, Archive, Settings,
+  X, ChevronRight, Sparkles, Shield, MoreHorizontal,
+  BookOpen, Star, Activity, Video, Phone, RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { notificationsAPI, APIError } from "@/lib/api";
 
 type NotificationCategory = "all" | "appointments" | "messages" | "assessments" | "wellness" | "ai" | "system";
-type NotificationPriority = "urgent" | "high" | "medium" | "low";
-
-interface PatientNotification {
-  id: string;
-  category: Exclude<NotificationCategory, "all">;
-  priority: NotificationPriority;
-  title: string;
-  body: string;
-  action_label?: string;
-  action_href?: string;
-  timestamp: string;
-  read: boolean;
-  archived: boolean;
-  icon_override?: string;
-}
 
 const CATEGORY_CONFIG: Record<Exclude<NotificationCategory, "all">, {
   label: string;
@@ -40,178 +26,108 @@ const CATEGORY_CONFIG: Record<Exclude<NotificationCategory, "all">, {
   system: { label: "Account", icon: Shield, color: "text-gray-500", bg: "bg-gray-100" },
 };
 
-const MOCK_NOTIFICATIONS: PatientNotification[] = [
-  {
-    id: "n1",
-    category: "appointments",
-    priority: "high",
-    title: "Session reminder — tomorrow at 3:00 PM",
-    body: "Your session with Dr. Sarah Chen is tomorrow at 3:00 PM. Join from your device. No download required.",
-    action_label: "Join session",
-    action_href: "/sessions",
-    timestamp: "2h ago",
-    read: false,
-    archived: false,
-  },
-  {
-    id: "n2",
-    category: "assessments",
-    priority: "high",
-    title: "PHQ-9 assessment is ready for you",
-    body: "Dr. Chen has sent you a PHQ-9 mood questionnaire. It takes about 5 minutes to complete and helps track your progress.",
-    action_label: "Complete assessment",
-    action_href: "/assessments",
-    timestamp: "4h ago",
-    read: false,
-    archived: false,
-  },
-  {
-    id: "n3",
-    category: "ai",
-    priority: "medium",
-    title: "Your weekly wellness summary is ready",
-    body: "Based on your mood check-ins this week, your average mood score was 6.8/10 — up from 5.9 last week. You're making progress.",
-    action_label: "View summary",
-    action_href: "/progress",
-    timestamp: "Yesterday",
-    read: false,
-    archived: false,
-  },
-  {
-    id: "n4",
-    category: "messages",
-    priority: "medium",
-    title: "New message from Dr. Chen",
-    body: "Dr. Sarah Chen sent you a message. Tap to read it securely.",
-    action_label: "Read message",
-    action_href: "/messages",
-    timestamp: "Yesterday",
-    read: false,
-    archived: false,
-  },
-  {
-    id: "n5",
-    category: "wellness",
-    priority: "low",
-    title: "Mood check-in reminder",
-    body: "You haven't logged your mood today. A 30-second check-in helps your therapist track your progress between sessions.",
-    action_label: "Log mood",
-    action_href: "/mood",
-    timestamp: "2 days ago",
-    read: true,
-    archived: false,
-  },
-  {
-    id: "n6",
-    category: "appointments",
-    priority: "medium",
-    title: "Session confirmed — December 30 at 3:00 PM",
-    body: "Your next session with Dr. Sarah Chen has been scheduled for Monday, December 30 at 3:00 PM.",
-    timestamp: "3 days ago",
-    read: true,
-    archived: false,
-  },
-  {
-    id: "n7",
-    category: "ai",
-    priority: "low",
-    title: "Journal prompt for today",
-    body: "Today's reflection prompt: 'What's one small thing that went well today, and what made it possible?' Writing even one paragraph can be meaningful.",
-    action_label: "Open journal",
-    action_href: "/journal",
-    timestamp: "3 days ago",
-    read: true,
-    archived: false,
-  },
-  {
-    id: "n8",
-    category: "wellness",
-    priority: "medium",
-    title: "Homework assigned: Thought Record",
-    body: "Dr. Chen has assigned you a thought record exercise to complete before your next session. This should take about 15 minutes.",
-    action_label: "View homework",
-    action_href: "/progress",
-    timestamp: "4 days ago",
-    read: true,
-    archived: false,
-  },
-  {
-    id: "n9",
-    category: "assessments",
-    priority: "low",
-    title: "You completed your PHQ-9 — score: 8",
-    body: "Your latest PHQ-9 score is 8 (mild). Your previous score was 11 (moderate). That's real progress.",
-    action_label: "View results",
-    action_href: "/assessments",
-    timestamp: "1 week ago",
-    read: true,
-    archived: false,
-  },
-  {
-    id: "n10",
-    category: "system",
-    priority: "low",
-    title: "Account security reminder",
-    body: "We recommend enabling two-factor authentication for your account to keep your health information secure.",
-    action_label: "Update security",
-    action_href: "/settings",
-    timestamp: "1 week ago",
-    read: true,
-    archived: false,
-  },
-  {
-    id: "n11",
-    category: "messages",
-    priority: "low",
-    title: "Resource shared by Dr. Chen",
-    body: "Dr. Chen shared a resource with you: 'Understanding Cognitive Distortions — A Patient Guide' (PDF, 4 pages).",
-    action_label: "View resource",
-    action_href: "/resources",
-    timestamp: "1 week ago",
-    read: true,
-    archived: true,
-  },
-];
-
-const PRIORITY_CONFIG: Record<NotificationPriority, { label: string; color: string }> = {
+const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   urgent: { label: "Urgent", color: "bg-red-100 text-red-700" },
   high: { label: "Important", color: "bg-orange-100 text-orange-700" },
   medium: { label: "Medium", color: "bg-blue-100 text-blue-700" },
   low: { label: "", color: "" },
 };
 
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-4 animate-pulse">
+      <div className="flex gap-3">
+        <div className="w-9 h-9 rounded-xl bg-gray-100 shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-gray-100 rounded w-48" />
+          <div className="h-3 bg-gray-100 rounded w-full" />
+          <div className="h-3 bg-gray-100 rounded w-3/4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Map backend notification type/category to our CATEGORY_CONFIG keys
+function normalizeCategory(n: any): Exclude<NotificationCategory, "all"> {
+  const cat = (n.category || n.type || "system").toLowerCase();
+  if (cat.includes("appoint") || cat.includes("session") || cat.includes("schedule")) return "appointments";
+  if (cat.includes("message") || cat.includes("chat")) return "messages";
+  if (cat.includes("assess") || cat.includes("phq") || cat.includes("gad")) return "assessments";
+  if (cat.includes("wellness") || cat.includes("homework") || cat.includes("mood")) return "wellness";
+  if (cat.includes("ai") || cat.includes("insight") || cat.includes("summary")) return "ai";
+  return "system";
+}
+
 export default function PatientNotificationsPage() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<NotificationCategory>("all");
   const [showArchived, setShowArchived] = useState(false);
-  const [notifications, setNotifications] = useState<PatientNotification[]>(MOCK_NOTIFICATIONS);
   const [showPrefs, setShowPrefs] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const markRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await notificationsAPI.list({ limit: 50 });
+      const data = Array.isArray(result) ? result : (result as any).data ?? [];
+      const unread = Array.isArray(result) ? result.filter((n: any) => !n.read).length : (result as any).unread_count ?? 0;
+      setNotifications(data);
+      setUnreadCount(unread);
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Failed to load notifications");
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+  const handleMarkRead = async (id: string) => {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, is_read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    try {
+      await notificationsAPI.markRead(id);
+    } catch {
+      // Revert on failure
+      fetchNotifications();
+    }
   };
 
-  const archiveNotif = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, archived: true } : n))
-    );
+  const handleMarkAllRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true, is_read: true })));
+    setUnreadCount(0);
+    try {
+      await notificationsAPI.markAllRead();
+    } catch {
+      fetchNotifications();
+    }
   };
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleArchive = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, archived: true } : n));
   };
+
+  const isRead = (n: any) => n.read || n.is_read || false;
+  const isArchived = (n: any) => n.archived || false;
 
   const filtered = notifications.filter((n) => {
-    if (n.archived !== showArchived) return false;
+    if (isArchived(n) !== showArchived) return false;
     if (activeCategory === "all") return true;
-    return n.category === activeCategory;
+    return normalizeCategory(n) === activeCategory;
   });
 
-  const unreadCount = notifications.filter((n) => !n.read && !n.archived).length;
-
   const categoryCount = (cat: Exclude<NotificationCategory, "all">) =>
-    notifications.filter((n) => n.category === cat && !n.read && !n.archived).length;
+    notifications.filter(n => normalizeCategory(n) === cat && !isRead(n) && !isArchived(n)).length;
+
+  const currentUnread = notifications.filter(n => !isRead(n) && !isArchived(n)).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -220,16 +136,22 @@ export default function PatientNotificationsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-            {unreadCount > 0 && (
+            {!loading && currentUnread > 0 && (
               <p className="text-sm text-gray-500 mt-1">
-                {unreadCount} unread notification{unreadCount !== 1 ? "s" : ""}
+                {currentUnread} unread notification{currentUnread !== 1 ? "s" : ""}
               </p>
             )}
           </div>
           <div className="flex items-center gap-2">
-            {unreadCount > 0 && (
+            <button
+              onClick={fetchNotifications}
+              className="p-2 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
+            </button>
+            {currentUnread > 0 && (
               <button
-                onClick={markAllRead}
+                onClick={handleMarkAllRead}
                 className="text-sm text-[#2EC4B6] hover:text-[#26b0a3] font-medium"
               >
                 Mark all read
@@ -244,6 +166,15 @@ export default function PatientNotificationsPage() {
             </button>
           </div>
         </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+            <button onClick={fetchNotifications} className="ml-auto underline text-xs">Retry</button>
+          </div>
+        )}
 
         {/* Preferences Panel */}
         {showPrefs && (
@@ -268,18 +199,14 @@ export default function PatientNotificationsPage() {
                     <div className="text-sm font-medium text-gray-700">{pref.label}</div>
                     <div className="text-xs text-gray-400">{pref.desc}</div>
                   </div>
-                  <div
-                    className={cn(
-                      "w-10 h-5 rounded-full relative cursor-pointer transition-colors",
-                      pref.enabled ? "bg-[#2EC4B6]" : "bg-gray-200"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                        pref.enabled ? "translate-x-5" : "translate-x-0.5"
-                      )}
-                    />
+                  <div className={cn(
+                    "w-10 h-5 rounded-full relative cursor-pointer transition-colors",
+                    pref.enabled ? "bg-[#2EC4B6]" : "bg-gray-200"
+                  )}>
+                    <div className={cn(
+                      "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                      pref.enabled ? "translate-x-5" : "translate-x-0.5"
+                    )} />
                   </div>
                 </div>
               ))}
@@ -300,38 +227,36 @@ export default function PatientNotificationsPage() {
           >
             <Bell className="w-3.5 h-3.5" />
             All
-            {unreadCount > 0 && (
+            {currentUnread > 0 && (
               <span className="bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center ml-0.5">
-                {unreadCount}
+                {currentUnread > 9 ? "9+" : currentUnread}
               </span>
             )}
           </button>
-          {(Object.entries(CATEGORY_CONFIG) as [Exclude<NotificationCategory, "all">, typeof CATEGORY_CONFIG[keyof typeof CATEGORY_CONFIG]][]).map(
-            ([key, cfg]) => {
-              const Icon = cfg.icon;
-              const count = categoryCount(key);
-              return (
-                <button
-                  key={key}
-                  onClick={() => setActiveCategory(key)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0",
-                    activeCategory === key
-                      ? "bg-[#0A2342] text-white"
-                      : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300"
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {cfg.label}
-                  {count > 0 && (
-                    <span className="bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center ml-0.5">
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            }
-          )}
+          {(Object.entries(CATEGORY_CONFIG) as [Exclude<NotificationCategory, "all">, any][]).map(([key, cfg]) => {
+            const Icon = cfg.icon;
+            const count = categoryCount(key);
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveCategory(key)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0",
+                  activeCategory === key
+                    ? "bg-[#0A2342] text-white"
+                    : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300"
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {cfg.label}
+                {count > 0 && (
+                  <span className="bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center ml-0.5">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Archive toggle */}
@@ -351,7 +276,11 @@ export default function PatientNotificationsPage() {
         </div>
 
         {/* Notifications List */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Bell className="w-6 h-6 text-gray-400" />
@@ -366,17 +295,23 @@ export default function PatientNotificationsPage() {
         ) : (
           <div className="space-y-3">
             {filtered.map((notif) => {
-              const cfg = CATEGORY_CONFIG[notif.category];
+              const category = normalizeCategory(notif);
+              const cfg = CATEGORY_CONFIG[category];
               const CategoryIcon = cfg.icon;
-              const priorityCfg = PRIORITY_CONFIG[notif.priority];
+              const priority = notif.priority || "low";
+              const priorityCfg = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG.low;
+              const read = isRead(notif);
+              const timestamp = notif.timestamp || notif.created_at
+                ? (notif.timestamp || new Date(notif.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }))
+                : "";
 
               return (
                 <div
                   key={notif.id}
-                  onClick={() => markRead(notif.id)}
+                  onClick={() => { if (!read) handleMarkRead(notif.id); }}
                   className={cn(
-                    "bg-white rounded-2xl border p-4 transition-all cursor-pointer hover:shadow-sm",
-                    notif.read ? "border-gray-200" : "border-l-4 border-l-[#2EC4B6] border-gray-200"
+                    "bg-white rounded-2xl border p-4 transition-all cursor-pointer hover:shadow-sm group",
+                    read ? "border-gray-200" : "border-l-4 border-l-[#2EC4B6] border-gray-200"
                   )}
                 >
                   <div className="flex gap-3">
@@ -389,10 +324,10 @@ export default function PatientNotificationsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={cn("font-semibold text-sm", notif.read ? "text-gray-700" : "text-gray-900")}>
+                          <span className={cn("font-semibold text-sm", read ? "text-gray-700" : "text-gray-900")}>
                             {notif.title}
                           </span>
-                          {!notif.read && (
+                          {!read && (
                             <span className="w-2 h-2 bg-[#2EC4B6] rounded-full flex-shrink-0" />
                           )}
                           {priorityCfg.label && (
@@ -402,24 +337,29 @@ export default function PatientNotificationsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className="text-xs text-gray-400">{notif.timestamp}</span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); archiveNotif(notif.id); }}
-                            className="p-1 rounded-lg hover:bg-gray-100 opacity-0 group-hover:opacity-100 ml-1"
-                            title="Archive"
-                          >
-                            <Archive className="w-3.5 h-3.5 text-gray-400" />
-                          </button>
+                          {timestamp && <span className="text-xs text-gray-400">{timestamp}</span>}
+                          {!isArchived(notif) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleArchive(notif.id); }}
+                              className="p-1 rounded-lg hover:bg-gray-100 opacity-0 group-hover:opacity-100 ml-1 transition-opacity"
+                              title="Archive"
+                            >
+                              <Archive className="w-3.5 h-3.5 text-gray-400" />
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-500 leading-relaxed">{notif.body}</p>
-                      {notif.action_label && (
+                      <p className="text-sm text-gray-500 leading-relaxed">
+                        {notif.body || notif.message || notif.content || ""}
+                      </p>
+                      {(notif.action_label || notif.cta_label) && (notif.action_href || notif.cta_url) && (
                         <a
-                          href={notif.action_href}
+                          href={notif.action_href || notif.cta_url}
                           onClick={(e) => e.stopPropagation()}
                           className="inline-flex items-center gap-1.5 mt-3 text-sm text-[#2EC4B6] hover:text-[#26b0a3] font-medium"
                         >
-                          {notif.action_label} <ChevronRight className="w-3.5 h-3.5" />
+                          {notif.action_label || notif.cta_label}
+                          <ChevronRight className="w-3.5 h-3.5" />
                         </a>
                       )}
                     </div>
@@ -431,7 +371,7 @@ export default function PatientNotificationsPage() {
         )}
 
         {/* Wellness Tips Footer */}
-        {!showArchived && activeCategory === "all" && (
+        {!loading && !showArchived && activeCategory === "all" && (
           <div className="mt-8 bg-gradient-to-br from-[#0A2342] to-[#1F5EFF] rounded-2xl p-5 text-white">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
