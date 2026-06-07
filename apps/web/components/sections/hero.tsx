@@ -196,7 +196,7 @@ export function HeroSection() {
                     href="/chat"
                     className="bg-[#1F5EFF] text-white text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-[#1649D4] transition-colors"
                   >
-                    Start Chat
+                    Try AI Free
                   </Link>
                 </div>
               </div>
