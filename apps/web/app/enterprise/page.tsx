@@ -45,12 +45,7 @@ const ENTERPRISE_FEATURES = [
   },
 ];
 
-const PRACTICE_SIZES = [
-  { label: "Solo Practice", therapists: "1", price: "$99/month", features: ["AI Scribe & Copilot", "Patient Memory Layer", "Crisis Radar", "50 active patients"] },
-  { label: "Small Group", therapists: "2-10", price: "$79/therapist/month", features: ["Everything in Solo", "Practice dashboard", "Supervisor tools", "Team messaging"], popular: true },
-  { label: "Large Group / Clinic", therapists: "11-50", price: "$65/therapist/month", features: ["Everything in Small Group", "White-label option", "Priority support", "Custom analytics"] },
-  { label: "Health System / Enterprise", therapists: "50+", price: "Custom pricing", features: ["Full white-label", "EHR integration", "Dedicated CSM", "Custom AI models"] },
-];
+// Pricing managed centrally — see /pricing page and pricing-api.ts
 
 const TESTIMONIALS = [
   {
@@ -165,56 +160,28 @@ export default function EnterprisePage() {
         </div>
       </section>
 
-      {/* Pricing tiers */}
+      {/* Pricing CTA */}
       <section id="pricing" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Practice-Sized Plans</h2>
-            <p className="text-xl text-gray-600">Flexible pricing that scales with your practice.</p>
+        <div className="max-w-3xl mx-auto px-6 text-center">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Practice-Sized Plans</h2>
+          <p className="text-xl text-gray-600 mb-8">
+            Flexible pricing from solo practices to enterprise health systems. Start free — no credit card required.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center mb-6">
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 bg-[#0A2342] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#123A63] transition-all shadow-md"
+            >
+              View Full Pricing
+            </Link>
+            <Link
+              href="/contact?type=enterprise"
+              className="inline-flex items-center gap-2 border-2 border-[#0A2342] text-[#0A2342] font-semibold px-8 py-4 rounded-2xl hover:bg-[#0A2342] hover:text-white transition-all"
+            >
+              Contact Sales
+            </Link>
           </div>
-          <div className="grid md:grid-cols-4 gap-6">
-            {PRACTICE_SIZES.map((tier) => (
-              <div
-                key={tier.label}
-                className={`rounded-3xl p-6 border relative ${
-                  tier.popular
-                    ? "border-[#0A2342] bg-[#0A2342] text-white"
-                    : "border-gray-200 bg-white"
-                }`}
-              >
-                {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#2EC4B6] text-white text-xs font-bold px-3 py-1 rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${tier.popular ? "text-[#2EC4B6]" : "text-gray-400"}`}>
-                  {tier.therapists} therapist{tier.therapists !== "1" ? "s" : ""}
-                </div>
-                <h3 className={`text-xl font-bold mb-2 ${tier.popular ? "text-white" : "text-gray-900"}`}>{tier.label}</h3>
-                <div className={`text-2xl font-bold mb-6 ${tier.popular ? "text-[#2EC4B6]" : "text-[#0A2342]"}`}>
-                  {tier.price}
-                </div>
-                <ul className="space-y-2.5 mb-6">
-                  {tier.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <CheckCircle2 className={`h-4 w-4 shrink-0 mt-0.5 ${tier.popular ? "text-[#2EC4B6]" : "text-emerald-600"}`} />
-                      <span className={`text-sm ${tier.popular ? "text-white/80" : "text-gray-700"}`}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={tier.therapists === "50+" ? "#demo" : "/for-therapists"}
-                  className={`block w-full py-3 rounded-2xl text-center font-semibold text-sm transition-colors ${
-                    tier.popular
-                      ? "bg-[#2EC4B6] text-white hover:bg-[#25a99d]"
-                      : "bg-[#0A2342] text-white hover:bg-[#123A63]"
-                  }`}
-                >
-                  {tier.therapists === "50+" ? "Contact Sales" : "Start Free Trial"}
-                </Link>
-              </div>
-            ))}
-          </div>
+          <p className="text-sm text-gray-500">Enterprise &amp; health system pricing available on request.</p>
         </div>
       </section>
 

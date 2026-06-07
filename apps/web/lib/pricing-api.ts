@@ -8,7 +8,7 @@
  * Admin endpoint: GET /billing/admin/plans (requires super_admin role)
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

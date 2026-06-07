@@ -99,63 +99,8 @@ const TESTIMONIALS = [
   },
 ];
 
-const PRICING_TIERS = [
-  {
-    name: "Starter",
-    price: 79,
-    period: "/ month",
-    description: "Perfect for solo practitioners",
-    features: [
-      "AI note generation (SOAP/DAP/BIRP)",
-      "Up to 40 patients",
-      "Session recording & transcription",
-      "Basic patient profiles",
-      "PHQ-9 & GAD-7 assessments",
-      "Email support"
-    ],
-    cta: "Start Free Trial",
-    highlight: false
-  },
-  {
-    name: "Professional",
-    price: 149,
-    period: "/ month",
-    description: "For growing practices",
-    features: [
-      "Everything in Starter",
-      "Unlimited patients",
-      "AI Clinical Copilot (live)",
-      "Patient Memory Knowledge Graph",
-      "Risk Detection Engine",
-      "Radar patient matching",
-      "Full assessment library (20+ tools)",
-      "Treatment plan builder",
-      "Practice analytics dashboard",
-      "Priority support"
-    ],
-    cta: "Start Free Trial",
-    highlight: true
-  },
-  {
-    name: "Practice",
-    price: 399,
-    period: "/ month",
-    description: "For teams and group practices",
-    features: [
-      "Everything in Professional",
-      "Up to 10 therapists",
-      "Practice-wide analytics",
-      "Admin & billing management",
-      "Team collaboration tools",
-      "Custom intake forms",
-      "White-label options",
-      "Dedicated onboarding",
-      "Phone & video support"
-    ],
-    cta: "Book a Demo",
-    highlight: false
-  }
-];
+// Pricing is managed centrally via /pricing page and pricing-api.ts.
+// Do NOT add hardcoded prices here — they will diverge from the DB.
 
 const ROI_STATS = [
   { value: "8.5h", label: "Hours saved per week", icon: Clock },
@@ -380,53 +325,33 @@ export default function ForTherapistsPage() {
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* Pricing CTA — links to canonical /pricing page */}
       <section className="py-20 bg-slate-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <h2 className="text-4xl font-bold text-[#0A2342] mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-slate-500">Start free for 14 days. No credit card required.</p>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-bold text-[#0A2342] mb-4">Simple, Transparent Pricing</h2>
+          <p className="text-slate-500 mb-8">
+            Start free. Plans from $0/month. Upgrade when you need more. Cancel anytime.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center mb-8">
+            <Link
+              href="/signup?role=therapist"
+              className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#1649D4] transition-all shadow-md"
+            >
+              Start Free 14-Day Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 border border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-2xl hover:border-[#0A2342] hover:text-[#0A2342] transition-all"
+            >
+              View Full Pricing
+              <ChevronRight className="w-5 h-5" />
+            </Link>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {PRICING_TIERS.map((tier) => (
-              <div
-                key={tier.name}
-                className={`rounded-2xl p-6 border ${tier.highlight
-                  ? "bg-[#0A2342] text-white border-[#1F5EFF] shadow-xl shadow-[#0A2342]/20"
-                  : "bg-white text-slate-900 border-slate-200"
-                }`}
-              >
-                {tier.highlight && (
-                  <span className="inline-block px-3 py-1 bg-[#1F5EFF] text-white text-xs font-semibold rounded-full mb-4">Most Popular</span>
-                )}
-                <h3 className={`text-xl font-bold mb-1 ${tier.highlight ? "text-white" : "text-[#0A2342]"}`}>{tier.name}</h3>
-                <p className={`text-sm mb-4 ${tier.highlight ? "text-white/60" : "text-slate-500"}`}>{tier.description}</p>
-                <div className="mb-6">
-                  <span className={`text-4xl font-bold ${tier.highlight ? "text-white" : "text-[#0A2342]"}`}>${tier.price}</span>
-                  <span className={`text-sm ${tier.highlight ? "text-white/60" : "text-slate-500"}`}>{tier.period}</span>
-                </div>
-
-                <ul className="space-y-2.5 mb-6">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className={`flex items-start gap-2 text-sm ${tier.highlight ? "text-white/80" : "text-slate-600"}`}>
-                      <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${tier.highlight ? "text-emerald-400" : "text-emerald-500"}`} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={tier.cta === "Book a Demo" ? "/demo" : "/signup?role=therapist"}
-                  className={`w-full py-3 rounded-xl font-semibold text-sm text-center block transition-all ${tier.highlight
-                    ? "bg-[#1F5EFF] hover:bg-[#1649D4] text-white"
-                    : "bg-slate-100 hover:bg-[#0A2342] hover:text-white text-[#0A2342]"
-                  }`}
-                >
-                  {tier.cta}
-                </Link>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><Shield className="w-4 h-4 text-emerald-500" /> HIPAA compliant</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Cancel anytime</span>
           </div>
         </div>
       </section>

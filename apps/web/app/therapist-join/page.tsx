@@ -55,62 +55,7 @@ const BENEFITS = [
   },
 ];
 
-const PLANS = [
-  {
-    name: "Solo",
-    price: "$89",
-    period: "/month",
-    description: "For independent practitioners",
-    features: [
-      "AI-powered clinical notes",
-      "Session room with copilot",
-      "Patient memory layer",
-      "Telehealth platform",
-      "Up to 30 active patients",
-      "Basic analytics",
-      "Email support",
-    ],
-    highlighted: false,
-    cta: "Start Free Trial",
-  },
-  {
-    name: "Professional",
-    price: "$149",
-    period: "/month",
-    description: "For growing practices",
-    features: [
-      "Everything in Solo",
-      "Unlimited active patients",
-      "Advanced analytics & reports",
-      "Referral management",
-      "Risk monitoring (AI Radar)",
-      "Workflow automation",
-      "Priority support",
-      "Custom forms & templates",
-    ],
-    highlighted: true,
-    badge: "Most Popular",
-    cta: "Start Free Trial",
-  },
-  {
-    name: "Group",
-    price: "$299",
-    period: "/month",
-    description: "For group practices (2-10 therapists)",
-    features: [
-      "Everything in Professional",
-      "Multi-therapist management",
-      "Practice-level analytics",
-      "Shared patient pool",
-      "Billing & claims management",
-      "White-label options",
-      "Dedicated onboarding",
-      "SLA support",
-    ],
-    highlighted: false,
-    cta: "Contact Sales",
-  },
-];
+// Pricing managed centrally — see /pricing page and pricing-api.ts
 
 const TESTIMONIALS = [
   {
@@ -285,56 +230,29 @@ export default function TherapistJoinPage() {
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* Pricing CTA */}
       <section id="plans" className="py-20 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-black text-[#0A2342] mb-3">Transparent Pricing — Start Free</h2>
-            <p className="text-slate-500 text-lg">All plans include a 14-day free trial. No credit card required.</p>
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl font-black text-[#0A2342] mb-3">Transparent Pricing — Start Free</h2>
+          <p className="text-slate-500 text-lg mb-8">
+            All plans include a 14-day free trial. No credit card required.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center mb-6">
+            <a
+              href="#apply"
+              className="inline-flex items-center gap-2 bg-[#0A2342] text-white font-bold px-8 py-4 rounded-2xl hover:bg-[#123A63] transition-all shadow-md"
+            >
+              Start Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </a>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 border-2 border-[#0A2342] text-[#0A2342] font-bold px-8 py-4 rounded-2xl hover:bg-[#0A2342] hover:text-white transition-all"
+            >
+              View Full Pricing
+            </Link>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {PLANS.map(({ name, price, period, description, features, highlighted, badge, cta }) => (
-              <div
-                key={name}
-                className={cn(
-                  "rounded-2xl border p-6 relative",
-                  highlighted
-                    ? "bg-gradient-to-b from-[#0A2342] to-[#1a3a6b] border-[#0A2342] shadow-xl"
-                    : "bg-white border-slate-200"
-                )}
-              >
-                {badge && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#2EC4B6] text-white text-xs font-bold px-3 py-1 rounded-full">{badge}</div>
-                )}
-                <div className={cn("text-sm font-bold mb-1", highlighted ? "text-[#2EC4B6]" : "text-[#1F5EFF]")}>{name}</div>
-                <div className={cn("flex items-baseline gap-1 mb-1", highlighted ? "text-white" : "text-slate-800")}>
-                  <span className="text-3xl font-black">{price}</span>
-                  <span className={cn("text-sm", highlighted ? "text-white/60" : "text-slate-400")}>{period}</span>
-                </div>
-                <p className={cn("text-xs mb-5", highlighted ? "text-white/60" : "text-slate-400")}>{description}</p>
-                <ul className="space-y-2 mb-6">
-                  {features.map(f => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check className={cn("w-4 h-4 mt-0.5 shrink-0", highlighted ? "text-[#2EC4B6]" : "text-[#0A2342]")} />
-                      <span className={highlighted ? "text-white/80" : "text-slate-600"}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href="#apply"
-                  className={cn(
-                    "w-full py-2.5 rounded-xl font-bold text-sm text-center block transition-all",
-                    highlighted
-                      ? "bg-[#2EC4B6] text-white hover:bg-[#25a99d]"
-                      : "border-2 border-[#0A2342] text-[#0A2342] hover:bg-[#0A2342] hover:text-white"
-                  )}
-                >
-                  {cta}
-                </a>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-sm text-slate-400 mt-6">
+          <p className="text-sm text-slate-400">
             Enterprise pricing available for health systems and large group practices.{" "}
             <Link href="/enterprise" className="text-[#1F5EFF] font-medium">Learn more →</Link>
           </p>
