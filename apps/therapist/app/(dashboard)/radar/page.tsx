@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Zap, Clock, MapPin, Globe, Star, DollarSign, Shield,
-  CheckCircle2, X, ChevronRight, Activity, Users, TrendingUp,
-  Brain, AlertCircle, Phone, Video
+  Zap, Clock, Globe, DollarSign, Shield,
+  CheckCircle2, X, Activity, TrendingUp,
+  Brain, AlertCircle, Video, RefreshCw, Loader2
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { radarAPI, APIError } from "@/lib/api";
 
 interface RadarRequest {
   id: string;
@@ -26,59 +27,16 @@ interface RadarRequest {
   anonymous: boolean;
 }
 
-const MOCK_REQUESTS: RadarRequest[] = [
-  {
-    id: "r1",
-    patient_initials: "A.K.",
-    age_range: "25-35",
-    gender: "Female",
-    specialization: "Anxiety & Depression",
-    presenting_issues: ["Workplace anxiety", "Panic attacks", "Sleep issues"],
-    urgency: "now",
-    session_type: "video",
-    languages: ["English"],
-    budget_min: 80,
-    budget_max: 120,
-    match_score: 96,
-    match_reasons: ["Specialization match", "Language match", "Budget match", "Availability match"],
-    time_remaining: 300,
-    anonymous: true,
-  },
-  {
-    id: "r2",
-    patient_initials: "M.L.",
-    age_range: "30-40",
-    gender: "Male",
-    specialization: "Trauma & PTSD",
-    presenting_issues: ["Complex PTSD", "Relationship difficulties", "Emotional regulation"],
-    urgency: "today",
-    session_type: "video",
-    languages: ["English", "Spanish"],
-    budget_min: 100,
-    budget_max: 150,
-    match_score: 88,
-    match_reasons: ["Specialization match", "Language match"],
-    time_remaining: 1800,
-    anonymous: true,
-  },
-  {
-    id: "r3",
-    patient_initials: "J.W.",
-    age_range: "18-25",
-    gender: "Non-binary",
-    specialization: "Grief & Loss",
-    presenting_issues: ["Bereavement", "Depression", "Social withdrawal"],
-    urgency: "this_week",
-    session_type: "video",
-    languages: ["English"],
-    budget_min: 60,
-    budget_max: 90,
-    match_score: 81,
-    match_reasons: ["Specialization match", "Client type match"],
-    time_remaining: 86400,
-    anonymous: true,
-  },
-];
+interface RadarStats {
+  accepted_today: number;
+  match_rate: string;
+  avg_match_score: string;
+  response_time: string;
+  specializations: string;
+  session_types: string;
+  languages: string;
+  rate: string;
+}
 
 const urgencyConfig = {
   now: { label: "IMMEDIATE", color: "bg-red-100 text-red-700 border-red-200", dot: "bg-red-500" },
@@ -86,8 +44,73 @@ const urgencyConfig = {
   this_week: { label: "THIS WEEK", color: "bg-blue-100 text-blue-700 border-blue-200", dot: "bg-blue-500" },
 };
 
+// ── normalizers ──────────────────────────────────────────────────────────────
+function normalizeRequest(raw: Record<string, unknown>): RadarRequest {
+  const urgencyRaw = String(raw.urgency || raw.priority || "this_week").toLowerCase();
+  const urgency: RadarRequest["urgency"] =
+    urgencyRaw === "now" || urgencyRaw === "immediate" || urgencyRaw === "emergency" ? "now"
+    : urgencyRaw === "today" || urgencyRaw === "urgent" ? "today"
+    : "this_week";
+
+  const issues = Array.isArray(raw.presenting_issues)
+    ? (raw.presenting_issues as string[])
+    : Array.isArray(raw.issues)
+    ? (raw.issues as string[])
+    : typeof raw.presenting_issues === "string"
+    ? [raw.presenting_issues as string]
+    : [];
+
+  const reasons = Array.isArray(raw.match_reasons)
+    ? (raw.match_reasons as string[])
+    : Array.isArray(raw.reasons)
+    ? (raw.reasons as string[])
+    : ["Specialization match"];
+
+  const langs = Array.isArray(raw.languages)
+    ? (raw.languages as string[])
+    : typeof raw.languages === "string"
+    ? [raw.languages as string]
+    : ["English"];
+
+  return {
+    id: String(raw.id || raw._id || Math.random()),
+    patient_initials: String(raw.patient_initials || raw.initials || "A.P."),
+    age_range: String(raw.age_range || raw.age || "Unknown"),
+    gender: String(raw.gender || "Not specified"),
+    specialization: String(raw.specialization || raw.specialty || raw.category || "General Therapy"),
+    presenting_issues: issues,
+    urgency,
+    session_type: String(raw.session_type || raw.type || "video") === "audio" ? "audio" : "video",
+    languages: langs,
+    budget_min: Number(raw.budget_min || raw.budget_low || raw.min_budget || 60),
+    budget_max: Number(raw.budget_max || raw.budget_high || raw.max_budget || 120),
+    match_score: Number(raw.match_score || raw.score || raw.compatibility || 80),
+    match_reasons: reasons,
+    time_remaining: Number(raw.time_remaining || raw.expires_in || raw.ttl || 3600),
+    anonymous: raw.anonymous !== false,
+  };
+}
+
+function normalizeStats(raw: Record<string, unknown>): Partial<RadarStats> {
+  return {
+    accepted_today: Number(raw.accepted_today || raw.accepted || 0),
+    match_rate: String(raw.match_rate || raw.acceptance_rate || "—"),
+    avg_match_score: String(raw.avg_match_score || raw.average_score || "—"),
+    response_time: String(raw.response_time || raw.avg_response_time || "< 2 min"),
+    specializations: String(raw.specializations || "Anxiety, Depression, Trauma"),
+    session_types: String(raw.session_types || "Video, Audio"),
+    languages: String(raw.languages || "English"),
+    rate: String(raw.rate || raw.hourly_rate || "$100–$130/hr"),
+  };
+}
+
+// ── countdown timer ──────────────────────────────────────────────────────────
 function CountdownTimer({ seconds }: { seconds: number }) {
   const [remaining, setRemaining] = useState(seconds);
+
+  useEffect(() => {
+    setRemaining(seconds);
+  }, [seconds]);
 
   useEffect(() => {
     if (remaining <= 0) return;
@@ -110,23 +133,157 @@ function CountdownTimer({ seconds }: { seconds: number }) {
   );
 }
 
+// ── skeleton ─────────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-card p-4 animate-pulse">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-slate-200 rounded-full" />
+          <div className="space-y-1.5">
+            <div className="h-3.5 bg-slate-200 rounded w-36" />
+            <div className="h-2.5 bg-slate-100 rounded w-24" />
+          </div>
+        </div>
+        <div className="h-8 w-12 bg-slate-200 rounded" />
+      </div>
+      <div className="h-2.5 bg-slate-100 rounded w-full mb-2" />
+      <div className="flex gap-1 mb-3">
+        <div className="h-5 bg-slate-100 rounded w-20" />
+        <div className="h-5 bg-slate-100 rounded w-24" />
+        <div className="h-5 bg-slate-100 rounded w-16" />
+      </div>
+      <div className="flex gap-2 mt-4">
+        <div className="flex-1 h-9 bg-slate-100 rounded-lg" />
+        <div className="flex-1 h-9 bg-slate-200 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
 export default function RadarPage() {
-  const [requests, setRequests] = useState(MOCK_REQUESTS);
+  const [requests, setRequests] = useState<RadarRequest[]>([]);
+  const [stats, setStats] = useState<Partial<RadarStats>>({});
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [acceptedCount, setAcceptedCount] = useState(0);
-  const [declinedIds, setDeclinedIds] = useState<string[]>([]);
+  const [actionLoading, setActionLoading] = useState<Record<string, "accept" | "decline">>({});
+  const [recentActivity, setRecentActivity] = useState<
+    { action: string; patient: string; time: string; type: "accept" | "decline" | "complete" }[]
+  >([]);
 
-  const handleAccept = (id: string) => {
+  // ── fetch requests ──────────────────────────────────────────────────────
+  const fetchRequests = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
+    try {
+      const json = await radarAPI.requests({ limit: 20 });
+      const raw = Array.isArray(json) ? json : (json as any).data ?? [];
+      setRequests((raw as Record<string, unknown>[]).map(normalizeRequest));
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) return;
+      if (err instanceof APIError && (err.status === 404 || err.status === 405)) {
+        // endpoint not yet live — show empty state silently
+        setRequests([]);
+        return;
+      }
+      if (!silent) setError("Failed to load radar requests. Please try again.");
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
+  // ── fetch stats ─────────────────────────────────────────────────────────
+  const fetchStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const json = await radarAPI.stats();
+      setStats(normalizeStats(json as Record<string, unknown>));
+    } catch {
+      // stats are non-critical — silently ignore
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+    fetchStats();
+  }, [fetchRequests, fetchStats]);
+
+  // Poll for new requests every 30 seconds while online
+  useEffect(() => {
+    if (!isOnline) return;
+    const interval = setInterval(() => fetchRequests(true), 30_000);
+    return () => clearInterval(interval);
+  }, [isOnline, fetchRequests]);
+
+  // ── accept ──────────────────────────────────────────────────────────────
+  const handleAccept = async (id: string) => {
+    setActionLoading((a) => ({ ...a, [id]: "accept" }));
+    // Optimistic update
+    const accepted = requests.find((r) => r.id === id);
     setRequests((r) => r.filter((req) => req.id !== id));
     setAcceptedCount((c) => c + 1);
+    if (accepted) {
+      setRecentActivity((prev) => [
+        {
+          action: "Accepted session",
+          patient: accepted.patient_initials,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          type: "accept",
+        },
+        ...prev.slice(0, 9),
+      ]);
+    }
+
+    try {
+      await radarAPI.accept(id);
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) return;
+      if (err instanceof APIError && (err.status === 404 || err.status === 405)) return;
+      // Rollback if API fails
+      if (accepted) {
+        setRequests((r) => [accepted, ...r]);
+        setAcceptedCount((c) => Math.max(0, c - 1));
+      }
+    } finally {
+      setActionLoading((a) => { const n = { ...a }; delete n[id]; return n; });
+    }
   };
 
-  const handleDecline = (id: string) => {
-    setDeclinedIds((d) => [...d, id]);
+  // ── decline ─────────────────────────────────────────────────────────────
+  const handleDecline = async (id: string) => {
+    setActionLoading((a) => ({ ...a, [id]: "decline" }));
+    // Optimistic update
+    const declined = requests.find((r) => r.id === id);
     setRequests((r) => r.filter((req) => req.id !== id));
-  };
+    if (declined) {
+      setRecentActivity((prev) => [
+        {
+          action: "Declined request",
+          patient: declined.patient_initials,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          type: "decline",
+        },
+        ...prev.slice(0, 9),
+      ]);
+    }
 
-  const activeRequests = requests.filter((r) => !declinedIds.includes(r.id));
+    try {
+      await radarAPI.decline(id);
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) return;
+      if (err instanceof APIError && (err.status === 404 || err.status === 405)) return;
+      // Rollback
+      if (declined) setRequests((r) => [declined, ...r]);
+    } finally {
+      setActionLoading((a) => { const n = { ...a }; delete n[id]; return n; });
+    }
+  };
 
   return (
     <div className="p-6 max-w-[1200px] mx-auto">
@@ -148,6 +305,13 @@ export default function RadarPage() {
 
         <div className="flex gap-2">
           <button
+            onClick={() => fetchRequests(true)}
+            className="flex items-center gap-1.5 h-9 px-3 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+            title="Refresh"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => setIsOnline(!isOnline)}
             className={cn(
               "flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium border transition-colors",
@@ -166,13 +330,27 @@ export default function RadarPage() {
         </div>
       </div>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={() => fetchRequests()}
+            className="text-xs font-semibold underline hover:no-underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Active Requests", value: activeRequests.length, icon: Zap, color: "text-accent" },
-          { label: "Accepted Today", value: acceptedCount, icon: CheckCircle2, color: "text-green-500" },
-          { label: "Match Rate", value: "89%", icon: TrendingUp, color: "text-blue-500" },
-          { label: "Avg Match Score", value: "91%", icon: Brain, color: "text-purple-500" },
+          { label: "Active Requests", value: loading ? "—" : requests.length, icon: Zap, color: "text-accent" },
+          { label: "Accepted Today", value: statsLoading ? "—" : (stats.accepted_today ?? acceptedCount), icon: CheckCircle2, color: "text-green-500" },
+          { label: "Match Rate", value: statsLoading ? "—" : (stats.match_rate ?? "—"), icon: TrendingUp, color: "text-blue-500" },
+          { label: "Avg Match Score", value: statsLoading ? "—" : (stats.avg_match_score ?? "—"), icon: Brain, color: "text-purple-500" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-card">
             <div className="flex items-center justify-between mb-2">
@@ -190,23 +368,40 @@ export default function RadarPage() {
           <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
             <Zap className="w-4 h-4 text-accent" />
             Active Requests
-            {activeRequests.length > 0 && (
+            {!loading && requests.length > 0 && (
               <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">
-                {activeRequests.length}
+                {requests.length}
               </span>
             )}
           </h3>
 
-          {activeRequests.length === 0 && (
+          {/* Loading skeletons */}
+          {loading && (
+            <div className="space-y-4">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && requests.length === 0 && (
             <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
               <Zap className="w-8 h-8 text-slate-300 mx-auto mb-3" />
               <h4 className="text-sm font-semibold text-slate-600 mb-1">No Active Requests</h4>
               <p className="text-xs text-slate-400">New patient requests will appear here in real-time</p>
+              <button
+                onClick={() => fetchRequests()}
+                className="mt-4 text-xs text-accent font-semibold hover:underline"
+              >
+                Refresh
+              </button>
             </div>
           )}
 
-          {activeRequests.map((req) => {
-            const urgency = urgencyConfig[req.urgency];
+          {/* Request cards */}
+          {!loading && requests.map((req) => {
+            const urgency = urgencyConfig[req.urgency] ?? urgencyConfig.this_week;
+            const isActing = !!actionLoading[req.id];
             return (
               <div key={req.id} className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden hover:shadow-card-hover transition-shadow">
                 <div className="p-4">
@@ -225,7 +420,9 @@ export default function RadarPage() {
                           </span>
                         </div>
                         <div className="text-xs text-slate-400 mt-0.5">
-                          {req.age_range} · {req.gender} · {req.session_type === "video" ? <span className="flex items-center gap-0.5 inline-flex"><Video className="w-3 h-3" /> Video</span> : "Audio"}
+                          {req.age_range} · {req.gender} · {req.session_type === "video"
+                            ? <span className="inline-flex items-center gap-0.5"><Video className="w-3 h-3" /> Video</span>
+                            : "Audio"}
                         </div>
                       </div>
                     </div>
@@ -278,16 +475,26 @@ export default function RadarPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleDecline(req.id)}
-                      className="flex-1 h-9 border border-slate-200 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                      disabled={isActing}
+                      className="flex-1 h-9 border border-slate-200 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-50 hover:text-slate-700 transition-colors disabled:opacity-50"
                     >
-                      Decline
+                      {actionLoading[req.id] === "decline" ? (
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                      ) : "Decline"}
                     </button>
                     <button
                       onClick={() => handleAccept(req.id)}
-                      className="flex-1 h-9 bg-accent text-white rounded-lg text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
+                      disabled={isActing}
+                      className="flex-1 h-9 bg-accent text-white rounded-lg text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Accept Session
+                      {actionLoading[req.id] === "accept" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          Accept Session
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -307,11 +514,11 @@ export default function RadarPage() {
             <div className="space-y-2.5">
               {[
                 { label: "Availability", value: isOnline ? "✅ Available Now" : "❌ Offline" },
-                { label: "Specializations", value: "Anxiety, Depression, Trauma" },
-                { label: "Session Types", value: "Video, Audio" },
-                { label: "Languages", value: "English, Spanish" },
-                { label: "Rate", value: "$100–$130/hr" },
-                { label: "Response Time", value: "< 2 min avg" },
+                { label: "Specializations", value: stats.specializations || "Anxiety, Depression, Trauma" },
+                { label: "Session Types", value: stats.session_types || "Video, Audio" },
+                { label: "Languages", value: stats.languages || "English" },
+                { label: "Rate", value: stats.rate || "$100–$130/hr" },
+                { label: "Response Time", value: stats.response_time || "< 2 min avg" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between">
                   <span className="text-xs text-slate-500">{label}</span>
@@ -327,28 +534,28 @@ export default function RadarPage() {
               <Activity className="w-4 h-4 text-secondary" />
               Today&apos;s Activity
             </h3>
-            <div className="space-y-2">
-              {[
-                { action: "Accepted session", patient: "A.K.", time: "10:23 AM", type: "accept" },
-                { action: "Declined request", patient: "B.M.", time: "9:15 AM", type: "decline" },
-                { action: "Session completed", patient: "C.L.", time: "8:45 AM", type: "complete" },
-              ].map(({ action, patient, time, type }) => (
-                <div key={time} className="flex items-center gap-2">
-                  <div className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center shrink-0",
-                    type === "accept" ? "bg-green-100" : type === "decline" ? "bg-red-100" : "bg-blue-100"
-                  )}>
-                    {type === "accept" ? <CheckCircle2 className="w-3 h-3 text-green-600" /> :
-                     type === "decline" ? <X className="w-3 h-3 text-red-500" /> :
-                     <CheckCircle2 className="w-3 h-3 text-blue-600" />}
+            {recentActivity.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">No activity yet today</p>
+            ) : (
+              <div className="space-y-2">
+                {recentActivity.map(({ action, patient, time, type }, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center shrink-0",
+                      type === "accept" ? "bg-green-100" : type === "decline" ? "bg-red-100" : "bg-blue-100"
+                    )}>
+                      {type === "accept" ? <CheckCircle2 className="w-3 h-3 text-green-600" /> :
+                       type === "decline" ? <X className="w-3 h-3 text-red-500" /> :
+                       <CheckCircle2 className="w-3 h-3 text-blue-600" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-slate-700">{action}</div>
+                      <div className="text-[10px] text-slate-400">{patient} · {time}</div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-slate-700">{action}</div>
-                    <div className="text-[10px] text-slate-400">{patient} · {time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
