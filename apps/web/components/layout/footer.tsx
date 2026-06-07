@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Brain, Twitter, Linkedin, Mail } from "lucide-react";
+import { EMAILS, SOCIAL } from "@/lib/domains";
 
 const footerLinks = {
   Product: [
@@ -23,6 +24,7 @@ const footerLinks = {
     { label: "Blog", href: "/blog" },
     { label: "Careers", href: "/careers" },
     { label: "Contact", href: "/contact" },
+    { label: "Book a Demo", href: "/demo" },
   ],
   Legal: [
     { label: "Privacy Policy", href: "/privacy" },
@@ -53,16 +55,16 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-3 mb-6">
               <a
-                href="https://twitter.com/24therapyai"
+                href={SOCIAL.twitter}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
-                aria-label="Twitter"
+                aria-label="Twitter / X"
               >
                 <Twitter className="w-4 h-4" />
               </a>
               <a
-                href="https://linkedin.com/company/24therapyai"
+                href={SOCIAL.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
@@ -71,7 +73,7 @@ export function Footer() {
                 <Linkedin className="w-4 h-4" />
               </a>
               <a
-                href="mailto:hello@24therapy.ai"
+                href={`mailto:${EMAILS.hello}`}
                 className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
                 aria-label="Email"
               >

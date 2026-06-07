@@ -7,6 +7,7 @@ import {
   CheckCircle, ArrowRight, Clock, Globe, Send, Heart, Shield,
   Calendar, HelpCircle, BookOpen, ChevronRight
 } from "lucide-react";
+import { EMAILS } from "@/lib/domains";
 
 type ContactType = "general" | "sales" | "support" | "demo" | "press" | "security";
 
@@ -86,7 +87,7 @@ export default function ContactPage() {
           <h2 className="text-2xl font-bold text-[#0A2342] mb-4">Message received!</h2>
           <p className="text-gray-500 mb-8">
             We typically respond within 2-4 hours during business hours. For urgent support, email{" "}
-            <a href="mailto:support@24therapy.ai" className="text-[#2EC4B6] font-medium">support@24therapy.ai</a>.
+            <a href={`mailto:${EMAILS.support}`} className="text-[#2EC4B6] font-medium">{EMAILS.support}</a>.
           </p>
           <Link
             href="/"
@@ -233,11 +234,11 @@ export default function ContactPage() {
                 <h3 className="font-bold text-[#0A2342] mb-4">Direct contacts</h3>
                 <div className="space-y-4">
                   {[
-                    { icon: Mail, label: "General", value: "hello@24therapy.ai" },
-                    { icon: Mail, label: "Support", value: "support@24therapy.ai" },
-                    { icon: Mail, label: "Sales", value: "sales@24therapy.ai" },
-                    { icon: Mail, label: "Security", value: "security@24therapy.ai" },
-                    { icon: Mail, label: "Press", value: "press@24therapy.ai" },
+                    { icon: Mail, label: "General", value: EMAILS.hello },
+                    { icon: Mail, label: "Support", value: EMAILS.support },
+                    { icon: Mail, label: "Sales", value: EMAILS.sales },
+                    { icon: Mail, label: "Security", value: EMAILS.security },
+                    { icon: Mail, label: "Press", value: EMAILS.press },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
