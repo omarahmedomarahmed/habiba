@@ -300,6 +300,104 @@ export const notificationsAPI = {
 };
 
 // ============================================================
+// NOTES
+// ============================================================
+export const notesAPI = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/notes", { params }),
+
+  get: (id: string) => apiFetch<Record<string, unknown>>(`/notes/${id}`),
+
+  create: (data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/notes", { method: "POST", body: JSON.stringify(data) }),
+
+  update: (id: string, data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>(`/notes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  finalize: (id: string) =>
+    apiFetch(`/notes/${id}/finalize`, { method: "POST" }),
+
+  delete: (id: string) => apiFetch(`/notes/${id}`, { method: "DELETE" }),
+};
+
+// ============================================================
+// TREATMENT PLANS
+// ============================================================
+export const treatmentPlansAPI = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/treatment-plans", { params }),
+
+  get: (id: string) => apiFetch<Record<string, unknown>>(`/treatment-plans/${id}`),
+
+  create: (data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/treatment-plans", { method: "POST", body: JSON.stringify(data) }),
+
+  update: (id: string, data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>(`/treatment-plans/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  goals: (planId: string) =>
+    apiFetch<Record<string, unknown>[]>(`/treatment-plans/${planId}/goals`),
+
+  addGoal: (planId: string, data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>(`/treatment-plans/${planId}/goals`, { method: "POST", body: JSON.stringify(data) }),
+
+  protocols: () => apiFetch<Record<string, unknown>[]>("/treatment-plans/protocols"),
+};
+
+// ============================================================
+// REFERRALS
+// ============================================================
+export const referralsAPI = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/referrals", { params }),
+
+  get: (id: string) => apiFetch<Record<string, unknown>>(`/referrals/${id}`),
+
+  create: (data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/referrals", { method: "POST", body: JSON.stringify(data) }),
+
+  update: (id: string, data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>(`/referrals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  send: (id: string) =>
+    apiFetch(`/referrals/${id}/send`, { method: "POST" }),
+};
+
+// ============================================================
+// RADAR (Therapist Matching / New Patient Requests)
+// ============================================================
+export const radarAPI = {
+  requests: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/radar/requests", { params }),
+
+  accept: (requestId: string) =>
+    apiFetch(`/radar/requests/${requestId}/accept`, { method: "POST" }),
+
+  decline: (requestId: string, reason?: string) =>
+    apiFetch(`/radar/requests/${requestId}/decline`, { method: "POST", body: JSON.stringify({ reason }) }),
+
+  stats: () => apiFetch<Record<string, unknown>>("/radar/stats"),
+};
+
+// ============================================================
+// REPORTS
+// ============================================================
+export const reportsAPI = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/reports", { params }),
+
+  generate: (data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/reports/generate", { method: "POST", body: JSON.stringify(data) }),
+
+  get: (id: string) => apiFetch<Record<string, unknown>>(`/reports/${id}`),
+
+  sign: (id: string) => apiFetch(`/reports/${id}/sign`, { method: "POST" }),
+
+  send: (id: string, recipient: string) =>
+    apiFetch(`/reports/${id}/send`, { method: "POST", body: JSON.stringify({ recipient }) }),
+};
+
+// ============================================================
 // ANALYTICS
 // ============================================================
 export const analyticsAPI = {

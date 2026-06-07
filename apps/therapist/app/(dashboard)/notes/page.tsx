@@ -1,56 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   FileText, Search, Filter, Plus, Clock, CheckCircle2, AlertCircle,
-  Edit3, Download, Eye, ChevronRight, Brain, Sparkles, MoreHorizontal,
-  Calendar, User, Tag, TrendingUp
+  Edit3, Download, Eye, Brain, Sparkles, Calendar, User, Tag
 } from "lucide-react";
 import { cn, formatDate, getInitials } from "@/lib/utils";
+import { notesAPI, APIError } from "@/lib/api";
 
-const MOCK_NOTES = [
-  {
-    id: "n1", patient_id: "p1", patient_name: "Sarah Chen", session_date: "2025-12-15T10:00:00Z",
-    session_number: 24, note_format: "SOAP", status: "finalized",
-    created_at: "2025-12-15T11:30:00Z", finalized_at: "2025-12-15T12:15:00Z",
-    ai_generated: true, word_count: 380, risk_flag: false,
-    preview: "Patient reports improvement in sleep patterns and reduced anxiety symptoms. CBT homework completed.",
-    tags: ["progress", "sleep", "CBT"],
-  },
-  {
-    id: "n2", patient_id: "p2", patient_name: "Michael Torres", session_date: "2025-12-14T11:00:00Z",
-    session_number: 12, note_format: "DAP", status: "draft",
-    created_at: "2025-12-14T12:00:00Z", finalized_at: null,
-    ai_generated: true, word_count: 290, risk_flag: false,
-    preview: "Patient discussed work-related stressors and interpersonal conflict. GAD symptoms elevated.",
-    tags: ["work-stress", "anxiety", "interpersonal"],
-  },
-  {
-    id: "n3", patient_id: "p3", patient_name: "James Rodriguez", session_date: "2025-12-14T14:00:00Z",
-    session_number: 36, note_format: "SOAP", status: "needs_review",
-    created_at: "2025-12-14T15:00:00Z", finalized_at: null,
-    ai_generated: true, word_count: 450, risk_flag: true,
-    preview: "Patient expressed passive suicidal ideation. Safety plan reviewed and updated. Crisis support contacts confirmed.",
-    tags: ["risk", "safety-plan", "suicidal-ideation"],
-  },
-  {
-    id: "n4", patient_id: "p4", patient_name: "Emma Williams", session_date: "2025-12-09T14:00:00Z",
-    session_number: 18, note_format: "BIRP", status: "finalized",
-    created_at: "2025-12-09T15:00:00Z", finalized_at: "2025-12-09T16:30:00Z",
-    ai_generated: true, word_count: 310, risk_flag: false,
-    preview: "OCD symptoms show moderate improvement. ERP exercises progressing well.",
-    tags: ["OCD", "ERP", "progress"],
-  },
-  {
-    id: "n5", patient_id: "p5", patient_name: "Olivia Kim", session_date: "2025-12-01T15:00:00Z",
-    session_number: 8, note_format: "SOAP", status: "finalized",
-    created_at: "2025-12-01T16:00:00Z", finalized_at: "2025-12-01T17:00:00Z",
-    ai_generated: false, word_count: 220, risk_flag: false,
-    preview: "Social anxiety management strategies discussed. Exposure hierarchy created.",
-    tags: ["social-anxiety", "exposure", "hierarchy"],
-  },
-];
+interface Note {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  session_date: string;
+  session_number: number;
+  note_format: string;
+  status: string;
+  created_at: string;
+  finalized_at: string | null;
+  ai_generated: boolean;
+  word_count: number;
+  risk_flag: boolean;
+  preview: string;
+  tags: string[];
+}
 
 const STATUS_CONFIG = {
   finalized: { label: "Finalized", color: "text-green-700 bg-green-50 border-green-200", icon: CheckCircle2 },
@@ -64,24 +38,118 @@ const FORMAT_COLORS: Record<string, string> = {
   BIRP: "bg-cyan-100 text-cyan-700",
 };
 
+const LIMIT = 20;
+
+function SkeletonRow() {
+  return (
+    <div className="card p-5 animate-pulse">
+      <div className="flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-surface-tertiary flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-32 bg-surface-tertiary rounded" />
+            <div className="h-4 w-12 bg-surface-tertiary rounded" />
+          </div>
+          <div className="h-3 w-full bg-surface-tertiary rounded" />
+          <div className="h-3 w-3/4 bg-surface-tertiary rounded" />
+          <div className="h-3 w-48 bg-surface-tertiary rounded mt-2" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function normalizeNote(raw: Record<string, unknown>): Note {
+  const patient = (raw.patient as Record<string, unknown>) || {};
+  const patientName =
+    (raw.patient_name as string) ||
+    (patient.first_name
+      ? `${patient.first_name} ${patient.last_name || ""}`.trim()
+      : (raw.patient_id as string) || "Unknown");
+
+  return {
+    id: (raw.id as string) || "",
+    patient_id: (raw.patient_id as string) || (patient.id as string) || "",
+    patient_name: patientName,
+    session_date: (raw.session_date as string) || (raw.created_at as string) || "",
+    session_number: (raw.session_number as number) || 0,
+    note_format: ((raw.note_format as string) || (raw.format as string) || "SOAP").toUpperCase(),
+    status: (raw.status as string) || "draft",
+    created_at: (raw.created_at as string) || "",
+    finalized_at: (raw.finalized_at as string) || null,
+    ai_generated: !!(raw.ai_generated ?? raw.is_ai_generated),
+    word_count: (raw.word_count as number) || 0,
+    risk_flag: !!(raw.risk_flag ?? raw.has_risk_flag),
+    preview:
+      (raw.preview as string) ||
+      (raw.content as string)?.slice(0, 160) ||
+      (raw.subjective as string)?.slice(0, 160) ||
+      "",
+    tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+  };
+}
+
 export default function NotesPage() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [formatFilter, setFormatFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  const filtered = MOCK_NOTES.filter((n) => {
-    const matchSearch = !search ||
-      n.patient_name.toLowerCase().includes(search.toLowerCase()) ||
-      n.preview.toLowerCase().includes(search.toLowerCase()) ||
-      n.tags.some((t) => t.includes(search.toLowerCase()));
-    const matchStatus = statusFilter === "all" || n.status === statusFilter;
-    const matchFormat = formatFilter === "all" || n.note_format === formatFilter;
-    return matchSearch && matchStatus && matchFormat;
-  });
+  const totalPages = Math.ceil(total / LIMIT);
 
-  const pendingCount = MOCK_NOTES.filter((n) => n.status === "draft" || n.status === "needs_review").length;
-  const flaggedCount = MOCK_NOTES.filter((n) => n.risk_flag).length;
+  const fetchNotes = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: Record<string, string | number | undefined> = {
+        page,
+        limit: LIMIT,
+        ...(search ? { search } : {}),
+        ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+        ...(formatFilter !== "all" ? { format: formatFilter } : {}),
+      };
+      const result = await notesAPI.list(params);
+      const raw = Array.isArray(result)
+        ? result
+        : ((result as { data?: unknown[] }).data ?? []);
+      const tot = Array.isArray(result)
+        ? (result as unknown[]).length
+        : ((result as { total?: number }).total ?? (raw as unknown[]).length);
+      setNotes((raw as Record<string, unknown>[]).map(normalizeNote));
+      setTotal(tot);
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) return;
+      setError((err as Error).message || "Failed to load notes");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, statusFilter, formatFilter]);
+
+  // Debounced search
+  useEffect(() => {
+    const delay = search ? 400 : 0;
+    const t = setTimeout(() => {
+      setPage(1);
+      fetchNotes();
+    }, delay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  // Immediate fetch on filter/page change
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes, statusFilter, formatFilter, page]);
+
+  const pendingCount = notes.filter((n) => n.status === "draft" || n.status === "needs_review").length;
+  const flaggedCount = notes.filter((n) => n.risk_flag).length;
+  const aiCount = notes.filter((n) => n.ai_generated).length;
 
   return (
     <div className="flex-1 overflow-y-auto bg-surface-secondary">
@@ -93,24 +161,34 @@ export default function NotesPage() {
             <h1 className="text-2xl font-bold text-ink-900">Session Notes</h1>
             <p className="text-ink-500 text-sm mt-1">AI-assisted clinical documentation</p>
           </div>
-          <Link
-            href="/sessions"
-            className="btn-primary flex items-center gap-2"
-          >
+          <Link href="/sessions" className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
             New Session Note
           </Link>
         </div>
 
+        {/* Error Banner */}
+        {error && (
+          <div className="card p-4 border-l-4 border-l-red-500 bg-red-50/30 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-red-700 text-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+            <button onClick={fetchNotes} className="text-xs text-red-600 hover:underline font-medium">
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total Notes", value: MOCK_NOTES.length, icon: FileText, color: "text-blue-600 bg-blue-50" },
-            { label: "Pending", value: pendingCount, icon: Clock, color: "text-amber-600 bg-amber-50", alert: pendingCount > 0 },
-            { label: "Flagged", value: flaggedCount, icon: AlertCircle, color: "text-red-600 bg-red-50", alert: flaggedCount > 0 },
-            { label: "AI Generated", value: MOCK_NOTES.filter((n) => n.ai_generated).length, icon: Brain, color: "text-purple-600 bg-purple-50" },
+            { label: "Total Notes", value: loading ? "—" : total, icon: FileText, color: "text-blue-600 bg-blue-50" },
+            { label: "Pending", value: loading ? "—" : pendingCount, icon: Clock, color: "text-amber-600 bg-amber-50", alert: pendingCount > 0 },
+            { label: "Flagged", value: loading ? "—" : flaggedCount, icon: AlertCircle, color: "text-red-600 bg-red-50", alert: flaggedCount > 0 },
+            { label: "AI Generated", value: loading ? "—" : aiCount, icon: Brain, color: "text-purple-600 bg-purple-50" },
           ].map((stat) => (
-            <div key={stat.label} className={cn("card p-4 flex items-center gap-3", stat.alert && "border-amber-200 bg-amber-50/30")}>
+            <div key={stat.label} className={cn("card p-4 flex items-center gap-3", "alert" in stat && stat.alert && "border-amber-200 bg-amber-50/30")}>
               <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", stat.color)}>
                 <stat.icon className="w-4 h-4" />
               </div>
@@ -151,7 +229,7 @@ export default function NotesPage() {
                 {["all", "draft", "needs_review", "finalized"].map((s) => (
                   <button
                     key={s}
-                    onClick={() => setStatusFilter(s)}
+                    onClick={() => { setStatusFilter(s); setPage(1); }}
                     className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
                       statusFilter === s ? "bg-primary-600 text-white" : "bg-surface-tertiary text-ink-600 hover:bg-surface-quaternary"
                     )}
@@ -165,7 +243,7 @@ export default function NotesPage() {
                 {["all", "SOAP", "DAP", "BIRP"].map((f) => (
                   <button
                     key={f}
-                    onClick={() => setFormatFilter(f)}
+                    onClick={() => { setFormatFilter(f); setPage(1); }}
                     className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
                       formatFilter === f ? "bg-primary-600 text-white" : "bg-surface-tertiary text-ink-600 hover:bg-surface-quaternary"
                     )}
@@ -180,15 +258,22 @@ export default function NotesPage() {
 
         {/* Notes List */}
         <div className="space-y-3">
-          {filtered.length === 0 && (
+          {loading && Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)}
+
+          {!loading && notes.length === 0 && (
             <div className="card p-12 text-center">
               <FileText className="w-12 h-12 text-ink-300 mx-auto mb-3" />
-              <p className="text-ink-500">No notes found matching your filters.</p>
+              <p className="text-ink-500 font-medium">No notes found</p>
+              <p className="text-ink-400 text-sm mt-1">
+                {search || statusFilter !== "all" || formatFilter !== "all"
+                  ? "Try adjusting your filters"
+                  : "Notes are created automatically after sessions"}
+              </p>
             </div>
           )}
 
-          {filtered.map((note) => {
-            const status = STATUS_CONFIG[note.status as keyof typeof STATUS_CONFIG];
+          {!loading && notes.map((note) => {
+            const status = STATUS_CONFIG[note.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft;
             const StatusIcon = status.icon;
             return (
               <Link key={note.id} href={`/sessions/${note.id}/notes`}>
@@ -197,7 +282,6 @@ export default function NotesPage() {
                   note.risk_flag && "border-l-4 border-l-red-500"
                 )}>
                   <div className="flex items-start gap-4">
-                    {/* Patient Avatar */}
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-bold text-primary-700">
                         {getInitials(note.patient_name)}
@@ -209,7 +293,7 @@ export default function NotesPage() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-ink-900">{note.patient_name}</span>
-                          <span className={cn("px-2 py-0.5 rounded text-xs font-medium", FORMAT_COLORS[note.note_format])}>
+                          <span className={cn("px-2 py-0.5 rounded text-xs font-medium", FORMAT_COLORS[note.note_format] ?? "bg-gray-100 text-gray-700")}>
                             {note.note_format}
                           </span>
                           {note.ai_generated && (
@@ -250,12 +334,14 @@ export default function NotesPage() {
                       <div className="flex items-center gap-4 mt-3 text-xs text-ink-400">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          Session #{note.session_number} · {formatDate(note.session_date)}
+                          {note.session_number > 0 && `Session #${note.session_number} · `}{formatDate(note.session_date)}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {note.word_count} words
-                        </span>
+                        {note.word_count > 0 && (
+                          <span className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {note.word_count} words
+                          </span>
+                        )}
                         {note.finalized_at && (
                           <span className="flex items-center gap-1 text-green-600">
                             <CheckCircle2 className="w-3 h-3" />
@@ -285,6 +371,34 @@ export default function NotesPage() {
             );
           })}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-sm text-ink-500">
+              Showing {(page - 1) * LIMIT + 1}–{Math.min(page * LIMIT, total)} of {total} notes
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+                className="btn-secondary text-sm disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-ink-600 font-medium">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="btn-secondary text-sm disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
