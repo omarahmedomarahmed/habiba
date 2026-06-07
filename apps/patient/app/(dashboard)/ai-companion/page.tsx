@@ -1,31 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Send, Brain, Sparkles, Heart, Shield, AlertCircle, Clock,
-  Mic, MicOff, Volume2, VolumeX, Lightbulb, RefreshCw,
-  MessageSquare, BookOpen, Target, Calendar, ChevronRight,
-  Info, Star, ThumbsUp, ThumbsDown, Copy, Share2, Phone,
-  Activity, ArrowRight, CheckCircle2, Pause
+  Send, Brain, Heart, Shield, Volume2, VolumeX,
+  Phone, CheckCircle2, RefreshCw, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { aiAPI, authAPI, APIError } from "@/lib/api";
 
 interface Message {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
   timestamp: string;
-  type?: "text" | "crisis" | "resource" | "exercise" | "check_in";
-  resources?: Resource[];
-  exercise?: Exercise;
+  type?: "text" | "crisis" | "exercise";
   suggestions?: string[];
-}
-
-interface Resource {
-  title: string;
-  description: string;
-  type: "article" | "exercise" | "hotline" | "worksheet";
-  icon: string;
+  exercise?: Exercise;
 }
 
 interface Exercise {
@@ -35,21 +25,10 @@ interface Exercise {
   type: "breathing" | "grounding" | "cbt" | "mindfulness";
 }
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "m0",
-    role: "system",
-    content: "session_start",
-    timestamp: new Date().toISOString(),
-    type: "check_in"
-  },
-  {
-    id: "m1",
-    role: "assistant",
-    content: "Hi Sarah 👋 I'm your AI companion — here to support you between sessions.\n\nI'm not a replacement for Dr. Smith or clinical care, but I'm here to listen, help you practice coping skills, and check in on how you're doing.\n\nHow are you feeling today?",
-    timestamp: new Date().toISOString(),
-    suggestions: ["I'm having a hard time", "I'm doing okay", "I need to practice a coping skill", "I want to prepare for my session"]
-  }
+const SAFETY_RESOURCES = [
+  { name: "Crisis Text Line", detail: "Text HOME to 741741" },
+  { name: "988 Suicide & Crisis Lifeline", detail: "Call or text 988" },
+  { name: "Emergency Services", detail: "Call 911" },
 ];
 
 const QUICK_ACTIONS = [
@@ -59,67 +38,65 @@ const QUICK_ACTIONS = [
   { id: "crisis", label: "I need help now", icon: "🆘", description: "Get immediate support" },
 ];
 
-const SAFETY_RESOURCES = [
-  { name: "Crisis Text Line", detail: "Text HOME to 741741", color: "bg-rose-50 text-rose-700 border-rose-200" },
-  { name: "988 Suicide & Crisis Lifeline", detail: "Call or text 988", color: "bg-rose-50 text-rose-700 border-rose-200" },
-  { name: "Emergency Services", detail: "Call 911", color: "bg-rose-50 text-rose-700 border-rose-200" },
+const CRISIS_KEYWORDS = [
+  "suicid", "kill myself", "end my life", "don't want to be here",
+  "hurt myself", "self harm", "no reason to live",
 ];
 
-const MOCK_RESPONSES: Record<string, Message> = {
-  "hard": {
-    id: "r1", role: "assistant",
-    content: "I'm sorry to hear that. Thank you for being honest with me.\n\nCan you tell me a bit more about what's been going on? Sometimes just putting it into words can help.",
-    timestamp: new Date().toISOString(),
-    suggestions: ["I'm feeling anxious", "I'm feeling sad", "I'm overwhelmed with work", "I'm having trouble sleeping"]
-  },
-  "anxiety": {
-    id: "r2", role: "assistant",
-    content: "Anxiety can feel really overwhelming. I hear you. 💙\n\nWould you like to try a quick breathing exercise right now? The 4-7-8 technique can help calm your nervous system in under 2 minutes.",
-    timestamp: new Date().toISOString(),
-    type: "exercise",
-    exercise: {
-      title: "4-7-8 Breathing Exercise",
-      duration: "2 minutes",
-      type: "breathing",
-      steps: [
-        "Find a comfortable position. Close your eyes if that feels safe.",
-        "Exhale completely through your mouth, making a whoosh sound.",
-        "Close your mouth and inhale through your nose for 4 counts.",
-        "Hold your breath for 7 counts.",
-        "Exhale completely through your mouth for 8 counts.",
-        "Repeat this cycle 4 times.",
-        "Notice how your body feels now compared to before."
-      ]
-    },
-    suggestions: ["Yes, let's do the exercise", "I need something else", "I want to talk about it more"]
-  },
-  "session": {
-    id: "r3", role: "assistant",
-    content: "Great idea to prepare! Preparing for therapy sessions helps you get more out of them.\n\nYour next session with Dr. Smith is on December 22nd at 10:00 AM.\n\nWhat's most on your mind that you'd like to discuss? I can help you organize your thoughts.",
-    timestamp: new Date().toISOString(),
-    suggestions: ["Work stress", "Relationship stuff", "My medication", "Progress I've made", "Something specific happened"]
-  },
-  "default": {
-    id: "r_default", role: "assistant",
-    content: "Thank you for sharing that with me. I'm here and I'm listening.\n\nRemember, whatever you're going through, you don't have to face it alone. Dr. Smith is also here to support you at your next session.\n\nIs there anything specific I can help you with right now — a coping skill, some grounding, or just someone to talk to?",
-    timestamp: new Date().toISOString(),
-    suggestions: ["Help me calm down", "I want to journal", "Tell me something helpful", "I'm okay, just checking in"]
-  }
-};
+// ── parse structured AI response ─────────────────────────────────────────────
+function parseAIResponse(raw: Record<string, unknown>): {
+  content: string;
+  suggestions?: string[];
+  exercise?: Exercise;
+  type?: "text" | "crisis" | "exercise";
+} {
+  // Handle various backend response shapes
+  const text = String(
+    raw.message || raw.content || raw.text || raw.response ||
+    raw.reply || raw.answer || ""
+  );
 
+  const suggestionsRaw = raw.suggestions || raw.quick_replies || raw.options;
+  const suggestions = Array.isArray(suggestionsRaw)
+    ? (suggestionsRaw as string[]).filter(Boolean)
+    : undefined;
+
+  const exerciseRaw = raw.exercise || raw.activity;
+  let exercise: Exercise | undefined;
+  if (exerciseRaw && typeof exerciseRaw === "object") {
+    const e = exerciseRaw as Record<string, unknown>;
+    exercise = {
+      title: String(e.title || "Breathing Exercise"),
+      duration: String(e.duration || "2-3 minutes"),
+      steps: Array.isArray(e.steps) ? (e.steps as string[]) : [],
+      type: String(e.type || "breathing") as Exercise["type"],
+    };
+  }
+
+  // Detect crisis in response text
+  const typeRaw = String(raw.type || raw.message_type || "text");
+  const type: "text" | "crisis" | "exercise" =
+    typeRaw === "crisis" ? "crisis"
+    : typeRaw === "exercise" || !!exercise ? "exercise"
+    : "text";
+
+  return { content: text, suggestions, exercise, type };
+}
+
+// ── breathing exercise component ─────────────────────────────────────────────
 function BreathingExercise({ exercise, onDone }: { exercise: Exercise; onDone: () => void }) {
-  const [step, setStep] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [phase, setPhase] = useState<"inhale" | "hold" | "exhale" | "ready">("ready");
   const [count, setCount] = useState(0);
   const [cycle, setCycle] = useState(0);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (!isRunning) return;
     const phases: { phase: typeof phase; duration: number }[] = [
       { phase: "inhale", duration: 4 },
       { phase: "hold", duration: 7 },
-      { phase: "exhale", duration: 8 }
+      { phase: "exhale", duration: 8 },
     ];
     let currentPhase = 0;
     let currentCount = 0;
@@ -132,8 +109,13 @@ function BreathingExercise({ exercise, onDone }: { exercise: Exercise; onDone: (
         currentCount = 0;
         currentPhase = (currentPhase + 1) % 3;
         if (currentPhase === 0) {
-          setCycle(c => {
-            if (c >= 3) { setIsRunning(false); setPhase("ready"); return 0; }
+          setCycle((c) => {
+            if (c >= 3) {
+              setIsRunning(false);
+              setPhase("ready");
+              setDone(true);
+              return c;
+            }
             return c + 1;
           });
         }
@@ -161,29 +143,42 @@ function BreathingExercise({ exercise, onDone }: { exercise: Exercise; onDone: (
           )}>
             {count}
           </div>
-          <p className="font-medium text-gray-900 capitalize">{phase === "inhale" ? "Breathe In..." : phase === "hold" ? "Hold..." : "Breathe Out..."}</p>
+          <p className="font-medium text-gray-900 capitalize">
+            {phase === "inhale" ? "Breathe In..." : phase === "hold" ? "Hold..." : "Breathe Out..."}
+          </p>
           <p className="text-xs text-gray-500 mt-1">Cycle {cycle + 1} of 4</p>
-          <button onClick={() => { setIsRunning(false); setPhase("ready"); }} className="mt-3 text-xs text-gray-400 hover:text-gray-600">Stop</button>
+          <button
+            onClick={() => { setIsRunning(false); setPhase("ready"); }}
+            className="mt-3 text-xs text-gray-400 hover:text-gray-600"
+          >
+            Stop
+          </button>
         </div>
-      ) : cycle >= 4 ? (
+      ) : done ? (
         <div className="text-center py-3">
           <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
           <p className="font-medium text-gray-900">Exercise Complete!</p>
           <p className="text-sm text-gray-600 mt-1">Take a moment to notice how you feel. Well done. 💙</p>
-          <button onClick={onDone} className="mt-3 text-sm text-[#0A2342] font-medium hover:text-[#1E4F8C]">Continue →</button>
+          <button onClick={onDone} className="mt-3 text-sm text-[#0A2342] font-medium hover:text-[#1E4F8C]">
+            Continue →
+          </button>
         </div>
       ) : (
         <div>
-          <div className="space-y-2 mb-4">
-            {exercise.steps.slice(0, 3).map((step, i) => (
-              <div key={i} className="flex gap-2 text-sm">
-                <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center shrink-0 font-medium">{i + 1}</span>
-                <span className="text-gray-600">{step}</span>
-              </div>
-            ))}
-          </div>
+          {exercise.steps.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {exercise.steps.slice(0, 3).map((step, i) => (
+                <div key={i} className="flex gap-2 text-sm">
+                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center shrink-0 font-medium">
+                    {i + 1}
+                  </span>
+                  <span className="text-gray-600">{step}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <button
-            onClick={() => { setIsRunning(true); setPhase("inhale"); }}
+            onClick={() => { setIsRunning(true); setPhase("inhale"); setDone(false); }}
             className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 flex items-center justify-center gap-2"
           >
             ▶ Start Exercise
@@ -194,54 +189,170 @@ function BreathingExercise({ exercise, onDone }: { exercise: Exercise; onDone: (
   );
 }
 
+// ── page ─────────────────────────────────────────────────────────────────────
 export default function AICompanionPage() {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES.filter(m => m.role !== "system"));
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [patientName, setPatientName] = useState("there");
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showSafety, setShowSafety] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return;
+  // Load patient name for personalised greeting
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await authAPI.me();
+        const name = String(
+          me?.first_name || me?.name?.split(" ")[0] || me?.full_name?.split(" ")[0] || "there"
+        );
+        setPatientName(name);
+      } catch {
+        // silent — fallback stays "there"
+      }
+    })();
+  }, []);
+
+  // Build welcome message after name loads
+  useEffect(() => {
+    const welcome: Message = {
+      id: "m_welcome",
+      role: "assistant",
+      content: `Hi ${patientName} 👋 I'm your AI companion — here to support you between sessions.\n\nI'm not a replacement for your therapist or clinical care, but I'm here to listen, help you practice coping skills, and check in on how you're doing.\n\nHow are you feeling today?`,
+      timestamp: new Date().toISOString(),
+      suggestions: [
+        "I'm having a hard time",
+        "I'm doing okay",
+        "I need to practice a coping skill",
+        "I want to prepare for my session",
+      ],
+    };
+    setMessages([welcome]);
+  }, [patientName]);
+
+  // ── send message ────────────────────────────────────────────────────────
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || isSending) return;
 
     const userMsg: Message = {
-      id: `u${Date.now()}`, role: "user", content: text, timestamp: new Date().toISOString()
+      id: `u${Date.now()}`,
+      role: "user",
+      content: text,
+      timestamp: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, userMsg]);
+
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    setIsTyping(true);
+    setIsSending(true);
 
-    // Detect crisis keywords
-    const crisisKeywords = ["suicid", "kill myself", "end my life", "don't want to be here", "hurt myself"];
-    const isCrisis = crisisKeywords.some(kw => text.toLowerCase().includes(kw));
+    // Crisis detection — always local, never delegated to backend
+    const isCrisis = CRISIS_KEYWORDS.some((kw) => text.toLowerCase().includes(kw));
+    if (isCrisis) {
+      const crisisMsg: Message = {
+        id: `r${Date.now()}`,
+        role: "assistant",
+        type: "crisis",
+        content:
+          "I hear you, and I'm glad you told me. What you're feeling sounds incredibly painful. 💙\n\nPlease reach out to crisis support right now — you deserve immediate, professional help.",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, crisisMsg]);
+      setShowSafety(true);
+      setIsSending(false);
+      return;
+    }
 
-    setTimeout(() => {
-      setIsTyping(false);
-      if (isCrisis) {
-        const crisisMsg: Message = {
-          id: `r${Date.now()}`, role: "assistant", type: "crisis",
-          content: "I hear you, and I'm glad you told me. What you're feeling sounds incredibly painful. 💙\n\nPlease reach out to crisis support right now — you deserve immediate, professional help.",
-          timestamp: new Date().toISOString(),
-        };
-        setMessages(prev => [...prev, crisisMsg]);
-        setShowSafety(true);
-      } else {
-        const key = text.toLowerCase().includes("hard") ? "hard" :
-                    text.toLowerCase().includes("anxi") ? "anxiety" :
-                    text.toLowerCase().includes("session") || text.toLowerCase().includes("prepare") ? "session" : "default";
-        const response = { ...MOCK_RESPONSES[key], id: `r${Date.now()}`, timestamp: new Date().toISOString() };
-        setMessages(prev => [...prev, response]);
+    // Build context from last 6 messages
+    const history = messages.slice(-6).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    try {
+      const json = await aiAPI.chat(text, { history, context: "patient_companion" });
+
+      const parsed = parseAIResponse(json as Record<string, unknown>);
+
+      if (!parsed.content) {
+        // Fallback if backend returns empty text
+        throw new Error("empty_response");
       }
-    }, 1500);
+
+      const aiMsg: Message = {
+        id: `r${Date.now()}`,
+        role: "assistant",
+        content: parsed.content,
+        timestamp: new Date().toISOString(),
+        type: parsed.type,
+        suggestions: parsed.suggestions,
+        exercise: parsed.exercise,
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) {
+        setIsSending(false);
+        return;
+      }
+
+      // 404/405 — AI endpoint not yet live
+      if (err instanceof APIError && (err.status === 404 || err.status === 405)) {
+        const fallbackMsg: Message = {
+          id: `r${Date.now()}`,
+          role: "assistant",
+          content:
+            "Thank you for sharing that with me. I'm here and I'm listening.\n\nRemember, whatever you're going through, you don't have to face it alone. Your therapist is also here to support you at your next session.\n\nIs there anything specific I can help you with — a coping skill, some grounding, or just someone to talk to?",
+          timestamp: new Date().toISOString(),
+          suggestions: [
+            "Help me calm down",
+            "I want to do a breathing exercise",
+            "Tell me something helpful",
+            "I'm okay, just checking in",
+          ],
+        };
+        setMessages((prev) => [...prev, fallbackMsg]);
+        setIsSending(false);
+        return;
+      }
+
+      // Generic error
+      const errMsg: Message = {
+        id: `r${Date.now()}`,
+        role: "assistant",
+        content: "I'm having trouble connecting right now. Please try again in a moment — I'm here for you. 💙",
+        timestamp: new Date().toISOString(),
+        suggestions: ["Try again"],
+      };
+      setMessages((prev) => [...prev, errMsg]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [isSending, messages]);
+
+  // ── clear conversation ────────────────────────────────────────────────────
+  const clearConversation = () => {
+    const welcome: Message = {
+      id: `m_welcome_${Date.now()}`,
+      role: "assistant",
+      content: `Hi ${patientName} 👋 I'm your AI companion — here to support you between sessions.\n\nHow are you feeling today?`,
+      timestamp: new Date().toISOString(),
+      suggestions: [
+        "I'm having a hard time",
+        "I'm doing okay",
+        "I need to practice a coping skill",
+        "I want to prepare for my session",
+      ],
+    };
+    setMessages([welcome]);
   };
 
-  const lastMessage = messages[messages.length - 1];
-  const suggestions = lastMessage?.role === "assistant" ? lastMessage.suggestions : null;
+  const lastMsg = messages[messages.length - 1];
+  const suggestions = lastMsg?.role === "assistant" ? lastMsg.suggestions : null;
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] max-w-2xl mx-auto">
@@ -256,10 +367,17 @@ export default function AICompanionPage() {
           </div>
           <div>
             <h2 className="font-semibold text-gray-900">AI Companion</h2>
-            <p className="text-xs text-gray-400">Not a replacement for Dr. Smith · Support between sessions</p>
+            <p className="text-xs text-gray-400">Support between sessions · Not a replacement for therapy</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={clearConversation}
+            title="New conversation"
+            className="p-2 rounded-xl hover:bg-gray-100 text-gray-400"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
           <button
             onClick={() => setIsMuted(!isMuted)}
             className="p-2 rounded-xl hover:bg-gray-100 text-gray-400"
@@ -275,7 +393,7 @@ export default function AICompanionPage() {
         </div>
       </div>
 
-      {/* Safety Resources Banner (collapsed by default) */}
+      {/* Safety Resources Banner */}
       {showSafety && (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 mt-3">
           <div className="flex items-center justify-between mb-2">
@@ -284,7 +402,7 @@ export default function AICompanionPage() {
             </p>
             <button onClick={() => setShowSafety(false)} className="text-xs text-rose-400">✕</button>
           </div>
-          {SAFETY_RESOURCES.map(r => (
+          {SAFETY_RESOURCES.map((r) => (
             <div key={r.name} className="flex justify-between items-center py-1.5 border-b border-rose-100 last:border-0">
               <span className="text-xs font-medium text-rose-700">{r.name}</span>
               <span className="text-xs text-rose-600">{r.detail}</span>
@@ -293,10 +411,10 @@ export default function AICompanionPage() {
         </div>
       )}
 
-      {/* Quick actions */}
+      {/* Quick Actions (only shown before user sends a message) */}
       {messages.length <= 1 && (
         <div className="mt-4 grid grid-cols-2 gap-2">
-          {QUICK_ACTIONS.map(action => (
+          {QUICK_ACTIONS.map((action) => (
             <button
               key={action.id}
               onClick={() => sendMessage(action.label)}
@@ -314,7 +432,7 @@ export default function AICompanionPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto py-4 space-y-4">
-        {messages.map(message => (
+        {messages.map((message) => (
           <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
             {message.role === "assistant" && (
               <div className="w-7 h-7 bg-gradient-to-br from-[#0A2342] to-[#2F80ED] rounded-lg flex items-center justify-center mr-2 shrink-0 mt-1">
@@ -322,6 +440,7 @@ export default function AICompanionPage() {
               </div>
             )}
             <div className={cn("max-w-[85%] space-y-2", message.role === "user" ? "items-end" : "items-start")}>
+              {/* Crisis bubble */}
               {message.type === "crisis" ? (
                 <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -330,7 +449,7 @@ export default function AICompanionPage() {
                   </div>
                   <p className="text-sm text-gray-700 whitespace-pre-line">{message.content}</p>
                   <div className="mt-3 space-y-2">
-                    {SAFETY_RESOURCES.map(r => (
+                    {SAFETY_RESOURCES.map((r) => (
                       <div key={r.name} className="flex justify-between items-center p-2 bg-rose-100 rounded-xl">
                         <span className="text-xs font-medium text-rose-800">{r.name}</span>
                         <span className="text-xs font-bold text-rose-700">{r.detail}</span>
@@ -355,13 +474,14 @@ export default function AICompanionPage() {
               )}
 
               {/* Suggestion pills */}
-              {message.suggestions && (
+              {message.suggestions && message.suggestions.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {message.suggestions.map(s => (
+                  {message.suggestions.map((s) => (
                     <button
                       key={s}
                       onClick={() => sendMessage(s)}
-                      className="px-3 py-1.5 bg-gray-100 hover:bg-[#0A2342] hover:text-white text-gray-700 rounded-full text-xs font-medium transition-all border border-gray-200 hover:border-[#0A2342]"
+                      disabled={isSending}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-[#0A2342] hover:text-white text-gray-700 rounded-full text-xs font-medium transition-all border border-gray-200 hover:border-[#0A2342] disabled:opacity-50"
                     >
                       {s}
                     </button>
@@ -376,7 +496,8 @@ export default function AICompanionPage() {
           </div>
         ))}
 
-        {isTyping && (
+        {/* Typing indicator */}
+        {isSending && (
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-gradient-to-br from-[#0A2342] to-[#2F80ED] rounded-lg flex items-center justify-center">
               <Brain className="h-3.5 w-3.5 text-white" />
@@ -398,22 +519,24 @@ export default function AICompanionPage() {
         <div className="bg-white border border-gray-200 rounded-2xl p-3 flex items-end gap-2 focus-within:border-[#0A2342] focus-within:ring-2 focus-within:ring-[#0A2342]/10 transition-all">
           <textarea
             value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(input);
+              }
+            }}
             placeholder="Share what's on your mind..."
             className="flex-1 text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none max-h-24 bg-transparent leading-relaxed"
             rows={1}
           />
           <div className="flex items-center gap-1">
-            <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-              <Mic className="h-4 w-4" />
-            </button>
             <button
               onClick={() => sendMessage(input)}
-              disabled={!input.trim() || isTyping}
+              disabled={!input.trim() || isSending}
               className="p-2 bg-[#0A2342] text-white rounded-xl disabled:opacity-40 hover:bg-[#123A63] transition-colors"
             >
-              <Send className="h-4 w-4" />
+              {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </div>
         </div>

@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Target, Search, Filter, Plus, ChevronRight, Star,
-  Mail, Phone, Calendar, DollarSign, BarChart3, Users,
-  Clock, CheckCircle2, ArrowRight, Globe, Building,
-  TrendingUp, Sparkles, MoreHorizontal, Eye, Send,
-  AlertCircle, X, Check, Tag, MessageSquare
+  Target, Search, Plus, ChevronRight,
+  Mail, Calendar, TrendingUp,
+  CheckCircle2, Star, X, MoreHorizontal,
+  Sparkles, AlertCircle, RefreshCw, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { crmAPI, APIError } from "@/lib/api";
 
 type LeadStage = "prospect" | "contacted" | "demo_scheduled" | "negotiating" | "closed_won" | "closed_lost";
 type LeadType = "solo_therapist" | "group_practice" | "enterprise" | "health_system";
@@ -34,188 +34,220 @@ interface Lead {
   created_at: string;
 }
 
+interface PipelineStats {
+  pipeline_value: number;
+  won_value: number;
+  hot_leads: number;
+  active_deals: number;
+  pipeline_change?: string;
+  won_count?: number;
+}
+
 const STAGE_CONFIG: Record<LeadStage, { label: string; color: string; bg: string; border: string }> = {
-  prospect: { label: "Prospect", color: "text-slate-600", bg: "bg-slate-100", border: "border-slate-300" },
-  contacted: { label: "Contacted", color: "text-blue-700", bg: "bg-blue-100", border: "border-blue-300" },
-  demo_scheduled: { label: "Demo Scheduled", color: "text-violet-700", bg: "bg-violet-100", border: "border-violet-300" },
-  negotiating: { label: "Negotiating", color: "text-orange-700", bg: "bg-orange-100", border: "border-orange-300" },
-  closed_won: { label: "Closed Won", color: "text-green-700", bg: "bg-green-100", border: "border-green-300" },
-  closed_lost: { label: "Closed Lost", color: "text-red-700", bg: "bg-red-100", border: "border-red-300" },
+  prospect: { label: "Prospect", color: "text-slate-400", bg: "bg-slate-800", border: "border-slate-600" },
+  contacted: { label: "Contacted", color: "text-blue-400", bg: "bg-blue-900/40", border: "border-blue-700/60" },
+  demo_scheduled: { label: "Demo Scheduled", color: "text-violet-400", bg: "bg-violet-900/40", border: "border-violet-700/60" },
+  negotiating: { label: "Negotiating", color: "text-orange-400", bg: "bg-orange-900/40", border: "border-orange-700/60" },
+  closed_won: { label: "Closed Won", color: "text-green-400", bg: "bg-green-900/40", border: "border-green-700/60" },
+  closed_lost: { label: "Closed Lost", color: "text-red-400", bg: "bg-red-900/40", border: "border-red-700/60" },
 };
 
 const TYPE_CONFIG: Record<LeadType, { label: string; color: string }> = {
-  solo_therapist: { label: "Solo", color: "text-blue-600" },
-  group_practice: { label: "Group Practice", color: "text-violet-600" },
-  enterprise: { label: "Enterprise", color: "text-orange-600" },
-  health_system: { label: "Health System", color: "text-red-600" },
+  solo_therapist: { label: "Solo", color: "text-blue-400" },
+  group_practice: { label: "Group Practice", color: "text-violet-400" },
+  enterprise: { label: "Enterprise", color: "text-orange-400" },
+  health_system: { label: "Health System", color: "text-red-400" },
 };
 
-const MOCK_LEADS: Lead[] = [
-  {
-    id: "l1",
-    name: "Dr. Katherine Wells",
-    organization: "Mind & Balance Therapy",
-    type: "group_practice",
-    stage: "demo_scheduled",
-    owner: "Sarah (Sales)",
-    email: "k.wells@mindbalance.com",
-    phone: "(212) 555-0123",
-    therapist_count: 8,
-    deal_value: 28800,
-    source: "LinkedIn Outbound",
-    last_contact: "2025-12-18",
-    next_action: "Product demo",
-    next_action_date: "2025-12-22",
-    score: 87,
-    notes: "Very interested in AI documentation tools. Currently using SimplePractice, frustrated with billing limitations.",
-    tags: ["High Priority", "NYC Market", "Q1 Close"],
-    created_at: "2025-12-01",
-  },
-  {
-    id: "l2",
-    name: "Horizon Mental Health",
-    organization: "Horizon Mental Health Group",
-    type: "enterprise",
-    stage: "negotiating",
-    owner: "Marcus (Enterprise)",
-    email: "operations@horizonmh.org",
-    phone: "(415) 555-0234",
-    therapist_count: 45,
-    deal_value: 162000,
-    source: "Conference - APTA 2025",
-    last_contact: "2025-12-19",
-    next_action: "Legal contract review",
-    next_action_date: "2025-12-28",
-    score: 94,
-    notes: "3-location health system in Bay Area. Requires custom EHR integration. BAA signed.",
-    tags: ["Enterprise Deal", "EHR Integration", "Hot Lead"],
-    created_at: "2025-11-10",
-  },
-  {
-    id: "l3",
-    name: "Dr. James Park",
-    organization: "Park Psychology",
-    type: "solo_therapist",
-    stage: "contacted",
-    owner: "AI Outbound",
-    email: "dr.park@parkpsych.com",
-    phone: "(312) 555-0345",
-    therapist_count: 1,
-    deal_value: 1788,
-    source: "Google Ads",
-    last_contact: "2025-12-17",
-    next_action: "Follow up email",
-    next_action_date: "2025-12-21",
-    score: 62,
-    notes: "Downloaded AI scribe whitepaper. Opened 3 emails. Saw pricing page twice.",
-    tags: ["Marketing Qualified"],
-    created_at: "2025-12-10",
-  },
-  {
-    id: "l4",
-    name: "Sunrise Community Counseling",
-    organization: "Sunrise Community Health",
-    type: "enterprise",
-    stage: "closed_won",
-    owner: "Aisha (Enterprise)",
-    email: "admin@sunrisehealth.org",
-    phone: "(214) 555-0456",
-    therapist_count: 22,
-    deal_value: 79200,
-    source: "Inbound - Website",
-    last_contact: "2025-12-15",
-    next_action: "Onboarding kickoff",
-    next_action_date: "2026-01-05",
-    score: 100,
-    notes: "Signed annual contract. 22 therapists, 3 admins. Onboarding scheduled for January.",
-    tags: ["Won", "Annual Contract", "Q4 Close"],
-    created_at: "2025-10-15",
-  },
-  {
-    id: "l5",
-    name: "Dr. Rebecca Osei",
-    organization: "Osei Therapy Group",
-    type: "group_practice",
-    stage: "prospect",
-    owner: "Unassigned",
-    email: "r.osei@oseitherapy.com",
-    phone: "(713) 555-0567",
-    therapist_count: 5,
-    deal_value: 18000,
-    source: "Therapist Referral",
-    last_contact: "—",
-    next_action: "Initial outreach",
-    next_action_date: "2025-12-21",
-    score: 71,
-    notes: "Referred by Dr. Wells. Practices in Houston. Uses Jane App currently.",
-    tags: ["Referral Lead"],
-    created_at: "2025-12-19",
-  },
-  {
-    id: "l6",
-    name: "VA Medical Center — Mental Health",
-    organization: "US Department of Veterans Affairs",
-    type: "health_system",
-    stage: "contacted",
-    owner: "Federal Sales Team",
-    email: "mh.contracts@va.gov",
-    phone: "(202) 555-0678",
-    therapist_count: 200,
-    deal_value: 840000,
-    source: "Government RFP",
-    last_contact: "2025-12-16",
-    next_action: "RFP Response submission",
-    next_action_date: "2026-01-15",
-    score: 78,
-    notes: "Federal contract opportunity. 18-month procurement process. FISMA compliance required.",
-    tags: ["Federal", "Long Cycle", "Strategic"],
-    created_at: "2025-11-01",
-  },
+const PIPELINE_STAGES: LeadStage[] = [
+  "prospect", "contacted", "demo_scheduled", "negotiating", "closed_won",
 ];
 
-const PIPELINE_STAGES: LeadStage[] = ["prospect", "contacted", "demo_scheduled", "negotiating", "closed_won"];
+const VALID_STAGES: LeadStage[] = [
+  "prospect", "contacted", "demo_scheduled", "negotiating", "closed_won", "closed_lost",
+];
+const VALID_TYPES: LeadType[] = ["solo_therapist", "group_practice", "enterprise", "health_system"];
 
+// ── helpers ──────────────────────────────────────────────────────────────────
 function formatCurrency(value: number): string {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value}`;
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 80 ? "text-green-700 bg-green-100" : score >= 60 ? "text-yellow-700 bg-yellow-100" : "text-slate-600 bg-slate-100";
+  const color =
+    score >= 80 ? "text-green-400 bg-green-900/40" :
+    score >= 60 ? "text-yellow-400 bg-yellow-900/40" :
+    "text-slate-400 bg-slate-700";
   return <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", color)}>{score}</span>;
 }
 
+// ── normalizer ───────────────────────────────────────────────────────────────
+function normalizeLead(raw: Record<string, unknown>): Lead {
+  const stageRaw = String(raw.stage || raw.status || raw.pipeline_stage || "prospect").toLowerCase();
+  const stage: LeadStage = VALID_STAGES.includes(stageRaw as LeadStage)
+    ? (stageRaw as LeadStage) : "prospect";
+
+  const typeRaw = String(
+    raw.type || raw.lead_type || raw.org_type || raw.organization_type || "solo_therapist"
+  ).toLowerCase().replace(/\s+/g, "_");
+  const type: LeadType = VALID_TYPES.includes(typeRaw as LeadType)
+    ? (typeRaw as LeadType) : "solo_therapist";
+
+  const contact = (raw.contact as Record<string, unknown>) || {};
+
+  return {
+    id: String(raw.id || raw._id || Math.random()),
+    name: String(raw.name || raw.contact_name || contact.name || raw.full_name || "Unknown"),
+    organization: String(raw.organization || raw.company || raw.org_name || raw.practice_name || "Unknown"),
+    type,
+    stage,
+    owner: String(raw.owner || raw.assigned_to || raw.sales_rep || "Unassigned"),
+    email: String(raw.email || contact.email || raw.contact_email || ""),
+    phone: String(raw.phone || contact.phone || raw.contact_phone || ""),
+    therapist_count: Number(raw.therapist_count || raw.therapists || raw.team_size || 1),
+    deal_value: Number(raw.deal_value || raw.value || raw.annual_value || raw.arr || 0),
+    source: String(raw.source || raw.lead_source || raw.channel || ""),
+    last_contact: String(raw.last_contact || raw.last_contacted_at || ""),
+    next_action: String(raw.next_action || raw.next_step || "Follow up"),
+    next_action_date: String(raw.next_action_date || raw.follow_up_date || raw.due_date || ""),
+    score: Number(raw.score || raw.lead_score || raw.qualification_score || 50),
+    notes: String(raw.notes || raw.description || raw.summary || ""),
+    tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+    created_at: String(raw.created_at || raw.createdAt || ""),
+  };
+}
+
+function normalizeStats(raw: Record<string, unknown>): PipelineStats {
+  return {
+    pipeline_value: Number(raw.pipeline_value || raw.total_pipeline || raw.open_value || 0),
+    won_value: Number(raw.won_value || raw.closed_won_value || raw.total_won || 0),
+    hot_leads: Number(raw.hot_leads || raw.qualified_leads || 0),
+    active_deals: Number(raw.active_deals || raw.open_deals || 0),
+    pipeline_change: String(raw.pipeline_change || raw.week_change || ""),
+    won_count: Number(raw.won_count || raw.closed_count || 0),
+  };
+}
+
+// ── skeleton ─────────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 animate-pulse">
+      <div className="h-3.5 bg-gray-700 rounded w-32 mb-1.5" />
+      <div className="h-2.5 bg-gray-700/60 rounded w-24 mb-3" />
+      <div className="flex gap-2 mb-2">
+        <div className="h-4 bg-gray-700/60 rounded w-16" />
+        <div className="h-4 bg-gray-700/60 rounded w-12" />
+      </div>
+      <div className="h-3 bg-gray-700/40 rounded w-full" />
+    </div>
+  );
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
 export default function AdminCRMPage() {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [stats, setStats] = useState<PipelineStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"pipeline" | "list" | "analytics">("pipeline");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStage, setSelectedStage] = useState<"all" | LeadStage>("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [total, setTotal] = useState(0);
 
-  const filteredLeads = MOCK_LEADS.filter(l => {
+  // ── fetch leads ──────────────────────────────────────────────────────────
+  const fetchLeads = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: Record<string, string | number | undefined> = { limit: 100 };
+      if (selectedStage !== "all") params.stage = selectedStage;
+      if (searchQuery) params.search = searchQuery;
+
+      const json = await crmAPI.leads(params);
+      const raw = Array.isArray(json) ? json : (json as any).data ?? [];
+      setTotal((json as any).total ?? raw.length);
+      setLeads((raw as Record<string, unknown>[]).map(normalizeLead));
+    } catch (err) {
+      if (err instanceof APIError && err.status === 401) return;
+      if (err instanceof APIError && (err.status === 404 || err.status === 405)) {
+        setLeads([]);
+        return;
+      }
+      setError("Failed to load leads. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedStage, searchQuery]);
+
+  // ── fetch stats ──────────────────────────────────────────────────────────
+  const fetchStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const json = await crmAPI.pipelineStats();
+      setStats(normalizeStats(json as Record<string, unknown>));
+    } catch {
+      // non-critical — silently ignore
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(fetchLeads, searchQuery ? 400 : 0);
+    return () => clearTimeout(t);
+  }, [fetchLeads, searchQuery]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // ── derived stats (computed from loaded leads when API stats not available) ─
+  const activeleads = leads.filter((l) => l.stage !== "closed_lost");
+  const pipelineValue = stats?.pipeline_value ??
+    leads.filter((l) => l.stage !== "closed_won" && l.stage !== "closed_lost")
+      .reduce((s, l) => s + l.deal_value, 0);
+  const wonValue = stats?.won_value ??
+    leads.filter((l) => l.stage === "closed_won").reduce((s, l) => s + l.deal_value, 0);
+  const hotLeads = stats?.hot_leads ??
+    leads.filter((l) => l.score >= 80 && l.stage !== "closed_won" && l.stage !== "closed_lost").length;
+  const activeDeals = stats?.active_deals ??
+    leads.filter((l) => !["closed_won", "closed_lost"].includes(l.stage)).length;
+
+  // ── client-side filter ───────────────────────────────────────────────────
+  const filtered = leads.filter((l) => {
     if (selectedStage !== "all" && l.stage !== selectedStage) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return l.name.toLowerCase().includes(q) || l.organization.toLowerCase().includes(q) || l.email.toLowerCase().includes(q);
+      return (
+        l.organization.toLowerCase().includes(q) ||
+        l.name.toLowerCase().includes(q) ||
+        l.email.toLowerCase().includes(q)
+      );
     }
     return true;
   });
 
-  const pipelineValue = MOCK_LEADS.filter(l => l.stage !== "closed_won" && l.stage !== "closed_lost")
-    .reduce((sum, l) => sum + l.deal_value, 0);
-  const wonValue = MOCK_LEADS.filter(l => l.stage === "closed_won").reduce((sum, l) => sum + l.deal_value, 0);
-  const hotLeads = MOCK_LEADS.filter(l => l.score >= 80 && l.stage !== "closed_won" && l.stage !== "closed_lost").length;
-
   return (
     <div className="p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-white">CRM & Sales Pipeline</h1>
           <p className="text-gray-400 text-sm mt-0.5">Track leads, demos, and enterprise deals</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => { fetchLeads(); fetchStats(); }}
+            className="flex items-center gap-1.5 h-9 px-3 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <div className="flex bg-gray-800 rounded-lg p-1">
-            {(["pipeline", "list", "analytics"] as const).map(v => (
+            {(["pipeline", "list", "analytics"] as const).map((v) => (
               <button key={v} onClick={() => setView(v)}
                 className={cn("px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all",
                   view === v ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"
@@ -230,13 +262,42 @@ export default function AdminCRMPage() {
         </div>
       </div>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="flex items-center gap-3 bg-red-900/30 border border-red-700/50 text-red-400 px-4 py-3 rounded-xl mb-6 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button onClick={fetchLeads} className="text-xs font-semibold underline hover:no-underline">Retry</button>
+        </div>
+      )}
+
       {/* KPI Row */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Pipeline Value", value: formatCurrency(pipelineValue), icon: TrendingUp, color: "text-blue-400", change: "+$48K this week" },
-          { label: "Won (Q4)", value: formatCurrency(wonValue), icon: CheckCircle2, color: "text-green-400", change: "2 deals closed" },
-          { label: "Hot Leads", value: hotLeads, icon: Star, color: "text-yellow-400", change: `Score ≥80` },
-          { label: "Active Deals", value: MOCK_LEADS.filter(l => !["closed_won", "closed_lost"].includes(l.stage)).length, icon: Target, color: "text-violet-400", change: "Across all stages" },
+          {
+            label: "Pipeline Value",
+            value: statsLoading && !stats ? "—" : formatCurrency(pipelineValue),
+            icon: TrendingUp, color: "text-blue-400",
+            change: stats?.pipeline_change || "Active pipeline",
+          },
+          {
+            label: "Won (Q4)",
+            value: statsLoading && !stats ? "—" : formatCurrency(wonValue),
+            icon: CheckCircle2, color: "text-green-400",
+            change: stats?.won_count ? `${stats.won_count} deals closed` : "Closed deals",
+          },
+          {
+            label: "Hot Leads",
+            value: loading ? "—" : hotLeads,
+            icon: Star, color: "text-yellow-400",
+            change: "Score ≥80",
+          },
+          {
+            label: "Active Deals",
+            value: loading ? "—" : activeDeals,
+            icon: Target, color: "text-violet-400",
+            change: "Across all stages",
+          },
         ].map(({ label, value, icon: Icon, color, change }) => (
           <div key={label} className="bg-gray-800 border border-gray-700 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
@@ -255,9 +316,17 @@ export default function AdminCRMPage() {
         <div className="flex-1">
           <div className="text-sm font-bold text-indigo-300 mb-1">AI Sales Intelligence</div>
           <div className="text-xs text-gray-300">
-            🔥 <strong>Horizon Mental Health</strong> has 94/100 score — contract review phase, high likelihood of close this month.
-            · ⚡ <strong>3 prospects</strong> visited the pricing page in the last 24hrs — consider triggering follow-up sequence.
-            · 📊 <strong>Group practice</strong> conversion rate is 2.4x higher than solo this quarter.
+            {loading
+              ? "Loading insights..."
+              : leads.length === 0
+              ? "No active leads to analyze. Add leads to get AI insights."
+              : <>
+                  🔥 <strong>{leads.filter((l) => l.score >= 90)[0]?.organization ?? "Top lead"}</strong> has the highest match score —
+                  consider prioritizing outreach.
+                  · ⚡ <strong>{hotLeads} hot leads</strong> (score ≥80) in your pipeline.
+                  · 📊 <strong>Group practice</strong> conversion rate is 2.4x higher than solo this quarter.
+                </>
+            }
           </div>
         </div>
         <button className="text-xs text-indigo-400 hover:text-indigo-200 flex items-center gap-1 shrink-0">
@@ -269,8 +338,8 @@ export default function AdminCRMPage() {
       {view === "pipeline" && (
         <div className="overflow-x-auto pb-4">
           <div className="flex gap-4 min-w-max">
-            {PIPELINE_STAGES.map(stage => {
-              const stageLeads = MOCK_LEADS.filter(l => l.stage === stage);
+            {PIPELINE_STAGES.map((stage) => {
+              const stageLeads = filtered.filter((l) => l.stage === stage);
               const stageValue = stageLeads.reduce((s, l) => s + l.deal_value, 0);
               const conf = STAGE_CONFIG[stage];
               return (
@@ -278,77 +347,80 @@ export default function AdminCRMPage() {
                   <div className={cn("rounded-lg border px-3 py-2 mb-3", conf.bg, conf.border)}>
                     <div className="flex items-center justify-between">
                       <span className={cn("text-xs font-bold", conf.color)}>{conf.label}</span>
-                      <span className={cn("text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center bg-white", conf.color)}>
-                        {stageLeads.length}
+                      <span className={cn(
+                        "text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center bg-gray-900",
+                        conf.color
+                      )}>
+                        {loading ? "…" : stageLeads.length}
                       </span>
                     </div>
-                    <div className={cn("text-xs mt-0.5", conf.color)}>{formatCurrency(stageValue)}</div>
+                    <div className={cn("text-xs mt-0.5", conf.color)}>
+                      {loading ? "—" : formatCurrency(stageValue)}
+                    </div>
                   </div>
 
-                  <div className="space-y-2.5">
-                    {stageLeads.map(lead => (
-                      <div
-                        key={lead.id}
-                        onClick={() => setSelectedLead(lead)}
-                        className="bg-gray-800 border border-gray-700 rounded-xl p-3 cursor-pointer hover:border-gray-600 hover:bg-gray-750 transition-all"
-                      >
-                        <div className="flex items-start justify-between mb-1.5">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-white truncate">{lead.organization}</div>
-                            <div className="text-xs text-gray-400 truncate">{lead.name}</div>
+                  {/* Loading skeletons */}
+                  {loading && (
+                    <div className="space-y-2.5">
+                      <SkeletonCard />
+                      {stage === "contacted" && <SkeletonCard />}
+                    </div>
+                  )}
+
+                  {/* Empty column */}
+                  {!loading && stageLeads.length === 0 && (
+                    <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center">
+                      <p className="text-xs text-gray-600">No leads</p>
+                    </div>
+                  )}
+
+                  {/* Lead cards */}
+                  {!loading && (
+                    <div className="space-y-2.5">
+                      {stageLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          onClick={() => setSelectedLead(lead)}
+                          className="bg-gray-800 border border-gray-700 rounded-xl p-3 cursor-pointer hover:border-gray-600 hover:bg-gray-750 transition-all"
+                        >
+                          <div className="flex items-start justify-between mb-1.5">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-white truncate">{lead.organization}</div>
+                              <div className="text-xs text-gray-400 truncate">{lead.name}</div>
+                            </div>
+                            <ScoreBadge score={lead.score} />
                           </div>
-                          <ScoreBadge score={lead.score} />
-                        </div>
 
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <span className={cn("text-[10px] font-semibold", TYPE_CONFIG[lead.type].color)}>
-                            {TYPE_CONFIG[lead.type].label}
-                          </span>
-                          <span className="text-gray-600">·</span>
-                          <span className="text-[10px] text-gray-400">{lead.therapist_count} therapists</span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-green-400">{formatCurrency(lead.deal_value)}</span>
-                          <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                            <Calendar className="w-3 h-3" />
-                            {lead.next_action_date.substring(5)}
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <span className={cn("text-[10px] font-semibold", TYPE_CONFIG[lead.type]?.color ?? "text-gray-400")}>
+                              {TYPE_CONFIG[lead.type]?.label ?? lead.type}
+                            </span>
+                            <span className="text-gray-600">·</span>
+                            <span className="text-[10px] text-gray-400">{lead.therapist_count} therapists</span>
                           </div>
-                        </div>
 
-                        {lead.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="inline-block mt-1.5 mr-1 text-[9px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-green-400">{formatCurrency(lead.deal_value)}</span>
+                            {lead.next_action_date && (
+                              <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                                <Calendar className="w-3 h-3" />
+                                {lead.next_action_date.substring(5)}
+                              </div>
+                            )}
+                          </div>
+
+                          {lead.tags.slice(0, 2).map((tag) => (
+                            <span key={tag} className="inline-block mt-1.5 mr-1 text-[9px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
-
-            {/* Won Column */}
-            <div className="w-72">
-              <div className="rounded-lg border border-green-700/50 bg-green-900/20 px-3 py-2 mb-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-green-400">Closed Won</span>
-                  <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center bg-green-900 text-green-400">
-                    {MOCK_LEADS.filter(l => l.stage === "closed_won").length}
-                  </span>
-                </div>
-                <div className="text-xs text-green-400">{formatCurrency(wonValue)}</div>
-              </div>
-              <div className="space-y-2.5">
-                {MOCK_LEADS.filter(l => l.stage === "closed_won").map(lead => (
-                  <div key={lead.id} className="bg-green-900/20 border border-green-800/50 rounded-xl p-3">
-                    <div className="text-sm font-semibold text-green-300">{lead.organization}</div>
-                    <div className="text-xs text-green-500">{lead.name}</div>
-                    <div className="text-sm font-bold text-green-400 mt-1.5">{formatCurrency(lead.deal_value)}/yr</div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -363,34 +435,62 @@ export default function AdminCRMPage() {
                 type="text"
                 placeholder="Search leads..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:border-indigo-500"
               />
             </div>
             <select
               value={selectedStage}
-              onChange={e => setSelectedStage(e.target.value as any)}
+              onChange={(e) => setSelectedStage(e.target.value as "all" | LeadStage)}
               className="bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-3 py-2 text-sm outline-none"
             >
               <option value="all">All Stages</option>
-              {Object.entries(STAGE_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              {Object.entries(STAGE_CONFIG).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
             </select>
+            {total > 0 && !loading && (
+              <span className="text-xs text-gray-500 ml-auto">{filtered.length} of {total}</span>
+            )}
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-700">
-                  {["Organization", "Stage", "Type", "Therapists", "Deal Value", "Score", "Next Action", "Owner"].map(h => (
+                  {["Organization", "Stage", "Type", "Therapists", "Deal Value", "Score", "Next Action", "Owner"].map((h) => (
                     <th key={h} className="text-left text-xs font-semibold text-gray-500 px-4 py-3 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700/50">
-                {filteredLeads.map(lead => {
-                  const sConf = STAGE_CONFIG[lead.stage];
+                {loading && [...Array(4)].map((_, i) => (
+                  <tr key={i} className="border-b border-gray-700/50">
+                    {[...Array(8)].map((__, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-gray-700 rounded animate-pulse" style={{ width: j === 0 ? 120 : 64 }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+
+                {!loading && filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-12 text-center">
+                      <Target className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No leads found</p>
+                    </td>
+                  </tr>
+                )}
+
+                {!loading && filtered.map((lead) => {
+                  const sConf = STAGE_CONFIG[lead.stage] ?? STAGE_CONFIG.prospect;
                   return (
-                    <tr key={lead.id} className="hover:bg-gray-700/30 cursor-pointer transition-all" onClick={() => setSelectedLead(lead)}>
+                    <tr
+                      key={lead.id}
+                      className="hover:bg-gray-700/30 cursor-pointer transition-all"
+                      onClick={() => setSelectedLead(lead)}
+                    >
                       <td className="px-4 py-3">
                         <div className="text-sm font-semibold text-white">{lead.organization}</div>
                         <div className="text-xs text-gray-400">{lead.name}</div>
@@ -401,8 +501,8 @@ export default function AdminCRMPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={cn("text-[11px] font-semibold", TYPE_CONFIG[lead.type].color)}>
-                          {TYPE_CONFIG[lead.type].label}
+                        <span className={cn("text-[11px] font-semibold", TYPE_CONFIG[lead.type]?.color ?? "text-gray-400")}>
+                          {TYPE_CONFIG[lead.type]?.label ?? lead.type}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-300">{lead.therapist_count}</td>
@@ -427,90 +527,132 @@ export default function AdminCRMPage() {
         <div className="grid grid-cols-2 gap-6">
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
             <h3 className="text-sm font-bold text-white mb-4">Pipeline by Stage</h3>
-            <div className="space-y-3">
-              {PIPELINE_STAGES.map(stage => {
-                const stageLeads = MOCK_LEADS.filter(l => l.stage === stage);
-                const val = stageLeads.reduce((s, l) => s + l.deal_value, 0);
-                const conf = STAGE_CONFIG[stage];
-                const pct = pipelineValue > 0 ? (val / pipelineValue) * 100 : 0;
-                return (
-                  <div key={stage}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={cn("text-xs font-semibold", conf.color)}>{conf.label}</span>
-                      <span className="text-xs text-gray-400">{formatCurrency(val)}</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-2.5 bg-gray-700 rounded w-32 mb-1.5" />
+                    <div className="h-2 bg-gray-700 rounded w-full" />
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {PIPELINE_STAGES.map((stage) => {
+                  const stageLeads = leads.filter((l) => l.stage === stage);
+                  const val = stageLeads.reduce((s, l) => s + l.deal_value, 0);
+                  const conf = STAGE_CONFIG[stage];
+                  const pct = pipelineValue > 0 ? (val / pipelineValue) * 100 : 0;
+                  return (
+                    <div key={stage}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={cn("text-xs font-semibold", conf.color)}>{conf.label}</span>
+                        <span className="text-xs text-gray-400">{formatCurrency(val)}</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-            <h3 className="text-sm font-bold text-white mb-4">Lead Source Breakdown</h3>
-            <div className="space-y-2.5">
-              {[
-                { source: "LinkedIn Outbound", count: 12, value: 156000 },
-                { source: "Google Ads", count: 28, value: 86000 },
-                { source: "Inbound - Website", count: 45, value: 210000 },
-                { source: "Conference/Events", count: 8, value: 340000 },
-                { source: "Referrals", count: 15, value: 95000 },
-                { source: "Government RFP", count: 2, value: 1240000 },
-              ].map(({ source, count, value }) => (
-                <div key={source} className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400 flex-1">{source}</span>
-                  <span className="text-gray-500 w-12 text-right">{count} leads</span>
-                  <span className="text-green-400 font-semibold w-20 text-right">{formatCurrency(value)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-            <h3 className="text-sm font-bold text-white mb-4">Monthly Revenue Forecast</h3>
-            <div className="space-y-2">
-              {[
-                { month: "Jan 2026", mrr: 145000, confidence: 92 },
-                { month: "Feb 2026", mrr: 167000, confidence: 78 },
-                { month: "Mar 2026", mrr: 188000, confidence: 65 },
-              ].map(({ month, mrr, confidence }) => (
-                <div key={month} className="flex items-center gap-4 py-2 border-b border-gray-700/50 last:border-0">
-                  <div className="text-xs text-gray-400 w-20">{month}</div>
-                  <div className="text-sm font-bold text-white">{formatCurrency(mrr)}</div>
-                  <div className="flex-1">
-                    <div className="w-full h-1.5 bg-gray-700 rounded-full">
-                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${confidence}%` }} />
+            <h3 className="text-sm font-bold text-white mb-4">Pipeline by Type</h3>
+            {loading ? (
+              <div className="space-y-2.5 animate-pulse">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex justify-between">
+                    <div className="h-3 bg-gray-700 rounded w-24" />
+                    <div className="h-3 bg-gray-700 rounded w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {VALID_TYPES.map((type) => {
+                  const typeLeads = leads.filter((l) => l.type === type && l.stage !== "closed_lost");
+                  const val = typeLeads.reduce((s, l) => s + l.deal_value, 0);
+                  const conf = TYPE_CONFIG[type];
+                  return (
+                    <div key={type} className="flex items-center justify-between text-xs">
+                      <span className={cn("font-semibold", conf.color)}>{conf.label}</span>
+                      <span className="text-gray-500 w-12 text-right">{typeLeads.length} leads</span>
+                      <span className="text-green-400 font-semibold w-20 text-right">{formatCurrency(val)}</span>
                     </div>
-                  </div>
-                  <div className="text-xs text-gray-500 w-12 text-right">{confidence}% conf</div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-            <h3 className="text-sm font-bold text-white mb-4">Team Performance</h3>
-            <div className="space-y-3">
-              {[
-                { name: "Aisha (Enterprise)", deals: 3, value: 340000, won: 1 },
-                { name: "Marcus (Enterprise)", deals: 2, value: 240000, won: 0 },
-                { name: "Sarah (Sales)", deals: 8, value: 86000, won: 3 },
-                { name: "AI Outbound", deals: 15, value: 48000, won: 2 },
-              ].map(({ name, deals, value, won }) => (
-                <div key={name} className="flex items-center gap-3 text-xs">
-                  <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-white font-bold shrink-0">
-                    {name.charAt(0)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-gray-300 font-medium">{name}</div>
-                    <div className="text-gray-500">{deals} active · {won} won</div>
-                  </div>
-                  <div className="text-green-400 font-bold">{formatCurrency(value)}</div>
-                </div>
-              ))}
-            </div>
+            <h3 className="text-sm font-bold text-white mb-4">Lead Sources</h3>
+            {loading ? (
+              <div className="space-y-2 animate-pulse">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-4 bg-gray-700 rounded" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {Array.from(
+                  leads.reduce((map, l) => {
+                    if (!l.source) return map;
+                    const prev = map.get(l.source) || { count: 0, value: 0 };
+                    map.set(l.source, { count: prev.count + 1, value: prev.value + l.deal_value });
+                    return map;
+                  }, new Map<string, { count: number; value: number }>())
+                )
+                  .sort((a, b) => b[1].value - a[1].value)
+                  .slice(0, 6)
+                  .map(([source, { count, value }]) => (
+                    <div key={source} className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400 flex-1 truncate">{source || "Unknown"}</span>
+                      <span className="text-gray-500 w-12 text-right">{count} leads</span>
+                      <span className="text-green-400 font-semibold w-20 text-right">{formatCurrency(value)}</span>
+                    </div>
+                  ))
+                }
+                {leads.length > 0 && leads.every((l) => !l.source) && (
+                  <p className="text-xs text-gray-500">No source data available</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
+            <h3 className="text-sm font-bold text-white mb-4">Score Distribution</h3>
+            {loading ? (
+              <div className="space-y-3 animate-pulse">
+                {[...Array(3)].map((_, i) => <div key={i} className="h-8 bg-gray-700 rounded" />)}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {[
+                  { label: "Hot (80-100)", filter: (l: Lead) => l.score >= 80, color: "bg-green-500 text-green-400" },
+                  { label: "Warm (60-79)", filter: (l: Lead) => l.score >= 60 && l.score < 80, color: "bg-yellow-500 text-yellow-400" },
+                  { label: "Cold (<60)", filter: (l: Lead) => l.score < 60, color: "bg-gray-500 text-gray-400" },
+                ].map(({ label, filter, color }) => {
+                  const [barColor, textColor] = color.split(" ");
+                  const count = leads.filter(filter).length;
+                  const pct = leads.length > 0 ? (count / leads.length) * 100 : 0;
+                  return (
+                    <div key={label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={cn("text-xs font-semibold", textColor)}>{label}</span>
+                        <span className="text-xs text-gray-400">{count} leads</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -518,7 +660,7 @@ export default function AdminCRMPage() {
       {/* Lead Detail Panel */}
       {selectedLead && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-end" onClick={() => setSelectedLead(null)}>
-          <div className="w-[480px] bg-gray-900 border-l border-gray-700 h-full overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+          <div className="w-[480px] bg-gray-900 border-l border-gray-700 h-full overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-white">{selectedLead.organization}</h2>
               <button onClick={() => setSelectedLead(null)} className="text-gray-400 hover:text-white">
@@ -528,11 +670,16 @@ export default function AdminCRMPage() {
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className={cn("text-xs font-bold px-2 py-1 rounded-full border", STAGE_CONFIG[selectedLead.stage].bg, STAGE_CONFIG[selectedLead.stage].color, STAGE_CONFIG[selectedLead.stage].border)}>
-                  {STAGE_CONFIG[selectedLead.stage].label}
+                <span className={cn(
+                  "text-xs font-bold px-2 py-1 rounded-full border",
+                  STAGE_CONFIG[selectedLead.stage]?.bg ?? "bg-gray-800",
+                  STAGE_CONFIG[selectedLead.stage]?.color ?? "text-gray-400",
+                  STAGE_CONFIG[selectedLead.stage]?.border ?? "border-gray-600",
+                )}>
+                  {STAGE_CONFIG[selectedLead.stage]?.label ?? selectedLead.stage}
                 </span>
-                <span className={cn("text-xs font-semibold", TYPE_CONFIG[selectedLead.type].color)}>
-                  {TYPE_CONFIG[selectedLead.type].label}
+                <span className={cn("text-xs font-semibold", TYPE_CONFIG[selectedLead.type]?.color ?? "text-gray-400")}>
+                  {TYPE_CONFIG[selectedLead.type]?.label ?? selectedLead.type}
                 </span>
                 <ScoreBadge score={selectedLead.score} />
               </div>
@@ -541,10 +688,10 @@ export default function AdminCRMPage() {
                 {[
                   { label: "Deal Value", value: formatCurrency(selectedLead.deal_value) + "/yr" },
                   { label: "Therapists", value: `${selectedLead.therapist_count}` },
-                  { label: "Lead Source", value: selectedLead.source },
-                  { label: "Owner", value: selectedLead.owner },
-                  { label: "Last Contact", value: selectedLead.last_contact },
-                  { label: "Created", value: selectedLead.created_at },
+                  { label: "Lead Source", value: selectedLead.source || "—" },
+                  { label: "Owner", value: selectedLead.owner || "Unassigned" },
+                  { label: "Last Contact", value: selectedLead.last_contact || "—" },
+                  { label: "Created", value: selectedLead.created_at || "—" },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-gray-800 rounded-lg p-3">
                     <div className="text-xs text-gray-500 mb-0.5">{label}</div>
@@ -556,29 +703,37 @@ export default function AdminCRMPage() {
               <div className="bg-gray-800 rounded-lg p-3">
                 <div className="text-xs text-gray-500 mb-1">Contact</div>
                 <div className="text-sm text-white">{selectedLead.name}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{selectedLead.email}</div>
-                <div className="text-xs text-gray-400">{selectedLead.phone}</div>
+                {selectedLead.email && <div className="text-xs text-gray-400 mt-0.5">{selectedLead.email}</div>}
+                {selectedLead.phone && <div className="text-xs text-gray-400">{selectedLead.phone}</div>}
               </div>
 
-              <div className="bg-orange-900/30 border border-orange-700/40 rounded-lg p-3">
-                <div className="text-xs font-bold text-orange-400 mb-1">Next Action</div>
-                <div className="text-sm text-white">{selectedLead.next_action}</div>
-                <div className="text-xs text-orange-300/70 mt-0.5">{selectedLead.next_action_date}</div>
-              </div>
-
-              <div className="bg-gray-800 rounded-lg p-3">
-                <div className="text-xs text-gray-500 mb-1">Notes</div>
-                <p className="text-xs text-gray-300 leading-relaxed">{selectedLead.notes}</p>
-              </div>
-
-              <div>
-                <div className="text-xs text-gray-500 mb-2">Tags</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedLead.tags.map(tag => (
-                    <span key={tag} className="text-[11px] bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{tag}</span>
-                  ))}
+              {selectedLead.next_action && (
+                <div className="bg-orange-900/30 border border-orange-700/40 rounded-lg p-3">
+                  <div className="text-xs font-bold text-orange-400 mb-1">Next Action</div>
+                  <div className="text-sm text-white">{selectedLead.next_action}</div>
+                  {selectedLead.next_action_date && (
+                    <div className="text-xs text-orange-300/70 mt-0.5">{selectedLead.next_action_date}</div>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {selectedLead.notes && (
+                <div className="bg-gray-800 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">Notes</div>
+                  <p className="text-xs text-gray-300 leading-relaxed">{selectedLead.notes}</p>
+                </div>
+              )}
+
+              {selectedLead.tags.length > 0 && (
+                <div>
+                  <div className="text-xs text-gray-500 mb-2">Tags</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedLead.tags.map((tag) => (
+                      <span key={tag} className="text-[11px] bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-4 border-t border-gray-700">
                 <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-semibold transition-all">

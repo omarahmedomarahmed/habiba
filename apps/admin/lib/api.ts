@@ -241,5 +241,21 @@ export const adminAPI = {
     apiFetch<{ data: any[]; total: number }>('/admin/audit-logs', { params } as any),
 };
 
+// ============================================================
+// CRM / SALES PIPELINE API
+// ============================================================
+export const crmAPI = {
+  leads: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: any[]; total: number }>('/crm/leads', { params } as any),
+  getLead: (id: string) => apiFetch<any>(`/crm/leads/${id}`),
+  createLead: (data: any) =>
+    apiFetch<any>('/crm/leads', { method: 'POST', body: JSON.stringify(data) }),
+  updateLead: (id: string, data: any) =>
+    apiFetch<any>(`/crm/leads/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  pipelineStats: () => apiFetch<any>('/crm/pipeline/stats'),
+  analytics: (period?: string) =>
+    apiFetch<any>('/crm/analytics', { params: { period } } as any),
+};
+
 export { setTokens, clearTokens, getAccessToken, getRefreshToken };
 export default apiFetch;
