@@ -16,20 +16,31 @@ export { DATABASE_POOL };
         const databaseUrl = configService.get<string>('database.url');
         const ssl = configService.get<boolean>('database.ssl');
 
-        if (!databaseUrl) {
-          throw new Error('DATABASE_URL environment variable is required');
+        // ── Startup guard — surface ALL missing required env vars at once ──
+        // This prevents multiple crash-restart cycles on first deploy.
+        const missing: string[] = [];
+        if (!databaseUrl) missing.push('DATABASE_URL');
+
+        if (missing.length > 0) {
+          const varList = missing.map((v) => `  • ${v}`).join('\n');
+          throw new Error(
+            `\n\n❌ 24Therapy API — missing required environment variables:\n${varList}\n\n` +
+            `Set these in your Railway service → Variables tab.\n` +
+            `See backend/.env.example for all required and optional variables.\n`,
+          );
         }
 
         const pool = new Pool({
-          connectionString: databaseUrl,
+          connectionString: databaseUrl!,
+          // Railway Postgres / Neon require SSL; set DATABASE_SSL=true in env
           ssl: ssl ? { rejectUnauthorized: false } : false,
           max: configService.get<number>('database.maxConnections') || 10,
           idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 2000,
+          connectionTimeoutMillis: 5000,
         });
 
         pool.on('error', (err) => {
-          console.error('Unexpected error on idle client', err);
+          console.error('Unexpected error on idle PostgreSQL client', err);
         });
 
         pool.on('connect', () => {
