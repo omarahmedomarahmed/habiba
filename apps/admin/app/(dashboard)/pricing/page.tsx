@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { SubscriptionPlan, PlanFeatures, PlanAddOn } from '@/lib/pricing-api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app/api/v1';
 
 // ─── Mock token for dev (will be replaced with real auth) ─────────────────────
 const DEV_TOKEN = typeof window !== 'undefined'

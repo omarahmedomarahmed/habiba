@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app/api/v1";
 const FREE_LIMIT = 5;
 
 const SUGGESTED = [
