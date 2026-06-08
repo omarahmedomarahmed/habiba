@@ -1,20 +1,49 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { AIService } from './ai.service';
+import { Public } from '../auth/decorators/public.decorator';
 import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('ai')
-@ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('ai')
 export class AIController {
   constructor(private readonly aiService: AIService) {}
 
   private response(data: any) {
-    return { success: true, data, meta: { request_id: uuidv4(), timestamp: new Date().toISOString(), version: 'v1' } };
+    return {
+      success: true,
+      data,
+      meta: { request_id: uuidv4(), timestamp: new Date().toISOString(), version: 'v1' },
+    };
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // PUBLIC — Anonymous AI chat (marketing site free trial, no auth required)
+  // Rate-limited by IP at the API gateway / NestJS throttler level.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @Public()
+  @Post('chat/anonymous')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { ttl: 60000, limit: 10 }, long: { ttl: 3600000, limit: 30 } })
+  @ApiOperation({
+    summary: 'Anonymous AI chat for marketing free trial (no auth required)',
+    description: 'Public endpoint used by /chat and homepage widget. No PHI stored. Limited to basic support conversations.',
+  })
+  @ApiBody({ schema: { properties: { message: { type: 'string' }, anonymous: { type: 'boolean' } } } })
+  async anonymousChat(@Body() body: { message: string; anonymous?: boolean }) {
+    const reply = await this.aiService.anonymousChat(body.message);
+    return this.response({ message: reply });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // PROTECTED — All endpoints below require JWT
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Post('sessions/:sessionId/notes/generate')
   @ApiOperation({ summary: 'Generate AI clinical note (SOAP/DAP/BIRP)' })
   async generateNote(
@@ -28,6 +57,8 @@ export class AIController {
     return this.response(result);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Post('sessions/:sessionId/summary')
   @ApiOperation({ summary: 'Generate AI session summary' })
   async generateSummary(
@@ -39,6 +70,8 @@ export class AIController {
     return this.response(result);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Get('sessions/:sessionId/copilot')
   @ApiOperation({ summary: 'Get live copilot suggestions for active session' })
   async getCopilot(@Request() req: any, @Param('sessionId') sessionId: string) {
@@ -48,6 +81,8 @@ export class AIController {
     return this.response(result);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Post('sessions/:sessionId/risk-check')
   @ApiOperation({ summary: 'Run AI risk assessment on session transcript' })
   async detectRisk(@Request() req: any, @Param('sessionId') sessionId: string) {
@@ -55,6 +90,8 @@ export class AIController {
     return this.response(result);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Patch('notes/:noteId/approve')
   @ApiOperation({ summary: 'Approve AI note (with optional edits)' })
   async approveNote(
@@ -68,6 +105,8 @@ export class AIController {
     return this.response(result);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Post('patients/:patientId/memory/search')
   @ApiOperation({ summary: 'Semantic memory search for patient' })
   async searchMemory(

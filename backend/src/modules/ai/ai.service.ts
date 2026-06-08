@@ -377,4 +377,90 @@ Only extract clinically significant information. Max 10 memories.`,
       );
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PUBLIC — Anonymous AI chat (marketing site free trial)
+  // No auth, no PHI stored, no DB writes. Crisis detection always active.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Keywords that always trigger an immediate safety response */
+  private readonly CRISIS_KEYWORDS = [
+    'suicide', 'suicidal', 'kill myself', 'end my life', 'want to die',
+    'self-harm', 'self harm', 'cutting myself', 'hurt myself',
+    'overdose', 'not worth living', 'no reason to live',
+  ];
+
+  private readonly CRISIS_RESPONSE =
+    "I'm concerned about what you've shared. Please reach out to a crisis line right away — " +
+    "call or text **988** (Suicide & Crisis Lifeline, US) or go to your nearest emergency room. " +
+    "You deserve real support from a trained counselor. " +
+    "If you'd like to connect with a licensed therapist through 24Therapy, we're here for you.";
+
+  /**
+   * Anonymous chat for the marketing-site free trial widget (/chat page + hero widget).
+   *
+   * Design constraints:
+   *  - No JWT required (called by @Public / no guard)
+   *  - No PHI written to DB — purely ephemeral
+   *  - Crisis keywords always intercepted before hitting the model
+   *  - Uses task_type: 'chat' → gpt-4o-mini (fast + cheap)
+   *  - System prompt positions the AI as supportive but non-clinical
+   */
+  async anonymousChat(message: string): Promise<string> {
+    if (!message || typeof message !== 'string') {
+      return "I didn't catch that — could you share what's on your mind?";
+    }
+
+    const trimmed = message.trim();
+
+    // 1. Crisis keyword intercept — always fires, no model call needed
+    const lower = trimmed.toLowerCase();
+    if (this.CRISIS_KEYWORDS.some((kw) => lower.includes(kw))) {
+      this.logger.warn('[anonymousChat] Crisis keyword detected — returning safety response');
+      return this.CRISIS_RESPONSE;
+    }
+
+    // 2. Length guard
+    if (trimmed.length > 1000) {
+      return "That's a lot to process — could you share the most important part in a sentence or two?";
+    }
+
+    const systemPrompt = `You are a warm, empathetic AI assistant for 24Therapy — a mental health platform connecting people with licensed therapists.
+
+Your role in this free chat widget:
+- Provide a supportive, non-judgmental space for someone exploring therapy
+- Offer general emotional support, psychoeducation, and coping strategies
+- Clearly communicate you are NOT a licensed therapist and cannot provide therapy, diagnosis, or treatment
+- Gently guide users toward booking a session with a real therapist when appropriate
+
+Tone: conversational, compassionate, human — never clinical or robotic.
+Boundaries: do not diagnose, prescribe, or give specific clinical advice.
+Length: keep responses concise (2–4 sentences) — this is a chat widget, not an essay.
+Safety: if ANY mention of self-harm, suicide, or crisis arises, immediately direct to 988.
+
+At the end of your response you may naturally (not forcefully) mention that a licensed therapist on 24Therapy can provide real, personalized support.`;
+
+    try {
+      const response = await this.modelGateway.complete({
+        task_type: 'chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: trimmed },
+        ],
+        temperature: 0.8,
+        max_tokens: 300,
+        // Intentionally no session_id, patient_id, organization_id — anonymous
+      });
+
+      return response.content || "I'm here to listen. What's on your mind?";
+    } catch (err) {
+      this.logger.error('[anonymousChat] Model call failed:', err?.message);
+      // Graceful fallback — never expose errors to end users
+      return (
+        "I'm here to listen. " +
+        "While I'm just an AI and not a licensed therapist, I want you to know that reaching out " +
+        "is a brave first step. A licensed therapist on 24Therapy can give you the real support you deserve."
+      );
+    }
+  }
 }
