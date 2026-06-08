@@ -4,8 +4,16 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
+      // Production custom domains (future)
       { protocol: "https", hostname: "24therapy.ai" },
       { protocol: "https", hostname: "api.24therapy.ai" },
+      // Railway API host
+      { protocol: "https", hostname: "api-24therapy-production.up.railway.app" },
+      // AWS S3 / CloudFront
+      { protocol: "https", hostname: "*.s3.amazonaws.com" },
+      { protocol: "https", hostname: "*.cloudfront.net" },
+      // Vercel deployments (all envs)
+      { protocol: "https", hostname: "*.vercel.app" },
     ],
   },
   async headers() {
