@@ -1,8 +1,10 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
+import { DatabaseService } from './database.service';
+import { DATABASE_POOL } from './database.constants';
 
-export const DATABASE_POOL = 'DATABASE_POOL';
+export { DATABASE_POOL };
 
 @Global()
 @Module({
@@ -37,7 +39,8 @@ export const DATABASE_POOL = 'DATABASE_POOL';
         return pool;
       },
     },
+    DatabaseService,
   ],
-  exports: [DATABASE_POOL],
+  exports: [DATABASE_POOL, DatabaseService],
 })
 export class DatabaseModule {}

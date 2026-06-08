@@ -20,34 +20,39 @@ const CATEGORIES = [
   { id: "identity" as IntegrationCategory, label: "Identity & SSO" },
 ];
 
+// Integration status key:
+// "live"    — fully implemented in backend, production-ready
+// "beta"    — partially implemented or in active development
+// "planned" — on roadmap, not yet implemented in backend
 const INTEGRATIONS = [
-  // EHR
-  { id: "epic", category: "ehr" as IntegrationCategory, name: "Epic", desc: "Full FHIR R4 bidirectional sync. Patient demographics, notes, diagnoses, medications.", badge: "Enterprise", status: "live", logo: "E" },
-  { id: "cerner", category: "ehr" as IntegrationCategory, name: "Cerner / Oracle Health", desc: "Bidirectional patient records, clinical notes, and order integration.", badge: "Enterprise", status: "live", logo: "C" },
-  { id: "simplepractice", category: "ehr" as IntegrationCategory, name: "SimplePractice", desc: "Import patient records, session history, and notes. Sync calendar and availability.", badge: "Popular", status: "live", logo: "SP" },
-  { id: "therapynotes", category: "ehr" as IntegrationCategory, name: "TherapyNotes", desc: "Migrate patient data, treatment notes, and billing records to 24Therapy.ai.", badge: "", status: "live", logo: "TN" },
-  { id: "athena", category: "ehr" as IntegrationCategory, name: "Athenahealth", desc: "Patient demographics, scheduling, clinical notes via HL7 FHIR R4.", badge: "", status: "beta", logo: "A" },
-  { id: "allscripts", category: "ehr" as IntegrationCategory, name: "Allscripts", desc: "Medication reconciliation, diagnosis import, and care coordination.", badge: "", status: "beta", logo: "AL" },
-  // Telehealth
-  { id: "zoom", category: "telehealth" as IntegrationCategory, name: "Zoom for Healthcare", desc: "HIPAA-compliant video sessions with AI scribe overlay and real-time note generation.", badge: "", status: "live", logo: "Z" },
-  { id: "doxy", category: "telehealth" as IntegrationCategory, name: "Doxy.me", desc: "Embed 24Therapy AI in Doxy.me sessions for documentation and copilot support.", badge: "", status: "live", logo: "D" },
-  // Billing
-  { id: "stripe", category: "billing" as IntegrationCategory, name: "Stripe", desc: "Patient payment processing, subscription management, and revenue reconciliation.", badge: "Required", status: "live", logo: "S" },
-  { id: "availity", category: "billing" as IntegrationCategory, name: "Availity", desc: "Insurance eligibility verification, ERA posting, and claim status tracking.", badge: "Popular", status: "live", logo: "AV" },
-  { id: "officeally", category: "billing" as IntegrationCategory, name: "Office Ally", desc: "Electronic claim submission and ERA processing for mental health billing.", badge: "", status: "live", logo: "OA" },
-  { id: "apexedi", category: "billing" as IntegrationCategory, name: "Apex EDI", desc: "Clearinghouse integration for insurance claim submission and adjudication.", badge: "", status: "beta", logo: "AP" },
-  // Communication
-  { id: "twilio", category: "communication" as IntegrationCategory, name: "Twilio", desc: "SMS/voice appointment reminders, crisis text line integration, and 2FA.", badge: "Required", status: "live", logo: "TW" },
-  { id: "sendgrid", category: "communication" as IntegrationCategory, name: "SendGrid", desc: "HIPAA-compliant transactional email: notifications, reports, and care summaries.", badge: "", status: "live", logo: "SG" },
-  { id: "slack", category: "communication" as IntegrationCategory, name: "Slack", desc: "Team notifications for risk alerts, scheduled reports, and admin notifications.", badge: "", status: "live", logo: "SL" },
-  // Analytics
-  { id: "tableau", category: "analytics" as IntegrationCategory, name: "Tableau", desc: "Export de-identified clinical and operational data for population-level dashboards.", badge: "Enterprise", status: "live", logo: "TB" },
-  { id: "powerbi", category: "analytics" as IntegrationCategory, name: "Power BI", desc: "Real-time data connectors for custom mental health operational analytics.", badge: "Enterprise", status: "live", logo: "PBI" },
-  { id: "looker", category: "analytics" as IntegrationCategory, name: "Looker / LookML", desc: "Pre-built LookML models for mental health practice analytics.", badge: "", status: "beta", logo: "LK" },
-  // Identity
-  { id: "okta", category: "identity" as IntegrationCategory, name: "Okta", desc: "Enterprise SSO with SAML 2.0. Automated provisioning/deprovisioning via SCIM.", badge: "Enterprise", status: "live", logo: "OK" },
-  { id: "azure-ad", category: "identity" as IntegrationCategory, name: "Azure AD / Entra ID", desc: "Microsoft enterprise identity with SAML/OIDC and Microsoft 365 integration.", badge: "Enterprise", status: "live", logo: "AAD" },
-  { id: "google-ws", category: "identity" as IntegrationCategory, name: "Google Workspace", desc: "Google SSO for practice staff with calendar and Google Meet integration.", badge: "", status: "live", logo: "GW" },
+  // EHR — FHIR/HL7 integrations are on the roadmap; not yet in backend
+  { id: "epic", category: "ehr" as IntegrationCategory, name: "Epic", desc: "Full FHIR R4 bidirectional sync. Patient demographics, notes, diagnoses, medications.", badge: "Enterprise", status: "planned", logo: "E" },
+  { id: "cerner", category: "ehr" as IntegrationCategory, name: "Cerner / Oracle Health", desc: "Bidirectional patient records, clinical notes, and order integration.", badge: "Enterprise", status: "planned", logo: "C" },
+  { id: "simplepractice", category: "ehr" as IntegrationCategory, name: "SimplePractice", desc: "Import patient records, session history, and notes. Sync calendar and availability.", badge: "Popular", status: "planned", logo: "SP" },
+  { id: "therapynotes", category: "ehr" as IntegrationCategory, name: "TherapyNotes", desc: "Migrate patient data, treatment notes, and billing records to 24Therapy.ai.", badge: "", status: "planned", logo: "TN" },
+  { id: "athena", category: "ehr" as IntegrationCategory, name: "Athenahealth", desc: "Patient demographics, scheduling, clinical notes via HL7 FHIR R4.", badge: "", status: "planned", logo: "A" },
+  { id: "allscripts", category: "ehr" as IntegrationCategory, name: "Allscripts", desc: "Medication reconciliation, diagnosis import, and care coordination.", badge: "", status: "planned", logo: "AL" },
+  // Telehealth — Daily.co is live; Zoom and Doxy.me are planned
+  { id: "daily", category: "telehealth" as IntegrationCategory, name: "Daily.co", desc: "HIPAA-compliant video sessions with AI scribe overlay and real-time note generation. Native 24Therapy.ai video infrastructure.", badge: "Built-in", status: "live", logo: "DC" },
+  { id: "zoom", category: "telehealth" as IntegrationCategory, name: "Zoom for Healthcare", desc: "HIPAA-compliant video sessions with AI scribe overlay. Planned for practices already using Zoom.", badge: "", status: "planned", logo: "Z" },
+  { id: "doxy", category: "telehealth" as IntegrationCategory, name: "Doxy.me", desc: "Embed 24Therapy AI in Doxy.me sessions for documentation and copilot support.", badge: "", status: "planned", logo: "D" },
+  // Billing — Stripe is live; insurance/clearinghouse integrations are planned
+  { id: "stripe", category: "billing" as IntegrationCategory, name: "Stripe", desc: "Patient payment processing, subscription management, and revenue reconciliation. Fully implemented.", badge: "Live", status: "live", logo: "S" },
+  { id: "availity", category: "billing" as IntegrationCategory, name: "Availity", desc: "Insurance eligibility verification, ERA posting, and claim status tracking.", badge: "Popular", status: "planned", logo: "AV" },
+  { id: "officeally", category: "billing" as IntegrationCategory, name: "Office Ally", desc: "Electronic claim submission and ERA processing for mental health billing.", badge: "", status: "planned", logo: "OA" },
+  { id: "apexedi", category: "billing" as IntegrationCategory, name: "Apex EDI", desc: "Clearinghouse integration for insurance claim submission and adjudication.", badge: "", status: "planned", logo: "AP" },
+  // Communication — all planned (not yet in backend)
+  { id: "twilio", category: "communication" as IntegrationCategory, name: "Twilio", desc: "SMS/voice appointment reminders, crisis text line integration, and 2FA.", badge: "", status: "planned", logo: "TW" },
+  { id: "sendgrid", category: "communication" as IntegrationCategory, name: "SendGrid", desc: "HIPAA-compliant transactional email: notifications, reports, and care summaries.", badge: "", status: "planned", logo: "SG" },
+  { id: "slack", category: "communication" as IntegrationCategory, name: "Slack", desc: "Team notifications for risk alerts, scheduled reports, and admin notifications.", badge: "", status: "planned", logo: "SL" },
+  // Analytics — all planned
+  { id: "tableau", category: "analytics" as IntegrationCategory, name: "Tableau", desc: "Export de-identified clinical and operational data for population-level dashboards.", badge: "Enterprise", status: "planned", logo: "TB" },
+  { id: "powerbi", category: "analytics" as IntegrationCategory, name: "Power BI", desc: "Real-time data connectors for custom mental health operational analytics.", badge: "Enterprise", status: "planned", logo: "PBI" },
+  { id: "looker", category: "analytics" as IntegrationCategory, name: "Looker / LookML", desc: "Pre-built LookML models for mental health practice analytics.", badge: "", status: "planned", logo: "LK" },
+  // Identity — all planned
+  { id: "okta", category: "identity" as IntegrationCategory, name: "Okta", desc: "Enterprise SSO with SAML 2.0. Automated provisioning/deprovisioning via SCIM.", badge: "Enterprise", status: "planned", logo: "OK" },
+  { id: "azure-ad", category: "identity" as IntegrationCategory, name: "Azure AD / Entra ID", desc: "Microsoft enterprise identity with SAML/OIDC and Microsoft 365 integration.", badge: "Enterprise", status: "planned", logo: "AAD" },
+  { id: "google-ws", category: "identity" as IntegrationCategory, name: "Google Workspace", desc: "Google SSO for practice staff with calendar and Google Meet integration.", badge: "", status: "planned", logo: "GW" },
 ];
 
 const API_CAPABILITIES = [
@@ -101,10 +106,10 @@ export default function IntegrationsPage() {
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { v: "20+", l: "Native Integrations" },
-              { v: "FHIR R4", l: "HL7 Standard" },
+              { v: "3", l: "Live Integrations" },
+              { v: "20+", l: "Planned Integrations" },
               { v: "REST + Webhooks", l: "API Architecture" },
-              { v: "< 15 min", l: "Avg. Setup Time" },
+              { v: "FHIR R4", l: "HL7 Standard (Roadmap)" },
             ].map((s) => (
               <div key={s.l}>
                 <div className="text-xl font-bold text-slate-900">{s.v}</div>
@@ -167,8 +172,14 @@ export default function IntegrationsPage() {
                         </span>
                       )}
                     </div>
-                    <div className={`text-xs font-medium ${integration.status === "live" ? "text-green-600" : "text-amber-600"}`}>
-                      {integration.status === "live" ? "● Live" : "● Beta"}
+                    <div className={`text-xs font-medium ${
+                      integration.status === "live" ? "text-green-600" :
+                      integration.status === "beta" ? "text-amber-600" :
+                      "text-slate-400"
+                    }`}>
+                      {integration.status === "live" ? "● Live" :
+                       integration.status === "beta" ? "● Beta" :
+                       "○ Planned"}
                     </div>
                   </div>
                 </div>

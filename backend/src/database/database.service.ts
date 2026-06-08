@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Pool, PoolClient, QueryResult } from 'pg';
-import { DATABASE_POOL } from './database.module';
+import { DATABASE_POOL } from './database.constants';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()

@@ -1,54 +1,83 @@
+"use client";
+
 import { Users, Clock, Star, Globe, ShieldCheck, Brain } from "lucide-react";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 
 const stats = [
-  { icon: Users, value: "2,500+", label: "Therapists Onboarded", color: "bg-blue-100 text-blue-600" },
-  { icon: Brain, value: "50,000+", label: "Sessions Processed", color: "bg-purple-100 text-purple-600" },
-  { icon: Clock, value: "< 5 min", label: "Avg Therapist Wait", color: "bg-green-100 text-green-600" },
-  { icon: Star, value: "4.9/5", label: "Therapist Satisfaction", color: "bg-yellow-100 text-yellow-600" },
-  { icon: Globe, value: "12+", label: "Countries Supported", color: "bg-orange-100 text-orange-600" },
-  { icon: ShieldCheck, value: "100%", label: "HIPAA Compliant", color: "bg-teal-100 text-teal-600" },
+  { icon: Users, value: "2,500+", label: "Therapists Onboarded", color: "bg-blue-50 text-blue-600 border-blue-100" },
+  { icon: Brain, value: "50,000+", label: "Sessions Processed", color: "bg-purple-50 text-purple-600 border-purple-100" },
+  { icon: Clock, value: "< 5 min", label: "Avg Therapist Wait", color: "bg-green-50 text-green-600 border-green-100" },
+  { icon: Star, value: "4.9/5", label: "Therapist Satisfaction", color: "bg-amber-50 text-amber-600 border-amber-100" },
+  { icon: Globe, value: "12+", label: "Countries Supported", color: "bg-orange-50 text-orange-600 border-orange-100" },
+  { icon: ShieldCheck, value: "100%", label: "HIPAA Compliant", color: "bg-teal-50 text-teal-600 border-teal-100" },
 ];
 
-export function TrustSection() {
-  return (
-    <section className="py-16 bg-[#F8FAFC]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <p className="text-sm font-semibold uppercase tracking-wider text-[#1F5EFF] mb-2">
-            Trusted by mental health professionals worldwide
-          </p>
-        </div>
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+  }),
+};
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-          {stats.map((stat) => {
+export function TrustSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+
+  return (
+    <section className="py-20 bg-gradient-to-b from-[#F8FAFC] to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+          className="text-center text-sm font-bold uppercase tracking-widest text-[#1F5EFF] mb-10"
+        >
+          Trusted by mental health professionals worldwide
+        </motion.p>
+
+        <div ref={ref} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {stats.map((stat, i) => {
             const Icon = stat.icon;
             return (
-              <div
+              <motion.div
                 key={stat.label}
-                className="flex flex-col items-center text-center p-6 bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow border border-slate-100"
+                custom={i}
+                variants={cardVariants}
+                initial="hidden"
+                animate={inView ? "visible" : "hidden"}
+                whileHover={{ y: -3, transition: { duration: 0.15 } }}
+                className={`flex flex-col items-center text-center p-5 bg-white rounded-2xl shadow-sm border transition-shadow hover:shadow-md cursor-default ${stat.color.split(" ").slice(2).join(" ")}`}
               >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${stat.color}`}>
-                  <Icon className="w-6 h-6" />
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 border ${stat.color}`}>
+                  <Icon className="w-5 h-5" />
                 </div>
-                <div className="text-2xl font-bold text-[#0A2342] mb-1">{stat.value}</div>
-                <div className="text-xs text-slate-500 leading-tight">{stat.label}</div>
-              </div>
+                <div className="text-2xl font-bold text-[#0A2342] mb-1 tabular-nums">{stat.value}</div>
+                <div className="text-[11px] text-slate-400 leading-tight font-medium">{stat.label}</div>
+              </motion.div>
             );
           })}
         </div>
 
-        {/* Trust logos / Compliance badges */}
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-6">
+        {/* Compliance badges */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className="mt-10 flex flex-wrap items-center justify-center gap-3"
+        >
           {["HIPAA Compliant", "SOC 2 Type II", "GDPR Ready", "ISO 27001", "256-bit Encryption", "99.9% Uptime SLA"].map((badge) => (
             <div
               key={badge}
-              className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 text-sm text-slate-600 font-medium shadow-sm"
+              className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 text-xs text-slate-500 font-semibold shadow-sm hover:shadow-md hover:border-green-200 hover:text-green-700 transition-all"
             >
-              <ShieldCheck className="w-4 h-4 text-green-500" />
+              <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
               {badge}
             </div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

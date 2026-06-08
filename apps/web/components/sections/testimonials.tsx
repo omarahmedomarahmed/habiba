@@ -1,3 +1,7 @@
+"use client";
+
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 import { Star, Quote } from "lucide-react";
 
 const testimonials = [
@@ -57,29 +61,56 @@ const testimonials = [
   },
 ];
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 28 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
+  }),
+};
+
 export function TestimonialsSection() {
+  const ref = useRef<HTMLElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+
   return (
-    <section className="py-24 bg-white" id="testimonials">
+    <section ref={ref} className="py-24 bg-white" id="testimonials">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.55 }}
+          className="text-center mb-16"
+        >
+          <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 text-sm font-semibold px-4 py-2 rounded-full mb-4">
+            <Star className="w-3.5 h-3.5 fill-amber-500" />
+            Trusted by Mental Health Professionals
+          </div>
           <h2 className="text-4xl sm:text-5xl font-bold text-[#0A2342] mb-4">
-            Loved by Therapists & Patients
+            Loved by Therapists &amp; Patients
           </h2>
           <p className="text-xl text-slate-600">
             Real stories from real mental health professionals.
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.map((t) => (
-            <div
+          {testimonials.map((t, i) => (
+            <motion.div
               key={t.name}
-              className="bg-[#F8FAFC] rounded-2xl p-6 border border-slate-100 hover:shadow-md transition-shadow"
+              custom={i}
+              variants={cardVariants}
+              initial="hidden"
+              animate={isInView ? "visible" : "hidden"}
+              whileHover={{ y: -4, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
+              className="bg-[#F8FAFC] rounded-2xl p-6 border border-slate-100 hover:border-slate-200 transition-all cursor-default"
             >
               {/* Stars */}
               <div className="flex items-center gap-1 mb-4">
-                {[...Array(t.rating)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-[#F59E0B] text-[#F59E0B]" />
+                {[...Array(t.rating)].map((_, idx) => (
+                  <Star key={idx} className="w-4 h-4 fill-[#F59E0B] text-[#F59E0B]" />
                 ))}
               </div>
 
@@ -106,7 +137,7 @@ export function TestimonialsSection() {
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

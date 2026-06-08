@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { PageTransition } from "@/components/ui/page-transition";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://24therapy.ai";
 
@@ -88,7 +89,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} antialiased`}>
         <Navbar />
-        <main>{children}</main>
+        <PageTransition>
+          <main>{children}</main>
+        </PageTransition>
         <Footer />
       </body>
     </html>

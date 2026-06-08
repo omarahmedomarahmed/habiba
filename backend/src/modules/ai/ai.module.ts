@@ -4,14 +4,12 @@ import { AIPublicController } from './ai.public.controller';
 import { AIService } from './ai.service';
 import { ModelGatewayService } from './model-gateway.service';
 import { ContextBuilderService } from './context-builder.service';
-import { DatabaseModule } from '../../database/database.module';
-import { DatabaseService } from '../../database/database.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [DatabaseModule, AuthModule],
+  imports: [AuthModule],
   controllers: [AIController, AIPublicController],
-  providers: [AIService, ModelGatewayService, ContextBuilderService, DatabaseService],
+  providers: [AIService, ModelGatewayService, ContextBuilderService],
   exports: [AIService, ModelGatewayService, ContextBuilderService],
 })
 export class AIModule {}
