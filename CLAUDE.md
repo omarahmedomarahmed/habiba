@@ -15,8 +15,8 @@
 | **Branch** | `main` |
 | **Stack** | Next.js 15 · NestJS · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turbo + PNPM 9 workspaces |
-| **Last Commit** | `00d512c` — feat(pricing): centralized pricing management system |
-| **Last Updated** | 2026-06-06 (session 5 — Pricing Audit & Standardization) |
+| **Last Commit** | `dc119f1` — fix(deploy): improve Railway startup — better missing-env error, no crash loops |
+| **Last Updated** | 2026-06-08 (session 6 — UX polish, animations, integrations audit, Railway fix) |
 
 ---
 
@@ -106,11 +106,12 @@ export default eslintConfig;
 
 ## Build Status — All Apps
 
-> Last validated: 2026-06-04 (commit `7150495`)
+> Last validated: 2026-06-08 (commit `dc119f1`)
 
 | App | Build | Routes | Notes |
 |-----|-------|--------|-------|
-| `@24therapy/web` | ✅ PASS | 32 routes | Next.js 15.3.3 |
+| `@24therapy/api` | ✅ PASS | — | NestJS TypeScript clean |
+| `@24therapy/web` | ✅ PASS | 32 routes | Next.js 15.3.3, Framer Motion added |
 | `@24therapy/therapist` | ✅ PASS | 28 routes | Next.js 15.3.3 |
 | `@24therapy/patient` | ✅ PASS | 17 routes | Next.js 15.1.0 |
 | `@24therapy/admin` | ✅ PASS | 17 routes | Next.js 15.1.0 |
@@ -259,6 +260,8 @@ export default eslintConfig;
 
 | Hash | Message | Key Changes |
 |------|---------|-------------|
+| `dc119f1` | fix(deploy): Railway startup error, crash loop fix | database.module.ts better error, railway.json maxRetries→0 |
+| `bc6a113` | feat: Phase 2-9 complete — DI fix, animations, integrations audit | 32 files, +1313 lines — session 6 |
 | `00d512c` | feat(pricing): centralized pricing management system | 11 files, +3629 lines — session 5 |
 | `b597672` | docs: comprehensive platform audit | AUDIT_REPORT, PRODUCTION_GAP_ANALYSIS, FEATURE_MATRIX |
 | `0260e68` | Merge pull request #1 (React Server Components CVE) | Security patch |
@@ -336,6 +339,48 @@ apps/web/pricing    → Server Component, fetches at render time
 apps/admin/pricing  → Client Component, admin CRUD
 apps/therapist/billing → (TODO: upgrade section)
 apps/patient/billing   → (TODO: plan display)
+```
+
+---
+
+## Session 6 Summary (2026-06-08 — UX Polish, Animations, Integrations Audit, Railway Fix)
+
+### Phase 2 — NestJS DI Crash (FIXED, `bc6a113`)
+- Root cause: `DATABASE_POOL` token circular import + `DatabaseService` not in providers
+- Fix: `database.constants.ts` (breaks circular dep), `@Global()` module exports both token + service
+- All 13 feature modules cleaned of redundant local declarations
+- Verified: `curl /health` → 200 OK, all 16 modules boot
+
+### Phase 4/5 — UX + Framer Motion Animations
+- `hero.tsx`: chat scroll fixed (scrollTop not scrollIntoView), floating cards → integrated metrics strip
+- Created `apps/web/components/ui/motion.tsx` (shared Reveal, StaggerList, SectionHeader primitives)
+- Animated: `features.tsx`, `trust.tsx`, `cta.tsx`, `how-it-works.tsx`, `radar.tsx`, `testimonials.tsx`
+- `tailwind.config.ts`: added gradient, float, fade-up, reveal keyframes
+
+### Phase 6 — Page Transitions
+- Created `apps/web/components/ui/page-transition.tsx` (AnimatePresence mode="wait")
+- Wired into `apps/web/app/layout.tsx` wrapping `<main>`
+
+### Phase 7 — Integrations Audit
+- `apps/web/app/features/integrations/page.tsx` corrected:
+  - **Live (backend-verified)**: Stripe ✅, Daily.co ✅
+  - **Planned**: ALL EHRs, Zoom, Doxy.me, Availity, Twilio, SendGrid, Slack, Tableau, Power BI, Looker, Okta, Azure AD, Google Workspace
+  - Status display updated: `● Live` / `● Beta` / `○ Planned`
+
+### Phase 8 — Financial Model
+- `financial-model.md` created: unit economics, LTV/CAC (9.4×/19.9×), margin by plan, break-even
+
+### Railway Deploy Fix (`dc119f1`)
+- **Root cause**: `DATABASE_URL` env var not set in Railway Variables tab
+- `database.module.ts`: improved error message, lists all missing vars + points to Variables tab
+- `railway.json`: `restartPolicyMaxRetries: 3 → 0` (no more 4× crash loop), `healthcheckTimeout: 120`
+
+### Railway — What You Must Set in Variables Tab
+See full list in `backend/.env.example`. **Minimum to boot**:
+```
+DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
+DATABASE_SSL=true
+JWT_SECRET=<64-char random string>
 ```
 
 ---
