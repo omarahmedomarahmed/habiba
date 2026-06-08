@@ -1,2 +1,5 @@
+[phases.setup]
+nixPkgs = ['...', 'nodePackages.pnpm']
+
 [phases.install]
 cmds = ['echo "Install handled by buildCommand"']
