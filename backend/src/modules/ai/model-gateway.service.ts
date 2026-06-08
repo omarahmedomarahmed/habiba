@@ -166,7 +166,7 @@ export class ModelGatewayService {
 
     const response = await this.openai.audio.transcriptions.create({
       model: 'whisper-1',
-      file: new File([audioBuffer], 'audio.webm', { type: 'audio/webm' }),
+      file: new File([audioBuffer as unknown as BlobPart], 'audio.webm', { type: 'audio/webm' }),
       language,
     });
 

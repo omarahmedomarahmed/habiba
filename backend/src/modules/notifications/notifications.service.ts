@@ -127,31 +127,53 @@ export class NotificationsService {
 
   async getUserNotifications(
     userId: string,
-    params: { limit?: number; offset?: number; unread_only?: boolean }
+    params: {
+      limit?: number;
+      offset?: number;
+      unread_only?: boolean;
+      // new-style params from controller
+      page?: number;
+      unreadOnly?: boolean;
+      channel?: string;
+    }
   ) {
-    const { limit = 20, offset = 0, unread_only = false } = params;
+    const limit = params.limit ?? 20;
+    const page = params.page ?? 1;
+    const offset = params.offset ?? (page - 1) * limit;
+    const unread_only = params.unreadOnly ?? params.unread_only ?? false;
+    const channel = params.channel ?? 'in_app';
 
     let whereExtra = "";
     if (unread_only) whereExtra = " AND read = FALSE";
 
-    const [notifications, unreadCount] = await Promise.all([
+    const [notifications, unreadCount, totalCount] = await Promise.all([
       this.db.query(
         `SELECT * FROM notifications
-         WHERE user_id = $1 AND channel = 'in_app' ${whereExtra}
+         WHERE user_id = $1 AND channel = $2 ${whereExtra}
          ORDER BY created_at DESC
-         LIMIT $2 OFFSET $3`,
-        [userId, limit, offset]
+         LIMIT $3 OFFSET $4`,
+        [userId, channel, limit, offset]
       ),
       this.db.queryOne<{ count: string }>(
         `SELECT COUNT(*) as count FROM notifications
-         WHERE user_id = $1 AND channel = 'in_app' AND read = FALSE`,
-        [userId]
+         WHERE user_id = $1 AND channel = $2 AND read = FALSE`,
+        [userId, channel]
+      ),
+      this.db.queryOne<{ count: string }>(
+        `SELECT COUNT(*) as count FROM notifications
+         WHERE user_id = $1 AND channel = $2 ${whereExtra}`,
+        [userId, channel]
       ),
     ]);
 
     return {
+      notifications,
       data: notifications,
+      total: parseInt(totalCount?.count || "0"),
+      unreadCount: parseInt(unreadCount?.count || "0"),
       unread_count: parseInt(unreadCount?.count || "0"),
+      page,
+      limit,
     };
   }
 

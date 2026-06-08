@@ -463,7 +463,7 @@ export class AssessmentsService {
     const latest_phq9 = phq9History.history[phq9History.history.length - 1];
     const latest_gad7 = gad7History.history[gad7History.history.length - 1];
 
-    const insights = [];
+    const insights: Array<{ type: string; assessment: string; message: string; significance: string }> = [];
 
     // Generate automated clinical insights
     if (latest_phq9 && phq9History.history.length >= 2) {
@@ -514,7 +514,7 @@ export class AssessmentsService {
     const since = dateRange?.from || new Date(Date.now() - 90 * 86400000).toISOString();
     const until = dateRange?.to || new Date().toISOString();
 
-    const assessments = await this.db.query(
+    const assessments = await this.db.query<any>(
       `SELECT pa.*, at.name as template_name, at.code
        FROM patient_assessments pa
        JOIN assessment_templates at ON at.id = pa.template_id
@@ -523,7 +523,7 @@ export class AssessmentsService {
          AND pa.administered_at BETWEEN $3 AND $4
        ORDER BY pa.administered_at ASC`,
       [patientId, orgId, since, until],
-    ).catch(() => []);
+    ).catch((): any[] => []);
 
     const groupedByTemplate = assessments.reduce((acc: any, a: any) => {
       if (!acc[a.code]) acc[a.code] = [];

@@ -8,7 +8,7 @@
  * Admin endpoint: GET /billing/admin/plans (requires super_admin role)
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app").replace(/\/api\/v1\/?$/, "") + "/api/v1";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

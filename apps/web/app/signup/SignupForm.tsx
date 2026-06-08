@@ -7,7 +7,7 @@ import { Brain, Sparkles, Shield, CheckCircle2, ArrowRight, Eye, EyeOff } from "
 import { cn } from "@/lib/utils";
 import { DOMAINS } from "@/lib/domains";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app").replace(/\/api\/v1\/?$/, "") + "/api/v1";
 
 // Inner component that uses useSearchParams — must be inside <Suspense>
 function SignupFormInner() {

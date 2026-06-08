@@ -3,8 +3,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import * as compression from 'compression';
-import * as morgan from 'morgan';
+
+// Use require() for CommonJS modules that lack proper ESModule default exports
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const compression = require('compression') as () => any;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const morgan = require('morgan') as (format: string) => any;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -16,14 +20,40 @@ async function bootstrap() {
   app.use(compression());
   app.use(morgan('combined'));
 
-  // CORS
+  // CORS — configured via CORS_ORIGINS env var for production
+  // Falls back to Vercel deployment URLs and local dev ports
+  const defaultOrigins = [
+    process.env.NEXT_PUBLIC_WEB_URL,
+    process.env.NEXT_PUBLIC_THERAPIST_URL,
+    process.env.NEXT_PUBLIC_PATIENT_URL,
+    process.env.NEXT_PUBLIC_ADMIN_URL,
+    // Vercel deployment URLs (used when custom domains not configured)
+    'https://24-web.vercel.app',
+    'https://24-therapist.vercel.app',
+    'https://24-patient.vercel.app',
+    'https://24-admin.vercel.app',
+    // Local development
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+  ].filter(Boolean) as string[];
+
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+    : defaultOrigins;
+
   app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') || [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'http://localhost:3003',
-    ],
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (mobile apps, curl, Swagger)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow all Vercel preview deployments for the project
+      if (/^https:\/\/24-(web|therapist|patient|admin)-[a-z0-9-]+-[a-z0-9]+\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS blocked: ${origin}`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Slug', 'X-Request-ID'],
@@ -55,7 +85,7 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger docs
+  // Swagger docs (disabled in production)
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('24Therapy.ai API')

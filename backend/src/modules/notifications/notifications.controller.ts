@@ -167,7 +167,7 @@ export class NotificationsController {
     @CurrentUser() user: CurrentUserData,
     @Body() dto: UpdatePreferencesDto,
   ) {
-    const prefs = await this.service.updatePreferences(user.userId, dto);
+    const prefs = await this.service.updatePreferences(user.userId, dto as unknown as Record<string, unknown>);
     return this.r(prefs);
   }
 

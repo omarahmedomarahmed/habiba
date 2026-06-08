@@ -4,37 +4,52 @@
  * Single source of truth for ALL URLs across the marketing website.
  * Never hardcode domain URLs — always import from this file.
  *
- * Environment variables override defaults (set in Vercel project settings):
- *   NEXT_PUBLIC_SITE_URL          → marketing site
+ * Set these env vars in Vercel project settings:
+ *   NEXT_PUBLIC_WEB_URL           → marketing site
  *   NEXT_PUBLIC_API_URL           → backend API
- *   NEXT_PUBLIC_THERAPIST_APP_URL → therapist portal
- *   NEXT_PUBLIC_PATIENT_APP_URL   → patient portal
- *   NEXT_PUBLIC_ADMIN_APP_URL     → admin portal
+ *   NEXT_PUBLIC_THERAPIST_URL     → therapist portal
+ *   NEXT_PUBLIC_PATIENT_URL       → patient portal
+ *   NEXT_PUBLIC_ADMIN_URL         → admin portal
  *
- * Temporary Vercel preview URLs (set until custom domains go live):
- *   NEXT_PUBLIC_SITE_URL=https://24-web.vercel.app
- *   NEXT_PUBLIC_THERAPIST_APP_URL=https://24-therapist.vercel.app
- *   NEXT_PUBLIC_PATIENT_APP_URL=https://24-patient.vercel.app
- *   NEXT_PUBLIC_ADMIN_APP_URL=https://24-admin.vercel.app
+ * Current Vercel deployment URLs (used as fallbacks):
+ *   NEXT_PUBLIC_WEB_URL=https://24-web.vercel.app
+ *   NEXT_PUBLIC_THERAPIST_URL=https://24-therapist.vercel.app
+ *   NEXT_PUBLIC_PATIENT_URL=https://24-patient.vercel.app
+ *   NEXT_PUBLIC_ADMIN_URL=https://24-admin.vercel.app
+ *   NEXT_PUBLIC_API_URL=https://api-24therapy-production.up.railway.app/api/v1
  */
 
 // ─── Core Domains ─────────────────────────────────────────────────────────────
 
 export const DOMAINS = {
-  /** Marketing website — 24therapy.ai */
-  web: process.env.NEXT_PUBLIC_SITE_URL || "https://24therapy.ai",
+  /** Marketing website */
+  web:
+    process.env.NEXT_PUBLIC_WEB_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://24-web.vercel.app",
 
-  /** Backend API — api.24therapy.ai */
-  api: process.env.NEXT_PUBLIC_API_URL || "https://api.24therapy.ai/api/v1",
+  /** Backend API */
+  api:
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://api-24therapy-production.up.railway.app/api/v1",
 
-  /** Therapist portal — app.24therapy.ai */
-  therapistApp: process.env.NEXT_PUBLIC_THERAPIST_APP_URL || "https://app.24therapy.ai",
+  /** Therapist portal */
+  therapistApp:
+    process.env.NEXT_PUBLIC_THERAPIST_URL ||
+    process.env.NEXT_PUBLIC_THERAPIST_APP_URL ||
+    "https://24-therapist.vercel.app",
 
-  /** Patient portal — my.24therapy.ai */
-  patientApp: process.env.NEXT_PUBLIC_PATIENT_APP_URL || "https://my.24therapy.ai",
+  /** Patient portal */
+  patientApp:
+    process.env.NEXT_PUBLIC_PATIENT_URL ||
+    process.env.NEXT_PUBLIC_PATIENT_APP_URL ||
+    "https://24-patient.vercel.app",
 
-  /** Admin portal — admin.24therapy.ai */
-  adminApp: process.env.NEXT_PUBLIC_ADMIN_APP_URL || "https://admin.24therapy.ai",
+  /** Admin portal */
+  adminApp:
+    process.env.NEXT_PUBLIC_ADMIN_URL ||
+    process.env.NEXT_PUBLIC_ADMIN_APP_URL ||
+    "https://24-admin.vercel.app",
 } as const;
 
 // ─── Email Addresses ──────────────────────────────────────────────────────────

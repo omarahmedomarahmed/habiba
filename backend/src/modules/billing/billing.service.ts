@@ -15,7 +15,7 @@ export class BillingService {
   ) {
     this.stripe = new Stripe(
       this.config.get("stripe.secretKey") || "sk_test_placeholder",
-      { apiVersion: "2024-12-18.acacia" }
+      { apiVersion: "2024-06-20" }
     );
   }
 
@@ -555,7 +555,7 @@ export class BillingService {
       [organizationId]
     );
 
-    const payouts = [];
+    const payouts: Array<{ payout_id: string; therapist_id: string; amount: number }> = [];
     for (const fee of eligibleFees) {
       const payoutId = this.db.generateId();
       await this.db.transaction(async (client) => {

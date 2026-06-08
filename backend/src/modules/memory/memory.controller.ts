@@ -43,7 +43,7 @@ export class MemoryController {
   ) {
     return this.memoryService.getPatientMemory(patientId, user.therapist_id, user.organization_id, {
       node_types: query.node_types?.split(',') as any[],
-      status: query.status,
+      status: query.status as any,
       limit: query.limit,
       include_timeline: query.include_timeline,
       include_graph: query.include_graph,
@@ -64,12 +64,18 @@ export class MemoryController {
     @CurrentUser() user: any,
   ) {
     return this.memoryService.addMemoryNode({
-      ...dto,
       patient_id: patientId,
       therapist_id: user.therapist_id,
       organization_id: user.organization_id,
+      node_type: dto.node_type,
+      label: (dto as any).title ?? (dto as any).label ?? '',
+      content: dto.content,
+      severity: (dto as any).severity,
+      tags: dto.tags,
+      structured_data: (dto as any).structured_data,
+      confidence: (dto as any).confidence,
       is_ai_extracted: false,
-    });
+    } as any);
   }
 
   @Put('nodes/:nodeId')
@@ -83,7 +89,7 @@ export class MemoryController {
     @Body() dto: UpdateMemoryNodeDto,
     @CurrentUser() user: any,
   ) {
-    return this.memoryService.updateMemoryNode(nodeId, dto);
+    return this.memoryService.updateMemoryNode(nodeId, dto as any);
   }
 
   @Put('nodes/:nodeId/validate')

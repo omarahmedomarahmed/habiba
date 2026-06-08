@@ -123,7 +123,7 @@ export class WorkflowsController {
       ...dto,
       organization_id: user.organization_id,
       therapist_id: user.therapist_id,
-    });
+    } as any);
   }
 
   @Put(':id/status')
@@ -139,7 +139,7 @@ export class WorkflowsController {
     @Body() dto: UpdateWorkflowStatusDto,
     @CurrentUser() user: any,
   ) {
-    return this.workflowsService.updateWorkflowStatus(id, dto.status, user.organization_id);
+    return this.workflowsService.updateWorkflowStatus(id, dto.status as any, user.organization_id);
   }
 
   @Put(':workflowId/tasks/:taskId/complete')
@@ -199,7 +199,7 @@ export class WorkflowsController {
       ...dto,
       therapist_id: user.therapist_id,
       organization_id: user.organization_id,
-    });
+    } as any);
   }
 
   @Put('treatment-plans/:id')

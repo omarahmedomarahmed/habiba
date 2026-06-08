@@ -436,7 +436,7 @@ export default function BillingPage() {
               Open Pricing Management
             </Link>
             <a
-              href="http://localhost:3000/pricing"
+              href={`${process.env.NEXT_PUBLIC_WEB_URL || 'https://24-web.vercel.app'}/pricing`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-6 py-3 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-medium transition-colors"

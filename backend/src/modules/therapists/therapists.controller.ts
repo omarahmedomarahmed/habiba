@@ -36,7 +36,7 @@ export class TherapistsController {
   @Get("me/availability")
   @ApiOperation({ summary: "Get my availability settings" })
   async getAvailability(@Request() req: { user: { userId: string; organizationId: string } }) {
-    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId);
+    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId) as any;
     return this.therapistsService.getAvailability(therapist.id as string);
   }
 
@@ -46,7 +46,7 @@ export class TherapistsController {
     @Request() req: { user: { userId: string; organizationId: string } },
     @Body() body: Array<{ day_of_week: number; start_time: string; end_time: string; is_available: boolean }>
   ) {
-    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId);
+    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId) as any;
     return this.therapistsService.updateAvailability(therapist.id as string, body);
   }
 
@@ -66,7 +66,7 @@ export class TherapistsController {
   @Get("me/radar-settings")
   @ApiOperation({ summary: "Get radar settings" })
   async getRadarSettings(@Request() req: { user: { userId: string; organizationId: string } }) {
-    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId);
+    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId) as any;
     return this.therapistsService.getRadarSettings(therapist.id as string);
   }
 
@@ -76,7 +76,7 @@ export class TherapistsController {
     @Request() req: { user: { userId: string; organizationId: string } },
     @Body() body: Record<string, unknown>
   ) {
-    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId);
+    const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId) as any;
     return this.therapistsService.updateRadarSettings(therapist.id as string, body);
   }
 }

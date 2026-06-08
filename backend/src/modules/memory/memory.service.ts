@@ -285,7 +285,7 @@ export class MemoryService {
           source_session_id: sessionId,
           source_note_id: noteId,
           is_ai_extracted: true,
-        });
+        } as any);
         saved.push(node);
       } catch (err) {
         this.logger.warn(`Failed to save memory node: ${err.message}`);
