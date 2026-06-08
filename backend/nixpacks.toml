@@ -1,0 +1,2 @@
+[phases.install]
+cmds = ['echo "Install handled by buildCommand"']
