@@ -5,7 +5,7 @@
     "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @24therapy/api build"
   },
   "deploy": {
-    "startCommand": "node backend/dist/main",
+    "startCommand": "node backend/dist/backend/src/main.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",

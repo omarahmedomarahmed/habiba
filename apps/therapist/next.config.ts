@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  transpilePackages: ["@24therapy/types", "@24therapy/ui", "@24therapy/utils"],
+  transpilePackages: ["@24therapy/types"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "24therapy.ai" },
