@@ -9,6 +9,9 @@ import {
   Image, Download, Calendar, Bell, Filter
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
+import { messagesAPI } from "@/lib/api";
+import { getSocket } from "@/lib/socket";
+import { useAuthStore } from "@/lib/store";
 
 interface Thread {
   id: string;
@@ -172,23 +175,80 @@ export default function MessagesPage() {
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "urgent">("all");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [liveThreads, setLiveThreads] = useState(MOCK_THREADS);
+  const [liveMessages, setLiveMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
+  const { accessToken } = useAuthStore();
 
-  const messages = selectedThread ? MOCK_MESSAGES[selectedThread.id] || [] : [];
+  useEffect(() => {
+    messagesAPI.conversations()
+      .then((res: any) => {
+        const threads = (res.data || []).map((c: any) => ({
+          id: c.id, patient_name: c.name || c.patient_name || 'Unknown',
+          patient_id: c.patient_id || c.other_user_id || '',
+          last_message: c.last_message || '', last_message_time: c.updated_at || '',
+          unread: c.unread_count || 0, type: 'patient' as const, urgent: false, online: false,
+          avatar: '', tags: [], hipaa_acknowledged: true,
+        }));
+        if (threads.length > 0) { setLiveThreads(threads); setSelectedThread(threads[0]); }
+      })
+      .catch(() => {});
+  }, []);
 
-  const filteredThreads = MOCK_THREADS.filter(t => {
+  useEffect(() => {
+    if (!selectedThread) return;
+    messagesAPI.messages(selectedThread.id)
+      .then((res: any) => {
+        const msgs = (res.data || []).map((m: any) => ({
+          id: m.id, sender: m.sender_role === 'therapist' ? 'me' : 'them' as const,
+          content: m.content, timestamp: m.created_at || '',
+          read: true, type: 'text' as const,
+        }));
+        if (msgs.length > 0) setLiveMessages(prev => ({ ...prev, [selectedThread.id]: msgs }));
+      })
+      .catch(() => {});
+  }, [selectedThread?.id]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const socket = getSocket(accessToken);
+    const handleNew = (msg: any) => {
+      const convId = msg.conversation_id;
+      const newMsg: Message = {
+        id: msg.id, sender: 'them', content: msg.content,
+        timestamp: msg.created_at, read: false, type: 'text',
+      };
+      setLiveMessages(prev => ({
+        ...prev, [convId]: [...(prev[convId] || []), newMsg],
+      }));
+    };
+    socket.on('new_message', handleNew);
+    return () => { socket.off('new_message', handleNew); };
+  }, [accessToken]);
+
+  const messages = selectedThread ? liveMessages[selectedThread.id] || [] : [];
+
+  const filteredThreads = liveThreads.filter(t => {
     const matchesSearch = !searchQuery || t.patient_name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filter === "all" || (filter === "unread" ? t.unread > 0 : t.urgent);
     return matchesSearch && matchesFilter;
   });
 
-  const sendMessage = () => {
-    if (!messageText.trim()) return;
-    // In real app, this would update state/DB
+  const sendMessage = async () => {
+    if (!messageText.trim() || !selectedThread) return;
+    const text = messageText;
     setMessageText("");
     setShowAISuggestions(false);
+    const optimistic: Message = {
+      id: `tmp-${Date.now()}`, sender: 'me', content: text,
+      timestamp: new Date().toISOString(), read: false, type: 'text',
+    };
+    setLiveMessages(prev => ({
+      ...prev, [selectedThread.id]: [...(prev[selectedThread.id] || []), optimistic],
+    }));
+    try { await messagesAPI.send(selectedThread.id, text); } catch { /* optimistic stays */ }
   };
 
-  const totalUnread = MOCK_THREADS.reduce((acc, t) => acc + t.unread, 0);
+  const totalUnread = liveThreads.reduce((acc, t) => acc + t.unread, 0);
 
   return (
     <div className="flex h-full gap-0 -mx-6 -mt-6">

@@ -412,5 +412,18 @@ export const analyticsAPI = {
     apiFetch<Record<string, unknown>>("/analytics/therapist/dashboard", { params: { period } }),
 };
 
+// ============================================================
+// MESSAGES
+// ============================================================
+export const messagesAPI = {
+  conversations: () => apiFetch<{ data: unknown[] }>('/messages/conversations'),
+  messages: (conversationId: string) =>
+    apiFetch<{ data: unknown[] }>(`/messages/conversations/${conversationId}/messages`),
+  send: (conversationId: string, content: string) =>
+    apiFetch<unknown>(`/messages/conversations/${conversationId}/messages`, {
+      method: 'POST', body: JSON.stringify({ content }),
+    }),
+};
+
 export { APIError };
 export default apiFetch;
