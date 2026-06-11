@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/wizardly-cerf-2mrcdg` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-11 (session 7 — full M&A audit, doc cleanup, migration fixes) |
+| **Last Updated** | 2026-06-11 (session 8 — Phases 0-8 complete, all portals wired to real API) |
 
 ---
 
@@ -49,54 +49,17 @@ migrations/        → 15 ordered SQL files (001–015)
 
 ## Current Issues (Must Fix Before Production)
 
-### CRITICAL — Schema/Code Mismatches
+### MEDIUM — Remaining Items
 
-1. **Billing column name mismatch** (`billing.service.ts` line ~253)
-   - Migration 010 creates `monthly_price_usd`, `annual_price_usd`
-   - Migration 015 tries to rename but does it conditionally
-   - `billing.service.ts` queries `sp.price_monthly_usd, sp.session_limit` — neither column exists
-   - **Fix**: Standardize column names in both migrations and service queries
+1. **Patient messages page** — mock chat UI, no real-time WebSocket push yet
+2. **Proactive AI companion** (`ai-companion.service.ts`) — designed but not yet built (cron check-ins)
+3. **Daily.co video integration** — config present but session room still shows mock video placeholder
+4. **Admin compliance/audit logs pages** — pages exist but not wired to `phi_access_log` / `audit_logs` endpoints
 
-2. **Missing `therapist_specializations` junction table** (`therapists.service.ts` line ~31)
-   - Code does: `JOIN therapist_specializations ts ON ts.specialization_id = st.id`
-   - No such table in any migration — therapists.specializations is TEXT[] in migration 002
-   - **Fix**: Either create junction table migration OR rewrite service to query TEXT[] array directly
-
-3. **Missing `accepting_new_patients` column** (`therapists.service.ts` line ~71)
-   - Code tries to update this column; it doesn't exist in migration 002
-   - **Fix**: Add column to migration OR remove field reference in service
-
-4. **Duplicate `patient_consents` definition** (migrations 003 vs 012)
-   - Migration 003 creates `patient_consents` with one schema
-   - Migration 012 creates `consent_versions` + tries to create `patient_consents` again with different columns
-   - Running both migrations will fail on the second CREATE TABLE
-   - **Fix**: Migration 012 should ALTER TABLE, not CREATE TABLE for patient_consents
-
-### HIGH — Auth Not Wired to Backend
-
-5. **Admin `/pricing` page uses `DEV_TOKEN`**
-   - `apps/admin/app/(dashboard)/pricing/page.tsx` line ~18 uses a hardcoded dev token
-   - Must read from Zustand `useAdminAuth` store instead
-
-6. **WebSocket not implemented in frontend**
-   - Backend has full Socket.io gateway (`/ws` namespace)
-   - No frontend app connects to WebSocket
-   - Live session transcription, copilot, radar notifications will not work without this
-
-### MEDIUM — Missing Features
-
-7. **No registration/signup flow**
-   - All portals have login and forgot-password but no actual registration pages
-   - `apps/web/app/signup/page.tsx` exists but is a marketing CTA, not a real form
-   - Backend `POST /auth/register` endpoint is ready and tested
-
-8. **HIPAA compliance tables not implemented in backend**
-   - Migration 012 creates: `phi_access_log`, `baa_records`, `data_retention_policies`, `security_incidents`
-   - No backend module reads/writes to these tables
-   - Required for HIPAA compliance — every PHI access must be logged
-
-9. **Patient portal WebSocket for real-time messaging**
-   - Messages page exists and calls API but no real-time push
+### LOW — Polish
+5. `/press`, `/status`, `/gdpr` marketing pages missing
+6. Dockerfiles per app not yet created
+7. E2E tests (Playwright) not yet written
 
 ---
 
@@ -105,16 +68,30 @@ migrations/        → 15 ordered SQL files (001–015)
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Auth / JWT login | ✅ REAL | All portals call `/auth/login` with token refresh |
-| Patient CRUD | ✅ REAL | Full API client in therapist app |
-| Sessions CRUD | ✅ REAL | Full API client in therapist app |
+| Patient CRUD | ✅ REAL | Full API client in therapist + patient apps |
+| Sessions CRUD | ✅ REAL | Full API client in all portals |
 | Billing plans | ✅ REAL | Web pricing page fetches `/billing/plans` |
-| Analytics dashboards | ⚠️ PARTIAL | API exists; admin UI has fallback mock stats |
+| Analytics dashboards | ✅ REAL | Therapist analytics loads from `/analytics/therapist/dashboard` |
 | AI note generation | ✅ REAL | Backend calls OpenAI GPT-4o |
-| AI copilot | ✅ REAL | Backend endpoint wired; frontend UI exists |
-| Real-time WebSocket | ❌ MISSING | Backend gateway ready; no frontend client |
-| Registration flow | ❌ MISSING | Backend ready; no frontend form |
-| HIPAA audit log | ❌ MISSING | Schema exists; no backend writes |
+| AI copilot | ✅ REAL | Backend endpoint wired; frontend shows real suggestions |
+| Real-time WebSocket | ✅ REAL | Crisis alerts + emotional context via Socket.io |
+| Registration flow | ✅ REAL | `apps/web/app/signup/SignupForm.tsx` calls `POST /auth/register` |
+| HIPAA audit log | ✅ REAL | `PhiAuditInterceptor` logs all PHI route access to `phi_access_log` |
+| Live transcription | ✅ REAL | Browser MediaRecorder → Whisper → session transcript |
+| Emotional AI | ✅ REAL | GPT-4o-mini every 5 segments → copilot panel emotional state card |
+| Crisis detection | ✅ REAL | Keyword scan → GPT-4o risk → WebSocket crisis modal |
+| Memory page | ✅ REAL | Loads from `patientsAPI.memories()` per selected patient |
+| Calendar | ✅ REAL | Loads from `sessionsAPI.list()` by date range |
+| Patient mood tracker | ✅ REAL | Saves to `patientAPI.addMoodEntry()` |
+| Patient journal | ✅ REAL | Saves to `journalAPI.create()` (`/notes?note_type=journal`) |
+| Patient assessments | ✅ REAL | Submits answers to `assessmentsAPI.submit()` |
+| Patient homework | ✅ REAL | Mark Complete calls `PATCH /workflows/tasks/:id/complete` |
+| Patient progress | ✅ REAL | Loads from assessmentsAPI + patientAPI.me() goals |
+| Find therapist | ✅ REAL | Fetches from `GET /marketplace/search` with static fallback |
+| Org suspension | ✅ REAL | Admin `suspendOrg()`/`activateOrg()` wired to backend |
+| User impersonation | ✅ REAL | `impersonateUser()` opens portal with token |
 | Daily.co video | ❌ MISSING | Config present; no session room integration |
+| Patient messages | ⚠️ PARTIAL | API calls exist; no real-time WebSocket push |
 | Radar matching | ✅ REAL | Backend complete; patient can request |
 
 ---
@@ -194,28 +171,31 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 | Hash | Message |
 |------|---------|
-| `f638a30` | Change restartPolicyMaxRetries from 0 to 3 |
-| `1ad07c4` | docs(claude): update session state — session 6 complete |
-| `dc119f1` | fix(deploy): improve Railway startup — better missing-env error |
-| `bc6a113` | feat: Phase 2-9 complete — DI fix, animations, integrations audit |
-| `b087c47` | fix: eliminate all localhost/hardcoded-domain refs |
-| `f66ba28` | fix: backend TypeScript zero-error build |
-| `7150495` | fix(deploy): resolve all Vercel build failures |
+| `c7997ca` | feat: wire patient progress, homework mark-complete to real API |
+| `1675017` | feat: Phase 3 — live audio transcription via Whisper |
+| `c7d0c18` | feat: Phase 2b — emotional AI layer end-to-end |
+| `03d2f35` | feat: Phase 6-8 — admin god mode, marketplace search, HIPAA PHI audit |
+| `577bc72` | feat: wire session prepare, journal, patient settings to real API |
+| `08dc04f` | feat: wire notes, memory, patient assessments to real API |
+| `6885eee` | feat(therapist): wire analytics, calendar, settings to real API |
+| `d19728c` | feat: Phase 1 — crisis system end-to-end |
+| `2e3b4c2` | fix: Phase 0 — schema fixes + admin DEV_TOKEN |
 
 ---
 
 ## Priority Work Queue (Next Engineer)
 
-### P0 — Blockers for Production Launch
-- [ ] Fix 4 schema/code mismatches (billing columns, therapist_specializations, accepting_new_patients, patient_consents)
-- [ ] Fix admin pricing page DEV_TOKEN → real auth token
-- [ ] Build registration/signup pages (backend ready, frontend missing)
-- [ ] Implement HIPAA phi_access_log writes on all PHI queries
+### P0 — Production Blockers (all resolved ✅)
+- [x] Fix 4 schema/code mismatches (migration 016 created)
+- [x] Fix admin pricing page DEV_TOKEN → real auth token
+- [x] Registration/signup form wired to `POST /auth/register`
+- [x] HIPAA `phi_access_log` writes via global `PhiAuditInterceptor`
 
 ### P1 — Core Feature Completion
-- [ ] Frontend WebSocket client (Socket.io) for real-time copilot + notifications
 - [ ] Daily.co video integration in session room (`/sessions/[id]/room`)
-- [ ] Token refresh edge case: handle concurrent refresh requests (queue mechanism partially done)
+- [ ] Patient messages real-time WebSocket (currently API-only)
+- [ ] Proactive AI companion cron jobs (`ai-companion.service.ts`)
+- [ ] Admin compliance/audit log pages wired to real endpoints
 
 ### P2 — Quality & Compliance
 - [ ] Tighten TypeScript: set `noImplicitAny: true` in backend tsconfig
