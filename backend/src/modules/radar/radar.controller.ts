@@ -1,7 +1,8 @@
 import {
   Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request
 } from "@nestjs/common";
-import { RadarService, CreateRadarRequestDto } from "./radar.service";
+import { RadarService } from "./radar.service";
+import { CreateRadarRequestDto } from "./dto/radar.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 

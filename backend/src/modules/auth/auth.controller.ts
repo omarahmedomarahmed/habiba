@@ -8,7 +8,7 @@ import {
   Request,
   Get,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiUnauthorizedResponse, ApiBadRequestResponse } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -24,6 +24,8 @@ export class AuthController {
   @Post('register')
   @Public()
   @ApiOperation({ summary: 'Register a new account (therapist or patient)' })
+  @ApiResponse({ status: 201, description: 'Account created, tokens returned' })
+  @ApiBadRequestResponse({ description: 'Validation error or email already exists' })
   async register(@Body() dto: RegisterDto, @Request() req: any) {
     const result = await this.authService.register(dto);
     return {
@@ -37,6 +39,8 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful, tokens returned' })
+  @ApiUnauthorizedResponse({ description: 'Invalid credentials or MFA required' })
   async login(@Body() dto: LoginDto, @Request() req: any) {
     dto.ip_address = req.ip;
     const result = await this.authService.login(dto);
