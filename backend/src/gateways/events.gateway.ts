@@ -269,6 +269,26 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // ============================================================
+  // DIRECT MESSAGES
+  // ============================================================
+
+  @OnEvent("message.sent")
+  handleMessageSent(payload: {
+    conversationId: string;
+    messageId: string;
+    senderUserId: string;
+    recipientUserId: string;
+    orgId: string;
+  }) {
+    // Deliver only to the recipient — sender uses optimistic UI
+    this.server.to(`user:${payload.recipientUserId}`).emit("new_message", {
+      conversation_id: payload.conversationId,
+      message_id: payload.messageId,
+      sender_id: payload.senderUserId,
+    });
+  }
+
+  // ============================================================
   // NOTIFICATIONS
   // ============================================================
 

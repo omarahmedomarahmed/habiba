@@ -255,14 +255,21 @@ export const journalAPI = {
 
 export const messagesAPI = {
   conversations: () =>
-    apiFetch<{ data: Record<string, unknown>[] }>("/notifications/conversations"),
-  messages: (conversationId: string, params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: Record<string, unknown>[] }>(`/notifications/conversations/${conversationId}/messages`, { params } as never),
-  send: (conversationId: string, content: string) =>
-    apiFetch<Record<string, unknown>>(`/notifications/conversations/${conversationId}/messages`, {
+    apiFetch<{ data: Record<string, unknown>[] }>("/messages/conversations"),
+  createConversation: (participant_id: string) =>
+    apiFetch<{ data: Record<string, unknown> }>("/messages/conversations", {
       method: "POST",
-      body: JSON.stringify({ content, message_type: "text" }),
+      body: JSON.stringify({ participant_id }),
     }),
+  messages: (conversationId: string, params?: { limit?: number; before?: string }) =>
+    apiFetch<{ data: Record<string, unknown>[] }>(`/messages/conversations/${conversationId}/messages`, { params } as never),
+  send: (conversationId: string, content: string) =>
+    apiFetch<Record<string, unknown>>(`/messages/conversations/${conversationId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
+  markRead: (conversationId: string) =>
+    apiFetch<Record<string, unknown>>(`/messages/conversations/${conversationId}/read`, { method: "POST" }),
 };
 
 export { setStoredTokens, getAccessToken, getRefreshToken };
