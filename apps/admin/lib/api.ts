@@ -247,13 +247,24 @@ export const adminAPI = {
   subscriptions: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: any[]; total: number }>('/billing/subscriptions', { params } as any),
 
-  // Audit logs
+  // Audit logs (backend route is /admin/audit-log singular)
   auditLogs: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: any[]; total: number }>('/admin/audit-logs', { params } as any),
+    apiFetch<{ data: any[]; total: number }>('/admin/audit-log', { params } as any),
 
   // PHI access log (HIPAA)
   phiAuditLog: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: any[]; total: number }>('/admin/phi-access-log', { params } as any),
+};
+
+// ============================================================
+// CRISIS ALERTS API
+// ============================================================
+export const crisisAPI = {
+  alerts: (params?: { status?: string; level?: string; from?: string; to?: string; limit?: number }) =>
+    apiFetch<{ data: any[] }>('/crisis/alerts', { params } as any),
+  acknowledge: (id: string) =>
+    apiFetch<{ data: any }>(`/crisis/alerts/${id}/acknowledge`, { method: 'POST' }),
+  activeCount: () => apiFetch<{ data: { count: number } }>('/crisis/alerts/active-count'),
 };
 
 // ============================================================

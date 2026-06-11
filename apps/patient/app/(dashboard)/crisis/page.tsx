@@ -137,6 +137,14 @@ const SAFETY_PLAN_QUESTIONS = [
   { id: "q7", text: "Reasons for living:", placeholder: "What matters most to you — family, goals, pets, experiences..." },
 ];
 
+interface TherapistInfo {
+  display_name?: string;
+  primary_therapist_display_name?: string;
+  primary_therapist_phone?: string;
+  primary_therapist_user_id?: string;
+  primary_therapist_id?: string;
+}
+
 export default function CrisisPage() {
   const [activeTab, setActiveTab] = useState<"resources" | "grounding" | "safety_plan">("resources");
   const [activeGrounding, setActiveGrounding] = useState<string | null>(null);
@@ -144,12 +152,21 @@ export default function CrisisPage() {
   const [groundingRunning, setGroundingRunning] = useState(false);
   const [safetyPlanAnswers, setSafetyPlanAnswers] = useState<Record<string, string>>({});
   const [safetyPlanSaved, setSafetyPlanSaved] = useState(false);
+  const [therapist, setTherapist] = useState<TherapistInfo | null>(null);
+  const [therapistConvId, setTherapistConvId] = useState<string | null>(null);
   const { user } = useAuthStore();
 
   useEffect(() => {
     // Load existing safety plan from backend on mount
     apiFetch<any>('/patients/me/safety-plan')
       .then((data: any) => { if (data?.answers) setSafetyPlanAnswers(data.answers); })
+      .catch(() => {});
+    // Load real therapist from /patients/me
+    apiFetch<any>('/patients/me')
+      .then((data: any) => {
+        const p = data?.data?.patient ?? data?.patient ?? data;
+        if (p?.primary_therapist_id) setTherapist(p);
+      })
       .catch(() => {});
   }, []);
 
@@ -210,28 +227,58 @@ export default function CrisisPage() {
       </div>
 
       {/* Quick access to therapist */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#0A2342] rounded-xl flex items-center justify-center text-white font-bold">
-            AS
+      {therapist?.primary_therapist_id ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-[#0A2342] rounded-xl flex items-center justify-center text-white font-bold text-sm">
+              {(therapist.primary_therapist_display_name || therapist.display_name || 'T').charAt(0)}
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-gray-900">
+                {therapist.primary_therapist_display_name || therapist.display_name || 'Your Therapist'}
+              </p>
+              <p className="text-sm text-gray-500">Your therapist</p>
+            </div>
+            <div className="flex gap-2">
+              {therapist.primary_therapist_phone && (
+                <a
+                  href={`tel:${therapist.primary_therapist_phone}`}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] transition-colors"
+                >
+                  <Phone className="h-4 w-4" /> Call
+                </a>
+              )}
+              <button
+                onClick={async () => {
+                  if (therapistConvId) {
+                    window.location.href = `/messages?conversation=${therapistConvId}`;
+                    return;
+                  }
+                  try {
+                    const res = await apiFetch<any>('/messages/conversations', {
+                      method: 'POST',
+                      body: JSON.stringify({ participant_id: therapist.primary_therapist_user_id }),
+                    });
+                    const convId = res?.data?.id;
+                    setTherapistConvId(convId);
+                    window.location.href = `/messages?conversation=${convId}`;
+                  } catch { window.location.href = '/messages'; }
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                <MessageSquare className="h-4 w-4" /> Message
+              </button>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="font-semibold text-gray-900">Dr. Alex Smith</p>
-            <p className="text-sm text-gray-500">Your therapist</p>
-          </div>
-          <div className="flex gap-2">
-            <a href="tel:+15555551234" className="flex items-center gap-1.5 px-4 py-2 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] transition-colors">
-              <Phone className="h-4 w-4" /> Call
-            </a>
-            <Link href="/messages" className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
-              <MessageSquare className="h-4 w-4" /> Message
-            </Link>
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs text-gray-400">⚠️ Your therapist is not a 24/7 emergency service. For immediate crisis, use the crisis lines below.</p>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-xs text-gray-400">⚠️ Your therapist is not a 24/7 emergency service. For immediate crisis, use the crisis lines below.</p>
+      ) : (
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 text-center text-slate-400 text-sm">
+          No therapist assigned yet. Use the crisis lines below for immediate support.
         </div>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 bg-gray-100 rounded-2xl p-1.5">
@@ -503,7 +550,7 @@ export default function CrisisPage() {
 
               <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
                 <p className="text-xs text-amber-700">
-                  <strong>Tip:</strong> Review your safety plan with your therapist, Dr. Alex Smith. Ask to work on this together in your next session.
+                  <strong>Tip:</strong> Review your safety plan with your therapist{therapist?.primary_therapist_display_name ? `, ${therapist.primary_therapist_display_name}` : ''}. Ask to work on this together in your next session.
                 </p>
               </div>
             </div>
