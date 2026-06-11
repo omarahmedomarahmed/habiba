@@ -14,67 +14,8 @@ import {
 } from "lucide-react";
 import { cn, formatSessionTime, getInitials } from "@/lib/utils";
 import { useSessionRoomStore } from "@/lib/store";
-import { sessionsAPI, aiAPI } from "@/lib/api";
+import { sessionsAPI, aiAPI, patientsAPI } from "@/lib/api";
 import { getApiUrl } from "@/lib/env";
-
-// Mock session data
-const MOCK_SESSION = {
-  id: "s1",
-  video_room_url: undefined as string | undefined,
-  patient: {
-    id: "p1", name: "Sarah Chen", age: 34, diagnosis: "Major Depressive Disorder",
-    risk_level: "medium", sessions_count: 24,
-  },
-  scheduled_time: "10:00 AM",
-  duration: 50,
-  type: "video",
-  context: {
-    diagnoses: ["Major Depressive Disorder (F32.1)", "Generalized Anxiety Disorder (F41.1)"],
-    medications: [
-      { name: "Lexapro 10mg", frequency: "Daily morning", status: "active" },
-      { name: "Melatonin 5mg", frequency: "As needed for sleep", status: "active" },
-    ],
-    goals: [
-      { title: "Reduce PHQ-9 below 9", progress: 52 },
-      { title: "Develop 5 coping strategies", progress: 80 },
-      { title: "Improve sleep quality", progress: 70 },
-    ],
-    risk_factors: ["Performance anxiety", "Perfectionism"],
-    last_session_summary: "Discussed work-related anxiety triggers. Developed 3 new coping strategies: grounding technique, breathing exercise, cognitive reframing. Assigned thought record homework.",
-    last_phq9: 13,
-    last_gad7: 8,
-  },
-};
-
-const MOCK_TRANSCRIPT: Array<{
-  id: string;
-  speaker: "therapist" | "patient";
-  text: string;
-  timestamp: number;
-  tags?: string[];
-}> = [
-  { id: "t1", speaker: "therapist", text: "Good morning Sarah. How have you been feeling since our last session?", timestamp: 0, tags: [] },
-  { id: "t2", speaker: "patient", text: "Honestly, it's been a mixed week. I had a performance review at work on Tuesday and I was really anxious about it beforehand.", timestamp: 15, tags: ["anxiety", "work"] },
-  { id: "t3", speaker: "therapist", text: "That sounds really challenging. How did it go, and how did you handle the anxiety leading up to it?", timestamp: 38, tags: [] },
-  { id: "t4", speaker: "patient", text: "I actually used the breathing technique we practiced. It helped a lot. The review went well — my manager said I'm doing great. But I still felt this dread beforehand.", timestamp: 60, tags: ["progress", "coping"] },
-  { id: "t5", speaker: "therapist", text: "That's really important progress, Sarah. You used a tool we practiced together and it worked. What do you notice about how you felt even after hearing positive feedback?", timestamp: 95, tags: [] },
-  { id: "t6", speaker: "patient", text: "I guess I still don't fully believe it. Even when he said I'm doing great, I kept thinking about all the things I could have done better. I feel like nothing is ever good enough.", timestamp: 120, tags: ["cognitive_distortion", "perfectionism"] },
-];
-
-const MOCK_COPILOT: Array<{
-  id: string;
-  type: "question" | "observation" | "risk" | "technique" | "memory";
-  content: string;
-  priority: "high" | "medium" | "low";
-  source?: string;
-}> = [
-  { id: "c1", type: "observation", content: "Patient showing positive behavioral activation — using breathing technique despite anticipatory anxiety. Reinforce this.", priority: "high", source: "Behavioral Analysis" },
-  { id: "c2", type: "question", content: "\"When you say nothing is ever good enough — can you tell me, good enough for whom?\"", priority: "high", source: "Socratic Questioning" },
-  { id: "c3", type: "memory", content: "Pattern match: Father's emotional unavailability → external validation seeking → performance anxiety. Session #8 insight.", priority: "high", source: "Memory Agent" },
-  { id: "c4", type: "question", content: "\"What would you say to a close friend who had the same performance review outcome you described?\"", priority: "medium", source: "Compassionate Reframing" },
-  { id: "c5", type: "technique", content: "Consider introducing the 'Double Standard Technique' — applying same self-judgment rules to others vs. self.", priority: "medium", source: "CBT Toolkit" },
-  { id: "c6", type: "question", content: "Explore connection between perfectionism and childhood expectations around achievement.", priority: "medium", source: "Attachment Theory" },
-];
 
 const TAGS = ["symptom", "mood", "medication", "relationship", "goal", "trigger", "risk", "trauma", "sleep", "work", "family", "progress"];
 
@@ -139,28 +80,50 @@ export default function SessionRoomPage() {
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const [liveSession, setLiveSession] = useState<Record<string, unknown> | null>(null);
+  const [patientCtx, setPatientCtx] = useState<{
+    name: string; diagnoses: string[]; medications: any[]; goals: any[];
+    risk_factors: string[]; last_session_summary: string; last_phq9: number | null; last_gad7: number | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    sessionsAPI.get(id)
-      .then((s: any) => setLiveSession(s))
-      .catch(() => {/* keep mock */});
+    sessionsAPI.get(id).then((s: any) => {
+      setLiveSession(s);
+      if (s?.patient_id) {
+        Promise.all([
+          patientsAPI.get(s.patient_id as string).catch(() => null),
+          patientsAPI.goals(s.patient_id as string).catch(() => ({ data: [] })),
+          patientsAPI.medications(s.patient_id as string).catch(() => ({ data: [] })),
+          patientsAPI.assessments(s.patient_id as string).catch(() => ({ data: [] })),
+        ]).then(([patient, goalsRes, medsRes, assessRes]: any[]) => {
+          const assessments: any[] = assessRes?.data || [];
+          const phq = assessments.find((a: any) => a.assessment_type === 'phq9');
+          const gad = assessments.find((a: any) => a.assessment_type === 'gad7');
+          setPatientCtx({
+            name: patient ? `${patient.first_name} ${patient.last_name}` : (s.patient_name as string) || 'Patient',
+            diagnoses: (patient?.diagnoses as string[]) || [],
+            medications: (medsRes?.data as any[]) || [],
+            goals: (goalsRes?.data as any[]) || [],
+            risk_factors: (patient?.risk_factors as string[]) || [],
+            last_session_summary: (patient?.last_session_summary as string) || '',
+            last_phq9: phq?.score ?? null,
+            last_gad7: gad?.score ?? null,
+          });
+        });
+      }
+    }).catch(() => { /* session not found */ });
   }, [id]);
 
+  const patientName = patientCtx?.name ?? (liveSession?.patient_name as string) ?? 'Patient';
   const session = liveSession ? {
-    ...MOCK_SESSION,
     id: liveSession.id as string,
     video_room_url: (liveSession.video_room_url as string) || undefined,
-    patient: {
-      ...MOCK_SESSION.patient,
-      id: (liveSession.patient_id as string) || MOCK_SESSION.patient.id,
-      name: (liveSession.patient_name as string) || MOCK_SESSION.patient.name,
-    },
+    patient: { id: (liveSession.patient_id as string) ?? '', name: patientName },
     scheduled_time: liveSession.scheduled_at
       ? new Date(liveSession.scheduled_at as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : MOCK_SESSION.scheduled_time,
-    duration: (liveSession.duration_minutes as number) || MOCK_SESSION.duration,
-  } : MOCK_SESSION;
+      : '',
+    duration: (liveSession.duration_minutes as number) || 50,
+  } : null;
 
   // WebSocket: listen for crisis_alert events during live session
   useEffect(() => {
@@ -239,29 +202,29 @@ export default function SessionRoomPage() {
   };
 
   const generateNote = async () => {
+    if (!id) return;
     setIsGeneratingNote(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setGeneratedNote(`**SOAP Note — ${session.patient.name} — Session #${session.patient.sessions_count}**
-
-**S (Subjective):**
-Patient reports experiencing anticipatory anxiety prior to work performance review. States: "I still don't fully believe it [positive feedback]." Describes persistent cognitive distortions characterized by minimizing achievements and focusing on perceived shortcomings ("nothing is ever good enough"). Patient demonstrated successful use of breathing technique during high-stress situation, showing behavioral progress.
-
-**O (Objective):**
-Patient appeared engaged and reflective throughout session. Affect congruent with reported mood. Demonstrated insight into cognitive patterns when prompted. Used coping skills learned in previous sessions (breathing technique) successfully in real-world context. Speech organized and coherent.
-
-**A (Assessment):**
-Patient continues to demonstrate moderate depressive symptoms with significant improvement in anxiety management skills. The core cognitive distortion of perfectionism (linked to childhood attachment patterns) remains primary treatment target. Positive reinforcement of coping skill use is warranted. PHQ-9 trending down (17 → 13).
-
-**P (Plan):**
-1. Continue CBT targeting perfectionism schema using Double Standard Technique
-2. Assign: Write down one achievement per day without qualifying statements
-3. Explore connection between father's emotional unavailability and current performance anxiety (next session)
-4. Continue Lexapro 10mg — check in with prescriber (Dr. Walsh) re: sleep improvements
-5. Return in 1 week`);
-    setIsGeneratingNote(false);
+    try {
+      const result: any = await aiAPI.generateNote(id, noteType.toLowerCase());
+      setGeneratedNote(result?.content || result?.note_content || JSON.stringify(result, null, 2));
+    } catch {
+      setGeneratedNote('Note generation failed. Please try again.');
+    } finally {
+      setIsGeneratingNote(false);
+    }
   };
 
   return (
+  if (!session) {
+    return (
+      <div className="flex flex-col h-full bg-slate-900 items-center justify-center">
+        <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-slate-400 text-sm">Loading session…</p>
+      </div>
+    );
+  }
+
+    return (
     <div className="flex flex-col h-full bg-slate-900">
       {/* Crisis Alert Modal — full-screen, cannot be dismissed without action */}
       {crisisAlert && (
@@ -336,7 +299,7 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
           </div>
           <div>
             <div className="text-sm font-semibold text-white">{session.patient.name}</div>
-            <div className="text-[10px] text-slate-400">Session #{session.patient.sessions_count} · {session.patient.diagnosis}</div>
+            <div className="text-[10px] text-slate-400">{session.scheduled_time}</div>
           </div>
           {isLive && (
             <div className="flex items-center gap-1.5 ml-3">
@@ -389,7 +352,12 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
           {activeLeftTab === "transcript" && (
             <div className="flex flex-col flex-1 overflow-hidden">
               <div ref={transcriptRef} className="flex-1 overflow-y-auto p-3 space-y-3">
-                {MOCK_TRANSCRIPT.map((segment) => (
+                {roomStore.transcript.length === 0 && !isLive && (
+                  <div className="text-center py-8 text-xs text-slate-500">
+                    Transcript will appear here once the session starts.
+                  </div>
+                )}
+                {roomStore.transcript.map((segment) => (
                   <div key={segment.id} className={cn("group", segment.speaker === "patient" ? "ml-0" : "ml-4")}>
                     <div className={cn(
                       "text-[10px] font-semibold mb-1 uppercase tracking-wide",
@@ -450,7 +418,11 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
               {/* Diagnoses */}
               <div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">Diagnoses</div>
-                {session.context.diagnoses.map((d) => (
+                {patientCtx === null ? (
+                  <div className="h-4 bg-slate-700 rounded animate-pulse w-3/4" />
+                ) : patientCtx.diagnoses.length === 0 ? (
+                  <div className="text-xs text-slate-500 italic">No diagnoses on file</div>
+                ) : patientCtx.diagnoses.map((d) => (
                   <div key={d} className="text-xs text-slate-300 bg-slate-700/50 rounded px-2 py-1 mb-1">{d}</div>
                 ))}
               </div>
@@ -458,7 +430,7 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
               {/* Risk Level */}
               <div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">Risk Factors</div>
-                {session.context.risk_factors.map((r) => (
+                {(patientCtx?.risk_factors || []).map((r) => (
                   <div key={r} className="flex items-center gap-1.5 text-xs text-amber-400 mb-1">
                     <AlertTriangle className="w-3 h-3" /> {r}
                   </div>
@@ -468,10 +440,10 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
               {/* Medications */}
               <div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">Current Medications</div>
-                {session.context.medications.map((med) => (
-                  <div key={med.name} className="bg-slate-700/50 rounded px-2 py-1.5 mb-1">
-                    <div className="text-xs font-medium text-slate-200">{med.name}</div>
-                    <div className="text-[10px] text-slate-400">{med.frequency}</div>
+                {(patientCtx?.medications || []).map((med: any) => (
+                  <div key={med.name || med.medication_name} className="bg-slate-700/50 rounded px-2 py-1.5 mb-1">
+                    <div className="text-xs font-medium text-slate-200">{med.name || med.medication_name}</div>
+                    <div className="text-[10px] text-slate-400">{med.frequency || med.dosage}</div>
                   </div>
                 ))}
               </div>
@@ -479,10 +451,10 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
               {/* Goals */}
               <div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">Treatment Goals</div>
-                {session.context.goals.map((goal) => (
-                  <div key={goal.title} className="mb-2">
+                {(patientCtx?.goals || []).map((goal: any) => (
+                  <div key={goal.title || goal.description} className="mb-2">
                     <div className="flex items-center justify-between mb-1">
-                      <div className="text-[11px] text-slate-300 truncate">{goal.title}</div>
+                      <div className="text-[11px] text-slate-300 truncate">{goal.title || goal.description}</div>
                       <span className="text-[10px] text-slate-400 ml-1 shrink-0">{goal.progress}%</span>
                     </div>
                     <div className="w-full bg-slate-700 rounded-full h-1">
@@ -495,7 +467,7 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
               {/* Last Session */}
               <div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">Last Session Summary</div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">{session.context.last_session_summary}</p>
+                <p className="text-[11px] text-slate-300 leading-relaxed">{patientCtx?.last_session_summary || '—'}</p>
               </div>
 
               {/* Assessment Scores */}
@@ -503,14 +475,12 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
                 <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-2">Latest Assessments</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-slate-700/50 rounded p-2 text-center">
-                    <div className="text-lg font-bold text-white">{session.context.last_phq9}</div>
+                    <div className="text-lg font-bold text-white">{patientCtx?.last_phq9 ?? '—'}</div>
                     <div className="text-[10px] text-slate-400">PHQ-9</div>
-                    <div className="text-[10px] text-amber-400">Moderate</div>
                   </div>
                   <div className="bg-slate-700/50 rounded p-2 text-center">
-                    <div className="text-lg font-bold text-white">{session.context.last_gad7}</div>
+                    <div className="text-lg font-bold text-white">{patientCtx?.last_gad7 ?? '—'}</div>
                     <div className="text-[10px] text-slate-400">GAD-7</div>
-                    <div className="text-[10px] text-green-400">Mild</div>
                   </div>
                 </div>
               </div>
@@ -530,7 +500,7 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
                   </div>
                 </div>
                 <p className="text-white text-lg font-semibold mb-1">{session.patient.name}</p>
-                <p className="text-slate-400 text-sm mb-6">Session #{session.patient.sessions_count} · {session.scheduled_time} · {session.duration} min</p>
+                <p className="text-slate-400 text-sm mb-6">{session.scheduled_time} · {session.duration} min</p>
                 <button
                   onClick={startSession}
                   className="flex items-center gap-2 h-10 px-6 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors mx-auto"
@@ -702,10 +672,10 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
                 </div>
               )}
 
-              {MOCK_COPILOT.filter((s) => !dismissedSuggestions.includes(s.id)).map((suggestion) => (
+              {roomStore.copilotSuggestions.filter((s) => !dismissedSuggestions.includes(s.id)).map((suggestion) => (
                 <div key={suggestion.id} className="copilot-suggestion group relative">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded capitalize", copilotTypeColors[suggestion.type])}>
+                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded capitalize", copilotTypeColors[suggestion.type] || copilotTypeColors['observation'])}>
                       {suggestion.type}
                     </span>
                     <button
@@ -716,22 +686,13 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
                     </button>
                   </div>
                   <p className="text-xs text-slate-700 leading-relaxed">{suggestion.content}</p>
-                  {suggestion.source && (
-                    <div className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
-                      <Activity className="w-2.5 h-2.5" />
-                      {suggestion.source}
-                      {suggestion.type === "memory" && (
-                        <span className="ml-1 text-amber-600 font-medium">← Memory</span>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
 
-              {MOCK_COPILOT.filter((s) => !dismissedSuggestions.includes(s.id)).length === 0 && (
+              {roomStore.copilotSuggestions.filter((s) => !dismissedSuggestions.includes(s.id)).length === 0 && (
                 <div className="text-center py-8 text-xs text-slate-400">
                   <Brain className="w-6 h-6 mx-auto mb-2 opacity-30" />
-                  All suggestions reviewed
+                  {isLive ? 'Waiting for AI suggestions…' : 'AI copilot activates when session is live'}
                 </div>
               )}
             </div>

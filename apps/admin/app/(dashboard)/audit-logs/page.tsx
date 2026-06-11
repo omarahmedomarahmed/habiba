@@ -58,259 +58,6 @@ interface AuditEntry {
   log_id: string;
 }
 
-// ─── Mock Data ─────────────────────────────────────────────────────────────────
-
-const AUDIT_DATA: AuditEntry[] = [
-  {
-    id: '1',
-    timestamp: '2025-01-15T14:32:11Z',
-    action: 'admin.impersonate_user',
-    category: 'admin_actions',
-    severity: 'high',
-    actor: { id: 'a1', name: 'Alex Kim', email: 'alex@24therapy.ai', role: 'super_admin' },
-    target: { type: 'user', id: 'u42', label: 'Dr. Sarah Chen (therapist)' },
-    org: { id: 'org1', name: 'Mindful Horizons Clinic' },
-    outcome: 'success',
-    ip_address: '10.0.0.1',
-    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    geo: 'San Francisco, CA',
-    details: 'Admin initiated impersonation session for support investigation',
-    metadata: { reason: 'Support ticket #4521', duration: '12 minutes' },
-    session_id: 'sess_imp_0192',
-    log_id: 'log_00001',
-  },
-  {
-    id: '2',
-    timestamp: '2025-01-15T14:18:44Z',
-    action: 'phi.export_patient_records',
-    category: 'phi_access',
-    severity: 'critical',
-    actor: { id: 'u88', name: 'Dr. Marcus Webb', email: 'marcus@greenvalley.com', role: 'therapist' },
-    target: { type: 'patient', id: 'p201', label: 'Patient #P-2024-0201 (bulk export)' },
-    org: { id: 'org3', name: 'Green Valley Counseling' },
-    outcome: 'success',
-    ip_address: '192.168.5.22',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    geo: 'Denver, CO',
-    details: 'Bulk export of 14 patient records (PDF) for practice transition',
-    metadata: { records_count: '14', format: 'PDF', size_mb: '8.4' },
-    session_id: 'sess_0883',
-    log_id: 'log_00002',
-  },
-  {
-    id: '3',
-    timestamp: '2025-01-15T13:55:02Z',
-    action: 'auth.login_failed',
-    category: 'authentication',
-    severity: 'medium',
-    actor: { id: 'unknown', name: 'Unknown', email: 'unknown@attacker.net', role: 'patient' },
-    outcome: 'failure',
-    ip_address: '203.0.113.42',
-    user_agent: 'python-requests/2.28.0',
-    geo: 'Frankfurt, DE',
-    details: 'Failed login attempt — invalid credentials (3rd attempt in 10 min)',
-    metadata: { attempts_in_window: '3', lockout_triggered: 'false' },
-    log_id: 'log_00003',
-  },
-  {
-    id: '4',
-    timestamp: '2025-01-15T13:40:17Z',
-    action: 'feature_flag.toggle',
-    category: 'feature_flags',
-    severity: 'medium',
-    actor: { id: 'a1', name: 'Alex Kim', email: 'alex@24therapy.ai', role: 'super_admin' },
-    target: { type: 'flag', id: 'ff_ai_copilot_v2', label: 'ai_copilot_v2' },
-    outcome: 'success',
-    ip_address: '10.0.0.1',
-    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    geo: 'San Francisco, CA',
-    details: 'Feature flag "ai_copilot_v2" enabled globally (was: disabled)',
-    metadata: { previous_value: 'false', new_value: 'true', scope: 'global' },
-    log_id: 'log_00004',
-  },
-  {
-    id: '5',
-    timestamp: '2025-01-15T13:22:49Z',
-    action: 'org.plan_upgraded',
-    category: 'org_management',
-    severity: 'low',
-    actor: { id: 'u14', name: 'Jordan Price', email: 'jordan@serenehealth.com', role: 'org_admin' },
-    target: { type: 'organization', id: 'org2', label: 'Serene Health Partners' },
-    org: { id: 'org2', name: 'Serene Health Partners' },
-    outcome: 'success',
-    ip_address: '172.16.10.5',
-    user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2)',
-    geo: 'Austin, TX',
-    details: 'Organization upgraded from Professional to Enterprise plan',
-    metadata: { from_plan: 'professional', to_plan: 'enterprise', mrr_delta: '+$890' },
-    log_id: 'log_00005',
-  },
-  {
-    id: '6',
-    timestamp: '2025-01-15T12:58:33Z',
-    action: 'ai.model_config_updated',
-    category: 'ai_operations',
-    severity: 'high',
-    actor: { id: 'a1', name: 'Alex Kim', email: 'alex@24therapy.ai', role: 'super_admin' },
-    target: { type: 'config', id: 'ai_cfg_001', label: 'GPT-4o Scribe Model Config' },
-    outcome: 'success',
-    ip_address: '10.0.0.1',
-    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    geo: 'San Francisco, CA',
-    details: 'AI model temperature reduced from 0.8 → 0.4 for clinical scribe accuracy',
-    metadata: { model: 'gpt-4o', param: 'temperature', from: '0.8', to: '0.4' },
-    log_id: 'log_00006',
-  },
-  {
-    id: '7',
-    timestamp: '2025-01-15T12:34:08Z',
-    action: 'user.role_changed',
-    category: 'user_management',
-    severity: 'medium',
-    actor: { id: 'u14', name: 'Jordan Price', email: 'jordan@serenehealth.com', role: 'org_admin' },
-    target: { type: 'user', id: 'u77', label: 'Dr. Lisa Nguyen' },
-    org: { id: 'org2', name: 'Serene Health Partners' },
-    outcome: 'success',
-    ip_address: '172.16.10.5',
-    user_agent: 'Chrome/121.0',
-    geo: 'Austin, TX',
-    details: 'User role changed from Intern to Licensed Therapist',
-    metadata: { from_role: 'intern', to_role: 'therapist', supervisor: 'Dr. J. Price' },
-    log_id: 'log_00007',
-  },
-  {
-    id: '8',
-    timestamp: '2025-01-15T11:50:22Z',
-    action: 'billing.invoice_voided',
-    category: 'billing',
-    severity: 'medium',
-    actor: { id: 'a2', name: 'Morgan Lee', email: 'morgan@24therapy.ai', role: 'admin' },
-    target: { type: 'record', id: 'inv_2024_0042', label: 'Invoice #2024-0042' },
-    org: { id: 'org5', name: 'Harbor Light Wellness' },
-    outcome: 'success',
-    ip_address: '10.0.0.4',
-    user_agent: 'Mozilla/5.0 (X11; Linux x86_64)',
-    geo: 'San Francisco, CA',
-    details: 'Invoice voided due to duplicate charge; credit memo issued',
-    metadata: { amount: '$1,240.00', reason: 'duplicate_charge', credit_issued: 'true' },
-    log_id: 'log_00008',
-  },
-  {
-    id: '9',
-    timestamp: '2025-01-15T11:20:55Z',
-    action: 'system.backup_completed',
-    category: 'system_config',
-    severity: 'info',
-    actor: { id: 'sys', name: 'System Scheduler', email: 'system@24therapy.internal', role: 'system' },
-    outcome: 'success',
-    ip_address: '10.0.0.100',
-    user_agent: 'System/BackupService v2.1',
-    geo: 'Internal',
-    details: 'Automated daily database backup completed successfully',
-    metadata: { size_gb: '47.2', duration_s: '183', encrypted: 'true', destination: 'S3/us-east-1' },
-    log_id: 'log_00009',
-  },
-  {
-    id: '10',
-    timestamp: '2025-01-15T10:45:39Z',
-    action: 'phi.unauthorized_access_attempt',
-    category: 'security',
-    severity: 'critical',
-    actor: { id: 'u33', name: 'Sam Rivera', email: 'sam@mindfulclinic.com', role: 'therapist' },
-    target: { type: 'patient', id: 'p099', label: 'Patient #P-2024-0099' },
-    org: { id: 'org4', name: 'Mindful Clinic' },
-    outcome: 'failure',
-    ip_address: '192.168.1.88',
-    user_agent: 'Chrome/121.0',
-    geo: 'Chicago, IL',
-    details: 'Access to patient records denied — patient not assigned to this therapist',
-    metadata: { reason: 'not_treating_provider', access_type: 'session_notes' },
-    log_id: 'log_00010',
-  },
-  {
-    id: '11',
-    timestamp: '2025-01-15T10:12:04Z',
-    action: 'org.created',
-    category: 'org_management',
-    severity: 'info',
-    actor: { id: 'a1', name: 'Alex Kim', email: 'alex@24therapy.ai', role: 'super_admin' },
-    target: { type: 'organization', id: 'org9', label: 'Summit Mental Health Group' },
-    outcome: 'success',
-    ip_address: '10.0.0.1',
-    user_agent: 'Mozilla/5.0 (Macintosh)',
-    geo: 'San Francisco, CA',
-    details: 'New organization onboarded — Enterprise plan, 25 seats',
-    metadata: { plan: 'enterprise', seats: '25', onboarding_source: 'sales_crm' },
-    log_id: 'log_00011',
-  },
-  {
-    id: '12',
-    timestamp: '2025-01-15T09:30:17Z',
-    action: 'auth.mfa_disabled',
-    category: 'security',
-    severity: 'high',
-    actor: { id: 'u55', name: 'Casey Morgan', email: 'casey@riverflow.com', role: 'org_admin' },
-    target: { type: 'user', id: 'u55', label: 'Casey Morgan (self)' },
-    org: { id: 'org6', name: 'River Flow Therapy' },
-    outcome: 'warning',
-    ip_address: '198.51.100.7',
-    user_agent: 'Firefox/122.0',
-    geo: 'Portland, OR',
-    details: 'MFA disabled for account — HIPAA compliance risk; notification sent to org admin',
-    metadata: { mfa_method: 'totp', warning_sent: 'true', compliance_flag: 'HIPAA-MFA-001' },
-    log_id: 'log_00012',
-  },
-  {
-    id: '13',
-    timestamp: '2025-01-15T08:55:42Z',
-    action: 'data.patient_record_deleted',
-    category: 'patient_data',
-    severity: 'critical',
-    actor: { id: 'u14', name: 'Jordan Price', email: 'jordan@serenehealth.com', role: 'org_admin' },
-    target: { type: 'patient', id: 'p188', label: 'Patient #P-2024-0188 (GDPR erasure)' },
-    org: { id: 'org2', name: 'Serene Health Partners' },
-    outcome: 'success',
-    ip_address: '172.16.10.5',
-    user_agent: 'Chrome/121.0',
-    geo: 'Austin, TX',
-    details: 'Patient record permanently deleted per GDPR Article 17 right-to-erasure request',
-    metadata: { request_id: 'gdpr_0022', verified_identity: 'true', retention_check: 'passed' },
-    log_id: 'log_00013',
-  },
-  {
-    id: '14',
-    timestamp: '2025-01-15T08:22:19Z',
-    action: 'system.config_changed',
-    category: 'system_config',
-    severity: 'high',
-    actor: { id: 'a1', name: 'Alex Kim', email: 'alex@24therapy.ai', role: 'super_admin' },
-    target: { type: 'config', id: 'sys_cfg_session_timeout', label: 'Session Timeout Config' },
-    outcome: 'success',
-    ip_address: '10.0.0.1',
-    user_agent: 'Mozilla/5.0 (Macintosh)',
-    geo: 'San Francisco, CA',
-    details: 'Global session timeout reduced from 8 hours to 4 hours for HIPAA compliance',
-    metadata: { from_value: '480min', to_value: '240min', affected_users: '1,247' },
-    log_id: 'log_00014',
-  },
-  {
-    id: '15',
-    timestamp: '2025-01-14T23:11:05Z',
-    action: 'auth.api_key_revoked',
-    category: 'authentication',
-    severity: 'medium',
-    actor: { id: 'a2', name: 'Morgan Lee', email: 'morgan@24therapy.ai', role: 'admin' },
-    target: { type: 'config', id: 'ak_0044', label: 'API Key ak_live_...8c3f' },
-    org: { id: 'org7', name: 'Clarity Behavioral Health' },
-    outcome: 'success',
-    ip_address: '10.0.0.4',
-    user_agent: 'Mozilla/5.0',
-    geo: 'San Francisco, CA',
-    details: 'API key revoked — suspected exposure in public GitHub repository',
-    metadata: { key_age_days: '142', last_used: '2025-01-14', rotation_reason: 'suspected_exposure' },
-    log_id: 'log_00015',
-  },
-];
 
 // ─── Helper Maps ──────────────────────────────────────────────────────────────
 
@@ -596,7 +343,8 @@ export default function AdminAuditLogsPage() {
   const [actorRoleFilter, setActorRoleFilter] = useState<AuditEntry['actor']['role'] | 'all'>('all');
   const [dateRange, setDateRange] = useState<'today' | '7d' | '30d' | '90d' | 'all'>('all');
   const [page, setPage] = useState(1);
-  const [liveData, setLiveData] = useState(AUDIT_DATA);
+  const [liveData, setLiveData] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const PAGE_SIZE = 10;
 
   useEffect(() => {
@@ -632,7 +380,8 @@ export default function AdminAuditLogsPage() {
             log_id: (e.id as string) || '',
           })));
         }
-      } catch { /* keep static fallback */ }
+      } catch { /* empty */ }
+      finally { setLoading(false); }
     }
     loadLogs();
   }, []);
@@ -644,14 +393,14 @@ export default function AdminAuditLogsPage() {
     const phiEvents = liveData.filter(e => e.category === 'phi_access' || e.category === 'patient_data').length;
     const securityAlerts = liveData.filter(e => e.category === 'security').length;
     return { critical, failures, phiEvents, securityAlerts, total: liveData.length };
-  }, []);
+  }, [liveData]);
 
   // Unique orgs for filter
   const orgs = useMemo(() => {
     const seen = new Map<string, string>();
     liveData.forEach(e => { if (e.org) seen.set(e.org.id, e.org.name); });
     return Array.from(seen.entries());
-  }, []);
+  }, [liveData]);
 
   // Filtered data
   const filtered = useMemo(() => {
@@ -875,13 +624,18 @@ export default function AdminAuditLogsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginated.length > 0 ? (
+              {loading ? (
+                <tr><td colSpan={7} className="py-16 text-center">
+                  <div className="w-8 h-8 border-2 border-red-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">Loading audit log…</p>
+                </td></tr>
+              ) : paginated.length > 0 ? (
                 paginated.map(entry => <AuditRow key={entry.id} entry={entry} />)
               ) : (
                 <tr>
                   <td colSpan={7} className="py-16 text-center">
                     <Shield className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                    <p className="text-gray-400 text-sm">No audit events match your filters</p>
+                    <p className="text-gray-400 text-sm">{liveData.length === 0 ? 'No audit events recorded yet.' : 'No audit events match your filters'}</p>
                     <button
                       onClick={() => {
                         setSearch(''); setCategoryFilter('all');
