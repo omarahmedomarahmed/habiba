@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { adminAPI } from '@/lib/api';
 import {
   Shield, Search, Filter, Download, RefreshCw, ChevronDown, ChevronUp,
   Eye, AlertTriangle, CheckCircle2, XCircle, Clock, User, Building2,
@@ -595,27 +596,66 @@ export default function AdminAuditLogsPage() {
   const [actorRoleFilter, setActorRoleFilter] = useState<AuditEntry['actor']['role'] | 'all'>('all');
   const [dateRange, setDateRange] = useState<'today' | '7d' | '30d' | '90d' | 'all'>('all');
   const [page, setPage] = useState(1);
+  const [liveData, setLiveData] = useState(AUDIT_DATA);
   const PAGE_SIZE = 10;
+
+  useEffect(() => {
+    async function loadLogs() {
+      try {
+        const res = await adminAPI.auditLogs({ limit: 100 }) as { data: Record<string, unknown>[] };
+        if (res.data?.length > 0) {
+          setLiveData(res.data.map(e => ({
+            id: e.id as string,
+            timestamp: e.created_at as string,
+            category: (e.action_category || 'phi_access') as AuditCategory,
+            action: e.action as string || `${e.access_type} ${e.resource_type}`,
+            outcome: (e.outcome || 'success') as AuditOutcome,
+            severity: (e.severity || 'low') as AuditSeverity,
+            actor: {
+              id: e.user_id as string,
+              name: (e.user_email as string) || (e.user_id as string) || 'Unknown',
+              role: (e.user_role || 'therapist') as AuditEntry['actor']['role'],
+              email: (e.user_email as string) || '',
+            },
+            target: e.resource_id ? {
+              type: ((e.resource_type as string) || 'record') as 'user' | 'organization' | 'patient' | 'session' | 'record' | 'config' | 'flag',
+              id: (e.resource_id as string),
+              label: (e.resource_type as string) || '',
+            } : undefined,
+            org: {
+              id: (e.organization_id as string) || '',
+              name: (e.organization_name as string) || '',
+            },
+            ip_address: (e.ip_address as string) || '',
+            user_agent: (e.user_agent as string) || '',
+            details: (e.details as string) || `${e.access_type || ''} ${e.resource_type || ''}`.trim(),
+            log_id: (e.id as string) || '',
+          })));
+        }
+      } catch { /* keep static fallback */ }
+    }
+    loadLogs();
+  }, []);
 
   // Stats
   const stats = useMemo(() => {
-    const critical = AUDIT_DATA.filter(e => e.severity === 'critical').length;
-    const failures = AUDIT_DATA.filter(e => e.outcome === 'failure').length;
-    const phiEvents = AUDIT_DATA.filter(e => e.category === 'phi_access' || e.category === 'patient_data').length;
-    const securityAlerts = AUDIT_DATA.filter(e => e.category === 'security').length;
-    return { critical, failures, phiEvents, securityAlerts, total: AUDIT_DATA.length };
+    const critical = liveData.filter(e => e.severity === 'critical').length;
+    const failures = liveData.filter(e => e.outcome === 'failure').length;
+    const phiEvents = liveData.filter(e => e.category === 'phi_access' || e.category === 'patient_data').length;
+    const securityAlerts = liveData.filter(e => e.category === 'security').length;
+    return { critical, failures, phiEvents, securityAlerts, total: liveData.length };
   }, []);
 
   // Unique orgs for filter
   const orgs = useMemo(() => {
     const seen = new Map<string, string>();
-    AUDIT_DATA.forEach(e => { if (e.org) seen.set(e.org.id, e.org.name); });
+    liveData.forEach(e => { if (e.org) seen.set(e.org.id, e.org.name); });
     return Array.from(seen.entries());
   }, []);
 
   // Filtered data
   const filtered = useMemo(() => {
-    return AUDIT_DATA.filter(e => {
+    return liveData.filter(e => {
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -776,7 +816,7 @@ export default function AdminAuditLogsPage() {
         <div className="flex items-center justify-between mt-3">
           <p className="text-sm text-gray-500">
             Showing <span className="font-medium text-gray-900">{filtered.length}</span> of{' '}
-            <span className="font-medium text-gray-900">{AUDIT_DATA.length}</span> events
+            <span className="font-medium text-gray-900">{liveData.length}</span> events
           </p>
           <div className="flex items-center gap-2">
             {categoryFilter !== 'all' && (

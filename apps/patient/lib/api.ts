@@ -253,5 +253,17 @@ export const journalAPI = {
   delete: (id: string) => apiFetch(`/notes/${id}`, { method: "DELETE" }),
 };
 
+export const messagesAPI = {
+  conversations: () =>
+    apiFetch<{ data: Record<string, unknown>[] }>("/notifications/conversations"),
+  messages: (conversationId: string, params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[] }>(`/notifications/conversations/${conversationId}/messages`, { params } as never),
+  send: (conversationId: string, content: string) =>
+    apiFetch<Record<string, unknown>>(`/notifications/conversations/${conversationId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content, message_type: "text" }),
+    }),
+};
+
 export { setStoredTokens, getAccessToken, getRefreshToken };
 export default apiFetch;

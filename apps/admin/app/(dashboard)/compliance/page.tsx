@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { adminAPI } from '@/lib/api';
 import {
   Shield, AlertTriangle, CheckCircle, Clock, Eye, Download,
   Search, Filter, FileText, Lock, AlertCircle, ChevronRight,
@@ -52,8 +53,33 @@ export default function CompliancePage() {
   const [activeTab, setActiveTab] = useState<'audit' | 'frameworks' | 'consents' | 'incidents'>('audit');
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
+  const [liveAuditLogs, setLiveAuditLogs] = useState(AUDIT_LOGS);
 
-  const filteredLogs = AUDIT_LOGS.filter(log => {
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await adminAPI.phiAuditLog({ limit: 50 }) as { data: Record<string, unknown>[] };
+        if (res.data?.length > 0) {
+          setLiveAuditLogs(res.data.map(e => ({
+            id: e.id as string,
+            action: `${e.access_type} ${e.resource_type}`.trim(),
+            user: (e.user_email as string) || (e.user_id as string) || 'Unknown',
+            user_id: e.user_id as string,
+            resource: (e.resource_type as string) || 'Unknown',
+            resource_id: (e.resource_id as string) || '',
+            org: (e.organization_name as string) || (e.organization_id as string) || '',
+            ip: (e.ip_address as string) || '',
+            timestamp: new Date(e.created_at as string).toLocaleString(),
+            risk: 'low',
+            outcome: 'success',
+          })));
+        }
+      } catch { /* keep static fallback */ }
+    }
+    load();
+  }, []);
+
+  const filteredLogs = liveAuditLogs.filter(log => {
     const matchSearch = log.action.toLowerCase().includes(search.toLowerCase()) ||
       log.user.toLowerCase().includes(search.toLowerCase());
     const matchRisk = riskFilter === 'all' || log.risk === riskFilter;

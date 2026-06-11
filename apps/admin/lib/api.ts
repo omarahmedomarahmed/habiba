@@ -250,6 +250,10 @@ export const adminAPI = {
   // Audit logs
   auditLogs: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: any[]; total: number }>('/admin/audit-logs', { params } as any),
+
+  // PHI access log (HIPAA)
+  phiAuditLog: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: any[]; total: number }>('/admin/phi-access-log', { params } as any),
 };
 
 // ============================================================

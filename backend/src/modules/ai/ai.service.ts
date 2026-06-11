@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, forwardRef, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../../database/database.service';
 import { ModelGatewayService } from './model-gateway.service';
 import { ContextBuilderService } from './context-builder.service';
+import { AICompanionService } from './ai-companion.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class AIService {
     private readonly modelGateway: ModelGatewayService,
     private readonly contextBuilder: ContextBuilderService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly companion: AICompanionService,
   ) {}
 
   async generateSOAPNote(sessionId: string, orgId: string, therapistId: string, format: string = 'soap') {
@@ -285,6 +287,11 @@ Be conservative — flag if uncertain. Therapist always makes final clinical dec
           this.notifyOrgAdminsOfCrisis(orgId, sessionId, riskData).catch((err) => {
             this.logger.error(`[CRISIS] Failed to notify admins: ${err?.message}`);
           });
+          // Schedule proactive AI companion follow-up for the patient
+          const patientId = session.patient_id;
+          setTimeout(() => {
+            this.companion.triggerCrisisFollowUp(patientId, orgId).catch(() => {});
+          }, 15 * 60 * 1000); // 15 minutes after the session
         }
       }
     }

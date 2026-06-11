@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send, Search, User, Paperclip, Smile, Info, Phone,
   Video, MoreHorizontal, Clock, CheckCheck, Check,
   Brain, Shield, AlertCircle, ChevronDown, Heart, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { messagesAPI } from "@/lib/api";
+import { getSocket } from "@/lib/socket";
+import { useAuthStore } from "@/lib/store";
 
 interface Thread {
   id: string;
@@ -110,17 +113,72 @@ const QUICK_REPLIES = [
 ];
 
 export default function MessagesPage() {
+  const { accessToken } = useAuthStore();
   const [activeThread, setActiveThread] = useState<string>("t1");
+  const [liveThreadId, setLiveThreadId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(MESSAGES);
   const [showInfo, setShowInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load real conversations on mount
+  useEffect(() => {
+    async function loadConversations() {
+      try {
+        const res = await messagesAPI.conversations() as { data: Record<string, unknown>[] };
+        if (res.data?.length > 0) {
+          setLiveThreadId(res.data[0].id as string);
+        }
+      } catch { /* keep mock threads */ }
+    }
+    loadConversations();
+  }, []);
+
+  // Load messages for active conversation
+  useEffect(() => {
+    if (!liveThreadId) return;
+    async function loadMessages() {
+      try {
+        const res = await messagesAPI.messages(liveThreadId!, { limit: 50 }) as { data: Record<string, unknown>[] };
+        if (res.data?.length > 0) {
+          setMessages(res.data.map(m => ({
+            id: m.id as string,
+            content: m.content as string,
+            sender: (m.sender_id === 'me' || m.is_mine) ? 'me' as const : 'therapist' as const,
+            time: new Date(m.created_at as string).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+            status: 'delivered' as const,
+            type: 'text' as const,
+          })));
+        }
+      } catch { /* keep mock messages */ }
+    }
+    loadMessages();
+  }, [liveThreadId]);
+
+  // Real-time WebSocket listener for incoming messages
+  useEffect(() => {
+    if (!accessToken || !liveThreadId) return;
+    const socket = getSocket(accessToken);
+    const handleNewMessage = (data: Record<string, unknown>) => {
+      if (data.conversation_id !== liveThreadId) return;
+      setMessages(prev => [...prev, {
+        id: data.id as string,
+        content: data.content as string,
+        sender: 'therapist' as const,
+        time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+        status: 'delivered' as const,
+        type: 'text' as const,
+      }]);
+    };
+    socket.on('new_message', handleNewMessage);
+    return () => { socket.off('new_message', handleNewMessage); };
+  }, [accessToken, liveThreadId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = (text: string) => {
+  const sendMessage = async (text: string) => {
     if (!text.trim()) return;
     const newMsg: Message = {
       id: `m${Date.now()}`, content: text, sender: "me",
@@ -129,9 +187,18 @@ export default function MessagesPage() {
     };
     setMessages(prev => [...prev, newMsg]);
     setInput("");
-    setTimeout(() => {
-      setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: "delivered" as const } : m));
-    }, 1000);
+    if (liveThreadId) {
+      try {
+        await messagesAPI.send(liveThreadId, text);
+        setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: "delivered" as const } : m));
+      } catch {
+        setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: "sending" as const } : m));
+      }
+    } else {
+      setTimeout(() => {
+        setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: "delivered" as const } : m));
+      }, 1000);
+    }
   };
 
   const activeThreadData = THREADS.find(t => t.id === activeThread);
