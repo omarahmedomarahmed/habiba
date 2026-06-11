@@ -108,6 +108,7 @@ interface CrisisAlert {
   confidence: number;
   recommended_action: string;
   timestamp: string;
+  conversation_id?: string;
 }
 
 export default function SessionRoomPage() {
@@ -299,6 +300,16 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
               >
                 Call 988 — Suicide & Crisis Lifeline
               </a>
+              {crisisAlert.conversation_id && (
+                <a
+                  href={`/messages?conversation=${crisisAlert.conversation_id}&priority=crisis`}
+                  className="flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-base transition-colors"
+                  onClick={() => setCrisisAlert(null)}
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  Open Crisis Chat with Patient
+                </a>
+              )}
               <button
                 onClick={() => {
                   setActiveRightTab('risk');

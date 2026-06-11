@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger, forwardRef,
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
 import { AIService } from '../ai/ai.service';
+import { CrisisService } from '../crisis/crisis.service';
 import { v4 as uuidv4 } from 'uuid';
 
 // Extended crisis keyword list for live transcript scanning
@@ -24,6 +25,7 @@ export class SessionsService {
     private readonly db: DatabaseService,
     private readonly config: ConfigService,
     @Inject(forwardRef(() => AIService)) private readonly aiService: AIService,
+    private readonly crisisService: CrisisService,
   ) {}
 
   async findAll(orgId: string, query: any = {}) {
@@ -284,14 +286,14 @@ export class SessionsService {
       ],
     );
 
-    // Crisis keyword scan — fire-and-forget (never blocks the response)
+    // Crisis keyword scan — keyword-first, loss-proof (never blocks the response)
     if (dto.text && typeof dto.text === 'string') {
       const lower = dto.text.toLowerCase();
-      const matched = LIVE_CRISIS_KEYWORDS.some((kw) => lower.includes(kw));
-      if (matched) {
-        this.logger.warn(`[CRISIS SCAN] Keyword matched in session ${sessionId} — triggering GPT-4o risk assessment`);
-        this.aiService.detectRisk(sessionId, orgId).catch((err) => {
-          this.logger.error(`[CRISIS SCAN] detectRisk failed for session ${sessionId}: ${err?.message}`);
+      const matchedKeywords = LIVE_CRISIS_KEYWORDS.filter((kw) => lower.includes(kw));
+      if (matchedKeywords.length > 0) {
+        this.logger.warn(`[CRISIS SCAN] Keywords matched in session ${sessionId}: ${matchedKeywords.join(', ')}`);
+        this.crisisService.handleKeywordHit(sessionId, orgId, matchedKeywords).catch((err) => {
+          this.logger.error(`[CRISIS SCAN] handleKeywordHit failed for session ${sessionId}: ${err?.message}`);
         });
       }
 

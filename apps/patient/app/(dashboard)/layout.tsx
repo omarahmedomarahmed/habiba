@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PatientSidebar } from "@/components/layout/patient-sidebar";
 import { useAuthStore } from "@/lib/store";
 import { authAPI, clearStoredTokens } from "@/lib/api";
+import { getSocket, disconnectSocket } from "@/lib/socket";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min
 const ABSOLUTE_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4 hr
@@ -14,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, expiresAt, clearAuth } = useAuthStore();
   const [showWarning, setShowWarning] = useState(false);
   const [countdown, setCountdown] = useState(300);
+  const [crisisBanner, setCrisisBanner] = useState<{ conversationId: string | null; message: string } | null>(null);
   const idleRef = useRef<NodeJS.Timeout | null>(null);
   const warnRef = useRef<NodeJS.Timeout | null>(null);
   const absRef = useRef<NodeJS.Timeout | null>(null);
@@ -62,6 +64,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(interval);
   }, [showWarning, handleLogout]);
 
+  useEffect(() => {
+    const { accessToken } = useAuthStore.getState();
+    if (!accessToken) return;
+    const socket = getSocket(accessToken);
+    const handler = (payload: { conversation_id: string | null; message: string }) => {
+      setCrisisBanner({ conversationId: payload.conversation_id, message: payload.message });
+    };
+    socket.on('crisis_support', handler);
+    return () => { socket.off('crisis_support', handler); };
+  }, []);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -74,6 +87,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen bg-slate-50">
       <PatientSidebar />
       <main className="flex-1 md:ml-[240px] overflow-hidden">
+        {crisisBanner && (
+          <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between gap-4">
+            <p className="text-sm font-medium">{crisisBanner.message}</p>
+            <div className="flex items-center gap-3 shrink-0">
+              {crisisBanner.conversationId && (
+                <a
+                  href={`/messages?conversation=${crisisBanner.conversationId}&priority=crisis`}
+                  className="text-xs font-bold bg-white text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Open Chat
+                </a>
+              )}
+              <a href="/crisis" className="text-xs underline text-blue-100 hover:text-white">Resources</a>
+              <button onClick={() => setCrisisBanner(null)} className="text-blue-200 hover:text-white text-lg leading-none">&times;</button>
+            </div>
+          </div>
+        )}
         <div className="max-w-4xl mx-auto px-4 py-6">
           {children}
         </div>

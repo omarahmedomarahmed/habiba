@@ -361,6 +361,19 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  @OnEvent("crisis.support")
+  handleCrisisSupport(payload: {
+    patientUserId: string;
+    conversationId: string | null;
+    message: string;
+  }) {
+    // Patients receive supportive handoff only — no risk levels or clinical indicators
+    this.server.to(`user:${payload.patientUserId}`).emit("crisis_support", {
+      conversation_id: payload.conversationId,
+      message: payload.message,
+    });
+  }
+
   @OnEvent("ai.emotional_context")
   handleEmotionalContext(payload: {
     sessionId: string;

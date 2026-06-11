@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Logger, forwardRef, Inject } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { DatabaseService } from '../../database/database.service';
 import { ModelGatewayService } from './model-gateway.service';
 import { ContextBuilderService } from './context-builder.service';
@@ -211,9 +211,20 @@ Provide clinical suggestions for the therapist.`,
     return { suggestions };
   }
 
+  @OnEvent('crisis.run_ai')
+  async runAiForCrisis(payload: { sessionId: string; orgId: string }) {
+    await this.detectRisk(payload.sessionId, payload.orgId).catch((err) => {
+      this.logger.error(`[CRISIS AI] detectRisk failed for session ${payload.sessionId}: ${err?.message}`);
+    });
+  }
+
   async detectRisk(sessionId: string, orgId: string) {
     const session = await this.db.queryOne<any>(
-      'SELECT * FROM sessions WHERE id = $1 AND organization_id = $2',
+      `SELECT s.*, th.user_id AS therapist_user_id, pt.user_id AS patient_user_id
+       FROM sessions s
+       JOIN therapists th ON th.id = s.therapist_id
+       JOIN patients   pt ON pt.id = s.patient_id
+       WHERE s.id = $1 AND s.organization_id = $2`,
       [sessionId, orgId],
     );
     if (!session) throw new NotFoundException('Session not found');
@@ -266,12 +277,29 @@ Be conservative — flag if uncertain. Therapist always makes final clinical dec
         ],
       );
 
+      // Notify crisis module for potential re-escalation (dedup logic lives there)
+      this.eventEmitter.emit('crisis.ai_analyzed', {
+        sessionId,
+        orgId,
+        riskDetected: true,
+        riskLevel: riskData.risk_level,
+        riskType: riskData.risk_type || 'general',
+        indicators: riskData.indicators || [],
+        confidence: riskData.confidence || 0.5,
+        recommendedAction: riskData.recommended_action || '',
+        therapistId: session.therapist_id,
+        therapistUserId: session.therapist_user_id,
+        patientId: session.patient_id,
+        patientUserId: session.patient_user_id,
+      });
+
       // Broadcast real-time crisis alert to therapist + org admins
       const ALERT_LEVELS = ['elevated', 'high', 'critical'];
       if (ALERT_LEVELS.includes(riskData.risk_level)) {
         this.eventEmitter.emit('ai.risk_detected', {
           sessionId,
           therapistId: session.therapist_id,
+          therapistUserId: session.therapist_user_id,
           patientId: session.patient_id,
           orgId,
           riskLevel: riskData.risk_level,
