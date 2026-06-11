@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { patientsAPI } from "@/lib/api";
 import {
   Brain, Search, Filter, Plus, ChevronRight, Tag, Calendar,
   User, AlertTriangle, Heart, Lightbulb, Flag, Target, Pill,
@@ -244,10 +245,64 @@ export default function MemoryPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newMemoryContent, setNewMemoryContent] = useState("");
   const [newMemoryCategory, setNewMemoryCategory] = useState<Exclude<MemoryCategory, "all">>("observation");
+  const [liveMemories, setLiveMemories] = useState<MemoryNode[]>(MEMORY_NODES);
+  const [liveProfiles, setLiveProfiles] = useState<PatientMemoryProfile[]>(PATIENT_PROFILES);
 
-  const currentPatient = PATIENT_PROFILES.find(p => p.patient_id === selectedPatient);
+  useEffect(() => {
+    async function loadPatients() {
+      try {
+        const res = await patientsAPI.list({ limit: 50 }) as { data: Record<string, unknown>[] };
+        const profiles = (res.data || []).map(p => ({
+          patient_id: p.id as string,
+          patient_name: `${p.first_name} ${p.last_name}`,
+          total_memories: 0,
+          last_updated: p.updated_at as string || new Date().toISOString(),
+          intelligence_score: 0,
+          sessions_analyzed: 0,
+        }));
+        if (profiles.length > 0) {
+          setLiveProfiles(profiles);
+          setSelectedPatient(profiles[0].patient_id);
+        }
+      } catch { /* keep static fallback */ }
+    }
+    loadPatients();
+  }, []);
 
-  const patientMemories = MEMORY_NODES.filter(m => {
+  useEffect(() => {
+    if (!selectedPatient || selectedPatient === "p1") return;
+    async function loadMemories() {
+      try {
+        const res = await patientsAPI.memories(selectedPatient) as { data: Record<string, unknown>[] };
+        const nodes = (res.data || []).map(m => ({
+          id: m.id as string,
+          patient_id: selectedPatient,
+          patient_name: "",
+          category: (m.node_type || "observation") as Exclude<MemoryCategory, "all">,
+          content: m.content as string || "",
+          evidence: [],
+          source_sessions: [],
+          created_at: m.created_at as string,
+          updated_at: m.updated_at as string || m.created_at as string,
+          importance: (m.importance || "medium") as MemoryImportance,
+          confidence: (m.confidence as number) || 0.8,
+          tags: (m.tags as string[]) || [],
+          ai_generated: true,
+          therapist_verified: false,
+          is_active: true,
+        }));
+        setLiveMemories(nodes);
+        setLiveProfiles(prev => prev.map(p =>
+          p.patient_id === selectedPatient ? { ...p, total_memories: nodes.length } : p
+        ));
+      } catch { setLiveMemories([]); }
+    }
+    loadMemories();
+  }, [selectedPatient]);
+
+  const currentPatient = liveProfiles.find(p => p.patient_id === selectedPatient);
+
+  const patientMemories = liveMemories.filter(m => {
     const matchesPatient = m.patient_id === selectedPatient;
     const matchesCategory = activeCategory === "all" || m.category === activeCategory;
     const matchesSearch = !searchQuery || m.content.toLowerCase().includes(searchQuery.toLowerCase()) || m.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -255,9 +310,9 @@ export default function MemoryPage() {
     return matchesPatient && matchesCategory && matchesSearch && matchesImportance;
   });
 
-  const criticalMemories = MEMORY_NODES.filter(m => m.patient_id === selectedPatient && m.importance === "critical");
+  const criticalMemories = liveMemories.filter(m => m.patient_id === selectedPatient && m.importance === "critical");
   const categoryCounts = Object.keys(CATEGORY_CONFIG).reduce((acc, cat) => {
-    acc[cat] = MEMORY_NODES.filter(m => m.patient_id === selectedPatient && m.category === cat).length;
+    acc[cat] = liveMemories.filter(m => m.patient_id === selectedPatient && m.category === cat).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -278,7 +333,7 @@ export default function MemoryPage() {
         <div className="p-4 border-b border-gray-100">
           <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Patient</p>
           <div className="space-y-1">
-            {PATIENT_PROFILES.map(p => (
+            {liveProfiles.map(p => (
               <button
                 key={p.patient_id}
                 onClick={() => { setSelectedPatient(p.patient_id); setSelectedMemory(null); }}
@@ -314,7 +369,7 @@ export default function MemoryPage() {
             >
               <Layers className="h-4 w-4" />
               <span>All Memories</span>
-              <span className="ml-auto text-xs text-gray-400">{MEMORY_NODES.filter(m => m.patient_id === selectedPatient).length}</span>
+              <span className="ml-auto text-xs text-gray-400">{liveMemories.filter(m => m.patient_id === selectedPatient).length}</span>
             </button>
             {Object.entries(CATEGORY_CONFIG).map(([cat, config]) => {
               const count = categoryCounts[cat] || 0;

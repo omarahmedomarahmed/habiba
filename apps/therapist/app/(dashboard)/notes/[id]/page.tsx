@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,72 +9,107 @@ import {
   ChevronDown, Copy, MoreHorizontal, FileText, History
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { notesAPI, aiAPI } from "@/lib/api";
 
-const MOCK_NOTE = {
-  id: "n1",
-  patient_name: "Sarah Chen",
-  patient_id: "p1",
-  session_date: "2025-12-15T10:00:00Z",
-  session_number: 24,
-  therapist_name: "Dr. Alex Smith",
-  note_format: "SOAP" as "SOAP" | "DAP" | "BIRP" | "Progress",
-  status: "needs_review",
-  ai_generated: true,
-  created_at: "2025-12-15T11:30:00Z",
-  word_count: 380,
-  risk_flag: false,
-  content: {
-    SOAP: {
-      subjective: `Patient Sarah Chen, a 34-year-old female, presented for her 24th individual therapy session. She reports a "mixed week" with continued improvement in anxiety management but notes heightened anticipatory anxiety related to a performance review at work. She states she practiced the 4-7-8 breathing technique prior to the review and found it "helped a lot." She received positive feedback from her manager but reports difficulty accepting it, stating "nothing feels like enough." Sleep quality is described as slightly improved, with 6-7 hours most nights. PHQ-9 prior to session: 13 (down from 14 on previous assessment). No acute safety concerns expressed. Patient denies suicidal ideation.`,
-      objective: `Patient presented alert, oriented, and appropriately dressed. Affect was congruent with mood. Mood described as "mixed but slightly better than last week." Eye contact maintained. Speech was normal in rate, rhythm, and tone. No psychomotor agitation or retardation observed. Thought process: linear and logical. No evidence of psychosis. PHQ-9: 13 (Moderate), GAD-7: 8 (Mild). Patient appeared engaged and receptive to therapeutic exploration.`,
-      assessment: `Sarah continues to demonstrate moderate depressive symptoms consistent with MDD (F32.1) with comorbid GAD (F41.1). Today's session highlighted significant progress in behavioral activation (applied coping skill during high-stress work event) contrasted with a persistent cognitive distortion pattern: dismissing positive feedback and applying perfectionistic standards. Core schema identified: "I am only valuable when I perform perfectly" — likely rooted in early childhood attachment dynamics (emotionally unavailable father, conditional affirmation). Patient responds well to Socratic questioning and collaborative insight-building. Therapeutic alliance remains strong.`,
-      plan: `1. Continue CBT with focus on perfectionism schema deconstruction using Double Standard Technique. 2. Assign: 3 completed Thought Record Worksheets prior to next session, focusing on positive achievement dismissal patterns. 3. Continue current medication regimen (Lexapro 10mg, Dr. Walsh). 4. Reinforce positive coping (breathing exercise before high-anxiety situations). 5. Explore connection between childhood expectations and current achievement anxiety at next session. 6. Schedule follow-up PHQ-9 in 2 sessions. Next session: December 22.`,
-    },
-  },
-  ai_suggestions: [
-    "Consider exploring whether 'nothing feels like enough' connects to sibling dynamics (mentioned Session #8)",
-    "Sleep improvement noted — reinforce as behavioral activation success",
-    "Double Standard Technique introduced — follow up on practice outside session",
-  ],
-};
+type NoteSection = "subjective" | "objective" | "assessment" | "plan";
 
-type NoteSection = keyof typeof MOCK_NOTE.content.SOAP;
+interface NoteData {
+  id: string;
+  patient_name: string;
+  patient_id: string;
+  session_date: string;
+  session_number: number;
+  therapist_name: string;
+  note_format: "SOAP" | "DAP" | "BIRP" | "Progress";
+  status: string;
+  ai_generated: boolean;
+  created_at: string;
+  word_count: number;
+  risk_flag: boolean;
+  content: { SOAP: Record<NoteSection, string> };
+  ai_suggestions: string[];
+}
 
 export default function NoteDetailPage() {
   const { id } = useParams();
-  const [note, setNote] = useState(MOCK_NOTE);
+  const noteId = Array.isArray(id) ? id[0] : id as string;
+  const [note, setNote] = useState<NoteData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<NoteSection | null>(null);
   const [editContent, setEditContent] = useState("");
   const [format, setFormat] = useState<"SOAP" | "DAP" | "BIRP">("SOAP");
   const [saving, setSaving] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
 
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await notesAPI.get(noteId) as Record<string, unknown>;
+        const soap = (data.content as Record<string, unknown>)?.SOAP as Record<NoteSection, string> ||
+          { subjective: "", objective: "", assessment: "", plan: "" };
+        setNote({
+          id: data.id as string,
+          patient_name: (data.patient_name as string) || "Patient",
+          patient_id: data.patient_id as string,
+          session_date: data.session_date as string || data.created_at as string,
+          session_number: (data.session_number as number) || 1,
+          therapist_name: (data.therapist_name as string) || "",
+          note_format: (data.note_format as "SOAP") || "SOAP",
+          status: (data.status as string) || "draft",
+          ai_generated: (data.ai_generated as boolean) ?? true,
+          created_at: data.created_at as string,
+          word_count: (data.word_count as number) || 0,
+          risk_flag: (data.risk_flag as boolean) ?? false,
+          content: { SOAP: soap },
+          ai_suggestions: (data.ai_suggestions as string[]) || [],
+        });
+        setFormat(((data.note_format as string) || "SOAP") as "SOAP" | "DAP" | "BIRP");
+      } catch {
+        // keep null — show error below
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [noteId]);
+
   const startEdit = (section: NoteSection) => {
+    if (!note) return;
     setEditing(section);
     setEditContent(note.content.SOAP[section]);
   };
 
-  const saveEdit = (section: NoteSection) => {
-    setNote(prev => ({
+  const saveEdit = async (section: NoteSection) => {
+    if (!note) return;
+    const updated = { ...note.content.SOAP, [section]: editContent };
+    setNote(prev => prev ? ({
       ...prev,
-      content: {
-        ...prev.content,
-        SOAP: { ...prev.content.SOAP, [section]: editContent },
-      },
-    }));
+      content: { ...prev.content, SOAP: updated },
+    }) : null);
     setEditing(null);
+    try {
+      await notesAPI.update(noteId, { content: { SOAP: updated } });
+    } catch { /* optimistic update already applied */ }
   };
 
   const handleFinalize = async () => {
+    if (!note) return;
     setFinalizing(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setNote(prev => ({ ...prev, status: "finalized" }));
+    try {
+      await notesAPI.finalize(noteId);
+      setNote(prev => prev ? { ...prev, status: "finalized" } : null);
+    } catch { /* show nothing — status unchanged */ }
     setFinalizing(false);
   };
 
   const handleRegenerateAI = async () => {
+    if (!note) return;
     setSaving(true);
-    await new Promise(r => setTimeout(r, 1500));
+    try {
+      const result = await aiAPI.generateNote(note.id, "soap") as Record<string, unknown>;
+      const soap = (result.content as Record<string, unknown>)?.SOAP as Record<NoteSection, string>;
+      if (soap) setNote(prev => prev ? { ...prev, content: { SOAP: soap } } : null);
+    } catch { /* keep existing content */ }
     setSaving(false);
   };
 
@@ -84,6 +119,9 @@ export default function NoteDetailPage() {
     { key: "assessment", label: "A — Assessment", desc: "Clinical analysis and diagnosis" },
     { key: "plan", label: "P — Plan", desc: "Treatment plan and next steps" },
   ];
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>;
+  if (!note) return <div className="p-6 text-center text-slate-500">Note not found. <Link href="/notes" className="text-violet-600 underline">Back to Notes</Link></div>;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5">

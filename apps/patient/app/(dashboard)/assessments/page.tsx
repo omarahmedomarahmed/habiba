@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { assessmentsAPI } from "@/lib/api";
 import {
   ClipboardList, CheckCircle2, Clock, ChevronRight, ArrowLeft,
   AlertCircle, TrendingUp, TrendingDown, Minus, Brain, Shield,
@@ -180,17 +181,23 @@ export default function AssessmentsPage() {
   const pending = ASSESSMENTS.filter(a => a.status === "pending");
   const done = ASSESSMENTS.filter(a => a.status === "completed");
 
-  const answerQuestion = (questionId: string, value: number) => {
+  const answerQuestion = async (questionId: string, value: number) => {
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers);
 
     if (takingAssessment && currentQuestion < takingAssessment.questions.length - 1) {
       setTimeout(() => setCurrentQuestion(q => q + 1), 300);
     } else {
-      // Submit
       const score = Object.values(newAnswers).reduce((a, b) => a + b, 0);
       setTotalScore(score);
       setCompleted(true);
+      // Submit to backend
+      if (takingAssessment) {
+        try {
+          const answersArray = Object.entries(newAnswers).map(([question_id, value]) => ({ question_id, value }));
+          await assessmentsAPI.submit(takingAssessment.id, answersArray);
+        } catch { /* score shown locally regardless */ }
+      }
     }
   };
 
