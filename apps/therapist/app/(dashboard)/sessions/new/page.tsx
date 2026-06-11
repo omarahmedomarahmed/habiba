@@ -1,22 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Calendar, Clock, Video, User, Search,
-  CheckCircle2, ChevronDown, AlertCircle, Brain, Phone
+  CheckCircle2, ChevronDown, AlertCircle, Brain, Phone, Loader2
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
-
-const MOCK_PATIENTS = [
-  { id: "p1", name: "Sarah Chen", diagnosis: "MDD", next_session: null, sessions: 24, risk: "medium" },
-  { id: "p2", name: "Michael Torres", diagnosis: "GAD", next_session: null, sessions: 12, risk: "low" },
-  { id: "p3", name: "James Rodriguez", diagnosis: "PTSD", next_session: null, sessions: 36, risk: "high" },
-  { id: "p4", name: "Emma Williams", diagnosis: "OCD", next_session: null, sessions: 18, risk: "low" },
-  { id: "p5", name: "Olivia Kim", diagnosis: "Social Anxiety", next_session: null, sessions: 8, risk: "low" },
-  { id: "p6", name: "David Patel", diagnosis: "Depression", next_session: null, sessions: 5, risk: "low" },
-];
+import { patientsAPI, sessionsAPI } from "@/lib/api";
 
 const SESSION_TYPES = [
   { id: "individual", label: "Individual Therapy" },
@@ -41,19 +33,61 @@ export default function NewSessionPage() {
   const [enableAI, setEnableAI] = useState(true);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState(true);
 
-  const filteredPatients = MOCK_PATIENTS.filter(p =>
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const data = await patientsAPI.list({ status: 'active', limit: 100 });
+        const items = Array.isArray(data) ? data : (data as any)?.data ?? [];
+        setPatients(items.map((p: any) => ({
+          id: p.id,
+          name: `${p.first_name} ${p.last_name || ''}`.trim(),
+          diagnosis: p.primary_diagnosis || '',
+          sessions: p.sessions_count || 0,
+          risk: p.risk_level || 'low',
+        })));
+      } catch {
+        // non-critical — keep empty list
+      } finally {
+        setPatientsLoading(false);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  const filteredPatients = patients.filter(p =>
     p.name.toLowerCase().includes(patientSearch.toLowerCase())
   );
 
-  const selectedPatientData = MOCK_PATIENTS.find(p => p.id === selectedPatient);
+  const selectedPatientData = patients.find(p => p.id === selectedPatient);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatient || !sessionDate) return;
     setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 800));
-    router.push("/sessions");
+    setSubmitError(null);
+    try {
+      const scheduledAt = new Date(`${sessionDate}T${sessionTime}:00`).toISOString();
+      const session = await sessionsAPI.create({
+        patient_id: selectedPatient,
+        session_type: sessionType,
+        scheduled_at: scheduledAt,
+        duration_minutes: duration,
+        format,
+        notes: notes || undefined,
+        enable_recording: enableRecording,
+        ai_enabled: enableAI,
+      });
+      const newId = (session as any).id;
+      if (newId) router.push(`/sessions/${newId}/prepare`);
+      else router.push('/sessions');
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Failed to create session. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -105,6 +139,15 @@ export default function NewSessionPage() {
                 />
               </div>
               <div className="space-y-1 max-h-48 overflow-y-auto">
+                {patientsLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                  </div>
+                ) : filteredPatients.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">
+                    {patientSearch ? 'No patients match your search' : 'No active patients found'}
+                  </p>
+                ) : null}
                 {filteredPatients.map(patient => (
                   <button
                     key={patient.id}
@@ -262,6 +305,10 @@ export default function NewSessionPage() {
             className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 resize-none"
           />
         </div>
+
+        {submitError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{submitError}</div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-3">

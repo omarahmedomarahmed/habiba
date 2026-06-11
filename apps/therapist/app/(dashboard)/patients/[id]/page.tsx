@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,6 +10,7 @@ import {
   CheckCircle2, Circle, Flag, Bookmark, ExternalLink
 } from "lucide-react";
 import { cn, formatDate, getRiskColor, getInitials } from "@/lib/utils";
+import { patientsAPI, sessionsAPI } from "@/lib/api";
 
 type Tab = "overview" | "sessions" | "notes" | "assessments" | "medications" | "goals" | "timeline" | "files" | "memory" | "reports";
 
@@ -112,11 +113,81 @@ export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [memorySearch, setMemorySearch] = useState("");
+  const [patient, setPatient] = useState<any>(null);
+  const [patientSessions, setPatientSessions] = useState<any[]>([]);
+  const [patientAssessments, setPatientAssessments] = useState<any[]>([]);
+  const [patientGoals, setPatientGoals] = useState<any[]>([]);
+  const [patientMedications, setPatientMedications] = useState<any[]>([]);
+  const [patientMemories, setPatientMemories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const patient = MOCK_PATIENT;
+  const fetchPatient = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [patientData, sessionsData, assessmentsData, goalsData, medsData, memoriesData] = await Promise.allSettled([
+        patientsAPI.get(id),
+        sessionsAPI.list({ patient_id: id, limit: 20 }),
+        patientsAPI.assessments(id),
+        patientsAPI.goals(id),
+        patientsAPI.medications(id),
+        patientsAPI.memories(id),
+      ]);
 
-  const filteredMemories = MOCK_MEMORIES.filter((m) =>
-    memorySearch === "" || m.content.toLowerCase().includes(memorySearch.toLowerCase())
+      if (patientData.status === 'fulfilled') setPatient(patientData.value);
+      else setError('Patient not found');
+
+      if (sessionsData.status === 'fulfilled') {
+        const d = sessionsData.value as any;
+        setPatientSessions(Array.isArray(d) ? d : d?.data ?? []);
+      }
+      if (assessmentsData.status === 'fulfilled') {
+        const d = assessmentsData.value as any;
+        setPatientAssessments(Array.isArray(d) ? d : d?.data ?? []);
+      }
+      if (goalsData.status === 'fulfilled') {
+        const d = goalsData.value as any;
+        setPatientGoals(Array.isArray(d) ? d : d?.data ?? []);
+      }
+      if (medsData.status === 'fulfilled') {
+        const d = medsData.value as any;
+        setPatientMedications(Array.isArray(d) ? d : d?.data ?? []);
+      }
+      if (memoriesData.status === 'fulfilled') {
+        const d = memoriesData.value as any;
+        setPatientMemories(Array.isArray(d) ? d : d?.data ?? []);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load patient');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { fetchPatient(); }, [fetchPatient]);
+
+  const filteredMemories = patientMemories.filter((m) =>
+    memorySearch === "" || (m.content || m.title || "").toLowerCase().includes(memorySearch.toLowerCase())
+  );
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-slate-500 text-sm">Loading patient...</p>
+      </div>
+    </div>
+  );
+
+  if (error || !patient) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <p className="text-red-600 font-medium">{error || 'Patient not found'}</p>
+        <Link href="/patients" className="text-primary text-sm mt-2 inline-block">← Back to patients</Link>
+      </div>
+    </div>
   );
 
   return (
@@ -252,7 +323,7 @@ export default function PatientProfilePage() {
                     <div>
                       <div className="text-xs text-slate-400 font-medium mb-1">Secondary</div>
                       <div className="flex flex-wrap gap-1">
-                        {patient.secondary_diagnoses.map((d) => (
+                        {(patient.secondary_diagnoses || []).map((d: string) => (
                           <span key={d} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{d}</span>
                         ))}
                       </div>
@@ -311,7 +382,7 @@ export default function PatientProfilePage() {
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {MOCK_SESSIONS.slice(0, 3).map((session) => (
+                  {patientSessions.slice(0, 3).map((session) => (
                     <div key={session.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
                       <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -361,7 +432,7 @@ export default function PatientProfilePage() {
                   <button onClick={() => setActiveTab("goals")} className="text-xs text-secondary hover:underline">View all</button>
                 </div>
                 <div className="space-y-2">
-                  {MOCK_GOALS.filter(g => g.status === "active").slice(0, 3).map((goal) => (
+                  {patientGoals.filter((g: any) => g.status === "active").slice(0, 3).map((goal) => (
                     <div key={goal.id} className="flex items-center gap-2">
                       {goal.progress === 100
                         ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
@@ -389,7 +460,7 @@ export default function PatientProfilePage() {
                   <button onClick={() => setActiveTab("medications")} className="text-xs text-secondary hover:underline">View all</button>
                 </div>
                 <div className="space-y-2">
-                  {MOCK_MEDICATIONS.filter(m => m.status === "active").map((med) => (
+                  {patientMedications.filter((m: any) => m.status === "active").map((med) => (
                     <div key={med.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
                       <Pill className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                       <div className="min-w-0">
@@ -408,20 +479,20 @@ export default function PatientProfilePage() {
         {activeTab === "sessions" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">All Sessions ({MOCK_SESSIONS.length})</h3>
+              <h3 className="text-sm font-semibold text-slate-800">All Sessions ({patientSessions.length})</h3>
               <Link href={`/sessions/new?patient_id=${id}`} className="flex items-center gap-1.5 h-8 px-3 bg-secondary text-white rounded-lg text-xs font-medium hover:bg-secondary/90">
                 <Plus className="w-3.5 h-3.5" /> Schedule
               </Link>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
               <div className="divide-y divide-slate-50">
-                {MOCK_SESSIONS.map((session, idx) => (
+                {patientSessions.map((session: any, idx: number) => (
                   <Link
                     key={session.id}
                     href={`/sessions/${session.id}`}
                     className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors group"
                   >
-                    <div className="text-sm font-bold text-slate-500 w-6 shrink-0">#{MOCK_SESSIONS.length - idx}</div>
+                    <div className="text-sm font-bold text-slate-500 w-6 shrink-0">#{patientSessions.length - idx}</div>
                     <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
                       <Video className="w-4 h-4 text-slate-400" />
                     </div>
@@ -454,7 +525,7 @@ export default function PatientProfilePage() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {MOCK_ASSESSMENTS.map((assessment) => (
+              {patientAssessments.map((assessment: any) => (
                 <div key={assessment.id} className="bg-white rounded-xl border border-slate-200 shadow-card p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -483,13 +554,13 @@ export default function PatientProfilePage() {
         {activeTab === "medications" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">Medications ({MOCK_MEDICATIONS.length})</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Medications ({patientMedications.length})</h3>
               <button className="flex items-center gap-1.5 h-8 px-3 bg-secondary text-white rounded-lg text-xs font-medium hover:bg-secondary/90">
                 <Plus className="w-3.5 h-3.5" /> Add Medication
               </button>
             </div>
             <div className="space-y-3">
-              {MOCK_MEDICATIONS.map((med) => (
+              {patientMedications.map((med: any) => (
                 <div key={med.id} className="bg-white rounded-xl border border-slate-200 shadow-card p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -536,7 +607,7 @@ export default function PatientProfilePage() {
               </button>
             </div>
             <div className="space-y-3">
-              {MOCK_GOALS.map((goal) => (
+              {patientGoals.map((goal: any) => (
                 <div key={goal.id} className={cn("bg-white rounded-xl border shadow-card p-4", goal.status === "completed" ? "border-green-200 opacity-75" : "border-slate-200")}>
                   <div className="flex items-start gap-3">
                     {goal.status === "completed"
@@ -575,7 +646,7 @@ export default function PatientProfilePage() {
             <div className="relative">
               <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-200" />
               <div className="space-y-4">
-                {MOCK_TIMELINE.map((event) => {
+                {patientSessions.map((event: any) => {
                   const Icon = event.icon;
                   const colorMap: Record<string, string> = {
                     session: "bg-blue-100 text-blue-600",
@@ -724,7 +795,7 @@ export default function PatientProfilePage() {
               </div>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-card divide-y divide-slate-50">
-              {MOCK_SESSIONS.map((session, idx) => (
+              {patientSessions.map((session: any, idx: number) => (
                 <div key={session.id} className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">

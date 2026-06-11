@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Calendar, Clock, Video, Phone, MapPin, ChevronLeft, ChevronRight,
   Plus, CheckCircle2, AlertCircle, X, Edit3, MessageSquare,
@@ -8,6 +8,7 @@ import {
   ArrowRight, FileText, Shield, Zap, Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sessionsAPI } from "@/lib/api";
 
 interface Session {
   id: string;
@@ -15,7 +16,7 @@ interface Session {
   time: string;
   duration: number;
   type: "video" | "phone" | "in_person";
-  status: "upcoming" | "completed" | "cancelled" | "no_show";
+  status: "upcoming" | "completed" | "cancelled" | "no_show" | "scheduled" | "in_progress";
   therapist_name: string;
   therapist_title: string;
   therapist_avatar?: string;
@@ -173,9 +174,32 @@ export default function AppointmentsPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>(SESSIONS);
 
-  const upcoming = SESSIONS.filter(s => s.status === "upcoming");
-  const completed = SESSIONS.filter(s => s.status === "completed");
+  useEffect(() => {
+    sessionsAPI.list({ limit: 50 } as any).then((data: any) => {
+      const items = Array.isArray(data) ? data : data?.data ?? [];
+      if (items.length > 0) {
+        setSessions(items.map((s: any) => ({
+          id: s.id,
+          date: s.scheduled_at ? s.scheduled_at.split('T')[0] : '',
+          time: s.scheduled_at ? new Date(s.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+          duration: s.duration_minutes || 50,
+          type: s.format || 'video',
+          status: s.status || 'upcoming',
+          therapist_name: s.therapist_name || 'Your Therapist',
+          therapist_title: '',
+          notes_available: !!s.has_ai_note,
+          session_number: s.session_number || 1,
+          can_cancel: s.status === 'scheduled',
+          reminder_set: false,
+        })));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const upcoming = sessions.filter(s => s.status === "upcoming" || s.status === "scheduled");
+  const completed = sessions.filter(s => s.status === "completed");
   const nextSession = upcoming[0];
 
   return (

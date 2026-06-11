@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User, Mail, Phone, MapPin, Shield, Bell, Lock, Heart,
   Camera, Edit2, Check, X, AlertCircle, Calendar, FileText,
-  ChevronRight, Pill, Activity, Brain, Contact, Globe, Clock
+  ChevronRight, Pill, Activity, Brain, Contact, Globe, Clock, Loader2
 } from "lucide-react";
+import { useAuthStore } from "@/lib/store";
+import { patientAPI } from "@/lib/api";
 
 type ProfileTab = "personal" | "health" | "privacy" | "emergency";
 
@@ -80,6 +82,37 @@ function ToggleRow({ label, description, defaultVal = false }: { label: string; 
 
 export default function PatientProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>("personal");
+  const { user } = useAuthStore();
+  const [profile, setProfile] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    patientAPI.me().then(setProfile).catch(() => {});
+  }, []);
+
+  const displayName = profile
+    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+    : user
+    ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+    : 'Your Name';
+
+  const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'P';
+
+  const handleSave = async (field: string, value: string) => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const updated = await patientAPI.update({ [field]: value });
+      setProfile(updated);
+      setSaveMsg('Saved');
+      setTimeout(() => setSaveMsg(null), 2000);
+    } catch {
+      setSaveMsg('Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -96,14 +129,14 @@ export default function PatientProfilePage() {
         <div className="flex items-center gap-5">
           <div className="relative">
             <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center text-3xl font-bold">
-              JA
+              {initials}
             </div>
             <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#2EC4B6] rounded-lg flex items-center justify-center hover:bg-[#26b0a2] transition">
               <Camera className="w-3.5 h-3.5 text-white" />
             </button>
           </div>
           <div>
-            <h2 className="text-xl font-bold">Jordan Anderson</h2>
+            <h2 className="text-xl font-bold">{displayName}</h2>
             <p className="text-white/70 text-sm">Patient since January 2026</p>
             <div className="flex items-center gap-2 mt-2">
               <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2.5 py-1 text-xs">

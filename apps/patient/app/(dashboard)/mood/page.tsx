@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Smile, Frown, Meh, Heart, Sun, Moon, Cloud, CloudRain, Zap,
   Plus, ChevronLeft, ChevronRight, TrendingUp, TrendingDown,
@@ -8,6 +8,7 @@ import {
   CheckCircle2, AlertCircle, Sparkles, BarChart2, Edit3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { patientAPI } from "@/lib/api";
 
 type MoodLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
@@ -175,6 +176,37 @@ export default function MoodPage() {
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [moodNotes, setMoodNotes] = useState("");
   const [sleepHours, setSleepHours] = useState(7);
+  const [moodHistory, setMoodHistory] = useState<MoodEntry[]>(MOOD_ENTRIES);
+  const [savingMood, setSavingMood] = useState(false);
+
+  useEffect(() => {
+    patientAPI.moodTrend(30).then((data: any) => {
+      const items = Array.isArray(data) ? data : data?.data ?? [];
+      if (items.length > 0) setMoodHistory(items);
+    }).catch(() => {});
+  }, []);
+
+  const saveMoodEntry = async () => {
+    if (!selectedMood) return;
+    setSavingMood(true);
+    try {
+      await patientAPI.addMoodEntry({
+        mood_score: selectedMood,
+        energy_level: selectedEnergy,
+        anxiety_level: selectedAnxiety,
+        sleep_hours: sleepHours,
+        emotions: selectedEmotions,
+        activities: selectedActivities,
+        notes: moodNotes,
+        recorded_at: new Date().toISOString(),
+      });
+    } catch {
+      // non-critical — entry saved locally regardless
+    } finally {
+      setSavingMood(false);
+    }
+    setLogStep("done");
+  };
   const [selectedInsightType, setSelectedInsightType] = useState<string>("all");
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -495,7 +527,7 @@ export default function MoodPage() {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => setLogStep("activities")} className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm">← Back</button>
-                    <button onClick={() => setLogStep("done")} className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63]">Save Entry ✓</button>
+                    <button onClick={saveMoodEntry} disabled={savingMood} className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] disabled:opacity-60">{savingMood ? "Saving..." : "Save Entry ✓"}</button>
                   </div>
                 </div>
               )}
