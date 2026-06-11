@@ -5,6 +5,7 @@
     "buildCommand": "pnpm install --frozen-lockfile --prod=false && pnpm --filter @24therapy/api build"
   },
   "deploy": {
+    "preDeployCommand": "node scripts/migrate.js",
     "startCommand": "node backend/dist/backend/src/main.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 120,

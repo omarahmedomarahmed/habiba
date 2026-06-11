@@ -16,6 +16,7 @@
     "type-check": "turbo run type-check",
     "clean": "turbo run clean && rm -rf node_modules",
     "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed.js",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
@@ -23,6 +24,10 @@
     "prettier": "^3.2.5",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "pg": "^8.13.3",
+    "bcryptjs": "^2.4.3"
   },
   "packageManager": "pnpm@9.15.4",
   "engines": {
