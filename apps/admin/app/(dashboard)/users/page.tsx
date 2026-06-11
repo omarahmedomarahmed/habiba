@@ -44,6 +44,26 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ email: '', first_name: '', last_name: '', role: 'therapist' });
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  const handleInviteUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteLoading(true);
+    try {
+      const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app').replace(/\/api\/v1\/?$/, '') + '/api/v1';
+      await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...inviteForm }),
+      });
+      setShowInviteModal(false);
+      setInviteForm({ email: '', first_name: '', last_name: '', role: 'therapist' });
+      fetchUsers();
+    } catch { /* keep modal open */ }
+    setInviteLoading(false);
+  };
   const LIMIT = 20;
 
   const fetchUsers = useCallback(async () => {
@@ -135,7 +155,7 @@ export default function UsersPage() {
             <Download className="w-4 h-4" />
             Export
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 transition-all">
+          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 transition-all">
             <Plus className="w-4 h-4" />
             Invite User
           </button>
@@ -364,6 +384,56 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      {/* Invite User Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-semibold text-white mb-4">Invite User</h2>
+            <form onSubmit={handleInviteUser} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">First Name</label>
+                  <input required value={inviteForm.first_name} onChange={e => setInviteForm(f => ({ ...f, first_name: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="First" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Last Name</label>
+                  <input required value={inviteForm.last_name} onChange={e => setInviteForm(f => ({ ...f, last_name: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Last" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Email</label>
+                <input required type="email" value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="user@clinic.com" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Role</label>
+                <select value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="therapist">Therapist</option>
+                  <option value="org_admin">Org Admin</option>
+                  <option value="patient">Patient</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowInviteModal(false)}
+                  className="flex-1 py-2 border border-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-800 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={inviteLoading}
+                  className="flex-1 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 disabled:opacity-50 transition-all">
+                  {inviteLoading ? 'Inviting...' : 'Send Invite'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

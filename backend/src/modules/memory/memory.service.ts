@@ -192,10 +192,10 @@ export class MemoryService {
       ],
     ).catch(async () => {
       // Return in-memory node if DB not ready
-      return [{ id, ...dto, status: 'active', times_observed: 1, first_observed_at: new Date().toISOString(), last_updated_at: new Date().toISOString() }];
+      return [{ id, ...dto, status: 'active', times_observed: 1, first_observed_at: new Date().toISOString(), last_updated_at: new Date().toISOString() }] as MemoryNode[];
     });
 
-    return result[0];
+    return result[0] as MemoryNode;
   }
 
   async updateMemoryNode(nodeId: string, updates: Partial<MemoryNode>): Promise<MemoryNode> {

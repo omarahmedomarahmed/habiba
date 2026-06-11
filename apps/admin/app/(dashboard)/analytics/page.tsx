@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { adminAPI } from "@/lib/api";
 import {
   TrendingUp, TrendingDown, DollarSign, Users, Activity, Brain,
   BarChart3, BarChart2, PieChart, Calendar, ArrowUpRight, ArrowDownRight,
@@ -102,6 +103,13 @@ const AI_COSTS = [
 export default function AdminAnalyticsPage() {
   const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [tab, setTab] = useState<AnalyticsTab>("revenue");
+  const [liveStats, setLiveStats] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    adminAPI.analyticsOverview(dateRange)
+      .then((data: any) => setLiveStats(data))
+      .catch(() => {/* keep static fallback */});
+  }, [dateRange]);
 
   const tabs: { id: AnalyticsTab; label: string; icon: typeof BarChart3 }[] = [
     { id: "revenue", label: "Revenue & Growth", icon: DollarSign },

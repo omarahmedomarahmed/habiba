@@ -51,6 +51,32 @@ export default function OrganizationsPage() {
   const [planFilter, setPlanFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ name: '', email: '', admin_first_name: '', admin_last_name: '' });
+  const [addLoading, setAddLoading] = useState(false);
+
+  const handleAddOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddLoading(true);
+    try {
+      await adminAPI.organizations({ limit: 1 }); // ensure client is alive
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app'}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: addForm.email,
+          first_name: addForm.admin_first_name,
+          last_name: addForm.admin_last_name,
+          role: 'org_admin',
+          organization_name: addForm.name,
+        }),
+      });
+      setShowAddModal(false);
+      setAddForm({ name: '', email: '', admin_first_name: '', admin_last_name: '' });
+      fetchOrgs();
+    } catch { /* keep modal open */ }
+    setAddLoading(false);
+  };
 
   const handleOrgAction = async (orgId: string, action: 'suspend' | 'activate') => {
     setActionLoading(orgId);
@@ -132,7 +158,7 @@ export default function OrganizationsPage() {
             <Download className="w-4 h-4" />
             Export
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 transition-all">
+          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 transition-all">
             <Plus className="w-4 h-4" />
             Add Organization
           </button>
@@ -356,6 +382,53 @@ export default function OrganizationsPage() {
           </div>
         )}
       </div>
+
+      {/* Add Organization Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-semibold text-white mb-4">Add Organization</h2>
+            <form onSubmit={handleAddOrg} className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Organization Name</label>
+                <input required value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Clinic name" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Admin First Name</label>
+                  <input required value={addForm.admin_first_name} onChange={e => setAddForm(f => ({ ...f, admin_first_name: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="First" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Admin Last Name</label>
+                  <input required value={addForm.admin_last_name} onChange={e => setAddForm(f => ({ ...f, admin_last_name: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Last" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Admin Email</label>
+                <input required type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="admin@clinic.com" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddModal(false)}
+                  className="flex-1 py-2 border border-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-800 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={addLoading}
+                  className="flex-1 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 disabled:opacity-50 transition-all">
+                  {addLoading ? 'Creating...' : 'Create Organization'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

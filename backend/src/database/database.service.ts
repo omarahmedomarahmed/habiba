@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { DATABASE_POOL } from './database.constants';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -7,12 +7,12 @@ import { v4 as uuidv4 } from 'uuid';
 export class DatabaseService {
   constructor(@Inject(DATABASE_POOL) private readonly pool: Pool) {}
 
-  async query<T = any>(sql: string, params?: any[]): Promise<T[]> {
-    const result: QueryResult<T> = await this.pool.query(sql, params);
+  async query<T extends QueryResultRow = QueryResultRow>(sql: string, params?: any[]): Promise<T[]> {
+    const result: QueryResult<T> = await this.pool.query<T>(sql, params);
     return result.rows;
   }
 
-  async queryOne<T = any>(sql: string, params?: any[]): Promise<T | null> {
+  async queryOne<T extends QueryResultRow = QueryResultRow>(sql: string, params?: any[]): Promise<T | null> {
     const rows = await this.query<T>(sql, params);
     return rows[0] || null;
   }

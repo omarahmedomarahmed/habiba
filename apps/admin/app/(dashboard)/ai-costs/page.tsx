@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { adminAPI } from "@/lib/api";
 import {
   Brain, DollarSign, TrendingUp, TrendingDown, Zap, BarChart3,
   Download, RefreshCw, ArrowUpRight, ArrowDownRight, Clock,
@@ -59,12 +60,23 @@ const MONTHS = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "
 export default function AICostsPage() {
   const [range, setRange] = useState<CostRange>("30d");
   const [sortOrg, setSortOrg] = useState<"cost" | "sessions" | "seat_cost">("cost");
+  const [liveModelCosts, setLiveModelCosts] = useState(MODEL_COSTS);
+  const [liveOrgCosts, setLiveOrgCosts] = useState(ORG_COSTS);
 
-  const totalCost = MODEL_COSTS.reduce((s, m) => s + m.cost_usd, 0);
-  const totalRequests = MODEL_COSTS.reduce((s, m) => s + m.requests_total, 0);
+  useEffect(() => {
+    adminAPI.analyticsRevenue(range)
+      .then((data: any) => {
+        if (data?.model_costs?.length > 0) setLiveModelCosts(data.model_costs);
+        if (data?.org_costs?.length > 0) setLiveOrgCosts(data.org_costs);
+      })
+      .catch(() => {/* keep static fallback */});
+  }, [range]);
+
+  const totalCost = liveModelCosts.reduce((s, m) => s + m.cost_usd, 0);
+  const totalRequests = liveModelCosts.reduce((s, m) => s + m.requests_total, 0);
   const costPerSession = (totalCost / 14210).toFixed(2);
 
-  const sortedOrgs = [...ORG_COSTS].sort((a, b) =>
+  const sortedOrgs = [...liveOrgCosts].sort((a, b) =>
     sortOrg === "cost" ? b.ai_cost - a.ai_cost :
     sortOrg === "sessions" ? b.sessions - a.sessions :
     b.cost_per_seat - a.cost_per_seat
@@ -161,7 +173,7 @@ export default function AICostsPage() {
             <div className="col-span-2">% of Total</div>
             <div className="col-span-1 text-right">Trend</div>
           </div>
-          {MODEL_COSTS.sort((a, b) => b.cost_usd - a.cost_usd).map((mc) => (
+          {[...liveModelCosts].sort((a, b) => b.cost_usd - a.cost_usd).map((mc) => (
             <div key={mc.use_case} className="grid grid-cols-12 px-5 py-3.5 hover:bg-slate-50 transition items-center text-sm">
               <div className="col-span-3">
                 <div className="font-medium text-slate-900 font-mono">{mc.model}</div>
