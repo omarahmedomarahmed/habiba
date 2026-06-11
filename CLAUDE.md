@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/wizardly-cerf-2mrcdg` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-11 (session 8 — Phases 0-8 complete, all portals wired to real API) |
+| **Last Updated** | 2026-06-11 (session 9 — all admin pages wired, Daily.co video, proactive AI companion, safety plan, therapist join form) |
 
 ---
 
@@ -171,6 +171,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 | Hash | Message |
 |------|---------|
+| `67eda3c` | feat: wire crisis safety plan persistence and therapist join form |
+| `7600530` | feat: wire feature flags, AI governance, support tools, Daily.co video |
+| `f444154` | feat: wire admin audit/compliance, patient messages, AI companion |
 | `c7997ca` | feat: wire patient progress, homework mark-complete to real API |
 | `1675017` | feat: Phase 3 — live audio transcription via Whisper |
 | `c7d0c18` | feat: Phase 2b — emotional AI layer end-to-end |
@@ -191,11 +194,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 - [x] Registration/signup form wired to `POST /auth/register`
 - [x] HIPAA `phi_access_log` writes via global `PhiAuditInterceptor`
 
-### P1 — Core Feature Completion
-- [ ] Daily.co video integration in session room (`/sessions/[id]/room`)
-- [ ] Patient messages real-time WebSocket (currently API-only)
-- [ ] Proactive AI companion cron jobs (`ai-companion.service.ts`)
-- [ ] Admin compliance/audit log pages wired to real endpoints
+### P1 — Core Feature Completion (all resolved ✅)
+- [x] Daily.co video: session room renders iframe from video_room_url
+- [x] Patient messages: real-time via Socket.io new_message events
+- [x] Proactive AI companion: 5 cron-scheduled message types
+- [x] Admin compliance/audit-log/feature-flags/AI-governance/support-tools all wired
+- [x] Crisis safety plan: saves/loads from backend, shares with therapist
+- [x] Therapist join form: submits to /auth/register
 
 ### P2 — Quality & Compliance
 - [ ] Tighten TypeScript: set `noImplicitAny: true` in backend tsconfig
