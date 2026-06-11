@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Search, MapPin, Star, Clock, Video, MessageSquare, Heart,
@@ -132,19 +132,65 @@ function MatchScore({ score }: { score: number }) {
   );
 }
 
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app").replace(/\/api\/v1\/?$/, "") + "/api/v1";
+
 export default function FindTherapistPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([]);
+  const [liveTherapists, setLiveTherapists] = useState<Therapist[]>(THERAPISTS);
   const [showFilters, setShowFilters] = useState(false);
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("any");
   const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
   const [aiMatchStarted, setAiMatchStarted] = useState(false);
 
+  useEffect(() => {
+    async function fetchTherapists() {
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) params.set('q', searchQuery);
+        if (selectedSpecs.length) params.set('specializations', selectedSpecs.join(','));
+        const res = await fetch(`${API_URL}/marketplace/search?${params}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const data: Record<string, unknown>[] = json.data?.listings || json.data || [];
+        if (data.length === 0) return;
+        setLiveTherapists(data.map(t => ({
+          id: t.id as string,
+          name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || (t.name as string) || 'Therapist',
+          license: (t.license_type as string) || 'LCSW',
+          title: (t.title as string) || (t.specialization as string) || 'Therapist',
+          photo_initials: (`${t.first_name || 'T'}`).charAt(0).toUpperCase(),
+          gradient: 'from-blue-500 to-violet-600',
+          location: (t.location as string) || 'Online',
+          specializations: (t.specializations as string[]) || [],
+          languages: (t.languages as string[]) || ['English'],
+          rating: (t.rating as number) || 4.8,
+          reviews: (t.review_count as number) || 0,
+          sessions: 0,
+          years_experience: (t.years_experience as number) || 0,
+          availability: 'this_week' as const,
+          video: true,
+          messaging: true,
+          phone: false,
+          rate_per_session: (t.session_price as number) || 150,
+          accepting_new: (t.accepting_new_patients as boolean) ?? true,
+          verified: (t.marketplace_enabled as boolean) ?? true,
+          premium: false,
+          bio: (t.bio as string) || '',
+          match_score: 90,
+          next_available: (t.next_available as string) || 'This week',
+          approaches: (t.approaches as string[]) || [],
+        })));
+      } catch { /* keep static fallback */ }
+    }
+    fetchTherapists();
+  }, [searchQuery, selectedSpecs]);
+
   const toggleSpec = (spec: string) => {
     setSelectedSpecs(prev => prev.includes(spec) ? prev.filter(s => s !== spec) : [...prev, spec]);
   };
 
-  const filteredTherapists = THERAPISTS.filter(t => {
+  const filteredTherapists = liveTherapists.filter(t => {
     const matchesSearch = !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.specializations.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesSpecs = selectedSpecs.length === 0 || selectedSpecs.some(s => t.specializations.includes(s));
     const matchesAvailability = availabilityFilter === "any" || t.availability === availabilityFilter;

@@ -50,6 +50,17 @@ export default function OrganizationsPage() {
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleOrgAction = async (orgId: string, action: 'suspend' | 'activate') => {
+    setActionLoading(orgId);
+    try {
+      if (action === 'suspend') await adminAPI.suspendOrg(orgId);
+      else await adminAPI.activateOrg(orgId);
+      setOrgs(prev => prev.map(o => o.id === orgId ? { ...o, status: action === 'suspend' ? 'suspended' : 'active' } : o));
+    } catch { /* keep current state */ }
+    setActionLoading(null);
+  };
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
@@ -287,15 +298,31 @@ export default function OrganizationsPage() {
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
+                      <button className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors" title="View">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
-                      <button className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
+                      <button className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors" title="Edit">
                         <Edit className="w-3.5 h-3.5" />
                       </button>
-                      <button className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
-                        <MoreHorizontal className="w-3.5 h-3.5" />
-                      </button>
+                      {org.status === 'suspended' ? (
+                        <button
+                          onClick={() => handleOrgAction(org.id, 'activate')}
+                          disabled={actionLoading === org.id}
+                          className="p-1.5 hover:bg-green-700/30 rounded text-green-400 hover:text-green-300 transition-colors disabled:opacity-50"
+                          title="Activate org"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleOrgAction(org.id, 'suspend')}
+                          disabled={actionLoading === org.id}
+                          className="p-1.5 hover:bg-red-700/30 rounded text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                          title="Suspend org"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

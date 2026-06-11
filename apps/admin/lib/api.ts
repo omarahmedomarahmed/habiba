@@ -216,6 +216,16 @@ export const adminAPI = {
     apiFetch<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   suspendUser: (id: string) =>
     apiFetch<any>(`/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'suspended' }) }),
+  activateUser: (id: string) =>
+    apiFetch<any>(`/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
+  impersonateUser: (id: string) =>
+    apiFetch<{ impersonation_token: string; user: any }>(`/admin/users/${id}/impersonate`, { method: 'POST' }),
+
+  // Organizations
+  suspendOrg: (id: string) =>
+    apiFetch<any>(`/admin/organizations/${id}/suspend`, { method: 'POST' }),
+  activateOrg: (id: string) =>
+    apiFetch<any>(`/admin/organizations/${id}/activate`, { method: 'POST' }),
 
   // Therapists
   therapists: (params?: Record<string, string | number | undefined>) =>

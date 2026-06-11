@@ -3,7 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { PhiAuditInterceptor } from './common/interceptors/phi-audit.interceptor';
 
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -90,6 +91,11 @@ import appConfig from './config/app.config';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // HIPAA PHI audit log — fires on every successful PHI route response
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PhiAuditInterceptor,
     },
   ],
 })

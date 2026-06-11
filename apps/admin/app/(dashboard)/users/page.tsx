@@ -87,6 +87,21 @@ export default function UsersPage() {
     }
   };
 
+  const handleImpersonate = async (user: any) => {
+    try {
+      const result = await adminAPI.impersonateUser(user.id);
+      const token = result.impersonation_token;
+      if (!token) { alert('Impersonation not available'); return; }
+      // Open the appropriate portal with the impersonation token
+      const portalUrl = user.role === 'patient'
+        ? process.env.NEXT_PUBLIC_PATIENT_URL || 'http://localhost:3002'
+        : process.env.NEXT_PUBLIC_THERAPIST_URL || 'http://localhost:3001';
+      window.open(`${portalUrl}/impersonate?token=${encodeURIComponent(token)}`, '_blank');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Impersonation failed — endpoint may not be implemented yet');
+    }
+  };
+
   // Computed stats from current page data
   const stats = {
     total,
@@ -303,7 +318,7 @@ export default function UsersPage() {
                       <button className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors" title="Edit User">
                         <Edit className="w-3.5 h-3.5" />
                       </button>
-                      <button className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-amber-400 transition-colors" title="Impersonate">
+                      <button onClick={() => handleImpersonate(user)} className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-amber-400 transition-colors" title="Impersonate">
                         <UserCheck className="w-3.5 h-3.5" />
                       </button>
                       {user.status === 'active' && (
