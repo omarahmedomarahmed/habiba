@@ -14,10 +14,12 @@ import {
 } from "lucide-react";
 import { cn, formatSessionTime, getInitials } from "@/lib/utils";
 import { useSessionRoomStore } from "@/lib/store";
+import { sessionsAPI, aiAPI } from "@/lib/api";
 
 // Mock session data
 const MOCK_SESSION = {
   id: "s1",
+  video_room_url: undefined as string | undefined,
   patient: {
     id: "p1", name: "Sarah Chen", age: 34, diagnosis: "Major Depressive Disorder",
     risk_level: "medium", sessions_count: 24,
@@ -134,8 +136,29 @@ export default function SessionRoomPage() {
   } | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const [liveSession, setLiveSession] = useState<Record<string, unknown> | null>(null);
 
-  const session = MOCK_SESSION;
+  useEffect(() => {
+    if (!id) return;
+    sessionsAPI.get(id)
+      .then((s: any) => setLiveSession(s))
+      .catch(() => {/* keep mock */});
+  }, [id]);
+
+  const session = liveSession ? {
+    ...MOCK_SESSION,
+    id: liveSession.id as string,
+    video_room_url: (liveSession.video_room_url as string) || undefined,
+    patient: {
+      ...MOCK_SESSION.patient,
+      id: (liveSession.patient_id as string) || MOCK_SESSION.patient.id,
+      name: (liveSession.patient_name as string) || MOCK_SESSION.patient.name,
+    },
+    scheduled_time: liveSession.scheduled_at
+      ? new Date(liveSession.scheduled_at as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : MOCK_SESSION.scheduled_time,
+    duration: (liveSession.duration_minutes as number) || MOCK_SESSION.duration,
+  } : MOCK_SESSION;
 
   // WebSocket: listen for crisis_alert events during live session
   useEffect(() => {
@@ -517,8 +540,16 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
                   {isGeneratingNote ? "Generating SOAP Note..." : "Generate AI Note"}
                 </button>
               </div>
+            ) : session.video_room_url ? (
+              /* Live session — Daily.co video room */
+              <iframe
+                src={session.video_room_url}
+                allow="camera; microphone; fullscreen; display-capture; autoplay"
+                className="w-full h-full border-0"
+                title="Video Session"
+              />
             ) : (
-              /* Live session - simulated video */
+              /* Live session - no video room URL, show avatar placeholder */
               <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
                 <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center text-white text-3xl font-bold">
                   {getInitials(session.patient.name)}

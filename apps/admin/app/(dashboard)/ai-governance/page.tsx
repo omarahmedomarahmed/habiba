@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { adminAPI } from '@/lib/api';
 import {
   Brain, Activity, TrendingUp, TrendingDown, AlertTriangle,
   CheckCircle, Clock, Eye, Settings, BarChart2, Zap,
@@ -87,10 +88,19 @@ const ENFORCEMENT_COLORS: Record<string, string> = {
 export default function AIGovernancePage() {
   const [activeTab, setActiveTab] = useState<'models' | 'safety' | 'costs' | 'memory'>('models');
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [liveModels, setLiveModels] = useState(MODEL_PERFORMANCE);
 
-  const totalCostToday = MODEL_PERFORMANCE.reduce((acc, m) => acc + m.cost_today, 0);
-  const totalCostMonth = MODEL_PERFORMANCE.reduce((acc, m) => acc + m.cost_month, 0);
-  const totalRequestsToday = MODEL_PERFORMANCE.reduce((acc, m) => acc + m.requests_today, 0);
+  useEffect(() => {
+    adminAPI.platformStats()
+      .then((stats: any) => {
+        if (stats?.ai_models?.length > 0) setLiveModels(stats.ai_models);
+      })
+      .catch(() => {/* keep static fallback */});
+  }, []);
+
+  const totalCostToday = liveModels.reduce((acc, m) => acc + m.cost_today, 0);
+  const totalCostMonth = liveModels.reduce((acc, m) => acc + m.cost_month, 0);
+  const totalRequestsToday = liveModels.reduce((acc, m) => acc + m.requests_today, 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -160,7 +170,7 @@ export default function AIGovernancePage() {
       {/* Models Tab */}
       {activeTab === 'models' && (
         <div className="space-y-3">
-          {MODEL_PERFORMANCE.map((model) => (
+          {liveModels.map((model) => (
             <div key={model.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -331,7 +341,7 @@ export default function AIGovernancePage() {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-white mb-4">Cost Breakdown by Model</h3>
             <div className="space-y-3">
-              {MODEL_PERFORMANCE.map((model) => (
+              {liveModels.map((model) => (
                 <div key={model.id}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs text-gray-300">{model.model}</span>

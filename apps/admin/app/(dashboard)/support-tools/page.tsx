@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { adminAPI } from "@/lib/api";
 import {
   Wrench, Search, User, Building2, AlertTriangle, CheckCircle, X,
   Clock, MessageSquare, ExternalLink, ChevronDown, RefreshCw,
@@ -52,6 +53,8 @@ const PRIORITY_CONFIG: Record<TicketPriority, { label: string; color: string; do
 
 type ActionTab = "tickets" | "impersonate" | "account_actions";
 
+interface LiveUser { id: string; name: string; email: string; org: string; role: string; last_login: string; }
+
 export default function SupportToolsPage() {
   const [tab, setTab] = useState<ActionTab>("tickets");
   const [searchTicket, setSearchTicket] = useState("");
@@ -59,6 +62,35 @@ export default function SupportToolsPage() {
   const [filterPriority, setFilterPriority] = useState<"all" | TicketPriority>("all");
   const [impersonateSearch, setImpersonateSearch] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
+  const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
+
+  useEffect(() => {
+    adminAPI.users({ limit: 20 })
+      .then((res: any) => {
+        const users = (res.data || []).map((u: any) => ({
+          id: u.id,
+          name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+          email: u.email,
+          org: u.organization_name || '',
+          role: u.role || 'user',
+          last_login: u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'Never',
+        }));
+        if (users.length > 0) setLiveUsers(users);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleImpersonate = async (userId: string) => {
+    try {
+      const res = await adminAPI.impersonateUser(userId);
+      const { impersonation_token, user } = res;
+      const portal = user?.role === 'patient' ? process.env.NEXT_PUBLIC_PATIENT_URL || 'http://localhost:3002'
+        : process.env.NEXT_PUBLIC_THERAPIST_URL || 'http://localhost:3001';
+      window.open(`${portal}/login?impersonate=${impersonation_token}`, '_blank');
+    } catch (err: any) {
+      alert(`Impersonation failed: ${err.message}`);
+    }
+  };
 
   const filteredTickets = TICKETS.filter((t) => {
     const matchSearch = !searchTicket || t.subject.toLowerCase().includes(searchTicket.toLowerCase()) || t.org_name.toLowerCase().includes(searchTicket.toLowerCase()) || t.id.toLowerCase().includes(searchTicket.toLowerCase());
@@ -205,15 +237,13 @@ export default function SupportToolsPage() {
             <input value={impersonateSearch} onChange={e => setImpersonateSearch(e.target.value)} placeholder="Search by email or name..." className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2EC4B6]" />
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
-            {[
-              { name: "Dr. Lily Martinez", email: "lily@pacificmh.com", org: "Pacific Mental Health", role: "Owner", last_login: "1 hour ago" },
-              { name: "Marcus Webb", email: "m.webb@bayatg.com", org: "Bay Area Therapy Group", role: "Therapist", last_login: "2 hours ago" },
-              { name: "Dr. Sarah Chen", email: "sarah@serenity.com", org: "Serenity Practice", role: "Owner", last_login: "Yesterday" },
-            ].filter(u => !impersonateSearch || u.name.toLowerCase().includes(impersonateSearch.toLowerCase()) || u.email.toLowerCase().includes(impersonateSearch.toLowerCase())).map((user) => (
+            {liveUsers
+              .filter(u => !impersonateSearch || u.name.toLowerCase().includes(impersonateSearch.toLowerCase()) || u.email.toLowerCase().includes(impersonateSearch.toLowerCase()))
+              .map((user) => (
               <div key={user.email} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600">
-                    {user.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                    {user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-slate-900">{user.name}</div>
@@ -222,13 +252,16 @@ export default function SupportToolsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-slate-400">{user.last_login}</span>
-                  <button className="flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-200 transition">
+                  <button onClick={() => handleImpersonate(user.id)} className="flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-200 transition">
                     <Eye className="w-3.5 h-3.5" />
                     Impersonate
                   </button>
                 </div>
               </div>
             ))}
+            {liveUsers.length === 0 && (
+              <div className="px-5 py-8 text-center text-slate-400 text-sm">No users loaded</div>
+            )}
           </div>
         </div>
       )}

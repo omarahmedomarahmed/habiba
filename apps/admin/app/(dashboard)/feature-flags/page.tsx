@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import apiFetch from "@/lib/api";
 import {
   Zap, Search, Plus, ChevronDown, Building2, Users, Globe,
   AlertTriangle, CheckCircle, Clock, Edit2, Trash2, X, Save,
@@ -187,6 +188,12 @@ export default function FeatureFlagsPage() {
   const [search, setSearch] = useState("");
   const [filterTag, setFilterTag] = useState("all");
 
+  useEffect(() => {
+    apiFetch<{ data: FeatureFlag[] }>('/admin/feature-flags')
+      .then(res => { if ((res as any).data?.length > 0) setFlags((res as any).data); })
+      .catch(() => {/* keep static fallback */});
+  }, []);
+
   const allTags = Array.from(new Set(FLAGS.flatMap(f => f.tags)));
 
   const filtered = flags.filter(f => {
@@ -195,8 +202,15 @@ export default function FeatureFlagsPage() {
     return matchSearch && matchTag;
   });
 
-  const handleToggle = (id: string) => {
+  const handleToggle = async (id: string) => {
+    const flag = flags.find(f => f.id === id);
+    if (!flag) return;
     setFlags(prev => prev.map(f => f.id === id ? { ...f, enabled_globally: !f.enabled_globally } : f));
+    try {
+      await apiFetch(`/admin/feature-flags/${flag.key}`, {
+        method: 'PUT', body: JSON.stringify({ enabled_globally: !flag.enabled_globally }),
+      });
+    } catch { /* optimistic update stays */ }
   };
 
   const enabledCount = flags.filter(f => f.enabled_globally).length;
