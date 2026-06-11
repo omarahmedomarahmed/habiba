@@ -6,7 +6,7 @@ export function getSocket(token: string): Socket {
   if (!socket) {
     const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1')
       .replace('/api/v1', '');
-    socket = io(baseUrl, {
+    socket = io(`${baseUrl}/ws`, {
       path: '/socket.io',
       auth: { token },
       transports: ['websocket'],

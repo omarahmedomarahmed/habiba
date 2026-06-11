@@ -11,6 +11,7 @@ import { Server, Socket } from "socket.io";
 import { JwtService } from "@nestjs/jwt";
 import { OnEvent } from "@nestjs/event-emitter";
 import { Logger } from "@nestjs/common";
+import { DatabaseService } from "../database/database.service";
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -51,7 +52,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Map: sessionId → socketId(s)
   private readonly sessionRooms = new Map<string, Set<string>>();
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly db: DatabaseService,
+  ) {}
 
   // ============================================================
   // CONNECTION LIFECYCLE
@@ -68,41 +72,52 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
+      // Tokens are signed {sub, org, role} — map to named fields
       const payload = this.jwtService.verify<{
-        userId: string;
-        organizationId: string;
+        sub: string;
+        org: string;
         role: string;
-        therapistId?: string;
       }>(token);
 
-      client.userId = payload.userId;
-      client.organizationId = payload.organizationId;
+      const userId = payload.sub;
+      const organizationId = payload.org;
+
+      client.userId = userId;
+      client.organizationId = organizationId;
       client.role = payload.role;
-      client.therapistId = payload.therapistId;
+
+      // Look up therapist profile id so handleRiskAlert can map it to a user room
+      if (payload.role === "therapist") {
+        const row = await this.db.queryOne<{ id: string }>(
+          'SELECT id FROM therapists WHERE user_id = $1 AND organization_id = $2 AND deleted_at IS NULL LIMIT 1',
+          [userId, organizationId],
+        );
+        client.therapistId = row?.id;
+      }
 
       // Join organization room
-      client.join(`org:${payload.organizationId}`);
+      client.join(`org:${organizationId}`);
 
       // Join user-specific room
-      client.join(`user:${payload.userId}`);
+      client.join(`user:${userId}`);
 
       // Track socket by userId
-      if (!this.userSockets.has(payload.userId)) {
-        this.userSockets.set(payload.userId, new Set());
+      if (!this.userSockets.has(userId)) {
+        this.userSockets.set(userId, new Set());
       }
-      this.userSockets.get(payload.userId)!.add(client.id);
+      this.userSockets.get(userId)!.add(client.id);
 
       // If therapist, join therapist room for radar broadcasts
       if (payload.role === "therapist" || payload.role === "admin") {
-        client.join(`therapists:${payload.organizationId}`);
+        client.join(`therapists:${organizationId}`);
       }
 
-      this.logger.log(`Client connected: ${client.id} (user: ${payload.userId})`);
+      this.logger.log(`Client connected: ${client.id} (user: ${userId})`);
 
       // Send connection acknowledgment
       client.emit("connected", {
         message: "Connected to 24Therapy real-time services",
-        userId: payload.userId,
+        userId,
       });
     } catch (error) {
       this.logger.error("Authentication failed for WebSocket connection", error);
@@ -276,9 +291,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ============================================================
 
   @OnEvent("ai.risk_detected")
-  handleRiskAlert(payload: {
+  async handleRiskAlert(payload: {
     sessionId: string;
-    therapistId: string;
+    therapistId: string;    // therapists table PK
     patientId: string;
     orgId: string;
     riskLevel: string;
@@ -287,6 +302,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     confidence: number;
     recommendedAction: string;
     timestamp: string;
+    therapistUserId?: string;  // populated by crisis module (P2); fallback: DB lookup
   }) {
     const alertPayload = {
       session_id: payload.sessionId,
@@ -299,13 +315,25 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       timestamp: payload.timestamp,
     };
 
-    // Alert the therapist in the session
-    this.server.to(`user:${payload.therapistId}`).emit("crisis_alert", alertPayload);
+    // Resolve therapist's user_id (the crisis module will supply therapistUserId in P2;
+    // fall back to a DB lookup so alerts work before that module exists)
+    let therapistUserId = payload.therapistUserId;
+    if (!therapistUserId) {
+      const row = await this.db.queryOne<{ user_id: string }>(
+        'SELECT user_id FROM therapists WHERE id = $1 LIMIT 1',
+        [payload.therapistId],
+      );
+      therapistUserId = row?.user_id || payload.therapistId;
+    }
 
-    // Alert all admins in the organization
+    // Alert the therapist directly via their user room
+    this.server.to(`user:${therapistUserId}`).emit("crisis_alert", alertPayload);
+
+    // Alert all admins in the organization (org room = admin + therapist sockets)
     this.server.to(`org:${payload.orgId}`).emit("crisis_alert", {
       ...alertPayload,
       therapist_id: payload.therapistId,
+      therapist_user_id: therapistUserId,
     });
 
     this.logger.warn(
