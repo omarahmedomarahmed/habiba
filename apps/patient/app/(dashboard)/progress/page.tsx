@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { assessmentsAPI, patientAPI } from "@/lib/api";
 import {
   TrendingUp, TrendingDown, Minus, Target, Calendar, Activity,
   Brain, Heart, Star, CheckCircle2, Circle, Clock, BarChart2,
@@ -192,19 +193,50 @@ function getProgressColor(p: number): string {
 
 export default function ProgressPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "goals" | "assessments" | "achievements">("overview");
+  const [liveAssessments, setLiveAssessments] = useState(ASSESSMENT_HISTORY);
+  const [liveGoals, setLiveGoals] = useState(THERAPY_GOALS);
 
-  const currentPHQ9 = ASSESSMENT_HISTORY[ASSESSMENT_HISTORY.length - 1].phq9;
+  useEffect(() => {
+    async function load() {
+      try {
+        const [assessRes, patientRes] = await Promise.allSettled([
+          assessmentsAPI.list({ status: 'completed', limit: 12 }),
+          patientAPI.me(),
+        ]);
+        if (assessRes.status === 'fulfilled') {
+          const data = (assessRes.value as { data: Record<string, unknown>[] }).data || [];
+          if (data.length > 0) {
+            const mapped = data.map(a => ({
+              date: (a.completed_at as string || a.created_at as string || '').slice(0, 7),
+              phq9: (a.phq9_score as number) || (a.score as number) || 0,
+              gad7: (a.gad7_score as number) || 0,
+              session: 0,
+            }));
+            setLiveAssessments(mapped);
+          }
+        }
+        if (patientRes.status === 'fulfilled') {
+          const p = patientRes.value as Record<string, unknown>;
+          const goals = (p.goals as Record<string, unknown>[]) || [];
+          if (goals.length > 0) setLiveGoals(goals as unknown as typeof THERAPY_GOALS);
+        }
+      } catch { /* keep static fallback */ }
+    }
+    load();
+  }, []);
+
+  const currentPHQ9 = liveAssessments[liveAssessments.length - 1]?.phq9 ?? ASSESSMENT_HISTORY[ASSESSMENT_HISTORY.length - 1].phq9;
   const startPHQ9 = ASSESSMENT_HISTORY[0].phq9;
   const phq9Change = currentPHQ9 - startPHQ9;
   const phq9PctImprovement = Math.round(((startPHQ9 - currentPHQ9) / startPHQ9) * 100);
 
-  const currentGAD7 = ASSESSMENT_HISTORY[ASSESSMENT_HISTORY.length - 1].gad7;
+  const currentGAD7 = liveAssessments[liveAssessments.length - 1]?.gad7 ?? ASSESSMENT_HISTORY[ASSESSMENT_HISTORY.length - 1].gad7;
   const startGAD7 = ASSESSMENT_HISTORY[0].gad7;
   const gad7Change = currentGAD7 - startGAD7;
   const gad7PctImprovement = Math.round(((startGAD7 - currentGAD7) / startGAD7) * 100);
 
-  const completedGoals = THERAPY_GOALS.filter(g => g.status === "completed").length;
-  const activeGoals = THERAPY_GOALS.filter(g => g.status === "active").length;
+  const completedGoals = liveGoals.filter(g => g.status === "completed").length;
+  const activeGoals = liveGoals.filter(g => g.status === "active").length;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -239,7 +271,7 @@ export default function ProgressPage() {
           </div>
           <div className="bg-white/10 rounded-xl p-3 text-center">
             <p className="text-xs text-white/60">Goals</p>
-            <p className="text-2xl font-bold text-amber-300">{completedGoals}/{THERAPY_GOALS.length}</p>
+            <p className="text-2xl font-bold text-amber-300">{completedGoals}/{liveGoals.length}</p>
             <p className="text-xs text-white/60">completed</p>
           </div>
         </div>
@@ -315,7 +347,7 @@ export default function ProgressPage() {
               </button>
             </div>
             <div className="space-y-3">
-              {THERAPY_GOALS.filter(g => g.status === "active").slice(0, 3).map(goal => (
+              {liveGoals.filter(g => g.status === "active").slice(0, 3).map(goal => (
                 <div key={goal.id}>
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-xs text-gray-700 font-medium line-clamp-1">{goal.title}</p>
@@ -361,12 +393,12 @@ export default function ProgressPage() {
               <p className="text-xs text-blue-600">Active</p>
             </div>
             <div className="flex-1 bg-gray-50 rounded-2xl border border-gray-200 p-3 text-center">
-              <p className="text-2xl font-bold text-gray-700">{THERAPY_GOALS.length}</p>
+              <p className="text-2xl font-bold text-gray-700">{liveGoals.length}</p>
               <p className="text-xs text-gray-500">Total Goals</p>
             </div>
           </div>
 
-          {THERAPY_GOALS.map(goal => (
+          {liveGoals.map(goal => (
             <div key={goal.id} className="bg-white rounded-2xl border border-gray-200 p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 pr-3">

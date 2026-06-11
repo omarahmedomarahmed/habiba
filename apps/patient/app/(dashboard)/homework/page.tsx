@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import apiFetch from "@/lib/api";
 import {
   BookOpen, CheckCircle, Clock, Star, ArrowRight, Plus, Calendar,
   Target, Brain, Heart, Smile, FileText, Play, Pause, RotateCcw,
@@ -138,9 +139,19 @@ export default function HomeworkPage() {
   const [activeCategory, setActiveCategory] = useState<HomeworkCategory>("all");
   const [expandedId, setExpandedId] = useState<string | null>("hw1");
   const [completionNote, setCompletionNote] = useState("");
+  const [liveHomework, setLiveHomework] = useState(HOMEWORK);
+
+  const handleMarkComplete = async (hwId: string) => {
+    setLiveHomework(prev => prev.map(h => h.id === hwId ? { ...h, status: 'completed' as const, completion_note: completionNote } : h));
+    setCompletionNote("");
+    setExpandedId(null);
+    try {
+      await apiFetch(`/workflows/tasks/${hwId}/complete`, { method: 'PATCH', body: JSON.stringify({ note: completionNote }) });
+    } catch { /* optimistic update already applied */ }
+  };
 
   const categories: { id: HomeworkCategory; label: string; count?: number }[] = [
-    { id: "all", label: "All", count: HOMEWORK.length },
+    { id: "all", label: "All", count: liveHomework.length },
     { id: "exercises", label: "Exercises" },
     { id: "worksheets", label: "Worksheets" },
     { id: "reading", label: "Reading" },
@@ -148,12 +159,12 @@ export default function HomeworkPage() {
     { id: "behavioral", label: "Behavioral" },
   ];
 
-  const filtered = HOMEWORK.filter(
+  const filtered = liveHomework.filter(
     (h) => activeCategory === "all" || h.category === activeCategory
   );
 
-  const completedCount = HOMEWORK.filter((h) => h.status === "completed").length;
-  const totalPoints = HOMEWORK.filter((h) => h.status === "completed").reduce((s, h) => s + h.points, 0);
+  const completedCount = liveHomework.filter((h) => h.status === "completed").length;
+  const totalPoints = liveHomework.filter((h) => h.status === "completed").reduce((s, h) => s + h.points, 0);
   const streak = 5;
 
   return (
@@ -167,7 +178,7 @@ export default function HomeworkPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="bg-gradient-to-br from-[#0A2342] to-[#1a3a6a] text-white rounded-2xl p-5 text-center">
-          <div className="text-3xl font-bold text-[#2EC4B6] mb-1">{completedCount}/{HOMEWORK.length}</div>
+          <div className="text-3xl font-bold text-[#2EC4B6] mb-1">{completedCount}/{liveHomework.length}</div>
           <div className="text-xs text-white/70">Completed</div>
         </div>
         <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl p-5 text-center">
@@ -187,16 +198,16 @@ export default function HomeworkPage() {
             <Award className="w-5 h-5 text-amber-500" />
             <span className="font-semibold text-slate-900">Weekly Progress</span>
           </div>
-          <span className="text-sm text-slate-500">{completedCount} of {HOMEWORK.length} assignments</span>
+          <span className="text-sm text-slate-500">{completedCount} of {liveHomework.length} assignments</span>
         </div>
         <div className="w-full bg-slate-100 rounded-full h-3">
           <div
             className="bg-gradient-to-r from-[#2EC4B6] to-[#1F5EFF] h-3 rounded-full transition-all"
-            style={{ width: `${(completedCount / HOMEWORK.length) * 100}%` }}
+            style={{ width: `${(completedCount / liveHomework.length) * 100}%` }}
           />
         </div>
         <div className="text-xs text-slate-500 mt-2">
-          {completedCount === HOMEWORK.length ? "🎉 All assignments complete!" : `${HOMEWORK.length - completedCount} remaining — great progress!`}
+          {completedCount === liveHomework.length ? "🎉 All assignments complete!" : `${liveHomework.length - completedCount} remaining — great progress!`}
         </div>
       </div>
 
@@ -323,7 +334,7 @@ export default function HomeworkPage() {
                           rows={3}
                         />
                         <div className="flex gap-3">
-                          <button className="flex-1 bg-[#2EC4B6] text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-[#26b0a2] transition flex items-center justify-center gap-2">
+                          <button onClick={() => handleMarkComplete(hw.id)} className="flex-1 bg-[#2EC4B6] text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-[#26b0a2] transition flex items-center justify-center gap-2">
                             <CheckCircle className="w-4 h-4" />
                             Mark Complete (+{hw.points} pts)
                           </button>
