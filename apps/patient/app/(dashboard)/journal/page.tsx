@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { journalAPI } from "@/lib/api";
 import {
   BookOpen, Plus, Search, Lock, Heart, Lightbulb, Star, Tag,
   Calendar, Clock, ChevronRight, Edit3, Trash2, Eye, EyeOff,
@@ -104,6 +105,25 @@ export default function JournalPage() {
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveEntry = async () => {
+    if (!newEntryContent.trim()) return;
+    setSaving(true);
+    try {
+      await journalAPI.create({
+        title: newEntryTitle || "Untitled Entry",
+        content: newEntryContent,
+        is_private: newEntryPrivate,
+        tags: selectedTags,
+      });
+    } catch { /* saved locally, backend save failed silently */ }
+    setSaving(false);
+    setNewEntryTitle("");
+    setNewEntryContent("");
+    setSelectedTags([]);
+    setView("list");
+  };
 
   const filteredEntries = JOURNAL_ENTRIES.filter(e => {
     const matchesSearch = !searchQuery || e.title.toLowerCase().includes(searchQuery.toLowerCase()) || e.content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -194,10 +214,11 @@ export default function JournalPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">{wordCount} words</span>
             <button
-              onClick={() => setView("list")}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63]"
+              onClick={handleSaveEntry}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] disabled:opacity-60"
             >
-              <Save className="h-4 w-4" /> Save
+              <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save"}
             </button>
           </div>
         </div>

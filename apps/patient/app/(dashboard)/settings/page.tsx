@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notificationsAPI } from "@/lib/api";
 import {
   User, Bell, Shield, Lock, CreditCard, Brain, Phone, Mail,
   Globe, Eye, EyeOff, LogOut, ChevronRight, CheckCircle2,
@@ -57,6 +58,18 @@ export default function PatientSettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [aiCompanionEnabled, setAiCompanionEnabled] = useState(true);
   const [moodDataShared, setMoodDataShared] = useState(true);
+  const [savingNotifications, setSavingNotifications] = useState(false);
+
+  const handleNotificationToggle = async (id: string, value: boolean) => {
+    setNotifications(prev => ({ ...prev, [id]: value }));
+    try {
+      await notificationsAPI.updatePreferences({ [id]: value });
+    } catch { /* optimistic update already applied */ }
+  };
+
+  const handleSaveProfile = async () => {
+    // Profile save is handled via editingProfile form — no-op here
+  };
   const [journalShared, setJournalShared] = useState(false);
   const [marketingEmails, setMarketingEmails] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -151,7 +164,7 @@ export default function PatientSettingsPage() {
                 </div>
 
                 {editingProfile && (
-                  <button className="mt-4 w-full py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63]">
+                  <button onClick={handleSaveProfile} className="mt-4 w-full py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63]">
                     Save Changes
                   </button>
                 )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -8,52 +9,7 @@ import {
   Play, ChevronRight, Zap, Star, TrendingUp, TrendingDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const MOCK_SESSION_PREP = {
-  id: "s1",
-  patient: {
-    id: "p1", name: "Sarah Chen", age: 34,
-    diagnosis: "Major Depressive Disorder, Moderate (F32.1)",
-    sessions_count: 24, risk_level: "medium",
-  },
-  scheduled_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-  duration: 50,
-  session_number: 25,
-  ai_prep: {
-    context_summary: "Sarah presents with MDD and comorbid GAD. PHQ-9 has improved from 19 to 13 over 16 months. Core themes include performance anxiety, perfectionism rooted in childhood attachment patterns, and work-related stress triggers.",
-    last_session_highlights: [
-      "Explored connection between perfectionism and father's emotional unavailability",
-      "Practiced Double Standard Technique with positive initial response",
-      "Patient completed breathing exercise homework successfully during work review",
-    ],
-    suggested_agenda: [
-      "Check-in on homework: Thought Record Worksheet completion",
-      "Continue Double Standard Technique work on perfectionism schema",
-      "Review PHQ-9 scores — potential progress milestone",
-      "Explore any new work-related stressors this week",
-    ],
-    memory_highlights: [
-      { type: "trigger", text: "Work deadlines cause anxiety spike — strongest seasonal pattern in December", confidence: "high" },
-      { type: "strength", text: "Strong response to Socratic questioning — insight-oriented approach works well", confidence: "confirmed" },
-      { type: "behavior", text: "Sleep has been improving with evening breathing exercises (started Oct)", confidence: "medium" },
-      { type: "goal", text: "Goal: Return to gym 3x/week — minimal progress; avoidance pattern", confidence: "high" },
-    ],
-    risk_factors: ["Performance anxiety (elevated seasonally)", "Self-criticism loop following success"],
-    focus_areas: ["Perfectionism schema deconstruction", "Cognitive reframing", "Behavioral activation"],
-  },
-  medications: [
-    { name: "Lexapro 10mg", frequency: "Daily morning", started: "Sept 2024", prescriber: "Dr. Walsh" },
-    { name: "Melatonin 5mg", frequency: "As needed for sleep", started: "Sept 2024" },
-  ],
-  assessments: [
-    { name: "PHQ-9", last_score: 13, previous_score: 14, trend: "improving", date: "Dec 15" },
-    { name: "GAD-7", last_score: 8, previous_score: 8, trend: "stable", date: "Dec 15" },
-  ],
-  pending_homework: [
-    { task: "Thought Record Worksheet — 3 completions minimum", assigned: "Dec 15", completed: false },
-    { task: "Continue evening breathing exercise (4-7-8 technique)", assigned: "Dec 15", completed: true },
-  ],
-};
+import { sessionsAPI, aiAPI, patientsAPI } from "@/lib/api";
 
 const MEMORY_TYPE_COLORS: Record<string, string> = {
   trigger: "bg-red-50 text-red-700 border-red-100",
@@ -64,8 +20,39 @@ const MEMORY_TYPE_COLORS: Record<string, string> = {
 
 export default function SessionPreparePage() {
   const { id } = useParams();
-  const session = MOCK_SESSION_PREP;
-  const prep = session.ai_prep;
+  const sessionId = Array.isArray(id) ? id[0] : id as string;
+  const [session, setSession] = useState<Record<string, unknown> | null>(null);
+  const [copilot, setCopilot] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [sessionData, copilotData] = await Promise.allSettled([
+          sessionsAPI.get(sessionId),
+          aiAPI.copilotSuggestions(sessionId),
+        ]);
+        if (sessionData.status === "fulfilled") setSession(sessionData.value as Record<string, unknown>);
+        if (copilotData.status === "fulfilled") setCopilot(copilotData.value as Record<string, unknown>);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [sessionId]);
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>;
+
+  // Build prep data from real session + AI copilot, with graceful fallbacks
+  const patientName = (session?.patient_name as string) || (session?.patient as Record<string,unknown>)?.name as string || "Patient";
+  const prep = {
+    context_summary: (copilot?.context_summary as string) || (copilot?.summary as string) || "AI session brief not available — click Start Session to begin.",
+    last_session_highlights: (copilot?.last_session_highlights as string[]) || [],
+    suggested_agenda: (copilot?.suggested_agenda as string[]) || [],
+    memory_highlights: (copilot?.memory_highlights as { type: string; text: string; confidence: string }[]) || [],
+    risk_factors: (copilot?.risk_factors as string[]) || [],
+    focus_areas: (copilot?.focus_areas as string[]) || [],
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5">
@@ -81,7 +68,7 @@ export default function SessionPreparePage() {
           <div>
             <h1 className="text-xl font-bold text-slate-900">Session Preparation</h1>
             <p className="text-sm text-slate-500">
-              {session.patient.name} · Session #{session.session_number} · Today {new Date(session.scheduled_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+              {patientName} · Session #{(session?.session_number as number) || ""} · Today {session?.scheduled_at ? new Date(session.scheduled_at as string).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : ""}
             </p>
           </div>
         </div>
@@ -95,28 +82,12 @@ export default function SessionPreparePage() {
       </div>
 
       {/* Risk Banner */}
-      {session.patient.risk_level !== "low" && (
-        <div className={cn(
-          "flex items-start gap-3 p-4 rounded-xl border",
-          session.patient.risk_level === "high"
-            ? "bg-red-50 border-red-200"
-            : "bg-amber-50 border-amber-200"
-        )}>
-          <AlertTriangle className={cn(
-            "w-4 h-4 mt-0.5 shrink-0",
-            session.patient.risk_level === "high" ? "text-red-500" : "text-amber-500"
-          )} />
+      {prep.risk_factors.length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border bg-amber-50 border-amber-200">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
           <div>
-            <div className={cn(
-              "text-sm font-semibold",
-              session.patient.risk_level === "high" ? "text-red-700" : "text-amber-700"
-            )}>
-              Risk Level: {session.patient.risk_level.toUpperCase()}
-            </div>
-            <p className={cn(
-              "text-xs mt-0.5",
-              session.patient.risk_level === "high" ? "text-red-600" : "text-amber-600"
-            )}>
+            <div className="text-sm font-semibold text-amber-700">Risk Factors Noted</div>
+            <p className="text-xs mt-0.5 text-amber-600">
               Active risk factors: {prep.risk_factors.join(", ")}. Safety plan on file.
             </p>
           </div>
@@ -205,7 +176,7 @@ export default function SessionPreparePage() {
               <Activity className="w-4 h-4 text-secondary" />
               Assessment Scores
             </h3>
-            {session.assessments.map((a) => (
+            {((copilot?.assessments as { name: string; last_score: number; trend: string }[]) || []).map((a) => (
               <div key={a.name} className="mb-3 last:mb-0">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium text-slate-700">{a.name}</span>
@@ -215,10 +186,7 @@ export default function SessionPreparePage() {
                     ) : (
                       <div className="w-3 h-3 text-amber-500">–</div>
                     )}
-                    <span className={cn(
-                      "text-sm font-bold",
-                      a.trend === "improving" ? "text-green-600" : "text-amber-600"
-                    )}>
+                    <span className={cn("text-sm font-bold", a.trend === "improving" ? "text-green-600" : "text-amber-600")}>
                       {a.last_score}
                     </span>
                     <span className="text-xs text-slate-400">/ {a.name === "PHQ-9" ? "27" : "21"}</span>
@@ -226,16 +194,13 @@ export default function SessionPreparePage() {
                 </div>
                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className={cn(
-                      "h-full rounded-full",
-                      a.last_score <= 9 ? "bg-green-400" :
-                      a.last_score <= 14 ? "bg-amber-400" : "bg-red-400"
-                    )}
+                    className={cn("h-full rounded-full", a.last_score <= 9 ? "bg-green-400" : a.last_score <= 14 ? "bg-amber-400" : "bg-red-400")}
                     style={{ width: `${(a.last_score / (a.name === "PHQ-9" ? 27 : 21)) * 100}%` }}
                   />
                 </div>
               </div>
             ))}
+            {!copilot?.assessments && <p className="text-xs text-slate-400">No recent assessments on file.</p>}
           </div>
 
           {/* Medications */}
@@ -245,12 +210,13 @@ export default function SessionPreparePage() {
               Active Medications
             </h3>
             <div className="space-y-2">
-              {session.medications.map((med) => (
+              {((copilot?.medications as { name: string; frequency: string }[]) || []).map((med) => (
                 <div key={med.name} className="text-xs">
                   <div className="font-medium text-slate-800">{med.name}</div>
                   <div className="text-slate-500">{med.frequency}</div>
                 </div>
               ))}
+              {!copilot?.medications && <p className="text-xs text-slate-400">No medications on file.</p>}
             </div>
           </div>
 
@@ -261,21 +227,17 @@ export default function SessionPreparePage() {
               Homework Check
             </h3>
             <div className="space-y-2">
-              {session.pending_homework.map((hw, i) => (
-                <div key={i} className={cn(
-                  "flex items-start gap-2 p-2 rounded-lg text-xs",
-                  hw.completed ? "bg-green-50" : "bg-amber-50"
-                )}>
+              {((copilot?.pending_homework as { task: string; completed: boolean }[]) || []).map((hw, i) => (
+                <div key={i} className={cn("flex items-start gap-2 p-2 rounded-lg text-xs", hw.completed ? "bg-green-50" : "bg-amber-50")}>
                   {hw.completed ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0 mt-0.5" />
                   ) : (
                     <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 shrink-0 mt-0.5" />
                   )}
-                  <span className={hw.completed ? "text-green-700" : "text-amber-700"}>
-                    {hw.task}
-                  </span>
+                  <span className={hw.completed ? "text-green-700" : "text-amber-700"}>{hw.task}</span>
                 </div>
               ))}
+              {!copilot?.pending_homework && <p className="text-xs text-slate-400">No homework assigned.</p>}
             </div>
           </div>
 

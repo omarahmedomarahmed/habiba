@@ -217,6 +217,8 @@ export const notificationsAPI = {
     apiFetch<{ data: Record<string, any>[]; unread_count: number }>("/notifications", { params } as any),
   markRead: (id: string) => apiFetch(`/notifications/${id}/read`, { method: "PATCH" }),
   markAllRead: () => apiFetch("/notifications/mark-all-read", { method: "PATCH" }),
+  updatePreferences: (data: Record<string, unknown>) =>
+    apiFetch("/notifications/preferences", { method: "PUT", body: JSON.stringify(data) }),
 };
 
 // ============================================================
@@ -240,6 +242,15 @@ export const assessmentsAPI = {
     apiFetch<{ data: Record<string, any>[] }>("/assessments", { params } as any),
   submit: (id: string, answers: Record<string, any>) =>
     apiFetch(`/assessments/${id}/submit`, { method: "POST", body: JSON.stringify({ answers }) }),
+};
+
+export const journalAPI = {
+  list: () => apiFetch<{ data: Record<string, unknown>[] }>("/notes", { params: { note_type: "journal" } } as never),
+  create: (data: { title: string; content: string; is_private: boolean; tags?: string[] }) =>
+    apiFetch<Record<string, unknown>>("/notes", { method: "POST", body: JSON.stringify({ ...data, note_type: "journal" }) }),
+  update: (id: string, data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>(`/notes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  delete: (id: string) => apiFetch(`/notes/${id}`, { method: "DELETE" }),
 };
 
 export { setStoredTokens, getAccessToken, getRefreshToken };
