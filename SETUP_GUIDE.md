@@ -1,480 +1,370 @@
-# 24Therapy — Setup & Deployment Guide
+# 24Therapy — Deployment Guide (No Terminal Required)
 
-> Complete step-by-step guide for local development, staging, and production deployment.
+> How to get 24Therapy live on the internet using only your web browser.
+> No coding, no command line, no technical background needed.
 > Last verified: 2026-06-11
 
 ---
 
-## Table of Contents
+## What You'll Be Setting Up
 
-1. [Prerequisites](#prerequisites)
-2. [Local Development](#local-development)
-3. [Environment Variables Reference](#environment-variables-reference)
-4. [Database Setup & Migrations](#database-setup--migrations)
-5. [Deploy Backend to Railway](#deploy-backend-to-railway)
-6. [Deploy Frontend Apps to Vercel](#deploy-frontend-apps-to-vercel)
-7. [Domain Configuration](#domain-configuration)
-8. [Production Checklist](#production-checklist)
-9. [Troubleshooting](#troubleshooting)
+24Therapy runs as 5 separate services. You'll deploy each one using two free/paid platforms:
 
----
-
-## Prerequisites
-
-| Tool | Version | Install |
-|------|---------|---------|
-| Node.js | 20.x | https://nodejs.org or `nvm install 20` |
-| pnpm | 9.15.4 | `npm install -g pnpm@9.15.4` |
-| Docker | latest | https://docs.docker.com/get-docker/ |
-| Git | 2.x+ | system |
-| psql | 14+ | `brew install postgresql` / apt |
+| Service | What it does | Platform |
+|---------|-------------|----------|
+| **API (Backend)** | The brain — handles all data, AI, payments | Railway |
+| **Marketing Website** | 24therapy.ai — public homepage, pricing, blog | Vercel |
+| **Therapist Portal** | app.24therapy.ai — where therapists work | Vercel |
+| **Patient Portal** | my.24therapy.ai — where patients log in | Vercel |
+| **Admin Portal** | admin.24therapy.ai — platform management | Vercel |
 
 ---
 
-## Local Development
+## Accounts You'll Need to Create First
 
-### 1. Clone the repository
+Open each link in a new tab and create a free account before starting:
 
-```bash
-git clone https://github.com/omarahmedomarahmed/habiba.git
-cd habiba
-```
+| # | Service | Website | What It's For |
+|---|---------|---------|---------------|
+| 1 | **GitHub** | https://github.com/signup | Where the code lives |
+| 2 | **Railway** | https://railway.app | Runs the backend API |
+| 3 | **Vercel** | https://vercel.com/signup | Hosts all 4 websites |
+| 4 | **Neon** | https://neon.tech | Your database (PostgreSQL) |
+| 5 | **Stripe** | https://dashboard.stripe.com/register | Payments |
+| 6 | **OpenAI** | https://platform.openai.com/signup | AI features (notes, copilot) |
+| 7 | **Resend** | https://resend.com/signup | Sending emails |
 
-### 2. Install all dependencies
-
-```bash
-pnpm install
-# pnpm-lock.yaml is committed — this is deterministic
-```
-
-### 3. Start local infrastructure (Docker)
-
-```bash
-# Start PostgreSQL and Redis only
-docker-compose up -d postgres redis
-
-# OR start the full stack (all apps + services)
-docker-compose up -d
-```
-
-Default Docker services:
-- PostgreSQL: `localhost:5432` (user: `postgres`, pass: `postgres`, db: `therapy_db`)
-- Redis: `localhost:6379`
-
-### 4. Set up environment variables
-
-```bash
-# Backend
-cp backend/.env.example backend/.env.local
-# Edit backend/.env.local with your values
-
-# Each frontend app
-cp apps/web/.env.example apps/web/.env.local
-cp apps/therapist/.env.example apps/therapist/.env.local
-cp apps/patient/.env.example apps/patient/.env.local
-cp apps/admin/.env.example apps/admin/.env.local
-```
-
-Minimum backend `.env.local` for local dev:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/therapy_db
-DATABASE_SSL=false
-JWT_SECRET=local-dev-secret-change-in-production-must-be-64-chars-minimum
-OPENAI_API_KEY=sk-...
-STRIPE_SECRET_KEY=sk_test_...
-RESEND_API_KEY=re_...
-NODE_ENV=development
-PORT=4000
-```
-
-### 5. Run database migrations
-
-```bash
-# Set your local DATABASE_URL
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/therapy_db
-
-# Run all migrations in order
-for f in migrations/0*.sql; do
-  echo "Running $f..."
-  psql $DATABASE_URL -f "$f"
-done
-```
-
-Or run individually:
-```bash
-psql $DATABASE_URL -f migrations/001_core_schema.sql
-psql $DATABASE_URL -f migrations/002_therapists_schema.sql
-psql $DATABASE_URL -f migrations/003_patients_schema.sql
-psql $DATABASE_URL -f migrations/004_clinical_schema.sql
-psql $DATABASE_URL -f migrations/005_medications_schema.sql
-psql $DATABASE_URL -f migrations/006_sessions_schema.sql
-psql $DATABASE_URL -f migrations/007_ai_schema.sql
-psql $DATABASE_URL -f migrations/008_assessments_schema.sql
-psql $DATABASE_URL -f migrations/009_radar_schema.sql
-psql $DATABASE_URL -f migrations/010_billing_schema.sql
-psql $DATABASE_URL -f migrations/011_notifications_schema.sql
-psql $DATABASE_URL -f migrations/012_audit_compliance_schema.sql
-psql $DATABASE_URL -f migrations/013_marketplace_schema.sql
-psql $DATABASE_URL -f migrations/014_analytics_schema.sql
-psql $DATABASE_URL -f migrations/015_pricing_management.sql
-```
-
-> ⚠️ **Known Issue**: Migrations 003 and 012 both reference `patient_consents` with conflicting schemas. If you hit a duplicate table error on migration 012, skip the `CREATE TABLE patient_consents` block in 012 — this needs a fix (tracked in DEV_HANDOVER.md).
-
-### 6. Start development servers
-
-```bash
-# All apps concurrently (recommended)
-pnpm dev
-
-# Individual apps
-pnpm --filter=@24therapy/api dev         # http://localhost:4000
-pnpm --filter=@24therapy/web dev         # http://localhost:3000
-pnpm --filter=@24therapy/therapist dev   # http://localhost:3001
-pnpm --filter=@24therapy/patient dev     # http://localhost:3002
-pnpm --filter=@24therapy/admin dev       # http://localhost:3003
-```
-
-API documentation (dev only): http://localhost:4000/api/docs
+> You don't need all of these on Day 1. Steps below tell you when each is needed.
 
 ---
 
-## Environment Variables Reference
+## Part 1 — Fork the Repository on GitHub
 
-### Backend (`backend/.env.local`)
+This gives you your own copy of the code.
 
-```env
-# ── Core ─────────────────────────────────────────────────────────────────────
+1. Go to https://github.com/omarahmedomarahmed/habiba
+2. Click the **Fork** button (top-right corner)
+3. Click **Create fork**
+4. You now have `https://github.com/YOUR-USERNAME/habiba` — this is your copy
+
+---
+
+## Part 2 — Set Up Your Database (Neon)
+
+Your database stores all patients, sessions, therapists, and billing data.
+
+### Create the database
+
+1. Go to https://neon.tech and sign in
+2. Click **New Project**
+3. Name it: `24therapy-production`
+4. Region: choose the one closest to your users (e.g., US East)
+5. Click **Create Project**
+
+### Enable required extensions
+
+1. Inside your Neon project, click **SQL Editor** in the left sidebar
+2. Paste the following and click **Run**:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+3. You should see "Success" for each line
+
+### Save your connection string
+
+1. Click **Connection Details** (or **Dashboard**) in Neon
+2. Find the field labeled **Connection string** — it looks like:
+   `postgresql://user:password@host.neon.tech/dbname?sslmode=require`
+3. Copy it and save it somewhere safe (you'll need it in Part 3)
+
+### Run the database migrations
+
+You need to run 15 SQL scripts to create all the tables. Do them one at a time in the Neon SQL Editor:
+
+1. Go to your GitHub repo: `https://github.com/YOUR-USERNAME/habiba/tree/main/migrations`
+2. Click each file below, click the **Raw** button, copy all the text
+3. Paste it into the Neon SQL Editor and click **Run**
+
+Run them in this exact order:
+
+| # | File name | Click to open |
+|---|-----------|---------------|
+| 1 | `001_core_schema.sql` | GitHub → migrations → 001_... |
+| 2 | `002_therapists_schema.sql` | |
+| 3 | `003_patients_schema.sql` | |
+| 4 | `004_clinical_schema.sql` | |
+| 5 | `005_medications_schema.sql` | |
+| 6 | `006_sessions_schema.sql` | |
+| 7 | `007_ai_schema.sql` | |
+| 8 | `008_assessments_schema.sql` | |
+| 9 | `009_radar_schema.sql` | |
+| 10 | `010_billing_schema.sql` | |
+| 11 | `011_notifications_schema.sql` | |
+| 12 | `012_audit_compliance_schema.sql` | |
+| 13 | `013_marketplace_schema.sql` | |
+| 14 | `014_analytics_schema.sql` | |
+| 15 | `015_pricing_management.sql` | |
+
+> If any script gives a "relation already exists" error, that's OK — just continue to the next one.
+
+---
+
+## Part 3 — Deploy the Backend API (Railway)
+
+The backend is the engine that powers everything else. It must be deployed before the websites.
+
+### Create the project
+
+1. Go to https://railway.app and sign in
+2. Click **New Project**
+3. Click **Deploy from GitHub repo**
+4. Connect your GitHub account if asked
+5. Select your `habiba` fork
+6. Railway will start setting up — **don't close the tab**
+
+### Set environment variables
+
+Once the project is created, Railway needs to know your secret keys.
+
+1. Click on your service (it will be named something like `habiba`)
+2. Click the **Variables** tab
+3. Click **Raw Editor** (easier to paste all at once)
+4. Paste the following, replacing everything in `< >` with your actual values:
+
+```
 NODE_ENV=production
 PORT=4000
-
-# ── Database ─────────────────────────────────────────────────────────────────
-DATABASE_URL=postgresql://user:password@host:5432/dbname?sslmode=require
+DATABASE_URL=<your Neon connection string from Part 2>
 DATABASE_SSL=true
-DATABASE_MAX_CONNECTIONS=10
+JWT_SECRET=<generate one at https://generate-secret.vercel.app/64>
+OPENAI_API_KEY=<your OpenAI key — from https://platform.openai.com/api-keys>
+STRIPE_SECRET_KEY=<from https://dashboard.stripe.com/apikeys — use sk_live_ for production>
+STRIPE_PUBLISHABLE_KEY=<from Stripe dashboard — pk_live_...>
+STRIPE_WEBHOOK_SECRET=<you'll add this later in Part 5>
+RESEND_API_KEY=<from https://resend.com/api-keys>
+FROM_EMAIL=24Therapy <noreply@yourdomain.com>
+```
 
-# ── Redis ────────────────────────────────────────────────────────────────────
-REDIS_URL=redis://default:password@host:6379
+5. Click **Update Variables**
+6. Railway will restart the service automatically
 
-# ── Authentication ────────────────────────────────────────────────────────────
-JWT_SECRET=<minimum 64 random characters>
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=30d
-BCRYPT_ROUNDS=12
-COOKIE_SECRET=<random string>
+### Verify it's running
 
-# ── AI ───────────────────────────────────────────────────────────────────────
-OPENAI_API_KEY=sk-...
-# ANTHROPIC_API_KEY=sk-ant-...   # Optional — Anthropic Claude backup
+1. Click the **Deployments** tab
+2. Wait for the deployment to show a green checkmark
+3. Click **Settings** → **Networking** → find the public URL (looks like `https://habiba-production-xxxx.up.railway.app`)
+4. Open that URL + `/health` in your browser:
+   `https://habiba-production-xxxx.up.railway.app/health`
+5. You should see: `{"status":"ok","timestamp":"..."}` — this means it's working
 
-# ── Payments ─────────────────────────────────────────────────────────────────
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+### Save your backend URL
 
-# ── Email ────────────────────────────────────────────────────────────────────
-RESEND_API_KEY=re_...
-FROM_EMAIL=24Therapy <noreply@24therapy.ai>
+Copy the Railway URL (without `/health`) — you'll need it when setting up the websites.
 
-# ── AWS S3 ───────────────────────────────────────────────────────────────────
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=24therapy-uploads
-AWS_CLOUDFRONT_URL=https://cdn.24therapy.ai
+---
 
-# ── Video (Daily.co) ─────────────────────────────────────────────────────────
-DAILY_API_KEY=...
-DAILY_DOMAIN=24therapy.daily.co
+## Part 4 — Deploy the 4 Websites (Vercel)
 
-# ── App URLs ─────────────────────────────────────────────────────────────────
-APP_URL=https://24therapy.ai
-THERAPIST_APP_URL=https://app.24therapy.ai
-PATIENT_APP_URL=https://my.24therapy.ai
-ADMIN_APP_URL=https://admin.24therapy.ai
-API_URL=https://api.24therapy.ai
+You'll repeat this process 4 times — once for each website.
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
+### Marketing Website (24therapy.ai)
+
+1. Go to https://vercel.com and sign in
+2. Click **Add New** → **Project**
+3. Find your `habiba` fork and click **Import**
+4. **IMPORTANT**: Change the **Root Directory** field to: `apps/web`
+5. Click **Environment Variables** and add:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_API_URL` | `https://your-railway-url.up.railway.app/api/v1` |
+| `NEXT_PUBLIC_WEB_URL` | `https://24therapy.ai` (or your domain) |
+| `NEXT_PUBLIC_THERAPIST_URL` | `https://app.24therapy.ai` |
+| `NEXT_PUBLIC_PATIENT_URL` | `https://my.24therapy.ai` |
+| `NEXT_PUBLIC_ADMIN_URL` | `https://admin.24therapy.ai` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_live_...` from Stripe |
+
+6. Click **Deploy**
+7. Wait for the green checkmark — your site is live!
+
+---
+
+### Therapist Portal (app.24therapy.ai)
+
+1. Back in Vercel → **Add New** → **Project**
+2. Import the same `habiba` fork again
+3. **Root Directory**: `apps/therapist`
+4. Add the same environment variables as above
+5. Click **Deploy**
+
+---
+
+### Patient Portal (my.24therapy.ai)
+
+1. **Add New** → **Project** → Import `habiba`
+2. **Root Directory**: `apps/patient`
+3. Add the same environment variables
+4. Click **Deploy**
+
+---
+
+### Admin Portal (admin.24therapy.ai)
+
+1. **Add New** → **Project** → Import `habiba`
+2. **Root Directory**: `apps/admin`
+3. Add the same environment variables
+4. Click **Deploy**
+
+---
+
+## Part 5 — Connect Your Domain Names
+
+After deploying, Vercel gives each site a URL like `habiba-web-xxxx.vercel.app`. To use your real domain:
+
+### In Vercel (for each of the 4 projects)
+
+1. Open the project → **Settings** → **Domains**
+2. Type your domain and click **Add**:
+   - Web project → `24therapy.ai` and `www.24therapy.ai`
+   - Therapist project → `app.24therapy.ai`
+   - Patient project → `my.24therapy.ai`
+   - Admin project → `admin.24therapy.ai`
+3. Vercel will show you DNS records to add
+
+### In your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)
+
+Add these records (Vercel will show you the exact values):
+
+| Type | Name | Value |
+|------|------|-------|
+| A | `@` | `76.76.21.21` |
+| CNAME | `www` | `cname.vercel-dns.com` |
+| CNAME | `app` | `cname.vercel-dns.com` |
+| CNAME | `my` | `cname.vercel-dns.com` |
+| CNAME | `admin` | `cname.vercel-dns.com` |
+| CNAME | `api` | `your-service.railway.app` |
+
+> DNS changes can take 5 minutes to 48 hours to work worldwide. Don't panic if it's not instant.
+
+### For Railway (backend custom domain)
+
+1. Railway → your project → **Settings** → **Networking** → **Custom Domain**
+2. Add `api.24therapy.ai`
+3. Railway shows you a CNAME record — add it to your DNS
+
+---
+
+## Part 6 — Set Up Stripe Webhooks
+
+Stripe needs to notify your backend when payments happen.
+
+1. Go to https://dashboard.stripe.com/webhooks
+2. Click **Add endpoint**
+3. Endpoint URL: `https://api.24therapy.ai/api/v1/billing/webhooks/stripe`
+4. Click **Select events** → check **All events** (or at minimum: `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`)
+5. Click **Add endpoint**
+6. Click **Reveal signing secret** — copy the `whsec_...` value
+7. Go back to Railway → Variables → add `STRIPE_WEBHOOK_SECRET=whsec_...`
+8. Railway will redeploy automatically
+
+---
+
+## Part 7 — Update CORS Settings in Railway
+
+The backend needs to know which websites are allowed to talk to it.
+
+1. Railway → Variables
+2. Add or update this variable:
+
+```
 CORS_ORIGINS=https://24therapy.ai,https://app.24therapy.ai,https://my.24therapy.ai,https://admin.24therapy.ai
-
-# ── Feature Flags ────────────────────────────────────────────────────────────
-AI_SCRIBE_ENABLED=true
-COPILOT_ENABLED=true
-RADAR_ENABLED=true
-MARKETPLACE_ENABLED=true
-BILLING_ENABLED=true
 ```
 
-### Frontend Apps (`apps/*/. env.local`)
-
-All frontend apps share this pattern:
-
-```env
-NEXT_PUBLIC_API_URL=https://api.24therapy.ai/api/v1
-NEXT_PUBLIC_WEB_URL=https://24therapy.ai
-NEXT_PUBLIC_THERAPIST_URL=https://app.24therapy.ai
-NEXT_PUBLIC_PATIENT_URL=https://my.24therapy.ai
-NEXT_PUBLIC_ADMIN_URL=https://admin.24therapy.ai
-```
-
-Additional for `apps/web`:
-```env
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
-NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
-```
-
-Additional for `apps/therapist`:
-```env
-NEXT_PUBLIC_DAILY_DOMAIN=24therapy.daily.co
-```
+3. Click **Update Variables**
 
 ---
 
-## Database Setup & Migrations
+## Part 8 — Verify Everything Works
 
-### Recommended: Neon (serverless PostgreSQL)
+Go through this checklist in your browser:
 
-1. Create account at https://neon.tech
-2. Create project `24therapy-production`
-3. Enable the pgvector extension:
-   ```sql
-   CREATE EXTENSION IF NOT EXISTS vector;
-   CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-   ```
-4. Copy the connection string to `DATABASE_URL`
-5. Run migrations (see above)
-
-### Alternative: Railway PostgreSQL
-
-1. In Railway project → Add Service → PostgreSQL
-2. Copy `DATABASE_URL` from service variables
-3. Run migrations via Railway CLI or external psql client
-
-### Migration Order (must be sequential)
-
-```
-001 → core tables (users, organizations, accounts)
-002 → therapist profiles, specializations, availability
-003 → patient profiles, contacts, consents
-004 → clinical data, diagnoses, treatment history
-005 → medications, prescriptions
-006 → sessions, transcripts, notes
-007 → AI memory, embeddings, prompts
-008 → assessments, scoring, templates
-009 → radar (crisis matching), risk alerts
-010 → billing, subscriptions, invoices (Stripe)
-011 → notifications, preferences, channels
-012 → audit logs, HIPAA compliance, BAA records
-013 → marketplace, therapist directory, search
-014 → analytics events, dashboards, metrics
-015 → pricing management (admin-editable plans)
-```
+- [ ] `https://api.24therapy.ai/health` → shows `{"status":"ok",...}`
+- [ ] `https://24therapy.ai` → marketing homepage loads
+- [ ] `https://app.24therapy.ai/login` → therapist login page loads
+- [ ] `https://my.24therapy.ai/login` → patient login page loads
+- [ ] `https://admin.24therapy.ai/login` → admin login page loads
+- [ ] Try logging in with credentials you registered via the API
 
 ---
 
-## Deploy Backend to Railway
+## Getting Help
 
-### First Deploy
+| Problem | Where to look |
+|---------|---------------|
+| Site not loading | Vercel → your project → **Deployments** tab → click the latest deploy → read the error |
+| API errors | Railway → your project → **Deployments** → **View Logs** |
+| Database issues | Neon → **Monitoring** tab → check for errors |
+| Payment issues | Stripe → **Developers** → **Logs** |
 
-1. Go to https://railway.app → New Project → Deploy from GitHub
-2. Select the `habiba` repository
-3. Railway will detect `railway.json` at root — confirms NestJS setup
-4. Set the following environment variables in Railway Variables tab:
+### Common Problems
 
-**Required (backend will crash without these):**
-```
-DATABASE_URL        postgresql://...?sslmode=require
-DATABASE_SSL        true
-JWT_SECRET          <64+ char random string>
-OPENAI_API_KEY      sk-...
-NODE_ENV            production
-```
+**"Application error" on Vercel**
+→ Open Vercel project → Deployments → click the red deployment → read the build log. Usually a missing environment variable.
 
-**Required for full functionality:**
-```
-STRIPE_SECRET_KEY       sk_live_...
-STRIPE_WEBHOOK_SECRET   whsec_...
-RESEND_API_KEY          re_...
-REDIS_URL               redis://...
-AWS_ACCESS_KEY_ID       ...
-AWS_SECRET_ACCESS_KEY   ...
-AWS_S3_BUCKET           24therapy-uploads
-DAILY_API_KEY           ...
-CORS_ORIGINS            https://24therapy.ai,https://app.24therapy.ai,...
-```
+**Login says "Network Error"**
+→ The `NEXT_PUBLIC_API_URL` variable in Vercel is wrong or the Railway backend is down. Check the `/health` URL.
 
-5. Trigger deploy — Railway will run `npm run build && npm run start:prod`
-6. Verify: `curl https://your-service.railway.app/health` → `{"status":"ok",...}`
+**Backend keeps restarting on Railway**
+→ Check Railway logs — it will say exactly which environment variable is missing.
 
-### Custom Domain
-
-In Railway project → Settings → Networking → Add Custom Domain:
-- `api.24therapy.ai` → CNAME your-service.railway.app
-
-### railway.json Reference
-
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": { "builder": "NIXPACKS" },
-  "deploy": {
-    "startCommand": "node dist/main",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3,
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 120
-  }
-}
-```
+**"Invalid JWT" errors**
+→ Make sure `JWT_SECRET` in Railway is the same value you used when you first deployed (don't change it after users have logged in).
 
 ---
 
-## Deploy Frontend Apps to Vercel
+## Environment Variables — Full Reference
 
-Each Next.js app is a **separate Vercel project** pointing at the same repository.
+This is every variable the backend can accept. Only the starred ones (★) are required to start.
 
-### Setup per app (repeat for all 4)
-
-1. Go to https://vercel.com → New Project → Import from GitHub (`habiba`)
-2. Set **Root Directory** to the app folder:
-   - `apps/web` for the marketing site
-   - `apps/therapist` for the therapist portal
-   - `apps/patient` for the patient portal
-   - `apps/admin` for the admin portal
-3. Vercel will auto-detect `vercel.json` in the app folder
-4. Add environment variables (see above)
-5. Deploy
-
-### Install Command (auto from vercel.json)
 ```
-cd ../.. && pnpm install --frozen-lockfile
-```
-
-### Build Command (auto from vercel.json)
-```
-cd ../.. && pnpm turbo build --filter=@24therapy/<app-name>
-```
-
-### Environment Variables in Vercel
-
-For each app project, set at minimum:
-```
-NEXT_PUBLIC_API_URL=https://api.24therapy.ai/api/v1
-NEXT_PUBLIC_WEB_URL=https://24therapy.ai
-NEXT_PUBLIC_THERAPIST_URL=https://app.24therapy.ai
-NEXT_PUBLIC_PATIENT_URL=https://my.24therapy.ai
-NEXT_PUBLIC_ADMIN_URL=https://admin.24therapy.ai
+★ NODE_ENV=production
+★ DATABASE_URL=postgresql://...
+★ DATABASE_SSL=true
+★ JWT_SECRET=<64 random characters>
+★ OPENAI_API_KEY=sk-...
+★ STRIPE_SECRET_KEY=sk_live_...
+★ STRIPE_PUBLISHABLE_KEY=pk_live_...
+  STRIPE_WEBHOOK_SECRET=whsec_...
+★ RESEND_API_KEY=re_...
+  FROM_EMAIL=24Therapy <noreply@yourdomain.com>
+  REDIS_URL=redis://...
+  AWS_ACCESS_KEY_ID=...
+  AWS_SECRET_ACCESS_KEY=...
+  AWS_REGION=us-east-1
+  AWS_S3_BUCKET=24therapy-uploads
+  DAILY_API_KEY=...
+  CORS_ORIGINS=https://24therapy.ai,...
+  APP_URL=https://24therapy.ai
+  THERAPIST_APP_URL=https://app.24therapy.ai
+  PATIENT_APP_URL=https://my.24therapy.ai
+  ADMIN_APP_URL=https://admin.24therapy.ai
+  API_URL=https://api.24therapy.ai
 ```
 
-### Custom Domains in Vercel
-
-| Project | Domain |
-|---------|--------|
-| `24therapy-web` | `24therapy.ai` |
-| `24therapy-therapist` | `app.24therapy.ai` |
-| `24therapy-patient` | `my.24therapy.ai` |
-| `24therapy-admin` | `admin.24therapy.ai` |
+> To generate a secure JWT_SECRET, visit: https://generate-secret.vercel.app/64
 
 ---
 
-## Domain Configuration
+## Costs (Approximate)
 
-### DNS Records (add to your DNS provider)
-
-```
-# Marketing site
-A     24therapy.ai           76.76.21.21   (Vercel IP)
-CNAME www.24therapy.ai       cname.vercel-dns.com
-
-# App subdomains
-CNAME app.24therapy.ai       cname.vercel-dns.com
-CNAME my.24therapy.ai        cname.vercel-dns.com
-CNAME admin.24therapy.ai     cname.vercel-dns.com
-
-# API (Railway)
-CNAME api.24therapy.ai       your-service.railway.app
-
-# CDN (CloudFront / S3)
-CNAME cdn.24therapy.ai       your-cloudfront-dist.cloudfront.net
-```
-
----
-
-## Production Checklist
-
-### Security
-- [ ] `JWT_SECRET` is 64+ random characters (use `openssl rand -hex 32`)
-- [ ] `COOKIE_SECRET` set and rotated from defaults
-- [ ] `NODE_ENV=production` in Railway
-- [ ] Stripe using live keys (`sk_live_`, `pk_live_`)
-- [ ] CORS_ORIGINS contains only your actual domains (no wildcards)
-- [ ] Admin portal has IP allowlist configured (if required)
-- [ ] MFA enforced for `super_admin` and `admin` roles
-
-### Database
-- [ ] pgvector extension enabled
-- [ ] All 15 migrations run in order
-- [ ] Backup policy configured (daily minimum)
-- [ ] Connection pooling max set (`DATABASE_MAX_CONNECTIONS=10`)
-- [ ] SSL required (`DATABASE_SSL=true`, `?sslmode=require` in URL)
-
-### Frontend
-- [ ] `NEXT_PUBLIC_API_URL` set in all 4 Vercel projects (no localhost)
-- [ ] All custom domains verified and SSL active in Vercel
-- [ ] Admin portal robots.txt returns `noindex, nofollow` (already in next.config.ts)
-
-### Backend
-- [ ] Health check responds: `GET /health → 200`
-- [ ] Swagger disabled in production (`NODE_ENV=production` disables `/api/docs`)
-- [ ] Rate limiting active (100/min, 1000/hour — configured in app.module.ts)
-- [ ] Stripe webhook endpoint registered: `POST /billing/webhooks/stripe`
-
-### AI/Integrations
-- [ ] OpenAI API key has sufficient credits and rate limits
-- [ ] Daily.co account verified for HIPAA BAA
-- [ ] Resend verified sender domain
-- [ ] AWS S3 bucket policy: private, CORS configured for API domain
-
----
-
-## Troubleshooting
-
-### Backend won't start on Railway
-
-1. Check Railway logs for missing env var messages — the backend logs each missing variable by name
-2. Minimum required: `DATABASE_URL`, `DATABASE_SSL`, `JWT_SECRET`
-3. If DB connection fails, verify `?sslmode=require` is in the URL and `DATABASE_SSL=true`
-
-### Vercel build fails: `pnpm: command not found`
-
-- Ensure `pnpm-lock.yaml` is committed (Vercel reads lockfileVersion to activate pnpm 9)
-- Ensure `packageManager: "pnpm@9.15.4"` is in root `package.json`
-
-### Vercel build fails: `ERR_PNPM_UNSUPPORTED_ENGINE`
-
-- Node version mismatch — set Node.js version to `20.x` in Vercel project settings
-
-### Font build error: `Failed to fetch Inter from Google Fonts`
-
-- This only happens in network-restricted environments (not Vercel/Railway)
-- Vercel has full network access — build will succeed in production
-- For local CI: set `NEXT_PUBLIC_FONT_HOST` or use `--no-lint` flag
-
-### `relation does not exist` on therapist endpoints
-
-- Missing `therapist_specializations` junction table
-- Workaround: run the SQL patch in DEV_HANDOVER.md (section: Schema Fixes)
-
-### Login works but API calls return 401
-
-- Check that token refresh logic is active in the app's `lib/api.ts`
-- Tokens expire in 15 minutes — the API client should auto-refresh via `/auth/refresh`
-- Check browser localStorage for `access_token` / `refresh_token` keys
-
-### Docker compose postgres fails
-
-```bash
-docker-compose down -v   # remove volumes
-docker-compose up -d postgres redis
-```
+| Service | Free Tier | Paid |
+|---------|-----------|------|
+| Railway | $5 credit/month trial | ~$5–20/month for hobby |
+| Vercel | Free for 4 hobby projects | Free (Hobby plan covers this) |
+| Neon | Free tier (0.5 GB) | $19/month (10 GB) |
+| OpenAI | Pay per use | ~$0.01–0.10 per session note |
+| Stripe | Free (2.9% + 30¢ per transaction) | Free |
+| Resend | 3,000 emails/month free | $20/month (50k emails) |
