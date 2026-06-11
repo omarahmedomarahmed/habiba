@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { getSocket, disconnectSocket } from "@/lib/socket";
+import { useAuthStore } from "@/lib/store";
 import {
   Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Settings2,
   Brain, FileText, Flag, Bookmark, Plus, ChevronRight, ChevronDown,
@@ -95,10 +97,22 @@ const copilotTypeColors: Record<string, string> = {
   memory: "bg-amber-50 text-amber-700 border border-amber-100",
 };
 
+interface CrisisAlert {
+  session_id: string;
+  patient_id: string;
+  risk_level: string;
+  risk_type: string;
+  indicators: string[];
+  confidence: number;
+  recommended_action: string;
+  timestamp: string;
+}
+
 export default function SessionRoomPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const roomStore = useSessionRoomStore();
+  const { accessToken } = useAuthStore();
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -113,9 +127,34 @@ export default function SessionRoomPage() {
   const [noteType, setNoteType] = useState<"SOAP" | "DAP" | "BIRP">("SOAP");
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [generatedNote, setGeneratedNote] = useState("");
+  const [crisisAlert, setCrisisAlert] = useState<CrisisAlert | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   const session = MOCK_SESSION;
+
+  // WebSocket: listen for crisis_alert events during live session
+  useEffect(() => {
+    if (!accessToken || sessionPhase !== 'live') return;
+    const socket = getSocket(accessToken);
+
+    const handleCrisisAlert = (alert: CrisisAlert) => {
+      if (alert.session_id === id) {
+        setCrisisAlert(alert);
+      }
+    };
+
+    socket.on('crisis_alert', handleCrisisAlert);
+    return () => {
+      socket.off('crisis_alert', handleCrisisAlert);
+    };
+  }, [accessToken, sessionPhase, id]);
+
+  // Disconnect socket when session ends or component unmounts
+  useEffect(() => {
+    return () => {
+      if (sessionPhase === 'ended') disconnectSocket();
+    };
+  }, [sessionPhase]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -167,6 +206,61 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
 
   return (
     <div className="flex flex-col h-full bg-slate-900">
+      {/* Crisis Alert Modal — full-screen, cannot be dismissed without action */}
+      {crisisAlert && (
+        <div className="fixed inset-0 z-[9999] bg-red-950/95 flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-7 h-7 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-red-700">Crisis Alert Detected</h2>
+                <span className={cn(
+                  "inline-block px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide mt-1",
+                  crisisAlert.risk_level === 'critical' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'
+                )}>
+                  {crisisAlert.risk_level} risk
+                </span>
+              </div>
+            </div>
+
+            <p className="text-slate-600 text-sm mb-4">
+              AI has detected language indicating potential risk in this session.
+              {crisisAlert.indicators?.length > 0 && (
+                <span> Indicators: <span className="font-medium text-red-700">"{crisisAlert.indicators.join('", "')}"</span></span>
+              )}
+            </p>
+
+            {crisisAlert.recommended_action && (
+              <p className="text-slate-500 text-sm mb-6 italic">{crisisAlert.recommended_action}</p>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <a
+                href="tel:988"
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-base transition-colors"
+                onClick={() => setCrisisAlert(null)}
+              >
+                Call 988 — Suicide & Crisis Lifeline
+              </a>
+              <button
+                onClick={() => {
+                  setActiveRightTab('risk');
+                  setCrisisAlert(null);
+                }}
+                className="px-5 py-3 border-2 border-red-600 text-red-700 rounded-xl font-semibold hover:bg-red-50 transition-colors"
+              >
+                Open Crisis Protocol & Document Response
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-4 text-center">
+              This alert has been logged and sent to your organization admin.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Session Header Bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700 shrink-0">
         <div className="flex items-center gap-3">

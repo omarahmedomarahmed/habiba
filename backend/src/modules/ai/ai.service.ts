@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../../database/database.service';
 import { ModelGatewayService } from './model-gateway.service';
 import { ContextBuilderService } from './context-builder.service';
@@ -12,6 +13,7 @@ export class AIService {
     private readonly db: DatabaseService,
     private readonly modelGateway: ModelGatewayService,
     private readonly contextBuilder: ContextBuilderService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async generateSOAPNote(sessionId: string, orgId: string, therapistId: string, format: string = 'soap') {
@@ -261,9 +263,57 @@ Be conservative — flag if uncertain. Therapist always makes final clinical dec
           riskData.confidence || 0.5,
         ],
       );
+
+      // Broadcast real-time crisis alert to therapist + org admins
+      const ALERT_LEVELS = ['elevated', 'high', 'critical'];
+      if (ALERT_LEVELS.includes(riskData.risk_level)) {
+        this.eventEmitter.emit('ai.risk_detected', {
+          sessionId,
+          therapistId: session.therapist_id,
+          patientId: session.patient_id,
+          orgId,
+          riskLevel: riskData.risk_level,
+          riskType: riskData.risk_type || 'general',
+          indicators: riskData.indicators || [],
+          confidence: riskData.confidence || 0.5,
+          recommendedAction: riskData.recommended_action || '',
+          timestamp: new Date().toISOString(),
+        });
+
+        // Insert in-app notifications for all admins in the org on high/critical
+        if (['high', 'critical'].includes(riskData.risk_level)) {
+          this.notifyOrgAdminsOfCrisis(orgId, sessionId, riskData).catch((err) => {
+            this.logger.error(`[CRISIS] Failed to notify admins: ${err?.message}`);
+          });
+        }
+      }
     }
 
     return riskData;
+  }
+
+  private async notifyOrgAdminsOfCrisis(orgId: string, sessionId: string, riskData: any) {
+    // Fetch all admin/super_admin users in the org
+    const admins = await this.db.query<{ id: string }>(
+      `SELECT u.id FROM users u
+       WHERE u.organization_id = $1
+         AND u.role IN ('super_admin', 'admin')
+         AND u.deleted_at IS NULL`,
+      [orgId],
+    );
+
+    const title = `Crisis Alert — ${riskData.risk_level.toUpperCase()}`;
+    const body = `Risk detected in session. Indicators: ${(riskData.indicators || []).join(', ')}. Confidence: ${Math.round((riskData.confidence || 0.5) * 100)}%.`;
+
+    for (const admin of admins) {
+      await this.db.execute(
+        `INSERT INTO notifications (id, organization_id, user_id, channel, title, body, priority, status, created_at)
+         VALUES ($1, $2, $3, 'in_app', $4, $5, 'urgent', 'pending', NOW())`,
+        [uuidv4(), orgId, admin.id, title, body],
+      );
+    }
+
+    this.logger.warn(`[CRISIS] Notified ${admins.length} admins in org ${orgId} for session ${sessionId}`);
   }
 
   private async extractMemoriesAsync(

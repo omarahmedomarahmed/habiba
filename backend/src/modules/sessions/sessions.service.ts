@@ -1,13 +1,29 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, forwardRef, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
+import { AIService } from '../ai/ai.service';
 import { v4 as uuidv4 } from 'uuid';
+
+// Extended crisis keyword list for live transcript scanning
+const LIVE_CRISIS_KEYWORDS = [
+  'suicide', 'suicidal', 'kill myself', 'kill yourself', 'end my life',
+  'want to die', "can't go on", 'better off dead', 'no point living',
+  'burden to everyone', 'better off without me', 'not worth living',
+  'no reason to live', 'self harm', 'self-harm', 'cut myself', 'hurt myself',
+  'burn myself', 'overdose', 'shoot myself', 'hang myself', 'jump off',
+  'being abused', 'hitting me', 'he hits me', 'hurts me',
+  'someone is hurting me', "i can't do this anymore", 'i give up',
+  "i won't be here",
+];
 
 @Injectable()
 export class SessionsService {
+  private readonly logger = new Logger(SessionsService.name);
+
   constructor(
     private readonly db: DatabaseService,
     private readonly config: ConfigService,
+    @Inject(forwardRef(() => AIService)) private readonly aiService: AIService,
   ) {}
 
   async findAll(orgId: string, query: any = {}) {
@@ -224,6 +240,19 @@ export class SessionsService {
         dto.confidence || null, sequenceNumber,
       ],
     );
+
+    // Crisis keyword scan — fire-and-forget (never blocks the response)
+    if (dto.text && typeof dto.text === 'string') {
+      const lower = dto.text.toLowerCase();
+      const matched = LIVE_CRISIS_KEYWORDS.some((kw) => lower.includes(kw));
+      if (matched) {
+        this.logger.warn(`[CRISIS SCAN] Keyword matched in session ${sessionId} — triggering GPT-4o risk assessment`);
+        // Fire async — response returns immediately
+        this.aiService.detectRisk(sessionId, orgId).catch((err) => {
+          this.logger.error(`[CRISIS SCAN] detectRisk failed for session ${sessionId}: ${err?.message}`);
+        });
+      }
+    }
 
     return result[0];
   }

@@ -258,5 +258,12 @@ export const crmAPI = {
     apiFetch<any>('/crm/analytics', { params: { period } } as any),
 };
 
+export const notificationsAPI = {
+  list: (params?: { type?: string; unread?: boolean; limit?: number }) =>
+    apiFetch<any>('/notifications', { params: params as any }),
+  markRead: (id: string) =>
+    apiFetch<any>(`/notifications/${id}/read`, { method: 'PATCH' }),
+};
+
 export { setTokens, clearTokens, getAccessToken, getRefreshToken };
 export default apiFetch;

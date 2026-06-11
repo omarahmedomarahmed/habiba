@@ -4,9 +4,20 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Building2, DollarSign, Brain, Activity, AlertTriangle,
   TrendingUp, Zap, Shield, Server, Clock, ArrowUp, ArrowDown,
-  ChevronRight, RefreshCw, Eye
+  ChevronRight, RefreshCw, Eye, PhoneCall
 } from 'lucide-react';
-import { adminAPI } from '@/lib/api';
+import { adminAPI, notificationsAPI } from '@/lib/api';
+import { useAdminAuth } from '@/lib/store';
+
+interface CrisisEvent {
+  id: string;
+  org_name?: string;
+  therapist_name?: string;
+  risk_level: string;
+  body: string;
+  created_at: string;
+  read_at?: string;
+}
 
 // ============================================================
 // FALLBACK DATA (shown when API is unavailable)
@@ -75,9 +86,11 @@ function LoadingSkeleton() {
 }
 
 export default function AdminDashboardPage() {
+  const { accessToken } = useAdminAuth();
   const [stats, setStats] = useState<any>(null);
   const [orgs, setOrgs] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [crisisEvents, setCrisisEvents] = useState<CrisisEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +121,28 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Fetch crisis alerts from last 24h
+  useEffect(() => {
+    const fetchCrisis = async () => {
+      try {
+        const data = await notificationsAPI.list({ type: 'crisis_alert', limit: 10 });
+        const items = Array.isArray(data) ? data : (data as any).data ?? [];
+        setCrisisEvents(items.map((n: any) => ({
+          id: n.id,
+          org_name: n.metadata?.org_name,
+          therapist_name: n.metadata?.therapist_name,
+          risk_level: n.metadata?.risk_level || 'high',
+          body: n.body || n.title || 'Crisis detected',
+          created_at: n.created_at,
+          read_at: n.read_at,
+        })));
+      } catch {
+        // non-critical
+      }
+    };
+    fetchCrisis();
+  }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -306,6 +341,56 @@ export default function AdminDashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Crisis Monitoring Panel */}
+      <div className="bg-gray-900 border border-red-900/50 rounded-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-red-900/30">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <h3 className="text-sm font-semibold text-white">Crisis Alerts — Last 24h</h3>
+            {crisisEvents.filter(e => !e.read_at).length > 0 && (
+              <span className="bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                {crisisEvents.filter(e => !e.read_at).length}
+              </span>
+            )}
+          </div>
+          <a href="/compliance" className="text-xs text-gray-500 hover:text-white transition-colors">
+            View all →
+          </a>
+        </div>
+        {crisisEvents.length > 0 ? (
+          <div className="divide-y divide-gray-800">
+            {crisisEvents.slice(0, 5).map((event) => (
+              <div key={event.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-800/50 transition-colors">
+                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                  event.risk_level === 'critical' ? 'bg-red-500 animate-ping' : 'bg-orange-500'
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-bold uppercase ${
+                      event.risk_level === 'critical' ? 'text-red-400' : 'text-orange-400'
+                    }`}>{event.risk_level}</span>
+                    {event.org_name && <span className="text-xs text-gray-500">· {event.org_name}</span>}
+                    {!event.read_at && <span className="text-[10px] bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded">UNREAD</span>}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5 truncate">{event.body}</div>
+                  <div className="text-[10px] text-gray-600 mt-0.5">
+                    {new Date(event.created_at).toLocaleString()}
+                  </div>
+                </div>
+                <a href="/compliance" className="text-gray-600 hover:text-red-400 transition-colors">
+                  <Eye className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-5 py-8 text-center">
+            <PhoneCall className="w-8 h-8 text-green-500/50 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">No crisis alerts in the last 24 hours</p>
+          </div>
+        )}
       </div>
 
       {/* Recent Alerts */}

@@ -4,10 +4,22 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Zap, Clock, Globe, DollarSign, Shield,
   CheckCircle2, X, Activity, TrendingUp,
-  Brain, AlertCircle, Video, RefreshCw, Loader2
+  Brain, AlertCircle, Video, RefreshCw, Loader2, AlertTriangle
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { radarAPI, APIError } from "@/lib/api";
+import { radarAPI, notificationsAPI, APIError } from "@/lib/api";
+import { getSocket } from "@/lib/socket";
+import { useAuthStore } from "@/lib/store";
+
+interface CrisisNotification {
+  id: string;
+  session_id?: string;
+  patient_id?: string;
+  risk_level: string;
+  body: string;
+  created_at: string;
+  read_at?: string;
+}
 
 interface RadarRequest {
   id: string;
@@ -163,6 +175,7 @@ function SkeletonCard() {
 
 // ── page ─────────────────────────────────────────────────────────────────────
 export default function RadarPage() {
+  const { accessToken } = useAuthStore();
   const [requests, setRequests] = useState<RadarRequest[]>([]);
   const [stats, setStats] = useState<Partial<RadarStats>>({});
   const [loading, setLoading] = useState(true);
@@ -174,6 +187,7 @@ export default function RadarPage() {
   const [recentActivity, setRecentActivity] = useState<
     { action: string; patient: string; time: string; type: "accept" | "decline" | "complete" }[]
   >([]);
+  const [crisisAlerts, setCrisisAlerts] = useState<CrisisNotification[]>([]);
 
   // ── fetch requests ──────────────────────────────────────────────────────
   const fetchRequests = useCallback(async (silent = false) => {
@@ -220,6 +234,45 @@ export default function RadarPage() {
     const interval = setInterval(() => fetchRequests(true), 30_000);
     return () => clearInterval(interval);
   }, [isOnline, fetchRequests]);
+
+  // Fetch crisis alerts on mount + listen for real-time updates
+  useEffect(() => {
+    const fetchCrisisAlerts = async () => {
+      try {
+        const data = await notificationsAPI.list({ type: 'crisis_alert', limit: 10 } as any);
+        const items = Array.isArray(data) ? data : (data as any).data ?? [];
+        setCrisisAlerts(items.map((n: any) => ({
+          id: n.id,
+          session_id: n.metadata?.session_id,
+          patient_id: n.metadata?.patient_id,
+          risk_level: n.metadata?.risk_level || 'high',
+          body: n.body || n.title || 'Crisis detected',
+          created_at: n.created_at,
+          read_at: n.read_at,
+        })));
+      } catch {
+        // non-critical — silently ignore
+      }
+    };
+    fetchCrisisAlerts();
+  }, []);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const socket = getSocket(accessToken);
+    const handleCrisis = (alert: any) => {
+      setCrisisAlerts((prev) => [{
+        id: alert.session_id + '_' + Date.now(),
+        session_id: alert.session_id,
+        patient_id: alert.patient_id,
+        risk_level: alert.risk_level,
+        body: `Risk detected. Indicators: ${(alert.indicators || []).join(', ')}`,
+        created_at: alert.timestamp || new Date().toISOString(),
+      }, ...prev.slice(0, 9)]);
+    };
+    socket.on('crisis_alert', handleCrisis);
+    return () => { socket.off('crisis_alert', handleCrisis); };
+  }, [accessToken]);
 
   // ── accept ──────────────────────────────────────────────────────────────
   const handleAccept = async (id: string) => {
@@ -287,6 +340,51 @@ export default function RadarPage() {
 
   return (
     <div className="p-6 max-w-[1200px] mx-auto">
+      {/* Crisis Alerts Queue — appears at very top when active */}
+      {crisisAlerts.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <h3 className="text-base font-bold text-red-700">Active Crisis Alerts</h3>
+            <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{crisisAlerts.length}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {crisisAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="flex items-center justify-between p-4 bg-red-50 border-2 border-red-200 rounded-xl animate-pulse-border"
+                style={{ animation: 'pulse 2s infinite' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+                  <div>
+                    <span className="font-semibold text-red-800 text-sm capitalize">{alert.risk_level} risk detected</span>
+                    <p className="text-xs text-red-600 mt-0.5">{alert.body}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{new Date(alert.created_at).toLocaleTimeString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {alert.session_id && (
+                    <a
+                      href={`/sessions/${alert.session_id}/room`}
+                      className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Open Session
+                    </a>
+                  )}
+                  <button
+                    onClick={() => setCrisisAlerts((prev) => prev.filter((a) => a.id !== alert.id))}
+                    className="p-1 text-red-400 hover:text-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

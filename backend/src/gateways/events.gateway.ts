@@ -277,18 +277,40 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @OnEvent("ai.risk_detected")
   handleRiskAlert(payload: {
-    therapistId: string;
     sessionId: string;
+    therapistId: string;
     patientId: string;
+    orgId: string;
     riskLevel: string;
-    description: string;
+    riskType: string;
+    indicators: string[];
+    confidence: number;
+    recommendedAction: string;
+    timestamp: string;
   }) {
-    this.server.to(`user:${payload.therapistId}`).emit("risk_alert", {
+    const alertPayload = {
       session_id: payload.sessionId,
       patient_id: payload.patientId,
       risk_level: payload.riskLevel,
-      description: payload.description,
+      risk_type: payload.riskType,
+      indicators: payload.indicators,
+      confidence: payload.confidence,
+      recommended_action: payload.recommendedAction,
+      timestamp: payload.timestamp,
+    };
+
+    // Alert the therapist in the session
+    this.server.to(`user:${payload.therapistId}`).emit("crisis_alert", alertPayload);
+
+    // Alert all admins in the organization
+    this.server.to(`org:${payload.orgId}`).emit("crisis_alert", {
+      ...alertPayload,
+      therapist_id: payload.therapistId,
     });
+
+    this.logger.warn(
+      `[CRISIS] risk_level=${payload.riskLevel} session=${payload.sessionId} org=${payload.orgId}`,
+    );
   }
 
   // ============================================================
