@@ -408,6 +408,8 @@ export const analyticsAPI = {
   patientOutcomes: () => apiFetch<Record<string, unknown>>("/analytics/outcomes"),
   aiUsage: (period?: string) =>
     apiFetch<Record<string, unknown>>("/analytics/ai-usage", { params: { period } }),
+  dashboard: (period?: string) =>
+    apiFetch<Record<string, unknown>>("/analytics/therapist/dashboard", { params: { period } }),
 };
 
 export { APIError };

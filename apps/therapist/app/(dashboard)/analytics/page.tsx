@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart3, TrendingUp, TrendingDown, Users, Calendar,
   Brain, Activity, Target, AlertTriangle, DollarSign,
@@ -9,6 +9,7 @@ import {
   Layers, PieChart, BarChart2, LineChart, Eye, Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { analyticsAPI } from "@/lib/api";
 
 type Period = "30d" | "90d" | "6m" | "12m" | "ytd";
 type AnalyticsTab = "overview" | "patients" | "outcomes" | "sessions" | "financial";
@@ -282,6 +283,22 @@ const AI_INSIGHTS = [
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>("30d");
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
+  const [liveMetrics, setLiveMetrics] = useState<any>(null);
+
+  useEffect(() => {
+    analyticsAPI.dashboard(period).then((data: any) => {
+      if (data) setLiveMetrics(data);
+    }).catch(() => {});
+  }, [period]);
+
+  // Merge live metrics into the overview cards where available
+  const mergedMetrics = OVERVIEW_METRICS.map((m: MetricCard) => {
+    if (!liveMetrics) return m;
+    const key = m.label.toLowerCase().replace(/\s+/g, '_');
+    const liveVal = liveMetrics[key] ?? liveMetrics[m.label];
+    if (liveVal !== undefined) return { ...m, value: String(liveVal) };
+    return m;
+  });
 
   const isPositiveTrend = (metric: MetricCard) => {
     return metric.positive_direction === "up" ? metric.trend === "up" : metric.trend === "down";

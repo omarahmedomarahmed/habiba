@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock,
@@ -9,6 +9,7 @@ import {
   MoreHorizontal, Circle, Users, Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sessionsAPI } from "@/lib/api";
 
 type CalendarView = "month" | "week" | "day" | "list";
 type SessionType = "video" | "phone" | "in_person" | "group";
@@ -87,11 +88,39 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(TODAY);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [events, setEvents] = useState<CalendarEvent[]>(EVENTS);
+
+  const fetchEvents = useCallback(async () => {
+    const d = currentDate;
+    const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    try {
+      const data = await sessionsAPI.list({ date_from: start, date_to: end, limit: 100 } as any);
+      const items = Array.isArray(data) ? data : (data as any)?.data ?? [];
+      if (items.length > 0) {
+        setEvents(items.map((s: any) => ({
+          id: s.id,
+          date: s.scheduled_at ? s.scheduled_at.split('T')[0] : '',
+          time: s.scheduled_at ? new Date(s.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '09:00',
+          duration: s.duration_minutes || 50,
+          patient_name: s.patient_name || 'Patient',
+          type: s.session_type || 'individual',
+          status: s.status || 'scheduled',
+          format: s.format || 'video',
+          color: s.status === 'completed' ? 'green' : s.status === 'cancelled' ? 'red' : 'blue',
+        })));
+      }
+    } catch {
+      // keep static events as fallback
+    }
+  }, [currentDate]);
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   const monthGrid = buildMonthGrid(currentDate.getFullYear(), currentDate.getMonth());
 
   const eventsForDate = (dateStr: string) =>
-    EVENTS.filter((e) => e.date === dateStr);
+    events.filter((e) => e.date === dateStr);
 
   const formatDateStr = (year: number, month: number, day: number) =>
     `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;

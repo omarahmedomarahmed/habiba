@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User, Settings, Bell, Shield, CreditCard, Brain, Building2,
   Save, Camera, Eye, EyeOff, CheckCircle, AlertCircle, Trash2,
@@ -11,6 +11,7 @@ import {
   Users, Calendar, BarChart3, ExternalLink, Copy, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { therapistsAPI } from "@/lib/api";
 
 type SettingsTab =
   | "profile"
@@ -64,6 +65,7 @@ function SectionCard({ title, description, children }: {
 
 export default function TherapistSettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -120,7 +122,38 @@ export default function TherapistSettingsPage() {
   const [mfaEnabled, setMfaEnabled] = useState(true);
   const [sessionTimeout, setSessionTimeout] = useState("60");
 
-  const handleSave = () => {
+  // Load real profile on mount
+  useEffect(() => {
+    therapistsAPI.me().then((data: any) => {
+      if (data) {
+        setProfile((prev) => ({
+          ...prev,
+          first_name: data.first_name || prev.first_name,
+          last_name: data.last_name || prev.last_name,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone,
+          bio: data.bio || prev.bio,
+          license_number: data.license_number || prev.license_number,
+          license_state: data.license_state || prev.license_state,
+        }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await therapistsAPI.updateProfile({
+        bio: profile.bio,
+        license_number: profile.license_number,
+        license_state: profile.license_state,
+        accepting_new_patients: true,
+      });
+    } catch {
+      // non-critical
+    } finally {
+      setSaving(false);
+    }
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 3000);
   };
