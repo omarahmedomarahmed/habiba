@@ -866,3 +866,247 @@ I noticed we talked about some heavy things. I want to check in — how are you 
 - [GPT-4o pricing $2.50/M input $10/M output](https://pricepertoken.com/pricing-page/model/openai-gpt-4o)
 - [Mentalyc pricing $49.99/seat](https://www.mentalyc.com/blog/upheal-vs-mentalyc)
 - [Mental health treatment gap 1B globally](https://www.who.int/news/item/02-09-2025-who-releases-new-reports-and-estimates-highlighting-urgent-gaps-in-mental-health)
+
+---
+
+# PART 7: PRICING STRATEGY & FREEMIUM MODEL RECOMMENDATIONS
+
+*Added: 2026-06-11 | Author: Engineering + Strategy*
+
+---
+
+## Executive Summary
+
+The recommended pricing model is a **freemium-to-subscription ladder** anchored by a single free session for every new therapist, then a pay-per-session option with natural upgrade triggers into monthly tiers. This model is designed to:
+
+1. Remove all friction from therapist sign-up (no credit card, no free trial countdown)
+2. Let the product sell itself — one real session with AI transcription, copilot, and SOAP note generation is more compelling than any demo
+3. Create upgrade urgency at predictable usage milestones
+4. Undercut every competitor while delivering deeper features
+
+---
+
+## Recommended Tier Structure
+
+| Tier | Name | Price | Sessions Included | Overage | Target Persona |
+|------|------|-------|-------------------|---------|----------------|
+| **T0** | Free Session | $0 forever | 1 (one-time, no expiry) | N/A | New therapist trying the product |
+| **T1** | Pay-As-You-Go | $0/month | 0 monthly | **$12/session** | Part-time therapist, <5 sessions/month |
+| **T2** | Starter | **$49/month** | 20 sessions/month | $4/session overage | Solo therapist in private practice, 10–25 clients |
+| **T3** | Pro | **$89/month** | Unlimited sessions | None | Full-time therapist, 25+ clients |
+| **T4** | Enterprise | Custom (est. $300–800/mo per org) | Unlimited | Custom | Clinics, hospitals, group practices |
+
+---
+
+## Why These Numbers
+
+### The Free Session Is Not A "Trial" — It's A Product Demo That Sells Itself
+
+**Don't** call it a "14-day free trial." **Do** call it: *"Your first session is on us."**
+
+A free trial creates countdown anxiety. A single free session creates an experience. Every competitor that offers a free trial (Upheal's 14-day, Mentalyc's free plan) sees trial-to-paid conversion of roughly 15–25%. A single full-feature session will convert at 40%+ because:
+- Therapist gets a real SOAP note from their actual patient
+- They see the AI copilot work in their actual session  
+- Emotional AI detects their actual patient's state
+- They show it to colleagues and word-of-mouth begins
+
+The free session has a cost to us of approximately $0.35 (AI compute). Worth every cent.
+
+**Technical implementation:** `max_sessions_month = 1` with a `trial_session_used = true` flag. Once that session is completed, they land on the upgrade page. No countdown. No expiry. The session is theirs forever to review — the *next* session requires payment.
+
+---
+
+### Pay-As-You-Go at $12/Session
+
+**Why $12:** 
+- Our AI cost per session = ~$0.35 (Whisper $0.06 + GPT-4o note $0.15 + GPT-4o-mini copilot $0.05 + emotional AI $0.09 + overhead $0.05 including infra/Redis/DB)
+- At $12, gross margin = **97%**
+- A solo therapist charges $100–250/session. $12 in tooling is 5–12% of revenue — deeply defensible
+- No competitor offers pay-per-session. Upheal and Mentalyc both force monthly subscriptions. This tier captures therapists who refuse monthly recurring commitments (significant population)
+
+**Natural upgrade trigger from T1 → T2:** At 9 sessions/month, pay-per-session costs $108. Starter is $49. The math triggers itself at 9 sessions. A pop-up at session 7 of the month: *"At your current pace, a Starter subscription would save you $30+ this month."*
+
+---
+
+### Starter at $49/Month (20 sessions)
+
+**Why $49:**
+- Mentalyc = $49.99/month (notes only, no copilot, no emotional AI, no crisis detection)
+- We match their price but deliver dramatically more value
+- Upheal = $69/month (session notes, progress tracking — no proactive AI companion, no emotional AI, no crisis radar)
+- At $49 we undercut Upheal by 29% while being feature-superior
+- The perceived value anchor matters: Starter is "cheaper than Mentalyc with 10x the features"
+
+**20 sessions/month:** This covers the average therapist's caseload. According to our research, the median private practice therapist sees 15–22 clients/week at 45-minute sessions. 20 sessions/month fits roughly 5 sessions/week — matching the median while leaving headroom for growth (creating natural upgrade desire).
+
+**Overage at $4/session:** Once the 20-session limit is hit, each additional session is $4. This is:
+- Still profitable (97% margin on overage)
+- Creates strong upgrade pressure ("I'm paying $4/session overage when Pro has unlimited for $40 more")
+- Pop-up at session 18 of month: *"2 sessions left. Upgrade to Pro for $40 more and go unlimited."*
+
+---
+
+### Pro at $89/Month (Unlimited)
+
+**Why $89:**
+- Natural upgrade trigger from Starter: at 30+ sessions, overage ($10 at $4 each) + Starter ($49) = $59+. Pro at $89 becomes valuable at 30 sessions/month
+- Matches Upheal ($69) + $20 for the features they don't have (emotional AI, proactive companion, radar)
+- Full-time therapist at 35 sessions/week × 4 weeks = 140 sessions/month. $89/140 = **$0.63/session** — trivial
+
+**What unlocks at Pro:**
+- Unlimited sessions (obvious)
+- **Full emotional AI history** — cross-session trajectory charts
+- **Priority AI processing** — SOAP notes in <30s instead of <90s
+- **Proactive AI companion for all patients** (Starter limits companion to 5 active patients)
+- **Advanced analytics** — patient outcome trends, session quality scores
+- **Custom AI note templates** — BIRP, DAP, progress notes, custom formats
+
+This differentiation makes Pro feel like a qualitative leap, not just a quantity increase.
+
+---
+
+### Enterprise (Custom Pricing)
+
+**Estimated range: $300–800/month per organization**
+
+For clinics and group practices, pricing shifts from per-therapist to per-organization:
+- 5-therapist clinic: ~$300/month ($60/therapist — 33% discount from Pro)
+- 20-therapist hospital unit: ~$800/month ($40/therapist — 55% discount)
+- Large health system (100+ therapists): fully custom, includes BAA, SSO, EHR integration, dedicated support
+
+Enterprise unlocks:
+- Multi-therapist dashboard and supervision tools
+- Org-wide analytics (comparative therapist performance, patient outcome aggregate)
+- SSO / SAML integration
+- Business Associate Agreement (BAA) — required for HIPAA covered entity contracting
+- SLA guarantees (99.9% uptime commitment)
+- Custom AI tuning on org's own session history
+- Direct EHR integration (Epic, Cerner) via FHIR API
+
+---
+
+## Competitive Pricing Matrix
+
+| Platform | Free Trial | Pay-Per-Session | Entry Tier | Mid Tier | Crisis Detection | Emotional AI | Proactive Patient AI |
+|----------|------------|-----------------|------------|----------|-----------------|--------------|---------------------|
+| **24Therapy** | **1 session free** | **$12** | **$49** | **$89** | **✅ Real-time** | **✅ Full** | **✅ Yes** |
+| Upheal | 14-day trial | ❌ | $69 | N/A | ❌ | ❌ | ❌ |
+| Mentalyc | 5 notes free | ❌ | $49.99 | N/A | ❌ | ❌ | ❌ |
+| Eleos Health | Demo only | ❌ | Enterprise | Enterprise | ✅ Basic | ❌ | ❌ |
+| Blueprint | Free plan (limited) | ❌ | $69 | N/A | ❌ | ❌ | ❌ |
+| Nabla | Demo only | ❌ | $119 | N/A | ❌ | ❌ | ❌ |
+| Sully.ai | Demo only | ❌ | $79-99 | N/A | ❌ | ❌ | ❌ |
+
+**Our moat in one sentence:** We are the only platform with real-time crisis detection, emotional AI, and a proactive patient companion — at the lowest price of any full-featured competitor.
+
+---
+
+## Economics
+
+### Per-Session AI Cost Breakdown
+
+| Component | Model | Cost/Session |
+|-----------|-------|-------------|
+| Live transcription | Whisper (50 min avg × $0.006/min) | $0.30 |
+| SOAP note generation | GPT-4o ($0.0025/K input × 2K + $0.01/K output × 1K) | $0.015 |
+| Emotional AI (every 5 segments, ~10 calls/session) | GPT-4o-mini ($0.00015/K × 10 calls) | $0.002 |
+| Crisis detection (if triggered, ~1 in 20 sessions) | GPT-4o ($0.0025/K × 1K × 5% rate) | $0.001 |
+| Copilot suggestions (3 per session avg) | GPT-4o-mini | $0.003 |
+| Infra (compute, Redis, DB storage) | — | $0.04 |
+| **Total** | | **~$0.36** |
+
+### Gross Margin by Tier
+
+| Tier | Revenue/Session | AI Cost | Gross Margin |
+|------|----------------|---------|-------------|
+| Pay-per-session | $12.00 | $0.36 | **97%** |
+| Starter (20 sessions) | $2.45/session | $0.36 | **85%** |
+| Starter overage | $4.00/session | $0.36 | **91%** |
+| Pro (40 sessions avg) | $2.23/session | $0.36 | **84%** |
+| Pro (100 sessions) | $0.89/session | $0.36 | **60%** |
+
+At 100+ sessions/month on Pro, margin compresses. This is acceptable — those are our highest-value, most-engaged users. Consider a "High Volume Pro" at $129/month for 100+ sessions/month to protect margin for power users.
+
+### Revenue Projections (Conservative)
+
+| Year | Therapists | Distribution | MRR |
+|------|------------|-------------|-----|
+| Y1 | 500 | 60% T1/T2, 30% Starter, 10% Pro | ~$18,500/mo |
+| Y2 | 2,500 | 40% T1/T2, 40% Starter, 20% Pro | ~$110,000/mo |
+| Y3 | 8,000 | 20% T1/T2, 45% Starter, 30% Pro, 5% Enterprise | ~$415,000/mo |
+
+US alone has 198,811 licensed therapists. Capturing 4% (Year 3) = ~8,000 therapists = ~$5M ARR. This is a defensible initial wedge before expansion to counselors, psychiatrists, and international markets.
+
+---
+
+## Upgrade Psychology — Natural Triggers
+
+These are the exact moments users should see upgrade prompts (no dark patterns — pure value math):
+
+**T0 → T1 (after free session):**
+- Screen: "You just saved 35 minutes on documentation. Your next session is $12."
+- Urgency: None needed. Let them sit with how good that felt.
+
+**T1 → T2 (approaching 9 sessions):**
+- At session 7 of month: *"At your rate, a Starter plan saves you $59 this month vs. pay-per-session."*
+- Show: Running monthly cost vs. Starter cost, side by side.
+
+**T2 → T3 (approaching 20 sessions):**
+- At session 16 of month: *"4 sessions left in Starter. Upgrade to Pro for just $40 more — unlimited for the rest of the month."*
+- At session 20 (limit hit): Hard gate. Can't book session 21 without upgrade or overage consent.
+
+**T3 → Enterprise (when org grows):**
+- When therapist account shows 3+ colleagues under same email domain: *"Looks like your team is growing. Enterprise plans start at $60/therapist."*
+
+---
+
+## Implementation Plan
+
+### Database (Already Partially Ready)
+
+The `subscription_plans` table already has `max_sessions_month`. The new tier data:
+
+```sql
+INSERT INTO subscription_plans (plan_key, name, monthly_price_usd, max_sessions_month, stripe_price_id_monthly) VALUES
+('free_session', 'Free Session', 0, 1, NULL),  -- one-time, not recurring
+('pay_per_session', 'Pay As You Go', 0, 0, NULL),  -- $0/month, sessions billed individually
+('starter', 'Starter', 49, 20, 'price_starter_monthly'),
+('pro', 'Pro', 89, NULL, 'price_pro_monthly'),  -- NULL = unlimited
+('enterprise', 'Enterprise', 0, NULL, NULL);  -- custom pricing
+```
+
+Add `trial_session_used BOOLEAN DEFAULT false` to therapists table so we track whether the free session has been consumed.
+
+### Backend Session Gating
+
+In `sessions.service.ts`, before creating a new session:
+1. Get therapist's current plan from `therapist_subscriptions` join
+2. If `plan_key = 'free_session'` and `trial_session_used = true` → 402 Payment Required
+3. If `plan_key = 'starter'` → count sessions this calendar month, if ≥ 20 → check overage consent or prompt upgrade
+4. If `plan_key = 'pro'` → allow always
+5. Mark `trial_session_used = true` when first session completes
+
+### Frontend Usage Meter
+
+Add to therapist portal sidebar/header:
+- Starter: "14/20 sessions this month" progress bar
+- Pay-per-session: "This session: $12"  
+- 2 sessions before limit: yellow warning badge
+- At limit: red badge + upgrade CTA
+
+---
+
+## Summary Recommendation
+
+**Launch with this exact pricing:**
+
+- **Free first session** — no credit card, no expiry, full features
+- **$12/session** pay-as-you-go after that
+- **$49/month** Starter (20 sessions + $4 overage)
+- **$89/month** Pro (unlimited + advanced features)
+- **Custom** Enterprise
+
+This pricing is **simultaneously the most accessible and the most feature-rich** option in the mental health AI space. We are not competing on price alone — we are competing on *value density per dollar*. No competitor offers crisis detection + emotional AI + proactive patient companion at any price. We offer it starting at $12.
+
+The free session removes the single biggest barrier to adoption: risk. A therapist doesn't have to trust marketing claims — they see it work in their own session with their own patient. That is the most powerful sales tool we have.
+

@@ -85,7 +85,12 @@ export default function NewSessionPage() {
       if (newId) router.push(`/sessions/${newId}/prepare`);
       else router.push('/sessions');
     } catch (err: any) {
-      setSubmitError(err?.message || 'Failed to create session. Please try again.');
+      const msg: string = err?.data?.message || err?.message || '';
+      if (msg.includes('UPGRADE_REQUIRED') || msg.includes('SESSION_LIMIT_REACHED') || err?.status === 402) {
+        setSubmitError('You have reached your session limit. Please upgrade your plan to book more sessions.');
+      } else {
+        setSubmitError(msg || 'Failed to create session. Please try again.');
+      }
       setIsSubmitting(false);
     }
   };
@@ -307,7 +312,12 @@ export default function NewSessionPage() {
         </div>
 
         {submitError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{submitError}</div>
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+            {submitError}
+            {submitError.includes('upgrade') && (
+              <a href="/billing" className="ml-2 underline font-semibold">View plans →</a>
+            )}
+          </div>
         )}
 
         {/* Actions */}

@@ -76,7 +76,50 @@ export class SessionsService {
     return session;
   }
 
+  async getTherapistUsage(therapistId: string): Promise<{ plan_key: string; sessions_this_month: number; max_sessions_month: number | null; trial_session_used: boolean }> {
+    const row = await this.db.queryOne<any>(
+      `SELECT t.current_plan_key, t.trial_session_used,
+              COALESCE(u.sessions_this_month, 0) AS sessions_this_month,
+              sp.max_sessions_month
+       FROM therapists t
+       LEFT JOIN therapist_monthly_session_counts u ON u.therapist_id = t.id
+       LEFT JOIN subscription_plans sp ON sp.plan_key = t.current_plan_key
+       WHERE t.id = $1`,
+      [therapistId],
+    );
+    return {
+      plan_key: row?.current_plan_key || 'free_trial',
+      sessions_this_month: parseInt(row?.sessions_this_month || '0'),
+      max_sessions_month: row?.max_sessions_month ?? null,
+      trial_session_used: row?.trial_session_used || false,
+    };
+  }
+
+  private async checkSessionAllowance(therapistId: string, orgId: string): Promise<void> {
+    const usage = await this.getTherapistUsage(therapistId);
+
+    if (usage.plan_key === 'free_trial') {
+      if (usage.trial_session_used) {
+        throw new Error('UPGRADE_REQUIRED:free_trial_used');
+      }
+      return; // first session allowed
+    }
+
+    if (usage.plan_key === 'pay_per_session') {
+      return; // always allowed — billed individually
+    }
+
+    if (usage.max_sessions_month !== null && usage.sessions_this_month >= usage.max_sessions_month) {
+      throw new Error(`SESSION_LIMIT_REACHED:${usage.sessions_this_month}:${usage.max_sessions_month}`);
+    }
+  }
+
   async create(orgId: string, dto: any) {
+    // Check plan allowance before creating session
+    if (dto.therapist_id) {
+      await this.checkSessionAllowance(dto.therapist_id, orgId);
+    }
+
     const sessionId = uuidv4();
 
     // Get session number for this therapist-patient pair

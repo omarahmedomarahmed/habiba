@@ -2,16 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Brain, LayoutDashboard, Users, Calendar, FileText, BarChart2,
   Settings, CreditCard, Zap, ChevronLeft, ChevronRight,
   AlertTriangle, Activity, MessageSquare, ClipboardList, Bell,
   Target, Network, Workflow, Send, BarChart3, Stethoscope,
-  BookMarked, Wrench, GitBranch, Shield, UserCog
+  BookMarked, Wrench, GitBranch, Shield, UserCog, TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
 import { getInitials } from "@/lib/utils";
+import { sessionsAPI } from "@/lib/api";
+
+interface SessionUsage {
+  plan_key: string;
+  sessions_this_month: number;
+  max_sessions_month: number | null;
+  trial_session_used: boolean;
+}
 
 const NAV_ITEMS = [
   {
@@ -71,6 +80,19 @@ export function Sidebar() {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar, notificationCount } = useUIStore();
   const user = useAuthStore((s) => s.user);
+  const [usage, setUsage] = useState<SessionUsage | null>(null);
+
+  useEffect(() => {
+    sessionsAPI.usage().then(setUsage).catch(() => {});
+  }, []);
+
+  const planLabel: Record<string, string> = {
+    free_trial: 'Free Session',
+    pay_per_session: 'Pay As You Go',
+    starter: 'Starter',
+    pro: 'Pro',
+    enterprise: 'Enterprise',
+  };
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -147,6 +169,60 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
+
+      {/* Session Usage Meter */}
+      {usage && !sidebarCollapsed && (
+        <div className="mx-2 mb-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+              {planLabel[usage.plan_key] || usage.plan_key}
+            </span>
+            <Link href="/billing" className="text-[10px] text-primary font-medium hover:underline">
+              Upgrade
+            </Link>
+          </div>
+          {usage.plan_key === 'free_trial' && (
+            <div className={cn(
+              "text-[11px] font-medium",
+              usage.trial_session_used ? "text-red-600" : "text-green-600"
+            )}>
+              {usage.trial_session_used ? "Free session used" : "1 free session available"}
+            </div>
+          )}
+          {usage.plan_key === 'pay_per_session' && (
+            <div className="text-[11px] text-slate-600">$12 per session</div>
+          )}
+          {usage.max_sessions_month !== null && usage.plan_key !== 'free_trial' && (
+            <>
+              <div className="flex justify-between text-[11px] text-slate-600 mb-1">
+                <span>{usage.sessions_this_month}/{usage.max_sessions_month} sessions</span>
+                <span className={cn(
+                  usage.sessions_this_month >= usage.max_sessions_month ? "text-red-600 font-bold" :
+                  usage.sessions_this_month >= usage.max_sessions_month - 2 ? "text-yellow-600 font-medium" : ""
+                )}>
+                  {usage.max_sessions_month - usage.sessions_this_month} left
+                </span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-1.5">
+                <div
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    usage.sessions_this_month >= usage.max_sessions_month ? "bg-red-500" :
+                    usage.sessions_this_month >= usage.max_sessions_month * 0.8 ? "bg-yellow-500" : "bg-primary"
+                  )}
+                  style={{ width: `${Math.min(100, (usage.sessions_this_month / usage.max_sessions_month) * 100)}%` }}
+                />
+              </div>
+            </>
+          )}
+          {usage.max_sessions_month === null && usage.plan_key !== 'free_trial' && usage.plan_key !== 'pay_per_session' && (
+            <div className="flex items-center gap-1 text-[11px] text-green-600">
+              <TrendingUp className="w-3 h-3" />
+              <span>Unlimited sessions</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Bottom items */}
       <div className="border-t border-slate-100 px-2 py-2 space-y-0.5">

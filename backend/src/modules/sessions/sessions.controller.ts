@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { SessionsService } from './sessions.service';
@@ -36,12 +36,27 @@ export class SessionsController {
     return this.response({ session });
   }
 
+  @Get('usage')
+  @ApiOperation({ summary: 'Get current therapist session usage and plan limits' })
+  async getUsage(@Request() req: any) {
+    const usage = await this.sessionsService.getTherapistUsage(req.user.id);
+    return this.response({ usage });
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new session' })
   async create(@Request() req: any, @Body() dto: any) {
     if (!dto.therapist_id) dto.therapist_id = req.user.id;
-    const session = await this.sessionsService.create(req.user.organization_id, dto);
-    return this.response({ session });
+    try {
+      const session = await this.sessionsService.create(req.user.organization_id, dto);
+      return this.response({ session });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.startsWith('UPGRADE_REQUIRED') || msg.startsWith('SESSION_LIMIT_REACHED')) {
+        throw new HttpException({ success: false, error: 'payment_required', message: msg }, HttpStatus.PAYMENT_REQUIRED);
+      }
+      throw err;
+    }
   }
 
   @Patch(':id/status')

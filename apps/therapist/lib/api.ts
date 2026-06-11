@@ -207,6 +207,8 @@ export const sessionsAPI = {
   aiNote: (id: string) => apiFetch<Record<string, unknown>>(`/sessions/${id}/ai-note`),
 
   dashboardStats: () => apiFetch<Record<string, unknown>>("/sessions/dashboard"),
+
+  usage: () => apiFetch<{ plan_key: string; sessions_this_month: number; max_sessions_month: number | null; trial_session_used: boolean }>("/sessions/usage"),
 };
 
 // ============================================================
