@@ -250,7 +250,7 @@ export class BillingService {
 
   async getSubscription(organizationId: string) {
     return this.db.queryOne(
-      `SELECT s.*, sp.name AS plan_name, sp.features, sp.price_monthly_usd, sp.session_limit
+      `SELECT s.*, sp.name AS plan_name, sp.features, sp.monthly_price_usd, sp.price_monthly_usd, sp.session_limit
        FROM subscriptions s
        JOIN subscription_plans sp ON sp.id = s.plan_id
        WHERE s.organization_id = $1 AND s.status IN ('active', 'trialing', 'past_due')

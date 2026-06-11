@@ -9,14 +9,10 @@ import {
   Eye, EyeOff, Copy, ExternalLink, Info, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAdminAuth } from '@/lib/store';
 import type { SubscriptionPlan, PlanFeatures, PlanAddOn } from '@/lib/pricing-api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app/api/v1';
-
-// ─── Mock token for dev (will be replaced with real auth) ─────────────────────
-const DEV_TOKEN = typeof window !== 'undefined'
-  ? (window as Window & { __adminToken?: string }).__adminToken || 'dev-token'
-  : 'dev-token';
 
 // ─── Feature flags available for plans ────────────────────────────────────────
 const FEATURE_OPTIONS = [
@@ -740,6 +736,7 @@ function PlanCard({
 // ─── Main Pricing Management Page ─────────────────────────────────────────────
 
 export default function PricingManagementPage() {
+  const { accessToken } = useAdminAuth();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [metrics, setMetrics] = useState<PlanMetric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -762,11 +759,11 @@ export default function PricingManagementPage() {
       // Try admin endpoint first, fall back to public
       const [plansRes, metricsRes] = await Promise.allSettled([
         fetch(`${API_BASE}/billing/admin/plans`, {
-          headers: { Authorization: `Bearer ${DEV_TOKEN}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
           cache: 'no-store',
         }),
         fetch(`${API_BASE}/billing/admin/plans/metrics`, {
-          headers: { Authorization: `Bearer ${DEV_TOKEN}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
           cache: 'no-store',
         }),
       ]);
@@ -848,7 +845,7 @@ export default function PricingManagementPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${DEV_TOKEN}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(data),
       });
@@ -889,7 +886,7 @@ export default function PricingManagementPage() {
     try {
       const res = await fetch(`${API_BASE}/billing/admin/plans/${planId}/toggle`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${DEV_TOKEN}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.ok) {
         const updated = await res.json();
@@ -911,7 +908,7 @@ export default function PricingManagementPage() {
     try {
       const res = await fetch(`${API_BASE}/billing/admin/plans/${planId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEV_TOKEN}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ is_featured: !plan.is_featured }),
       });
       if (res.ok) {
@@ -930,7 +927,7 @@ export default function PricingManagementPage() {
     try {
       const res = await fetch(`${API_BASE}/billing/admin/plans/${planId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${DEV_TOKEN}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.ok) {
         setPlans(prev => prev.filter(p => p.id !== planId));

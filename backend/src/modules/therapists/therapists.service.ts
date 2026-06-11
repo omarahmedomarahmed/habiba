@@ -26,11 +26,9 @@ export class TherapistsService {
       [therapist.id]
     );
 
-    // Fetch specializations
+    // Fetch specializations from junction table (back-filled from TEXT[] in migration 016)
     const specializations = await this.db.query(
-      `SELECT st.* FROM specialization_taxonomy st
-       JOIN therapist_specializations ts ON ts.specialization_id = st.id
-       WHERE ts.therapist_id = $1`,
+      `SELECT specialization FROM therapist_specializations WHERE therapist_id = $1 ORDER BY specialization`,
       [therapist.id]
     );
 
