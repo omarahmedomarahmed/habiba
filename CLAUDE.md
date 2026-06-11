@@ -1,8 +1,7 @@
-# CLAUDE.md — 24Therapy Mental Health OS — Persistent AI Session Memory
+# CLAUDE.md — 24Therapy Mental Health OS — AI Session State
 
-> **PURPOSE**: This file is the authoritative session state for AI coding assistants.
-> Read this file at the START of every session. Update it at the END of every session
-> (after each commit). Never skip updating this file.
+> Read this file at the START of every session. Update it at the END of every session after each commit.
+> Do NOT trust any other .md file for current state — they may be outdated.
 
 ---
 
@@ -12,531 +11,220 @@
 |-------|-------|
 | **Project** | 24Therapy Mental Health OS |
 | **Repo** | https://github.com/omarahmedomarahmed/habiba |
-| **Branch** | `main` |
-| **Stack** | Next.js 15 · NestJS · PostgreSQL + pgvector · Redis · TypeScript |
-| **Monorepo** | Turbo + PNPM 9 workspaces |
-| **Last Commit** | `dc119f1` — fix(deploy): improve Railway startup — better missing-env error, no crash loops |
-| **Last Updated** | 2026-06-08 (session 6 — UX polish, animations, integrations audit, Railway fix) |
+| **Dev Branch** | `claude/wizardly-cerf-2mrcdg` |
+| **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
+| **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
+| **Last Updated** | 2026-06-11 (session 7 — full M&A audit, doc cleanup, migration fixes) |
 
 ---
 
-## Architecture Overview
+## Build Status (Verified 2026-06-11)
+
+| Package | Build | Routes |
+|---------|-------|--------|
+| `@24therapy/api` | ✅ PASS | 17 modules, ~80 endpoints |
+| `@24therapy/web` | ✅ PASS | 40+ routes |
+| `@24therapy/therapist` | ✅ PASS | 35+ routes |
+| `@24therapy/patient` | ✅ PASS | 18 routes |
+| `@24therapy/admin` | ✅ PASS | 18 routes |
+
+> **Build note**: `apps/web` and `apps/therapist` fetch Inter from Google Fonts at build time. In network-restricted environments (like this container), builds may fail with SSL/font errors. This is a build-environment limitation — Vercel and Railway have full network access and build successfully.
+
+---
+
+## Architecture
 
 ```
-apps/
-  web/           → Marketing site         (24therapy.ai)       port 3000
-  therapist/     → Therapist portal        (app.24therapy.ai)   port 3001
-  patient/       → Patient portal          (my.24therapy.ai)    port 3002
-  admin/         → Super admin portal      (admin.24therapy.ai) port 3003
-backend/         → NestJS API              (api.24therapy.ai)   port 3001 (backend)
-packages/
-  types/         → @24therapy/types — 1,860+ line shared TS types
+apps/web           → Marketing site      :3000  (Next.js 15)
+apps/therapist     → Therapist portal    :3001  (Next.js 15)
+apps/patient       → Patient portal      :3002  (Next.js 15)
+apps/admin         → Admin portal        :3003  (Next.js 15)
+backend            → NestJS REST API     :4000
+packages/types     → @24therapy/types (shared TS types)
+packages/config    → @24therapy/config (shared URL constants)
+migrations/        → 15 ordered SQL files (001–015)
 ```
 
 ---
 
-## Brand Tokens
+## Current Issues (Must Fix Before Production)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| Navy | `#0A2342` | Primary backgrounds, headings |
-| Teal | `#2EC4B6` | Accent, CTA, active states |
-| Blue | `#1F5EFF` | Links, interactive elements |
-| Red (Admin) | gradient `red-500 → orange-500` | Admin portal accent |
+### CRITICAL — Schema/Code Mismatches
+
+1. **Billing column name mismatch** (`billing.service.ts` line ~253)
+   - Migration 010 creates `monthly_price_usd`, `annual_price_usd`
+   - Migration 015 tries to rename but does it conditionally
+   - `billing.service.ts` queries `sp.price_monthly_usd, sp.session_limit` — neither column exists
+   - **Fix**: Standardize column names in both migrations and service queries
+
+2. **Missing `therapist_specializations` junction table** (`therapists.service.ts` line ~31)
+   - Code does: `JOIN therapist_specializations ts ON ts.specialization_id = st.id`
+   - No such table in any migration — therapists.specializations is TEXT[] in migration 002
+   - **Fix**: Either create junction table migration OR rewrite service to query TEXT[] array directly
+
+3. **Missing `accepting_new_patients` column** (`therapists.service.ts` line ~71)
+   - Code tries to update this column; it doesn't exist in migration 002
+   - **Fix**: Add column to migration OR remove field reference in service
+
+4. **Duplicate `patient_consents` definition** (migrations 003 vs 012)
+   - Migration 003 creates `patient_consents` with one schema
+   - Migration 012 creates `consent_versions` + tries to create `patient_consents` again with different columns
+   - Running both migrations will fail on the second CREATE TABLE
+   - **Fix**: Migration 012 should ALTER TABLE, not CREATE TABLE for patient_consents
+
+### HIGH — Auth Not Wired to Backend
+
+5. **Admin `/pricing` page uses `DEV_TOKEN`**
+   - `apps/admin/app/(dashboard)/pricing/page.tsx` line ~18 uses a hardcoded dev token
+   - Must read from Zustand `useAdminAuth` store instead
+
+6. **WebSocket not implemented in frontend**
+   - Backend has full Socket.io gateway (`/ws` namespace)
+   - No frontend app connects to WebSocket
+   - Live session transcription, copilot, radar notifications will not work without this
+
+### MEDIUM — Missing Features
+
+7. **No registration/signup flow**
+   - All portals have login and forgot-password but no actual registration pages
+   - `apps/web/app/signup/page.tsx` exists but is a marketing CTA, not a real form
+   - Backend `POST /auth/register` endpoint is ready and tested
+
+8. **HIPAA compliance tables not implemented in backend**
+   - Migration 012 creates: `phi_access_log`, `baa_records`, `data_retention_policies`, `security_incidents`
+   - No backend module reads/writes to these tables
+   - Required for HIPAA compliance — every PHI access must be logged
+
+9. **Patient portal WebSocket for real-time messaging**
+   - Messages page exists and calls API but no real-time push
 
 ---
 
-## Key Technology Decisions
+## What Is Real vs Mock
 
-| Decision | Choice | Reason |
-|----------|--------|--------|
-| State Management | Zustand (`useAuthStore`, `useUIStore`, `useAdminAuth`) | Lightweight, no boilerplate |
-| Icons | Lucide React | Consistent icon set across all apps |
-| Forms | React `useState` + inline validation | Simpler than react-hook-form for current scope |
-| Backend DTOs | class-validator + @nestjs/swagger @ApiProperty | Validation + Swagger auto-docs |
-| AI Models | GPT-4o (scribe/copilot), Whisper (transcription), text-embedding-3-large (memory) | Best-in-class for clinical use |
-| Vector DB | pgvector extension on PostgreSQL | Avoids separate vector DB service |
-| Video | Daily.co | HIPAA-compliant WebRTC |
-| Package Manager | pnpm 9.15.4 | lockfileVersion 9.0 in pnpm-lock.yaml |
-| ESLint | FlatCompat + @eslint/eslintrc | Required for next/core-web-vitals in ESLint 9 flat config |
-| PostCSS | tailwindcss:{} + autoprefixer:{} | Tailwind v3 syntax (NOT @tailwindcss/postcss which is v4) |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Auth / JWT login | ✅ REAL | All portals call `/auth/login` with token refresh |
+| Patient CRUD | ✅ REAL | Full API client in therapist app |
+| Sessions CRUD | ✅ REAL | Full API client in therapist app |
+| Billing plans | ✅ REAL | Web pricing page fetches `/billing/plans` |
+| Analytics dashboards | ⚠️ PARTIAL | API exists; admin UI has fallback mock stats |
+| AI note generation | ✅ REAL | Backend calls OpenAI GPT-4o |
+| AI copilot | ✅ REAL | Backend endpoint wired; frontend UI exists |
+| Real-time WebSocket | ❌ MISSING | Backend gateway ready; no frontend client |
+| Registration flow | ❌ MISSING | Backend ready; no frontend form |
+| HIPAA audit log | ❌ MISSING | Schema exists; no backend writes |
+| Daily.co video | ❌ MISSING | Config present; no session room integration |
+| Radar matching | ✅ REAL | Backend complete; patient can request |
 
 ---
 
-## Deployment Configuration (Critical)
-
-### pnpm + Vercel Setup
-
-The repo now has all required files for Vercel to detect pnpm@9.x correctly:
+## Key File Locations
 
 | File | Purpose |
 |------|---------|
-| `pnpm-lock.yaml` | **PRIMARY** — Vercel reads lockfileVersion:'9.0' to activate pnpm 9 via Corepack |
-| `.npmrc` | `shamefully-hoist=true`, `node-linker=hoisted`, `auto-install-peers=true` |
-| `packageManager: "pnpm@9.15.4"` | In root package.json — explicit version declaration |
-| `vercel.json` (root) | `installCommand: "pnpm install --frozen-lockfile"` |
-| `apps/*/vercel.json` | Per-app: `installCommand: "cd ../.. && pnpm install --frozen-lockfile"` + `buildCommand` |
-
-### Per-App Vercel Projects
-
-| App | Root Directory | Vercel Project Name | Domain |
-|-----|---------------|---------------------|--------|
-| `apps/web` | `apps/web` | `24therapy-web` | `24therapy.ai` |
-| `apps/therapist` | `apps/therapist` | `24therapy-therapist` | `app.24therapy.ai` |
-| `apps/patient` | `apps/patient` | `24therapy-patient` | `my.24therapy.ai` |
-| `apps/admin` | `apps/admin` | `24therapy-admin` | `admin.24therapy.ai` |
-
-### ESLint Config Pattern (all 4 apps)
-
-```js
-// apps/*/eslint.config.mjs
-import { FlatCompat } from "@eslint/eslintrc";
-const compat = new FlatCompat({ baseDirectory: __dirname });
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals"),
-  { rules: {
-    "react/no-unescaped-entities": "off",  // prose JSX with quotes/apostrophes OK
-    "react/display-name": "off",           // anonymous components OK
-  }},
-];
-export default eslintConfig;
-```
+| `backend/src/main.ts` | Entry point, port 4000, global guards, Swagger |
+| `backend/src/app.module.ts` | All 17 modules imported, global JWT guard |
+| `backend/src/database/database.service.ts` | `query()`, `queryOne()`, `transaction()` |
+| `backend/src/modules/auth/guards/jwt-auth.guard.ts` | JWT guard, @Public() support |
+| `backend/src/modules/auth/guards/roles.guard.ts` | Role hierarchy enforcement |
+| `packages/types/src/index.ts` | All shared TypeScript types (~1,860 lines) |
+| `apps/*/lib/api.ts` | Per-app API clients with token refresh |
+| `apps/*/lib/store.ts` | Zustand auth + UI stores |
+| `migrations/` | 001–015 SQL files, run in order |
+| `pnpm-lock.yaml` | MUST stay committed — Vercel reads lockfileVersion |
+| `.npmrc` | `shamefully-hoist=true` — MUST stay committed |
 
 ---
 
-## Build Status — All Apps
-
-> Last validated: 2026-06-08 (commit `dc119f1`)
-
-| App | Build | Routes | Notes |
-|-----|-------|--------|-------|
-| `@24therapy/api` | ✅ PASS | — | NestJS TypeScript clean |
-| `@24therapy/web` | ✅ PASS | 32 routes | Next.js 15.3.3, Framer Motion added |
-| `@24therapy/therapist` | ✅ PASS | 28 routes | Next.js 15.3.3 |
-| `@24therapy/patient` | ✅ PASS | 17 routes | Next.js 15.1.0 |
-| `@24therapy/admin` | ✅ PASS | 17 routes | Next.js 15.1.0 |
-
----
-
-## Page Status — Marketing Website (`apps/web`)
-
-| Route | Status | Commit |
-|-------|--------|--------|
-| `/` | ✅ Complete | `a871cef` (fixed duplicate Navbar/Footer) |
-| `/pricing` | ✅ Complete | prior |
-| `/about` | ✅ Complete | prior |
-| `/hipaa` | ✅ Complete | `f467147` |
-| `/features/use-cases` | ✅ Complete | `f467147` |
-| `/features/integrations` | ✅ Complete | `f467147` |
-| `/features/memory-layer` | ✅ Complete | `f467147` |
-| `/features/workflow-engine` | ✅ Complete | `f467147` |
-| `/features/ai-copilot` | ✅ Complete | `f467147` |
-| `/features/ai-workspace` | ✅ Complete | `f467147` |
-| `/features/ai-scribe` | ✅ Complete | prior |
-| `/features/risk-radar` | ✅ Complete | prior |
-| `/blog` | ✅ Complete | prior |
-| `/blog/[slug]` | ✅ Fixed async params | `7150495` |
-| `/therapists` | ✅ Fixed import conflict | `7150495` |
-| `/press` | ❌ Not created | low priority |
-| `/status` | ❌ Not created | low priority |
-| `/gdpr` | ❌ Not created | low priority |
-| `layout.tsx` | ✅ Global Navbar + Footer | `f467147` |
-
----
-
-## Page Status — Patient Portal (`apps/patient`)
-
-| Route | Status | Commit |
-|-------|--------|--------|
-| `/login` | ✅ Complete | prior |
-| `/dashboard` | ✅ Complete | prior |
-| `/sessions` | ✅ Complete | prior |
-| `/messages` | ✅ Complete | prior |
-| `/assessments` | ✅ Complete | prior |
-| `/resources` | ✅ Complete | prior |
-| `/billing` | ✅ Fixed (stale setNotifications ref removed) | `7150495` |
-| `/homework` | ✅ Complete | `f467147` |
-| `/profile` | ✅ Complete | `f467147` |
-| Sidebar | ✅ Updated with homework + profile | `f467147` |
-
----
-
-## Page Status — Therapist Portal (`apps/therapist`)
-
-| Route | Status | Commit |
-|-------|--------|--------|
-| `/login` | ✅ Fixed (removed stale eslint-disable) | `7150495` |
-| `/dashboard` | ✅ Complete | prior |
-| `/patients` | ✅ Complete | prior |
-| `/sessions` | ✅ Complete | prior |
-| `/notes` | ✅ Complete | prior |
-| `/assessments` | ✅ Complete | prior |
-| `/calendar` | ✅ Fixed (<a> → <Link>, added import) | `7150495` |
-| `/messages` | ✅ Complete | prior |
-| `/billing` | ✅ Complete | prior |
-| `/notifications` | ✅ Fixed (MarkAsUnread → MailOpen) | `7150495` |
-| `/settings` | ✅ Fixed (Toggle removed, Record<> casts fixed) | `7150495` |
-| `/team` | ✅ Complete | `a871cef` |
-| `/audit-logs` | ✅ Complete | `a871cef` |
-| `/onboarding` | ✅ Fixed (Network icon added to import) | `7150495` |
-| Sidebar | ✅ Updated with team + audit-logs + COMPLIANCE section | `a871cef` |
-
----
-
-## Page Status — Admin Portal (`apps/admin`)
-
-| Route | Status | Commit |
-|-------|--------|--------|
-| `/login` | ✅ Complete | prior |
-| `/dashboard` | ✅ Complete | prior |
-| `/organizations` | ✅ Complete | prior |
-| `/users` | ✅ Fixed (removed invalid title prop from CheckCircle) | `7150495` |
-| `/therapists` | ✅ Complete | prior |
-| `/practice-management` | ✅ Complete | prior |
-| `/compliance` | ✅ Complete | prior |
-| `/ai-governance` | ✅ Complete | prior |
-| `/billing` | ✅ Updated (removed hardcoded plans, redirects to /pricing) | `00d512c` |
-| `/pricing` | ✅ **NEW** — Full CRUD pricing management | `00d512c` |
-| `/marketplace` | ✅ Complete | prior |
-| `/analytics` | ✅ Complete (5-tab deep) | `a871cef` |
-| `/crm` | ✅ Complete | prior |
-| `/support-tools` | ✅ Complete | `a871cef` |
-| `/feature-flags` | ✅ Complete | `a871cef` |
-| `/ai-costs` | ✅ Complete | `a871cef` |
-| `/audit-logs` | ✅ Complete | `a871cef` |
-| `/settings` | ✅ Fixed (Webhook icon import conflict removed) | `7150495` |
-| Admin Sidebar | ✅ Updated with TOOLS section + Pricing Management | `00d512c` |
-
----
-
-## Backend Module Status (`backend/src/modules/`)
-
-| Module | Controller | Service | DTOs | Swagger |
-|--------|-----------|---------|------|---------|
-| `auth` | ✅ | ✅ | ✅ | ✅ |
-| `users` | ✅ | ✅ | ✅ | ✅ |
-| `therapists` | ✅ | ✅ | ✅ | ✅ |
-| `patients` | ✅ | ✅ | ✅ | ✅ |
-| `sessions` | ✅ | ✅ | ✅ | ✅ |
-| `memory` | ✅ | ✅ | ✅ | ✅ |
-| `ai` | ✅ | ✅ | ✅ | ✅ |
-| `radar` | ✅ | ✅ | ⚠️ Pending | ⚠️ Pending |
-| `assessments` | ✅ | ✅ | ✅ | ✅ |
-| `billing` | ✅ | ✅ | ✅ | ✅ |
-| `marketplace` | ✅ | ✅ | ⚠️ Pending | ⚠️ Pending |
-| `organizations` | ✅ | ✅ | ✅ | ✅ |
-| `workflows` | ✅ | ✅ | ✅ | ✅ |
-| `notifications` | ✅ | ✅ | ✅ | ✅ |
-| `analytics` | ✅ | ✅ | ✅ | ✅ |
-| `admin` | ✅ | ✅ | ✅ | ✅ |
-
----
-
-## Infrastructure Status
-
-| File | Status | Notes |
-|------|--------|-------|
-| `pnpm-lock.yaml` | ✅ Created | lockfileVersion:'9.0' — PRIMARY Vercel fix |
-| `.npmrc` | ✅ Created | shamefully-hoist, node-linker=hoisted |
-| `.gitignore` | ✅ Created | Was entirely absent before session 4 |
-| `vercel.json` (root) | ✅ Created | installCommand override |
-| `apps/web/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/web build |
-| `apps/therapist/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/therapist build |
-| `apps/patient/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/patient build |
-| `apps/admin/vercel.json` | ✅ Created | buildCommand: pnpm --filter @24therapy/admin build |
-| `docker-compose.yml` | ✅ Created | Full stack: postgres, redis, all 5 services; debug + monitoring profiles |
-| `apps/web/.env.example` | ✅ Created | Analytics, CMS, Calendly, SEO vars |
-| `apps/therapist/.env.example` | ✅ Created | JWT, video, AI flags, HIPAA vars |
-| `apps/patient/.env.example` | ✅ Created | JWT, payments, crisis resources |
-| `apps/admin/.env.example` | ✅ Created | IP allowlist, impersonation flags |
-| `backend/.env.example` | ✅ Existed | Already comprehensive |
-| `infra/ci/ci.yml` | ✅ Created | 7-job pipeline (in infra/ not .github/ — GitHub App lacks workflows permission) |
-| `SETUP.md` | ✅ Expanded | 868 → 1,179 lines; added Vercel monorepo guide, domain arch, deployment troubleshooting |
-| `CLAUDE.md` | ✅ This file | Updated session 4 |
-
----
-
-## Commit History
-
-| Hash | Message | Key Changes |
-|------|---------|-------------|
-| `dc119f1` | fix(deploy): Railway startup error, crash loop fix | database.module.ts better error, railway.json maxRetries→0 |
-| `bc6a113` | feat: Phase 2-9 complete — DI fix, animations, integrations audit | 32 files, +1313 lines — session 6 |
-| `00d512c` | feat(pricing): centralized pricing management system | 11 files, +3629 lines — session 5 |
-| `b597672` | docs: comprehensive platform audit | AUDIT_REPORT, PRODUCTION_GAP_ANALYSIS, FEATURE_MATRIX |
-| `0260e68` | Merge pull request #1 (React Server Components CVE) | Security patch |
-| `fe0b495` | fix: move CI file from .github/workflows/ to infra/ci/ | Remove workflow file (no perms) |
-| `7150495` | fix(deploy): resolve all Vercel build failures | 41 files, PRIMARY deployment fix |
-| `b647564` | feat: infrastructure, backend DTOs, env examples, CI/CD | 9 DTO files, docker-compose, SETUP.md |
-| `a871cef` | feat: complete therapist + admin portals | 10 files, +3058 lines |
-| `f467147` | feat: marketing pages, patient homework+profile | ~12 files |
-
----
-
-## Deployment Audit Session (2026-06-04) — Summary
-
-### Problem
-Vercel deployments failing with `ERR_PNPM_UNSUPPORTED_ENGINE`:
-Vercel used bundled pnpm@6.35.1 instead of required pnpm@9.x.
-
-### Root Cause Chain
-1. **`pnpm-lock.yaml` missing** (PRIMARY) → Vercel can't read lockfileVersion → falls back to pnpm 6
-2. **No `.npmrc`** → missing hoisting config for Vercel/Next.js compatibility
-3. **No `vercel.json` files** → Vercel doesn't know buildCommand/installCommand overrides
-4. **`@radix-ui/react-badge`** in `apps/web` → package doesn't exist on npm (404)
-5. **All 4 postcss configs** using `@tailwindcss/postcss` (Tailwind v4 API) with Tailwind v3 installed
-6. **All 4 eslint configs** using broken flat config (missing FlatCompat + wrong import)
-7. **`apps/web/app/blog/[slug]/page.tsx`** using sync params (Next.js 14 pattern)
-8. **13 additional TypeScript/import errors** across all 4 apps (see files fixed above)
-
-### Fixes Applied
-- Created `pnpm-lock.yaml` (333KB, lockfileVersion:'9.0') — THE fix
-- Created `.npmrc`, `.gitignore`, root `vercel.json`, 4× per-app `vercel.json`
-- Fixed all 4 `postcss.config.mjs` → Tailwind v3 syntax
-- Fixed all 4 `eslint.config.mjs` → FlatCompat pattern + `react/no-unescaped-entities: off`
-- Fixed 13 TypeScript/import errors across apps (icon conflicts, undefined vars, type casts)
-- Added `@eslint/eslintrc ^3.2.0` to all 4 app devDependencies
-
-### Validation Result
-All 4 apps build successfully: web (32 routes), therapist (28), patient (17), admin (17).
-
----
-
-## Session 5 Summary (2026-06-06 — Pricing Audit & Standardization)
-
-### What Was Audited
-- Full codebase audit from scratch (3 audit documents created)
-- AUDIT_REPORT.md: All 5 apps + backend + infrastructure
-- PRODUCTION_GAP_ANALYSIS.md: Build failures, security, deployment blockers
-- FEATURE_MATRIX.md: 117 features scored (18 complete, 52 mock, 22 missing)
-
-### Critical Issue Found & Fixed
-**Three conflicting pricing sources** → now ONE source of truth:
-| Location | Old (hardcoded) | New (dynamic) |
-|----------|----------------|---------------|
-| `apps/web/pricing` | Starter $79, Pro $149, Practice $399 | Fetches from `/billing/plans` API |
-| `apps/admin/billing` | Starter $59, Pro $149, Growth $599 | Removed, redirects to /pricing mgmt |
-| `010_billing_schema.sql` | Professional $99, Practice $299 | Canonical DB source |
-
-### What Was Built (commit `00d512c`)
-1. **Backend**: 8 new admin plan management endpoints
-2. **Admin Portal**: New `/pricing` management page (full CRUD)
-3. **Shared API client**: `pricing-api.ts` in all 4 apps
-4. **Web pricing page**: Now dynamic Server Component (fetches API, graceful fallback)
-5. **Database migration**: `015_pricing_management.sql` (adds admin metadata columns)
-6. **Admin sidebar**: Pricing Management added to BUSINESS section
-
-### Architecture: Pricing Data Flow
-```
-Database (subscription_plans)
-    ↓
-Backend GET /billing/plans (public, no auth)
-Backend GET /billing/admin/plans (admin, JWT required)
-    ↓
-apps/*/lib/pricing-api.ts (shared fetch client, 5-min cache)
-    ↓
-apps/web/pricing    → Server Component, fetches at render time
-apps/admin/pricing  → Client Component, admin CRUD
-apps/therapist/billing → (TODO: upgrade section)
-apps/patient/billing   → (TODO: plan display)
-```
-
----
-
-## Session 6 Summary (2026-06-08 — UX Polish, Animations, Integrations Audit, Railway Fix)
-
-### Phase 2 — NestJS DI Crash (FIXED, `bc6a113`)
-- Root cause: `DATABASE_POOL` token circular import + `DatabaseService` not in providers
-- Fix: `database.constants.ts` (breaks circular dep), `@Global()` module exports both token + service
-- All 13 feature modules cleaned of redundant local declarations
-- Verified: `curl /health` → 200 OK, all 16 modules boot
-
-### Phase 4/5 — UX + Framer Motion Animations
-- `hero.tsx`: chat scroll fixed (scrollTop not scrollIntoView), floating cards → integrated metrics strip
-- Created `apps/web/components/ui/motion.tsx` (shared Reveal, StaggerList, SectionHeader primitives)
-- Animated: `features.tsx`, `trust.tsx`, `cta.tsx`, `how-it-works.tsx`, `radar.tsx`, `testimonials.tsx`
-- `tailwind.config.ts`: added gradient, float, fade-up, reveal keyframes
-
-### Phase 6 — Page Transitions
-- Created `apps/web/components/ui/page-transition.tsx` (AnimatePresence mode="wait")
-- Wired into `apps/web/app/layout.tsx` wrapping `<main>`
-
-### Phase 7 — Integrations Audit
-- `apps/web/app/features/integrations/page.tsx` corrected:
-  - **Live (backend-verified)**: Stripe ✅, Daily.co ✅
-  - **Planned**: ALL EHRs, Zoom, Doxy.me, Availity, Twilio, SendGrid, Slack, Tableau, Power BI, Looker, Okta, Azure AD, Google Workspace
-  - Status display updated: `● Live` / `● Beta` / `○ Planned`
-
-### Phase 8 — Financial Model
-- `financial-model.md` created: unit economics, LTV/CAC (9.4×/19.9×), margin by plan, break-even
-
-### Railway Deploy Fix (`dc119f1`)
-- **Root cause**: `DATABASE_URL` env var not set in Railway Variables tab
-- `database.module.ts`: improved error message, lists all missing vars + points to Variables tab
-- `railway.json`: `restartPolicyMaxRetries: 3 → 0` (no more 4× crash loop), `healthcheckTimeout: 120`
-
-### Railway — What You Must Set in Variables Tab
-See full list in `backend/.env.example`. **Minimum to boot**:
-```
-DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
-DATABASE_SSL=true
-JWT_SECRET=<64-char random string>
-```
-
----
-
-## Remaining Work — Priority Ordered
-
-### Priority 1 — Authentication (CRITICAL)
-- [ ] Connect all login pages to real backend JWT (`/auth/login`)
-- [ ] Implement token refresh (`/auth/refresh`)
-- [ ] Replace Zustand-only auth with real JWT flow
-- [ ] Session timeout enforcement (30 min idle, 4 hr absolute)
-- [ ] Registration/signup pages (missing from all portals)
-- [ ] Password reset flow
-
-### Priority 2 — Replace Mock Data with Real APIs
-- [ ] Therapist dashboard → real patient/session counts from API
-- [ ] Patient list → real `/patients` API with pagination
-- [ ] Sessions list → real `/sessions` API
-- [ ] Notes → real session notes from API
-- [ ] AI workspace → real `/ai` API calls
-- [ ] Messages → real WebSocket messaging
-- [ ] Notifications → real notification events
-- [ ] Therapist billing → real invoice data from `/billing/invoices`
-- [ ] Patient billing → real invoice data from API
-
-### Priority 3 — AI Systems Connection
-- [ ] Connect AI workspace to backend `ai.service.ts`
-- [ ] Real session transcription via Whisper
-- [ ] AI Copilot with real GPT-4o context injection
-- [ ] Memory engine: trigger updates from session completion
-- [ ] Risk detection: connect risk-monitor to radar service
-
-### Priority 4 — Backend Completeness
-- [ ] `radar` module DTOs — RiskAlert, SafetyPlan, CrisisProtocol DTOs
-- [ ] `marketplace` module DTOs — Integration, AppListing, InstallRequest DTOs
-- [ ] `ValidationPipe` global config in `backend/src/main.ts`
-- [ ] Add `@ApiResponse` decorators to remaining controllers
-
-### Priority 5 — Web App Pages (Lower Priority)
-- [ ] `/press` — press kit, media coverage, brand assets
-- [ ] `/status` — system status page
-- [ ] `/gdpr` — GDPR compliance center
-- [ ] `/changelog` — product changelog
-- [ ] `/demo` — demo booking page (currently broken link)
-- [ ] `/signup` — registration page (currently broken link)
-
-### Priority 6 — Testing
-- [ ] Backend unit tests for memory service
-- [ ] Backend unit tests for billing service (Stripe webhook handling)
-- [ ] E2E tests for auth flows
-
-### Priority 7 — DevOps
-- [ ] Dockerfiles for each app (Next.js multi-stage builds)
-- [ ] `infra/prometheus.yml` — Prometheus config
-- [ ] `infra/grafana/` — Grafana dashboard provisioning
-- [ ] Move CI back to `.github/workflows/` once GitHub App has workflows permission
-
----
-
-## Reusable Patterns
+## Coding Patterns
 
 ### Admin Page Pattern
 ```tsx
 'use client';
-import { useState } from 'react';
-// 1. Define interfaces at top
-// 2. Mock data array
-// 3. Helper maps (colors, labels, icons)
-// 4. Small components (StatCard, Row, Badge)
-// 5. Main page with filter state + useMemo for filtered data
-// 6. Stat cards (4-5 across top)
-// 7. Filter bar (search + selects)
-// 8. Table with expandable rows
-// 9. Pagination
+import { useState, useEffect } from 'react';
+import { adminAPI } from '@/lib/api';
+// 1. Interfaces at top
+// 2. useEffect → fetch from adminAPI
+// 3. Stat cards (4 across top)
+// 4. Filter bar (search + selects)
+// 5. Table/list with pagination
+```
+
+### Backend Service Pattern
+```typescript
+// All services receive orgId from req.user.organization_id
+// All queries use: this.db.buildOrgFilter(orgId, 'table_alias')
+// All pagination uses: this.db.buildPaginationClause(limit, cursor, orderBy)
+// Transactions: await this.db.transaction(async (client) => { ... })
 ```
 
 ### DTO Pattern (NestJS)
 ```typescript
-// 1. Enums at top
-// 2. Query DTOs (for GET endpoints)
-// 3. Create DTOs (for POST endpoints)
-// 4. Update DTOs (all fields optional, same as Create but IsOptional)
-// 5. Use @ApiProperty on everything for Swagger
-// 6. Use class-validator decorators: @IsString, @IsEnum, @IsUUID, @IsOptional
+// 1. Enums at top (re-export from @24therapy/types if shared)
+// 2. Query DTOs (GET params)
+// 3. Create DTOs (POST body, @IsString, @IsEnum, @ApiProperty)
+// 4. Update DTOs (same fields, all @IsOptional)
 ```
 
-### Lucide Icon Debugging
-```bash
-# Icon doesn't exist in lucide-react?
-node -e "const lr = require('lucide-react'); console.log(Object.keys(lr).filter(k => k.toLowerCase().includes('SEARCH')))"
-# Browse: https://lucide.dev/icons/
-```
-
-### Next.js 15 Dynamic Route Params
+### Next.js 15 Dynamic Routes
 ```tsx
-// Server component (async):
+// Server component:
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 }
-// Client component: use useParams() hook — params prop pattern doesn't apply
+// Client component: use useParams() hook
 ```
 
 ---
 
-## PRICING ARCHITECTURE (Critical — Do Not Break)
+## Deployment Targets
 
-### Single Source of Truth Rule
-**ALL pricing data MUST come from the database `subscription_plans` table.**
+| Service | Platform | Config File |
+|---------|----------|-------------|
+| `backend` | Railway | `railway.json` |
+| `apps/web` | Vercel | `apps/web/vercel.json` |
+| `apps/therapist` | Vercel | `apps/therapist/vercel.json` |
+| `apps/patient` | Vercel | `apps/patient/vercel.json` |
+| `apps/admin` | Vercel | `apps/admin/vercel.json` |
 
-| NEVER DO THIS | ALWAYS DO THIS |
-|--------------|----------------|
-| Hardcode prices in TSX files | Fetch from `GET /billing/plans` |
-| Add static plan arrays to pages | Use `fetchPublicPlans()` from `pricing-api.ts` |
-| Create separate pricing constants | Edit plans via `/admin/pricing` |
+---
 
-### Price Data Flow
-```
-Admin edits plan via /admin/pricing
-  → PUT /billing/admin/plans/:id
-  → PostgreSQL subscription_plans table
-  → GET /billing/plans (public, 5-min ISR cache)
-  → apps/web/app/pricing/page.tsx (Server Component)
-```
+## Commit History (Recent)
 
-### Key Pricing Files
-| File | Purpose |
+| Hash | Message |
 |------|---------|
-| `apps/*/lib/pricing-api.ts` | Shared API client (in all 4 apps) |
-| `apps/admin/app/(dashboard)/pricing/page.tsx` | Admin CRUD interface |
-| `backend/src/modules/billing/billing.service.ts` | Plan management methods |
-| `backend/src/modules/billing/billing.controller.ts` | `/billing/admin/plans/*` endpoints |
-| `migrations/015_pricing_management.sql` | Schema extensions for admin metadata |
+| `f638a30` | Change restartPolicyMaxRetries from 0 to 3 |
+| `1ad07c4` | docs(claude): update session state — session 6 complete |
+| `dc119f1` | fix(deploy): improve Railway startup — better missing-env error |
+| `bc6a113` | feat: Phase 2-9 complete — DI fix, animations, integrations audit |
+| `b087c47` | fix: eliminate all localhost/hardcoded-domain refs |
+| `f66ba28` | fix: backend TypeScript zero-error build |
+| `7150495` | fix(deploy): resolve all Vercel build failures |
 
 ---
 
-## Important File Locations
+## Priority Work Queue (Next Engineer)
 
-| File | Purpose |
-|------|---------|
-| `packages/types/src/index.ts` | 1,860+ line shared types — check before adding new types |
-| `apps/admin/components/layout/admin-sidebar.tsx` | Admin nav — sections: PLATFORM, COMPLIANCE, BUSINESS, TOOLS, SYSTEM |
-| `apps/therapist/components/layout/sidebar.tsx` | Therapist nav — sections: PATIENT CARE, PRACTICE, COMPLIANCE |
-| `apps/patient/components/layout/patient-sidebar.tsx` | Patient nav — includes homework + profile |
-| `apps/web/app/layout.tsx` | Global layout — wraps ALL web pages with Navbar + Footer |
-| `backend/src/modules/auth/guards/jwt-auth.guard.ts` | JWT guard used on all protected routes |
-| `pnpm-lock.yaml` | MUST be kept committed — regenerate after adding deps |
-| `.npmrc` | Hoisting config — MUST stay committed for Vercel |
+### P0 — Blockers for Production Launch
+- [ ] Fix 4 schema/code mismatches (billing columns, therapist_specializations, accepting_new_patients, patient_consents)
+- [ ] Fix admin pricing page DEV_TOKEN → real auth token
+- [ ] Build registration/signup pages (backend ready, frontend missing)
+- [ ] Implement HIPAA phi_access_log writes on all PHI queries
 
----
+### P1 — Core Feature Completion
+- [ ] Frontend WebSocket client (Socket.io) for real-time copilot + notifications
+- [ ] Daily.co video integration in session room (`/sessions/[id]/room`)
+- [ ] Token refresh edge case: handle concurrent refresh requests (queue mechanism partially done)
 
-## HIPAA Requirements (Technical)
+### P2 — Quality & Compliance
+- [ ] Tighten TypeScript: set `noImplicitAny: true` in backend tsconfig
+- [ ] Add `@ApiResponse` decorators to all controllers for Swagger completeness
+- [ ] Write radar + marketplace module DTOs (both marked ⚠️ Pending)
+- [ ] E2E tests for auth flows (Playwright recommended)
 
-- **PHI** = any patient-identifiable information in session notes, assessments, records
-- **Audit logging**: every PHI access, modification, export must be logged with actor, target, IP, outcome
-- **Encryption**: PHI fields encrypted at rest using `DATA_ENCRYPTION_KEY` (AES-256-GCM)
-- **Access control**: minimum necessary — therapists only see their own patients
-- **Session timeout**: 4 hours max (configurable); idle timeout 30 min
-- **MFA**: required for all org_admin and above roles
-- **Retention**: audit logs retained 6 years per HIPAA §164.312(b)
+### P3 — Nice to Have
+- [ ] `/press`, `/status`, `/gdpr` marketing pages
+- [ ] Dockerfiles per app (Next.js multi-stage)
+- [ ] Prometheus + Grafana dashboards (infra/ scaffolded)
+- [ ] Move CI back to `.github/workflows/` when GitHub App has workflows permission
