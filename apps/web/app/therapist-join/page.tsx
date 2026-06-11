@@ -97,8 +97,28 @@ export default function TherapistJoinPage() {
     name: "", email: "", credential: "", state: "", practice_type: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app')
+        .replace(/\/api\/v1\/?$/, '') + '/api/v1';
+      await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          first_name: formData.name.split(' ')[0] || formData.name,
+          last_name: formData.name.split(' ').slice(1).join(' ') || '',
+          role: 'therapist',
+          application_metadata: {
+            credential: formData.credential,
+            state: formData.state,
+            practice_type: formData.practice_type,
+            source: 'therapist-join-form',
+          },
+        }),
+      });
+    } catch { /* show thanks regardless */ }
     setFormStep("thanks");
   };
 

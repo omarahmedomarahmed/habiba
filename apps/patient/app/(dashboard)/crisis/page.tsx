@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import apiFetch from "@/lib/api";
+import { useAuthStore } from "@/lib/store";
 import Link from "next/link";
 import {
   Phone, MessageSquare, AlertTriangle, Heart, Shield, MapPin,
@@ -142,6 +144,37 @@ export default function CrisisPage() {
   const [groundingRunning, setGroundingRunning] = useState(false);
   const [safetyPlanAnswers, setSafetyPlanAnswers] = useState<Record<string, string>>({});
   const [safetyPlanSaved, setSafetyPlanSaved] = useState(false);
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    // Load existing safety plan from backend on mount
+    apiFetch<any>('/patients/me/safety-plan')
+      .then((data: any) => { if (data?.answers) setSafetyPlanAnswers(data.answers); })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveSafetyPlan = async () => {
+    try {
+      await apiFetch('/patients/me/safety-plan', {
+        method: 'PUT',
+        body: JSON.stringify({ answers: safetyPlanAnswers }),
+      });
+    } catch { /* save locally even if API fails */ }
+    setSafetyPlanSaved(true);
+  };
+
+  const handleShareWithTherapist = async () => {
+    try {
+      await apiFetch('/notifications/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'safety_plan_share',
+          message: `${user?.first_name || 'Patient'} has shared their updated safety plan with you.`,
+          data: { safety_plan: safetyPlanAnswers },
+        }),
+      });
+    } catch { /* silent */ }
+  };
 
   const selectedExercise = GROUNDING_EXERCISES.find(e => e.id === activeGrounding);
 
@@ -458,12 +491,12 @@ export default function CrisisPage() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setSafetyPlanSaved(true)}
+                  onClick={handleSaveSafetyPlan}
                   className="flex-1 py-3 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] transition-colors"
                 >
                   Save Safety Plan
                 </button>
-                <button className="px-4 py-3 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50">
+                <button onClick={handleShareWithTherapist} className="px-4 py-3 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50">
                   Share with Therapist
                 </button>
               </div>
