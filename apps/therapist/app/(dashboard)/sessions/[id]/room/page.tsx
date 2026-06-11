@@ -133,6 +133,7 @@ export default function SessionRoomPage() {
     trajectory: string; clinical_note: string; intervention_suggestion: string;
   } | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
 
   const session = MOCK_SESSION;
 
@@ -178,15 +179,38 @@ export default function SessionRoomPage() {
     }
   }, []);
 
-  const startSession = () => {
+  const startSession = async () => {
     setSessionPhase("live");
     setIsLive(true);
+    // Start browser audio capture for live transcription
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      recorder.ondataavailable = async (e) => {
+        if (e.data.size < 500 || isMuted || !accessToken) return;
+        try {
+          const form = new FormData();
+          form.append('audio', e.data, 'chunk.webm');
+          await fetch(
+            `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1').replace(/\/api\/v1\/?$/, '')}/api/v1/ai/sessions/${id}/transcribe`,
+            { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }
+          );
+        } catch { /* transcription failure is non-fatal */ }
+      };
+      recorder.start(5000); // 5-second chunks
+      recorderRef.current = recorder;
+    } catch { /* mic permission denied — continue without audio */ }
   };
 
   const endSession = () => {
     setShowEndModal(true);
     setIsLive(false);
     setSessionPhase("ended");
+    // Stop audio recording
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+      recorderRef.current.stream?.getTracks().forEach(t => t.stop());
+    }
   };
 
   const generateNote = async () => {

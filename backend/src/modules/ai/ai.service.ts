@@ -561,4 +561,47 @@ At the end of your response you may naturally (not forcefully) mention that a li
       );
     }
   }
+
+  async transcribeAudio(sessionId: string, orgId: string, file: Express.Multer.File) {
+    if (!file) throw new Error('No audio file provided');
+
+    const session = await this.db.queryOne<any>(
+      'SELECT * FROM sessions WHERE id = $1 AND organization_id = $2',
+      [sessionId, orgId],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+
+    const text = await this.modelGateway.transcribe(file.buffer);
+
+    if (!text || !text.trim()) return { text: '', timestamp: new Date().toISOString() };
+
+    // Add to session transcript
+    await this.addTranscriptSegment(sessionId, orgId, {
+      text: text.trim(),
+      speaker: 'patient',
+      timestamp: new Date().toISOString(),
+    });
+
+    return { text: text.trim(), timestamp: new Date().toISOString() };
+  }
+
+  private async addTranscriptSegment(sessionId: string, orgId: string, dto: any) {
+    const transcript = await this.db.queryOne<any>(
+      'SELECT id FROM transcripts WHERE session_id = $1',
+      [sessionId],
+    );
+    if (!transcript) return;
+
+    const lastSeq = await this.db.queryOne<any>(
+      'SELECT COALESCE(MAX(sequence_number),0) as max_seq FROM transcript_segments WHERE transcript_id = $1',
+      [transcript.id],
+    );
+    const seq = (lastSeq?.max_seq || 0) + 1;
+
+    await this.db.execute(
+      `INSERT INTO transcript_segments (id, transcript_id, speaker, text, timestamp, sequence_number)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [uuidv4(), transcript.id, dto.speaker || 'patient', dto.text, dto.timestamp, seq],
+    );
+  }
 }

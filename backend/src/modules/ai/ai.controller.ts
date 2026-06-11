@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, HttpCode, HttpStatus, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
@@ -118,5 +119,21 @@ export class AIController {
       patientId, req.user.organization_id, body.query, body.limit,
     );
     return this.response({ memories });
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('sessions/:sessionId/transcribe')
+  @UseInterceptors(FileInterceptor('audio'))
+  @ApiOperation({ summary: 'Transcribe audio chunk via Whisper and add to session transcript' })
+  async transcribeAudio(
+    @Request() req: any,
+    @Param('sessionId') sessionId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const result = await this.aiService.transcribeAudio(
+      sessionId, req.user.organization_id, file,
+    );
+    return this.response(result);
   }
 }
