@@ -128,6 +128,10 @@ export default function SessionRoomPage() {
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [generatedNote, setGeneratedNote] = useState("");
   const [crisisAlert, setCrisisAlert] = useState<CrisisAlert | null>(null);
+  const [emotionalContext, setEmotionalContext] = useState<{
+    emotion: string; intensity: string; minimizing_language: boolean;
+    trajectory: string; clinical_note: string; intervention_suggestion: string;
+  } | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   const session = MOCK_SESSION;
@@ -143,9 +147,13 @@ export default function SessionRoomPage() {
       }
     };
 
+    const handleEmotional = (data: typeof emotionalContext) => setEmotionalContext(data);
+
     socket.on('crisis_alert', handleCrisisAlert);
+    socket.on('emotional_context', handleEmotional);
     return () => {
       socket.off('crisis_alert', handleCrisisAlert);
+      socket.off('emotional_context', handleEmotional);
     };
   }, [accessToken, sessionPhase, id]);
 
@@ -594,6 +602,38 @@ Patient continues to demonstrate moderate depressive symptoms with significant i
                   <span className="bg-secondary/10 text-secondary text-[10px] px-1.5 py-0.5 rounded font-semibold">LIVE</span>
                 </div>
               </div>
+
+              {/* Emotional Context Card — updates every 5 transcript segments */}
+              {emotionalContext && (
+                <div className="bg-violet-50 border border-violet-200 rounded-lg p-2.5 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-200 text-violet-800 uppercase">Emotional State</span>
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full capitalize",
+                      emotionalContext.intensity === 'strong' ? 'bg-red-100 text-red-700' :
+                      emotionalContext.intensity === 'moderate' ? 'bg-amber-100 text-amber-700' :
+                      'bg-slate-100 text-slate-600'
+                    )}>
+                      {emotionalContext.emotion} · {emotionalContext.intensity}
+                    </span>
+                    {emotionalContext.minimizing_language && (
+                      <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">⚠ Minimizing</span>
+                    )}
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-full",
+                      emotionalContext.trajectory === 'improving' ? 'bg-green-100 text-green-700' :
+                      emotionalContext.trajectory === 'declining' ? 'bg-red-100 text-red-700' :
+                      'bg-slate-100 text-slate-600'
+                    )}>
+                      {emotionalContext.trajectory === 'improving' ? '↑' : emotionalContext.trajectory === 'declining' ? '↓' : '→'} {emotionalContext.trajectory}
+                    </span>
+                  </div>
+                  <p className="text-xs text-violet-800 leading-relaxed">{emotionalContext.clinical_note}</p>
+                  {emotionalContext.intervention_suggestion && (
+                    <p className="text-[11px] italic text-violet-600">💡 {emotionalContext.intervention_suggestion}</p>
+                  )}
+                </div>
+              )}
 
               {MOCK_COPILOT.filter((s) => !dismissedSuggestions.includes(s.id)).map((suggestion) => (
                 <div key={suggestion.id} className="copilot-suggestion group relative">

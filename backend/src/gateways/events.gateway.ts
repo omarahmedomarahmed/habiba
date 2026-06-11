@@ -313,6 +313,31 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  @OnEvent("ai.emotional_context")
+  handleEmotionalContext(payload: {
+    sessionId: string;
+    patientId: string;
+    orgId: string;
+    emotion: string;
+    intensity: string;
+    minimizingLanguage: boolean;
+    trajectory: string;
+    clinicalNote: string;
+    interventionSuggestion: string;
+    timestamp: string;
+  }) {
+    // Emit only to the session room — therapist sees this in their copilot panel
+    this.server.to(`session:${payload.sessionId}`).emit("emotional_context", {
+      emotion: payload.emotion,
+      intensity: payload.intensity,
+      minimizing_language: payload.minimizingLanguage,
+      trajectory: payload.trajectory,
+      clinical_note: payload.clinicalNote,
+      intervention_suggestion: payload.interventionSuggestion,
+      timestamp: payload.timestamp,
+    });
+  }
+
   // ============================================================
   // HELPERS
   // ============================================================

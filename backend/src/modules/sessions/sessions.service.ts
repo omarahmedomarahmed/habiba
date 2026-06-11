@@ -247,10 +247,30 @@ export class SessionsService {
       const matched = LIVE_CRISIS_KEYWORDS.some((kw) => lower.includes(kw));
       if (matched) {
         this.logger.warn(`[CRISIS SCAN] Keyword matched in session ${sessionId} — triggering GPT-4o risk assessment`);
-        // Fire async — response returns immediately
         this.aiService.detectRisk(sessionId, orgId).catch((err) => {
           this.logger.error(`[CRISIS SCAN] detectRisk failed for session ${sessionId}: ${err?.message}`);
         });
+      }
+
+      // Emotional context detection every 5 segments — cost control ($0.002/call)
+      if (sequenceNumber > 0 && sequenceNumber % 5 === 0) {
+        const session = await this.db.queryOne<any>(
+          'SELECT patient_id FROM sessions WHERE id = $1',
+          [sessionId],
+        );
+        if (session?.patient_id) {
+          // Collect last ~500 chars of speech for context
+          const recentSegments = await this.db.query<{ text: string }>(
+            `SELECT text FROM transcript_segments
+             WHERE transcript_id = $1
+             ORDER BY sequence_number DESC LIMIT 5`,
+            [transcript.id],
+          );
+          const recentText = recentSegments.map(s => s.text).reverse().join(' ').slice(-500);
+          this.aiService.detectEmotionalContext(sessionId, orgId, recentText, session.patient_id).catch((err) => {
+            this.logger.debug(`[EMOTIONAL AI] detectEmotionalContext failed: ${err?.message}`);
+          });
+        }
       }
     }
 

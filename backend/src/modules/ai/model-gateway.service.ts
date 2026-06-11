@@ -12,6 +12,7 @@ export type TaskType =
   | 'memory_extraction'
   | 'risk_assessment'
   | 'copilot_suggestions'
+  | 'emotional_analysis'
   | 'embedding'
   | 'transcription'
   | 'chat';
@@ -53,6 +54,7 @@ export class ModelGatewayService {
     memory_extraction: { provider: 'openai', model: 'gpt-4o', temp: 0.2 },
     risk_assessment: { provider: 'openai', model: 'gpt-4o', temp: 0.1 },
     copilot_suggestions: { provider: 'openai', model: 'gpt-4o-mini', temp: 0.7 },
+    emotional_analysis: { provider: 'openai', model: 'gpt-4o-mini', temp: 0.2 },
     embedding: { provider: 'openai', model: 'text-embedding-3-small', temp: 0 },
     transcription: { provider: 'openai', model: 'whisper-1', temp: 0 },
     chat: { provider: 'openai', model: 'gpt-4o-mini', temp: 0.8 },

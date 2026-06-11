@@ -292,6 +292,54 @@ Be conservative — flag if uncertain. Therapist always makes final clinical dec
     return riskData;
   }
 
+  async detectEmotionalContext(sessionId: string, orgId: string, recentText: string, patientId: string) {
+    const response = await this.modelGateway.complete({
+      task_type: 'emotional_analysis',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a clinical emotional intelligence system analyzing therapy session language.
+Return JSON exactly:
+{
+  "primaryEmotion": "grief|shame|fear|anger|hopelessness|dissociation|anxiety|numbness|sadness|mixed",
+  "intensity": "mild|moderate|strong",
+  "minimizingLanguage": boolean,
+  "linguisticPace": "fast|normal|slow|fragmented",
+  "emotionalTrajectory": "improving|stable|declining|volatile",
+  "clinicalNote": "one sentence for therapist copilot panel",
+  "interventionSuggestion": "one specific technique therapist could use now"
+}`,
+        },
+        { role: 'user', content: `Patient speech:\n"${recentText}"` },
+      ],
+      json_mode: true,
+      session_id: sessionId,
+      patient_id: patientId,
+      organization_id: orgId,
+    });
+
+    let emotionalData: any = {};
+    try {
+      emotionalData = JSON.parse(response.content);
+    } catch {
+      emotionalData = { primaryEmotion: 'unknown', intensity: 'mild' };
+    }
+
+    // Emit to copilot panel in real-time
+    this.eventEmitter.emit('ai.emotional_context', {
+      sessionId, patientId, orgId,
+      emotion: emotionalData.primaryEmotion,
+      intensity: emotionalData.intensity,
+      minimizingLanguage: emotionalData.minimizingLanguage,
+      trajectory: emotionalData.emotionalTrajectory,
+      clinicalNote: emotionalData.clinicalNote,
+      interventionSuggestion: emotionalData.interventionSuggestion,
+      timestamp: new Date().toISOString(),
+    });
+
+    return emotionalData;
+  }
+
   private async notifyOrgAdminsOfCrisis(orgId: string, sessionId: string, riskData: any) {
     // Fetch all admin/super_admin users in the org
     const admins = await this.db.query<{ id: string }>(
