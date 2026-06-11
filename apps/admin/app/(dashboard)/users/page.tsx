@@ -6,6 +6,7 @@ import {
   Ban, Eye, Edit, Download, RefreshCw, UserCheck, AlertCircle, MoreHorizontal
 } from 'lucide-react';
 import { adminAPI, APIError } from '@/lib/api';
+import { getApiUrl } from '@/lib/env';
 
 const ROLE_COLORS: Record<string, string> = {
   super_admin: 'bg-red-400/20 text-red-300 border border-red-400/30',
@@ -52,8 +53,7 @@ export default function UsersPage() {
     e.preventDefault();
     setInviteLoading(true);
     try {
-      const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app').replace(/\/api\/v1\/?$/, '') + '/api/v1';
-      await fetch(`${API_URL}/auth/register`, {
+      await fetch(`${getApiUrl()}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...inviteForm }),

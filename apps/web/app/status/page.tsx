@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getBaseUrl } from '@/lib/env';
 import Link from 'next/link';
 import { CheckCircle2, AlertTriangle, XCircle, Clock, Activity, RefreshCw } from 'lucide-react';
 
@@ -35,7 +36,7 @@ export default function StatusPage() {
     setLoading(true);
     try {
       const start = Date.now();
-      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app').replace('/api/v1', '') + '/health');
+      const res = await fetch(getBaseUrl() + '/health');
       const latency = Date.now() - start;
       const apiOk = res.ok;
       setStatuses(SERVICES.map(s => ({

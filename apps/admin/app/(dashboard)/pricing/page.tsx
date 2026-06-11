@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils';
 import { useAdminAuth } from '@/lib/store';
 import type { SubscriptionPlan, PlanFeatures, PlanAddOn } from '@/lib/pricing-api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app/api/v1';
+import { getApiUrl } from '@/lib/env';
+const API_BASE = getApiUrl();
 
 // ─── Feature flags available for plans ────────────────────────────────────────
 const FEATURE_OPTIONS = [

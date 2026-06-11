@@ -8,7 +8,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app/api/v1";
+import { getApiUrl } from '@/lib/env';
+
+const API_URL = getApiUrl();
 
 interface Message {
   id: string;

@@ -1,11 +1,11 @@
 import { io, Socket } from 'socket.io-client';
+import { getBaseUrl } from '@/lib/env';
 
 let socket: Socket | null = null;
 
 export function getSocket(token: string): Socket {
   if (!socket) {
-    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1')
-      .replace('/api/v1', '');
+    const baseUrl = getBaseUrl();
     socket = io(`${baseUrl}/ws`, {
       path: '/socket.io',
       auth: { token },

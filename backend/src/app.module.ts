@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PhiAuditInterceptor } from './common/interceptors/phi-audit.interceptor';
+import { validateEnv } from './config/env.validation';
 
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -36,6 +37,7 @@ import appConfig from './config/app.config';
       isGlobal: true,
       load: [appConfig],
       envFilePath: ['.env.local', '.env'],
+      validate: validateEnv,
     }),
 
     // ─── Event Emitter (async domain events) ─────────────────────────────────

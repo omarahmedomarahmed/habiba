@@ -7,6 +7,7 @@ import {
   Download, Star, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { adminAPI, APIError } from '@/lib/api';
+import { getApiUrl } from '@/lib/env';
 
 const PLAN_COLORS: Record<string, string> = {
   Enterprise: 'bg-purple-400/20 text-purple-300 border border-purple-400/30',
@@ -60,7 +61,7 @@ export default function OrganizationsPage() {
     setAddLoading(true);
     try {
       await adminAPI.organizations({ limit: 1 }); // ensure client is alive
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app'}/api/v1/auth/register`, {
+      await fetch(`${getApiUrl()}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -15,6 +15,7 @@ import {
 import { cn, formatSessionTime, getInitials } from "@/lib/utils";
 import { useSessionRoomStore } from "@/lib/store";
 import { sessionsAPI, aiAPI } from "@/lib/api";
+import { getApiUrl } from "@/lib/env";
 
 // Mock session data
 const MOCK_SESSION = {
@@ -216,7 +217,7 @@ export default function SessionRoomPage() {
           const form = new FormData();
           form.append('audio', e.data, 'chunk.webm');
           await fetch(
-            `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1').replace(/\/api\/v1\/?$/, '')}/api/v1/ai/sessions/${id}/transcribe`,
+            `${getApiUrl()}/ai/sessions/${id}/transcribe`,
             { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }
           );
         } catch { /* transcription failure is non-fatal */ }

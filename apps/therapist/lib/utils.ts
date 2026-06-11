@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+export { getApiUrl, getBaseUrl } from '@/lib/env';
 
 export function formatDate(date: string | Date, format: "short" | "long" | "time" | "datetime" | "relative" = "short"): string {
   const d = new Date(date);

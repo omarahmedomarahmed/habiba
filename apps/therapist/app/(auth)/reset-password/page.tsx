@@ -7,7 +7,8 @@ import { Brain, Eye, EyeOff, CheckCircle, AlertTriangle, Lock, ArrowRight } from
 import { cn } from "@/lib/utils";
 import { DOMAINS } from "@/lib/domains";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app/api/v1";
+import { getApiUrl } from "@/lib/env";
+const API_BASE = getApiUrl();
 
 function ResetPasswordForm() {
   const router = useRouter();

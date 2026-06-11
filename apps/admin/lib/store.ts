@@ -37,7 +37,10 @@ export const useAdminAuth = create<AdminAuthState>()(
       expiresAt: null,
       token: null, // legacy compat
 
-      login: (user, accessToken, refreshToken, expiresIn = 900) =>
+      login: (user, accessToken, refreshToken, expiresIn = 900) => {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'tt_auth=1; path=/; SameSite=Lax';
+        }
         set({
           user,
           accessToken,
@@ -45,7 +48,8 @@ export const useAdminAuth = create<AdminAuthState>()(
           token: accessToken, // legacy compat
           isAuthenticated: true,
           expiresAt: Date.now() + expiresIn * 1000,
-        }),
+        });
+      },
 
       updateTokens: (accessToken, refreshToken, expiresIn = 900) =>
         set({
@@ -55,7 +59,10 @@ export const useAdminAuth = create<AdminAuthState>()(
           expiresAt: Date.now() + expiresIn * 1000,
         }),
 
-      logout: () =>
+      logout: () => {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'tt_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
         set({
           user: null,
           accessToken: null,
@@ -63,7 +70,8 @@ export const useAdminAuth = create<AdminAuthState>()(
           token: null,
           isAuthenticated: false,
           expiresAt: null,
-        }),
+        });
+      },
     }),
     {
       name: 'admin-auth',
