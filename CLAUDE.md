@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/zealous-gauss-j9boso` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-12 (session 12 — E2E tests, admin CSV exports, all Vercel previews green) |
+| **Last Updated** | 2026-06-12 (session 13 — Marketing site revamp P1–P7 complete) |
 
 ---
 
@@ -109,7 +109,8 @@ docs/              → HIPAA_CHECKLIST.md
 | `apps/*/lib/api.ts` | Per-app API clients with token refresh |
 | `apps/*/lib/store.ts` | Zustand auth + UI stores (sets `tt_auth` cookie) |
 | `apps/*/middleware.ts` | Edge auth redirect using `tt_auth=1` cookie |
-| `migrations/` | 001–015 SQL files, run in order |
+| `migrations/` | 001–019 SQL files, run in order |
+| `apps/web/components/product/ProductPageLayout.tsx` | Reusable product page template (hero, stats, features grid, CTA) |
 | `scripts/migrate.js` | Migration runner (pg_advisory_lock, checksums, --dry-run) |
 | `scripts/seed.js` | Idempotent org+super-admin seeder (SEED_* env vars) |
 | `ops/DEPLOYMENT.md` | Deploy guide for Railway + Vercel |
@@ -181,6 +182,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
+## Commit History (Session 13)
+
+| Hash | Message |
+|------|---------|
+| `a6e8009` | feat(P2): product template + clickable feature cards + 4 new feature pages |
+| `8b1380a` | feat(P3): find-therapist 2-col grid + wire Book buttons to signup flow |
+| `3e31322` | feat(P4): EHR integration docs pages + /docs in nav & footer |
+| `1f4b47c` | feat(P5): chat rebuild — 10-msg limit, workflow chips, context param, dedupe backend |
+| `b950123` | feat(P6): 5-tier pricing — Free/Starter/Professional/Practice/Enterprise |
+| `d491003` | feat(P7): nav + footer content pass — add 4 new product pages |
+
 ## Commit History (Session 12)
 
 | Hash | Message |
@@ -216,11 +228,17 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 ## Priority Work Queue (Next Engineer)
 
 ### All P0–P9 complete ✅
+### All marketing revamp P1–P7 complete ✅ (Session 13)
 
-### Session 12 additions (complete)
-- [x] E2E Playwright tests — `playwright.config.ts`, `e2e/auth.spec.ts`, `e2e/crisis.spec.ts`
-- [x] Admin CSV exports — `apps/admin/lib/csv.ts` + 4 admin pages wired
-- [x] Therapist room page syntax fix — `apps/therapist/app/(dashboard)/sessions/[id]/room/page.tsx`
+### Session 13 additions (complete)
+- [x] P1: Remove duplicate chrome from 5 pages, redirect /therapist-join → /for-therapists
+- [x] P2: ProductPageLayout template + 9 clickable feature cards + 4 new product pages
+  (radar-matching, assessments, practice-management, smart-scheduling)
+- [x] P3: Find-a-therapist 2-col grid + Book Now → /signup?role=patient&therapist={id}
+- [x] P4: /docs/integrations/[id] dynamic route (8 integration articles) + /docs in nav/footer
+- [x] P5: Chat → 10-msg limit, 5 workflow chips, context param, remove duplicate backend route
+- [x] P6: 5-tier pricing (Free/Starter/Professional/Practice/Enterprise) + migration 019
+- [x] P7: Nav Product dropdown + footer Product column updated with all new pages
 
 ### Remaining (true stretch goals)
 - [ ] **Resolve GitHub billing** — unblock CI runners
