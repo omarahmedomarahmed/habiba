@@ -3,10 +3,11 @@
  * 24Therapy database migration runner
  *
  * Usage:
- *   node scripts/migrate.js              # Run all pending migrations
- *   node scripts/migrate.js --dry-run    # Print pending migrations without running
- *   node scripts/migrate.js --baseline   # Mark all existing migrations as run (no SQL)
- *   node scripts/migrate.js --status     # Print migration status
+ *   node scripts/migrate.js                # Run all pending migrations
+ *   node scripts/migrate.js --dry-run     # Print pending migrations without running
+ *   node scripts/migrate.js --baseline    # Mark all existing migrations as run (no SQL)
+ *   node scripts/migrate.js --auto-baseline  # Baseline only if DB has schema but no records
+ *   node scripts/migrate.js --status      # Print migration status
  */
 
 'use strict';
@@ -22,6 +23,7 @@ const LOCK_KEY = 24107; // arbitrary unique advisory lock key
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
 const BASELINE = args.includes('--baseline');
+const AUTO_BASELINE = args.includes('--auto-baseline');
 const STATUS = args.includes('--status');
 
 async function main() {
@@ -114,6 +116,28 @@ async function main() {
       }
       console.log('✅ Baseline complete.');
       return;
+    }
+
+    // Auto-baseline: schema_migrations is empty but DB already has schema from a
+    // pre-migration-runner deployment. Stamp all migrations without re-running SQL.
+    if (AUTO_BASELINE && appliedMap.size === 0 && pending.length > 0) {
+      const { rows } = await client.query(`
+        SELECT COUNT(*) AS count FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'organizations'
+      `);
+      if (parseInt(rows[0].count) > 0) {
+        console.log('\n🔍 Auto-baseline: database already has schema but no migration records.');
+        console.log(`📋 Stamping ${pending.length} migration(s) as applied without running SQL…`);
+        for (const m of pending) {
+          await client.query(
+            'INSERT INTO schema_migrations (version, checksum, applied_at, duration_ms) VALUES ($1, $2, NOW(), 0) ON CONFLICT DO NOTHING',
+            [m.version, m.checksum]
+          );
+          console.log(`   ✓ Baselined: ${m.version}`);
+        }
+        console.log('✅ Auto-baseline complete. Future deploys will run new migrations normally.');
+        return;
+      }
     }
 
     // Run pending migrations
