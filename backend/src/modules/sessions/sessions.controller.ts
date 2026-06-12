@@ -18,7 +18,7 @@ export class SessionsController {
   @Get('dashboard')
   @ApiOperation({ summary: 'Get therapist dashboard statistics' })
   async getDashboard(@Request() req: any) {
-    const stats = await this.sessionsService.getDashboardStats(req.user.organization_id, req.user.id);
+    const stats = await this.sessionsService.getDashboardStats(req.user.organization_id, req.user.therapistId || req.user.id);
     return this.response({ stats });
   }
 
@@ -29,6 +29,13 @@ export class SessionsController {
     return this.response({ sessions });
   }
 
+  @Get('usage')
+  @ApiOperation({ summary: 'Get current therapist session usage and plan limits' })
+  async getUsage(@Request() req: any) {
+    const usage = await this.sessionsService.getTherapistUsage(req.user.therapistId || req.user.id);
+    return this.response({ usage });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get session by ID' })
   async findOne(@Request() req: any, @Param('id') id: string) {
@@ -36,17 +43,10 @@ export class SessionsController {
     return this.response({ session });
   }
 
-  @Get('usage')
-  @ApiOperation({ summary: 'Get current therapist session usage and plan limits' })
-  async getUsage(@Request() req: any) {
-    const usage = await this.sessionsService.getTherapistUsage(req.user.id);
-    return this.response({ usage });
-  }
-
   @Post()
   @ApiOperation({ summary: 'Create a new session' })
   async create(@Request() req: any, @Body() dto: any) {
-    if (!dto.therapist_id) dto.therapist_id = req.user.id;
+    if (!dto.therapist_id) dto.therapist_id = req.user.therapistId || req.user.id;
     try {
       const session = await this.sessionsService.create(req.user.organization_id, dto);
       return this.response({ session });

@@ -46,7 +46,7 @@ export class AssessmentsController {
     return this.assessmentsService.createAssessment({
       ...dto,
       patient_id: patientId,
-      therapist_id: user.therapist_id,
+      therapist_id: user.therapistId,
       organization_id: user.organization_id,
     });
   }
@@ -102,7 +102,7 @@ export class AssessmentsController {
   async getScheduledAssessments(@Query() filters: any, @CurrentUser() user: any) {
     return this.assessmentsService.getScheduledAssessments(user.organization_id, {
       ...filters,
-      therapist_id: filters.all ? undefined : user.therapist_id,
+      therapist_id: filters.all ? undefined : user.therapistId,
     });
   }
 }

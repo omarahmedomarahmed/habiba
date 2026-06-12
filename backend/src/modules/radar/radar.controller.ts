@@ -37,9 +37,8 @@ export class RadarController {
   // Therapist: get pending requests
   @Get("therapist/requests")
   @ApiOperation({ summary: "Get pending radar requests for therapist" })
-  async getTherapistRequests(@Request() req: { user: { userId: string; organizationId: string } }) {
-    // TODO: get therapist_id from user
-    const therapistId = req.user.userId; // simplified
+  async getTherapistRequests(@Request() req: { user: { userId: string; organizationId: string; therapistId?: string } }) {
+    const therapistId = req.user.therapistId || req.user.userId;
     return this.radarService.getTherapistRequests(therapistId);
   }
 
@@ -47,10 +46,10 @@ export class RadarController {
   @Post("requests/:id/accept")
   @ApiOperation({ summary: "Accept a radar request" })
   async acceptRequest(
-    @Request() req: { user: { userId: string; organizationId: string } },
+    @Request() req: { user: { userId: string; organizationId: string; therapistId?: string } },
     @Param("id") id: string
   ) {
-    const therapistId = req.user.userId;
+    const therapistId = req.user.therapistId || req.user.userId;
     return this.radarService.acceptRequest(therapistId, id, req.user.organizationId);
   }
 
@@ -58,11 +57,11 @@ export class RadarController {
   @Post("requests/:id/decline")
   @ApiOperation({ summary: "Decline a radar request" })
   async declineRequest(
-    @Request() req: { user: { userId: string } },
+    @Request() req: { user: { userId: string; therapistId?: string } },
     @Param("id") id: string,
     @Body() body: { reason?: string }
   ) {
-    return this.radarService.declineRequest(req.user.userId, id, body.reason);
+    return this.radarService.declineRequest(req.user.therapistId || req.user.userId, id, body.reason);
   }
 
   // Analytics

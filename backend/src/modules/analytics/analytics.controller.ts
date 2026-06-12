@@ -75,7 +75,7 @@ export class AnalyticsController {
     @Query('period') period: string = '30d',
     @CurrentUser() user: any,
   ) {
-    return this.analyticsService.getTherapistAnalytics(user.therapist_id, user.organization_id, period);
+    return this.analyticsService.getTherapistAnalytics(user.therapistId, user.organization_id, period);
   }
 
   @Get('therapist/:therapistId/dashboard')

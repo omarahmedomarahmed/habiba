@@ -41,7 +41,7 @@ export class MemoryController {
     @Query() query: GetPatientMemoryQueryDto,
     @CurrentUser() user: any,
   ) {
-    return this.memoryService.getPatientMemory(patientId, user.therapist_id, user.organization_id, {
+    return this.memoryService.getPatientMemory(patientId, user.therapistId, user.organization_id, {
       node_types: query.node_types?.split(',') as any[],
       status: query.status as any,
       limit: query.limit,
@@ -65,7 +65,7 @@ export class MemoryController {
   ) {
     return this.memoryService.addMemoryNode({
       patient_id: patientId,
-      therapist_id: user.therapist_id,
+      therapist_id: user.therapistId,
       organization_id: user.organization_id,
       node_type: dto.node_type,
       label: (dto as any).title ?? (dto as any).label ?? '',
@@ -104,7 +104,7 @@ export class MemoryController {
     @Param('nodeId') nodeId: string,
     @CurrentUser() user: any,
   ) {
-    return this.memoryService.validateMemoryNode(nodeId, user.therapist_id);
+    return this.memoryService.validateMemoryNode(nodeId, user.therapistId);
   }
 
   @Put('nodes/:nodeId/resolve')
@@ -119,7 +119,7 @@ export class MemoryController {
     @Param('nodeId') nodeId: string,
     @CurrentUser() user: any,
   ) {
-    return this.memoryService.resolveMemoryNode(nodeId, user.therapist_id);
+    return this.memoryService.resolveMemoryNode(nodeId, user.therapistId);
   }
 
   @Delete('nodes/:nodeId')
@@ -131,7 +131,7 @@ export class MemoryController {
     @Param('nodeId') nodeId: string,
     @CurrentUser() user: any,
   ) {
-    return this.memoryService.deleteMemoryNode(nodeId, user.therapist_id);
+    return this.memoryService.deleteMemoryNode(nodeId, user.therapistId);
   }
 
   // ─── Intelligence & Context ───────────────────────────────────────────────
@@ -151,7 +151,7 @@ export class MemoryController {
     @CurrentUser() user: any,
   ) {
     return this.memoryService.getLongitudinalIntelligence(
-      patientId, user.therapist_id, user.organization_id,
+      patientId, user.therapistId, user.organization_id,
     );
   }
 
@@ -171,7 +171,7 @@ export class MemoryController {
     @CurrentUser() user: any,
   ) {
     return this.memoryService.buildAIContext(
-      patientId, user.therapist_id, user.organization_id,
+      patientId, user.therapistId, user.organization_id,
       { depth: query.depth ?? 'standard' },
     );
   }
@@ -190,7 +190,7 @@ export class MemoryController {
     @CurrentUser() user: any,
   ) {
     return this.memoryService.getMemoryTimeline(
-      patientId, user.therapist_id, user.organization_id,
+      patientId, user.therapistId, user.organization_id,
     );
   }
 
@@ -209,7 +209,7 @@ export class MemoryController {
     @CurrentUser() user: any,
   ) {
     return this.memoryService.buildKnowledgeGraph(
-      patientId, user.therapist_id, user.organization_id,
+      patientId, user.therapistId, user.organization_id,
     );
   }
 
@@ -227,7 +227,7 @@ export class MemoryController {
     @CurrentUser() user: any,
   ) {
     return this.memoryService.searchMemory(
-      patientId, user.therapist_id, user.organization_id, query.q,
+      patientId, user.therapistId, user.organization_id, query.q,
     );
   }
 
@@ -248,7 +248,7 @@ export class MemoryController {
   ) {
     return this.memoryService.extractMemoriesFromNote(
       dto.note_id, dto.session_id, dto.patient_id,
-      user.therapist_id, user.organization_id, dto.note_content,
+      user.therapistId, user.organization_id, dto.note_content,
     );
   }
 }

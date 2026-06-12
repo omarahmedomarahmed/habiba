@@ -206,7 +206,7 @@ export const sessionsAPI = {
   transcript: (id: string) =>
     apiFetch<{ data: Record<string, unknown>[] }>(`/sessions/${id}/transcript`),
 
-  aiNote: (id: string) => apiFetch<Record<string, unknown>>(`/sessions/${id}/ai-note`),
+  aiNote: (id: string) => apiFetch<Record<string, unknown>>(`/sessions/${id}/note`),
 
   dashboardStats: () => apiFetch<Record<string, unknown>>("/sessions/dashboard"),
 
@@ -261,6 +261,8 @@ export const aiAPI = {
 // THERAPISTS
 // ============================================================
 export const therapistsAPI = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<Record<string, unknown>[]>("/therapists", { params }),
   me: () => apiFetch<Record<string, unknown>>("/therapists/me"),
   updateProfile: (data: Record<string, unknown>) =>
     apiFetch<Record<string, unknown>>("/therapists/me", { method: "PATCH", body: JSON.stringify(data) }),
@@ -275,14 +277,16 @@ export const therapistsAPI = {
 export const assessmentsAPI = {
   templates: () => apiFetch<Record<string, unknown>[]>("/assessments/templates"),
   sendToPatient: (patientId: string, templateId: string, data?: Record<string, unknown>) =>
-    apiFetch(`/assessments/send`, {
+    apiFetch(`/assessments/patient/${patientId}`, {
       method: "POST",
-      body: JSON.stringify({ patient_id: patientId, template_id: templateId, ...data }),
+      body: JSON.stringify({ template_id: templateId, administered_via: "patient_portal", ...data }),
     }),
   results: (patientId: string) =>
-    apiFetch<Record<string, unknown>[]>(`/assessments/results/${patientId}`),
+    apiFetch<Record<string, unknown>[]>(`/assessments/patient/${patientId}`),
+  listAll: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/assessments", { params }),
   score: (resultId: string, answers: Record<string, number>[]) =>
-    apiFetch(`/assessments/results/${resultId}/score`, {
+    apiFetch(`/assessments/${resultId}/submit`, {
       method: "POST",
       body: JSON.stringify({ answers }),
     }),
@@ -310,6 +314,7 @@ export const billingAPI = {
     apiFetch<{ checkout_url: string | null; session_id?: string; message?: string }>("/billing/subscribe", { method: "POST", body: JSON.stringify(body) }),
   refreshChargeCheckout: (chargeId: string) =>
     apiFetch<{ charge_id: string; checkout_url: string | null }>(`/billing/charges/${chargeId}/checkout`, { method: "POST" }),
+  cancel: () => apiFetch<Record<string, unknown>>("/billing/cancel", { method: "POST" }),
 };
 
 // ============================================================
@@ -455,6 +460,39 @@ export const messagesAPI = {
     }),
   markRead: (conversationId: string) =>
     apiFetch<unknown>(`/messages/conversations/${conversationId}/read`, { method: 'POST' }),
+};
+
+// ============================================================
+// WORKFLOWS
+// ============================================================
+export const workflowsAPI = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<Record<string, unknown>[]>("/workflows", { params }),
+  templates: () => apiFetch<Record<string, unknown>[]>("/workflows/templates"),
+  pending: () => apiFetch<Record<string, unknown>[]>("/workflows/pending"),
+  create: (data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/workflows", { method: "POST", body: JSON.stringify(data) }),
+  assignHomework: (data: { patient_id: string; title: string; description?: string; category?: string; tool_slug?: string; due_date?: string }) =>
+    apiFetch<Record<string, unknown>>("/workflows/homework", { method: "POST", body: JSON.stringify(data) }),
+};
+
+// ============================================================
+// MEMORY (graph nodes)
+// ============================================================
+export const memoriesAPI = {
+  addNode: (patientId: string, data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>(`/memory/patient/${patientId}/nodes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
+// ============================================================
+// ORGANIZATION (admin)
+// ============================================================
+export const organizationsAPI = {
+  auditLogs: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/organizations/me/audit-logs", { params }),
 };
 
 export { APIError };

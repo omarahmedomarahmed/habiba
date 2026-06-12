@@ -76,7 +76,7 @@ export class WorkflowsController {
   })
   @ApiResponse({ status: 200, description: 'Pending workflows retrieved' })
   async getPendingWorkflows(@CurrentUser() user: any) {
-    return this.workflowsService.getPendingWorkflows(user.therapist_id, user.organization_id);
+    return this.workflowsService.getPendingWorkflows(user.therapistId, user.organization_id);
   }
 
   @Get('analytics/summary')
@@ -122,7 +122,7 @@ export class WorkflowsController {
     return this.workflowsService.createWorkflow({
       ...dto,
       organization_id: user.organization_id,
-      therapist_id: user.therapist_id,
+      therapist_id: user.therapistId,
     } as any);
   }
 
@@ -197,7 +197,7 @@ export class WorkflowsController {
   ) {
     return this.workflowsService.createTreatmentPlan({
       ...dto,
-      therapist_id: user.therapist_id,
+      therapist_id: user.therapistId,
       organization_id: user.organization_id,
     } as any);
   }

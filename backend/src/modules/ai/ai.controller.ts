@@ -131,7 +131,7 @@ export class AIController {
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     },
   ) {
-    const therapistId = req.user.therapist_id || req.user.id;
+    const therapistId = req.user.therapistId || req.user.id;
     try {
       const result = await this.aiService.assistantChat(
         therapistId,
@@ -159,7 +159,7 @@ export class AIController {
   @Get('assistant/credits')
   @ApiOperation({ summary: 'Get AI assistant credit balance' })
   async getAssistantCredits(@Request() req: any) {
-    const therapistId = req.user.therapist_id || req.user.id;
+    const therapistId = req.user.therapistId || req.user.id;
     const result = await this.aiService.getAssistantCredits(therapistId);
     return this.response(result);
   }
