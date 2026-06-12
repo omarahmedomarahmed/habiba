@@ -108,7 +108,7 @@ export default function SmartSchedulingPage() {
         </>
       }
       heroSubtitle="A public booking page, calendar sync, automated reminders, and waitlist management — all working together so you never have to manually schedule a session again."
-      ctaPrimary={{ label: "Start Free Trial", href: "/signup" }}
+      ctaPrimary={{ label: "Get Started Free", href: "/signup" }}
       ctaSecondary={{ label: "See Pricing", href: "/pricing" }}
       heroPreview={HERO_PREVIEW}
       stats={[
@@ -124,7 +124,7 @@ export default function SmartSchedulingPage() {
       ctaIcon={Calendar}
       ctaTitle="Fill Your Calendar Automatically"
       ctaSubtitle="Stop losing time to scheduling emails. Set your availability once and let patients book, reschedule, and receive reminders without any manual effort."
-      ctaButtonLabel="Start Free Trial"
+      ctaButtonLabel="Get Started Free"
       ctaButtonHref="/signup"
     />
   );

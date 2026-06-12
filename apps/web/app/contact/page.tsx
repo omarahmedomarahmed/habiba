@@ -49,7 +49,7 @@ const FAQS = [
   },
   {
     q: "Is the BAA included in all plans?",
-    a: "Yes. A signed Business Associate Agreement (BAA) is included with every plan, including free trials.",
+    a: "Yes. A signed Business Associate Agreement (BAA) is included with every plan, including Pay As You Go.",
   },
   {
     q: "Do you offer discounts for group practices?",

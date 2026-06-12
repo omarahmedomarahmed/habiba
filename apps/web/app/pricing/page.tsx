@@ -167,7 +167,7 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
               : "bg-[#0A2342] text-white hover:bg-[#123A63]",
           ].join(" ")}
         >
-          {plan.cta_text || "Start Free Trial"}
+          {plan.cta_text || "Get Started Free"}
         </Link>
 
         {plan.plan_key === "pay_per_session" && (

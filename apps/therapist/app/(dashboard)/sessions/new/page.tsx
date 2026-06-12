@@ -64,11 +64,14 @@ export default function NewSessionPage() {
 
   const selectedPatientData = patients.find(p => p.id === selectedPatient);
 
+  const [pendingBill, setPendingBill] = useState<{ amount_due: number; checkout_url: string | null } | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatient || !sessionDate) return;
     setIsSubmitting(true);
     setSubmitError(null);
+    setPendingBill(null);
     try {
       const scheduledAt = new Date(`${sessionDate}T${sessionTime}:00`).toISOString();
       const session = await sessionsAPI.create({
@@ -86,8 +89,12 @@ export default function NewSessionPage() {
       else router.push('/sessions');
     } catch (err: any) {
       const msg: string = err?.data?.message || err?.message || '';
-      if (msg.includes('UPGRADE_REQUIRED') || msg.includes('SESSION_LIMIT_REACHED') || err?.status === 402) {
-        setSubmitError('You have reached your session limit. Please upgrade your plan to book more sessions.');
+      const errData = err?.data || {};
+      if (msg.includes('PAYMENT_REQUIRED') || (err?.status === 402 && errData.error === 'payment_required' && errData.amount_due)) {
+        setPendingBill({ amount_due: errData.amount_due, checkout_url: errData.checkout_url });
+        setSubmitError('You have an unpaid session bill. Pay to schedule new sessions.');
+      } else if (msg.includes('UPGRADE_REQUIRED') || msg.includes('SESSION_LIMIT_REACHED') || err?.status === 402) {
+        setSubmitError('You have reached your session limit. Please upgrade your plan.');
       } else {
         setSubmitError(msg || 'Failed to create session. Please try again.');
       }
@@ -312,10 +319,29 @@ export default function NewSessionPage() {
         </div>
 
         {submitError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-            {submitError}
-            {submitError.includes('upgrade') && (
-              <a href="/billing" className="ml-2 underline font-semibold">View plans →</a>
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <p className="font-semibold mb-1">{submitError}</p>
+            {pendingBill && (
+              <div className="mt-2 flex flex-col gap-2">
+                {pendingBill.checkout_url ? (
+                  <a
+                    href={pendingBill.checkout_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 bg-red-600 text-white font-semibold px-4 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors w-fit"
+                  >
+                    Pay ${Number(pendingBill.amount_due).toFixed(2)} to unlock sessions
+                  </a>
+                ) : (
+                  <Link href="/settings?tab=billing" className="underline text-red-600">View bill in settings →</Link>
+                )}
+                <Link href="/settings?tab=usage" className="text-xs text-[#1F5EFF] hover:underline">
+                  Save 50% — Starter $59/mo (20 sessions included)
+                </Link>
+              </div>
+            )}
+            {!pendingBill && submitError.includes('limit') && (
+              <Link href="/settings?tab=usage" className="ml-1 underline font-semibold">Upgrade plan →</Link>
             )}
           </div>
         )}

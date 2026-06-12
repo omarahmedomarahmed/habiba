@@ -160,7 +160,7 @@ export default function AIScribePage() {
 
               <div className="flex flex-wrap gap-4">
                 <Link href="/signup?role=therapist" className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#1649D4] transition-all shadow-lg">
-                  Start Free Trial <ArrowRight className="w-5 h-5" />
+                  Get Started Free <ArrowRight className="w-5 h-5" />
                 </Link>
                 <Link href="/demo" className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-8 py-4 rounded-2xl border border-white/20 hover:bg-white/20 transition-all">
                   <Play className="w-5 h-5" /> Watch Demo
@@ -299,7 +299,7 @@ export default function AIScribePage() {
             Join 500+ therapists who've eliminated documentation burden with 24Therapy AI Scribe.
           </p>
           <Link href="/signup?role=therapist" className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-10 py-5 rounded-2xl hover:bg-[#1649D4] transition-all text-lg shadow-lg">
-            Start 14-Day Free Trial — No Credit Card
+            Get Started Free — First Session Free
             <ArrowRight className="w-6 h-6" />
           </Link>
         </div>

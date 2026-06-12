@@ -153,10 +153,12 @@ export default function AIWorkspacePage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const sendMessage = async (text: string) => {
@@ -364,7 +366,7 @@ export default function AIWorkspacePage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {messages.map((msg) => (
             <div key={msg.id} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
               {msg.role === "assistant" && (
@@ -462,7 +464,6 @@ export default function AIWorkspacePage() {
               )}
             </div>
           ))}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}

@@ -349,7 +349,7 @@ export default function TestimonialsPage() {
                 icon: Users,
                 title: "For Solo Practitioners",
                 desc: "Reduce paperwork, gain AI-powered insights, accept new patients, and grow your practice sustainably.",
-                cta: "Start Free Trial",
+                cta: "Get Started Free",
                 href: "/for-therapists",
               },
               {

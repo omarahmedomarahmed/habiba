@@ -477,7 +477,7 @@ export default async function IntegrationDocPage({
                 href="/signup"
                 className="bg-[#2EC4B6] text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-[#26b0a2] transition inline-flex items-center gap-2 text-sm"
               >
-                Start Free Trial <ArrowRight className="w-4 h-4" />
+                Get Started Free <ArrowRight className="w-4 h-4" />
               </Link>
             ) : (
               <Link

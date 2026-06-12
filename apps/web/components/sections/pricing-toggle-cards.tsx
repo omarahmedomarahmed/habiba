@@ -149,7 +149,7 @@ export function PricingToggleCards({ plans }: PricingToggleCardsProps) {
                     : "bg-[#0A2342] text-white hover:bg-[#0D2D57]"
                 )}
               >
-                {plan.cta_text || (isEnterprise ? "Contact Sales" : isFree ? "Get Started Free" : "Start Free Trial")}
+                {plan.cta_text || (isEnterprise ? "Contact Sales" : isFree ? "Get Started Free" : "Get Started Free")}
               </Link>
 
               {/* Features — show plan-specific features from API */}

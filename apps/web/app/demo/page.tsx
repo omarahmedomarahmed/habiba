@@ -87,7 +87,7 @@ export default function DemoPage() {
                   href="/signup?role=therapist"
                   className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-[#0A2342] transition-all text-sm"
                 >
-                  Start Free Trial
+                  Get Started Free
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
