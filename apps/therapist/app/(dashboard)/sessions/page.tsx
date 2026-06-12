@@ -98,27 +98,36 @@ function SessionCard({ session }: { session: any }) {
                 </Link>
               </>
             )}
-            {isPast && (
+            {session.status === "in_progress" && (
+              <Link
+                href={`/sessions/${session.id}/room`}
+                className="flex items-center gap-1 text-xs text-white bg-indigo-500 px-2 py-1 rounded hover:bg-indigo-600 transition-colors"
+              >
+                <Play className="w-3 h-3" />
+                Rejoin
+              </Link>
+            )}
+            {isPast && session.status !== "in_progress" && (
               <>
-                {noteStatus === "draft" && (
+                {session.note_id && noteStatus !== "finalized" && (
                   <Link
-                    href={`/notes/${session.id}`}
+                    href={`/notes/${session.note_id}`}
                     className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
                   >
                     <Edit3 className="w-3 h-3" />
                     Complete Note
                   </Link>
                 )}
-                {noteStatus === "finalized" && (
+                {session.note_id && noteStatus === "finalized" && (
                   <Link
-                    href={`/notes/${session.id}`}
+                    href={`/notes/${session.note_id}`}
                     className="flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded hover:bg-green-100 transition-colors"
                   >
                     <CheckCircle2 className="w-3 h-3" />
                     View Note
                   </Link>
                 )}
-                {!noteStatus && (
+                {!session.note_id && (
                   <Link
                     href={`/notes/new?session_id=${session.id}`}
                     className="flex items-center gap-1 text-xs text-secondary border border-secondary/20 px-2 py-1 rounded hover:bg-secondary/10 transition-colors"

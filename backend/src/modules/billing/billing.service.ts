@@ -339,7 +339,7 @@ export class BillingService {
 
     // Charge history (last 50)
     const chargeHistory = await this.db.query(
-      `SELECT id, amount_usd, discount_usd, amount_due_usd, status, description,
+      `SELECT id, session_id, amount_usd, discount_usd, amount_due_usd, status, description,
               charged_at, paid_at, plan_key
        FROM session_charges WHERE therapist_id = $1
        ORDER BY charged_at DESC LIMIT 50`,

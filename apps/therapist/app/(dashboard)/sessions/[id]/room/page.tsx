@@ -14,8 +14,21 @@ import {
 } from "lucide-react";
 import { cn, formatSessionTime, getInitials } from "@/lib/utils";
 import { useSessionRoomStore } from "@/lib/store";
-import { sessionsAPI, aiAPI, patientsAPI } from "@/lib/api";
+import { sessionsAPI, aiAPI, patientsAPI, billingAPI } from "@/lib/api";
 import { getApiUrl } from "@/lib/env";
+
+type BillingOutcome =
+  | { state: "loading" }
+  | { state: "unavailable" }
+  | {
+      state: "ready";
+      status: string; // waived | pending | included | paid
+      amount_due: number;
+      description: string;
+      checkout_url: string | null;
+      charge_id: string;
+      quota_remaining: number | null;
+    };
 
 const TAGS = ["symptom", "mood", "medication", "relationship", "goal", "trigger", "risk", "trauma", "sleep", "work", "family", "progress"];
 
@@ -69,9 +82,17 @@ export default function SessionRoomPage() {
   const [sessionPhase, setSessionPhase] = useState<"waiting" | "live" | "ended">("waiting");
   const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>([]);
   const [showEndModal, setShowEndModal] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+  const [endError, setEndError] = useState<string | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [billingOutcome, setBillingOutcome] = useState<BillingOutcome | null>(null);
   const [noteType, setNoteType] = useState<"SOAP" | "DAP" | "BIRP">("SOAP");
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [generatedNote, setGeneratedNote] = useState("");
+  const [generatedNoteId, setGeneratedNoteId] = useState<string | null>(null);
+  const [noteApproved, setNoteApproved] = useState(false);
+  const [riskResult, setRiskResult] = useState<Record<string, unknown> | null>(null);
+  const [isCheckingRisk, setIsCheckingRisk] = useState(false);
   const [crisisAlert, setCrisisAlert] = useState<CrisisAlert | null>(null);
   const [emotionalContext, setEmotionalContext] = useState<{
     emotion: string; intensity: string; minimizing_language: boolean;
@@ -89,6 +110,14 @@ export default function SessionRoomPage() {
     if (!id) return;
     sessionsAPI.get(id).then((s: any) => {
       setLiveSession(s);
+      // Resume the correct phase from persisted status (e.g. rejoining a live
+      // session after a refresh, or opening an already-completed session).
+      if (s?.status === 'in_progress') {
+        setSessionPhase('live');
+        setIsLive(true);
+      } else if (s?.status === 'completed' || s?.status === 'archived') {
+        setSessionPhase('ended');
+      }
       if (s?.patient_id) {
         Promise.all([
           patientsAPI.get(s.patient_id as string).catch(() => null),
@@ -168,6 +197,22 @@ export default function SessionRoomPage() {
   }, []);
 
   const startSession = async () => {
+    if (!id) return;
+    setStartError(null);
+    // Persist the status transition FIRST — the billing engine, transcripts and
+    // monthly counts all key off real session status in the database.
+    try {
+      await sessionsAPI.updateStatus(id, "in_progress");
+    } catch (err: any) {
+      const msg = String(err?.message || "");
+      // Already in progress (e.g. rejoining the room) — proceed.
+      if (!msg.includes("'in_progress' to 'in_progress'")) {
+        setStartError(msg.includes("Cannot transition")
+          ? `This session can't be started (${msg.replace(/.*Cannot transition/i, "cannot transition")}). It may already be completed or cancelled.`
+          : "Could not start the session. Check your connection and try again.");
+        return;
+      }
+    }
     setSessionPhase("live");
     setIsLive(true);
     // Start browser audio capture for live transcription
@@ -190,15 +235,66 @@ export default function SessionRoomPage() {
     } catch { /* mic permission denied — continue without audio */ }
   };
 
+  // Opens the end-session confirmation modal (nothing is persisted yet).
   const endSession = () => {
+    setEndError(null);
     setShowEndModal(true);
-    setIsLive(false);
-    setSessionPhase("ended");
-    // Stop audio recording
+  };
+
+  const stopRecorder = () => {
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       recorderRef.current.stop();
       recorderRef.current.stream?.getTracks().forEach(t => t.stop());
     }
+  };
+
+  // The billing hook on the backend is fire-and-forget, so the charge row can
+  // land a moment after the status PATCH returns — poll usage briefly.
+  const pollBillingOutcome = async (sessionId: string) => {
+    setBillingOutcome({ state: "loading" });
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const usage = await billingAPI.usageMe();
+        const fromHistory = (usage.charge_history || []).find((c: any) => c.session_id === sessionId);
+        const fromPending = (usage.pending_bills || []).find((b: any) => b.session_id === sessionId);
+        const charge: any = fromHistory || fromPending;
+        if (charge) {
+          setBillingOutcome({
+            state: "ready",
+            status: charge.status || (fromPending ? "pending" : "paid"),
+            amount_due: Number(charge.amount_due_usd ?? 0),
+            description: charge.description || "",
+            checkout_url: charge.stripe_checkout_url ?? null,
+            charge_id: charge.id,
+            quota_remaining: usage.quota ? usage.quota.remaining : null,
+          });
+          return;
+        }
+      } catch { /* keep polling */ }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    setBillingOutcome({ state: "unavailable" });
+  };
+
+  const confirmEndSession = async () => {
+    if (!id) return;
+    setIsEnding(true);
+    setEndError(null);
+    try {
+      await sessionsAPI.updateStatus(id, "completed");
+    } catch (err: any) {
+      const msg = String(err?.message || "");
+      if (!msg.includes("to 'completed'") || msg.includes("Cannot transition")) {
+        setEndError("Could not end the session. Check your connection and try again.");
+        setIsEnding(false);
+        return;
+      }
+    }
+    stopRecorder();
+    setIsLive(false);
+    setSessionPhase("ended");
+    setIsEnding(false);
+    pollBillingOutcome(id);
   };
 
   const generateNote = async () => {
@@ -206,11 +302,35 @@ export default function SessionRoomPage() {
     setIsGeneratingNote(true);
     try {
       const result: any = await aiAPI.generateNote(id, noteType.toLowerCase());
-      setGeneratedNote(result?.content || result?.note_content || JSON.stringify(result, null, 2));
+      const note = result?.note || result;
+      setGeneratedNote(note?.raw_content || note?.content || note?.note_content || JSON.stringify(result, null, 2));
+      if (note?.id) setGeneratedNoteId(note.id as string);
+      setNoteApproved(note?.status === 'approved');
     } catch {
       setGeneratedNote('Note generation failed. Please try again.');
     } finally {
       setIsGeneratingNote(false);
+    }
+  };
+
+  const approveGeneratedNote = async () => {
+    if (!generatedNoteId) return;
+    try {
+      await aiAPI.approveNote(generatedNoteId, {});
+      setNoteApproved(true);
+    } catch { /* surfaced via unchanged button state */ }
+  };
+
+  const runRiskCheck = async () => {
+    if (!id) return;
+    setIsCheckingRisk(true);
+    try {
+      const result: any = await aiAPI.riskCheck(id);
+      setRiskResult(result?.risk || result || {});
+    } catch {
+      setRiskResult({ error: true });
+    } finally {
+      setIsCheckingRisk(false);
     }
   };
 
@@ -287,6 +407,115 @@ export default function SessionRoomPage() {
             <p className="text-xs text-slate-400 mt-4 text-center">
               This alert has been logged and sent to your organization admin.
             </p>
+          </div>
+        </div>
+      )}
+      {/* End Session Modal — confirm, then billing summary */}
+      {showEndModal && (
+        <div className="fixed inset-0 z-[9000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            {sessionPhase !== "ended" ? (
+              <>
+                <h2 className="text-lg font-bold text-slate-900 mb-1">End this session?</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  The session with {session?.patient.name} will be marked complete
+                  ({formatSessionTime(sessionDuration)}). Transcription stops and your note can be generated.
+                </p>
+                {endError && (
+                  <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-xs">{endError}</div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowEndModal(false)}
+                    disabled={isEnding}
+                    className="flex-1 h-10 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    Keep going
+                  </button>
+                  <button
+                    onClick={confirmEndSession}
+                    disabled={isEnding}
+                    className="flex-1 h-10 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-50"
+                  >
+                    {isEnding ? "Ending…" : "End session"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-green-500 shrink-0" />
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Session complete</h2>
+                    <p className="text-xs text-slate-500">Duration: {formatSessionTime(sessionDuration)}</p>
+                  </div>
+                </div>
+
+                {/* Billing outcome */}
+                <div className="rounded-xl border border-slate-200 p-4 mb-4">
+                  {(!billingOutcome || billingOutcome.state === "loading") && (
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <div className="w-4 h-4 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                      Preparing your billing summary…
+                    </div>
+                  )}
+                  {billingOutcome?.state === "unavailable" && (
+                    <p className="text-sm text-slate-500">
+                      Your billing summary will appear shortly in <Link href="/settings" className="text-secondary underline">Settings → Billing &amp; Usage</Link>.
+                    </p>
+                  )}
+                  {billingOutcome?.state === "ready" && billingOutcome.status === "waived" && (
+                    <div>
+                      <p className="text-sm font-semibold text-green-700 mb-1">🎉 This session was free — on us.</p>
+                      <p className="text-xs text-slate-500">Your first session is always free. Future sessions are $6 each, or save 50% with Starter ($59/mo for 20 sessions).</p>
+                    </div>
+                  )}
+                  {billingOutcome?.state === "ready" && billingOutcome.status === "pending" && (
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 mb-1">Session bill: ${billingOutcome.amount_due.toFixed(2)}</p>
+                      <p className="text-xs text-slate-500 mb-3">Pay this bill to schedule your next session — or subscribe and save 50%.</p>
+                      <div className="flex gap-2">
+                        {billingOutcome.checkout_url ? (
+                          <a href={billingOutcome.checkout_url} target="_blank" rel="noopener noreferrer"
+                             className="flex-1 h-9 bg-[#1F5EFF] text-white rounded-lg text-xs font-semibold flex items-center justify-center hover:bg-[#1a4fd6] transition-colors">
+                            Pay ${billingOutcome.amount_due.toFixed(2)} now
+                          </a>
+                        ) : (
+                          <span className="flex-1 h-9 bg-slate-100 text-slate-500 rounded-lg text-xs flex items-center justify-center">
+                            Payment link available in Settings → Billing
+                          </span>
+                        )}
+                        <Link href="/settings" className="h-9 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 flex items-center hover:bg-slate-50 transition-colors">
+                          Plans
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                  {billingOutcome?.state === "ready" && (billingOutcome.status === "included" || billingOutcome.status === "paid") && (
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 mb-1">
+                        {billingOutcome.description || "Included in your plan"}
+                      </p>
+                      {billingOutcome.quota_remaining !== null && (
+                        <p className="text-xs text-slate-500">{billingOutcome.quota_remaining} included sessions left this month.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowEndModal(false); setActiveRightTab("notes"); }}
+                    className="flex-1 h-10 bg-secondary text-white rounded-xl text-sm font-semibold hover:bg-secondary/90 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Brain className="w-4 h-4" /> Generate note
+                  </button>
+                  <Link href="/sessions" className="flex-1 h-10 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center">
+                    Back to sessions
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -507,6 +736,11 @@ export default function SessionRoomPage() {
                   <VideoIcon className="w-4 h-4" />
                   Start Session
                 </button>
+                {startError && (
+                  <div className="mt-4 max-w-sm mx-auto bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-2.5 text-red-300 text-xs">
+                    {startError}
+                  </div>
+                )}
               </div>
             ) : sessionPhase === "ended" ? (
               <div className="text-center">
@@ -742,62 +976,93 @@ export default function SessionRoomPage() {
 
               {generatedNote && (
                 <div className="p-3 border-t border-slate-100 flex gap-2">
-                  <button className="flex-1 h-8 bg-secondary text-white rounded text-xs font-medium hover:bg-secondary/90 transition-colors flex items-center justify-center gap-1">
-                    <Edit3 className="w-3 h-3" /> Review & Edit
-                  </button>
-                  <button className="flex-1 h-8 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Approve Note
+                  {generatedNoteId ? (
+                    <Link
+                      href={`/notes/${generatedNoteId}`}
+                      className="flex-1 h-8 bg-secondary text-white rounded text-xs font-medium hover:bg-secondary/90 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Edit3 className="w-3 h-3" /> Review & Edit
+                    </Link>
+                  ) : (
+                    <button disabled className="flex-1 h-8 bg-slate-100 text-slate-400 rounded text-xs font-medium flex items-center justify-center gap-1">
+                      <Edit3 className="w-3 h-3" /> Review & Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={approveGeneratedNote}
+                    disabled={!generatedNoteId || noteApproved}
+                    className={cn(
+                      "flex-1 h-8 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1",
+                      noteApproved ? "bg-green-100 text-green-700" : "bg-green-500 text-white hover:bg-green-600 disabled:opacity-50"
+                    )}
+                  >
+                    <CheckCircle2 className="w-3 h-3" /> {noteApproved ? "Approved" : "Approve Note"}
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* RISK TAB */}
+          {/* RISK TAB — real AI risk check on the live transcript; no fabricated data */}
           {activeRightTab === "risk" && (
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  <span className="text-xs font-bold text-amber-700">Current Risk Level: MEDIUM</span>
+              {crisisAlert === null && !riskResult && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-600">No alerts this session</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Crisis monitoring runs automatically on the live transcript. You can also run an on-demand AI risk check.
+                  </p>
                 </div>
-                <p className="text-xs text-amber-600">Monitor: Perfectionism patterns + performance anxiety. No acute safety concerns.</p>
-              </div>
+              )}
+
+              {riskResult && !riskResult.error && (
+                <div className={cn(
+                  "border rounded-lg p-3",
+                  String(riskResult.risk_level || riskResult.level || "low") === "high" || String(riskResult.risk_level || riskResult.level) === "critical"
+                    ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"
+                )}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-bold text-amber-700 uppercase">
+                      Risk level: {String(riskResult.risk_level || riskResult.level || "low")}
+                    </span>
+                  </div>
+                  {Array.isArray(riskResult.indicators) && (riskResult.indicators as string[]).length > 0 && (
+                    <ul className="text-xs text-amber-700 list-disc ml-4 mt-1 space-y-0.5">
+                      {(riskResult.indicators as string[]).slice(0, 6).map((ind) => <li key={ind}>{ind}</li>)}
+                    </ul>
+                  )}
+                  {typeof riskResult.recommended_action === "string" && (
+                    <p className="text-xs text-slate-600 mt-2 italic">{riskResult.recommended_action}</p>
+                  )}
+                </div>
+              )}
+              {riskResult?.error === true && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-500">
+                  Risk check unavailable right now — automatic crisis monitoring is still active.
+                </div>
+              )}
+
+              <button
+                onClick={runRiskCheck}
+                disabled={isCheckingRisk}
+                className="w-full flex items-center justify-center gap-2 h-8 px-3 border border-slate-200 rounded text-xs text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                <Zap className="w-3 h-3" /> {isCheckingRisk ? "Analyzing transcript…" : "Run AI risk check"}
+              </button>
 
               <div>
-                <div className="text-[10px] font-semibold text-slate-500 uppercase mb-2">Risk Indicators (This Session)</div>
+                <div className="text-[10px] font-semibold text-slate-500 uppercase mb-2">Crisis Resources</div>
                 <div className="space-y-2">
-                  {[
-                    { item: "Cognitive distortions (perfectionism)", level: "medium" },
-                    { item: "Self-critical statements", level: "medium" },
-                    { item: "No evidence of SI/SH", level: "none" },
-                    { item: "No substance use mentioned", level: "none" },
-                  ].map(({ item, level }) => (
-                    <div key={item} className="flex items-center gap-2">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full shrink-0",
-                        level === "high" ? "bg-red-500" :
-                        level === "medium" ? "bg-amber-500" :
-                        level === "low" ? "bg-yellow-400" : "bg-green-400"
-                      )} />
-                      <span className="text-xs text-slate-600">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[10px] font-semibold text-slate-500 uppercase mb-2">Quick Actions</div>
-                <div className="space-y-2">
-                  <button className="w-full flex items-center gap-2 h-8 px-3 border border-slate-200 rounded text-xs text-slate-600 hover:bg-slate-50 transition-colors">
-                    <Plus className="w-3 h-3" /> Create Risk Assessment
-                  </button>
-                  <button className="w-full flex items-center gap-2 h-8 px-3 border border-slate-200 rounded text-xs text-slate-600 hover:bg-slate-50 transition-colors">
-                    <Flag className="w-3 h-3" /> Flag for Review
-                  </button>
-                  <button className="w-full flex items-center gap-2 h-8 px-3 border border-red-200 bg-red-50 rounded text-xs text-red-700 hover:bg-red-100 transition-colors">
-                    <AlertTriangle className="w-3 h-3" /> Escalate Crisis Protocol
-                  </button>
+                  <a href="tel:988" className="w-full flex items-center gap-2 h-8 px-3 border border-red-200 bg-red-50 rounded text-xs text-red-700 hover:bg-red-100 transition-colors">
+                    <AlertTriangle className="w-3 h-3" /> 988 Suicide &amp; Crisis Lifeline
+                  </a>
+                  <Link href="/risk-monitor" className="w-full flex items-center gap-2 h-8 px-3 border border-slate-200 rounded text-xs text-slate-600 hover:bg-slate-50 transition-colors">
+                    <Flag className="w-3 h-3" /> Open Risk Monitor
+                  </Link>
                 </div>
               </div>
             </div>

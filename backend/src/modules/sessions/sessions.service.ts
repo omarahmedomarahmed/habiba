@@ -49,8 +49,15 @@ export class SessionsService {
         p.email as patient_email,
         t.display_name as therapist_name,
         (SELECT COUNT(*) FROM transcript_segments ts JOIN transcripts tr ON tr.id = ts.transcript_id WHERE tr.session_id = s.id) as transcript_segment_count,
-        (SELECT id FROM ai_session_notes WHERE session_id = s.id LIMIT 1) as has_ai_note
+        n.id as has_ai_note,
+        n.id as note_id,
+        CASE WHEN n.status = 'approved' THEN 'finalized' ELSE n.status END as note_status
        FROM sessions s
+       LEFT JOIN LATERAL (
+         SELECT id, status FROM ai_session_notes
+         WHERE session_id = s.id AND status <> 'archived'
+         ORDER BY created_at DESC LIMIT 1
+       ) n ON true
        JOIN patients p ON p.id = s.patient_id
        JOIN therapists t ON t.id = s.therapist_id
        WHERE ${whereClauses.join(' AND ')}
@@ -191,7 +198,7 @@ export class SessionsService {
     const session = await this.findOne(id, orgId);
 
     const validTransitions: Record<string, string[]> = {
-      scheduled: ['waiting', 'cancelled', 'no_show'],
+      scheduled: ['waiting', 'in_progress', 'cancelled', 'no_show'],
       waiting: ['in_progress', 'cancelled'],
       in_progress: ['completed', 'cancelled'],
       completed: ['archived'],
