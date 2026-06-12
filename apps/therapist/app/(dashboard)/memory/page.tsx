@@ -317,9 +317,9 @@ export default function MemoryPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex h-full gap-0 -mx-6 -mt-6">
+    <div className="flex h-full overflow-hidden">
       {/* Left sidebar - Patient selector + category nav */}
-      <div className="w-72 border-r border-gray-200 bg-white flex flex-col h-screen overflow-y-auto">
+      <div className="w-72 border-r border-gray-200 bg-white flex flex-col min-h-0 overflow-y-auto">
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-3">
             <Database className="h-5 w-5 text-[#0A2342]" />

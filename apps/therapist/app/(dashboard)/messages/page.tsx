@@ -135,9 +135,9 @@ export default function MessagesPage() {
   const totalUnread = liveThreads.reduce((acc, t) => acc + t.unread, 0);
 
   return (
-    <div className="flex h-full gap-0 -mx-6 -mt-6">
+    <div className="flex h-full overflow-hidden">
       {/* Thread list */}
-      <div className="w-80 border-r border-gray-200 bg-white flex flex-col shrink-0 h-screen">
+      <div className="w-80 border-r border-gray-200 bg-white flex flex-col shrink-0 min-h-0">
         {/* Header */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">

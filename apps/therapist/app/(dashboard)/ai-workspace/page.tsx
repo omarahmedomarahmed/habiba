@@ -267,9 +267,9 @@ export default function AIWorkspacePage() {
   };
 
   return (
-    <div className="flex h-full gap-0 -mx-6 -mt-6">
+    <div className="flex h-full overflow-hidden">
       {/* Left Panel */}
-      <div className="w-72 border-r border-gray-200 bg-white flex flex-col h-screen overflow-y-auto">
+      <div className="w-72 border-r border-gray-200 bg-white flex flex-col min-h-0 overflow-y-auto">
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-1">
             <Brain className="h-5 w-5 text-[#0A2342]" />
