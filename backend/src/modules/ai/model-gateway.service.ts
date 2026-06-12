@@ -15,7 +15,8 @@ export type TaskType =
   | 'emotional_analysis'
   | 'embedding'
   | 'transcription'
-  | 'chat';
+  | 'chat'
+  | 'assistant';
 
 export interface ModelGatewayRequest {
   task_type: TaskType;
@@ -58,6 +59,7 @@ export class ModelGatewayService {
     embedding: { provider: 'openai', model: 'text-embedding-3-small', temp: 0 },
     transcription: { provider: 'openai', model: 'whisper-1', temp: 0 },
     chat: { provider: 'openai', model: 'gpt-4o-mini', temp: 0.8 },
+    assistant: { provider: 'openai', model: 'gpt-4o-mini', temp: 0.4 },
   };
 
   // Model costs per 1K tokens (USD)

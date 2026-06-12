@@ -125,6 +125,105 @@ export class MailService {
     });
   }
 
+  // ─── Billing email templates ──────────────────────────────────────────────
+
+  async sendFirstSessionFree(email: string): Promise<void> {
+    await this.send({
+      to: email,
+      subject: '🎁 Your first session was free — welcome to 24Therapy!',
+      text: `Your first session has been completed — and it was on us!\n\nYour next session will be $6, billed after each session. Save 50% with our Starter plan ($59/mo for 20 sessions).\n\nLogin: ${this.therapistAppUrl}`,
+      html: this.buildSimpleHtml(
+        'Your first session is on us!',
+        `<p style="margin:0 0 16px;color:#64748b;line-height:1.6;">Your first session has been completed — and it was completely free.</p>
+         <p style="margin:0 0 24px;color:#64748b;line-height:1.6;">Starting from your next session, you'll be billed <strong>$6 per completed session</strong>. Or save 50% with our <strong>Starter plan</strong> — $59/mo for 20 sessions.</p>`,
+        { label: 'View Settings', url: `${this.therapistAppUrl}/settings?tab=billing` },
+      ),
+    });
+  }
+
+  async sendSessionBill(email: string, amountDue: number, checkoutUrl: string, description: string): Promise<void> {
+    await this.send({
+      to: email,
+      subject: `Session bill: $${amountDue.toFixed(2)} — pay to unlock new sessions`,
+      text: `A session has been completed and a bill of $${amountDue.toFixed(2)} is due.\n\nPay now: ${checkoutUrl}\n\nSave 50% with Starter ($59/mo for 20 sessions): ${this.therapistAppUrl}/settings?tab=billing`,
+      html: this.buildSimpleHtml(
+        `Session bill: $${amountDue.toFixed(2)}`,
+        `<p style="margin:0 0 16px;color:#64748b;line-height:1.6;">${description}</p>
+         <p style="margin:0 0 24px;color:#64748b;line-height:1.6;">Pay now to unlock scheduling of new sessions. Or save 50% with Starter ($59/mo for 20 sessions).</p>`,
+        { label: `Pay $${amountDue.toFixed(2)}`, url: checkoutUrl },
+      ),
+    });
+  }
+
+  async sendPaymentConfirmed(email: string): Promise<void> {
+    await this.send({
+      to: email,
+      subject: '✅ Payment confirmed — sessions unlocked',
+      text: `Your session payment was confirmed. You can now schedule new sessions.\n\n${this.therapistAppUrl}`,
+      html: this.buildSimpleHtml(
+        'Payment confirmed!',
+        `<p style="margin:0 0 24px;color:#64748b;line-height:1.6;">Your session bill has been paid. You can now schedule new sessions.</p>`,
+        { label: 'Schedule a session', url: `${this.therapistAppUrl}/sessions/new` },
+      ),
+    });
+  }
+
+  async sendSubscriptionActive(email: string, planKey: string): Promise<void> {
+    const planName = planKey === 'pro' ? 'Unlimited' : planKey.charAt(0).toUpperCase() + planKey.slice(1);
+    await this.send({
+      to: email,
+      subject: `🎉 ${planName} plan activated!`,
+      text: `Your ${planName} plan is now active. Enjoy your sessions!\n\n${this.therapistAppUrl}`,
+      html: this.buildSimpleHtml(
+        `${planName} plan activated!`,
+        `<p style="margin:0 0 24px;color:#64748b;line-height:1.6;">Your ${planName} subscription is now active. Sessions are included in your plan.</p>`,
+        { label: 'Go to dashboard', url: `${this.therapistAppUrl}/dashboard` },
+      ),
+    });
+  }
+
+  async sendQuotaWarning(email: string, remaining: number): Promise<void> {
+    await this.send({
+      to: email,
+      subject: `⚠️ Only ${remaining} session${remaining === 1 ? '' : 's'} left this month`,
+      text: `You have ${remaining} included session${remaining === 1 ? '' : 's'} remaining this month.\n\nUpgrade to Unlimited ($99/mo) for unlimited sessions: ${this.therapistAppUrl}/settings?tab=billing`,
+      html: this.buildSimpleHtml(
+        `${remaining} session${remaining === 1 ? '' : 's'} left this month`,
+        `<p style="margin:0 0 16px;color:#64748b;line-height:1.6;">You have <strong>${remaining} included session${remaining === 1 ? '' : 's'}</strong> remaining in your Starter plan this month.</p>
+         <p style="margin:0 0 24px;color:#64748b;line-height:1.6;">Extra sessions are $6 each, or upgrade to Unlimited ($99/mo) for unlimited sessions.</p>`,
+        { label: 'Upgrade to Unlimited', url: `${this.therapistAppUrl}/settings?tab=billing` },
+      ),
+    });
+  }
+
+  private buildSimpleHtml(title: string, bodyHtml: string, cta: { label: string; url: string }): string {
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+        <tr><td style="background:linear-gradient(135deg,#0A2342,#1a3a6b);padding:32px;text-align:center;">
+          <span style="color:white;font-size:20px;font-weight:700;">24Therapy.ai</span>
+        </td></tr>
+        <tr><td style="padding:40px 48px;">
+          <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0A2342;">${title}</h1>
+          ${bodyHtml}
+          <table cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;background:#1F5EFF;">
+            <a href="${cta.url}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">${cta.label}</a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:24px 48px;border-top:1px solid #f1f5f9;text-align:center;">
+          <p style="margin:0;color:#94a3b8;font-size:12px;">24Therapy.ai · HIPAA-compliant mental health platform</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+  }
+
   async sendEmailVerification(email: string, firstName: string, token: string): Promise<void> {
     const verifyUrl = `${this.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
 

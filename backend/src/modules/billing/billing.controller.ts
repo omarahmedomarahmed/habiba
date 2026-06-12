@@ -228,6 +228,75 @@ export class BillingController {
     return this.billingService.getPayouts(req.user.userId);
   }
 
+  // ============================================================
+  // THERAPIST — Session Charges & Usage
+  // ============================================================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("therapist", "org_admin")
+  @Get("usage/me")
+  @ApiOperation({ summary: "Get therapist usage summary (plan, quota, pending bills, AI credits)" })
+  getUsageMe(@Request() req: { user: { therapistId?: string; userId: string; role: string } }) {
+    const therapistId = req.user.therapistId || req.user.userId;
+    return this.billingService.getTherapistUsageSummary(therapistId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("therapist", "org_admin")
+  @Post("charges/:id/checkout")
+  @ApiOperation({ summary: "Regenerate Stripe checkout URL for a pending session charge" })
+  @ApiParam({ name: "id", description: "Charge UUID" })
+  getChargeCheckout(
+    @Param("id") id: string,
+    @Request() req: { user: { therapistId?: string; userId: string } },
+  ) {
+    const therapistId = req.user.therapistId || req.user.userId;
+    return this.billingService.regenerateChargeCheckout(id, therapistId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("therapist", "org_admin")
+  @Post("subscribe")
+  @ApiOperation({ summary: "Create Stripe checkout for a subscription plan" })
+  subscribeTherapist(
+    @Request() req: { user: { therapistId?: string; userId: string; organizationId: string } },
+    @Body() body: {
+      plan_key: string;
+      seats?: number;
+      interval?: 'monthly' | 'annual';
+      success_url: string;
+      cancel_url: string;
+    },
+  ) {
+    const therapistId = req.user.therapistId || req.user.userId;
+    return this.billingService.subscribeTherapist(
+      therapistId,
+      req.user.organizationId,
+      body.plan_key,
+      body.seats ?? 1,
+      body.interval ?? 'monthly',
+      body.success_url,
+      body.cancel_url,
+    );
+  }
+
+  // ============================================================
+  // ADMIN — Manual charge management
+  // ============================================================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("super_admin", "admin")
+  @Post("admin/charges/:id/mark-paid")
+  @ApiOperation({ summary: "Admin: manually mark a session charge as paid" })
+  @ApiParam({ name: "id", description: "Charge UUID" })
+  adminMarkPaid(@Param("id") id: string) {
+    return this.billingService.adminMarkChargePaid(id);
+  }
+
   // Stripe webhook — no auth guard, uses signature verification
   @Public()
   @Post("webhook")

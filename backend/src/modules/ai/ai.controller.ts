@@ -116,4 +116,51 @@ export class AIController {
     );
     return this.response(result);
   }
+
+  // ─── Therapist AI Assistant ────────────────────────────────────────────────
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('assistant/chat')
+  @ApiOperation({ summary: 'Chat with the AI practice assistant about your sessions' })
+  async assistantChat(
+    @Request() req: any,
+    @Body() body: {
+      message: string;
+      range?: 'today' | 'this_week' | 'last_week';
+      history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    },
+  ) {
+    const therapistId = req.user.therapist_id || req.user.id;
+    try {
+      const result = await this.aiService.assistantChat(
+        therapistId,
+        req.user.organization_id,
+        body.message,
+        body.range,
+        body.history || [],
+      );
+      return this.response(result);
+    } catch (err: any) {
+      if (err.message === 'CREDITS_EXHAUSTED') {
+        return {
+          success: false,
+          error: 'credits_exhausted',
+          credits_balance: 0,
+          upsell: err.upsell || 'Upgrade for unlimited messages.',
+        };
+      }
+      throw err;
+    }
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('assistant/credits')
+  @ApiOperation({ summary: 'Get AI assistant credit balance' })
+  async getAssistantCredits(@Request() req: any) {
+    const therapistId = req.user.therapist_id || req.user.id;
+    const result = await this.aiService.getAssistantCredits(therapistId);
+    return this.response(result);
+  }
 }

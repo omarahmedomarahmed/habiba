@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger, forwardRef,
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
 import { AIService } from '../ai/ai.service';
+import { BillingService } from '../billing/billing.service';
 import { CrisisService } from '../crisis/crisis.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -26,6 +27,7 @@ export class SessionsService {
     private readonly config: ConfigService,
     @Inject(forwardRef(() => AIService)) private readonly aiService: AIService,
     private readonly crisisService: CrisisService,
+    @Inject(forwardRef(() => BillingService)) private readonly billingService: BillingService,
   ) {}
 
   async findAll(orgId: string, query: any = {}) {
@@ -104,11 +106,20 @@ export class SessionsService {
       if (usage.trial_session_used) {
         throw new Error('UPGRADE_REQUIRED:free_trial_used');
       }
-      return; // first session allowed
+      return;
     }
 
     if (usage.plan_key === 'pay_per_session') {
-      return; // always allowed — billed individually
+      // Block if any pending bill exists
+      const pendingBill = await this.billingService.getPendingBillForTherapist(therapistId);
+      if (pendingBill) {
+        const err = new Error('PAYMENT_REQUIRED:unpaid_session_bill') as any;
+        err.charge_id = pendingBill.id;
+        err.amount_due = pendingBill.amount_due_usd;
+        err.checkout_url = pendingBill.stripe_checkout_url;
+        throw err;
+      }
+      return;
     }
 
     if (usage.max_sessions_month !== null && usage.sessions_this_month >= usage.max_sessions_month) {
@@ -222,6 +233,14 @@ export class SessionsService {
          VALUES ($1, $2, $3, 'session_completed', 'Session completed', $4, 'session')`,
         [uuidv4(), session.patient_id, orgId, id],
       );
+
+      // Fire billing hook — never blocks session completion
+      this.billingService.onSessionCompleted({
+        id,
+        therapist_id: session.therapist_id,
+        organization_id: orgId,
+        scheduled_at: session.scheduled_at,
+      }).catch((e) => this.logger.error(`Billing hook error: ${e.message}`));
     }
 
     const setClauses = Object.entries(updates)

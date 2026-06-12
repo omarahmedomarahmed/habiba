@@ -640,4 +640,147 @@ At the end of your response you may naturally (not forcefully) mention that a li
       [uuidv4(), transcript.id, dto.speaker || 'patient', dto.text, dto.timestamp, seq],
     );
   }
+
+  // ─── Therapist AI Assistant ────────────────────────────────────────────────
+
+  /**
+   * Chat about the therapist's own sessions/patients. Credits-gated for PAYG.
+   * NEVER logs message content — PHI invariant.
+   */
+  async assistantChat(
+    therapistId: string,
+    orgId: string,
+    message: string,
+    range: 'today' | 'this_week' | 'last_week' | undefined,
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  ): Promise<{ reply: string; credits_remaining: number | 'unlimited' }> {
+    // Verify credits (PAYG) or plan (paid)
+    const therapist = await this.db.queryOne<{ current_plan_key: string }>(
+      `SELECT current_plan_key FROM therapists WHERE id = $1`,
+      [therapistId],
+    );
+    const planKey = therapist?.current_plan_key || 'pay_per_session';
+    const isPaidPlan = ['starter', 'pro', 'practice', 'enterprise'].includes(planKey);
+
+    let creditsRemaining: number | 'unlimited' = 'unlimited';
+    if (!isPaidPlan) {
+      // Atomically decrement credits
+      const updated = await this.db.queryOne<{ balance: number }>(
+        `UPDATE ai_assistant_credits
+         SET balance = balance - 1, updated_at = NOW()
+         WHERE therapist_id = $1 AND balance > 0
+         RETURNING balance`,
+        [therapistId],
+      );
+      if (!updated) {
+        throw Object.assign(
+          new Error('CREDITS_EXHAUSTED'),
+          {
+            credits_balance: 0,
+            upsell: 'Every session gives you 5 messages. Upgrade to Starter ($59/mo) for unlimited.',
+          },
+        );
+      }
+      creditsRemaining = updated.balance;
+    }
+
+    // Build context from therapist's sessions in range
+    const rangeFilter = this._buildDateFilter(range);
+    const sessions = await this.db.query<any>(
+      `SELECT s.id, s.scheduled_at, s.ended_at, s.status,
+              p.first_name AS patient_first_name,
+              COALESCE(ais.brief, '') AS summary,
+              COALESCE(
+                (SELECT json_build_object('key_themes', si.key_themes, 'risk_level', si.risk_level)
+                 FROM session_intelligence si WHERE si.session_id = s.id LIMIT 1),
+                '{}'::json
+              ) AS intelligence,
+              COALESCE(
+                (SELECT COUNT(*) FROM ai_session_notes asn WHERE asn.session_id = s.id), 0
+              ) AS notes_count
+       FROM sessions s
+       JOIN patients p ON p.id = s.patient_id
+       LEFT JOIN ai_session_summaries ais ON ais.session_id = s.id
+       WHERE s.therapist_id = $1 AND s.organization_id = $2
+         ${rangeFilter}
+         AND s.status IN ('completed','in_progress')
+       ORDER BY s.scheduled_at DESC
+       LIMIT 12`,
+      [therapistId, orgId],
+    );
+
+    const contextLines = sessions.map((s: any) => {
+      const date = s.scheduled_at ? new Date(s.scheduled_at).toLocaleDateString() : 'Unknown date';
+      const intel = typeof s.intelligence === 'string' ? JSON.parse(s.intelligence) : s.intelligence;
+      return [
+        `Session on ${date} with patient ${s.patient_first_name}:`,
+        s.summary ? `  Summary: ${s.summary}` : '  Summary: not yet generated',
+        intel?.key_themes?.length ? `  Key themes: ${intel.key_themes.join(', ')}` : '',
+        intel?.risk_level ? `  Risk level: ${intel.risk_level}` : '',
+        `  Notes: ${s.notes_count > 0 ? 'generated' : 'not generated'}`,
+      ].filter(Boolean).join('\n');
+    }).join('\n\n');
+
+    const rangeLabel = range === 'today' ? 'today' : range === 'this_week' ? 'this week' : range === 'last_week' ? 'last week' : 'recent sessions';
+    const systemPrompt = [
+      `You are a practice assistant for a licensed therapist. You have access to their ${rangeLabel} session data.`,
+      `Answer questions about their sessions, patients, and practice.`,
+      `Always cite which session/date you're referring to. Never invent sessions or details.`,
+      `Do not provide diagnoses. For crisis questions, remind the therapist of the crisis protocol and Radar system.`,
+      `Keep replies concise and clinically useful.`,
+      sessions.length > 0
+        ? `\n\nSESSION DATA:\n${contextLines}`
+        : `\n\nNo sessions found for ${rangeLabel}.`,
+    ].join('\n');
+
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: systemPrompt },
+      ...(history || []).slice(-8).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+      { role: 'user', content: message },
+    ];
+
+    const result = await this.modelGateway.complete({
+      task_type: 'assistant',
+      messages,
+      max_tokens: 700,
+      therapist_id: therapistId,
+      organization_id: orgId,
+    } as any);
+
+    return {
+      reply: result.content,
+      credits_remaining: creditsRemaining,
+    };
+  }
+
+  async getAssistantCredits(therapistId: string): Promise<{ balance: number | 'unlimited' }> {
+    const therapist = await this.db.queryOne<{ current_plan_key: string }>(
+      `SELECT current_plan_key FROM therapists WHERE id = $1`,
+      [therapistId],
+    );
+    const planKey = therapist?.current_plan_key || 'pay_per_session';
+    const isPaidPlan = ['starter', 'pro', 'practice', 'enterprise'].includes(planKey);
+
+    if (isPaidPlan) return { balance: 'unlimited' };
+
+    const credits = await this.db.queryOne<{ balance: number }>(
+      `SELECT balance FROM ai_assistant_credits WHERE therapist_id = $1`,
+      [therapistId],
+    );
+    return { balance: credits?.balance ?? 0 };
+  }
+
+  private _buildDateFilter(range: 'today' | 'this_week' | 'last_week' | undefined): string {
+    if (!range || range === 'today') {
+      return `AND s.scheduled_at >= DATE_TRUNC('day', NOW())`;
+    }
+    if (range === 'this_week') {
+      return `AND s.scheduled_at >= DATE_TRUNC('week', NOW())`;
+    }
+    if (range === 'last_week') {
+      return `AND s.scheduled_at >= DATE_TRUNC('week', NOW()) - INTERVAL '7 days'
+              AND s.scheduled_at < DATE_TRUNC('week', NOW())`;
+    }
+    return '';
+  }
 }
