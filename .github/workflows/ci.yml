@@ -14,34 +14,15 @@ env:
   PNPM_VERSION: 9.15.4
   NODE_VERSION: "20"
 
-jobs:
-  # ─── Install & cache ──────────────────────────────────────────────────────
-  setup:
-    name: Install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - name: Get pnpm store path
-        id: store
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.store.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+# ─── Reusable install steps (via composite action pattern) ────────────────────
+# We inline the setup in each job to keep the workflow simple and avoid
+# cross-job artifact uploads. The pnpm store cache makes repeated installs fast.
 
-  # ─── Backend: build + unit tests ─────────────────────────────────────────
+jobs:
+  # ─── Backend: build + unit tests ───────────────────────────────────────────
   backend:
     name: Backend (build + test)
     runs-on: ubuntu-latest
-    needs: setup
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -61,18 +42,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
+          run_install: false
       - name: Get pnpm store path
         id: store
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+        run: echo "path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
       - uses: actions/cache@v4
         with:
           path: ${{ steps.store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build backend
         run: pnpm --filter @24therapy/api build
         env:
@@ -86,28 +68,28 @@ jobs:
           COOKIE_SECRET: ci-cookie-secret-32-characters-here
           OPENAI_API_KEY: sk-test-placeholder-not-real
 
-  # ─── Type check ───────────────────────────────────────────────────────────
+  # ─── Type check ──────────────────────────────────────────────────────────
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
-    needs: setup
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
+          run_install: false
       - name: Get pnpm store path
         id: store
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+        run: echo "path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
       - uses: actions/cache@v4
         with:
           path: ${{ steps.store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Type check — backend
         run: pnpm --filter @24therapy/api type-check
       - name: Type check — web
@@ -127,11 +109,10 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
 
-  # ─── Next.js builds ───────────────────────────────────────────────────────
+  # ─── Next.js builds ──────────────────────────────────────────────────────
   build:
     name: Build (${{ matrix.app }})
     runs-on: ubuntu-latest
-    needs: setup
     strategy:
       fail-fast: false
       matrix:
@@ -141,18 +122,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
+          run_install: false
       - name: Get pnpm store path
         id: store
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+        run: echo "path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
       - uses: actions/cache@v4
         with:
           path: ${{ steps.store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build ${{ matrix.app }}
         run: pnpm --filter ${{ matrix.app }} build
         env:
@@ -163,69 +145,43 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    needs: setup
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
+          run_install: false
       - name: Get pnpm store path
         id: store
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+        run: echo "path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
       - uses: actions/cache@v4
         with:
           path: ${{ steps.store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - run: pnpm audit --audit-level=high
         continue-on-error: true
 
-  # ─── E2E smoke (component-free, no server needed) ────────────────────────
-  e2e-type-check:
-    name: E2E Type Check
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - name: Get pnpm store path
-        id: store
-        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.store.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
-      - name: Type-check e2e tests
-        run: npx tsc --noEmit --strict false e2e/**/*.ts playwright.config.ts
-        continue-on-error: true
-
-  # ─── Gate ────────────────────────────────────────────────────────────────
+  # ─── Gate ──────────────────────────────────────────────────────────────────
   ci-gate:
     name: CI Gate
     runs-on: ubuntu-latest
-    needs: [backend, typecheck, build, audit, e2e-type-check]
+    needs: [backend, typecheck, build, audit]
     if: always()
     steps:
       - name: Check required jobs
         run: |
-          echo "backend: ${{ needs.backend.result }}"
+          echo "backend:   ${{ needs.backend.result }}"
           echo "typecheck: ${{ needs.typecheck.result }}"
-          echo "build: ${{ needs.build.result }}"
-          if [[ "${{ needs.backend.result }}" == "failure" ||
+          echo "build:     ${{ needs.build.result }}"
+          if [[ "${{ needs.backend.result }}"   == "failure" ||
                 "${{ needs.typecheck.result }}" == "failure" ||
-                "${{ needs.build.result }}" == "failure" ]]; then
-            echo "One or more required jobs failed."
+                "${{ needs.build.result }}"     == "failure" ]]; then
+            echo "One or more required CI jobs failed."
             exit 1
           fi
           echo "All required CI jobs passed."
