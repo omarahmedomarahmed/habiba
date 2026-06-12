@@ -161,9 +161,9 @@ export default function NotesPage() {
             <h1 className="text-2xl font-bold text-ink-900">Session Notes</h1>
             <p className="text-ink-500 text-sm mt-1">AI-assisted clinical documentation</p>
           </div>
-          <Link href="/sessions" className="btn-primary flex items-center gap-2">
+          <Link href="/notes/new" className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            New Session Note
+            New Note
           </Link>
         </div>
 

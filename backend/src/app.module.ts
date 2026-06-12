@@ -26,6 +26,7 @@ import { MemoryModule } from './modules/memory/memory.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { CrisisModule } from './modules/crisis/crisis.module';
+import { NotesModule } from './modules/notes/notes.module';
 import { GatewaysModule } from './gateways/gateways.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
@@ -87,6 +88,7 @@ import appConfig from './config/app.config';
     WorkflowsModule,
     MessagesModule,
     CrisisModule,
+    NotesModule,
 
     // ─── WebSocket Gateways ───────────────────────────────────────────────────
     GatewaysModule,
