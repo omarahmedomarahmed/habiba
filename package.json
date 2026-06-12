@@ -17,9 +17,12 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.45.0",
     "turbo": "^2.0.0",
     "prettier": "^3.2.5",
     "@types/node": "^20.0.0",
