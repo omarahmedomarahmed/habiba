@@ -86,7 +86,7 @@ export default () => ({
   security: {
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
     corsOrigins: process.env.CORS_ORIGINS?.split(',') || [],
-    cookieSecret: process.env.COOKIE_SECRET || 'change-me-in-production',
+    cookieSecret: process.env.COOKIE_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-only-cookie-secret' : ''),
   },
 
   // Feature flags
