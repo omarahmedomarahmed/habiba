@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
         destination: "/for-therapists",
         permanent: true,
       },
+      {
+        source: "/features/workflow-engine",
+        destination: "/features",
+        permanent: true,
+      },
     ];
   },
   async headers() {

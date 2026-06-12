@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { Brain, Mic, Target, Users, BarChart3, Shield, Zap, Heart, FileText, Calendar, Radio, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
+
+const MotionLink = motion(Link);
 
 const features = [
   {
@@ -17,6 +20,7 @@ const features = [
     bg: "bg-blue-50 hover:bg-blue-100/70",
     iconBg: "bg-blue-100 text-blue-600",
     border: "border-blue-100 hover:border-blue-200",
+    href: "/ai-scribe",
   },
   {
     icon: Brain,
@@ -29,6 +33,7 @@ const features = [
     bg: "bg-purple-50 hover:bg-purple-100/70",
     iconBg: "bg-purple-100 text-purple-600",
     border: "border-purple-100 hover:border-purple-200",
+    href: "/features/ai-copilot",
   },
   {
     icon: Radio,
@@ -41,6 +46,7 @@ const features = [
     bg: "bg-green-50 hover:bg-green-100/70",
     iconBg: "bg-green-100 text-green-600",
     border: "border-green-100 hover:border-green-200",
+    href: "/features/radar-matching",
   },
   {
     icon: Heart,
@@ -53,6 +59,7 @@ const features = [
     bg: "bg-rose-50 hover:bg-rose-100/70",
     iconBg: "bg-rose-100 text-rose-600",
     border: "border-rose-100 hover:border-rose-200",
+    href: "/features/memory-layer",
   },
   {
     icon: Target,
@@ -65,6 +72,7 @@ const features = [
     bg: "bg-orange-50 hover:bg-orange-100/70",
     iconBg: "bg-orange-100 text-orange-600",
     border: "border-orange-100 hover:border-orange-200",
+    href: "/features/assessments",
   },
   {
     icon: Users,
@@ -77,6 +85,7 @@ const features = [
     bg: "bg-teal-50 hover:bg-teal-100/70",
     iconBg: "bg-teal-100 text-teal-600",
     border: "border-teal-100 hover:border-teal-200",
+    href: "/features/practice-management",
   },
   {
     icon: Calendar,
@@ -89,6 +98,7 @@ const features = [
     bg: "bg-indigo-50 hover:bg-indigo-100/70",
     iconBg: "bg-indigo-100 text-indigo-600",
     border: "border-indigo-100 hover:border-indigo-200",
+    href: "/features/smart-scheduling",
   },
   {
     icon: BarChart3,
@@ -101,6 +111,7 @@ const features = [
     bg: "bg-cyan-50 hover:bg-cyan-100/70",
     iconBg: "bg-cyan-100 text-cyan-600",
     border: "border-cyan-100 hover:border-cyan-200",
+    href: "/features/analytics",
   },
   {
     icon: Globe,
@@ -113,6 +124,7 @@ const features = [
     bg: "bg-slate-50 hover:bg-slate-100/70",
     iconBg: "bg-slate-100 text-slate-600",
     border: "border-slate-100 hover:border-slate-200",
+    href: "/features/integrations",
   },
 ];
 
@@ -177,7 +189,8 @@ export function FeaturesSection() {
           {features.map((feature, i) => {
             const Icon = feature.icon;
             return (
-              <motion.div
+              <MotionLink
+                href={feature.href}
                 key={feature.title}
                 custom={i}
                 variants={cardVariants}
@@ -185,7 +198,7 @@ export function FeaturesSection() {
                 animate={gridInView ? "visible" : "hidden"}
                 whileHover={{ y: -4, transition: { duration: 0.2 } }}
                 className={cn(
-                  "group p-7 rounded-2xl border transition-all duration-300 cursor-pointer",
+                  "group p-7 rounded-2xl border transition-all duration-300 block",
                   feature.bg,
                   feature.border,
                   i === 0 ? "lg:col-span-2" : ""
@@ -213,7 +226,7 @@ export function FeaturesSection() {
                   <Zap className="w-3 h-3" />
                   {feature.highlight}
                 </div>
-              </motion.div>
+              </MotionLink>
             );
           })}
         </div>
