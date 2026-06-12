@@ -6,7 +6,11 @@ const footerLinks = {
   Product: [
     { label: "AI Scribe", href: "/ai-scribe" },
     { label: "Clinical Copilot", href: "/features/ai-copilot" },
+    { label: "Radar Matching", href: "/features/radar-matching" },
     { label: "Patient Memory", href: "/features/memory-layer" },
+    { label: "Assessments", href: "/features/assessments" },
+    { label: "Practice Management", href: "/features/practice-management" },
+    { label: "Smart Scheduling", href: "/features/smart-scheduling" },
     { label: "Telehealth", href: "/features/teletherapy" },
     { label: "Analytics", href: "/features/analytics" },
     { label: "Integrations", href: "/features/integrations" },

@@ -13,8 +13,10 @@ const navItems = [
     children: [
       { label: "AI Scribe", href: "/ai-scribe", desc: "Auto-generate SOAP/DAP/BIRP notes in seconds" },
       { label: "Clinical Copilot", href: "/features/ai-copilot", desc: "Live session guidance & risk detection" },
+      { label: "Radar Matching", href: "/features/radar-matching", desc: "Connect patients to therapists in < 5 min" },
       { label: "Patient Memory", href: "/features/memory-layer", desc: "Longitudinal AI knowledge graph" },
-      { label: "Telehealth", href: "/features/teletherapy", desc: "HIPAA-secure video sessions" },
+      { label: "Assessments", href: "/features/assessments", desc: "PHQ-9, GAD-7, PCL-5 & custom tools" },
+      { label: "Smart Scheduling", href: "/features/smart-scheduling", desc: "Zero-friction patient booking" },
       { label: "Analytics", href: "/features/analytics", desc: "Revenue & outcome intelligence" },
       { label: "Integrations", href: "/features/integrations", desc: "EHR, calendar, billing connections" },
     ],
