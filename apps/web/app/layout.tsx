@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
@@ -7,8 +7,8 @@ import { PageTransition } from "@/components/ui/page-transition";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://24therapy.ai";
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: "../../../packages/fonts/inter-var.woff2",
   display: "swap",
   variable: "--font-inter",
 });

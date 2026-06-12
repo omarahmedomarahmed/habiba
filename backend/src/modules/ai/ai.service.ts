@@ -267,8 +267,9 @@ Be conservative — flag if uncertain. Therapist always makes final clinical dec
       await this.db.execute(
         `INSERT INTO risk_assessments (
           id, patient_id, therapist_id, session_id, organization_id,
-          risk_type, risk_level, indicators, ai_detected, ai_confidence
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9)`,
+          risk_type, risk_level, indicators, ai_detected, ai_confidence,
+          source, alert_status, alert_delivered_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,'ai','delivered',NOW())`,
         [
           uuidv4(), session.patient_id, session.therapist_id, sessionId, orgId,
           riskData.risk_type || 'general',

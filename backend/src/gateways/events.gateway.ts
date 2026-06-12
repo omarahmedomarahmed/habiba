@@ -12,6 +12,7 @@ import { JwtService } from "@nestjs/jwt";
 import { OnEvent } from "@nestjs/event-emitter";
 import { Logger } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
+import { buildCorsOriginFn } from "../config/cors";
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -32,11 +33,7 @@ interface AuthenticatedSocket extends Socket {
  */
 @WebSocketGateway({
   cors: {
-    origin: [
-      process.env.THERAPIST_PORTAL_URL || "http://localhost:3001",
-      process.env.PATIENT_PORTAL_URL || "http://localhost:3002",
-      process.env.ADMIN_PORTAL_URL || "http://localhost:3003",
-    ],
+    origin: buildCorsOriginFn(process.env.NODE_ENV === "production"),
     credentials: true,
   },
   namespace: "/ws",
@@ -95,11 +92,19 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.therapistId = row?.id;
       }
 
-      // Join organization room
-      client.join(`org:${organizationId}`);
-
       // Join user-specific room
       client.join(`user:${userId}`);
+
+      // Staff-only room — receives crisis_alert and other clinical events.
+      // Patients must NOT join this room (PHI isolation invariant).
+      const isStaff = ["therapist", "admin", "super_admin"].includes(payload.role);
+      if (isStaff) {
+        client.join(`staff:${organizationId}`);
+      }
+
+      // Org-wide room for non-clinical broadcasts (e.g. system announcements).
+      // Crisis alerts are NOT emitted here — use staff: room instead.
+      client.join(`org:${organizationId}`);
 
       // Track socket by userId
       if (!this.userSockets.has(userId)) {
@@ -349,8 +354,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Alert the therapist directly via their user room
     this.server.to(`user:${therapistUserId}`).emit("crisis_alert", alertPayload);
 
-    // Alert all admins in the organization (org room = admin + therapist sockets)
-    this.server.to(`org:${payload.orgId}`).emit("crisis_alert", {
+    // Alert all staff (admins) in the organization.
+    // Uses staff: room — patients are never in this room (PHI isolation invariant).
+    this.server.to(`staff:${payload.orgId}`).emit("crisis_alert", {
       ...alertPayload,
       therapist_id: payload.therapistId,
       therapist_user_id: therapistUserId,
