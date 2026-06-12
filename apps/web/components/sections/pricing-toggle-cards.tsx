@@ -227,11 +227,11 @@ export function PricingToggleCards({ plans }: PricingToggleCardsProps) {
                     <span className="text-sm text-slate-700">Unlimited therapists</span>
                   </div>
                 )}
-                {/* Trial days */}
-                {plan.trial_days > 0 && (
+                {/* PAYG first-session-free callout */}
+                {plan.plan_key === "pay_per_session" && (
                   <div className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-slate-700">{plan.trial_days}-day free trial</span>
+                    <span className="text-sm text-slate-700">First session free</span>
                   </div>
                 )}
               </div>

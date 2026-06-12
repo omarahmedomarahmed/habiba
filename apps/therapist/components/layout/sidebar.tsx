@@ -51,6 +51,7 @@ const NAV_ITEMS = [
     items: [
       { href: "/memory", icon: Network, label: "Memory Layer" },
       { href: "/ai-workspace", icon: Brain, label: "AI Workspace" },
+      { href: "/assistant", icon: Brain, label: "AI Assistant" },
     ],
   },
   {
@@ -87,10 +88,11 @@ export function Sidebar() {
   }, []);
 
   const planLabel: Record<string, string> = {
-    free_trial: 'Free Session',
+    free_trial: 'Pay As You Go',
     pay_per_session: 'Pay As You Go',
     starter: 'Starter',
-    pro: 'Pro',
+    pro: 'Unlimited',
+    practice: 'Practice',
     enterprise: 'Enterprise',
   };
 

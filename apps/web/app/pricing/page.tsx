@@ -170,9 +170,9 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
           {plan.cta_text || "Start Free Trial"}
         </Link>
 
-        {plan.trial_days > 0 && (
+        {plan.plan_key === "pay_per_session" && (
           <p className={["text-xs text-center mb-5 -mt-3", isHighlighted ? "text-white/40" : "text-slate-400"].join(" ")}>
-            {plan.trial_days}-day free trial · No credit card required
+            First session free · No credit card required
           </p>
         )}
 
@@ -259,21 +259,33 @@ export default async function PricingPage() {
         </div>
       )}
 
-      {/* Hero */}
-      <section className="pt-28 pb-16 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-5xl font-bold text-[#0A2342] mb-5">
-            Simple Pricing. Serious Clinical AI.
-          </h1>
-          <p className="text-xl text-slate-500 mb-8">
-            Start free for {plans[0]?.trial_days ?? 14} days. Scale as your practice grows. Cancel anytime.
-          </p>
-          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 rounded-full px-4 py-2 text-sm font-medium">
+      {/* Hero — dark navy baseline */}
+      <section className="relative overflow-hidden pt-28 pb-16 bg-gradient-to-br from-[#071A33] via-[#0A2342] to-[#0D2A4A] text-white">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#1F5EFF]/15 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#2EC4B6]/10 rounded-full blur-3xl" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.8) 1px, transparent 0)", backgroundSize: "32px 32px" }} />
+        </div>
+        <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
+          <div className="inline-flex items-center gap-2 bg-white/8 border border-white/15 rounded-full px-4 py-2 text-sm text-white/80 mb-6">
             <Star className="w-4 h-4" />
-            {mainPlans.some(p => p.price_monthly_usd && p.price_annual_usd && p.price_annual_usd < p.price_monthly_usd * 12)
-              ? "Save with annual billing"
-              : "Flexible monthly and annual billing"}
+            First session free · No credit card required
           </div>
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-5">
+            Simple Pricing.{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4D8EFF] via-[#2EC4B6] to-[#4D8EFF]">
+              Serious Clinical AI.
+            </span>
+          </h1>
+          <p className="text-xl text-white/70 mb-8">
+            Pay as you go or subscribe. First session on us. Annual billing saves 2 months.
+          </p>
+        </div>
+        {/* Wave transition */}
+        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 60" preserveAspectRatio="none" className="w-full h-12">
+            <path d="M0,30 C360,60 720,0 1080,30 C1260,45 1380,20 1440,30 L1440,60 L0,60 Z" fill="white" />
+          </svg>
         </div>
       </section>
 
@@ -400,16 +412,16 @@ export default async function PricingPage() {
       {/* Bottom CTA */}
       <section className="py-16 bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] text-white">
         <div className="max-w-3xl mx-auto text-center px-4">
-          <h2 className="text-3xl font-bold mb-4">Start Your Free Trial Today</h2>
+          <h2 className="text-3xl font-bold mb-4">Start Today — First Session Free</h2>
           <p className="text-white/70 mb-8">
-            {plans[0]?.trial_days ?? 14} days free. No credit card. Cancel anytime.
+            No credit card required. Pay as you go or subscribe. Cancel anytime.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link
               href="/signup?role=therapist"
               className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#1649D4] transition-all"
             >
-              Start Free Trial <ArrowRight className="w-5 h-5" />
+              Get Started Free <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
               href="/demo"

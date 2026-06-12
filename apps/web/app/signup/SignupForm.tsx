@@ -113,7 +113,7 @@ function SignupFormInner() {
         <div className="bg-white rounded-3xl p-8 shadow-2xl">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-[#0A2342]">Create your account</h1>
-            <p className="text-slate-500 text-sm mt-1">14-day free trial · No credit card required</p>
+            <p className="text-slate-500 text-sm mt-1">First session free · No credit card required</p>
           </div>
 
           {/* Role toggle */}

@@ -427,7 +427,7 @@ export default function FeaturesPage() {
               View Pricing
             </Link>
           </div>
-          <p className="text-white/40 text-sm mt-6">Free 14-day trial · No credit card · HIPAA compliant from day 1</p>
+          <p className="text-white/40 text-sm mt-6">First session free · No credit card · HIPAA compliant from day 1</p>
         </div>
       </section>
     </div>

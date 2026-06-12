@@ -3,7 +3,7 @@ import { SignupForm } from "./SignupForm";
 
 export const metadata: Metadata = {
   title: "Create Account | 24Therapy.ai",
-  description: "Start your free 14-day trial. No credit card required. Join thousands of therapists using AI to save 8+ hours per week on documentation.",
+  description: "First session free. No credit card required. Join thousands of therapists using AI to save 8+ hours per week on documentation.",
   robots: { index: false, follow: false },
 };
 
