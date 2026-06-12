@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { adminAPI } from '@/lib/api';
+import { exportCSV } from '@/lib/csv';
 import {
   Shield, Search, Filter, Download, RefreshCw, ChevronDown, ChevronUp,
   Eye, AlertTriangle, CheckCircle2, XCircle, Clock, User, Building2,
@@ -429,6 +430,27 @@ export default function AdminAuditLogsPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  const handleExportCSV = () => {
+    exportCSV(
+      filtered.map(e => ({
+        log_id: e.log_id,
+        timestamp: e.timestamp,
+        actor_name: e.actor.name,
+        actor_email: e.actor.email,
+        actor_role: e.actor.role,
+        organization: e.org?.name ?? '',
+        category: e.category,
+        action: e.action,
+        outcome: e.outcome,
+        severity: e.severity,
+        target: e.target?.label ?? '',
+        details: e.details,
+        ip_address: e.ip_address,
+      })),
+      `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-[1400px]">
       {/* Header */}
@@ -447,7 +469,7 @@ export default function AdminAuditLogsPage() {
             <RefreshCw className="w-4 h-4 text-gray-500" />
             Refresh
           </button>
-          <button className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors">
+          <button onClick={handleExportCSV} disabled={!filtered.length} className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             <Download className="w-4 h-4" />
             Export CSV
           </button>

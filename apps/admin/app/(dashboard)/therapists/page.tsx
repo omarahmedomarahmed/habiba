@@ -7,6 +7,7 @@ import {
   ChevronRight, Shield
 } from 'lucide-react';
 import { adminAPI, APIError } from '@/lib/api';
+import { exportCSV } from '@/lib/csv';
 
 const STATUS_COLORS: Record<string, string> = {
   verified: 'bg-green-400/20 text-green-300',
@@ -50,6 +51,24 @@ export default function TherapistsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const LIMIT = 20;
+
+  const handleExportCSV = () => {
+    exportCSV(
+      therapists.map(t => ({
+        id: t.id,
+        display_name: t.display_name,
+        email: t.email ?? '',
+        organization: t.organization_name ?? '',
+        verification_status: t.verification_status,
+        availability_status: t.availability_status,
+        patient_count: t.patient_count ?? '',
+        session_count: t.session_count ?? '',
+        rating: t.rating ?? '',
+        created_at: t.created_at,
+      })),
+      `therapists-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
 
   const fetchTherapists = useCallback(async () => {
     setLoading(true);
@@ -137,9 +156,9 @@ export default function TherapistsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          <button className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm">
+          <button onClick={handleExportCSV} disabled={!therapists.length} className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed">
             <Download className="w-4 h-4" />
-            Export
+            Export CSV
           </button>
         </div>
       </div>

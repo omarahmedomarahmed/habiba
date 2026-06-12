@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { adminAPI, APIError } from '@/lib/api';
 import { getApiUrl } from '@/lib/env';
+import { exportCSV } from '@/lib/csv';
 
 const PLAN_COLORS: Record<string, string> = {
   Enterprise: 'bg-purple-400/20 text-purple-300 border border-purple-400/30',
@@ -55,6 +56,25 @@ export default function OrganizationsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', email: '', admin_first_name: '', admin_last_name: '' });
   const [addLoading, setAddLoading] = useState(false);
+
+  const handleExportCSV = () => {
+    exportCSV(
+      orgs.map(o => ({
+        id: o.id,
+        name: o.name,
+        slug: o.slug,
+        status: o.status,
+        plan: o.plan,
+        type: o.organization_type,
+        users: o.user_count ?? '',
+        therapists: o.therapist_count ?? '',
+        patients: o.patient_count ?? '',
+        trial_ends_at: o.trial_ends_at ?? '',
+        created_at: o.created_at,
+      })),
+      `organizations-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
 
   const handleAddOrg = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,9 +175,9 @@ export default function OrganizationsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          <button className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
+          <button onClick={handleExportCSV} disabled={!orgs.length} className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             <Download className="w-4 h-4" />
-            Export
+            Export CSV
           </button>
           <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 transition-all">
             <Plus className="w-4 h-4" />

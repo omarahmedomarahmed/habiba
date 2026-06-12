@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { adminAPI, APIError } from '@/lib/api';
 import { getApiUrl } from '@/lib/env';
+import { exportCSV } from '@/lib/csv';
 
 const ROLE_COLORS: Record<string, string> = {
   super_admin: 'bg-red-400/20 text-red-300 border border-red-400/30',
@@ -48,6 +49,24 @@ export default function UsersPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', first_name: '', last_name: '', role: 'therapist' });
   const [inviteLoading, setInviteLoading] = useState(false);
+
+  const handleExportCSV = () => {
+    exportCSV(
+      users.map(u => ({
+        id: u.id,
+        email: u.email,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        role: u.role,
+        status: u.status,
+        organization: u.organization_name ?? '',
+        email_verified: u.email_verified_at ? 'yes' : 'no',
+        last_login_at: u.last_login_at ?? '',
+        created_at: u.created_at,
+      })),
+      `users-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
 
   const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,9 +170,9 @@ export default function UsersPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          <button className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
+          <button onClick={handleExportCSV} disabled={!users.length} className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             <Download className="w-4 h-4" />
-            Export
+            Export CSV
           </button>
           <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-500 hover:to-orange-500 transition-all">
             <Plus className="w-4 h-4" />

@@ -214,7 +214,6 @@ export default function SessionRoomPage() {
     }
   };
 
-  return (
   if (!session) {
     return (
       <div className="flex flex-col h-full bg-slate-900 items-center justify-center">
@@ -224,7 +223,7 @@ export default function SessionRoomPage() {
     );
   }
 
-    return (
+  return (
     <div className="flex flex-col h-full bg-slate-900">
       {/* Crisis Alert Modal — full-screen, cannot be dismissed without action */}
       {crisisAlert && (
