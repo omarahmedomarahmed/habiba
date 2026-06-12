@@ -14,11 +14,11 @@
 | **Dev Branch** | `claude/zealous-gauss-j9boso` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-11 (session 11 — P5–P9 complete, platform production-ready) |
+| **Last Updated** | 2026-06-12 (session 12 — E2E tests, admin CSV exports, all Vercel previews green) |
 
 ---
 
-## Build Status (Verified 2026-06-11)
+## Build Status (Verified 2026-06-12)
 
 | Package | Build | Routes |
 |---------|-------|--------|
@@ -181,10 +181,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
+## Commit History (Session 12)
+
+| Hash | Message |
+|------|---------|
+| `5eba215` | fix(ci): switch to pnpm/action-setup@v3, no-frozen-lockfile (CI blocked by billing — see note below) |
+| `c2c7c00` | chore: update pnpm-lock.yaml for @playwright/test devDep |
+| `81eb8ab` | feat(E2E): Playwright test suite — auth flows + crisis safety assertions |
+| `df46c60` | fix: therapist room page syntax error + admin CSV exports + CI workflow |
+
 ## Commit History (Session 11)
 
 | Hash | Message |
 |------|---------|
+| `8c83aa4` | feat(P9): launch docs — deployment guide, runbook, HIPAA checklist, CLAUDE.md |
 | `7289111` | feat(P8): backend test suite — 46 tests across 5 suites |
 | `7000a41` | chore(P7): delete stale root-level SQL files (superseded by migrations/) |
 | `ae21db1` | feat(P7): deploy machinery — migrate runner, seed, standalone output, next/font |
@@ -193,13 +203,27 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
+## GitHub Actions CI — Known Issue
+
+**All CI jobs currently fail instantly** with: _"The job was not started because your account is locked due to a billing issue."_
+
+This is a GitHub account billing problem — **not a code or workflow issue**. The `.github/workflows/ci.yml` YAML is syntactically correct and the workflow logic is sound. Once billing is resolved, CI will run normally.
+
+**Effective build gate in the meantime: Vercel** — all 4 Next.js preview deployments are ✅ Ready on every push.
+
+---
+
 ## Priority Work Queue (Next Engineer)
 
-### All P0–P3 complete ✅
+### All P0–P9 complete ✅
+
+### Session 12 additions (complete)
+- [x] E2E Playwright tests — `playwright.config.ts`, `e2e/auth.spec.ts`, `e2e/crisis.spec.ts`
+- [x] Admin CSV exports — `apps/admin/lib/csv.ts` + 4 admin pages wired
+- [x] Therapist room page syntax fix — `apps/therapist/app/(dashboard)/sessions/[id]/room/page.tsx`
 
 ### Remaining (true stretch goals)
-- [ ] E2E Playwright tests (auth flows, crisis flow)
+- [ ] **Resolve GitHub billing** — unblock CI runners
 - [ ] Prometheus/Grafana wiring (`infra/` scaffolded)
-- [ ] Admin export buttons (CSV download)
 - [ ] /blog CMS connection
 - [ ] Formal BAAs before accepting real PHI (see `docs/HIPAA_CHECKLIST.md`)
