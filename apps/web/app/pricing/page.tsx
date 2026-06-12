@@ -291,7 +291,15 @@ export default async function PricingPage() {
               </Link>
             </div>
           ) : (
-            <div className={`grid grid-cols-1 gap-6 ${mainPlans.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
+            <div className={`grid grid-cols-1 gap-6 ${
+              mainPlans.length <= 2
+                ? "md:grid-cols-2"
+                : mainPlans.length === 4
+                ? "md:grid-cols-2 lg:grid-cols-4"
+                : mainPlans.length >= 5
+                ? "md:grid-cols-2 xl:grid-cols-3"
+                : "md:grid-cols-3"
+            }`}>
               {mainPlans.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} />
               ))}

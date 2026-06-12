@@ -7,51 +7,14 @@
  */
 
 import Link from "next/link";
-import { fetchPublicPlans, type SubscriptionPlan } from "@/lib/pricing-api";
+import { fetchPublicPlans } from "@/lib/pricing-api";
 import { PricingToggleCards } from "@/components/sections/pricing-toggle-cards";
 
 export async function PricingSection() {
   const { plans, source } = await fetchPublicPlans();
 
-  // Inject "Starter / Free" plan at position 0 if API doesn't return one.
-  // This plan is always free and is not stored in the billing DB.
-  const hasFreePlan = plans.some(
-    (p) => p.price_monthly_usd === 0 || p.plan_key === "starter" || p.plan_key === "free"
-  );
-
-  const starterPlan: SubscriptionPlan = {
-    id: "starter",
-    plan_key: "starter",
-    name: "Starter",
-    tagline: "Free forever for individuals",
-    description: "Get started free. 10 AI-scripted sessions/month.",
-    price_monthly_usd: 0,
-    price_annual_usd: 0,
-    max_therapists: 1,
-    max_patients: 10,
-    max_sessions_month: 10,
-    ai_notes_included: 10,
-    features: {
-      radar: false,
-      api_access: false,
-      white_label: false,
-      advanced_analytics: false,
-      custom_branding: false,
-      hipaa_baa: false,
-    },
-    stripe_price_id_monthly: null,
-    stripe_price_id_annual: null,
-    is_active: true,
-    is_featured: false,
-    badge_text: null,
-    cta_text: "Get Started Free",
-    trial_days: 0,
-    add_ons: [],
-    highlight_color: null,
-    display_order: 0,
-  };
-
-  const allPlans = hasFreePlan ? plans : [starterPlan, ...plans];
+  // FALLBACK_PLANS now includes Free + Starter tiers; no injection needed.
+  const allPlans = plans;
 
   return (
     <section className="py-24 bg-[#F8FAFC]" id="pricing">
