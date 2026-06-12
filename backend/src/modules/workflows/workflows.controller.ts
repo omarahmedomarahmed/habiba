@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Body, Query, Param, UseGuards,
+  Controller, Get, Post, Put, Patch, Body, Query, Param, UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { WorkflowsService } from './workflows.service';
@@ -140,6 +140,43 @@ export class WorkflowsController {
     @CurrentUser() user: any,
   ) {
     return this.workflowsService.updateWorkflowStatus(id, dto.status as any, user.organization_id);
+  }
+
+  // ─── Homework ─────────────────────────────────────────────────────────────
+
+  @Post('homework')
+  @Roles('therapist', 'org_admin')
+  @ApiOperation({
+    summary: 'Assign homework to a patient',
+    description: 'Creates a homework workflow with a single patient-visible task (appears in the patient portal).',
+  })
+  @ApiResponse({ status: 201, description: 'Homework assigned' })
+  async assignHomework(@Body() dto: any, @CurrentUser() user: any) {
+    return this.workflowsService.createHomework(user.organization_id, user.therapistId, dto);
+  }
+
+  @Get('homework/mine')
+  @Roles('patient')
+  @ApiOperation({ summary: 'List my homework (patient portal)' })
+  @ApiResponse({ status: 200, description: 'Homework tasks retrieved' })
+  async myHomework(@CurrentUser() user: any) {
+    return this.workflowsService.listPatientHomework(user.organization_id, user.patientId);
+  }
+
+  @Patch('tasks/:taskId/complete')
+  @Roles('patient', 'therapist', 'org_admin')
+  @ApiOperation({
+    summary: 'Complete a task by id',
+    description: 'Patient-friendly completion (no workflow id needed). Patients can only complete their own homework tasks.',
+  })
+  @ApiParam({ name: 'taskId', description: 'UUID of the task' })
+  @ApiResponse({ status: 200, description: 'Task completed' })
+  async completeTaskById(
+    @Param('taskId') taskId: string,
+    @Body() body: { note?: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.workflowsService.completeTaskById(taskId, user.organization_id, user, body?.note);
   }
 
   @Put(':workflowId/tasks/:taskId/complete')

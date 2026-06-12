@@ -474,6 +474,100 @@ export class WorkflowsService {
     ).catch(() => null);
   }
 
+  // ─── Homework (patient-visible tasks) ─────────────────────────────────────
+
+  async createHomework(orgId: string, therapistId: string, dto: {
+    patient_id: string; title: string; description?: string; category?: string;
+    tool_slug?: string; due_date?: string; estimated_mins?: number;
+    reflection_prompts?: string[];
+  }) {
+    const patient = await this.db.queryOne<any>(
+      `SELECT id FROM patients WHERE id = $1 AND organization_id = $2`,
+      [dto.patient_id, orgId],
+    );
+    if (!patient) throw new NotFoundException('Patient not found in your organization');
+
+    const workflowId = uuidv4();
+    await this.db.query(
+      `INSERT INTO clinical_workflows (
+        id, organization_id, therapist_id, patient_id,
+        workflow_type, title, status, context, triggered_by, created_at
+      ) VALUES ($1,$2,$3,$4,'homework',$5,'in_progress',$6,'therapist',NOW())`,
+      [workflowId, orgId, therapistId, dto.patient_id, dto.title,
+       JSON.stringify({ category: dto.category || 'exercises', tool_slug: dto.tool_slug || null })],
+    );
+
+    const taskId = uuidv4();
+    const task = await this.db.queryOne<any>(
+      `INSERT INTO workflow_tasks (
+        id, workflow_id, organization_id, task_order, name, task_type,
+        status, is_required, metadata, due_date, assigned_to_patient, created_at
+      ) VALUES ($1,$2,$3,1,$4,'homework','pending',true,$5,$6,true,NOW())
+      RETURNING *`,
+      [taskId, workflowId, orgId, dto.title,
+       JSON.stringify({
+         description: dto.description || '',
+         category: dto.category || 'exercises',
+         tool_slug: dto.tool_slug || null,
+         estimated_mins: dto.estimated_mins || 15,
+         reflection_prompts: dto.reflection_prompts || [],
+       }),
+       dto.due_date || null],
+    );
+    return { workflow_id: workflowId, task };
+  }
+
+  async listPatientHomework(orgId: string, patientId: string) {
+    const rows = await this.db.query<any>(
+      `SELECT wt.*, w.title AS workflow_title, w.created_at AS assigned_date,
+              t.display_name AS assigned_by
+       FROM workflow_tasks wt
+       JOIN clinical_workflows w ON w.id = wt.workflow_id
+       LEFT JOIN therapists t ON t.id = w.therapist_id
+       WHERE wt.organization_id = $1
+         AND wt.assigned_to_patient = true
+         AND w.workflow_type = 'homework'
+         AND w.patient_id = $2
+       ORDER BY wt.created_at DESC`,
+      [orgId, patientId],
+    );
+    return rows.map((r: any) => {
+      const meta = r.metadata || {};
+      return {
+        id: r.id,
+        title: r.name,
+        description: meta.description || '',
+        category: meta.category || 'exercises',
+        assigned_by: r.assigned_by || 'Your therapist',
+        assigned_date: r.assigned_date,
+        due_date: r.due_date,
+        status: r.status === 'completed' ? 'completed' : 'pending',
+        estimated_mins: meta.estimated_mins || 15,
+        points: meta.points || 25,
+        reflection_prompts: meta.reflection_prompts || [],
+        completed_at: r.completed_at,
+        completion_note: r.result?.note || null,
+      };
+    });
+  }
+
+  // Completes a task by id alone (patient portal call shape). Patients may
+  // only complete their own homework; staff can complete any org task.
+  async completeTaskById(taskId: string, orgId: string, user: { role: string; patientId?: string }, note?: string) {
+    const task = await this.db.queryOne<any>(
+      `SELECT wt.id, wt.workflow_id, w.patient_id
+       FROM workflow_tasks wt
+       JOIN clinical_workflows w ON w.id = wt.workflow_id
+       WHERE wt.id = $1 AND wt.organization_id = $2`,
+      [taskId, orgId],
+    );
+    if (!task) throw new NotFoundException('Task not found');
+    if (user.role === 'patient' && task.patient_id !== user.patientId) {
+      throw new NotFoundException('Task not found');
+    }
+    return this.completeWorkflowTask(taskId, task.workflow_id, orgId, { note: note || '' });
+  }
+
   // ─── Workflow Analytics ───────────────────────────────────────────────────
 
   async getWorkflowAnalytics(orgId: string) {

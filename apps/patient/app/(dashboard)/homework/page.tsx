@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import apiFetch from "@/lib/api";
 import {
   BookOpen, CheckCircle, Clock, Star, ArrowRight, Plus, Calendar,
@@ -28,97 +28,6 @@ interface HomeworkItem {
   completion_note?: string;
 }
 
-const HOMEWORK: HomeworkItem[] = [
-  {
-    id: "hw1",
-    title: "Thought Record — Automatic Negative Thoughts",
-    description: "Complete a thought record worksheet when you notice automatic negative thoughts this week. Identify the situation, emotion, automatic thought, and a balanced alternative.",
-    category: "worksheets",
-    assigned_by: "Dr. Sarah Chen",
-    assigned_date: "2026-06-02",
-    due_date: "2026-06-09",
-    status: "in_progress",
-    estimated_mins: 20,
-    points: 25,
-    reflection_prompts: [
-      "What situation triggered the thought?",
-      "What emotion did you feel? (0-10 intensity)",
-      "What was the automatic thought?",
-      "What evidence supports or refutes this thought?",
-      "What is a more balanced alternative thought?",
-    ],
-  },
-  {
-    id: "hw2",
-    title: "5-Minute Breathing Exercise",
-    description: "Practice diaphragmatic breathing for 5 minutes each morning. Use the 4-7-8 technique: inhale 4 counts, hold 7, exhale 8.",
-    category: "exercises",
-    assigned_by: "Dr. Sarah Chen",
-    assigned_date: "2026-06-02",
-    due_date: "2026-06-09",
-    status: "pending",
-    estimated_mins: 5,
-    points: 15,
-    content: "4-7-8 Breathing: Inhale for 4 seconds → Hold for 7 seconds → Exhale for 8 seconds. Repeat 4 times. Practice daily in the morning before checking your phone.",
-  },
-  {
-    id: "hw3",
-    title: "Behavioral Activation Log",
-    description: "Track one pleasurable activity per day using the provided log. Rate mood before and after each activity on a scale of 1-10.",
-    category: "behavioral",
-    assigned_by: "Dr. Sarah Chen",
-    assigned_date: "2026-05-26",
-    due_date: "2026-06-02",
-    status: "completed",
-    estimated_mins: 10,
-    points: 30,
-    completed_at: "2026-06-01",
-    completion_note: "I tracked activities for 6 out of 7 days. I noticed my mood improved the most when I went for a walk in the park.",
-  },
-  {
-    id: "hw4",
-    title: "Reading: Understanding Anxiety",
-    description: "Read Chapter 3 of 'The Anxiety and Worry Workbook' (provided PDF). Note three key insights to discuss in our next session.",
-    category: "reading",
-    assigned_by: "Dr. Sarah Chen",
-    assigned_date: "2026-05-26",
-    due_date: "2026-06-02",
-    status: "completed",
-    estimated_mins: 30,
-    points: 20,
-    completed_at: "2026-05-30",
-    completion_note: "Key insight: anxiety is the brain's alarm system. Sometimes it goes off when there's no real threat. The fight-or-flight response explanation helped me understand why I feel physical symptoms.",
-  },
-  {
-    id: "hw5",
-    title: "Values Clarification Exercise",
-    description: "Complete the values card sort exercise. Identify your top 5 personal values and write a brief reflection on how your current life aligns with those values.",
-    category: "reflection",
-    assigned_by: "Dr. Sarah Chen",
-    assigned_date: "2026-06-02",
-    due_date: "2026-06-16",
-    status: "pending",
-    estimated_mins: 25,
-    points: 20,
-    reflection_prompts: [
-      "What values are most important to you?",
-      "How well does your current daily life reflect these values?",
-      "What would living more consistently with your values look like?",
-    ],
-  },
-  {
-    id: "hw6",
-    title: "Progressive Muscle Relaxation",
-    description: "Practice full-body PMR using the guided audio. Focus on each muscle group for 5-7 seconds tension, then 30 seconds release.",
-    category: "exercises",
-    assigned_by: "Dr. Sarah Chen",
-    assigned_date: "2026-05-19",
-    due_date: "2026-05-26",
-    status: "overdue",
-    estimated_mins: 15,
-    points: 15,
-  },
-];
 
 const STATUS_CONFIG: Record<HomeworkStatus, { label: string; color: string; bg: string }> = {
   pending: { label: "Not Started", color: "text-slate-500", bg: "bg-slate-100" },
@@ -137,9 +46,29 @@ const CAT_ICONS: Record<string, typeof BookOpen> = {
 
 export default function HomeworkPage() {
   const [activeCategory, setActiveCategory] = useState<HomeworkCategory>("all");
-  const [expandedId, setExpandedId] = useState<string | null>("hw1");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [completionNote, setCompletionNote] = useState("");
-  const [liveHomework, setLiveHomework] = useState(HOMEWORK);
+  const [liveHomework, setLiveHomework] = useState<HomeworkItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await apiFetch<HomeworkItem[]>("/workflows/homework/mine");
+        if (cancelled) return;
+        const now = new Date();
+        setLiveHomework((Array.isArray(rows) ? rows : []).map((h) => ({
+          ...h,
+          status: h.status !== "completed" && h.due_date && new Date(h.due_date) < now
+            ? ("overdue" as const)
+            : h.status,
+        })));
+      } catch { /* show empty state */ }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleMarkComplete = async (hwId: string) => {
     setLiveHomework(prev => prev.map(h => h.id === hwId ? { ...h, status: 'completed' as const, completion_note: completionNote } : h));
@@ -165,7 +94,10 @@ export default function HomeworkPage() {
 
   const completedCount = liveHomework.filter((h) => h.status === "completed").length;
   const totalPoints = liveHomework.filter((h) => h.status === "completed").reduce((s, h) => s + h.points, 0);
-  const streak = 5;
+  const dueSoon = liveHomework.filter(
+    (h) => h.status !== "completed" && h.due_date &&
+      new Date(h.due_date).getTime() - Date.now() < 3 * 86400000,
+  ).length;
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -186,8 +118,8 @@ export default function HomeworkPage() {
           <div className="text-xs text-white/70">Points Earned</div>
         </div>
         <div className="bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-2xl p-5 text-center">
-          <div className="text-3xl font-bold mb-1">{streak}🔥</div>
-          <div className="text-xs text-white/70">Day Streak</div>
+          <div className="text-3xl font-bold mb-1">{dueSoon}</div>
+          <div className="text-xs text-white/70">Due This Week</div>
         </div>
       </div>
 
@@ -203,7 +135,7 @@ export default function HomeworkPage() {
         <div className="w-full bg-slate-100 rounded-full h-3">
           <div
             className="bg-gradient-to-r from-[#2EC4B6] to-[#1F5EFF] h-3 rounded-full transition-all"
-            style={{ width: `${(completedCount / liveHomework.length) * 100}%` }}
+            style={{ width: `${(completedCount / (liveHomework.length || 1)) * 100}%` }}
           />
         </div>
         <div className="text-xs text-slate-500 mt-2">
@@ -233,6 +165,18 @@ export default function HomeworkPage() {
 
       {/* Homework List */}
       <div className="space-y-4">
+        {loading && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-sm text-slate-400">
+            Loading your assignments…
+          </div>
+        )}
+        {!loading && filtered.length === 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+            <BookOpen className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+            <p className="text-slate-600 font-medium mb-1">No assignments yet</p>
+            <p className="text-sm text-slate-400">When your therapist assigns homework or exercises, they'll show up here.</p>
+          </div>
+        )}
         {filtered.map((hw) => {
           const Icon = CAT_ICONS[hw.category] || BookOpen;
           const status = STATUS_CONFIG[hw.status];
