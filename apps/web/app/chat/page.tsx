@@ -27,11 +27,12 @@ const INITIAL_MESSAGE: Message = {
   timestamp: new Date(),
 };
 
-const SUGGESTED_PROMPTS = [
-  "I've been feeling anxious lately",
-  "I'm struggling with stress at work",
-  "I want to find a therapist",
-  "I'm having trouble sleeping",
+const WORKFLOW_CHIPS = [
+  { label: "I'm feeling anxious", context: "anxiety" },
+  { label: "Help me find a therapist", context: "find-therapist" },
+  { label: "I'm dealing with depression", context: "depression" },
+  { label: "Work stress is overwhelming me", context: "work-stress" },
+  { label: "I'm going through a hard time", context: "general" },
 ];
 
 export default function ChatPage() {
@@ -41,10 +42,11 @@ export default function ChatPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [showCrisisBar, setShowCrisisBar] = useState(false);
+  const [chatContext, setChatContext] = useState("general");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const FREE_MESSAGE_LIMIT = 5;
+  const FREE_MESSAGE_LIMIT = 10;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -91,7 +93,8 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: trimmed,
-          history: messages.slice(-6).map((m) => ({
+          context: chatContext,
+          history: messages.slice(-8).map((m) => ({
             role: m.role === "ai" ? "assistant" : "user",
             content: m.content,
           })),
@@ -175,7 +178,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400 hidden sm:block">
             {FREE_MESSAGE_LIMIT - messageCount > 0
-              ? `${FREE_MESSAGE_LIMIT - messageCount} free messages left`
+              ? `${FREE_MESSAGE_LIMIT - messageCount} / ${FREE_MESSAGE_LIMIT} free messages`
               : "Free limit reached"}
           </span>
           <Link
@@ -285,18 +288,22 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Suggested prompts (only when few messages) */}
+      {/* Workflow chips (only when few messages) */}
       {messages.length <= 2 && !showUpgrade && (
         <div className="px-4 pb-2 max-w-3xl mx-auto w-full">
-          <p className="text-xs text-slate-400 mb-2">Suggested topics:</p>
+          <p className="text-xs text-slate-400 mb-2">What brings you here today?</p>
           <div className="flex flex-wrap gap-2">
-            {SUGGESTED_PROMPTS.map((prompt) => (
+            {WORKFLOW_CHIPS.map((chip) => (
               <button
-                key={prompt}
-                onClick={() => { setInput(prompt); inputRef.current?.focus(); }}
+                key={chip.label}
+                onClick={() => {
+                  setInput(chip.label);
+                  setChatContext(chip.context);
+                  inputRef.current?.focus();
+                }}
                 className="text-xs px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:border-[#1F5EFF] hover:text-[#1F5EFF] transition-colors"
               >
-                {prompt}
+                {chip.label}
               </button>
             ))}
           </div>

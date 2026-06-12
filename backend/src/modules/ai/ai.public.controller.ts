@@ -30,6 +30,7 @@ interface AnonymousChatMessage {
 interface AnonymousChatDto {
   message: string;
   history?: AnonymousChatMessage[];
+  context?: string; // optional page/flow context (e.g. "find-therapist", "pricing")
 }
 
 const SYSTEM_PROMPT = `You are a supportive mental health AI assistant for 24Therapy.ai. 
@@ -83,6 +84,9 @@ export class AIPublicController {
 
     // Build messages array
     let systemContent = SYSTEM_PROMPT;
+    if (body.context) {
+      systemContent += `\n\nContext: The user arrived from the "${body.context}" section of the platform. Tailor your responses accordingly (e.g., if "find-therapist", emphasize connecting with a licensed therapist).`;
+    }
     if (isCrisis) {
       systemContent += `\n\nCRITICAL: The user's message contains language indicating a potential crisis or self-harm. 
 You MUST:

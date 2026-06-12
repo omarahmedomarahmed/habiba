@@ -2,9 +2,7 @@ import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, H
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { Throttle } from '@nestjs/throttler';
 import { AIService } from './ai.service';
-import { Public } from '../auth/decorators/public.decorator';
 import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('ai')
@@ -21,26 +19,8 @@ export class AIController {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // PUBLIC — Anonymous AI chat (marketing site free trial, no auth required)
-  // Rate-limited by IP at the API gateway / NestJS throttler level.
-  // ──────────────────────────────────────────────────────────────────────────
-
-  @Public()
-  @Post('chat/anonymous')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { ttl: 60000, limit: 10 }, long: { ttl: 3600000, limit: 30 } })
-  @ApiOperation({
-    summary: 'Anonymous AI chat for marketing free trial (no auth required)',
-    description: 'Public endpoint used by /chat and homepage widget. No PHI stored. Limited to basic support conversations.',
-  })
-  @ApiBody({ schema: { properties: { message: { type: 'string' }, anonymous: { type: 'boolean' } } } })
-  async anonymousChat(@Body() body: { message: string; anonymous?: boolean }) {
-    const reply = await this.aiService.anonymousChat(body.message);
-    return this.response({ message: reply });
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
   // PROTECTED — All endpoints below require JWT
+  // (anonymous chat moved to AIPublicController — POST /ai/chat/anonymous)
   // ──────────────────────────────────────────────────────────────────────────
 
   @ApiBearerAuth()
