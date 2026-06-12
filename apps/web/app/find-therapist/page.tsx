@@ -270,9 +270,12 @@ export default function FindTherapistPage() {
                   <AvailabilityBadge availability={t.availability} />
                 </div>
                 <div className="flex gap-3">
-                  <button className="flex-1 py-3 bg-white text-[#0A2342] rounded-xl font-semibold hover:bg-white/90 text-sm">
+                  <Link
+                    href={`/signup?role=patient&therapist=${t.id}`}
+                    className="flex-1 py-3 bg-white text-[#0A2342] rounded-xl font-semibold hover:bg-white/90 text-sm text-center"
+                  >
                     Book Session
-                  </button>
+                  </Link>
                   {t.messaging && (
                     <button className="px-4 py-3 bg-white/10 text-white rounded-xl border border-white/20 hover:bg-white/20 text-sm">
                       <MessageSquare className="h-4 w-4" />
@@ -334,7 +337,7 @@ export default function FindTherapistPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Filters */}
         {showFilters && (
           <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
@@ -386,54 +389,49 @@ export default function FindTherapistPage() {
           </select>
         </div>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredTherapists.map(t => (
-            <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:border-[#1F5EFF]/30 hover:shadow-md transition-all">
-              <div className="flex items-start gap-4">
+            <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:border-[#1F5EFF]/30 hover:shadow-md transition-all flex flex-col">
+              <div className="flex items-start gap-4 flex-1">
                 <div className={`w-14 h-14 bg-gradient-to-br ${t.gradient} rounded-2xl flex items-center justify-center flex-shrink-0`}>
                   <span className="text-lg font-bold text-white">{t.photo_initials}</span>
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between mb-2">
-                    <div>
+                    <div className="min-w-0 flex-1 mr-2">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="font-bold text-[#0A2342]">{t.name}</h3>
-                        {t.verified && <Shield className="h-4 w-4 text-emerald-500" />}
-                        {t.premium && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
+                        <h3 className="font-bold text-[#0A2342] truncate">{t.name}</h3>
+                        {t.verified && <Shield className="h-4 w-4 text-emerald-500 flex-shrink-0" />}
+                        {t.premium && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400 flex-shrink-0" />}
                       </div>
-                      <p className="text-sm text-slate-500">{t.title}</p>
+                      <p className="text-sm text-slate-500 truncate">{t.title}</p>
                     </div>
                     <MatchScore score={t.match_score} />
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {t.specializations.slice(0, 4).map(s => (
+                    {t.specializations.slice(0, 3).map(s => (
                       <span key={s} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs">{s}</span>
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
+                  <div className="flex items-center gap-3 text-sm text-slate-500 mb-3">
                     <span className="flex items-center gap-1">
                       <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                       <span className="font-medium text-slate-700">{t.rating}</span>
                       <span className="text-slate-400">({t.reviews})</span>
                     </span>
-                    <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {t.location.split("(")[0]}</span>
-                    <span className="flex items-center gap-1">
-                      {t.languages.map(l => l.substring(0, 2)).join(" · ")}
-                    </span>
+                    <span className="font-semibold text-[#0A2342] ml-auto">${t.rate_per_session}/session</span>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <AvailabilityBadge availability={t.availability} />
-                    <span className="text-xs text-slate-400">Next: {t.next_available}</span>
                     <div className="flex items-center gap-1 ml-auto">
                       {t.video && <Video className="h-4 w-4 text-blue-400" />}
                       {t.messaging && <MessageSquare className="h-4 w-4 text-green-400" />}
                       {t.phone && <Phone className="h-4 w-4 text-amber-400" />}
                     </div>
-                    <span className="font-semibold text-[#0A2342] text-sm">${t.rate_per_session}/session</span>
                   </div>
                 </div>
               </div>
@@ -445,9 +443,12 @@ export default function FindTherapistPage() {
                 >
                   View Profile
                 </button>
-                <button className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63]">
+                <Link
+                  href={`/signup?role=patient&therapist=${t.id}`}
+                  className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63] text-center"
+                >
                   Book Now
-                </button>
+                </Link>
               </div>
             </div>
           ))}
