@@ -33,6 +33,7 @@ const navItems = [
     label: "Resources",
     href: "/blog",
     children: [
+      { label: "Docs", href: "/docs", desc: "Guides, API reference & integration setup" },
       { label: "Blog", href: "/blog", desc: "AI, clinical practice & mental health tech" },
       { label: "Security & HIPAA", href: "/hipaa", desc: "Compliance, encryption & privacy" },
       { label: "About Us", href: "/about", desc: "Mission, team & company story" },

@@ -184,9 +184,12 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed">{integration.desc}</p>
-                <button className="mt-4 text-sm text-[#1F5EFF] font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                <Link
+                  href={`/docs/integrations/${integration.id}`}
+                  className="mt-4 text-sm text-[#1F5EFF] font-medium flex items-center gap-1 hover:gap-2 transition-all"
+                >
                   Learn more <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                </Link>
               </div>
             ))}
           </div>
