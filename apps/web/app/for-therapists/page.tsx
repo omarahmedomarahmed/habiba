@@ -137,7 +137,7 @@ export default function ForTherapistsPage() {
                 href="/signup?role=therapist"
                 className="inline-flex items-center gap-2 bg-[#1F5EFF] hover:bg-[#1649D4] text-white font-semibold px-8 py-4 rounded-2xl shadow-lg transition-all"
               >
-                Start Free 14-Day Trial
+                Get Started Free
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
@@ -334,7 +334,7 @@ export default function ForTherapistsPage() {
               href="/signup?role=therapist"
               className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#1649D4] transition-all shadow-md"
             >
-              Start Free 14-Day Trial
+              Get Started Free
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
@@ -362,7 +362,7 @@ export default function ForTherapistsPage() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link href="/signup?role=therapist" className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#1649D4] transition-all shadow-lg">
-              Start Free Trial — No Credit Card
+              Get Started Free — First Session Free
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link href="/demo" className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-8 py-4 rounded-2xl border border-white/20 hover:bg-white/20 transition-all">

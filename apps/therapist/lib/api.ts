@@ -246,6 +246,15 @@ export const aiAPI = {
       method: "POST",
       body: JSON.stringify({ message, context }),
     }),
+
+  assistantChat: (body: { message: string; range?: 'today' | 'this_week' | 'last_week'; history?: Array<{ role: string; content: string }> }) =>
+    apiFetch<{ reply: string; credits_remaining: number | 'unlimited' } | { success: false; error: string; credits_balance: number; upsell: string }>("/ai/assistant/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  assistantCredits: () =>
+    apiFetch<{ balance: number | 'unlimited' }>("/ai/assistant/credits"),
 };
 
 // ============================================================
@@ -288,6 +297,19 @@ export const billingAPI = {
     apiFetch<{ data: Record<string, unknown>[]; total: number }>("/billing/invoices", { params }),
   subscriptions: () => apiFetch<Record<string, unknown>>("/billing/subscription"),
   plans: () => apiFetch<Record<string, unknown>[]>("/billing/plans"),
+  usageMe: () => apiFetch<{
+    plan: { plan_key: string; name: string; price_monthly_usd: number | null; price_per_session_usd: number | null };
+    sessions_this_month: number;
+    quota: { included: number; rollover_in: number; used: number; remaining: number } | null;
+    trial_session_used: boolean;
+    pending_bills: Array<{ id: string; amount_due_usd: number; stripe_checkout_url: string | null; charged_at: string; description: string; session_id: string }>;
+    charge_history: Array<{ id: string; amount_usd: number; discount_usd: number; amount_due_usd: number; status: string; description: string; charged_at: string; paid_at: string | null; plan_key: string }>;
+    ai_credits: number | 'unlimited';
+  }>("/billing/usage/me"),
+  subscribe: (body: { plan_key: string; seats?: number; interval?: 'monthly' | 'annual'; success_url: string; cancel_url: string }) =>
+    apiFetch<{ checkout_url: string | null; session_id?: string; message?: string }>("/billing/subscribe", { method: "POST", body: JSON.stringify(body) }),
+  refreshChargeCheckout: (chargeId: string) =>
+    apiFetch<{ charge_id: string; checkout_url: string | null }>(`/billing/charges/${chargeId}/checkout`, { method: "POST" }),
 };
 
 // ============================================================

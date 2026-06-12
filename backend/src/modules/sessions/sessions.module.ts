@@ -3,10 +3,11 @@ import { SessionsController } from './sessions.controller';
 import { SessionsService } from './sessions.service';
 import { AuthModule } from '../auth/auth.module';
 import { AIModule } from '../ai/ai.module';
+import { BillingModule } from '../billing/billing.module';
 import { CrisisModule } from '../crisis/crisis.module';
 
 @Module({
-  imports: [AuthModule, forwardRef(() => AIModule), CrisisModule],
+  imports: [AuthModule, forwardRef(() => AIModule), forwardRef(() => BillingModule), CrisisModule],
   controllers: [SessionsController],
   providers: [SessionsService],
   exports: [SessionsService],

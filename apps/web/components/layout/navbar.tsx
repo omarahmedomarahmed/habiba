@@ -141,7 +141,7 @@ export function Navbar() {
               className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1F5EFF] hover:bg-[#0A2342] px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Start Free Trial
+              Get Started Free
             </Link>
           </div>
 
@@ -205,7 +205,7 @@ export function Navbar() {
               onClick={() => setIsOpen(false)}
             >
               <Sparkles className="w-4 h-4" />
-              Start Free Trial
+              Get Started Free
             </Link>
           </div>
         </div>

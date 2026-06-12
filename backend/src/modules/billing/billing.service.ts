@@ -1,22 +1,606 @@
 import {
-  Injectable, NotFoundException, BadRequestException, ForbiddenException
+  Injectable, NotFoundException, BadRequestException, Logger
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { DatabaseService } from "../../database/database.service";
+import { MailService } from "../mail/mail.service";
 import Stripe from "stripe";
+
+const ROLLOVER_CAP = 20; // founder-adjustable constant: max banked rollover sessions
+const PAID_PLAN_KEYS = new Set(['starter', 'pro', 'practice', 'enterprise']);
+const PAYG_PLAN_KEYS = new Set(['pay_per_session', 'free_trial']); // free_trial is legacy
 
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
   private stripe: Stripe;
+  private readonly stripeConfigured: boolean;
 
   constructor(
     private readonly db: DatabaseService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {
-    this.stripe = new Stripe(
-      this.config.get("stripe.secretKey") || "sk_test_placeholder",
-      { apiVersion: "2024-06-20" }
+    const secretKey = this.config.get<string>("stripe.secretKey");
+    this.stripeConfigured = !!secretKey && secretKey !== "sk_test_placeholder";
+    this.stripe = new Stripe(secretKey || "sk_test_placeholder", {
+      apiVersion: "2024-06-20",
+    });
+  }
+
+  // ============================================================
+  // SESSION BILLING ENGINE
+  // ============================================================
+
+  /**
+   * Called after a session is marked completed. Never throws — billing failure
+   * must not block session completion. Missed calls are recovered by reconciler.
+   */
+  async onSessionCompleted(session: {
+    id: string;
+    therapist_id: string;
+    organization_id: string;
+    scheduled_at?: string;
+  }): Promise<void> {
+    try {
+      await this._chargeForSession(session);
+    } catch (err) {
+      this.logger.error(
+        `onSessionCompleted billing error for session ${session.id}: ${err.message}`,
+      );
+    }
+  }
+
+  private async _chargeForSession(session: {
+    id: string;
+    therapist_id: string;
+    organization_id: string;
+    scheduled_at?: string;
+  }): Promise<void> {
+    // Idempotency: skip if charge already exists for this session
+    const existing = await this.db.queryOne<{ id: string }>(
+      `SELECT id FROM session_charges WHERE session_id = $1`,
+      [session.id],
     );
+    if (existing) return;
+
+    const therapist = await this.db.queryOne<{
+      id: string; current_plan_key: string; trial_session_used: boolean;
+      user_id: string; organization_id: string;
+    }>(
+      `SELECT t.id, t.current_plan_key, t.trial_session_used, t.user_id, t.organization_id
+       FROM therapists t WHERE t.id = $1`,
+      [session.therapist_id],
+    );
+    if (!therapist) return;
+
+    const planKey = therapist.current_plan_key || 'pay_per_session';
+
+    // Unlimited plans — record $0 included charge
+    if (PAID_PLAN_KEYS.has(planKey) && planKey !== 'starter') {
+      await this._insertCharge({
+        sessionId: session.id,
+        therapistId: session.therapist_id,
+        orgId: session.organization_id,
+        planKey,
+        amountUsd: 0,
+        discountUsd: 0,
+        amountDueUsd: 0,
+        status: 'included',
+        description: `Included in ${planKey} plan`,
+      });
+      return;
+    }
+
+    // Starter plan — quota-based
+    if (planKey === 'starter') {
+      const quota = await this._getOrInitQuota(session.therapist_id, session.organization_id);
+      const available = quota.included + quota.rollover_in - quota.used;
+      if (available > 0) {
+        await this.db.execute(
+          `UPDATE therapist_session_quota SET used = used + 1 WHERE id = $1`,
+          [quota.id],
+        );
+        await this._insertCharge({
+          sessionId: session.id,
+          therapistId: session.therapist_id,
+          orgId: session.organization_id,
+          planKey,
+          amountUsd: 0,
+          discountUsd: 0,
+          amountDueUsd: 0,
+          status: 'included',
+          description: `Included in Starter (${quota.used + 1} of ${quota.included + quota.rollover_in})`,
+        });
+        // Quota warning at 17/20
+        if (quota.used + 1 >= quota.included + quota.rollover_in - 3) {
+          const remaining = quota.included + quota.rollover_in - (quota.used + 1);
+          this._sendQuotaWarning(session.therapist_id, remaining).catch(() => {});
+        }
+        return;
+      }
+      // Over quota → PAYG $6 extra
+    }
+
+    // PAYG path (pay_per_session OR Starter overage)
+    const isFirstEver = planKey !== 'starter' && !therapist.trial_session_used;
+    const amountUsd = 6.00;
+    const discountUsd = isFirstEver ? 6.00 : 0;
+    const amountDueUsd = amountUsd - discountUsd;
+    const status = isFirstEver ? 'waived' : 'pending';
+    const description = isFirstEver
+      ? 'First session — on us!'
+      : planKey === 'starter'
+        ? 'Extra session beyond Starter plan ($6/session)'
+        : 'Pay As You Go — $6/session';
+
+    // Mark trial used on therapist record
+    if (isFirstEver) {
+      await this.db.execute(
+        `UPDATE therapists SET trial_session_used = true WHERE id = $1`,
+        [session.therapist_id],
+      );
+    }
+
+    let checkoutUrl: string | null = null;
+    const chargeId = this.db.generateId();
+
+    // Create Stripe one-time payment link for pending bills
+    if (!isFirstEver && this.stripeConfigured) {
+      checkoutUrl = await this._createSessionChargeCheckout(
+        chargeId,
+        session.therapist_id,
+        session.organization_id,
+        amountUsd,
+      );
+    }
+
+    await this._insertCharge({
+      id: chargeId,
+      sessionId: session.id,
+      therapistId: session.therapist_id,
+      orgId: session.organization_id,
+      planKey,
+      amountUsd,
+      discountUsd,
+      amountDueUsd,
+      status,
+      description,
+      stripeCheckoutUrl: checkoutUrl,
+    });
+
+    // Grant AI credits for PAYG (5 per completed session)
+    if (PAYG_PLAN_KEYS.has(planKey)) {
+      await this.db.execute(
+        `INSERT INTO ai_assistant_credits (therapist_id, balance, updated_at)
+         VALUES ($1, 5, NOW())
+         ON CONFLICT (therapist_id)
+         DO UPDATE SET balance = ai_assistant_credits.balance + 5, updated_at = NOW()`,
+        [session.therapist_id],
+      );
+    }
+
+    // Send email notifications (fire-and-forget)
+    const userEmail = await this._getTherapistEmail(session.therapist_id);
+    if (userEmail && isFirstEver) {
+      this.mail.sendFirstSessionFree(userEmail).catch(() => {});
+    } else if (userEmail && !isFirstEver && checkoutUrl) {
+      this.mail.sendSessionBill(userEmail, amountDueUsd, checkoutUrl, description).catch(() => {});
+    }
+  }
+
+  private async _insertCharge(opts: {
+    id?: string;
+    sessionId: string;
+    therapistId: string;
+    orgId: string;
+    planKey: string;
+    amountUsd: number;
+    discountUsd: number;
+    amountDueUsd: number;
+    status: string;
+    description: string;
+    stripeCheckoutUrl?: string | null;
+  }) {
+    const id = opts.id || this.db.generateId();
+    await this.db.execute(
+      `INSERT INTO session_charges (
+         id, organization_id, therapist_id, session_id,
+         amount_usd, discount_usd, amount_due_usd,
+         plan_key, status, description, stripe_checkout_url
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        id, opts.orgId, opts.therapistId, opts.sessionId,
+        opts.amountUsd, opts.discountUsd, opts.amountDueUsd,
+        opts.planKey, opts.status, opts.description,
+        opts.stripeCheckoutUrl || null,
+      ],
+    );
+    return id;
+  }
+
+  private async _getOrInitQuota(therapistId: string, orgId: string) {
+    const periodStart = new Date();
+    periodStart.setDate(1);
+    const periodStr = periodStart.toISOString().split('T')[0];
+
+    const existing = await this.db.queryOne<{
+      id: string; included: number; rollover_in: number; used: number;
+    }>(
+      `SELECT id, included, rollover_in, used FROM therapist_session_quota
+       WHERE therapist_id = $1 AND period_start = $2`,
+      [therapistId, periodStr],
+    );
+    if (existing) return existing;
+
+    // Compute rollover from previous period
+    const prevPeriod = new Date(periodStart);
+    prevPeriod.setMonth(prevPeriod.getMonth() - 1);
+    const prevStr = prevPeriod.toISOString().split('T')[0];
+
+    const prev = await this.db.queryOne<{ included: number; rollover_in: number; used: number }>(
+      `SELECT included, rollover_in, used FROM therapist_session_quota
+       WHERE therapist_id = $1 AND period_start = $2`,
+      [therapistId, prevStr],
+    );
+
+    let rolloverIn = 0;
+    if (prev) {
+      const unused = Math.max(0, prev.included + prev.rollover_in - prev.used);
+      rolloverIn = Math.min(ROLLOVER_CAP, unused);
+    }
+
+    const row = await this.db.queryOne<{ id: string; included: number; rollover_in: number; used: number }>(
+      `INSERT INTO therapist_session_quota
+         (id, therapist_id, organization_id, period_start, included, rollover_in, used)
+       VALUES ($1, $2, $3, $4, 20, $5, 0)
+       ON CONFLICT (therapist_id, period_start) DO UPDATE
+         SET rollover_in = EXCLUDED.rollover_in
+       RETURNING id, included, rollover_in, used`,
+      [this.db.generateId(), therapistId, orgId, periodStr, rolloverIn],
+    );
+    return row!;
+  }
+
+  async getPendingBillForTherapist(therapistId: string) {
+    return this.db.queryOne<{
+      id: string; amount_due_usd: number; stripe_checkout_url: string | null;
+      session_id: string; charged_at: string; description: string;
+    }>(
+      `SELECT id, amount_due_usd, stripe_checkout_url, session_id, charged_at, description
+       FROM session_charges
+       WHERE therapist_id = $1 AND status = 'pending'
+       ORDER BY charged_at ASC
+       LIMIT 1`,
+      [therapistId],
+    );
+  }
+
+  async checkSessionCreationAllowed(therapistId: string): Promise<void> {
+    const therapist = await this.db.queryOne<{ current_plan_key: string }>(
+      `SELECT current_plan_key FROM therapists WHERE id = $1`,
+      [therapistId],
+    );
+    const planKey = therapist?.current_plan_key || 'pay_per_session';
+
+    if (planKey === 'pay_per_session') {
+      const pending = await this.getPendingBillForTherapist(therapistId);
+      if (pending) {
+        throw Object.assign(
+          new Error(`PAYMENT_REQUIRED:unpaid_session_bill`),
+          {
+            charge_id: pending.id,
+            amount_due: pending.amount_due_usd,
+            checkout_url: pending.stripe_checkout_url,
+          },
+        );
+      }
+    }
+  }
+
+  async getTherapistUsageSummary(therapistId: string) {
+    const therapist = await this.db.queryOne<{
+      current_plan_key: string; trial_session_used: boolean;
+    }>(
+      `SELECT current_plan_key, trial_session_used FROM therapists WHERE id = $1`,
+      [therapistId],
+    );
+    if (!therapist) throw new NotFoundException('Therapist not found');
+
+    const planKey = therapist.current_plan_key || 'pay_per_session';
+
+    const plan = await this.db.queryOne<{
+      name: string; monthly_price_usd: number | null; price_per_session_usd: number | null;
+    }>(
+      `SELECT name, monthly_price_usd, price_per_session_usd
+       FROM subscription_plans WHERE plan_key = $1`,
+      [planKey],
+    );
+
+    // Sessions this month
+    const monthCount = await this.db.queryOne<{ sessions_this_month: string }>(
+      `SELECT COUNT(*) AS sessions_this_month FROM sessions
+       WHERE therapist_id = $1 AND status = 'completed'
+         AND created_at >= DATE_TRUNC('month', NOW())`,
+      [therapistId],
+    );
+
+    // Pending bills
+    const pendingBills = await this.db.query<{
+      id: string; amount_due_usd: number; stripe_checkout_url: string | null;
+      charged_at: string; description: string; session_id: string;
+    }>(
+      `SELECT id, amount_due_usd, stripe_checkout_url, charged_at, description, session_id
+       FROM session_charges WHERE therapist_id = $1 AND status = 'pending'
+       ORDER BY charged_at ASC`,
+      [therapistId],
+    );
+
+    // Charge history (last 50)
+    const chargeHistory = await this.db.query(
+      `SELECT id, amount_usd, discount_usd, amount_due_usd, status, description,
+              charged_at, paid_at, plan_key
+       FROM session_charges WHERE therapist_id = $1
+       ORDER BY charged_at DESC LIMIT 50`,
+      [therapistId],
+    );
+
+    // AI credits
+    const credits = await this.db.queryOne<{ balance: number }>(
+      `SELECT balance FROM ai_assistant_credits WHERE therapist_id = $1`,
+      [therapistId],
+    );
+
+    // Quota (Starter)
+    let quota = null;
+    if (planKey === 'starter') {
+      const q = await this._getOrInitQuota(therapistId, ''); // orgId not needed for read
+      quota = {
+        included: q.included,
+        rollover_in: q.rollover_in,
+        used: q.used,
+        remaining: Math.max(0, q.included + q.rollover_in - q.used),
+      };
+    }
+
+    return {
+      plan: {
+        plan_key: planKey,
+        name: plan?.name || planKey,
+        price_monthly_usd: plan?.monthly_price_usd ?? null,
+        price_per_session_usd: plan?.price_per_session_usd ?? null,
+      },
+      sessions_this_month: parseInt(monthCount?.sessions_this_month || '0'),
+      quota,
+      trial_session_used: therapist.trial_session_used,
+      pending_bills: pendingBills,
+      charge_history: chargeHistory,
+      ai_credits: PAID_PLAN_KEYS.has(planKey) ? 'unlimited' : (credits?.balance ?? 0),
+    };
+  }
+
+  async regenerateChargeCheckout(chargeId: string, therapistId: string) {
+    const charge = await this.db.queryOne<{
+      id: string; therapist_id: string; organization_id: string;
+      amount_due_usd: number; status: string;
+    }>(
+      `SELECT id, therapist_id, organization_id, amount_due_usd, status
+       FROM session_charges WHERE id = $1`,
+      [chargeId],
+    );
+    if (!charge) throw new NotFoundException('Charge not found');
+    if (charge.therapist_id !== therapistId) throw new BadRequestException('Access denied');
+    if (charge.status !== 'pending') throw new BadRequestException('Charge is not pending');
+
+    let checkoutUrl: string | null = null;
+    if (this.stripeConfigured) {
+      checkoutUrl = await this._createSessionChargeCheckout(
+        chargeId,
+        charge.therapist_id,
+        charge.organization_id,
+        charge.amount_due_usd,
+      );
+      await this.db.execute(
+        `UPDATE session_charges SET stripe_checkout_url = $1 WHERE id = $2`,
+        [checkoutUrl, chargeId],
+      );
+    }
+
+    return { charge_id: chargeId, checkout_url: checkoutUrl };
+  }
+
+  async adminMarkChargePaid(chargeId: string) {
+    const charge = await this.db.queryOne<{ id: string; status: string }>(
+      `SELECT id, status FROM session_charges WHERE id = $1`,
+      [chargeId],
+    );
+    if (!charge) throw new NotFoundException('Charge not found');
+    if (charge.status === 'paid') throw new BadRequestException('Charge already paid');
+
+    await this.db.execute(
+      `UPDATE session_charges SET status = 'paid', paid_at = NOW() WHERE id = $1`,
+      [chargeId],
+    );
+    return { success: true, charge_id: chargeId };
+  }
+
+  async subscribeTherapist(
+    therapistId: string,
+    orgId: string,
+    planKey: string,
+    seats: number,
+    interval: 'monthly' | 'annual',
+    successUrl: string,
+    cancelUrl: string,
+  ) {
+    const plan = await this.db.queryOne<{
+      id: string; name: string; monthly_price_usd: number;
+      annual_price_usd: number; plan_key: string; features: Record<string, unknown>;
+    }>(
+      `SELECT id, name, monthly_price_usd, annual_price_usd, plan_key, features
+       FROM subscription_plans WHERE plan_key = $1 AND is_active = true`,
+      [planKey],
+    );
+    if (!plan) throw new NotFoundException(`Plan ${planKey} not found`);
+
+    // Practice: 2–5 seats configurable; 6+ → contact sales
+    if (planKey === 'practice') {
+      if (seats < 2) throw new BadRequestException('Practice plan requires at least 2 seats');
+      if (seats > 5) throw new BadRequestException('For 6+ seats, contact sales');
+    }
+
+    const basePrice = interval === 'annual' ? plan.annual_price_usd : plan.monthly_price_usd;
+    const extraSeatPrice = 85; // per-seat per month
+    const seatMultiplier = planKey === 'practice' && seats > 2 ? seats - 2 : 0;
+    const totalPrice = basePrice + seatMultiplier * (interval === 'annual' ? extraSeatPrice * 10 : extraSeatPrice);
+
+    if (!this.stripeConfigured) {
+      return {
+        checkout_url: null,
+        message: 'Stripe not configured — subscription recorded, activate after Stripe setup',
+        plan_key: planKey,
+        amount: totalPrice,
+      };
+    }
+
+    const org = await this.db.queryOne<{ name: string; stripe_customer_id?: string }>(
+      `SELECT name, stripe_customer_id FROM organizations WHERE id = $1`,
+      [orgId],
+    );
+    if (!org) throw new NotFoundException('Organization not found');
+
+    let customerId = org.stripe_customer_id;
+    if (!customerId) {
+      const customer = await this.stripe.customers.create({
+        metadata: { organization_id: orgId, therapist_id: therapistId },
+      });
+      customerId = customer.id;
+      await this.db.execute(
+        `UPDATE organizations SET stripe_customer_id = $1 WHERE id = $2`,
+        [customerId, orgId],
+      );
+    }
+
+    const session = await this.stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `24Therapy ${plan.name}${planKey === 'practice' ? ` (${seats} seats)` : ''}`,
+            },
+            unit_amount: Math.round(totalPrice * 100),
+            recurring: { interval: interval === 'annual' ? 'year' : 'month' },
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: {
+        organization_id: orgId,
+        therapist_id: therapistId,
+        plan_key: planKey,
+        plan_id: plan.id,
+        seats: String(seats),
+        interval,
+      },
+    });
+
+    return { checkout_url: session.url, session_id: session.id };
+  }
+
+  /**
+   * Cron: every 10 minutes, find completed sessions in last 48h without a charge record.
+   */
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async reconcileMissingCharges(): Promise<void> {
+    const missed = await this.db.query<{
+      id: string; therapist_id: string; organization_id: string; scheduled_at: string;
+    }>(
+      `SELECT s.id, s.therapist_id, s.organization_id, s.scheduled_at
+       FROM sessions s
+       WHERE s.status = 'completed'
+         AND s.ended_at >= NOW() - INTERVAL '48 hours'
+         AND NOT EXISTS (
+           SELECT 1 FROM session_charges sc WHERE sc.session_id = s.id
+         )`,
+    );
+
+    for (const session of missed) {
+      await this.onSessionCompleted(session);
+    }
+
+    if (missed.length > 0) {
+      this.logger.log(`reconcileMissingCharges: processed ${missed.length} missed sessions`);
+    }
+  }
+
+  private async _createSessionChargeCheckout(
+    chargeId: string,
+    therapistId: string,
+    orgId: string,
+    amountUsd: number,
+  ): Promise<string | null> {
+    if (!this.stripeConfigured) return null;
+
+    const org = await this.db.queryOne<{ stripe_customer_id?: string; name: string }>(
+      `SELECT stripe_customer_id, name FROM organizations WHERE id = $1`,
+      [orgId],
+    );
+
+    let customerId = org?.stripe_customer_id;
+    if (!customerId) {
+      const customer = await this.stripe.customers.create({
+        metadata: { organization_id: orgId, therapist_id: therapistId },
+      });
+      customerId = customer.id;
+      await this.db.execute(
+        `UPDATE organizations SET stripe_customer_id = $1 WHERE id = $2`,
+        [customerId, orgId],
+      );
+    }
+
+    const therapistAppUrl = this.config.get<string>('THERAPIST_APP_URL') || 'https://app.24therapy.ai';
+    const session = await this.stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: '24Therapy Session' },
+            unit_amount: Math.round(amountUsd * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${therapistAppUrl}/settings?tab=billing&paid=1`,
+      cancel_url: `${therapistAppUrl}/sessions/new`,
+      metadata: { session_charge_id: chargeId, therapist_id: therapistId },
+    });
+
+    return session.url;
+  }
+
+  private async _getTherapistEmail(therapistId: string): Promise<string | null> {
+    const row = await this.db.queryOne<{ email: string }>(
+      `SELECT u.email FROM users u JOIN therapists t ON t.user_id = u.id WHERE t.id = $1`,
+      [therapistId],
+    );
+    return row?.email || null;
+  }
+
+  private async _sendQuotaWarning(therapistId: string, remaining: number): Promise<void> {
+    const email = await this._getTherapistEmail(therapistId);
+    if (email) {
+      await this.mail.sendQuotaWarning(email, remaining).catch(() => {});
+    }
   }
 
   // ============================================================
@@ -372,16 +956,38 @@ export class BillingService {
   }
 
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-    if (!session.metadata?.organization_id || !session.metadata?.plan_id) return;
+    // Payment-mode: therapist paying a session charge
+    if (session.mode === 'payment' && session.metadata?.session_charge_id) {
+      const chargeId = session.metadata.session_charge_id;
+      await this.db.execute(
+        `UPDATE session_charges SET status = 'paid', paid_at = NOW() WHERE id = $1`,
+        [chargeId],
+      );
+      // Notify therapist
+      const therapistId = session.metadata.therapist_id;
+      if (therapistId) {
+        const email = await this._getTherapistEmail(therapistId);
+        if (email) {
+          this.mail.sendPaymentConfirmed(email).catch(() => {});
+        }
+      }
+      return;
+    }
 
-    const orgId = session.metadata.organization_id;
-    const planId = session.metadata.plan_id;
+    // Subscription mode
+    const orgId = session.metadata?.organization_id;
+    const planId = session.metadata?.plan_id;
+    const planKey = session.metadata?.plan_key;
+    const therapistId = session.metadata?.therapist_id;
+    const seats = parseInt(session.metadata?.seats || '1');
+
+    if (!orgId || !planId) return;
 
     // Deactivate existing subscriptions
     await this.db.execute(
       `UPDATE subscriptions SET status = 'cancelled', updated_at = NOW()
        WHERE organization_id = $1 AND status IN ('active', 'trialing')`,
-      [orgId]
+      [orgId],
     );
 
     // Create new subscription record
@@ -393,14 +999,38 @@ export class BillingService {
       [
         this.db.generateId(), orgId, planId,
         session.subscription, session.customer,
-      ]
+      ],
     );
 
     // Update organization plan
     await this.db.execute(
       `UPDATE organizations SET plan_id = $1, updated_at = NOW() WHERE id = $2`,
-      [planId, orgId]
+      [planId, orgId],
     );
+
+    // Update therapist(s) plan_key
+    if (planKey && therapistId) {
+      if (planKey === 'practice') {
+        // All therapists in org
+        await this.db.execute(
+          `UPDATE therapists SET current_plan_key = $1 WHERE organization_id = $2`,
+          [planKey, orgId],
+        );
+      } else {
+        await this.db.execute(
+          `UPDATE therapists SET current_plan_key = $1 WHERE id = $2`,
+          [planKey, therapistId],
+        );
+      }
+    }
+
+    // Send subscription active email
+    if (therapistId) {
+      const email = await this._getTherapistEmail(therapistId);
+      if (email) {
+        this.mail.sendSubscriptionActive(email, planKey || 'plan').catch(() => {});
+      }
+    }
   }
 
   private async handlePaymentSucceeded(invoice: Stripe.Invoice) {
@@ -451,11 +1081,23 @@ export class BillingService {
   }
 
   private async handleSubscriptionCancelled(subscription: Stripe.Subscription) {
+    const sub = await this.db.queryOne<{ organization_id: string }>(
+      `SELECT organization_id FROM subscriptions WHERE stripe_subscription_id = $1`,
+      [subscription.id],
+    );
     await this.db.execute(
       `UPDATE subscriptions SET status = 'cancelled', updated_at = NOW()
        WHERE stripe_subscription_id = $1`,
-      [subscription.id]
+      [subscription.id],
     );
+    // Revert therapists in org back to PAYG
+    if (sub?.organization_id) {
+      await this.db.execute(
+        `UPDATE therapists SET current_plan_key = 'pay_per_session'
+         WHERE organization_id = $1 AND current_plan_key IN ('starter','pro','practice')`,
+        [sub.organization_id],
+      );
+    }
   }
 
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription) {

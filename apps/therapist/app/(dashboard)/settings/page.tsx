@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   User, Settings, Bell, Shield, CreditCard, Brain, Building2,
   Save, Camera, Eye, EyeOff, CheckCircle, AlertCircle, Trash2,
@@ -8,10 +9,11 @@ import {
   LogOut, RefreshCw, Zap, Network, FileText, ClipboardList,
   Clock, DollarSign, Mail, Phone, MapPin, Link2, Upload,
   AlertTriangle, ChevronRight, Palette, Monitor, Volume2,
-  Users, Calendar, BarChart3, ExternalLink, Copy, Check
+  Users, Calendar, BarChart3, ExternalLink, Copy, Check, ArrowRight, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { therapistsAPI } from "@/lib/api";
+import { therapistsAPI, billingAPI } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
 
 type SettingsTab =
   | "profile"
@@ -19,7 +21,8 @@ type SettingsTab =
   | "ai"
   | "notifications"
   | "security"
-  | "billing";
+  | "billing"
+  | "usage";
 
 const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", icon: User },
@@ -28,6 +31,7 @@ const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
   { id: "billing", label: "Billing", icon: CreditCard },
+  { id: "usage", label: "Usage", icon: BarChart3 },
 ];
 
 function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -64,7 +68,24 @@ function SectionCard({ title, description, children }: {
 }
 
 export default function TherapistSettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab") as SettingsTab | null;
+  const [activeTab, setActiveTab] = useState<SettingsTab>(tabParam || "profile");
+  const [billingUsage, setBillingUsage] = useState<any>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+
+  useEffect(() => {
+    if (tabParam && TABS.some(t => t.id === tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  useEffect(() => {
+    if ((activeTab === "usage" || activeTab === "billing") && !billingUsage) {
+      setBillingLoading(true);
+      billingAPI.usageMe().then(setBillingUsage).catch(() => {}).finally(() => setBillingLoading(false));
+    }
+  }, [activeTab, billingUsage]);
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -800,74 +821,287 @@ export default function TherapistSettingsPage() {
             {/* ─── BILLING TAB ─── */}
             {activeTab === "billing" && (
               <>
-                <SectionCard title="Current Subscription">
-                  <div className="bg-gradient-to-r from-[#0A2342] to-[#1F5EFF] rounded-xl p-4 text-white mb-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-sm text-white/70">Current Plan</div>
-                        <div className="text-2xl font-bold">Professional</div>
-                        <div className="text-sm text-white/70 mt-0.5">$129/month · Billed monthly</div>
+                <SectionCard title="Current Plan">
+                  {billingLoading ? (
+                    <div className="h-24 bg-gray-100 rounded-xl animate-pulse mb-4" />
+                  ) : billingUsage ? (
+                    <>
+                      <div className="bg-gradient-to-r from-[#0A2342] to-[#1F5EFF] rounded-xl p-4 text-white mb-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="text-sm text-white/70">Current Plan</div>
+                            <div className="text-2xl font-bold">{billingUsage.plan?.name || "Pay As You Go"}</div>
+                            <div className="text-sm text-white/70 mt-0.5">
+                              {billingUsage.plan?.price_monthly_usd
+                                ? `$${billingUsage.plan.price_monthly_usd}/month`
+                                : billingUsage.plan?.price_per_session_usd
+                                  ? `$${billingUsage.plan.price_per_session_usd}/session`
+                                  : "Custom pricing"}
+                            </div>
+                          </div>
+                          <span className="bg-[#2EC4B6] text-white text-xs px-2 py-1 rounded-full font-medium">Active</span>
+                        </div>
                       </div>
-                      <span className="bg-[#2EC4B6] text-white text-xs px-2 py-1 rounded-full font-medium">Active</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    {[
-                      { label: "AI Notes Included", value: "200/month" },
-                      { label: "AI Notes Used", value: "47 this month" },
-                      { label: "Patients", value: "Unlimited" },
-                      { label: "Next Billing Date", value: "Jan 1, 2025" },
-                    ].map((item) => (
-                      <div key={item.label} className="bg-gray-50 rounded-xl p-3">
-                        <div className="text-xs text-gray-400">{item.label}</div>
-                        <div className="text-sm font-semibold text-gray-800 mt-0.5">{item.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-3">
-                    <button className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:border-[#2EC4B6] hover:text-[#2EC4B6]">
-                      Upgrade Plan
-                    </button>
-                    <button className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:border-red-300 hover:text-red-500">
-                      Cancel Subscription
-                    </button>
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Payment Method">
-                  <div className="flex items-center gap-3 border border-gray-200 rounded-xl p-4 mb-3">
-                    <div className="w-10 h-6 bg-[#1F5EFF] rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">VISA</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-800">Visa ending in 4242</div>
-                      <div className="text-xs text-gray-400">Expires 08/2027</div>
-                    </div>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Default</span>
-                  </div>
-                  <button className="w-full border border-dashed border-gray-300 text-gray-500 py-3 rounded-xl text-sm hover:border-[#2EC4B6] hover:text-[#2EC4B6] flex items-center justify-center gap-2">
-                    <Plus className="w-4 h-4" /> Add payment method
-                  </button>
-                </SectionCard>
-
-                <SectionCard title="Invoice History">
-                  <div className="space-y-2">
-                    {[
-                      { date: "Dec 1, 2024", amount: "$129.00", status: "Paid" },
-                      { date: "Nov 1, 2024", amount: "$129.00", status: "Paid" },
-                      { date: "Oct 1, 2024", amount: "$129.00", status: "Paid" },
-                    ].map((inv) => (
-                      <div key={inv.date} className="flex items-center justify-between border border-gray-100 rounded-xl p-3">
-                        <div className="text-sm text-gray-600">{inv.date}</div>
-                        <div className="font-medium text-gray-800">{inv.amount}</div>
-                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{inv.status}</span>
-                        <button className="text-xs text-[#2EC4B6] flex items-center gap-1 hover:underline">
-                          <Download className="w-3 h-3" /> PDF
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setActiveTab("usage")}
+                          className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:border-[#2EC4B6] hover:text-[#2EC4B6]"
+                        >
+                          View Usage & Upgrade
                         </button>
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  ) : (
+                    <div className="bg-gradient-to-r from-[#0A2342] to-[#1F5EFF] rounded-xl p-4 text-white mb-4">
+                      <div className="text-sm text-white/70">Current Plan</div>
+                      <div className="text-2xl font-bold">Pay As You Go</div>
+                      <div className="text-sm text-white/70 mt-0.5">$6/session · First session free</div>
+                    </div>
+                  )}
                 </SectionCard>
+
+                <SectionCard title="Charge History">
+                  {billingLoading ? (
+                    <div className="space-y-2">
+                      {[1,2,3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}
+                    </div>
+                  ) : billingUsage?.charge_history?.length > 0 ? (
+                    <div className="space-y-2">
+                      {billingUsage.charge_history.slice(0, 10).map((ch: any) => (
+                        <div key={ch.id} className="flex items-center justify-between border border-gray-100 rounded-xl p-3">
+                          <div className="text-sm text-gray-600 flex-1 min-w-0 truncate">{ch.description || ch.plan_key}</div>
+                          <div className="font-medium text-gray-800 mx-3">
+                            {ch.discount_usd > 0 ? (
+                              <span><span className="line-through text-gray-400 text-xs">${ch.amount_usd}</span> $0</span>
+                            ) : (
+                              `$${Number(ch.amount_due_usd || ch.amount_usd).toFixed(2)}`
+                            )}
+                          </div>
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full",
+                            ch.status === "paid" ? "bg-emerald-100 text-emerald-700"
+                            : ch.status === "waived" ? "bg-blue-100 text-blue-700"
+                            : ch.status === "included" ? "bg-gray-100 text-gray-600"
+                            : "bg-red-100 text-red-600"
+                          )}>
+                            {ch.status === "waived" ? "Free" : ch.status.charAt(0).toUpperCase() + ch.status.slice(1)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400 text-center py-4">No charges yet</p>
+                  )}
+                </SectionCard>
+              </>
+            )}
+
+            {/* ─── USAGE TAB ─── */}
+            {activeTab === "usage" && (
+              <>
+                {billingLoading ? (
+                  <div className="space-y-4">
+                    {[1,2,3].map(i => <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />)}
+                  </div>
+                ) : billingUsage ? (
+                  <>
+                    {/* Plan card */}
+                    <SectionCard title="Your Plan">
+                      <div className="bg-gradient-to-r from-[#0A2342] to-[#1F5EFF] rounded-xl p-4 text-white mb-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="text-sm text-white/70">Current Plan</div>
+                            <div className="text-2xl font-bold">{billingUsage.plan?.name || "Pay As You Go"}</div>
+                            <div className="text-sm text-white/70 mt-0.5">
+                              {billingUsage.plan?.price_monthly_usd
+                                ? `$${billingUsage.plan.price_monthly_usd}/month`
+                                : billingUsage.plan?.price_per_session_usd
+                                  ? `$${billingUsage.plan.price_per_session_usd}/session — first session free`
+                                  : ""}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Plan cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        {[
+                          { key: "starter", name: "Starter", price: "$59/mo", desc: "20 sessions · 50% off", highlight: false },
+                          { key: "pro", name: "Unlimited", price: "$99/mo", desc: "Unlimited sessions", highlight: true },
+                          { key: "practice", name: "Practice", price: "from $189/mo", desc: "2+ therapists", highlight: false },
+                        ].map((plan) => (
+                          <div key={plan.key} className={cn(
+                            "rounded-xl p-3 border",
+                            plan.highlight ? "border-[#1F5EFF] bg-[#1F5EFF]/5" : "border-gray-200"
+                          )}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold text-sm text-[#0A2342]">{plan.name}</span>
+                              {plan.highlight && <span className="text-xs bg-[#1F5EFF] text-white px-2 py-0.5 rounded-full">Popular</span>}
+                            </div>
+                            <div className="text-lg font-bold text-[#0A2342]">{plan.price}</div>
+                            <div className="text-xs text-gray-500 mb-2">{plan.desc}</div>
+                            <button
+                              onClick={async () => {
+                                const res = await billingAPI.subscribe({
+                                  plan_key: plan.key,
+                                  interval: "monthly",
+                                  success_url: window.location.href + "?subscribed=1",
+                                  cancel_url: window.location.href,
+                                });
+                                if (res?.checkout_url) window.location.href = res.checkout_url;
+                                else if (res?.message) alert(res.message);
+                              }}
+                              className="w-full bg-[#1F5EFF] text-white text-xs font-medium py-1.5 rounded-lg hover:bg-[#1F5EFF]/90 transition-colors"
+                            >
+                              Switch to {plan.name}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </SectionCard>
+
+                    {/* Sessions meter */}
+                    {billingUsage.quota && (
+                      <SectionCard title="Sessions This Month">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Used</span>
+                            <span className="font-semibold text-[#0A2342]">
+                              {billingUsage.quota.used} / {billingUsage.quota.included + billingUsage.quota.rollover_in}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div
+                              className="bg-[#1F5EFF] rounded-full h-2 transition-all"
+                              style={{ width: `${Math.min(100, (billingUsage.quota.used / (billingUsage.quota.included + billingUsage.quota.rollover_in)) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="bg-gray-50 rounded-lg p-2">
+                              <div className="text-lg font-bold text-[#0A2342]">{billingUsage.quota.included}</div>
+                              <div className="text-xs text-gray-400">Included</div>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-2">
+                              <div className="text-lg font-bold text-[#2EC4B6]">{billingUsage.quota.rollover_in}</div>
+                              <div className="text-xs text-gray-400">Rolled over</div>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-2">
+                              <div className="text-lg font-bold text-green-600">{billingUsage.quota.remaining}</div>
+                              <div className="text-xs text-gray-400">Remaining</div>
+                            </div>
+                          </div>
+                        </div>
+                      </SectionCard>
+                    )}
+
+                    {billingUsage.plan?.plan_key === "pay_per_session" && (
+                      <SectionCard title="Sessions This Month">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-2xl font-bold text-[#0A2342]">{billingUsage.sessions_this_month}</div>
+                            <div className="text-sm text-gray-500">sessions completed · ${(billingUsage.sessions_this_month * 6).toFixed(2)} billed</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600">$6/session</div>
+                            <div className="text-xs text-[#1F5EFF]">Save 50% → Starter $59/mo</div>
+                          </div>
+                        </div>
+                      </SectionCard>
+                    )}
+
+                    {/* Pending bills */}
+                    {billingUsage.pending_bills?.length > 0 && (
+                      <SectionCard title="Unpaid Bills">
+                        <div className="space-y-3">
+                          {billingUsage.pending_bills.map((bill: any) => (
+                            <div key={bill.id} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl p-3">
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-red-800">{bill.description}</div>
+                                <div className="text-xs text-red-500 mt-0.5">
+                                  {bill.charged_at ? new Date(bill.charged_at).toLocaleDateString() : ""}
+                                </div>
+                              </div>
+                              <div className="font-bold text-red-700 mx-3">${Number(bill.amount_due_usd).toFixed(2)}</div>
+                              {bill.stripe_checkout_url ? (
+                                <a
+                                  href={bill.stripe_checkout_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-red-700"
+                                >
+                                  Pay Now
+                                </a>
+                              ) : (
+                                <span className="text-xs text-red-400">Payment link pending</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </SectionCard>
+                    )}
+
+                    {/* AI Credits */}
+                    <SectionCard title="AI Assistant Credits">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          {billingUsage.ai_credits === "unlimited" ? (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-[#2EC4B6]" />
+                                <span className="text-2xl font-bold text-[#0A2342]">Unlimited</span>
+                              </div>
+                              <div className="text-sm text-gray-500 mt-0.5">Included in your plan</div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-2xl font-bold text-[#0A2342]">{billingUsage.ai_credits}</div>
+                              <div className="text-sm text-gray-500 mt-0.5">messages remaining · every session adds 5</div>
+                            </>
+                          )}
+                        </div>
+                        <Link href="/assistant" className="flex items-center gap-1 text-sm text-[#1F5EFF] hover:underline">
+                          Open Assistant <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </SectionCard>
+
+                    {/* Charge history */}
+                    <SectionCard title="Charge History">
+                      <div className="space-y-2">
+                        {billingUsage.charge_history?.slice(0, 20).map((ch: any) => (
+                          <div key={ch.id} className="flex items-center justify-between border border-gray-100 rounded-xl p-3">
+                            <div className="text-sm text-gray-600 flex-1 min-w-0 truncate">
+                              {ch.description || ch.plan_key}
+                            </div>
+                            <div className="font-medium text-gray-800 mx-3">
+                              {ch.discount_usd > 0 ? (
+                                <span><span className="line-through text-gray-400 text-xs">${Number(ch.amount_usd).toFixed(2)}</span> Free</span>
+                              ) : (
+                                `$${Number(ch.amount_due_usd || ch.amount_usd).toFixed(2)}`
+                              )}
+                            </div>
+                            <span className={cn(
+                              "text-xs px-2 py-0.5 rounded-full",
+                              ch.status === "paid" ? "bg-emerald-100 text-emerald-700"
+                              : ch.status === "waived" ? "bg-blue-100 text-blue-700"
+                              : ch.status === "included" ? "bg-gray-100 text-gray-600"
+                              : "bg-red-100 text-red-600"
+                            )}>
+                              {ch.status === "waived" ? "Free" : ch.status.charAt(0).toUpperCase() + ch.status.slice(1)}
+                            </span>
+                          </div>
+                        ))}
+                        {(!billingUsage.charge_history || billingUsage.charge_history.length === 0) && (
+                          <p className="text-sm text-gray-400 text-center py-4">No charges yet</p>
+                        )}
+                      </div>
+                    </SectionCard>
+                  </>
+                ) : (
+                  <SectionCard title="Usage">
+                    <p className="text-sm text-gray-400 text-center py-8">Loading usage data…</p>
+                  </SectionCard>
+                )}
               </>
             )}
 

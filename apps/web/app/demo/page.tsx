@@ -81,13 +81,13 @@ export default function DemoPage() {
                   <p className="font-semibold text-[#0A2342]">Prefer to try it yourself?</p>
                 </div>
                 <p className="text-slate-600 text-sm mb-4">
-                  Start a free 14-day trial instantly — no demo required. Full access to all features.
+                  Start free — first session on us. No demo required. Full access to all features.
                 </p>
                 <Link
                   href="/signup?role=therapist"
                   className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-[#0A2342] transition-all text-sm"
                 >
-                  Start Free Trial
+                  Get Started Free
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>

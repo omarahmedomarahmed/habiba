@@ -120,7 +120,7 @@ export default function TeletherapyPage() {
                   href="/signup?role=therapist"
                   className="bg-[#2EC4B6] hover:bg-[#26b0a3] text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2"
                 >
-                  Start Free Trial <ArrowRight className="w-4 h-4" />
+                  Get Started Free <ArrowRight className="w-4 h-4" />
                 </Link>
                 <button className="bg-white/10 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:bg-white/20">
                   <Play className="w-4 h-4" /> Watch Session Demo
@@ -313,7 +313,7 @@ export default function TeletherapyPage() {
               href="/signup?role=therapist"
               className="bg-[#2EC4B6] hover:bg-[#26b0a3] text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2"
             >
-              Start Free Trial <ArrowRight className="w-4 h-4" />
+              Get Started Free <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/contact"

@@ -6,8 +6,8 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 const perks = [
+  "First session free",
   "No credit card required",
-  "14-day free trial",
   "HIPAA compliant from day one",
   "Cancel anytime",
 ];

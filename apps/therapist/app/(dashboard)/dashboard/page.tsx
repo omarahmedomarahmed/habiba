@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Calendar, Users, FileText, TrendingUp, Clock, AlertTriangle,
-  Zap, ChevronRight, Brain, Video, Play, Activity, RefreshCw
+  Zap, ChevronRight, Brain, Video, Play, Activity, RefreshCw,
+  DollarSign, AlertCircle, ArrowRight
 } from "lucide-react";
-import { sessionsAPI, patientsAPI, notificationsAPI } from "@/lib/api";
+import { sessionsAPI, patientsAPI, notificationsAPI, billingAPI } from "@/lib/api";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
 
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const [radarRequests, setRadarRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [billingUsage, setBillingUsage] = useState<any>(null);
 
   const now = new Date();
   const hour = now.getHours();
@@ -66,10 +68,11 @@ export default function DashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     try {
       setError(null);
-      const [dashStats, sessionsList, notifData] = await Promise.allSettled([
+      const [dashStats, sessionsList, notifData, billingData] = await Promise.allSettled([
         sessionsAPI.dashboardStats(),
         sessionsAPI.list({ status: "scheduled", date: new Date().toISOString().split("T")[0], limit: 5 }),
         notificationsAPI.list({ limit: 10, unread_only: "true" }),
+        billingAPI.usageMe(),
       ]);
 
       if (dashStats.status === "fulfilled" && dashStats.value) {
@@ -89,6 +92,10 @@ export default function DashboardPage() {
       if (sessionsList.status === "fulfilled" && sessionsList.value) {
         const sessions = (sessionsList.value as any)?.data || sessionsList.value;
         setUpcomingSessions(Array.isArray(sessions) ? sessions.slice(0, 4) : []);
+      }
+
+      if (billingData.status === "fulfilled" && billingData.value) {
+        setBillingUsage(billingData.value);
       }
 
       if (notifData.status === "fulfilled" && notifData.value) {
@@ -136,6 +143,90 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Billing Banner */}
+      {billingUsage && (() => {
+        const planKey = billingUsage?.plan?.plan_key;
+        const pendingBill = billingUsage?.pending_bills?.[0];
+        const quota = billingUsage?.quota;
+        const trialUsed = billingUsage?.trial_session_used;
+
+        if (planKey === "pay_per_session" && !trialUsed) {
+          return (
+            <div className="mb-4 flex items-center gap-3 bg-gradient-to-r from-[#0A2342] to-[#1F5EFF] text-white rounded-xl px-4 py-3">
+              <span className="text-2xl">🎁</span>
+              <div className="flex-1">
+                <p className="font-semibold text-sm">Your first session is free — schedule when ready</p>
+                <p className="text-xs text-white/70 mt-0.5">No credit card needed. Just start your practice.</p>
+              </div>
+              <Link href="/sessions/new" className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                Schedule <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          );
+        }
+
+        if (planKey === "pay_per_session" && pendingBill) {
+          return (
+            <div className="mb-4 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-sm text-red-800">Pay your ${Number(pendingBill.amount_due_usd).toFixed(2)} session bill to schedule new sessions</p>
+                <p className="text-xs text-red-600 mt-0.5">Save 50% with Starter — $59/mo for 20 sessions</p>
+              </div>
+              {pendingBill.stripe_checkout_url ? (
+                <a href={pendingBill.stripe_checkout_url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                  <DollarSign className="w-3 h-3" /> Pay now
+                </a>
+              ) : (
+                <Link href="/settings?tab=billing" className="flex items-center gap-1 bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg">
+                  View bill
+                </Link>
+              )}
+            </div>
+          );
+        }
+
+        if (planKey === "starter" && quota) {
+          const remaining = quota.remaining ?? (quota.included + quota.rollover_in - quota.used);
+          const isNearLimit = remaining <= 3;
+          return (
+            <div className={cn(
+              "mb-4 flex items-center gap-3 rounded-xl px-4 py-3",
+              isNearLimit ? "bg-amber-50 border border-amber-200" : "bg-slate-50 border border-slate-200"
+            )}>
+              <Calendar className={cn("w-5 h-5 flex-shrink-0", isNearLimit ? "text-amber-500" : "text-slate-400")} />
+              <div className="flex-1">
+                <p className={cn("font-semibold text-sm", isNearLimit ? "text-amber-800" : "text-slate-700")}>
+                  {remaining} of {quota.included + quota.rollover_in} sessions left this month
+                  {quota.rollover_in > 0 && <span className="text-xs font-normal ml-1">(+{quota.rollover_in} rolled over)</span>}
+                </p>
+                {isNearLimit && (
+                  <p className="text-xs text-amber-600 mt-0.5">Upgrade to Unlimited for no limits</p>
+                )}
+              </div>
+              {isNearLimit && (
+                <Link href="/settings?tab=billing" className="flex items-center gap-1 bg-amber-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors">
+                  Upgrade <ArrowRight className="w-3 h-3" />
+                </Link>
+              )}
+            </div>
+          );
+        }
+
+        if (planKey === "pay_per_session") {
+          return (
+            <div className="mb-4 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+              <DollarSign className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <p className="text-sm text-slate-600 flex-1">Pay as you go — $6/session · <span className="text-[#1F5EFF]">Save 50% with Starter $59/mo</span></p>
+              <Link href="/settings?tab=billing" className="text-xs text-[#1F5EFF] hover:underline">Switch plans</Link>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

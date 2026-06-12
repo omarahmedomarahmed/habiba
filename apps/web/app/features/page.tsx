@@ -224,7 +224,7 @@ export default function FeaturesPage() {
               href="/signup?role=therapist"
               className="bg-[#2EC4B6] hover:bg-[#26b0a3] text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2"
             >
-              Start Free Trial <ArrowRight className="w-4 h-4" />
+              Get Started Free <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/ai-scribe"
@@ -418,7 +418,7 @@ export default function FeaturesPage() {
               href="/signup?role=therapist"
               className="bg-[#2EC4B6] hover:bg-[#26b0a3] text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2"
             >
-              Start Free Trial <ArrowRight className="w-4 h-4" />
+              Get Started Free <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/pricing"
@@ -427,7 +427,7 @@ export default function FeaturesPage() {
               View Pricing
             </Link>
           </div>
-          <p className="text-white/40 text-sm mt-6">Free 14-day trial · No credit card · HIPAA compliant from day 1</p>
+          <p className="text-white/40 text-sm mt-6">First session free · No credit card · HIPAA compliant from day 1</p>
         </div>
       </section>
     </div>

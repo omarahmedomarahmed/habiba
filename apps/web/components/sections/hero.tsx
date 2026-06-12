@@ -148,7 +148,7 @@ export function HeroSection() {
                 href="/signup"
                 className="group inline-flex items-center gap-2.5 bg-[#1F5EFF] hover:bg-[#1649D4] text-white font-semibold px-7 py-3.5 rounded-2xl shadow-lg shadow-[#1F5EFF]/40 hover:shadow-xl hover:shadow-[#1F5EFF]/30 hover:-translate-y-0.5 transition-all duration-200"
               >
-                Start Free Trial
+                Get Started Free
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
               </Link>
               <Link

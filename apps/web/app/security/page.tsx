@@ -209,7 +209,7 @@ export default function SecurityPage() {
               Contact Security Team
             </Link>
             <Link href="/for-therapists" className="flex items-center gap-2 px-6 py-3 border border-white/30 text-white rounded-2xl hover:bg-white/10 transition-colors">
-              Start Free Trial
+              Get Started Free
             </Link>
           </div>
         </div>

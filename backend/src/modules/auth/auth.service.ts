@@ -53,8 +53,8 @@ export class AuthService {
         const orgName = dto.organization_name || `${dto.first_name}'s Practice`;
         const slug = this.generateSlug(orgName);
         const orgResult = await client.query(
-          `INSERT INTO organizations (id, name, slug, organization_type, status, trial_ends_at)
-           VALUES ($1, $2, $3, 'solo', 'trial', NOW() + INTERVAL '14 days')
+          `INSERT INTO organizations (id, name, slug, organization_type, status)
+           VALUES ($1, $2, $3, 'solo', 'active')
            RETURNING *`,
           [uuidv4(), orgName, slug],
         );

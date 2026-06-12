@@ -279,7 +279,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                 href="/for-therapists"
                 className="block w-full py-3 bg-[#2EC4B6] text-white font-semibold rounded-xl text-center hover:bg-[#25a99d] transition-colors text-sm"
               >
-                Start Free Trial
+                Get Started Free
               </Link>
               <Link
                 href="/ai-scribe"

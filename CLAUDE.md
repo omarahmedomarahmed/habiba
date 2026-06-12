@@ -11,10 +11,10 @@
 |-------|-------|
 | **Project** | 24Therapy Mental Health OS |
 | **Repo** | https://github.com/omarahmedomarahmed/habiba |
-| **Dev Branch** | `claude/zealous-gauss-j9boso` |
+| **Dev Branch** | `claude/charming-pasteur-p5m7dk` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-12 (session 13 — Marketing site revamp P1–P7 complete) |
+| **Last Updated** | 2026-06-12 (session 14 — Monetization engine + P6/P7 content sweep complete) |
 
 ---
 
@@ -182,6 +182,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
+## Commit History (Session 14)
+
+| Hash | Message |
+|------|---------|
+| `87181b8` | feat(P1-P2-P4): monetization engine — migration 020, billing loop, AI assistant |
+| `c3da625` | feat(P3-P5): portal billing UX + AI assistant page + marketing restyle |
+| `b25c175` | feat(P6-P7): docs article route + trial-language sweep |
+
 ## Commit History (Session 13)
 
 | Hash | Message |
@@ -229,19 +237,22 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 
 ### All P0–P9 complete ✅
 ### All marketing revamp P1–P7 complete ✅ (Session 13)
+### Monetization engine + content sweep complete ✅ (Session 14)
 
-### Session 13 additions (complete)
-- [x] P1: Remove duplicate chrome from 5 pages, redirect /therapist-join → /for-therapists
-- [x] P2: ProductPageLayout template + 9 clickable feature cards + 4 new product pages
-  (radar-matching, assessments, practice-management, smart-scheduling)
-- [x] P3: Find-a-therapist 2-col grid + Book Now → /signup?role=patient&therapist={id}
-- [x] P4: /docs/integrations/[id] dynamic route (8 integration articles) + /docs in nav/footer
-- [x] P5: Chat → 10-msg limit, 5 workflow chips, context param, remove duplicate backend route
-- [x] P6: 5-tier pricing (Free/Starter/Professional/Practice/Enterprise) + migration 019
-- [x] P7: Nav Product dropdown + footer Product column updated with all new pages
+### Session 14 additions (complete)
+- [x] migration 020: billing engine tables (session_charges, therapist_session_quota, ai_assistant_credits), plan prices locked, free_trial deactivated
+- [x] billing.service.ts: PAYG loop, Starter rollover, onSessionCompleted, reconciler cron, Stripe checkout, admin mark-paid
+- [x] sessions.service.ts: PAYG pending-bill gate, billing hook on completion (forwardRef circular dep resolved)
+- [x] AI assistant: backend (assistantChat, credit gating), therapist portal page (/assistant)
+- [x] Therapist portal billing UX: dashboard banner, settings billing+usage tab, sessions/new 402 handling
+- [x] app/docs/[slug]/page.tsx: inline markdown renderer serving 6 priority articles
+- [x] Trial-language sweep: all "14-Day Free Trial" / "Start Free Trial" → "Get Started Free" / "First Session Free"
+- [x] scrollIntoView fix in ai-workspace → containerRef.scrollTop pattern
 
 ### Remaining (true stretch goals)
 - [ ] **Resolve GitHub billing** — unblock CI runners
 - [ ] Prometheus/Grafana wiring (`infra/` scaffolded)
 - [ ] /blog CMS connection
+- [ ] Session room end-session modal billing summary line
+- [ ] Onboarding wizard step 7: remove card-required implication
 - [ ] Formal BAAs before accepting real PHI (see `docs/HIPAA_CHECKLIST.md`)

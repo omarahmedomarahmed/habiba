@@ -115,7 +115,7 @@ export default function AssessmentsPage() {
         </>
       }
       heroSubtitle="Send validated screening tools to patients between sessions. Scores are automatic, trends are visual, and results feed directly into treatment plans and progress notes."
-      ctaPrimary={{ label: "Start Free Trial", href: "/signup" }}
+      ctaPrimary={{ label: "Get Started Free", href: "/signup" }}
       ctaSecondary={{ label: "See All Tools", href: "#tools" }}
       stats={[
         { value: "15+", label: "Validated tools" },
@@ -131,7 +131,7 @@ export default function AssessmentsPage() {
       ctaIcon={ClipboardList}
       ctaTitle="Measure What Matters"
       ctaSubtitle="Evidence-based outcomes start with evidence-based measurement. Start using assessments in your practice today — included with every plan."
-      ctaButtonLabel="Start Free Trial"
+      ctaButtonLabel="Get Started Free"
       ctaButtonHref="/signup"
     />
   );

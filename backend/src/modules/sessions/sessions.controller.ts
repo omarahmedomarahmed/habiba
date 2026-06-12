@@ -53,7 +53,25 @@ export class SessionsController {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.startsWith('UPGRADE_REQUIRED') || msg.startsWith('SESSION_LIMIT_REACHED')) {
-        throw new HttpException({ success: false, error: 'payment_required', message: msg }, HttpStatus.PAYMENT_REQUIRED);
+        throw new HttpException(
+          { success: false, error: 'payment_required', message: msg },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
+      if (msg.startsWith('PAYMENT_REQUIRED')) {
+        const anyErr = err as any;
+        throw new HttpException(
+          {
+            success: false,
+            error: 'payment_required',
+            message: msg,
+            charge_id: anyErr.charge_id,
+            amount_due: anyErr.amount_due,
+            checkout_url: anyErr.checkout_url,
+            upsell: 'Save 50% — Starter $59/mo (20 sessions)',
+          },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
       }
       throw err;
     }
