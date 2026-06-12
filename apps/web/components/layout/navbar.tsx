@@ -26,7 +26,6 @@ const navItems = [
       { label: "For Therapists", href: "/for-therapists", desc: "AI tools for solo & group practices" },
       { label: "For Enterprises", href: "/enterprise", desc: "Clinics, hospitals & health systems" },
       { label: "Find a Therapist", href: "/find-therapist", desc: "AI-powered patient matching" },
-      { label: "Join as Therapist", href: "/therapist-join", desc: "Apply to the 24Therapy network" },
     ],
   },
   { label: "Pricing", href: "/pricing" },

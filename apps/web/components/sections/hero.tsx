@@ -159,7 +159,7 @@ export function HeroSection() {
                 Find a Therapist
               </Link>
               <Link
-                href="/therapist-join"
+                href="/for-therapists"
                 className="inline-flex items-center gap-2 text-white/60 hover:text-white font-medium px-5 py-3.5 rounded-2xl border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all duration-200"
               >
                 <Brain className="w-4 h-4" />

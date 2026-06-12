@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 import {
   Brain, FileText, Mic, Video, CheckCircle2, ArrowRight, Sparkles,
   Clock, Shield, Zap, BarChart2, Star, AlertCircle, Target,
@@ -125,7 +123,6 @@ const TESTIMONIALS = [
 export default function AIScribePage() {
   return (
     <main className="min-h-screen bg-white">
-      <Navbar />
 
       {/* Hero */}
       <section className="pt-28 pb-20 bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] text-white overflow-hidden">
@@ -308,7 +305,6 @@ export default function AIScribePage() {
         </div>
       </section>
 
-      <Footer />
     </main>
   );
 }

@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { Calendar, Video, MessageSquare, ArrowRight, CheckCircle2, Brain, Sparkles, Clock } from "lucide-react";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 
 const DEMO_FEATURES = [
   "Live AI Scribe demo with real session transcription",
@@ -23,7 +21,6 @@ export default function DemoPage() {
 
   return (
     <main className="min-h-screen bg-white">
-      <Navbar />
 
       {/* Hero */}
       <section className="pt-28 pb-16 bg-gradient-to-b from-[#0A2342] to-[#0D2D57] text-white">
@@ -152,7 +149,6 @@ export default function DemoPage() {
         </div>
       </section>
 
-      <Footer />
     </main>
   );
 }

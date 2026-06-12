@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 import {
   Brain, Clock, FileText, Shield, TrendingUp, Users, CheckCircle2,
   ArrowRight, Star, Zap, Calendar, MessageSquare, BarChart3,
@@ -112,7 +110,6 @@ const ROI_STATS = [
 export default function ForTherapistsPage() {
   return (
     <main className="min-h-screen bg-white">
-      <Navbar />
 
       {/* Hero */}
       <section className="pt-28 pb-20 bg-gradient-to-br from-[#0A2342] via-[#0D2D57] to-[#123A63] text-white">
@@ -375,7 +372,6 @@ export default function ForTherapistsPage() {
         </div>
       </section>
 
-      <Footer />
     </main>
   );
 }

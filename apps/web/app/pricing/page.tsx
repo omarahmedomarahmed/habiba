@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 import {
   CheckCircle2, X, ArrowRight, Zap, Users, Building2,
   Shield, Brain, Star, HelpCircle, Clock, Globe, Heart,
@@ -252,7 +250,6 @@ export default async function PricingPage() {
 
   return (
     <main className="min-h-screen bg-white">
-      <Navbar />
 
       {/* Fallback notice */}
       {source === "fallback" && (
@@ -419,7 +416,6 @@ export default async function PricingPage() {
         </div>
       </section>
 
-      <Footer />
     </main>
   );
 }

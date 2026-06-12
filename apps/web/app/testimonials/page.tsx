@@ -350,7 +350,7 @@ export default function TestimonialsPage() {
                 title: "For Solo Practitioners",
                 desc: "Reduce paperwork, gain AI-powered insights, accept new patients, and grow your practice sustainably.",
                 cta: "Start Free Trial",
-                href: "/therapist-join",
+                href: "/for-therapists",
               },
               {
                 icon: Building,
@@ -382,7 +382,7 @@ export default function TestimonialsPage() {
             <h3 className="text-2xl font-black text-white mb-3">Ready to Experience It Yourself?</h3>
             <p className="text-white/70 mb-6">Join 2,400+ therapists and 50,000+ patients already using 24Therapy.ai</p>
             <div className="flex flex-wrap gap-4 justify-center">
-              <Link href="/therapist-join" className="bg-[#2EC4B6] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#25a99d] transition-all inline-flex items-center gap-2">
+              <Link href="/for-therapists" className="bg-[#2EC4B6] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#25a99d] transition-all inline-flex items-center gap-2">
                 For Therapists — Start Free <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/find-therapist" className="bg-white/20 text-white border border-white/30 px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition-all inline-flex items-center gap-2">

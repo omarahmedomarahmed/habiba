@@ -18,6 +18,15 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.vercel.app" },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/therapist-join",
+        destination: "/for-therapists",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

@@ -138,7 +138,7 @@ export function HowItWorksSection() {
             </div>
             <StepList steps={stepsTherapist} dark />
             <a
-              href="/therapist-join"
+              href="/for-therapists"
               className="mt-8 w-full flex items-center justify-center gap-2 bg-[#1F5EFF] hover:bg-[#1649D4] text-white font-semibold py-3.5 rounded-xl transition-colors shadow-lg shadow-[#1F5EFF]/30 group"
             >
               Join as a Therapist — It&apos;s Free

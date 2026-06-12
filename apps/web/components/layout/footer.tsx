@@ -17,7 +17,6 @@ const footerLinks = {
     { label: "Group Practices", href: "/for-therapists#practice" },
     { label: "Enterprise", href: "/enterprise" },
     { label: "Find a Therapist", href: "/find-therapist" },
-    { label: "Join as Therapist", href: "/therapist-join" },
   ],
   Company: [
     { label: "About", href: "/about" },

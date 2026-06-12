@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 import {
   Heart, Brain, Shield, Globe, Users, Target, ArrowRight,
   CheckCircle2, Star, Award, Zap, TrendingUp, Sparkles,
@@ -91,7 +89,6 @@ const BACKED_BY = [
 export default function AboutPage() {
   return (
     <main className="min-h-screen bg-white">
-      <Navbar />
 
       {/* Hero */}
       <section className="pt-28 pb-20 bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] text-white">
@@ -269,7 +266,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <Footer />
     </main>
   );
 }
