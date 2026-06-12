@@ -33,14 +33,18 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       expiresAt: null,
 
-      setAuth: (user, accessToken, refreshToken = "", expiresIn = 900) =>
+      setAuth: (user, accessToken, refreshToken = "", expiresIn = 900) => {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'tt_auth=1; path=/; SameSite=Lax';
+        }
         set({
           user,
           accessToken,
           refreshToken,
           isAuthenticated: true,
           expiresAt: Date.now() + expiresIn * 1000,
-        }),
+        });
+      },
 
       updateTokens: (accessToken, refreshToken, expiresIn = 900) =>
         set({
@@ -49,14 +53,18 @@ export const useAuthStore = create<AuthState>()(
           expiresAt: Date.now() + expiresIn * 1000,
         }),
 
-      clearAuth: () =>
+      clearAuth: () => {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'tt_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
           expiresAt: null,
-        }),
+        });
+      },
     }),
     {
       name: "24therapy-patient-auth",

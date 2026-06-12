@@ -31,7 +31,7 @@ export const DOMAINS = {
   /** Backend API */
   api:
     process.env.NEXT_PUBLIC_API_URL ||
-    "https://api-24therapy-production.up.railway.app/api/v1",
+    "http://localhost:4000/api/v1",
 
   /** Therapist portal */
   therapistApp:

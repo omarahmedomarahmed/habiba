@@ -37,73 +37,6 @@ interface Message {
   resource_title?: string;
 }
 
-const THREADS: Thread[] = [
-  {
-    id: "t1",
-    participant: {
-      name: "Dr. Alex Smith",
-      role: "therapist",
-      title: "Licensed Clinical Psychologist",
-      initials: "AS",
-      gradient: "from-blue-500 to-indigo-600",
-      online: false
-    },
-    last_message: "Looking forward to seeing you on Monday. Please complete the PHQ-9 beforehand.",
-    last_time: "Yesterday",
-    unread: 1,
-    pinned: true
-  },
-  {
-    id: "t2",
-    participant: {
-      name: "24Therapy Support",
-      role: "support",
-      initials: "24",
-      gradient: "from-[#0A2342] to-[#2F80ED]",
-      online: true
-    },
-    last_message: "Your appointment reminder: Monday Dec 22 at 10:00 AM",
-    last_time: "2h ago",
-    unread: 0,
-    pinned: false
-  }
-];
-
-const MESSAGES: Message[] = [
-  {
-    id: "m1", content: "Hi Sarah! Just checking in before your session on Monday. How are you feeling this week?",
-    sender: "therapist", time: "Dec 16, 9:15 AM", status: "read", type: "text"
-  },
-  {
-    id: "m2", content: "Hi Dr. Smith! I'm doing okay — had a stressful week with the work review but I used the breathing exercises and they really helped!",
-    sender: "me", time: "Dec 16, 10:42 AM", status: "read", type: "text"
-  },
-  {
-    id: "m3", content: "That's wonderful to hear! Using coping skills under real stress is exactly the progress we've been working toward. I'm really proud of you.",
-    sender: "therapist", time: "Dec 16, 11:05 AM", status: "read", type: "text"
-  },
-  {
-    id: "m4", content: "Thank you 😊 I also finished the thought records homework — I found it actually really helpful for catching the perfectionist thoughts.",
-    sender: "me", time: "Dec 16, 11:22 AM", status: "read", type: "text"
-  },
-  {
-    id: "m5", content: "Excellent! Let's review those together on Monday. In the meantime, I've shared a resource you might find helpful for our upcoming holiday stress conversation.",
-    sender: "therapist", time: "Dec 16, 2:30 PM", status: "read", type: "text"
-  },
-  {
-    id: "m6", content: "CBT Strategies for Holiday Stress",
-    sender: "therapist", time: "Dec 16, 2:31 PM", status: "read", type: "resource",
-    resource_title: "CBT Strategies for Holiday Stress — Article"
-  },
-  {
-    id: "m7", content: "Please remember to complete the PHQ-9 assessment before Monday's session. It takes about 3 minutes.",
-    sender: "therapist", time: "Dec 18, 9:00 AM", status: "read", type: "reminder"
-  },
-  {
-    id: "m8", content: "Looking forward to seeing you on Monday. Please complete the PHQ-9 beforehand.",
-    sender: "therapist", time: "Dec 19, 4:15 PM", status: "delivered", type: "text"
-  },
-];
 
 const QUICK_REPLIES = [
   "Thank you, Dr. Smith!",
@@ -114,11 +47,13 @@ const QUICK_REPLIES = [
 
 export default function MessagesPage() {
   const { accessToken } = useAuthStore();
-  const [activeThread, setActiveThread] = useState<string>("t1");
-  const [liveThreadId, setLiveThreadId] = useState<string | null>(null);
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [activeThread, setActiveThread] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>(MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [showInfo, setShowInfo] = useState(false);
+  const [loadingThreads, setLoadingThreads] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load real conversations on mount
@@ -126,41 +61,55 @@ export default function MessagesPage() {
     async function loadConversations() {
       try {
         const res = await messagesAPI.conversations() as { data: Record<string, unknown>[] };
-        if (res.data?.length > 0) {
-          setLiveThreadId(res.data[0].id as string);
-        }
-      } catch { /* keep mock threads */ }
+        const loaded: Thread[] = (res.data || []).map((c: any) => ({
+          id: c.id as string,
+          participant: {
+            name: c.participant_name || c.patient_name || c.other_user_name || 'Your Therapist',
+            role: 'therapist' as const,
+            title: c.participant_title || '',
+            initials: (c.participant_name || 'T').split(' ').map((n: string) => n[0]).join('').slice(0, 2),
+            gradient: 'from-blue-500 to-indigo-600',
+            online: false,
+          },
+          last_message: c.last_message as string || '',
+          last_time: c.updated_at ? new Date(c.updated_at as string).toLocaleDateString() : '',
+          unread: (c.unread_count as number) || 0,
+          pinned: false,
+        }));
+        setThreads(loaded);
+        if (loaded.length > 0) setActiveThread(loaded[0].id);
+      } catch { /* no conversations yet */ }
+      finally { setLoadingThreads(false); }
     }
     loadConversations();
   }, []);
 
   // Load messages for active conversation
   useEffect(() => {
-    if (!liveThreadId) return;
-    async function loadMessages() {
-      try {
-        const res = await messagesAPI.messages(liveThreadId!, { limit: 50 }) as { data: Record<string, unknown>[] };
-        if (res.data?.length > 0) {
-          setMessages(res.data.map(m => ({
-            id: m.id as string,
-            content: m.content as string,
-            sender: (m.sender_id === 'me' || m.is_mine) ? 'me' as const : 'therapist' as const,
-            time: new Date(m.created_at as string).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-            status: 'delivered' as const,
-            type: 'text' as const,
-          })));
-        }
-      } catch { /* keep mock messages */ }
-    }
-    loadMessages();
-  }, [liveThreadId]);
+    if (!activeThread) return;
+    setLoadingMessages(true);
+    setMessages([]);
+    messagesAPI.messages(activeThread, { limit: 50 })
+      .then((res: any) => {
+        setMessages((res.data || []).map((m: any) => ({
+          id: m.id as string,
+          content: m.content as string,
+          sender: m.is_mine ? 'me' as const : 'therapist' as const,
+          time: new Date(m.created_at as string).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+          status: 'delivered' as const,
+          type: 'text' as const,
+        })));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMessages(false));
+  }, [activeThread]);
 
   // Real-time WebSocket listener for incoming messages
   useEffect(() => {
-    if (!accessToken || !liveThreadId) return;
+    if (!accessToken || !activeThread) return;
     const socket = getSocket(accessToken);
     const handleNewMessage = (data: Record<string, unknown>) => {
-      if (data.conversation_id !== liveThreadId) return;
+      if (data.conversation_id !== activeThread) return;
       setMessages(prev => [...prev, {
         id: data.id as string,
         content: data.content as string,
@@ -172,7 +121,7 @@ export default function MessagesPage() {
     };
     socket.on('new_message', handleNewMessage);
     return () => { socket.off('new_message', handleNewMessage); };
-  }, [accessToken, liveThreadId]);
+  }, [accessToken, activeThread]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -187,9 +136,9 @@ export default function MessagesPage() {
     };
     setMessages(prev => [...prev, newMsg]);
     setInput("");
-    if (liveThreadId) {
+    if (activeThread) {
       try {
-        await messagesAPI.send(liveThreadId, text);
+        await messagesAPI.send(activeThread, text);
         setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: "delivered" as const } : m));
       } catch {
         setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: "sending" as const } : m));
@@ -201,7 +150,7 @@ export default function MessagesPage() {
     }
   };
 
-  const activeThreadData = THREADS.find(t => t.id === activeThread);
+  const activeThreadData = threads.find(t => t.id === activeThread);
 
   return (
     <div className="flex h-[calc(100vh-80px)] -mx-4 -my-6">
@@ -215,7 +164,15 @@ export default function MessagesPage() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {THREADS.map(thread => (
+          {loadingThreads && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {!loadingThreads && threads.length === 0 && (
+            <div className="text-center py-8 px-4 text-xs text-gray-400">No messages yet. Your therapist will reach out here.</div>
+          )}
+          {threads.map(thread => (
             <button
               key={thread.id}
               onClick={() => setActiveThread(thread.id)}
@@ -292,6 +249,17 @@ export default function MessagesPage() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
+          {loadingMessages && (
+            <div className="flex justify-center py-8">
+              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {!loadingMessages && !activeThread && (
+            <div className="flex flex-col items-center justify-center h-full text-sm text-gray-400">Select a conversation.</div>
+          )}
+          {!loadingMessages && activeThread && messages.length === 0 && (
+            <div className="text-center text-xs text-gray-400 py-8">No messages yet. Say hello!</div>
+          )}
           {messages.map(msg => (
             <div key={msg.id} className={cn("flex gap-2", msg.sender === "me" ? "justify-end" : "justify-start")}>
               {msg.sender === "therapist" && (

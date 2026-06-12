@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Brain, ArrowLeft, CheckCircle, Mail } from "lucide-react";
 import { DOMAINS } from "@/lib/domains";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app/api/v1";
+import { getApiUrl } from "@/lib/env";
+const API_BASE = getApiUrl();
 
 export default function TherapistForgotPasswordPage() {
   const [email, setEmail] = useState("");

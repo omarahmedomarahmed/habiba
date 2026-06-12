@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { getApiUrl } from '@/lib/env';
 import {
   Brain, CheckCircle2, ArrowRight, Shield, Star, Clock,
   DollarSign, Users, Sparkles, Award, ChevronRight, Check,
@@ -100,8 +101,7 @@ export default function TherapistJoinPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://api-24therapy-production.up.railway.app')
-        .replace(/\/api\/v1\/?$/, '') + '/api/v1';
+      const API_URL = getApiUrl();
       await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

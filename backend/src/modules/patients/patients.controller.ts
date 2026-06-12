@@ -28,6 +28,30 @@ export class PatientsController {
     return this.response(result);
   }
 
+  // /me routes MUST come before /:id to avoid "me" being parsed as a UUID
+  @Get('me')
+  @ApiOperation({ summary: 'Get the current patient\'s own profile' })
+  async findMe(@Request() req: any) {
+    const patient = await this.patientsService.findByUserId(req.user.userId, req.user.organization_id);
+    return this.response({ patient });
+  }
+
+  @Get('me/mood-trend')
+  @ApiOperation({ summary: 'Get mood trend for current patient' })
+  async myMoodTrend(@Request() req: any, @Query('days') days?: string) {
+    const patient = await this.patientsService.findByUserId(req.user.userId, req.user.organization_id);
+    const data = await this.patientsService.getMoodTrend(patient.id, req.user.organization_id, days ? Number(days) : 30);
+    return this.response(data);
+  }
+
+  @Post('me/mood')
+  @ApiOperation({ summary: 'Log a mood entry for current patient' })
+  async addMyMood(@Request() req: any, @Body() dto: any) {
+    const patient = await this.patientsService.findByUserId(req.user.userId, req.user.organization_id);
+    const entry = await this.patientsService.addMoodEntry(patient.id, req.user.organization_id, dto);
+    return this.response({ entry });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get patient by ID with full profile' })
   async findOne(@Request() req: any, @Param('id') id: string) {

@@ -25,6 +25,7 @@ const NAV = [
   {
     section: 'COMPLIANCE & SAFETY',
     items: [
+      { href: '/crisis', label: 'Crisis Alerts', icon: AlertTriangle },
       { href: '/compliance', label: 'Compliance & Audit', icon: Shield },
       { href: '/ai-governance', label: 'AI Governance', icon: Brain },
     ],

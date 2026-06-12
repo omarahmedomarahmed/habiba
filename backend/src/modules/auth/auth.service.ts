@@ -205,6 +205,30 @@ export class AuthService {
     return user ? this.sanitizeUser(user) : null;
   }
 
+  async getUserIdentity(userId: string, orgId: string): Promise<any> {
+    const user = await this.db.queryOne<any>(
+      `SELECT u.*,
+              t.id  AS therapist_profile_id,
+              t.user_id AS therapist_user_id,
+              p.id  AS patient_profile_id,
+              p.user_id AS patient_user_id
+       FROM users u
+       LEFT JOIN therapists t ON t.user_id = u.id AND t.organization_id = u.organization_id AND t.deleted_at IS NULL
+       LEFT JOIN patients   p ON p.user_id = u.id AND p.organization_id = u.organization_id AND p.deleted_at IS NULL
+       WHERE u.id = $1 AND u.organization_id = $2 AND u.deleted_at IS NULL AND u.status = 'active'`,
+      [userId, orgId],
+    );
+    if (!user) return null;
+    const { password_hash, mfa_secret, therapist_profile_id, therapist_user_id, patient_profile_id, patient_user_id, ...safe } = user;
+    return {
+      ...safe,
+      userId: safe.id,
+      organizationId: safe.organization_id,
+      therapistId: therapist_profile_id || null,
+      patientId: patient_profile_id || null,
+    };
+  }
+
   async requestPasswordReset(email: string): Promise<void> {
     const user = await this.db.queryOne<any>(
       'SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL',

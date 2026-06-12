@@ -3,7 +3,9 @@
  * Handles all communication with the NestJS backend
  */
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app").replace(/\/api\/v1\/?$/, "") + "/api/v1";
+import { getApiUrl } from '@/lib/env';
+
+const API_URL = getApiUrl();
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
@@ -419,12 +421,18 @@ export const analyticsAPI = {
 // ============================================================
 export const messagesAPI = {
   conversations: () => apiFetch<{ data: unknown[] }>('/messages/conversations'),
-  messages: (conversationId: string) =>
-    apiFetch<{ data: unknown[] }>(`/messages/conversations/${conversationId}/messages`),
+  createConversation: (participant_id: string) =>
+    apiFetch<{ data: unknown }>('/messages/conversations', {
+      method: 'POST', body: JSON.stringify({ participant_id }),
+    }),
+  messages: (conversationId: string, params?: { limit?: number; before?: string }) =>
+    apiFetch<{ data: unknown[] }>(`/messages/conversations/${conversationId}/messages`, { params } as never),
   send: (conversationId: string, content: string) =>
     apiFetch<unknown>(`/messages/conversations/${conversationId}/messages`, {
       method: 'POST', body: JSON.stringify({ content }),
     }),
+  markRead: (conversationId: string) =>
+    apiFetch<unknown>(`/messages/conversations/${conversationId}/read`, { method: 'POST' }),
 };
 
 export { APIError };

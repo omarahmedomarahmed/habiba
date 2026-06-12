@@ -132,7 +132,9 @@ function MatchScore({ score }: { score: number }) {
   );
 }
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://api-24therapy-production.up.railway.app").replace(/\/api\/v1\/?$/, "") + "/api/v1";
+import { getApiUrl } from '@/lib/env';
+
+const API_URL = getApiUrl();
 
 export default function FindTherapistPage() {
   const [searchQuery, setSearchQuery] = useState("");

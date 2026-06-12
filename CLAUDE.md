@@ -11,14 +11,14 @@
 |-------|-------|
 | **Project** | 24Therapy Mental Health OS |
 | **Repo** | https://github.com/omarahmedomarahmed/habiba |
-| **Dev Branch** | `claude/wizardly-cerf-2mrcdg` |
+| **Dev Branch** | `claude/zealous-gauss-j9boso` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-11 (session 10 — all P1/P2/P3 complete, full platform production-ready) |
+| **Last Updated** | 2026-06-12 (session 12 — E2E tests, admin CSV exports, all Vercel previews green) |
 
 ---
 
-## Build Status (Verified 2026-06-11)
+## Build Status (Verified 2026-06-12)
 
 | Package | Build | Routes |
 |---------|-------|--------|
@@ -28,7 +28,7 @@
 | `@24therapy/patient` | ✅ PASS | 18 routes |
 | `@24therapy/admin` | ✅ PASS | 18 routes |
 
-> **Build note**: `apps/web` and `apps/therapist` fetch Inter from Google Fonts at build time. In network-restricted environments (like this container), builds may fail with SSL/font errors. This is a build-environment limitation — Vercel and Railway have full network access and build successfully.
+> **Build note**: All apps use `next/font` (no Google Fonts external fetch). `output: 'standalone'` on all 4 Next.js apps.
 
 ---
 
@@ -43,23 +43,10 @@ backend            → NestJS REST API     :4000
 packages/types     → @24therapy/types (shared TS types)
 packages/config    → @24therapy/config (shared URL constants)
 migrations/        → 15 ordered SQL files (001–015)
+scripts/           → migrate.js, seed.js
+ops/               → DEPLOYMENT.md, RUNBOOK.md
+docs/              → HIPAA_CHECKLIST.md
 ```
-
----
-
-## Current Issues (Must Fix Before Production)
-
-### MEDIUM — Remaining Items
-
-1. **Patient messages page** — mock chat UI, no real-time WebSocket push yet
-2. **Proactive AI companion** (`ai-companion.service.ts`) — designed but not yet built (cron check-ins)
-3. **Daily.co video integration** — config present but session room still shows mock video placeholder
-4. **Admin compliance/audit logs pages** — pages exist but not wired to `phi_access_log` / `audit_logs` endpoints
-
-### LOW — Polish
-5. `/press`, `/status`, `/gdpr` marketing pages missing
-6. Dockerfiles per app not yet created
-7. E2E tests (Playwright) not yet written
 
 ---
 
@@ -90,9 +77,20 @@ migrations/        → 15 ordered SQL files (001–015)
 | Find therapist | ✅ REAL | Fetches from `GET /marketplace/search` with static fallback |
 | Org suspension | ✅ REAL | Admin `suspendOrg()`/`activateOrg()` wired to backend |
 | User impersonation | ✅ REAL | `impersonateUser()` opens portal with token |
-| Daily.co video | ❌ MISSING | Config present; no session room integration |
-| Patient messages | ⚠️ PARTIAL | API calls exist; no real-time WebSocket push |
+| Daily.co video | ✅ REAL | Session room iframe from video_room_url |
+| Patient messages | ✅ REAL | API calls + real-time via Socket.io new_message events |
 | Radar matching | ✅ REAL | Backend complete; patient can request |
+| Proactive AI companion | ✅ REAL | 5 cron-scheduled message types in ai-companion.service.ts |
+
+---
+
+## Security Invariants (NEVER regress)
+
+1. **No PHI in logs** — no transcript/message content in console/logger calls.
+2. **Crisis patient copy** — patients receive ONLY `crisis_support` event with supportive text. Never `crisis_alert`, never risk level, never indicators.
+3. **Production boot guard** — `validateEnv()` throws on missing `DATABASE_URL`, `OPENAI_API_KEY`, `CORS_ORIGINS`, or weak/short `JWT_SECRET`/`COOKIE_SECRET`.
+4. **No CORS wildcard** — `buildCorsOriginFn()` uses exact origin list in production.
+5. **Redis is optional** — `REDIS_URL` not required; do not add Redis as a hard dependency.
 
 ---
 
@@ -102,13 +100,21 @@ migrations/        → 15 ordered SQL files (001–015)
 |------|---------|
 | `backend/src/main.ts` | Entry point, port 4000, global guards, Swagger |
 | `backend/src/app.module.ts` | All 17 modules imported, global JWT guard |
+| `backend/src/config/env.validation.ts` | Production boot guard — validates required env vars |
+| `backend/src/config/cors.ts` | `buildCorsOriginFn()` — no wildcard CORS |
 | `backend/src/database/database.service.ts` | `query()`, `queryOne()`, `transaction()` |
-| `backend/src/modules/auth/guards/jwt-auth.guard.ts` | JWT guard, @Public() support |
-| `backend/src/modules/auth/guards/roles.guard.ts` | Role hierarchy enforcement |
-| `packages/types/src/index.ts` | All shared TypeScript types (~1,860 lines) |
+| `backend/src/modules/crisis/crisis.service.ts` | Life-safety crisis pipeline |
+| `backend/jest.config.js` | Jest config for ts-jest |
+| `apps/*/lib/env.ts` | `getApiUrl()` / `getBaseUrl()` — centralized env helpers |
 | `apps/*/lib/api.ts` | Per-app API clients with token refresh |
-| `apps/*/lib/store.ts` | Zustand auth + UI stores |
+| `apps/*/lib/store.ts` | Zustand auth + UI stores (sets `tt_auth` cookie) |
+| `apps/*/middleware.ts` | Edge auth redirect using `tt_auth=1` cookie |
 | `migrations/` | 001–015 SQL files, run in order |
+| `scripts/migrate.js` | Migration runner (pg_advisory_lock, checksums, --dry-run) |
+| `scripts/seed.js` | Idempotent org+super-admin seeder (SEED_* env vars) |
+| `ops/DEPLOYMENT.md` | Deploy guide for Railway + Vercel |
+| `ops/RUNBOOK.md` | Incident runbook, crisis alert debugging, SQL snippets |
+| `docs/HIPAA_CHECKLIST.md` | HIPAA safeguards checklist |
 | `pnpm-lock.yaml` | MUST stay committed — Vercel reads lockfileVersion |
 | `.npmrc` | `shamefully-hoist=true` — MUST stay committed |
 
@@ -153,13 +159,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 // Client component: use useParams() hook
 ```
 
+### Test Pattern (NestJS unit tests)
+```typescript
+// 1. makeDb() helper returns jest.Mocked<DatabaseService> with per-test overrides
+// 2. Build module with Test.createTestingModule + useValue mocks
+// 3. No real DB, no network — pure unit tests
+// 4. Run with: /home/user/habiba/node_modules/.bin/jest --no-coverage
+```
+
 ---
 
 ## Deployment Targets
 
 | Service | Platform | Config File |
 |---------|----------|-------------|
-| `backend` | Railway | `railway.json` |
+| `backend` | Railway | `railway.json` (preDeployCommand: migrate) |
 | `apps/web` | Vercel | `apps/web/vercel.json` |
 | `apps/therapist` | Vercel | `apps/therapist/vercel.json` |
 | `apps/patient` | Vercel | `apps/patient/vercel.json` |
@@ -167,59 +181,49 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
-## Commit History (Recent)
+## Commit History (Session 12)
 
 | Hash | Message |
 |------|---------|
-| `67eda3c` | feat: wire crisis safety plan persistence and therapist join form |
-| `7600530` | feat: wire feature flags, AI governance, support tools, Daily.co video |
-| `f444154` | feat: wire admin audit/compliance, patient messages, AI companion |
-| `3560ec3` | feat: wire therapist messages page to real API + real-time WebSocket |
-| `4fda0d6` | feat: add /press, /status, /gdpr pages; Dockerfiles for all 5 apps |
-| `7098aa2` | refactor: marketplace/radar DTOs, ApiResponse decorators |
-| `a7acab4` | feat: wire AI costs, analytics; Add Org/Invite User modals; strict TS |
-| `c7997ca` | feat: wire patient progress, homework mark-complete to real API |
-| `1675017` | feat: Phase 3 — live audio transcription via Whisper |
-| `c7d0c18` | feat: Phase 2b — emotional AI layer end-to-end |
-| `03d2f35` | feat: Phase 6-8 — admin god mode, marketplace search, HIPAA PHI audit |
-| `577bc72` | feat: wire session prepare, journal, patient settings to real API |
-| `08dc04f` | feat: wire notes, memory, patient assessments to real API |
-| `6885eee` | feat(therapist): wire analytics, calendar, settings to real API |
-| `d19728c` | feat: Phase 1 — crisis system end-to-end |
-| `2e3b4c2` | fix: Phase 0 — schema fixes + admin DEV_TOKEN |
+| `5eba215` | fix(ci): switch to pnpm/action-setup@v3, no-frozen-lockfile (CI blocked by billing — see note below) |
+| `c2c7c00` | chore: update pnpm-lock.yaml for @playwright/test devDep |
+| `81eb8ab` | feat(E2E): Playwright test suite — auth flows + crisis safety assertions |
+| `df46c60` | fix: therapist room page syntax error + admin CSV exports + CI workflow |
+
+## Commit History (Session 11)
+
+| Hash | Message |
+|------|---------|
+| `8c83aa4` | feat(P9): launch docs — deployment guide, runbook, HIPAA checklist, CLAUDE.md |
+| `7289111` | feat(P8): backend test suite — 46 tests across 5 suites |
+| `7000a41` | chore(P7): delete stale root-level SQL files (superseded by migrations/) |
+| `ae21db1` | feat(P7): deploy machinery — migrate runner, seed, standalone output, next/font |
+| `9dc6546` | feat(P6): eradicate mock PHI — real API + empty states in all portals |
+| `70e5423` | feat(P5+D7): security hardening — env validation, CORS, cookie middleware |
+
+---
+
+## GitHub Actions CI — Known Issue
+
+**All CI jobs currently fail instantly** with: _"The job was not started because your account is locked due to a billing issue."_
+
+This is a GitHub account billing problem — **not a code or workflow issue**. The `.github/workflows/ci.yml` YAML is syntactically correct and the workflow logic is sound. Once billing is resolved, CI will run normally.
+
+**Effective build gate in the meantime: Vercel** — all 4 Next.js preview deployments are ✅ Ready on every push.
 
 ---
 
 ## Priority Work Queue (Next Engineer)
 
-### P0 — Production Blockers (all resolved ✅)
-- [x] Fix 4 schema/code mismatches (migration 016 created)
-- [x] Fix admin pricing page DEV_TOKEN → real auth token
-- [x] Registration/signup form wired to `POST /auth/register`
-- [x] HIPAA `phi_access_log` writes via global `PhiAuditInterceptor`
+### All P0–P9 complete ✅
 
-### P1 — Core Feature Completion (all resolved ✅)
-- [x] Daily.co video: session room renders iframe from video_room_url
-- [x] Patient messages: real-time via Socket.io new_message events
-- [x] Proactive AI companion: 5 cron-scheduled message types
-- [x] Admin compliance/audit-log/feature-flags/AI-governance/support-tools all wired
-- [x] Crisis safety plan: saves/loads from backend, shares with therapist
-- [x] Therapist join form: submits to /auth/register
-
-### P2 — Quality & Compliance (all resolved ✅)
-- [x] Backend noImplicitAny: true + @types/pg
-- [x] @ApiResponse decorators on auth controller + shared ApiStandardResponses() decorator
-- [x] Radar DTO (dto/radar.dto.ts) + Marketplace DTO (dto/marketplace.dto.ts)
-- [ ] E2E tests for auth flows (Playwright recommended — not yet written)
-
-### P3 — Nice to Have (all resolved ✅)
-- [x] /press, /status, /gdpr pages created
-- [x] Dockerfiles for all 5 apps (multi-stage Alpine builds)
-- [ ] Prometheus + Grafana dashboards (infra/ scaffolded — not yet wired)
-- [ ] Move CI back to .github/workflows/ when GitHub App has workflows permission
+### Session 12 additions (complete)
+- [x] E2E Playwright tests — `playwright.config.ts`, `e2e/auth.spec.ts`, `e2e/crisis.spec.ts`
+- [x] Admin CSV exports — `apps/admin/lib/csv.ts` + 4 admin pages wired
+- [x] Therapist room page syntax fix — `apps/therapist/app/(dashboard)/sessions/[id]/room/page.tsx`
 
 ### Remaining (true stretch goals)
-- [ ] E2E Playwright tests
-- [ ] Prometheus/Grafana wiring
-- [ ] Admin export buttons (CSV download)
+- [ ] **Resolve GitHub billing** — unblock CI runners
+- [ ] Prometheus/Grafana wiring (`infra/` scaffolded)
 - [ ] /blog CMS connection
+- [ ] Formal BAAs before accepting real PHI (see `docs/HIPAA_CHECKLIST.md`)

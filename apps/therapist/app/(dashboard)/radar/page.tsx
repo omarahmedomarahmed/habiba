@@ -19,6 +19,7 @@ interface CrisisNotification {
   body: string;
   created_at: string;
   read_at?: string;
+  conversation_id?: string;
 }
 
 interface RadarRequest {
@@ -364,6 +365,14 @@ export default function RadarPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {alert.conversation_id && (
+                    <a
+                      href={`/messages?conversation=${alert.conversation_id}&priority=crisis`}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Crisis Chat
+                    </a>
+                  )}
                   {alert.session_id && (
                     <a
                       href={`/sessions/${alert.session_id}/room`}

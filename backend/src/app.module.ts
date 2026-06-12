@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PhiAuditInterceptor } from './common/interceptors/phi-audit.interceptor';
+import { validateEnv } from './config/env.validation';
 
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -23,6 +24,8 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AssessmentsModule } from './modules/assessments/assessments.module';
 import { MemoryModule } from './modules/memory/memory.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
+import { MessagesModule } from './modules/messages/messages.module';
+import { CrisisModule } from './modules/crisis/crisis.module';
 import { GatewaysModule } from './gateways/gateways.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
@@ -34,6 +37,7 @@ import appConfig from './config/app.config';
       isGlobal: true,
       load: [appConfig],
       envFilePath: ['.env.local', '.env'],
+      validate: validateEnv,
     }),
 
     // ─── Event Emitter (async domain events) ─────────────────────────────────
@@ -81,6 +85,8 @@ import appConfig from './config/app.config';
     AssessmentsModule,
     MemoryModule,
     WorkflowsModule,
+    MessagesModule,
+    CrisisModule,
 
     // ─── WebSocket Gateways ───────────────────────────────────────────────────
     GatewaysModule,

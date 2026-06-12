@@ -21,15 +21,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('jwt.secret') || 'fallback-secret',
+      secretOrKey: config.get<string>('jwt.secret') || 'dev-only-secret-change-me',
     });
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.authService.validateUser(payload.sub, payload.org);
+    const user = await this.authService.getUserIdentity(payload.sub, payload.org);
     if (!user) {
       throw new UnauthorizedException('User not found or inactive');
     }
-    return { ...user, org_id: payload.org, role: payload.role };
+    return user;
   }
 }

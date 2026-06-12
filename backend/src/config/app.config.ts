@@ -4,10 +4,12 @@ export default () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   apiVersion: process.env.API_VERSION || 'v1',
 
-  // Database
+  // Database — SSL defaults true in production unless explicitly disabled
   database: {
     url: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_SSL === 'true',
+    ssl: process.env.DATABASE_SSL !== undefined
+      ? process.env.DATABASE_SSL === 'true'
+      : process.env.NODE_ENV === 'production',
     maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '10', 10),
   },
 
@@ -17,9 +19,9 @@ export default () => ({
     ttl: parseInt(process.env.REDIS_TTL || '86400', 10),
   },
 
-  // JWT
+  // JWT — no default; validateEnv() will reject production starts without a real secret
   jwt: {
-    secret: process.env.JWT_SECRET || 'change-me-in-production',
+    secret: process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-only-secret-change-me' : ''),
     accessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '30d',
   },

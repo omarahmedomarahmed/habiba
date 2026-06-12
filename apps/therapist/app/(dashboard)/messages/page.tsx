@@ -36,130 +36,6 @@ interface Message {
   flagged?: boolean;
 }
 
-const MOCK_THREADS: Thread[] = [
-  {
-    id: "t1",
-    patient_name: "Marcus Webb",
-    patient_id: "p2",
-    last_message: "I've been meaning to message you — I missed the last session because...",
-    last_message_time: "10:23 AM",
-    unread: 2,
-    type: "patient",
-    status: "active",
-    urgent: true,
-    last_sender: "them",
-  },
-  {
-    id: "t2",
-    patient_name: "Sarah Chen",
-    patient_id: "p1",
-    last_message: "Thank you, Dr. Smith. I'll complete the thought record before Thursday.",
-    last_message_time: "Yesterday",
-    unread: 0,
-    type: "patient",
-    status: "active",
-    last_sender: "them",
-  },
-  {
-    id: "t3",
-    patient_name: "Emily Park",
-    patient_id: "p5",
-    last_message: "I wanted to ask — is it normal to still feel this way after 2 months?",
-    last_message_time: "Yesterday",
-    unread: 1,
-    type: "patient",
-    status: "active",
-    last_sender: "them",
-  },
-  {
-    id: "t4",
-    patient_name: "Priya Nair",
-    patient_id: "p3",
-    last_message: "Saw your note from Dr. Fitch. Will discuss weight check-in Thursday.",
-    last_message_time: "Dec 20",
-    unread: 0,
-    type: "patient",
-    status: "active",
-    last_sender: "me",
-  },
-  {
-    id: "t5",
-    patient_name: "James Rodriguez",
-    patient_id: "p4",
-    last_message: "Looking forward to next week. The EMDR referral sounds right.",
-    last_message_time: "Dec 19",
-    unread: 0,
-    type: "patient",
-    status: "active",
-    last_sender: "them",
-  },
-];
-
-const MOCK_MESSAGES: Record<string, Message[]> = {
-  t1: [
-    {
-      id: "m1",
-      sender: "them",
-      content: "Hi Dr. Smith, I'm sorry about missing the last two sessions. Things have been really hard.",
-      timestamp: "Dec 22 · 9:45 AM",
-      type: "text",
-      read: true,
-    },
-    {
-      id: "m2",
-      sender: "me",
-      content: "Hi Marcus, I'm glad you reached out. I've been thinking about you. I'd love to connect — are you available for a brief phone call today or tomorrow?",
-      timestamp: "Dec 22 · 11:00 AM",
-      type: "text",
-      read: true,
-    },
-    {
-      id: "m3",
-      sender: "them",
-      content: "I've been meaning to message you — I missed the last session because I've been drinking again. More than I should.",
-      timestamp: "Today · 10:18 AM",
-      type: "text",
-      read: false,
-      flagged: true,
-    },
-    {
-      id: "m4",
-      sender: "them",
-      content: "I don't want to talk about it but I also know I need to. Can we reschedule?",
-      timestamp: "Today · 10:23 AM",
-      type: "text",
-      read: false,
-    },
-  ],
-  t2: [
-    {
-      id: "m1",
-      sender: "me",
-      content: "Great work in session today, Sarah. Remember to complete the thought record whenever you notice the perfectionism voice coming up. Bring it to Thursday's session.",
-      timestamp: "Yesterday · 2:30 PM",
-      type: "text",
-      read: true,
-    },
-    {
-      id: "m2",
-      sender: "them",
-      content: "Thank you, Dr. Smith. I'll complete the thought record before Thursday.",
-      timestamp: "Yesterday · 3:15 PM",
-      type: "text",
-      read: true,
-    },
-  ],
-  t3: [
-    {
-      id: "m1",
-      sender: "them",
-      content: "I wanted to ask — is it normal to still feel this way after 2 months? Sometimes I wonder if therapy is actually helping.",
-      timestamp: "Yesterday · 7:45 PM",
-      type: "text",
-      read: false,
-    },
-  ],
-};
 
 const AI_QUICK_REPLIES = [
   "I'm glad you reached out. How are you feeling right now?",
@@ -169,29 +45,37 @@ const AI_QUICK_REPLIES = [
 ];
 
 export default function MessagesPage() {
-  const [selectedThread, setSelectedThread] = useState<Thread | null>(MOCK_THREADS[0]);
+  const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "urgent">("all");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [liveThreads, setLiveThreads] = useState(MOCK_THREADS);
-  const [liveMessages, setLiveMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
+  const [liveThreads, setLiveThreads] = useState<Thread[]>([]);
+  const [liveMessages, setLiveMessages] = useState<Record<string, Message[]>>({});
+  const [loadingThreads, setLoadingThreads] = useState(true);
   const { accessToken } = useAuthStore();
 
   useEffect(() => {
     messagesAPI.conversations()
       .then((res: any) => {
-        const threads = (res.data || []).map((c: any) => ({
-          id: c.id, patient_name: c.name || c.patient_name || 'Unknown',
+        const threads: Thread[] = (res.data || []).map((c: any) => ({
+          id: c.id,
+          patient_name: c.name || c.patient_name || 'Unknown',
           patient_id: c.patient_id || c.other_user_id || '',
-          last_message: c.last_message || '', last_message_time: c.updated_at || '',
-          unread: c.unread_count || 0, type: 'patient' as const, urgent: false, online: false,
-          avatar: '', tags: [], hipaa_acknowledged: true,
+          last_message: c.last_message || '',
+          last_message_time: c.updated_at || '',
+          unread: c.unread_count || 0,
+          type: 'patient' as const,
+          status: 'active' as const,
+          urgent: false,
+          last_sender: 'them' as const,
         }));
-        if (threads.length > 0) { setLiveThreads(threads); setSelectedThread(threads[0]); }
+        setLiveThreads(threads);
+        if (threads.length > 0) setSelectedThread(threads[0]);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingThreads(false));
   }, []);
 
   useEffect(() => {
@@ -304,6 +188,14 @@ export default function MessagesPage() {
 
         {/* Thread list */}
         <div className="flex-1 overflow-y-auto">
+          {loadingThreads && (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {!loadingThreads && filteredThreads.length === 0 && (
+            <div className="text-center py-12 text-sm text-gray-400">No conversations yet.</div>
+          )}
           {filteredThreads.map(thread => {
             const isSelected = selectedThread?.id === thread.id;
 

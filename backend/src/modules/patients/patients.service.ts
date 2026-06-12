@@ -55,6 +55,24 @@ export class PatientsService {
     };
   }
 
+  async findByUserId(userId: string, orgId: string) {
+    const patient = await this.db.queryOne<any>(
+      `SELECT p.*,
+              t.display_name AS primary_therapist_name,
+              t.user_id      AS primary_therapist_user_id,
+              tu.first_name || ' ' || tu.last_name AS primary_therapist_display_name,
+              tu.phone AS primary_therapist_phone,
+              t.id           AS primary_therapist_id
+       FROM patients p
+       LEFT JOIN therapists t  ON t.id = p.primary_therapist_id AND t.deleted_at IS NULL
+       LEFT JOIN users      tu ON tu.id = t.user_id
+       WHERE p.user_id = $1 AND p.organization_id = $2 AND p.deleted_at IS NULL`,
+      [userId, orgId],
+    );
+    if (!patient) throw new NotFoundException('Patient profile not found');
+    return patient;
+  }
+
   async findOne(id: string, orgId: string) {
     const patient = await this.db.queryOne(
       `SELECT p.*,

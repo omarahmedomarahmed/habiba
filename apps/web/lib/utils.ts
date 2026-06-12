@@ -29,4 +29,4 @@ export function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+export { getApiUrl, getBaseUrl } from '@/lib/env';
