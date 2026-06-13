@@ -21,3 +21,5 @@ export class RespondToRadarDto {
   @ApiPropertyOptional() @IsOptional() @IsString() proposed_time?: string;
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() @Min(0) proposed_rate?: number;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

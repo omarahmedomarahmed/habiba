@@ -63,3 +63,5 @@ export class ReferralsService {
     return { success: true };
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

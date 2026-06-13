@@ -10,3 +10,5 @@ import { AuthModule } from '../auth/auth.module';
   exports: [PatientsService],
 })
 export class PatientsModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -69,7 +69,7 @@ export class PatientsController {
   async create(@Request() req: any, @Body() dto: any) {
     const patient = await this.patientsService.create(
       req.user.organization_id,
-      req.user.id,
+      req.user.therapistId,
       dto,
     );
     return this.response({ patient });
@@ -131,3 +131,5 @@ export class PatientsController {
     return this.response({ memories });
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

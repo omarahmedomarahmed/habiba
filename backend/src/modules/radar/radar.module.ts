@@ -10,3 +10,5 @@ import { RadarService } from './radar.service';
   exports: [RadarService],
 })
 export class RadarModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit
