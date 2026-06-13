@@ -8,7 +8,7 @@ import {
   BookOpen, ArrowLeft, Printer, Share2, Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiFetch } from "@/lib/api";
+import apiFetch from "@/lib/api";
 
 interface SessionReport {
   id: string;
