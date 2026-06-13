@@ -195,3 +195,5 @@ export class ApplyCouponDto {
   @IsNotEmpty()
   code: string;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

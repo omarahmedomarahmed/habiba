@@ -309,3 +309,5 @@ export class BillingController {
     return this.billingService.handleWebhook(req.rawBody!, signature);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
