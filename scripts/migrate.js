@@ -173,3 +173,5 @@ main().catch(err => {
   console.error('Fatal:', err.message);
   process.exit(1);
 });
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -118,3 +118,5 @@
 - Automated HIPAA audit reports
 - Data export / Right of Access tooling (HIPAA §164.524)
 - Automated data deletion / Right to Erasure workflow
+
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->

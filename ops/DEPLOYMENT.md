@@ -37,7 +37,7 @@ pnpm install
 ### 2. Database
 
 ```bash
-# Run all migrations (001–015)
+# Run all migrations (001–021)
 DATABASE_URL=postgres://... node scripts/migrate.js
 
 # Seed super-admin (run once)
@@ -60,7 +60,7 @@ Set these variables in Railway → Variables:
 | `CORS_ORIGINS` | Comma-separated allowed origins, e.g. `https://app.24therapy.ai,https://admin.24therapy.ai,https://my.24therapy.ai` |
 | `NODE_ENV` | `production` |
 | `DAILY_API_KEY` | Daily.co API key (for video rooms) |
-| `SENDGRID_API_KEY` | SendGrid key (email) |
+| `RESEND_API_KEY` | Resend API key (transactional email) |
 | `FROM_EMAIL` | Sender address for transactional email |
 
 Deploy:
@@ -125,7 +125,7 @@ Each migration runs in a transaction; a failure rolls back and exits.
 | `CORS_ORIGINS` | (localhost + staging) | Required in production |
 | `REDIS_URL` | — | Optional — not provisioned by default |
 | `DAILY_API_KEY` | — | Video sessions |
-| `SENDGRID_API_KEY` | — | Transactional email |
+| `RESEND_API_KEY` | — | Transactional email (Resend, not SendGrid) |
 | `FROM_EMAIL` | `noreply@24therapy.ai` | |
 | `PORT` | `4000` | |
 
@@ -173,3 +173,5 @@ Railway is configured with `healthcheckPath: /health`, timeout 120 s.
 - [ ] SendGrid domain verified
 - [ ] PostgreSQL backup schedule confirmed
 - [ ] Error monitoring configured (Sentry DSN)
+
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->
