@@ -1,16 +1,28 @@
 import {
   Controller, Get, Post, Put, Body, Query, Param, UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AssessmentsService } from './assessments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
+@ApiTags('assessments')
+@ApiBearerAuth()
 @Controller('assessments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AssessmentsController {
   constructor(private readonly assessmentsService: AssessmentsService) {}
+
+  // ─── Org-wide list (must come before :id route) ───────────────────────────
+
+  @Get()
+  @Roles('therapist', 'org_admin')
+  @ApiOperation({ summary: 'List all assessments for org' })
+  async listAll(@Query() query: any, @CurrentUser() user: any) {
+    return this.assessmentsService.listAllForOrg(user.organization_id, query);
+  }
 
   // ─── Templates ────────────────────────────────────────────────────────────
 

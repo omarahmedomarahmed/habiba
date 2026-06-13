@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users, UserPlus, Mail, Shield, Clock, MoreVertical, Search,
   CheckCircle, AlertTriangle, Star, Activity, Calendar, X,
   ChevronDown, BarChart3, Zap, Crown, UserCheck, Settings,
   Copy, Send, Trash2, Edit2, Eye, Lock, TrendingUp, Phone
 } from "lucide-react";
+import { therapistsAPI } from "@/lib/api";
 
 type TeamRole = "owner" | "supervisor" | "therapist" | "intern" | "admin";
 type TeamStatus = "active" | "inactive" | "pending" | "suspended";
@@ -31,68 +32,13 @@ interface TeamMember {
   color: string;
 }
 
-const TEAM: TeamMember[] = [
-  {
-    id: "t1", name: "Dr. Sarah Chen, PhD", initials: "SC", role: "owner",
-    email: "sarah.chen@practice.com", phone: "+1 (555) 100-0001",
-    license: "PSY-28741", license_state: "CA", status: "active",
-    active_patients: 24, capacity: 30, sessions_this_week: 18,
-    avg_session_rating: 4.9, notes_pending: 0,
-    joined_date: "2022-01-15",
-    specializations: ["CBT", "Trauma", "Anxiety"],
-    color: "bg-violet-100 text-violet-700",
-  },
-  {
-    id: "t2", name: "Marcus Webb, LCSW", initials: "MW", role: "supervisor",
-    email: "marcus.webb@practice.com", phone: "+1 (555) 100-0002",
-    license: "LCSW-91234", license_state: "CA", status: "active",
-    active_patients: 22, capacity: 25, sessions_this_week: 14,
-    avg_session_rating: 4.8, notes_pending: 2,
-    joined_date: "2022-06-01",
-    specializations: ["DBT", "Adolescents", "Family"],
-    color: "bg-blue-100 text-blue-700",
-  },
-  {
-    id: "t3", name: "Dr. Priya Patel, PsyD", initials: "PP", role: "therapist",
-    email: "priya.patel@practice.com", phone: "+1 (555) 100-0003",
-    license: "PSY-34512", license_state: "CA", status: "active",
-    active_patients: 19, capacity: 25, sessions_this_week: 15,
-    avg_session_rating: 4.7, notes_pending: 1,
-    joined_date: "2023-03-10",
-    specializations: ["ACT", "EMDR", "Grief"],
-    color: "bg-teal-100 text-teal-700",
-  },
-  {
-    id: "t4", name: "James Okafor, MFT", initials: "JO", role: "therapist",
-    email: "james.okafor@practice.com", phone: "+1 (555) 100-0004",
-    license: "MFT-67890", license_state: "CA", status: "active",
-    active_patients: 16, capacity: 20, sessions_this_week: 11,
-    avg_session_rating: 4.6, notes_pending: 3,
-    joined_date: "2023-08-22",
-    specializations: ["Couples", "Men's Issues", "CBT"],
-    color: "bg-orange-100 text-orange-700",
-  },
-  {
-    id: "t5", name: "Aisha Donnelly, AMFT", initials: "AD", role: "intern",
-    email: "aisha.donnelly@practice.com", phone: "+1 (555) 100-0005",
-    license: "AMFT-12345", license_state: "CA", status: "active",
-    active_patients: 8, capacity: 15, sessions_this_week: 7,
-    avg_session_rating: 4.4, notes_pending: 4,
-    joined_date: "2024-01-08",
-    specializations: ["Anxiety", "Depression", "CBT"],
-    color: "bg-pink-100 text-pink-700",
-  },
-  {
-    id: "t6", name: "Dr. Robert Kim, PhD", initials: "RK", role: "therapist",
-    email: "robert.kim@practice.com", phone: "+1 (555) 100-0006",
-    license: "PSY-55512", license_state: "CA", status: "inactive",
-    active_patients: 0, capacity: 25, sessions_this_week: 0,
-    avg_session_rating: 4.8, notes_pending: 0,
-    joined_date: "2022-11-15",
-    specializations: ["Trauma", "PTSD", "Veterans"],
-    color: "bg-gray-100 text-gray-600",
-  },
-];
+const ROLE_COLORS: Record<string, string> = {
+  owner: "bg-violet-100 text-violet-700",
+  supervisor: "bg-blue-100 text-blue-700",
+  therapist: "bg-teal-100 text-teal-700",
+  intern: "bg-orange-100 text-orange-700",
+  admin: "bg-gray-100 text-gray-600",
+};
 
 const ROLE_CONFIG: Record<TeamRole, { label: string; color: string; icon: typeof Shield }> = {
   owner: { label: "Owner", color: "bg-violet-100 text-violet-700", icon: Crown },
@@ -206,18 +152,44 @@ export default function TeamPage() {
   const [filterStatus, setFilterStatus] = useState<"all" | TeamStatus>("all");
   const [showInvite, setShowInvite] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
-  const filtered = TEAM.filter((m) => {
+  useEffect(() => {
+    therapistsAPI.list().then((res: any) => {
+      const members = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setTeamMembers(members.map((t: any) => ({
+        id: t.id || "",
+        name: `${t.first_name || ""} ${t.last_name || ""}`.trim() || t.email || "Unknown",
+        initials: `${(t.first_name || "?")[0]}${(t.last_name || "?")[0]}`.toUpperCase(),
+        role: (t.role || "therapist") as TeamRole,
+        email: t.email || "",
+        phone: t.phone || "",
+        license: t.license_number || "",
+        license_state: t.license_state || "",
+        status: (t.status || "active") as TeamStatus,
+        active_patients: t.active_patients || 0,
+        capacity: t.capacity || 20,
+        sessions_this_week: t.sessions_this_week || 0,
+        avg_session_rating: t.avg_session_rating || 0,
+        notes_pending: t.notes_pending || 0,
+        joined_date: t.created_at || "",
+        specializations: Array.isArray(t.specializations) ? t.specializations : [],
+        color: "bg-[#0A2342] text-white",
+      })));
+    }).catch(() => setTeamMembers([]));
+  }, []);
+
+  const filtered = teamMembers.filter((m) => {
     const matchSearch = !search || m.name.toLowerCase().includes(search.toLowerCase()) || m.email.toLowerCase().includes(search.toLowerCase());
     const matchRole = filterRole === "all" || m.role === filterRole;
     const matchStatus = filterStatus === "all" || m.status === filterStatus;
     return matchSearch && matchRole && matchStatus;
   });
 
-  const totalPatients = TEAM.filter(m => m.status === "active").reduce((s, m) => s + m.active_patients, 0);
-  const totalCapacity = TEAM.filter(m => m.status === "active").reduce((s, m) => s + m.capacity, 0);
-  const activeCount = TEAM.filter(m => m.status === "active").length;
-  const pendingNotes = TEAM.reduce((s, m) => s + m.notes_pending, 0);
+  const totalPatients = teamMembers.filter(m => m.status === "active").reduce((s, m) => s + m.active_patients, 0);
+  const totalCapacity = teamMembers.filter(m => m.status === "active").reduce((s, m) => s + m.capacity, 0);
+  const activeCount = teamMembers.filter(m => m.status === "active").length;
+  const pendingNotes = teamMembers.reduce((s, m) => s + m.notes_pending, 0);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -239,7 +211,7 @@ export default function TeamPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: "Active Clinicians", value: activeCount, sub: `${TEAM.length} total`, icon: Users, color: "text-blue-600 bg-blue-50" },
+          { label: "Active Clinicians", value: activeCount, sub: `${teamMembers.length} total`, icon: Users, color: "text-blue-600 bg-blue-50" },
           { label: "Total Patients", value: totalPatients, sub: `${totalCapacity} capacity`, icon: Activity, color: "text-teal-600 bg-teal-50" },
           { label: "Capacity Used", value: `${Math.round((totalPatients / totalCapacity) * 100)}%`, sub: `${totalCapacity - totalPatients} seats open`, icon: BarChart3, color: "text-violet-600 bg-violet-50" },
           { label: "Notes Pending", value: pendingNotes, sub: "awaiting signature", icon: AlertTriangle, color: pendingNotes > 5 ? "text-red-600 bg-red-50" : "text-amber-600 bg-amber-50" },
@@ -419,8 +391,8 @@ export default function TeamPage() {
           Team Specializations
         </h3>
         <div className="flex flex-wrap gap-3">
-          {Array.from(new Set(TEAM.flatMap(m => m.specializations))).map((spec) => {
-            const count = TEAM.filter(m => m.specializations.includes(spec) && m.status === "active").length;
+          {Array.from(new Set(teamMembers.flatMap(m => m.specializations))).map((spec) => {
+            const count = teamMembers.filter(m => m.specializations.includes(spec) && m.status === "active").length;
             return (
               <div key={spec} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
                 <span className="text-sm font-medium text-slate-700">{spec}</span>
@@ -438,7 +410,7 @@ export default function TeamPage() {
           Action Required
         </h3>
         <div className="space-y-2">
-          {TEAM.filter(m => m.notes_pending > 0).map(m => (
+          {teamMembers.filter(m => m.notes_pending > 0).map(m => (
             <div key={m.id} className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-amber-100">
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-slate-900">{m.name}</span>

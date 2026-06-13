@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Clipboard, Brain, Target, Activity, Heart, AlertTriangle,
   CheckCircle2, ChevronRight, Plus, Pill, Scale, Book,
@@ -292,6 +294,7 @@ const PHQ9_QUESTIONS = [
 const PHQ9_OPTIONS = ["Not at all", "Several days", "More than half the days", "Nearly every day"];
 
 export default function ClinicalToolsPage() {
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<ToolCategory | "all" | "popular">("popular");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTool, setSelectedTool] = useState<ClinicalTool | null>(null);
@@ -453,10 +456,22 @@ export default function ClinicalToolsPage() {
                       ICD: {tool.icd10_relevant.slice(0, 2).join(", ")}
                     </span>
                   )}
-                  <button className={cn(
-                    "ml-auto flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
-                    isActive ? "bg-[#0A2342] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  )}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (tool.id === "phq9") {
+                        setActiveTool(isActive ? null : tool.id);
+                        setPhq9Submitted(false);
+                        setPhq9Answers(Array(9).fill(-1));
+                      } else {
+                        router.push(`/clinical-tools/${tool.id}`);
+                      }
+                    }}
+                    className={cn(
+                      "ml-auto flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
+                      isActive ? "bg-[#0A2342] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    )}
+                  >
                     {isActive ? "Close" : "Open"} <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
@@ -627,17 +642,28 @@ export default function ClinicalToolsPage() {
               </div>
 
               <div className="pt-2 border-t border-gray-100 space-y-2">
-                <button className="w-full py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] transition-colors">
+                <button
+                  onClick={() => router.push(`/clinical-tools/${selectedTool.id}`)}
+                  className="w-full py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] transition-colors"
+                >
                   Open Tool
                 </button>
                 {selectedTool.category === "assessments" && (
-                  <button className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50">
+                  <button
+                    onClick={() => router.push(`/assessments/new?tool=${selectedTool.id}`)}
+                    className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50"
+                  >
                     Send to Patient Portal
                   </button>
                 )}
-                <button className="w-full py-2 border border-gray-200 text-gray-500 rounded-xl text-xs hover:bg-gray-50 flex items-center justify-center gap-1.5">
+                <a
+                  href={`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(selectedTool.abbreviation || selectedTool.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 border border-gray-200 text-gray-500 rounded-xl text-xs hover:bg-gray-50 flex items-center justify-center gap-1.5"
+                >
                   <ExternalLink className="h-3.5 w-3.5" /> View Research Evidence
-                </button>
+                </a>
               </div>
             </div>
           </div>

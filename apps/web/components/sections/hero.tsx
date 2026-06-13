@@ -86,7 +86,7 @@ export function HeroSection() {
       });
       if (!res.ok) throw new Error("api_error");
       const json = await res.json();
-      const reply = json.data?.message || json.message || getFallback(trimmed);
+      const reply = json.data?.reply || json.reply || json.data?.message || json.message || getFallback(trimmed);
       setMsgs(prev => [...prev, { role: "ai", text: reply }]);
     } catch {
       setMsgs(prev => [...prev, { role: "ai", text: getFallback(trimmed) }]);

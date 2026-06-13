@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock,
-  User, Video, Phone, MapPin, CheckCircle, AlertCircle, X, Edit3,
+  User, Video, Phone, MapPin, CheckCircle, AlertCircle, Edit3,
   Bell, Repeat, Filter, Grid3x3, List, Settings, RefreshCw,
   MoreHorizontal, Circle, Users, Zap
 } from "lucide-react";
@@ -84,10 +85,10 @@ const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8am-7pm
 
 export default function CalendarPage() {
+  const router = useRouter();
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState(TODAY);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [showNewModal, setShowNewModal] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>(EVENTS);
 
   const fetchEvents = useCallback(async () => {
@@ -170,7 +171,7 @@ export default function CalendarPage() {
   const todayDateStr = formatDateStr(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -211,7 +212,10 @@ export default function CalendarPage() {
             ))}
           </div>
           <button
-            onClick={() => setShowNewModal(true)}
+            onClick={() => {
+              const dateStr = formatDateStr(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+              router.push(`/sessions/new?date=${dateStr}`);
+            }}
             className="bg-[#0A2342] hover:bg-[#0d2d56] text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> New Session
@@ -668,73 +672,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* New Session Modal */}
-      {showNewModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-gray-900">Schedule New Session</h2>
-              <button onClick={() => setShowNewModal(false)}>
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                <select className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2EC4B6] bg-white">
-                  <option value="">Select patient...</option>
-                  <option>Sarah M.</option>
-                  <option>James K.</option>
-                  <option>Maria L.</option>
-                  <option>David R.</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                  <input type="date" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2EC4B6]" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
-                  <input type="time" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2EC4B6]" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                  <select className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2EC4B6] bg-white">
-                    <option>Video</option>
-                    <option>Phone</option>
-                    <option>In-Person</option>
-                    <option>Group</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                  <select className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2EC4B6] bg-white">
-                    <option>30 min</option>
-                    <option>50 min</option>
-                    <option>60 min</option>
-                    <option>90 min</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <input type="checkbox" id="send-reminder" className="rounded" />
-                <label htmlFor="send-reminder" className="text-gray-600">Send reminder to patient</label>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowNewModal(false)} className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:border-gray-400">
-                Cancel
-              </button>
-              <button onClick={() => setShowNewModal(false)} className="flex-1 bg-[#0A2342] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-[#0d2d56]">
-                Schedule Session
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

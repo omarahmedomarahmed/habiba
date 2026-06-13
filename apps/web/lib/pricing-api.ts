@@ -256,9 +256,18 @@ export async function fetchPublicPlans(): Promise<PricingApiResponse> {
       throw new Error(`API returned ${res.status}`);
     }
 
-    const plans = await res.json();
+    const raw = await res.json();
+    const rawPlans: any[] = Array.isArray(raw) ? raw : (raw.data || []);
+    // Normalize field names from backend to frontend expectations
+    const normalized = rawPlans.map((plan: any) => ({
+      ...plan,
+      price_monthly_usd: plan.price_monthly_usd ?? plan.monthly_price_usd ?? null,
+      price_annual_usd: plan.price_annual_usd ?? plan.annual_price_usd ?? null,
+      // Parse JSONB features if they came as strings
+      features: typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || {}),
+    }));
     return {
-      plans: Array.isArray(plans) ? plans : (plans.data || []),
+      plans: normalized,
       source: "api",
     };
   } catch (error) {

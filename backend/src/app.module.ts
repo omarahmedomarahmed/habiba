@@ -27,6 +27,9 @@ import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { CrisisModule } from './modules/crisis/crisis.module';
 import { NotesModule } from './modules/notes/notes.module';
+import { TreatmentPlansModule } from './modules/treatment-plans/treatment-plans.module';
+import { ReferralsModule } from './modules/referrals/referrals.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { GatewaysModule } from './gateways/gateways.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
@@ -89,6 +92,9 @@ import appConfig from './config/app.config';
     MessagesModule,
     CrisisModule,
     NotesModule,
+    TreatmentPlansModule,
+    ReferralsModule,
+    ReportsModule,
 
     // ─── WebSocket Gateways ───────────────────────────────────────────────────
     GatewaysModule,

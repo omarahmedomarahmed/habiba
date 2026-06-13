@@ -232,10 +232,10 @@ export default function AssessmentsPage() {
             <h1 className="text-2xl font-bold text-ink-900">Assessments</h1>
             <p className="text-ink-500 text-sm mt-1">Track patient outcomes with standardized measures</p>
           </div>
-          <button className="btn-primary flex items-center gap-2">
+          <Link href="/assessments/new" className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
             New Assessment
-          </button>
+          </Link>
         </div>
 
         {/* Error Banner */}

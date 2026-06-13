@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Target, Plus, Calendar, CheckCircle2,
   Circle, AlertCircle, Brain, BookOpen,
@@ -181,6 +182,7 @@ export default function TreatmentPlansPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"plans" | "protocols">("plans");
   const [reviewing, setReviewing] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<TreatmentPlan | null>(null);
 
   const fetchPlans = useCallback(async () => {
     setLoading(true);
@@ -258,10 +260,10 @@ export default function TreatmentPlansPage() {
             <h1 className="text-2xl font-bold text-ink-900">Treatment Plans</h1>
             <p className="text-ink-500 text-sm mt-1">Evidence-based care planning and goal tracking</p>
           </div>
-          <button className="btn-primary flex items-center gap-2">
+          <Link href="/treatment-plans/new" className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
             New Treatment Plan
-          </button>
+          </Link>
         </div>
 
         {/* Error Banner */}
@@ -337,9 +339,9 @@ export default function TreatmentPlansPage() {
                 return (
                   <button
                     key={plan.id}
-                    onClick={() => setSelectedPlanId(plan.id)}
+                    onClick={() => { setSelectedPlanId(plan.id); setSelectedPlan(plan); }}
                     className={cn(
-                      "w-full text-left card p-4 hover:shadow-card-hover transition-all",
+                      "w-full text-left card p-4 hover:shadow-card-hover transition-all cursor-pointer",
                       selectedPlanId === plan.id && "border-primary-300 bg-primary-50/30"
                     )}
                   >
@@ -642,6 +644,51 @@ export default function TreatmentPlansPage() {
           </div>
         )}
       </div>
+
+      {/* Slide-over detail panel */}
+      {selectedPlan && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex justify-end" onClick={() => setSelectedPlan(null)}>
+          <div className="w-[480px] bg-white h-full overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-lg text-slate-900">{selectedPlan.patient_name}</h2>
+              <button onClick={() => setSelectedPlan(null)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <span className="text-xs text-slate-500">Status</span>
+                <p className="font-medium capitalize">{selectedPlan.status}</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Therapeutic Approach</span>
+                <p className="font-medium">{selectedPlan.modality}</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Goals ({selectedPlan.goals.length})</span>
+                <div className="mt-2 space-y-2">
+                  {selectedPlan.goals.map((goal) => (
+                    <div key={goal.id} className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-sm text-slate-900">{goal.description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1.5 bg-slate-200 rounded-full">
+                          <div className="h-full bg-[#2EC4B6] rounded-full" style={{ width: `${goal.progress}%` }} />
+                        </div>
+                        <span className="text-xs text-slate-500">{goal.progress}%</span>
+                      </div>
+                    </div>
+                  ))}
+                  {selectedPlan.goals.length === 0 && (
+                    <p className="text-sm text-slate-400">No goals defined yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <Link href={`/treatment-plans/new?edit=${selectedPlan.id}`} className="flex-1 py-2.5 text-center border border-slate-200 text-slate-600 rounded-xl text-sm">Edit Plan</Link>
+              <button className="flex-1 py-2.5 bg-[#2EC4B6] text-white rounded-xl text-sm font-medium">Add Goal</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

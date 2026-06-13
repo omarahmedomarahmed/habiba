@@ -32,4 +32,21 @@ export class OrganizationsService {
     ]);
     return { therapists: parseInt(therapists?.count||'0'), patients: parseInt(patients?.count||'0'), sessions: parseInt(sessions?.count||'0') };
   }
+
+  async getAuditLogs(orgId: string, query: any = {}) {
+    const { page = 1, limit = 50, user_id, action } = query;
+    const params: any[] = [orgId];
+    const where: string[] = ['organization_id = $1'];
+    if (user_id) { params.push(user_id); where.push(`user_id = $${params.length}`); }
+    if (action) { params.push(`%${action}%`); where.push(`action ILIKE $${params.length}`); }
+    params.push(limit, (page - 1) * limit);
+    return this.db.query(
+      `SELECT id, user_id, action, resource_type, resource_id, ip_address, created_at
+       FROM phi_access_log
+       WHERE ${where.join(' AND ')}
+       ORDER BY created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+  }
 }

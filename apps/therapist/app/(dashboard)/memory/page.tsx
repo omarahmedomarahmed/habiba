@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { patientsAPI } from "@/lib/api";
+import { patientsAPI, memoriesAPI } from "@/lib/api";
 import {
   Brain, Search, Filter, Plus, ChevronRight, Tag, Calendar,
   User, AlertTriangle, Heart, Lightbulb, Flag, Target, Pill,
@@ -57,162 +57,6 @@ interface PatientMemoryProfile {
   sessions_analyzed: number;
 }
 
-const MEMORY_NODES: MemoryNode[] = [
-  {
-    id: "m001",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "relationship",
-    subcategory: "family_of_origin",
-    content: "Father was emotionally unavailable during childhood — worked long hours, dismissive of emotional expression. This pattern established an internal belief: 'I must perform to receive love.' Still affects adult relationships, particularly with authority figures and romantic partners.",
-    evidence: ["Session #8: 'My dad never had time for me unless I was doing something impressive'", "Session #12: Visible emotional shift when discussing father's approval", "Session #15: Directly linked to current people-pleasing at work"],
-    source_sessions: ["Session #8", "Session #12", "Session #15", "Session #20"],
-    created_at: "2024-11-15",
-    updated_at: "2025-10-22",
-    importance: "critical",
-    confidence: 0.94,
-    tags: ["father-wound", "attachment", "people-pleasing", "schema"],
-    ai_generated: true,
-    therapist_verified: true,
-    is_active: true,
-    context_window: "Activate before any session discussing relationships, self-worth, or performance anxiety"
-  },
-  {
-    id: "m002",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "trigger",
-    subcategory: "occupational",
-    content: "Work performance evaluations trigger acute anxiety with physiological symptoms (racing heart, difficulty breathing). Root mechanism: performance = worthiness. Perfectionist standards internalized from father. Directly activates abandonment schema.",
-    evidence: ["Session #12: Reported 8/10 anxiety before annual review", "Mood log 2025-09-15: Anxiety spike to 9/10 on review day", "Session #18: Physical symptoms described in detail"],
-    source_sessions: ["Session #12", "Session #18", "Session #22"],
-    created_at: "2024-12-08",
-    updated_at: "2025-11-15",
-    importance: "high",
-    confidence: 0.91,
-    tags: ["anxiety-trigger", "performance", "work", "physiological"],
-    ai_generated: true,
-    therapist_verified: true,
-    is_active: true,
-    context_window: "Alert before sessions in Q4 (review season). Prepare anxiety coping toolkit activation."
-  },
-  {
-    id: "m003",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "pattern",
-    subcategory: "seasonal",
-    content: "Seasonal mood worsening consistently observed November–January. 40% higher anxiety scores, reduced social activity, sleep quality decrease. Correlates with reduced sunlight and holiday family stress. Now in 2nd documented cycle — establishing as reliable pattern.",
-    evidence: ["PHQ-9 Nov 2024: 17 (vs 13 in Oct)", "PHQ-9 Nov 2025: 15 (vs 11 in Oct)", "Mood log analysis: 34% lower Nov-Jan scores"],
-    source_sessions: ["Session #15", "Session #22", "Session #24"],
-    created_at: "2025-11-20",
-    updated_at: "2025-12-01",
-    importance: "high",
-    confidence: 0.85,
-    tags: ["seasonal", "depression", "SAD", "mood-pattern"],
-    ai_generated: true,
-    therapist_verified: true,
-    is_active: true,
-    context_window: "Proactively prepare seasonal coping plan each October. Consider light therapy recommendation."
-  },
-  {
-    id: "m004",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "preference",
-    subcategory: "therapeutic_approach",
-    content: "Responds excellently to Socratic questioning — arrives at insights independently. Does not respond well to direct advice or interpretation. Prefers collaborative exploration over directive guidance. Self-efficacy is a key therapeutic lever.",
-    evidence: ["Session #6: Resistance when given direct interpretation", "Session #10: Breakthrough after Socratic question sequence", "Session #14: Explicitly stated 'I like figuring it out myself'"],
-    source_sessions: ["Session #6", "Session #10", "Session #14"],
-    created_at: "2024-10-30",
-    updated_at: "2025-01-15",
-    importance: "high",
-    confidence: 0.96,
-    tags: ["therapeutic-style", "Socratic", "self-efficacy", "technique"],
-    ai_generated: false,
-    therapist_verified: true,
-    is_active: true,
-    context_window: "Always suggest open questions over statements. Copilot: use Socratic mode."
-  },
-  {
-    id: "m005",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "progress",
-    subcategory: "cognitive",
-    content: "Significant improvement in real-time cognitive reframing since Session #15. Now able to identify cognitive distortions (catastrophizing, all-or-nothing thinking) independently during sessions without prompting. This represents a clinically meaningful skill acquisition.",
-    evidence: ["Session #18: Independently identified catastrophizing mid-sentence", "Session #21: Corrected thought distortion before therapist commented", "Mood logs: Evidence of self-applied reframing"],
-    source_sessions: ["Session #15", "Session #18", "Session #21", "Session #24"],
-    created_at: "2025-02-10",
-    updated_at: "2025-12-15",
-    importance: "medium",
-    confidence: 0.92,
-    tags: ["CBT", "cognitive-reframing", "milestone", "skill-acquisition"],
-    ai_generated: true,
-    therapist_verified: true,
-    is_active: true,
-  },
-  {
-    id: "m006",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "trauma",
-    subcategory: "grief",
-    content: "Lost close friend unexpectedly in October 2025. Processing ongoing. Grief complicated by survivor guilt and fear of expressing sadness (learned: 'strong people don't cry'). This belief learned from father — connects to core schema work.",
-    evidence: ["Session #19: First disclosure of loss", "Session #20: Resistance to labeling grief", "Session #21: Opened up after reframing strength/vulnerability"],
-    source_sessions: ["Session #19", "Session #20", "Session #21"],
-    created_at: "2025-10-20",
-    updated_at: "2025-11-05",
-    importance: "high",
-    confidence: 0.88,
-    tags: ["grief", "loss", "survivor-guilt", "vulnerability"],
-    ai_generated: true,
-    therapist_verified: true,
-    is_active: true,
-    context_window: "Handle with particular care. Connected to core father schema. Don't rush grief work."
-  },
-  {
-    id: "m007",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "medication",
-    content: "Lexapro (Escitalopram) 10mg — positive response documented. Sleep improvement first observed within 3 weeks of dosage increase (5mg → 10mg). Reports feeling 'more level' emotionally. No significant side effects reported. Prescribed by Dr. Jennifer Walsh.",
-    evidence: ["Session #18: 'I feel more stable since the dose increase'", "Sleep log: 6.2hrs avg → 7.1hrs avg after Lexapro increase", "PHQ-9 correlation: -4 pts in 6 weeks post-increase"],
-    source_sessions: ["Session #16", "Session #18", "Session #22"],
-    created_at: "2025-09-15",
-    updated_at: "2025-12-01",
-    importance: "high",
-    confidence: 0.95,
-    tags: ["Lexapro", "SSRI", "medication-response", "sleep"],
-    ai_generated: false,
-    therapist_verified: true,
-    is_active: true,
-  },
-  {
-    id: "m008",
-    patient_id: "p1",
-    patient_name: "Sarah Chen",
-    category: "family",
-    subcategory: "current",
-    content: "Strong relationship with sister Lisa (emergency contact). Sister aware of therapy but doesn't know details. Mother relationship described as 'better' than with father but emotionally dependent dynamic present. No current romantic relationship — avoidance pattern noted.",
-    evidence: ["Session #5: 'Lisa is the one person I can really talk to'", "Session #9: Mother described as 'supportive but needs a lot in return'", "Session #14: Dating mentioned briefly, followed by topic change"],
-    source_sessions: ["Session #5", "Session #9", "Session #14"],
-    created_at: "2024-10-10",
-    updated_at: "2025-06-15",
-    importance: "medium",
-    confidence: 0.82,
-    tags: ["family", "sister", "mother", "attachment-style", "relationship-avoidance"],
-    ai_generated: true,
-    therapist_verified: true,
-    is_active: true,
-  },
-];
-
-const PATIENT_PROFILES: PatientMemoryProfile[] = [
-  { patient_id: "p1", patient_name: "Sarah Chen", total_memories: 47, last_updated: "2025-12-15", intelligence_score: 87, sessions_analyzed: 24 },
-  { patient_id: "p2", patient_name: "Marcus Webb", total_memories: 31, last_updated: "2025-12-12", intelligence_score: 72, sessions_analyzed: 16 },
-  { patient_id: "p3", patient_name: "Priya Nair", total_memories: 62, last_updated: "2025-12-10", intelligence_score: 94, sessions_analyzed: 35 },
-];
 
 const CATEGORY_CONFIG: Record<Exclude<MemoryCategory, "all">, { label: string; icon: React.ElementType; color: string; bg: string }> = {
   relationship: { label: "Relationships", icon: Heart, color: "text-rose-600", bg: "bg-rose-50" },
@@ -236,7 +80,7 @@ const IMPORTANCE_CONFIG: Record<MemoryImportance, { label: string; color: string
 };
 
 export default function MemoryPage() {
-  const [selectedPatient, setSelectedPatient] = useState<string>("p1");
+  const [selectedPatient, setSelectedPatient] = useState<string>("");
   const [activeCategory, setActiveCategory] = useState<MemoryCategory>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMemory, setSelectedMemory] = useState<MemoryNode | null>(null);
@@ -245,8 +89,8 @@ export default function MemoryPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newMemoryContent, setNewMemoryContent] = useState("");
   const [newMemoryCategory, setNewMemoryCategory] = useState<Exclude<MemoryCategory, "all">>("observation");
-  const [liveMemories, setLiveMemories] = useState<MemoryNode[]>(MEMORY_NODES);
-  const [liveProfiles, setLiveProfiles] = useState<PatientMemoryProfile[]>(PATIENT_PROFILES);
+  const [liveMemories, setLiveMemories] = useState<MemoryNode[]>([]);
+  const [liveProfiles, setLiveProfiles] = useState<PatientMemoryProfile[]>([]);
 
   useEffect(() => {
     async function loadPatients() {
@@ -270,34 +114,28 @@ export default function MemoryPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedPatient || selectedPatient === "p1") return;
-    async function loadMemories() {
-      try {
-        const res = await patientsAPI.memories(selectedPatient) as { data: Record<string, unknown>[] };
-        const nodes = (res.data || []).map(m => ({
-          id: m.id as string,
-          patient_id: selectedPatient,
-          patient_name: "",
-          category: (m.node_type || "observation") as Exclude<MemoryCategory, "all">,
-          content: m.content as string || "",
-          evidence: [],
-          source_sessions: [],
-          created_at: m.created_at as string,
-          updated_at: m.updated_at as string || m.created_at as string,
-          importance: (m.importance || "medium") as MemoryImportance,
-          confidence: (m.confidence as number) || 0.8,
-          tags: (m.tags as string[]) || [],
-          ai_generated: true,
-          therapist_verified: false,
-          is_active: true,
-        }));
-        setLiveMemories(nodes);
+    if (!selectedPatient) return;
+    setLiveMemories([]);
+    patientsAPI.memories(selectedPatient)
+      .then((res: any) => {
+        const nodes = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setLiveMemories(nodes.map((n: any) => ({
+          ...n,
+          category: n.memory_type || n.category || "observation",
+          importance: n.importance || "medium",
+          confidence: n.confidence || 0.8,
+          tags: Array.isArray(n.tags) ? n.tags : [],
+          evidence: Array.isArray(n.evidence) ? n.evidence : [],
+          source_sessions: Array.isArray(n.source_sessions) ? n.source_sessions : [],
+          ai_generated: n.ai_generated ?? true,
+          therapist_verified: n.therapist_verified ?? false,
+          is_active: n.is_active ?? true,
+        })));
         setLiveProfiles(prev => prev.map(p =>
           p.patient_id === selectedPatient ? { ...p, total_memories: nodes.length } : p
         ));
-      } catch { setLiveMemories([]); }
-    }
-    loadMemories();
+      })
+      .catch(() => setLiveMemories([]));
   }, [selectedPatient]);
 
   const currentPatient = liveProfiles.find(p => p.patient_id === selectedPatient);
@@ -700,7 +538,38 @@ export default function MemoryPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm">Cancel</button>
-              <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium">Save Memory</button>
+              <button
+                onClick={async () => {
+                  if (!newMemoryContent.trim() || !selectedPatient) return;
+                  try {
+                    await memoriesAPI.addNode(selectedPatient, {
+                      memory_type: newMemoryCategory,
+                      content: newMemoryContent,
+                    });
+                    setNewMemoryContent("");
+                    setShowAddModal(false);
+                    // Refresh memories
+                    patientsAPI.memories(selectedPatient).then((res: any) => {
+                      const nodes = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+                      setLiveMemories(nodes.map((n: any) => ({
+                        ...n,
+                        category: n.memory_type || n.category || "observation",
+                        importance: n.importance || "medium",
+                        confidence: n.confidence || 0.8,
+                        tags: Array.isArray(n.tags) ? n.tags : [],
+                        evidence: Array.isArray(n.evidence) ? n.evidence : [],
+                        source_sessions: Array.isArray(n.source_sessions) ? n.source_sessions : [],
+                        ai_generated: n.ai_generated ?? true,
+                        therapist_verified: n.therapist_verified ?? false,
+                        is_active: n.is_active ?? true,
+                      })));
+                    }).catch(() => {});
+                  } catch { /* keep modal open on error */ }
+                }}
+                className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium"
+              >
+                Save Memory
+              </button>
             </div>
           </div>
         </div>

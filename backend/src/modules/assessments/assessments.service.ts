@@ -169,7 +169,7 @@ export class AssessmentsService {
       `SELECT pa.*, at.name as template_name, at.code as template_code, at.category,
         at.min_score, at.max_score,
         t.display_name as administered_by_name
-       FROM patient_assessments pa
+       FROM assessment_results pa
        JOIN assessment_templates at ON at.id = pa.template_id
        LEFT JOIN therapists t ON t.id = pa.administered_by
        WHERE ${where.join(' AND ')}
@@ -186,7 +186,7 @@ export class AssessmentsService {
         at.questions_json, at.scoring_guide,
         t.display_name as administered_by_name,
         p.first_name || ' ' || p.last_name as patient_name
-       FROM patient_assessments pa
+       FROM assessment_results pa
        JOIN assessment_templates at ON at.id = pa.template_id
        LEFT JOIN therapists t ON t.id = pa.administered_by
        JOIN patients p ON p.id = pa.patient_id
@@ -209,7 +209,7 @@ export class AssessmentsService {
     const template = await this.getTemplate(dto.template_id).catch(() => null);
 
     const result = await this.db.query(
-      `INSERT INTO patient_assessments (
+      `INSERT INTO assessment_results (
         id, patient_id, template_id, therapist_id, organization_id,
         session_id, status, source, created_at
        ) VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,NOW())
@@ -227,7 +227,7 @@ export class AssessmentsService {
   async submitAssessment(assessmentId: string, responses: Record<string, number>, orgId: string, submittedBy?: string) {
     const assessment = await this.db.queryOne<any>(
       `SELECT pa.*, at.code, at.min_score, at.max_score
-       FROM patient_assessments pa
+       FROM assessment_results pa
        JOIN assessment_templates at ON at.id = pa.template_id
        WHERE pa.id = $1 AND pa.organization_id = $2`,
       [assessmentId, orgId],
@@ -237,7 +237,7 @@ export class AssessmentsService {
     const scoring = this.scoreAssessment(templateCode, responses);
 
     const result = await this.db.query(
-      `UPDATE patient_assessments
+      `UPDATE assessment_results
        SET responses = $2, total_score = $3, severity_label = $4,
            status = 'completed', administered_at = NOW(),
            subscores = $5, risk_items_flagged = $6,
@@ -385,7 +385,7 @@ export class AssessmentsService {
         pa.id, pa.administered_at, pa.total_score, pa.severity_label,
         at.code, at.name as template_name, at.min_score, at.max_score,
         pa.subscores, pa.risk_items_flagged
-       FROM patient_assessments pa
+       FROM assessment_results pa
        JOIN assessment_templates at ON at.id = pa.template_id
        WHERE ${where.join(' AND ')}
        ORDER BY pa.administered_at ASC`,
@@ -441,7 +441,7 @@ export class AssessmentsService {
       `SELECT pa.*, at.name as template_name, at.code,
         p.first_name || ' ' || p.last_name as patient_name,
         t.display_name as therapist_name
-       FROM patient_assessments pa
+       FROM assessment_results pa
        JOIN assessment_templates at ON at.id = pa.template_id
        JOIN patients p ON p.id = pa.patient_id
        LEFT JOIN therapists t ON t.id = pa.therapist_id
@@ -516,7 +516,7 @@ export class AssessmentsService {
 
     const assessments = await this.db.query<any>(
       `SELECT pa.*, at.name as template_name, at.code
-       FROM patient_assessments pa
+       FROM assessment_results pa
        JOIN assessment_templates at ON at.id = pa.template_id
        WHERE pa.patient_id=$1 AND pa.organization_id=$2
          AND pa.status='completed'
@@ -553,5 +553,28 @@ export class AssessmentsService {
       summary,
       generated_at: new Date().toISOString(),
     };
+  }
+
+  async listAllForOrg(orgId: string, query: any = {}) {
+    const { page = 1, limit = 20, patient_id, template_code, status } = query;
+    const offset = (page - 1) * limit;
+    const params: any[] = [orgId];
+    const where: string[] = ['ar.organization_id = $1'];
+
+    if (patient_id) { params.push(patient_id); where.push(`ar.patient_id = $${params.length}`); }
+    if (template_code) { params.push(template_code); where.push(`ar.template_code = $${params.length}`); }
+    if (status) { params.push(status); where.push(`ar.status = $${params.length}`); }
+
+    params.push(limit, offset);
+    const rows = await this.db.query(
+      `SELECT ar.*, p.first_name || ' ' || p.last_name AS patient_name
+       FROM assessment_results ar
+       LEFT JOIN patients p ON p.id = ar.patient_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY ar.administered_at DESC NULLS LAST
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+    return rows;
   }
 }
