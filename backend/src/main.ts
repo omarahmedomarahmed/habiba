@@ -1,9 +1,24 @@
+import * as Sentry from '@sentry/node';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { buildCorsOriginFn } from './config/cors';
+
+// Initialise Sentry before anything else so all errors are captured
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
+    // Never include PHI in Sentry events
+    beforeSend(event) {
+      if (event.request?.data) delete event.request.data;
+      return event;
+    },
+  });
+}
 
 // Use require() for CommonJS modules that lack proper ESModule default exports
 // eslint-disable-next-line @typescript-eslint/no-require-imports
