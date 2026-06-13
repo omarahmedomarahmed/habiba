@@ -292,3 +292,5 @@ export const notificationsAPI = {
 
 export { setTokens, clearTokens, getAccessToken, getRefreshToken };
 export default apiFetch;
+
+// Reviewed: 2026-06-13 — 24Therapy audit

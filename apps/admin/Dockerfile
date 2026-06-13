@@ -26,3 +26,5 @@ COPY --from=build /app/apps/admin/.next/static ./apps/admin/.next/static
 COPY --from=build /app/apps/admin/public ./apps/admin/public 2>/dev/null || true
 EXPOSE 3000
 CMD ["node", "apps/admin/server.js"]
+
+# Reviewed: 2026-06-13 — 24Therapy audit

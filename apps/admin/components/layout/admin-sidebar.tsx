@@ -146,3 +146,5 @@ export default function AdminSidebar() {
     </aside>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

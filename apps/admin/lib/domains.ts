@@ -30,3 +30,5 @@ export const EMAILS = {
   support: "support@24therapy.ai",
   legal: "legal@24therapy.ai",
 } as const;
+
+// Reviewed: 2026-06-13 — 24Therapy audit
