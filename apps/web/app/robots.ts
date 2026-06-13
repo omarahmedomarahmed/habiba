@@ -15,3 +15,5 @@ export default function robots(): MetadataRoute.Robots {
     host: BASE_URL,
   };
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

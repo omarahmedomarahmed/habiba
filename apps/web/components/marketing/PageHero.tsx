@@ -111,3 +111,5 @@ export function PageHero({
     </section>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

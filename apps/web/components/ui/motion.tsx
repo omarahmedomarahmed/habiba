@@ -203,3 +203,5 @@ export function SectionHeader({ eyebrow, title, description, centered = true, li
 
 // Re-export framer-motion primitives for convenience
 export { motion, useInView };
+
+// Reviewed: 2026-06-13 — 24Therapy audit

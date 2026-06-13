@@ -406,3 +406,5 @@ function Building({ className }: { className?: string }) {
     </svg>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -4,3 +4,5 @@ import { redirect } from "next/navigation";
 export default function TherapistsDirectoryPage() {
   redirect("/find-therapist");
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

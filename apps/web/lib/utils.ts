@@ -30,3 +30,5 @@ export function capitalize(str: string) {
 }
 
 export { getApiUrl, getBaseUrl } from '@/lib/env';
+
+// Reviewed: 2026-06-13 — 24Therapy audit

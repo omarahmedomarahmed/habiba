@@ -31,3 +31,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority,
   }));
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

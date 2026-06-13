@@ -279,3 +279,5 @@ export default function EnterprisePage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
