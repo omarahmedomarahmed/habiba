@@ -33,3 +33,5 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return user;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

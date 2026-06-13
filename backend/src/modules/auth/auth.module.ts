@@ -25,3 +25,5 @@ import { MailModule } from '../mail/mail.module';
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

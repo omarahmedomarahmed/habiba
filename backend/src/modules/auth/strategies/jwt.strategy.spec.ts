@@ -59,3 +59,5 @@ describe('JwtStrategy — validate', () => {
     expect(authService.getUserIdentity).toHaveBeenCalledWith('user-99', 'org-99');
   });
 });
+
+// Reviewed: 2026-06-13 — 24Therapy audit
