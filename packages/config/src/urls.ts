@@ -61,3 +61,5 @@ export function getCorsOrigins(): string[] {
     APP_URLS.admin,
   ];
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
