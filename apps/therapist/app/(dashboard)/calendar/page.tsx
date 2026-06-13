@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock,
-  User, Video, Phone, MapPin, CheckCircle, AlertCircle, Edit3,
+  User, Video, Phone, MapPin, CheckCircle, AlertCircle, X, Edit3,
   Bell, Repeat, Filter, Grid3x3, List, Settings, RefreshCw,
   MoreHorizontal, Circle, Users, Zap
 } from "lucide-react";

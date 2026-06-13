@@ -9,7 +9,6 @@ import {
   getPlanDisplayPrice,
   getLimitDisplay,
   type SubscriptionPlan,
-  type PlanFeatures,
 } from "@/lib/pricing-api";
 
 // ─── Plan key normalizer ──────────────────────────────────────────────────────
@@ -175,7 +174,8 @@ function PlanCard({ plan, showSavingsStrip }: { plan: SubscriptionPlan; showSavi
   const planKey = getPlanKey(plan);
   const heroMetric = PLAN_HERO_METRICS[planKey];
   const planFeatures = PLAN_FEATURES_MAP[planKey];
-  const displayPrice = (plan as any).price_monthly_usd ?? (plan as any).monthly_price_usd ?? (plan as any).price;
+  // price_monthly_usd is the canonical field; fall back to any backend alias
+  const displayPrice = plan.price_monthly_usd ?? (plan as any).monthly_price_usd ?? (plan as any).price;
 
   return (
     <div
