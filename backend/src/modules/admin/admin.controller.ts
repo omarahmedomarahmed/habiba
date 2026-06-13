@@ -174,6 +174,29 @@ export class AdminController {
   async getAIGovernanceDashboard() {
     return this.adminService.getAIGovernanceDashboard();
   }
+
+  // ─── Emergency Access (Break-Glass) — HIPAA §164.312(a)(2)(ii) ───────────
+
+  @Post('break-glass')
+  async breakGlassAccess(
+    @Body() body: { target_user_id?: string; reason: string; resources: string[] },
+    @CurrentUser() user: any,
+    @Request() req: any,
+  ) {
+    return this.adminService.recordBreakGlassAccess({
+      adminUserId: user.id,
+      targetUserId: body.target_user_id,
+      reason: body.reason,
+      resources: body.resources,
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      userAgent: req.headers?.['user-agent'],
+    });
+  }
+
+  @Get('break-glass')
+  async listBreakGlassEvents(@Query() query: any) {
+    return this.adminService.listBreakGlassEvents(query);
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit

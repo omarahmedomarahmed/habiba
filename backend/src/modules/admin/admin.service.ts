@@ -581,6 +581,47 @@ export class AdminService {
       [],
     ).catch(() => []);
   }
+  async recordBreakGlassAccess(opts: {
+    adminUserId: string;
+    targetUserId?: string;
+    reason: string;
+    resources: string[];
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    const row = await this.db.queryOne<{ id: string }>(
+      `INSERT INTO break_glass_access
+         (admin_user_id, target_user_id, reason, resources, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [
+        opts.adminUserId, opts.targetUserId || null, opts.reason,
+        JSON.stringify(opts.resources),
+        opts.ipAddress || null, opts.userAgent || null,
+      ],
+    ).catch(() => null);
+    await this.createAuditEntry({
+      action: 'break_glass_access',
+      resource_type: 'patient_record',
+      resource_id: opts.targetUserId || 'platform',
+      actor_id: opts.adminUserId,
+      details: { reason: opts.reason, resources: opts.resources },
+    });
+    this.logger.warn(`BREAK_GLASS: admin=${opts.adminUserId} target=${opts.targetUserId} reason="${opts.reason}"`);
+    return { id: row?.id, status: 'logged' };
+  }
+
+  async listBreakGlassEvents(query: any = {}) {
+    const { limit = 50 } = query;
+    return this.db.query(
+      `SELECT b.*, u.email AS admin_email
+       FROM break_glass_access b
+       JOIN users u ON u.id = b.admin_user_id
+       ORDER BY b.accessed_at DESC
+       LIMIT $1`,
+      [Math.min(Number(limit), 200)],
+    ).catch(() => []);
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit
