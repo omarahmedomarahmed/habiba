@@ -73,6 +73,7 @@ export default function TherapistSettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>(tabParam || "profile");
   const [billingUsage, setBillingUsage] = useState<any>(null);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (tabParam && TABS.some(t => t.id === tabParam)) {
@@ -842,13 +843,40 @@ export default function TherapistSettingsPage() {
                           <span className="bg-[#2EC4B6] text-white text-xs px-2 py-1 rounded-full font-medium">Active</span>
                         </div>
                       </div>
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 flex-wrap">
                         <button
                           onClick={() => setActiveTab("usage")}
                           className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:border-[#2EC4B6] hover:text-[#2EC4B6]"
                         >
                           View Usage & Upgrade
                         </button>
+                        {!cancelConfirm ? (
+                          <button
+                            onClick={() => setCancelConfirm(true)}
+                            className="px-4 py-2.5 text-sm text-red-600 border border-red-200 rounded-xl hover:bg-red-50"
+                          >
+                            Cancel Subscription
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm text-slate-600">Are you sure?</span>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await billingAPI.cancel();
+                                  setBillingUsage(null);
+                                  setCancelConfirm(false);
+                                } catch { setCancelConfirm(false); }
+                              }}
+                              className="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700"
+                            >
+                              Yes, Cancel
+                            </button>
+                            <button onClick={() => setCancelConfirm(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl">
+                              Keep Plan
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </>
                   ) : (

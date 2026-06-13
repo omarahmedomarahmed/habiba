@@ -12,6 +12,92 @@ import {
   type PlanFeatures,
 } from "@/lib/pricing-api";
 
+// ─── Plan key normalizer ──────────────────────────────────────────────────────
+function getPlanKey(plan: SubscriptionPlan): string {
+  const name = (plan.name || plan.plan_key || '').toLowerCase();
+  if (name.includes('payg') || name.includes('pay_as_you_go') || name.includes('pay as') || name.includes('pay per') || plan.plan_key === 'pay_per_session') return 'payg';
+  if (name.includes('starter')) return 'starter';
+  if (name.includes('unlimited') || plan.plan_key === 'pro') return 'unlimited';
+  if (name.includes('practice') || name.includes('enterprise')) return 'practice';
+  return 'starter';
+}
+
+// ─── Per-plan hero metrics ────────────────────────────────────────────────────
+const PLAN_HERO_METRICS: Record<string, { headline: string; sub: string }> = {
+  payg:      { headline: "$6/session", sub: "first one free" },
+  starter:   { headline: "$59/mo", sub: "20 sessions (~$3 each)" },
+  unlimited: { headline: "$99/mo", sub: "unlimited sessions" },
+  practice:  { headline: "$189/2 seats", sub: "from $94.50/seat" },
+};
+
+// ─── Included / excluded feature lists ───────────────────────────────────────
+const PLAN_FEATURES_MAP: Record<string, { included: string[]; excluded: string[] }> = {
+  payg: {
+    included: [
+      "First session free",
+      "AI session notes & scribe",
+      "Live transcription",
+      "Crisis safety net (always-on)",
+      "HIPAA-compliant video",
+      "5 AI assistant messages/session",
+      "Patient portal access",
+    ],
+    excluded: [
+      "Radar patient matching",
+      "Session rollover",
+      "Unlimited AI assistant",
+      "Analytics dashboard",
+      "Priority AI processing",
+    ],
+  },
+  starter: {
+    included: [
+      "Everything in Pay-as-you-go",
+      "20 sessions included (~$3/session)",
+      "Session rollover bank",
+      "Unlimited AI assistant",
+      "Radar patient matching",
+      "Business Associate Agreement (BAA)",
+    ],
+    excluded: [
+      "Analytics dashboard",
+      "Emotional history tracking",
+      "Priority AI processing",
+      "Custom branding",
+    ],
+  },
+  unlimited: {
+    included: [
+      "Everything in Starter",
+      "Unlimited sessions",
+      "Analytics dashboard",
+      "Emotional history tracking",
+      "Priority AI processing",
+      "Custom branding",
+    ],
+    excluded: [
+      "Team management",
+      "SSO / SAML login",
+      "API access",
+    ],
+  },
+  practice: {
+    included: [
+      "Everything in Unlimited",
+      "Team management",
+      "Consolidated billing",
+      "Multi-location support",
+      "Onboarding support",
+    ],
+    excluded: [
+      "SSO / SAML login",
+      "Custom AI model",
+    ],
+  },
+};
+
+const CRISIS_NOTE = "Crisis safety net included on ALL plans — 988 always available";
+
 // ─── FAQ (static — managed in code, not in DB) ────────────────────────────────
 const FAQS = [
   {

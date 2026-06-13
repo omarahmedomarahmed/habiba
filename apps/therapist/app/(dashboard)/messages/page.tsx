@@ -9,7 +9,7 @@ import {
   Image, Download, Calendar, Bell, Filter
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
-import { messagesAPI } from "@/lib/api";
+import { messagesAPI, patientsAPI } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/lib/store";
 
@@ -55,6 +55,39 @@ export default function MessagesPage() {
   const [liveMessages, setLiveMessages] = useState<Record<string, Message[]>>({});
   const [loadingThreads, setLoadingThreads] = useState(true);
   const { accessToken } = useAuthStore();
+  const [showNewConvo, setShowNewConvo] = useState(false);
+  const [newConvoSearch, setNewConvoSearch] = useState("");
+  const [newConvoPatients, setNewConvoPatients] = useState<any[]>([]);
+
+  const handleStartConversation = async (patient: any) => {
+    try {
+      await messagesAPI.createConversation(patient.user_id || patient.id);
+      setShowNewConvo(false);
+      setNewConvoSearch("");
+      // Reload conversations
+      messagesAPI.conversations().then((res: any) => {
+        const threads: Thread[] = (res.data || []).map((c: any) => ({
+          id: c.id,
+          patient_name: c.name || c.patient_name || 'Unknown',
+          patient_id: c.patient_id || c.other_user_id || '',
+          last_message: c.last_message || '',
+          last_message_time: c.updated_at || '',
+          unread: c.unread_count || 0,
+          type: 'patient' as const,
+          status: 'active' as const,
+          urgent: false,
+          last_sender: 'them' as const,
+        }));
+        setLiveThreads(threads);
+      }).catch(() => {});
+    } catch { /* patient may not have portal access */ }
+  };
+
+  useEffect(() => {
+    patientsAPI.list({ limit: 100 }).then((res: any) => {
+      setNewConvoPatients(Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     messagesAPI.conversations()
@@ -149,7 +182,10 @@ export default function MessagesPage() {
                 </span>
               )}
             </div>
-            <button className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#0A2342] text-white hover:bg-[#123A63]">
+            <button
+              onClick={() => setShowNewConvo(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#0A2342] text-white hover:bg-[#123A63]"
+            >
               <Plus className="h-4 w-4" />
             </button>
           </div>
@@ -404,6 +440,47 @@ export default function MessagesPage() {
           <div className="text-center">
             <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="text-sm">Select a conversation</p>
+          </div>
+        </div>
+      )}
+
+      {showNewConvo && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowNewConvo(false)}>
+          <div className="bg-white rounded-2xl p-6 w-96 max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">New Conversation</h3>
+              <button onClick={() => setShowNewConvo(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                placeholder="Search patients..."
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none"
+                value={newConvoSearch}
+                onChange={e => setNewConvoSearch(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              {newConvoPatients.filter((p: any) => {
+                const name = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+                return !newConvoSearch || name.includes(newConvoSearch.toLowerCase());
+              }).map((p: any) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleStartConversation(p)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-slate-300 text-left"
+                >
+                  <div className="w-9 h-9 rounded-full bg-[#0A2342] text-white text-sm font-bold flex items-center justify-center">
+                    {p.first_name?.[0]}{p.last_name?.[0]}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">{p.first_name} {p.last_name}</div>
+                    <div className="text-xs text-slate-500">{p.email}</div>
+                  </div>
+                </button>
+              ))}
+              {newConvoPatients.length === 0 && <p className="text-center text-sm text-slate-400 py-4">No patients found</p>}
+            </div>
           </div>
         </div>
       )}
