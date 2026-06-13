@@ -319,3 +319,5 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [ ] Jest test suite updates for new modules (treatment-plans, referrals, reports, session-16 pages)
 - [ ] Onboarding wizard step 7: remove card-required implication
 - [ ] Formal BAAs before accepting real PHI (see `docs/HIPAA_CHECKLIST.md`)
+
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->

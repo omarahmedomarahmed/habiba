@@ -517,3 +517,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
