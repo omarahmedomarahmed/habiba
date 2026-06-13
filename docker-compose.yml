@@ -295,3 +295,5 @@ services:
       - prometheus
     networks:
       - therapy_net
+
+# Reviewed: 2026-06-13 — 24Therapy audit

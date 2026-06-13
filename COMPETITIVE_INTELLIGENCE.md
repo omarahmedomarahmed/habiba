@@ -867,6 +867,8 @@ I noticed we talked about some heavy things. I want to check in — how are you 
 - [Mentalyc pricing $49.99/seat](https://www.mentalyc.com/blog/upheal-vs-mentalyc)
 - [Mental health treatment gap 1B globally](https://www.who.int/news/item/02-09-2025-who-releases-new-reports-and-estimates-highlighting-urgent-gaps-in-mental-health)
 
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->
+
 ---
 
 # PART 7: PRICING STRATEGY & FREEMIUM MODEL RECOMMENDATIONS
