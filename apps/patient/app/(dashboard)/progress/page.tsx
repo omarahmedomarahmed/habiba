@@ -41,104 +41,9 @@ interface Achievement {
   category: string;
 }
 
-const ASSESSMENT_HISTORY: AssessmentDataPoint[] = [
-  { date: "Aug 2024", phq9: 19, gad7: 15, session: 1 },
-  { date: "Sep 2024", phq9: 17, gad7: 13, session: 5 },
-  { date: "Oct 2024", phq9: 16, gad7: 12, session: 9 },
-  { date: "Nov 2024", phq9: 17, gad7: 14, session: 13 },
-  { date: "Dec 2024", phq9: 15, gad7: 11, session: 17 },
-  { date: "Jan 2025", phq9: 14, gad7: 10, session: 19 },
-  { date: "Feb 2025", phq9: 13, gad7: 9, session: 21 },
-  { date: "Mar 2025", phq9: 12, gad7: 9, session: 22 },
-  { date: "Apr 2025", phq9: 11, gad7: 8, session: 23 },
-  { date: "Dec 2025", phq9: 13, gad7: 8, session: 24 },
-];
+const EMPTY_ASSESSMENT_HISTORY: AssessmentDataPoint[] = [];
 
-const THERAPY_GOALS: TherapyGoal[] = [
-  {
-    id: "g1",
-    title: "Reduce PHQ-9 below 9 (minimal depression)",
-    category: "symptom",
-    progress: 52,
-    target_date: "2026-03-01",
-    started_date: "2024-08-15",
-    status: "active",
-    sessions_count: 24,
-    last_updated: "2025-12-15",
-    milestones: ["PHQ-9 below 17 ✓", "PHQ-9 below 14 ✓", "PHQ-9 below 11", "PHQ-9 below 9"],
-    notes: "Strong improvement trajectory. Seasonal dip in Nov expected but managing well."
-  },
-  {
-    id: "g2",
-    title: "Develop 5 evidence-based coping strategies",
-    category: "skill",
-    progress: 100,
-    target_date: "2025-11-15",
-    started_date: "2024-09-01",
-    status: "completed",
-    sessions_count: 12,
-    last_updated: "2025-11-15",
-    milestones: ["4-7-8 Breathing ✓", "5-4-3-2-1 Grounding ✓", "Thought Records ✓", "Behavioral Activation ✓", "Self-Compassion ✓"]
-  },
-  {
-    id: "g3",
-    title: "Improve sleep quality — 7+ hours/night consistently",
-    category: "behavioral",
-    progress: 70,
-    target_date: "2026-01-31",
-    started_date: "2024-10-01",
-    status: "active",
-    sessions_count: 10,
-    last_updated: "2025-12-10",
-    milestones: ["Sleep log started ✓", "Consistent bedtime ✓", "7+ hours 3x/week ✓", "7+ hours 5x/week"]
-  },
-  {
-    id: "g4",
-    title: "Re-engage with social activities (2x/week)",
-    category: "social",
-    progress: 40,
-    target_date: "2026-02-28",
-    started_date: "2025-01-01",
-    status: "active",
-    sessions_count: 6,
-    last_updated: "2025-12-08",
-    milestones: ["Identify 3 social activities ✓", "Attempt one social event ✓", "Consistent 1x/week", "Consistent 2x/week"]
-  },
-  {
-    id: "g5",
-    title: "Complete CBT thought record homework (4 weeks)",
-    category: "milestone",
-    progress: 100,
-    target_date: "2025-11-15",
-    started_date: "2025-10-15",
-    status: "completed",
-    sessions_count: 4,
-    last_updated: "2025-11-15",
-    milestones: ["Week 1 ✓", "Week 2 ✓", "Week 3 ✓", "Week 4 ✓"]
-  },
-];
-
-const ACHIEVEMENTS: Achievement[] = [
-  { id: "a1", title: "First Step", description: "Completed your first therapy session", earned_date: "2024-08-15", icon: "🌱", category: "milestone" },
-  { id: "a2", title: "Consistent Carer", description: "Attended 10 sessions in a row", earned_date: "2024-11-20", icon: "🌟", category: "attendance" },
-  { id: "a3", title: "Goal Crusher", description: "Completed your first treatment goal", earned_date: "2025-11-15", icon: "🏆", category: "goals" },
-  { id: "a4", title: "Skill Builder", description: "Learned and practiced 5 coping strategies", earned_date: "2025-11-15", icon: "🛠️", category: "skills" },
-  { id: "a5", title: "Journal Keeper", description: "Maintained a 7-day journal streak", earned_date: "2025-12-16", icon: "📝", category: "habits" },
-  { id: "a6", title: "Self-Awareness", description: "Tracked mood for 30 consecutive days", earned_date: "2025-12-01", icon: "🔮", category: "habits" },
-];
-
-const WEEKLY_SUMMARY = {
-  mood_avg: 6.4,
-  mood_change: +0.8,
-  anxiety_avg: 4.2,
-  anxiety_change: -0.5,
-  sleep_avg: 7.1,
-  sleep_change: +0.3,
-  exercise_days: 3,
-  journal_days: 5,
-  homework_completed: 3,
-  homework_total: 4,
-};
+const EMPTY_THERAPY_GOALS: TherapyGoal[] = [];
 
 function ProgressBar({ value, color = "bg-blue-500", showLabel = true }: { value: number; color?: string; showLabel?: boolean }) {
   return (
@@ -193,57 +98,87 @@ function getProgressColor(p: number): string {
 
 export default function ProgressPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "goals" | "assessments" | "achievements">("overview");
-  const [liveAssessments, setLiveAssessments] = useState(ASSESSMENT_HISTORY);
-  const [liveGoals, setLiveGoals] = useState(THERAPY_GOALS);
+  const [liveAssessments, setLiveAssessments] = useState<AssessmentDataPoint[]>(EMPTY_ASSESSMENT_HISTORY);
+  const [liveGoals, setLiveGoals] = useState<TherapyGoal[]>(EMPTY_THERAPY_GOALS);
+  const [loading, setLoading] = useState(true);
+  const [therapistName, setTherapistName] = useState("Your Therapist");
+  const [recentMoods, setRecentMoods] = useState<{ mood: number }[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [assessRes, patientRes] = await Promise.allSettled([
+        const [assessRes, patientRes, moodRes] = await Promise.allSettled([
           assessmentsAPI.list({ status: 'completed', limit: 12 }),
           patientAPI.me(),
+          patientAPI.moodTrend(7),
         ]);
         if (assessRes.status === 'fulfilled') {
           const data = (assessRes.value as { data: Record<string, unknown>[] }).data || [];
           if (data.length > 0) {
-            const mapped = data.map(a => ({
-              date: (a.completed_at as string || a.created_at as string || '').slice(0, 7),
-              phq9: (a.phq9_score as number) || (a.score as number) || 0,
-              gad7: (a.gad7_score as number) || 0,
-              session: 0,
+            const mapped = data.map((a, idx) => ({
+              date: (a.administered_at as string || a.completed_at as string || a.created_at as string || '').slice(0, 7),
+              phq9: (a.phq9_score as number) || ((a.template_code as string || '').toLowerCase().includes('phq') ? (a.total_score as number) || 0 : 0),
+              gad7: (a.gad7_score as number) || ((a.template_code as string || '').toLowerCase().includes('gad') ? (a.total_score as number) || 0 : 0),
+              session: idx + 1,
             }));
             setLiveAssessments(mapped);
+            // Derive achievements from real data
+            const earned: Achievement[] = [];
+            if (data.length >= 1) earned.push({ id: "a1", title: "First Assessment", description: "Completed your first clinical assessment", earned_date: (data[0].administered_at as string || data[0].created_at as string || ''), icon: "🌱", category: "milestone" });
+            if (data.length >= 5) earned.push({ id: "a2", title: "Consistent Tracker", description: "Completed 5 or more assessments", earned_date: (data[4].administered_at as string || data[4].created_at as string || ''), icon: "🌟", category: "attendance" });
+            setAchievements(earned);
           }
         }
         if (patientRes.status === 'fulfilled') {
           const p = patientRes.value as Record<string, unknown>;
           const goals = (p.goals as Record<string, unknown>[]) || [];
-          if (goals.length > 0) setLiveGoals(goals as unknown as typeof THERAPY_GOALS);
+          if (goals.length > 0) setLiveGoals(goals as unknown as TherapyGoal[]);
+          const tName = (p.primary_therapist_display_name as string) || (p.primary_therapist_name as string) || "Your Therapist";
+          setTherapistName(tName);
+          if (goals.length > 0) {
+            const completedGoalsList = goals.filter((g: any) => g.status === 'completed');
+            if (completedGoalsList.length > 0) {
+              setAchievements(prev => [...prev, { id: "a3", title: "Goal Crusher", description: "Completed your first treatment goal", earned_date: '', icon: "🏆", category: "goals" }]);
+            }
+          }
         }
-      } catch { /* keep static fallback */ }
+        if (moodRes.status === 'fulfilled') {
+          const items = Array.isArray(moodRes.value) ? moodRes.value : (moodRes.value as any)?.data ?? [];
+          setRecentMoods(items.slice(0, 7));
+        }
+      } catch { /* noop */ }
+      finally { setLoading(false); }
     }
     load();
   }, []);
 
-  const currentPHQ9 = liveAssessments[liveAssessments.length - 1]?.phq9 ?? ASSESSMENT_HISTORY[ASSESSMENT_HISTORY.length - 1].phq9;
-  const startPHQ9 = ASSESSMENT_HISTORY[0].phq9;
-  const phq9Change = currentPHQ9 - startPHQ9;
-  const phq9PctImprovement = Math.round(((startPHQ9 - currentPHQ9) / startPHQ9) * 100);
+  const currentPHQ9 = liveAssessments.length > 0 ? liveAssessments[liveAssessments.length - 1]?.phq9 : null;
+  const startPHQ9 = liveAssessments.length > 0 ? liveAssessments[0]?.phq9 : null;
+  const phq9Change = (currentPHQ9 !== null && startPHQ9 !== null) ? currentPHQ9 - startPHQ9 : null;
+  const phq9PctImprovement = (startPHQ9 && startPHQ9 > 0 && phq9Change !== null) ? Math.round(((startPHQ9 - currentPHQ9!) / startPHQ9) * 100) : null;
 
-  const currentGAD7 = liveAssessments[liveAssessments.length - 1]?.gad7 ?? ASSESSMENT_HISTORY[ASSESSMENT_HISTORY.length - 1].gad7;
-  const startGAD7 = ASSESSMENT_HISTORY[0].gad7;
-  const gad7Change = currentGAD7 - startGAD7;
-  const gad7PctImprovement = Math.round(((startGAD7 - currentGAD7) / startGAD7) * 100);
+  const currentGAD7 = liveAssessments.length > 0 ? liveAssessments[liveAssessments.length - 1]?.gad7 : null;
+  const startGAD7 = liveAssessments.length > 0 ? liveAssessments[0]?.gad7 : null;
+  const gad7Change = (currentGAD7 !== null && startGAD7 !== null) ? currentGAD7 - startGAD7 : null;
+  const gad7PctImprovement = (startGAD7 && startGAD7 > 0 && gad7Change !== null) ? Math.round(((startGAD7 - currentGAD7!) / startGAD7) * 100) : null;
 
   const completedGoals = liveGoals.filter(g => g.status === "completed").length;
   const activeGoals = liveGoals.filter(g => g.status === "active").length;
+
+  const weeklyMoodAvg = recentMoods.length
+    ? (recentMoods.reduce((s, e) => s + (e.mood || 0), 0) / recentMoods.length).toFixed(1)
+    : null;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">My Progress</h1>
-        <p className="text-sm text-gray-500 mt-0.5">4 months of therapy · 24 sessions · Managed by Dr. Alex Smith</p>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {liveGoals.length > 0 ? `${liveGoals.length} goals tracked` : "Your therapy journey"}
+          {therapistName !== "Your Therapist" ? ` · Managed by ${therapistName}` : ""}
+        </p>
       </div>
 
       {/* Overall progress banner */}
@@ -302,40 +237,27 @@ export default function ProgressPage() {
               <Calendar className="h-4 w-4 text-gray-400" /> This Week
             </h3>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Mood Avg", value: WEEKLY_SUMMARY.mood_avg, change: WEEKLY_SUMMARY.mood_change, icon: Smile, unit: "/10" },
-                { label: "Anxiety Avg", value: WEEKLY_SUMMARY.anxiety_avg, change: WEEKLY_SUMMARY.anxiety_change, icon: Activity, unit: "/10", invertGood: true },
-                { label: "Sleep Avg", value: WEEKLY_SUMMARY.sleep_avg, change: WEEKLY_SUMMARY.sleep_change, icon: Moon, unit: "h" },
-                { label: "Journal Days", value: WEEKLY_SUMMARY.journal_days, change: 0, icon: BookOpen, unit: "/7" },
-              ].map(({ label, value, change, icon: Icon, unit, invertGood }) => (
-                <div key={label} className="bg-gray-50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-gray-500">{label}</p>
-                    <Icon className="h-3.5 w-3.5 text-gray-400" />
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <p className="text-xl font-bold text-gray-900">{value}</p>
-                    <p className="text-xs text-gray-400">{unit}</p>
-                  </div>
-                  {change !== 0 && (
-                    <p className={cn("text-xs font-medium mt-0.5", (!invertGood && change > 0) || (invertGood && change < 0) ? "text-emerald-600" : "text-rose-500")}>
-                      {change > 0 ? "+" : ""}{change} vs last week
-                    </p>
-                  )}
+              <div className="bg-gray-50 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-gray-500">Mood Avg</p>
+                  <Smile className="h-3.5 w-3.5 text-gray-400" />
                 </div>
-              ))}
+                <div className="flex items-baseline gap-1">
+                  <p className="text-xl font-bold text-gray-900">{weeklyMoodAvg ?? "—"}</p>
+                  <p className="text-xs text-gray-400">/10</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-gray-500">Goals Active</p>
+                  <Target className="h-3.5 w-3.5 text-gray-400" />
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <p className="text-xl font-bold text-gray-900">{activeGoals}</p>
+                  <p className="text-xs text-gray-400">/ {liveGoals.length}</p>
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* Homework */}
-          <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-amber-600" /> This Week's Homework
-              </h3>
-              <span className="text-xs text-amber-600 font-medium">{WEEKLY_SUMMARY.homework_completed}/{WEEKLY_SUMMARY.homework_total} done</span>
-            </div>
-            <ProgressBar value={Math.round((WEEKLY_SUMMARY.homework_completed / WEEKLY_SUMMARY.homework_total) * 100)} color="bg-amber-500" />
           </div>
 
           {/* Active goals preview */}
@@ -367,14 +289,18 @@ export default function ProgressPage() {
                 View all <ChevronRight className="h-3 w-3" />
               </button>
             </div>
-            <div className="flex gap-3">
-              {ACHIEVEMENTS.slice(-3).map(a => (
-                <div key={a.id} className="flex-1 text-center bg-gray-50 rounded-xl p-3">
-                  <span className="text-2xl">{a.icon}</span>
-                  <p className="text-xs font-medium text-gray-700 mt-1">{a.title}</p>
-                </div>
-              ))}
-            </div>
+            {achievements.length > 0 ? (
+              <div className="flex gap-3">
+                {achievements.slice(-3).map(a => (
+                  <div key={a.id} className="flex-1 text-center bg-gray-50 rounded-xl p-3">
+                    <span className="text-2xl">{a.icon}</span>
+                    <p className="text-xs font-medium text-gray-700 mt-1">{a.title}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 text-center py-2">Complete assessments and goals to earn achievements</p>
+            )}
           </div>
         </div>
       )}
@@ -455,85 +381,97 @@ export default function ProgressPage() {
               <p className="text-xs text-gray-500 mb-1">PHQ-9 (Depression)</p>
               <p className="text-3xl font-bold text-gray-900">{currentPHQ9}</p>
               <p className="text-xs font-medium text-emerald-600 mt-0.5">
-                <TrendingDown className="h-3 w-3 inline" /> Down {Math.abs(phq9Change)} from start ({phq9PctImprovement}% better)
+                <TrendingDown className="h-3 w-3 inline" /> Down {phq9Change !== null ? Math.abs(phq9Change) : "—"} from start ({phq9PctImprovement ?? "—"}% better)
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Interpretation: {currentPHQ9 < 5 ? "None" : currentPHQ9 < 10 ? "Mild" : currentPHQ9 < 15 ? "Moderate" : "Moderately Severe"}
+                Interpretation: {currentPHQ9 !== null ? (currentPHQ9 < 5 ? "None" : currentPHQ9 < 10 ? "Mild" : currentPHQ9 < 15 ? "Moderate" : "Moderately Severe") : "—"}
               </p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
               <p className="text-xs text-gray-500 mb-1">GAD-7 (Anxiety)</p>
               <p className="text-3xl font-bold text-gray-900">{currentGAD7}</p>
               <p className="text-xs font-medium text-emerald-600 mt-0.5">
-                <TrendingDown className="h-3 w-3 inline" /> Down {Math.abs(gad7Change)} from start ({gad7PctImprovement}% better)
+                <TrendingDown className="h-3 w-3 inline" /> Down {gad7Change !== null ? Math.abs(gad7Change) : "—"} from start ({gad7PctImprovement ?? "—"}% better)
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Interpretation: {currentGAD7 < 5 ? "Minimal" : currentGAD7 < 10 ? "Mild" : currentGAD7 < 15 ? "Moderate" : "Severe"}
+                Interpretation: {currentGAD7 !== null ? (currentGAD7 < 5 ? "Minimal" : currentGAD7 < 10 ? "Mild" : currentGAD7 < 15 ? "Moderate" : "Severe") : "—"}
               </p>
             </div>
           </div>
 
           {/* PHQ-9 chart */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <BarChart2 className="h-4 w-4 text-gray-400" /> PHQ-9 Over Time (Lower is Better)
-            </h3>
-            <MiniChart data={ASSESSMENT_HISTORY} field="phq9" color="bg-rose-400" />
-            <div className="flex items-end gap-1 mt-1">
-              {ASSESSMENT_HISTORY.slice(-8).map((d, i) => (
-                <div key={i} className="flex-1 text-center">
-                  <p className="text-[9px] text-gray-400">{d.date.substring(0, 3)}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 p-3 bg-emerald-50 rounded-xl">
-              <p className="text-xs text-emerald-700">📈 {phq9PctImprovement}% improvement since starting therapy. Goal: score below 9.</p>
-            </div>
-          </div>
-
-          {/* GAD-7 chart */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-gray-400" /> GAD-7 Over Time (Lower is Better)
-            </h3>
-            <MiniChart data={ASSESSMENT_HISTORY} field="gad7" color="bg-amber-400" />
-            <div className="flex items-end gap-1 mt-1">
-              {ASSESSMENT_HISTORY.slice(-8).map((d, i) => (
-                <div key={i} className="flex-1 text-center">
-                  <p className="text-[9px] text-gray-400">{d.date.substring(0, 3)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* History table */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900 text-sm">Assessment History</h3>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {ASSESSMENT_HISTORY.slice().reverse().map((d, i) => (
-                <div key={i} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-gray-600">{d.date}</span>
-                  <span className="text-xs text-gray-400">Session #{d.session}</span>
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <span className="text-xs text-gray-400">PHQ-9</span>
-                      <p className="font-bold text-sm text-gray-900">{d.phq9}</p>
+          {liveAssessments.length > 0 ? (
+            <>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-gray-400" /> PHQ-9 Over Time (Lower is Better)
+                </h3>
+                <MiniChart data={liveAssessments} field="phq9" color="bg-rose-400" />
+                <div className="flex items-end gap-1 mt-1">
+                  {liveAssessments.slice(-8).map((d, i) => (
+                    <div key={i} className="flex-1 text-center">
+                      <p className="text-[9px] text-gray-400">{d.date.substring(0, 3)}</p>
                     </div>
-                    <div className="text-center">
-                      <span className="text-xs text-gray-400">GAD-7</span>
-                      <p className="font-bold text-sm text-gray-900">{d.gad7}</p>
-                    </div>
+                  ))}
+                </div>
+                {phq9PctImprovement !== null && (
+                  <div className="mt-3 p-3 bg-emerald-50 rounded-xl">
+                    <p className="text-xs text-emerald-700">📈 {phq9PctImprovement}% improvement since starting therapy. Goal: score below 9.</p>
                   </div>
+                )}
+              </div>
+
+              {/* GAD-7 chart */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-gray-400" /> GAD-7 Over Time (Lower is Better)
+                </h3>
+                <MiniChart data={liveAssessments} field="gad7" color="bg-amber-400" />
+                <div className="flex items-end gap-1 mt-1">
+                  {liveAssessments.slice(-8).map((d, i) => (
+                    <div key={i} className="flex-1 text-center">
+                      <p className="text-[9px] text-gray-400">{d.date.substring(0, 3)}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* History table */}
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900 text-sm">Assessment History</h3>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {liveAssessments.slice().reverse().map((d, i) => (
+                    <div key={i} className="flex items-center justify-between px-4 py-3">
+                      <span className="text-sm text-gray-600">{d.date}</span>
+                      <span className="text-xs text-gray-400">Session #{d.session}</span>
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <span className="text-xs text-gray-400">PHQ-9</span>
+                          <p className="font-bold text-sm text-gray-900">{d.phq9}</p>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-xs text-gray-400">GAD-7</span>
+                          <p className="font-bold text-sm text-gray-900">{d.gad7}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+              <BarChart2 className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No assessments completed yet.</p>
+              <p className="text-xs text-gray-400 mt-1">Your therapist will assign assessments to track your progress.</p>
             </div>
-          </div>
+          )}
 
           <div className="bg-blue-50 rounded-2xl p-4 flex gap-3">
             <Shield className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700">Assessment scores are provided by your therapist Dr. Alex Smith. These reflect clinical measurement — your personal experience of progress may vary.</p>
+            <p className="text-xs text-blue-700">Assessment scores are provided by {therapistName}. These reflect clinical measurement — your personal experience of progress may vary.</p>
           </div>
         </div>
       )}
@@ -547,12 +485,12 @@ export default function ProgressPage() {
               <h3 className="font-semibold text-gray-900">Your Journey</h3>
             </div>
             <p className="text-sm text-gray-600">
-              You've earned {ACHIEVEMENTS.length} achievements over 4 months of therapy. Every step forward is real progress.
+              You've earned {achievements.length} achievements so far. Every step forward is real progress.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {ACHIEVEMENTS.map(achievement => (
+            {achievements.map(achievement => (
               <div key={achievement.id} className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
                 <span className="text-3xl mb-2 block">{achievement.icon}</span>
                 <h4 className="font-semibold text-gray-900 text-sm mb-1">{achievement.title}</h4>

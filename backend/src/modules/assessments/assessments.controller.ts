@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Body, Query, Param, UseGuards,
+  Controller, Get, Post, Put, Body, Query, Param, UseGuards, ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AssessmentsService } from './assessments.service';
@@ -18,10 +18,12 @@ export class AssessmentsController {
   // ─── Org-wide list (must come before :id route) ───────────────────────────
 
   @Get()
-  @Roles('therapist', 'org_admin')
-  @ApiOperation({ summary: 'List all assessments for org' })
+  @Roles('therapist', 'org_admin', 'patient')
+  @ApiOperation({ summary: 'List all assessments for org (patients see only their own)' })
   async listAll(@Query() query: any, @CurrentUser() user: any) {
-    return this.assessmentsService.listAllForOrg(user.organization_id, query);
+    // Patients may only list their own assessments
+    const patientFilter = user.role === 'patient' ? { patient_id: user.patientId } : {};
+    return this.assessmentsService.listAllForOrg(user.organization_id, { ...query, ...patientFilter });
   }
 
   // ─── Templates ────────────────────────────────────────────────────────────
@@ -66,15 +68,28 @@ export class AssessmentsController {
   @Get(':id')
   @Roles('therapist', 'org_admin', 'super_admin', 'patient')
   async getAssessment(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.assessmentsService.getAssessment(id, user.organization_id);
+    const assessment = await this.assessmentsService.getAssessment(id, user.organization_id);
+    // Patients may only view their own assessment
+    if (user.role === 'patient' && assessment.patient_id !== user.patientId) {
+      throw new ForbiddenException('Access denied');
+    }
+    return assessment;
   }
 
   @Post(':id/submit')
+  @Roles('therapist', 'org_admin', 'super_admin', 'patient')
   async submitAssessment(
     @Param('id') id: string,
     @Body() body: { responses: Record<string, number> },
     @CurrentUser() user: any,
   ) {
+    // Patients may only submit assessments assigned to them
+    if (user.role === 'patient') {
+      const assessment = await this.assessmentsService.getAssessment(id, user.organization_id);
+      if (assessment.patient_id !== user.patientId) {
+        throw new ForbiddenException('Access denied');
+      }
+    }
     return this.assessmentsService.submitAssessment(id, body.responses, user.organization_id, user.id);
   }
 

@@ -41,102 +41,6 @@ const ACTIVITIES = [
   "Family time", "Music", "Cooking", "Learning"
 ];
 
-const MOOD_ENTRIES: MoodEntry[] = [
-  {
-    id: "m1", date: "2025-12-16", time: "9:14 AM", mood: 7, energy: 6, anxiety: 4,
-    sleep_hours: 7.5, sleep_quality: 7,
-    emotions: ["Hopeful", "Calm", "Content"],
-    activities: ["Meditation", "Journaling", "Exercise"],
-    notes: "Woke up feeling refreshed. Morning meditation helped. Work felt manageable today.",
-  },
-  {
-    id: "m2", date: "2025-12-15", time: "8:55 PM", mood: 6, energy: 5, anxiety: 5,
-    sleep_hours: 6.5, sleep_quality: 5,
-    emotions: ["Tired", "Calm", "Content"],
-    activities: ["Work", "Therapy session", "Reading"],
-    notes: "Had therapy session this morning. Felt tired by evening but overall positive day.",
-  },
-  {
-    id: "m3", date: "2025-12-14", time: "10:30 AM", mood: 4, energy: 3, anxiety: 7,
-    sleep_hours: 5.5, sleep_quality: 3,
-    emotions: ["Anxious", "Tired", "Overwhelmed"],
-    activities: ["Work", "Screen time"],
-    notes: "Difficult night. Work deadline pressure triggered anxiety. Need to use breathing exercises more.",
-    triggers: ["Work deadline", "Poor sleep"]
-  },
-  {
-    id: "m4", date: "2025-12-13", time: "7:45 PM", mood: 8, energy: 7, anxiety: 3,
-    sleep_hours: 8, sleep_quality: 8,
-    emotions: ["Happy", "Grateful", "Connected"],
-    activities: ["Exercise", "Social time", "Cooking", "Family time"],
-    notes: "Wonderful day. Family dinner, great conversation. Exercise felt energizing.",
-  },
-  {
-    id: "m5", date: "2025-12-12", time: "9:00 AM", mood: 5, energy: 5, anxiety: 5,
-    sleep_hours: 7, sleep_quality: 6,
-    emotions: ["Meh", "Restless"],
-    activities: ["Work", "Reading"],
-    notes: "Average day. Nothing particularly good or bad. Felt a bit restless in the afternoon.",
-  },
-  {
-    id: "m6", date: "2025-12-11", time: "8:30 PM", mood: 6, energy: 6, anxiety: 4,
-    sleep_hours: 7.5, sleep_quality: 7,
-    emotions: ["Calm", "Content", "Hopeful"],
-    activities: ["Meditation", "Nature walk", "Reading"],
-    notes: "Nice walk outside helped clear my mind. Feeling more optimistic about the week ahead.",
-  },
-  {
-    id: "m7", date: "2025-12-10", time: "9:00 AM", mood: 7, energy: 7, anxiety: 3,
-    sleep_hours: 8, sleep_quality: 8,
-    emotions: ["Happy", "Excited", "Grateful"],
-    activities: ["Exercise", "Social time", "Creative activity"],
-    notes: "Great start to the week. Had coffee with a friend. Feeling motivated.",
-  },
-];
-
-const WEEKLY_AVERAGES = {
-  mood: 6.1,
-  energy: 5.6,
-  anxiety: 4.4,
-  sleep: 7.1,
-  trend: "+0.8",
-  trendDirection: "up" as const
-};
-
-const AI_INSIGHTS = [
-  {
-    id: "i1",
-    type: "pattern",
-    title: "Sleep affects your mood significantly",
-    content: "When you sleep 7.5+ hours, your mood averages 7.2. With less than 6.5 hours, it drops to 4.8. Prioritizing sleep could meaningfully improve how you feel.",
-    confidence: 0.87,
-    icon: Moon
-  },
-  {
-    id: "i2",
-    type: "positive",
-    title: "Exercise days show +2.1 mood improvement",
-    content: "On days you exercise, your average mood is 2.1 points higher and anxiety 1.8 points lower. This is one of your strongest positive patterns.",
-    confidence: 0.92,
-    icon: Activity
-  },
-  {
-    id: "i3",
-    type: "trigger",
-    title: "Work deadline pattern detected",
-    content: "Anxiety spikes to 7+ on 3 of the last 4 deadline days. Consider scheduling buffer time before deadlines and using your anxiety coping toolkit earlier.",
-    confidence: 0.78,
-    icon: AlertCircle
-  },
-  {
-    id: "i4",
-    type: "progress",
-    title: "Weekly mood trend improving",
-    content: "Your average mood this week (6.1) is up from last week (5.3). This is consistent with the progress Dr. Smith noted in your last session.",
-    confidence: 0.95,
-    icon: TrendingUp
-  }
-];
 
 function getMoodEmoji(level: number): string {
   if (level >= 9) return "😄";
@@ -176,7 +80,7 @@ export default function MoodPage() {
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [moodNotes, setMoodNotes] = useState("");
   const [sleepHours, setSleepHours] = useState(7);
-  const [moodHistory, setMoodHistory] = useState<MoodEntry[]>(MOOD_ENTRIES);
+  const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
   const [savingMood, setSavingMood] = useState(false);
 
   useEffect(() => {
@@ -210,8 +114,16 @@ export default function MoodPage() {
   const [selectedInsightType, setSelectedInsightType] = useState<string>("all");
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const todayEntry = MOOD_ENTRIES[0];
-  const hasLoggedToday = true; // Mock
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const todayEntry = moodHistory.find(e => e.date?.slice(0, 10) === todayDateStr) || moodHistory[0];
+  const hasLoggedToday = moodHistory.some(e => e.date?.slice(0, 10) === todayDateStr);
+
+  const last7 = moodHistory.slice(0, 7);
+  const avg = (arr: number[]) => arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : 0;
+  const weeklyAvgMood = avg(last7.map(e => e.mood || 0));
+  const weeklyAvgEnergy = avg(last7.map(e => e.energy || 0));
+  const weeklyAvgAnxiety = avg(last7.map(e => e.anxiety || 0));
+  const weeklyAvgSleep = avg(last7.map(e => e.sleep_hours || 0));
 
   const toggleEmotion = (emotion: string) => {
     setSelectedEmotions(prev =>
@@ -226,7 +138,7 @@ export default function MoodPage() {
   };
 
   // Mini mood chart data for last 7 days
-  const chartData = MOOD_ENTRIES.slice(0, 7).reverse().map((entry, i) => ({
+  const chartData = last7.slice().reverse().map((entry) => ({
     day: new Date(entry.date).toLocaleDateString("en-US", { weekday: "short" }),
     mood: entry.mood,
     anxiety: entry.anxiety,
@@ -247,9 +159,9 @@ export default function MoodPage() {
           <div className="text-right">
             <p className="text-xs text-gray-500">This week avg</p>
             <div className="flex items-center gap-1">
-              <span className="text-lg font-bold text-gray-900">{WEEKLY_AVERAGES.mood}</span>
+              <span className="text-lg font-bold text-gray-900">{weeklyAvgMood || "—"}</span>
               <span className="text-xs font-medium text-emerald-600 flex items-center">
-                <TrendingUp className="h-3 w-3" />{WEEKLY_AVERAGES.trend}
+                <TrendingUp className="h-3 w-3" />this week
               </span>
             </div>
           </div>
@@ -567,7 +479,12 @@ export default function MoodPage() {
             <h3 className="font-semibold text-gray-900">Recent Entries</h3>
             <span className="text-xs text-gray-500">Last 7 days</span>
           </div>
-          {MOOD_ENTRIES.map(entry => (
+          {moodHistory.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <p className="text-sm">No mood entries yet — start logging above!</p>
+            </div>
+          ) : null}
+          {moodHistory.map(entry => (
             <div key={entry.id} className="bg-white rounded-2xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -615,7 +532,7 @@ export default function MoodPage() {
         </div>
       )}
 
-      {/* AI INSIGHTS TAB */}
+      {/* PATTERNS TAB */}
       {activeTab === "insights" && (
         <div className="space-y-4">
           <div className="bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] rounded-2xl p-5 text-white">
@@ -624,52 +541,67 @@ export default function MoodPage() {
                 <Brain className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="font-semibold">AI Pattern Analysis</h3>
-                <p className="text-xs text-white/60">Based on your last 30 days</p>
+                <h3 className="font-semibold">Your Patterns</h3>
+                <p className="text-xs text-white/60">Based on {moodHistory.length} logged entries</p>
               </div>
             </div>
             <p className="text-sm text-white/80">
-              Your mood patterns show clear correlations with sleep, exercise, and social activity. 
-              These insights are shared with Dr. Smith to personalize your treatment.
+              Tracking your mood consistently helps you and your therapist understand what affects your wellbeing.
             </p>
           </div>
 
-          {AI_INSIGHTS.map(insight => {
-            const Icon = insight.icon;
-            return (
-              <div key={insight.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+          {moodHistory.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <Activity className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="text-sm">Start logging your mood to see patterns here</p>
+            </div>
+          ) : (
+            <>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
                 <div className="flex items-start gap-3">
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                    insight.type === "positive" ? "bg-emerald-100" :
-                    insight.type === "trigger" ? "bg-rose-100" :
-                    insight.type === "progress" ? "bg-blue-100" : "bg-amber-100"
-                  )}>
-                    <Icon className={cn(
-                      "h-5 w-5",
-                      insight.type === "positive" ? "text-emerald-600" :
-                      insight.type === "trigger" ? "text-rose-600" :
-                      insight.type === "progress" ? "text-blue-600" : "text-amber-600"
-                    )} />
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                    <BarChart2 className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-semibold text-gray-900">{insight.title}</h4>
-                      <span className="text-xs text-gray-400">{Math.round(insight.confidence * 100)}% confident</span>
-                    </div>
-                    <p className="text-sm text-gray-600">{insight.content}</p>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">This Week Summary</h4>
+                    <p className="text-sm text-gray-600">
+                      You've logged mood {last7.length} time{last7.length !== 1 ? "s" : ""} this week.
+                      {weeklyAvgMood > 0 && ` Average mood: ${weeklyAvgMood}/10.`}
+                      {weeklyAvgAnxiety > 0 && ` Average anxiety: ${weeklyAvgAnxiety}/10.`}
+                    </p>
                   </div>
                 </div>
               </div>
-            );
-          })}
 
-          <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-            <p className="text-xs text-blue-600 font-medium">💡 Note from Dr. Smith</p>
-            <p className="text-sm text-blue-700 mt-1">
-              "Your consistent tracking has been incredibly helpful. The sleep-mood correlation we're seeing confirms what we discussed. Keep logging daily!"
-            </p>
-          </div>
+              {weeklyAvgMood >= 7 && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-1">Positive Trend</h4>
+                      <p className="text-sm text-gray-600">Your average mood this week is {weeklyAvgMood}/10 — that&apos;s in the good range. Keep up the consistency!</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {weeklyAvgSleep > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                      <Moon className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-1">Sleep Average</h4>
+                      <p className="text-sm text-gray-600">You&apos;re averaging {weeklyAvgSleep} hours of sleep this week. {weeklyAvgSleep >= 7 ? "Good — aim to maintain this." : "Try to get 7–9 hours for optimal mood."}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -698,20 +630,18 @@ export default function MoodPage() {
           {/* Stats grid */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Avg Mood", value: WEEKLY_AVERAGES.mood, change: "+0.8", up: true, icon: Smile },
-              { label: "Avg Anxiety", value: WEEKLY_AVERAGES.anxiety, change: "-0.5", up: false, icon: AlertCircle },
-              { label: "Avg Energy", value: WEEKLY_AVERAGES.energy, change: "+0.3", up: true, icon: Zap },
-              { label: "Avg Sleep", value: `${WEEKLY_AVERAGES.sleep}h`, change: "+0.3h", up: true, icon: Moon },
-            ].map(({ label, value, change, up, icon: Icon }) => (
+              { label: "Avg Mood", value: weeklyAvgMood || "—", icon: Smile },
+              { label: "Avg Anxiety", value: weeklyAvgAnxiety || "—", icon: AlertCircle },
+              { label: "Avg Energy", value: weeklyAvgEnergy || "—", icon: Zap },
+              { label: "Avg Sleep", value: weeklyAvgSleep ? `${weeklyAvgSleep}h` : "—", icon: Moon },
+            ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-gray-500">{label}</p>
                   <Icon className="h-4 w-4 text-gray-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900">{value}</p>
-                <p className={cn("text-xs font-medium mt-1", up ? "text-emerald-600" : "text-rose-600")}>
-                  {change} vs last week
-                </p>
+                <p className="text-xs text-gray-400 mt-1">last 7 days</p>
               </div>
             ))}
           </div>
@@ -730,24 +660,27 @@ export default function MoodPage() {
           </div>
 
           {/* Top emotions */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Most Frequent Emotions</h3>
-            {[
-              { emotion: "Calm", count: 5, pct: 71 },
-              { emotion: "Content", count: 4, pct: 57 },
-              { emotion: "Anxious", count: 3, pct: 43 },
-              { emotion: "Hopeful", count: 3, pct: 43 },
-              { emotion: "Tired", count: 2, pct: 29 },
-            ].map(({ emotion, count, pct }) => (
-              <div key={emotion} className="flex items-center gap-3 mb-2">
-                <span className="text-sm text-gray-700 w-20">{emotion}</span>
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#0A2342] rounded-full" style={{ width: `${pct}%` }} />
-                </div>
-                <span className="text-xs text-gray-500 w-10 text-right">{count}x</span>
+          {(() => {
+            const emotionCounts: Record<string, number> = {};
+            moodHistory.forEach(e => (e.emotions || []).forEach(em => { emotionCounts[em] = (emotionCounts[em] || 0) + 1; }));
+            const topEmotions = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const maxCount = topEmotions[0]?.[1] || 1;
+            if (topEmotions.length === 0) return null;
+            return (
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Most Frequent Emotions</h3>
+                {topEmotions.map(([emotion, count]) => (
+                  <div key={emotion} className="flex items-center gap-3 mb-2">
+                    <span className="text-sm text-gray-700 w-20">{emotion}</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#0A2342] rounded-full" style={{ width: `${Math.round((count / maxCount) * 100)}%` }} />
+                    </div>
+                    <span className="text-xs text-gray-500 w-10 text-right">{count}x</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       )}
     </div>

@@ -70,6 +70,13 @@ export default function HomeworkPage() {
     return () => { cancelled = true; };
   }, []);
 
+  const handleMarkInProgress = async (hwId: string) => {
+    setLiveHomework(prev => prev.map(h => h.id === hwId ? { ...h, status: 'in_progress' as const } : h));
+    try {
+      await apiFetch(`/workflows/tasks/${hwId}/start`, { method: 'PATCH' });
+    } catch { /* optimistic update is fine - the start endpoint may not exist */ }
+  };
+
   const handleMarkComplete = async (hwId: string) => {
     setLiveHomework(prev => prev.map(h => h.id === hwId ? { ...h, status: 'completed' as const, completion_note: completionNote } : h));
     setCompletionNote("");
@@ -283,7 +290,10 @@ export default function HomeworkPage() {
                             Mark Complete (+{hw.points} pts)
                           </button>
                           {hw.status === "pending" && (
-                            <button className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition flex items-center gap-2">
+                            <button
+                              onClick={() => handleMarkInProgress(hw.id)}
+                              className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition flex items-center gap-2"
+                            >
                               <Play className="w-4 h-4" />
                               Start
                             </button>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminSidebar from '@/components/layout/admin-sidebar';
+import { AdminBottomNav } from '@/components/BottomNav';
 import { useAdminAuth } from '@/lib/store';
 import { authAPI } from '@/lib/api';
 
@@ -104,10 +105,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-gray-950 overflow-hidden">
-      <AdminSidebar />
-      <main className="flex-1 ml-64 overflow-y-auto bg-gray-950">
+      <div className="hidden md:block">
+        <AdminSidebar />
+      </div>
+      <main className="flex-1 md:ml-64 overflow-y-auto bg-gray-950 pb-20 md:pb-0">
         {children}
       </main>
+
+      <AdminBottomNav />
 
       {/* Session Timeout Warning Modal */}
       {showTimeoutWarning && (

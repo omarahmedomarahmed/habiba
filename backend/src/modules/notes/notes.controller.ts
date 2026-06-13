@@ -1,12 +1,17 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, Query, Request, ParseUUIDPipe,
+  Controller, Get, Post, Patch, Delete, Param, Body, Query, Request, ParseUUIDPipe, UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { NotesService } from './notes.service';
 import { ListNotesQueryDto, CreateNoteDto, UpdateNoteDto } from './dto/notes.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('notes')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('therapist', 'org_admin', 'super_admin')
 @Controller('notes')
 export class NotesController {
   constructor(private readonly service: NotesService) {}

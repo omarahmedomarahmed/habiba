@@ -6,6 +6,7 @@ import { useAuthStore } from "@/lib/store";
 import { authAPI } from "@/lib/api";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { TherapistBottomNav } from "@/components/BottomNav";
 import { useUIStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -79,18 +80,22 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       <div
         className={cn(
           "flex flex-col flex-1 min-w-0 transition-all duration-200",
-          sidebarCollapsed ? "ml-[60px]" : "ml-[240px]"
+          sidebarCollapsed ? "md:ml-[60px]" : "md:ml-[240px]"
         )}
       >
         <Header />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pb-20 md:pb-0">
           {children}
         </main>
       </div>
+
+      <TherapistBottomNav />
 
       {/* Session Timeout Warning */}
       {showWarning && (

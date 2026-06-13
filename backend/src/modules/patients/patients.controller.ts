@@ -4,11 +4,13 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PatientsService } from './patients.service';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('patients')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('patients')
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
@@ -22,6 +24,7 @@ export class PatientsController {
   }
 
   @Get()
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'List all patients in organization' })
   async findAll(@Request() req: any, @Query() query: any) {
     const result = await this.patientsService.findAll(req.user.organization_id, query);
@@ -53,6 +56,7 @@ export class PatientsController {
   }
 
   @Get(':id')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Get patient by ID with full profile' })
   async findOne(@Request() req: any, @Param('id') id: string) {
     const patient = await this.patientsService.findOne(id, req.user.organization_id);
@@ -60,6 +64,7 @@ export class PatientsController {
   }
 
   @Post()
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Create a new patient' })
   async create(@Request() req: any, @Body() dto: any) {
     const patient = await this.patientsService.create(
@@ -71,6 +76,7 @@ export class PatientsController {
   }
 
   @Patch(':id')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Update patient details' })
   async update(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     const patient = await this.patientsService.update(id, req.user.organization_id, dto);
@@ -78,6 +84,7 @@ export class PatientsController {
   }
 
   @Delete(':id')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Soft delete patient' })
   async delete(@Request() req: any, @Param('id') id: string) {
     await this.patientsService.softDelete(id, req.user.organization_id);
@@ -85,6 +92,7 @@ export class PatientsController {
   }
 
   @Get(':id/timeline')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Get patient timeline events' })
   async getTimeline(@Request() req: any, @Param('id') id: string, @Query('limit') limit?: number) {
     const timeline = await this.patientsService.getTimeline(id, req.user.organization_id, limit);
@@ -92,6 +100,7 @@ export class PatientsController {
   }
 
   @Get(':id/mood')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Get patient mood trend data' })
   async getMoodTrend(@Request() req: any, @Param('id') id: string, @Query('days') days?: number) {
     const mood = await this.patientsService.getMoodTrend(id, req.user.organization_id, days);
@@ -99,6 +108,7 @@ export class PatientsController {
   }
 
   @Post(':id/mood')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Add mood entry for patient' })
   async addMoodEntry(@Request() req: any, @Param('id') id: string, @Body() dto: any) {
     const entry = await this.patientsService.addMoodEntry(id, req.user.organization_id, dto);
@@ -106,6 +116,7 @@ export class PatientsController {
   }
 
   @Get(':id/assessments')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Get patient assessments' })
   async getAssessments(@Request() req: any, @Param('id') id: string) {
     const assessments = await this.patientsService.getAssessments(id, req.user.organization_id);
@@ -113,6 +124,7 @@ export class PatientsController {
   }
 
   @Get(':id/memories')
+  @Roles('therapist', 'org_admin', 'super_admin')
   @ApiOperation({ summary: 'Get patient AI memories' })
   async getMemories(@Request() req: any, @Param('id') id: string) {
     const memories = await this.patientsService.getMemories(id, req.user.organization_id);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { assessmentsAPI } from "@/lib/api";
+import { assessmentsAPI, patientAPI } from "@/lib/api";
 import {
   ClipboardList, CheckCircle2, Clock, ChevronRight, ArrowLeft,
   AlertCircle, TrendingUp, TrendingDown, Minus, Brain, Shield,
@@ -80,73 +80,6 @@ const PHQ9_QUESTIONS: Question[] = [
   },
 ];
 
-const ASSESSMENTS: Assessment[] = [
-  {
-    id: "a1",
-    name: "Patient Health Questionnaire",
-    short_name: "PHQ-9",
-    description: "A validated screening tool for depression severity. 9 questions about how often you've been bothered by depressive symptoms in the past 2 weeks.",
-    questions: PHQ9_QUESTIONS,
-    scoring: [
-      { min: 0, max: 4, label: "Minimal", color: "text-emerald-600", description: "No significant depression symptoms" },
-      { min: 5, max: 9, label: "Mild", color: "text-blue-600", description: "Mild depressive symptoms" },
-      { min: 10, max: 14, label: "Moderate", color: "text-amber-600", description: "Moderate depressive symptoms" },
-      { min: 15, max: 19, label: "Moderately Severe", color: "text-orange-600", description: "Significant depressive symptoms" },
-      { min: 20, max: 27, label: "Severe", color: "text-rose-700", description: "Severe depressive symptoms" },
-    ],
-    status: "pending",
-    due_date: "2025-12-22",
-    last_score: 13,
-    last_interpretation: "Moderate",
-    history: [
-      { date: "Dec 15, 2025", score: 13, interpretation: "Moderate" },
-      { date: "Nov 1, 2025", score: 15, interpretation: "Moderate" },
-      { date: "Sep 15, 2025", score: 17, interpretation: "Moderately Severe" },
-      { date: "Aug 15, 2024", score: 19, interpretation: "Moderately Severe" },
-    ],
-    required_by_therapist: true,
-    estimated_minutes: 3
-  },
-  {
-    id: "a2",
-    name: "Generalized Anxiety Disorder",
-    short_name: "GAD-7",
-    description: "A validated 7-question assessment measuring anxiety severity over the past 2 weeks.",
-    questions: PHQ9_QUESTIONS.slice(0, 7).map(q => ({ ...q, id: `gad_${q.id}` })),
-    scoring: [
-      { min: 0, max: 4, label: "Minimal", color: "text-emerald-600", description: "No significant anxiety" },
-      { min: 5, max: 9, label: "Mild", color: "text-blue-600", description: "Mild anxiety symptoms" },
-      { min: 10, max: 14, label: "Moderate", color: "text-amber-600", description: "Moderate anxiety" },
-      { min: 15, max: 21, label: "Severe", color: "text-rose-700", description: "Severe anxiety" },
-    ],
-    status: "completed",
-    completed_date: "Dec 15, 2025",
-    last_score: 8,
-    last_interpretation: "Mild",
-    history: [
-      { date: "Dec 15, 2025", score: 8, interpretation: "Mild" },
-      { date: "Oct 1, 2025", score: 10, interpretation: "Moderate" },
-      { date: "Aug 15, 2024", score: 15, interpretation: "Severe" },
-    ],
-    required_by_therapist: false,
-    estimated_minutes: 2
-  },
-  {
-    id: "a3",
-    name: "Columbia Suicide Severity Rating",
-    short_name: "C-SSRS",
-    description: "A brief assessment to understand your current safety and wellbeing. This is completed at every session.",
-    questions: [],
-    scoring: [],
-    status: "completed",
-    completed_date: "Dec 15, 2025",
-    last_score: 0,
-    last_interpretation: "No current ideation",
-    history: [],
-    required_by_therapist: true,
-    estimated_minutes: 1
-  },
-];
 
 function ScoreBadge({ score, scoring }: { score: number; scoring: ScoringRange[] }) {
   const range = scoring.find(s => score >= s.min && score <= s.max);
@@ -177,9 +110,41 @@ export default function AssessmentsPage() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [completed, setCompleted] = useState(false);
   const [totalScore, setTotalScore] = useState(0);
+  const [liveAssessments, setLiveAssessments] = useState<Assessment[]>([]);
+  const [loadingAssessments, setLoadingAssessments] = useState(true);
+  const [therapistName, setTherapistName] = useState("Your Therapist");
 
-  const pending = ASSESSMENTS.filter(a => a.status === "pending");
-  const done = ASSESSMENTS.filter(a => a.status === "completed");
+  useEffect(() => {
+    Promise.allSettled([
+      assessmentsAPI.list({ limit: 20 }).then((res: any) => {
+        const items = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        const mapped: Assessment[] = items.map((a: any) => ({
+          id: a.id,
+          name: a.template_name || a.name || a.template_code || "Assessment",
+          short_name: a.template_code || a.short_name || "ASSESS",
+          description: a.description || "",
+          questions: Array.isArray(a.questions) ? a.questions : PHQ9_QUESTIONS,
+          scoring: Array.isArray(a.scoring) ? a.scoring : [],
+          status: a.status === "completed" ? "completed" : "pending",
+          due_date: a.due_date,
+          completed_date: a.completed_at || a.administered_at,
+          last_score: a.total_score,
+          last_interpretation: a.severity_label,
+          history: Array.isArray(a.history) ? a.history : [],
+          required_by_therapist: !!a.assigned_by_therapist_id,
+          estimated_minutes: a.estimated_minutes || 3,
+        }));
+        setLiveAssessments(mapped);
+      }),
+      patientAPI.me().then((res: any) => {
+        const p = res?.data || res;
+        setTherapistName(p?.primary_therapist_display_name || p?.primary_therapist_name || "Your Therapist");
+      }),
+    ]).finally(() => setLoadingAssessments(false));
+  }, []);
+
+  const pending = liveAssessments.filter(a => a.status === "pending");
+  const done = liveAssessments.filter(a => a.status === "completed");
 
   const answerQuestion = async (questionId: string, value: number) => {
     const newAnswers = { ...answers, [questionId]: value };
@@ -214,7 +179,7 @@ export default function AssessmentsPage() {
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">{assessment.short_name} Complete</h2>
-            <p className="text-sm text-gray-600 mb-4">Your results have been shared with Dr. Alex Smith</p>
+            <p className="text-sm text-gray-600 mb-4">Your results have been shared with {therapistName}</p>
 
             <div className="bg-white rounded-2xl p-6 mb-4">
               <p className="text-5xl font-bold text-gray-900 mb-2">{totalScore}</p>
@@ -228,7 +193,7 @@ export default function AssessmentsPage() {
 
             {assessment.id === "a1" && totalScore >= 15 && (
               <div className="bg-rose-50 rounded-xl p-3 mb-4 text-left">
-                <p className="text-sm text-rose-700 font-medium">Your score suggests significant symptoms. Dr. Smith will review this before your next session.</p>
+                <p className="text-sm text-rose-700 font-medium">Your score suggests significant symptoms. Your therapist will review this before your next session.</p>
                 <p className="text-xs text-rose-600 mt-1">If you need immediate support, call/text 988</p>
               </div>
             )}
@@ -303,7 +268,7 @@ export default function AssessmentsPage() {
 
         <div className="bg-blue-50 rounded-2xl p-3 flex gap-2">
           <Shield className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-600">Your responses are shared with Dr. Alex Smith and are part of your clinical record.</p>
+          <p className="text-xs text-blue-600">Your responses are shared with your therapist and are part of your clinical record.</p>
         </div>
       </div>
     );
@@ -317,14 +282,29 @@ export default function AssessmentsPage() {
         <p className="text-sm text-gray-500 mt-0.5">Clinical questionnaires that help track your progress</p>
       </div>
 
+      {loadingAssessments && (
+        <div className="text-center py-12 text-gray-400">
+          <div className="w-6 h-6 border-2 border-gray-300 border-t-[#0A2342] rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm">Loading assessments…</p>
+        </div>
+      )}
+
+      {!loadingAssessments && liveAssessments.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="text-sm font-medium text-gray-600">No assessments assigned yet</p>
+          <p className="text-xs mt-1">Your therapist will assign assessments for you to complete</p>
+        </div>
+      )}
+
       {/* Due now */}
-      {pending.length > 0 && (
+      {!loadingAssessments && pending.length > 0 && (
         <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-amber-600" />
             <h3 className="font-semibold text-amber-800">Due for Your Next Session</h3>
           </div>
-          <p className="text-xs text-amber-700 mb-3">Dr. Smith has requested these before Session #25 on Dec 22.</p>
+          <p className="text-xs text-amber-700 mb-3">Your therapist has requested these before Session #25 on Dec 22.</p>
           {pending.map(assessment => (
             <div key={assessment.id} className="bg-white rounded-xl p-4 flex items-center gap-4">
               <div className="flex-1">
@@ -348,7 +328,7 @@ export default function AssessmentsPage() {
       )}
 
       {/* Completed assessments */}
-      <div>
+      {!loadingAssessments && done.length > 0 && <div>
         <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Completed
         </h3>
@@ -408,13 +388,13 @@ export default function AssessmentsPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* About assessments */}
       <div className="bg-gray-50 rounded-2xl p-4 flex gap-3">
         <Info className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
         <p className="text-xs text-gray-500">
-          These are validated clinical questionnaires used worldwide to track mental health. Your scores are reviewed by Dr. Alex Smith as part of your treatment. They help measure progress objectively over time.
+          These are validated clinical questionnaires used worldwide to track mental health. Your scores are reviewed by your therapist as part of your treatment. They help measure progress objectively over time.
         </p>
       </div>
     </div>

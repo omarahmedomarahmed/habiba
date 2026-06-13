@@ -245,7 +245,8 @@ export const assessmentsAPI = {
 };
 
 export const journalAPI = {
-  list: () => apiFetch<{ data: Record<string, unknown>[] }>("/notes", { params: { note_type: "journal" } } as never),
+  list: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ data: Record<string, unknown>[] }>("/notes", { params: { note_type: "journal", ...params } } as never),
   create: (data: { title: string; content: string; is_private: boolean; tags?: string[] }) =>
     apiFetch<Record<string, unknown>>("/notes", { method: "POST", body: JSON.stringify({ ...data, note_type: "journal" }) }),
   update: (id: string, data: Record<string, unknown>) =>

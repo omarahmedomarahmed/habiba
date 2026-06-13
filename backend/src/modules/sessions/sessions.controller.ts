@@ -25,7 +25,9 @@ export class SessionsController {
   @Get()
   @ApiOperation({ summary: 'List sessions' })
   async findAll(@Request() req: any, @Query() query: any) {
-    const sessions = await this.sessionsService.findAll(req.user.organization_id, query);
+    // Patients may only see their own sessions
+    const patientFilter = req.user.role === 'patient' ? { patient_id: req.user.patientId } : {};
+    const sessions = await this.sessionsService.findAll(req.user.organization_id, { ...query, ...patientFilter });
     return this.response({ sessions });
   }
 

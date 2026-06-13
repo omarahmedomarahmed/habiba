@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { journalAPI } from "@/lib/api";
 import {
   BookOpen, Plus, Search, Lock, Heart, Lightbulb, Star, Tag,
@@ -25,59 +25,6 @@ interface JournalEntry {
   prompt_used?: string;
 }
 
-const JOURNAL_ENTRIES: JournalEntry[] = [
-  {
-    id: "j1",
-    date: "2025-12-16",
-    time: "8:45 PM",
-    title: "Processing today's breakthrough",
-    content: "Something clicked today during my morning meditation. I realized that my constant need for validation at work isn't really about work at all — it's about my relationship with my dad growing up. Dr. Smith has been nudging me toward this for weeks but today it actually landed.\n\nI sat with that feeling for a while instead of immediately trying to fix it or push it away. That's new for me. I'm learning that feelings don't need to be solved — they need to be felt.\n\nI'm writing this down because I want to remember this moment. The moment I understood that my inner critic isn't protecting me — it's repeating old patterns.",
-    mood: 8,
-    tags: ["breakthrough", "self-awareness", "inner-child"],
-    is_private: false,
-    shared_with_therapist: true,
-    word_count: 112,
-    ai_insight: "This entry shows significant cognitive reframing — connecting present patterns to early experiences. This type of insight is a key indicator of therapeutic progress."
-  },
-  {
-    id: "j2",
-    date: "2025-12-14",
-    time: "10:20 PM",
-    title: "Hard day at work",
-    content: "The quarterly review did not go how I hoped. My manager gave me feedback that felt harsh even though I know it wasn't meant that way. I spent the rest of the afternoon ruminating instead of working.\n\nI caught myself catastrophizing — 'I'm terrible at my job,' 'I'm going to get fired,' 'I never do anything right.' These are the automatic thoughts Dr. Smith and I identified. Just noticing them is progress, even when I can't stop them.\n\nUsed the 5-4-3-2-1 grounding technique on the drive home. It helped a little.",
-    mood: 4,
-    tags: ["work", "anxiety", "cbt", "automatic-thoughts"],
-    is_private: true,
-    shared_with_therapist: false,
-    word_count: 108,
-    ai_insight: "You demonstrated excellent self-awareness by catching your automatic thoughts. Noting the grounding technique use shows active coping strategy implementation."
-  },
-  {
-    id: "j3",
-    date: "2025-12-13",
-    time: "7:30 PM",
-    title: "Family dinner — actually good!",
-    content: "Had dinner with mom, my sister, and her kids tonight. I was dreading it a little because family gatherings can feel complicated. But it was actually wonderful.\n\nI practiced staying present instead of half-being there while my mind races. Played with my nephews for an hour after dinner. Completely forgot about work, anxiety, everything. Just... in the moment.\n\nMaybe this is what Dr. Smith means by behavioral activation. Doing things even when you don't feel like it and discovering that the feeling can shift.",
-    mood: 9,
-    tags: ["family", "connection", "mindfulness", "behavioral-activation"],
-    is_private: false,
-    shared_with_therapist: true,
-    word_count: 97,
-    ai_insight: "Beautiful example of successful behavioral activation and mindful presence. The connection between action and mood shift is a key therapeutic insight."
-  },
-  {
-    id: "j4",
-    date: "2025-12-10",
-    time: "9:15 PM",
-    title: "Gratitude reflection",
-    content: "Three things I'm genuinely grateful for today:\n\n1. My friend Sarah called just to check in. I sometimes feel like I'm a burden to people, but she reached out first.\n\n2. I finished a project at work that I'd been procrastinating on for two weeks. The relief was physical.\n\n3. My body — I went for a walk and my legs carried me. I take this for granted too often.\n\nI want to do this more. Finding small things to appreciate feels like exercising a muscle I've let atrophy.",
-    mood: 7,
-    tags: ["gratitude", "reflection", "self-compassion"],
-    is_private: false,
-    shared_with_therapist: true,
-    word_count: 95,
-  }
-];
 
 const WRITING_PROMPTS = [
   { id: "p1", category: "Reflection", prompt: "What emotion has been most present for you this week? Where do you feel it in your body?" },
@@ -86,7 +33,7 @@ const WRITING_PROMPTS = [
   { id: "p4", category: "Gratitude", prompt: "What are three small things that made today livable or even good?" },
   { id: "p5", category: "Processing", prompt: "Is there something you've been avoiding thinking about? What would happen if you sat with it for just 5 minutes?" },
   { id: "p6", category: "Future", prompt: "What does the version of you who has healed look like? What does their typical Tuesday look like?" },
-  { id: "p7", category: "Therapy Prep", prompt: "What would you most want Dr. Smith to understand about your week that you haven't told her yet?" },
+  { id: "p7", category: "Therapy Prep", prompt: "What would you most want your therapist to understand about your week that you haven't told them yet?" },
   { id: "p8", category: "Patterns", prompt: "When did you last feel truly calm and safe? What was different about that moment?" },
 ];
 
@@ -95,6 +42,10 @@ const TAGS_AVAILABLE = ["anxiety", "depression", "work", "family", "relationship
 export default function JournalPage() {
   const [view, setView] = useState<"list" | "write" | "read">("list");
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+  const [liveEntries, setLiveEntries] = useState<JournalEntry[]>([]);
+  const [loadingEntries, setLoadingEntries] = useState(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "private" | "shared">("all");
   const [newEntryTitle, setNewEntryTitle] = useState("");
@@ -107,25 +58,89 @@ export default function JournalPage() {
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    journalAPI.list({ limit: 20 }).then((res: any) => {
+      const entries = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setLiveEntries(entries.map((e: any) => ({
+        id: e.id,
+        date: (e.created_at || e.date || '').slice(0, 10),
+        time: e.time || new Date(e.created_at || '').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+        title: e.title || 'Untitled',
+        content: e.content || '',
+        mood: e.mood,
+        tags: Array.isArray(e.tags) ? e.tags : [],
+        is_private: !!e.is_private,
+        shared_with_therapist: !!e.shared_with_therapist,
+        word_count: e.word_count || (e.content || '').split(/\s+/).filter(Boolean).length,
+        ai_insight: e.ai_insight,
+      })));
+    }).catch(() => {}).finally(() => setLoadingEntries(false));
+  }, []);
+
   const handleSaveEntry = async () => {
     if (!newEntryContent.trim()) return;
     setSaving(true);
     try {
-      await journalAPI.create({
-        title: newEntryTitle || "Untitled Entry",
-        content: newEntryContent,
-        is_private: newEntryPrivate,
-        tags: selectedTags,
-      });
-    } catch { /* saved locally, backend save failed silently */ }
+      if (editingEntry) {
+        await journalAPI.update(editingEntry.id, {
+          title: newEntryTitle || "Untitled Entry",
+          content: newEntryContent,
+          is_private: newEntryPrivate,
+          tags: selectedTags,
+        });
+        setLiveEntries(prev => prev.map(e => e.id === editingEntry.id
+          ? { ...e, title: newEntryTitle || "Untitled Entry", content: newEntryContent, is_private: newEntryPrivate, tags: selectedTags }
+          : e
+        ));
+      } else {
+        const created = await journalAPI.create({
+          title: newEntryTitle || "Untitled Entry",
+          content: newEntryContent,
+          is_private: newEntryPrivate,
+          tags: selectedTags,
+        }) as any;
+        const newEntry: JournalEntry = {
+          id: created?.data?.id || created?.id || String(Date.now()),
+          date: new Date().toISOString().slice(0, 10),
+          time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          title: newEntryTitle || "Untitled Entry",
+          content: newEntryContent,
+          is_private: newEntryPrivate,
+          shared_with_therapist: newEntryShare,
+          tags: selectedTags,
+          word_count: newEntryContent.split(/\s+/).filter(Boolean).length,
+        };
+        setLiveEntries(prev => [newEntry, ...prev]);
+      }
+    } catch { /* noop */ }
     setSaving(false);
+    setEditingEntry(null);
     setNewEntryTitle("");
     setNewEntryContent("");
     setSelectedTags([]);
     setView("list");
   };
 
-  const filteredEntries = JOURNAL_ENTRIES.filter(e => {
+  const handleEditEntry = (entry: JournalEntry) => {
+    setEditingEntry(entry);
+    setNewEntryTitle(entry.title);
+    setNewEntryContent(entry.content);
+    setNewEntryPrivate(entry.is_private);
+    setNewEntryShare(entry.shared_with_therapist);
+    setSelectedTags(entry.tags || []);
+    setView("write");
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      await journalAPI.delete(id);
+      setLiveEntries(prev => prev.filter(e => e.id !== id));
+      if (selectedEntry?.id === id) { setSelectedEntry(null); setView("list"); }
+    } catch { /* noop */ }
+    setDeleteConfirmId(null);
+  };
+
+  const filteredEntries = liveEntries.filter(e => {
     const matchesSearch = !searchQuery || e.title.toLowerCase().includes(searchQuery.toLowerCase()) || e.content.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = activeFilter === "all" || (activeFilter === "private" && e.is_private) || (activeFilter === "shared" && e.shared_with_therapist);
     return matchesSearch && matchesFilter;
@@ -186,19 +201,32 @@ export default function JournalPage() {
             <div className="flex items-center gap-2 mb-2">
               <Brain className="h-4 w-4 text-indigo-600" />
               <span className="text-sm font-medium text-indigo-800">AI Reflection</span>
-              <span className="text-xs text-indigo-400 ml-auto">Shared with Dr. Smith</span>
+              <span className="text-xs text-indigo-400 ml-auto">Shared with your therapist</span>
             </div>
             <p className="text-sm text-indigo-700">{selectedEntry.ai_insight}</p>
           </div>
         )}
 
         <div className="flex gap-3">
-          <button className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 flex items-center justify-center gap-2">
+          <button
+            onClick={() => handleEditEntry(selectedEntry)}
+            className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 flex items-center justify-center gap-2"
+          >
             <Edit3 className="h-4 w-4" /> Edit
           </button>
-          <button className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 flex items-center justify-center gap-2">
-            <Trash2 className="h-4 w-4" /> Delete
-          </button>
+          {deleteConfirmId === selectedEntry.id ? (
+            <div className="flex-1 flex gap-2">
+              <button onClick={() => handleDeleteEntry(selectedEntry.id)} className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium">Confirm</button>
+              <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm">Cancel</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDeleteConfirmId(selectedEntry.id)}
+              className="flex-1 py-2.5 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 flex items-center justify-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </button>
+          )}
         </div>
       </div>
     );
@@ -354,7 +382,7 @@ export default function JournalPage() {
               <span className="text-sm font-medium text-indigo-800">AI Reflection</span>
             </div>
             <p className="text-sm text-indigo-700">
-              Your writing shows active self-reflection and emotional processing. The themes you're exploring connect meaningfully to the work you're doing in therapy. This entry would be valuable context for Dr. Smith.
+              Your writing shows active self-reflection and emotional processing. The themes you're exploring connect meaningfully to the work you're doing in therapy. This entry would be valuable context for your next session.
             </p>
           </div>
         )}
@@ -379,19 +407,21 @@ export default function JournalPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Total entries", value: "24", icon: BookOpen },
-          { label: "This month", value: "8", icon: Calendar },
-          { label: "Day streak", value: "5", icon: Star },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-200 p-3 text-center">
-            <Icon className="h-4 w-4 text-gray-400 mx-auto mb-1" />
-            <p className="text-xl font-bold text-gray-900">{value}</p>
-            <p className="text-xs text-gray-400">{label}</p>
-          </div>
-        ))}
-      </div>
+      {!loadingEntries && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Total entries", value: String(liveEntries.length), icon: BookOpen },
+            { label: "This month", value: String(liveEntries.filter(e => e.date.startsWith(new Date().toISOString().slice(0, 7))).length), icon: Calendar },
+            { label: "Shared", value: String(liveEntries.filter(e => e.shared_with_therapist).length), icon: Star },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="bg-white rounded-2xl border border-gray-200 p-3 text-center">
+              <Icon className="h-4 w-4 text-gray-400 mx-auto mb-1" />
+              <p className="text-xl font-bold text-gray-900">{value}</p>
+              <p className="text-xs text-gray-400">{label}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search + filter */}
       <div className="flex gap-2">
@@ -437,10 +467,15 @@ export default function JournalPage() {
 
       {/* Entries list */}
       <div className="space-y-3">
-        {filteredEntries.length === 0 ? (
+        {loadingEntries ? (
+          <div className="text-center py-12 text-gray-400">
+            <div className="w-6 h-6 border-2 border-gray-300 border-t-[#0A2342] rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm">Loading entries…</p>
+          </div>
+        ) : filteredEntries.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-40" />
-            <p className="text-sm">No entries found</p>
+            <p className="text-sm">{liveEntries.length === 0 ? "No journal entries yet — start writing!" : "No entries match your search"}</p>
           </div>
         ) : (
           filteredEntries.map(entry => (

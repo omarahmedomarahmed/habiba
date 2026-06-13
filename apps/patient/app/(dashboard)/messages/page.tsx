@@ -222,10 +222,10 @@ export default function MessagesPage() {
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <button className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100">
+                <button disabled title="Voice calls coming soon" className="p-2 text-slate-300 rounded-xl cursor-not-allowed opacity-50">
                   <Phone className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100">
+                <button disabled title="Video calls coming soon" className="p-2 text-slate-300 rounded-xl cursor-not-allowed opacity-50">
                   <Video className="h-4 w-4" />
                 </button>
                 <button

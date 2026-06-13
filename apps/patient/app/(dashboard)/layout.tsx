@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PatientSidebar } from "@/components/layout/patient-sidebar";
+import { BottomNav } from "@/components/BottomNav";
 import { useAuthStore } from "@/lib/store";
 import { authAPI, clearStoredTokens } from "@/lib/api";
 import { getSocket, disconnectSocket } from "@/lib/socket";
@@ -86,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-slate-50">
       <PatientSidebar />
-      <main className="flex-1 md:ml-[240px] overflow-hidden">
+      <main className="flex-1 md:ml-[240px] overflow-hidden pb-20 md:pb-0">
         {crisisBanner && (
           <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between gap-4">
             <p className="text-sm font-medium">{crisisBanner.message}</p>
@@ -108,6 +109,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </main>
+
+      <BottomNav />
 
       {/* Session Warning Modal */}
       {showWarning && (

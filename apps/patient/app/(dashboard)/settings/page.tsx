@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { notificationsAPI } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { notificationsAPI, patientAPI, billingAPI, authAPI } from "@/lib/api";
 import {
   User, Bell, Shield, Lock, CreditCard, Brain, Phone, Mail,
   Globe, Eye, EyeOff, LogOut, ChevronRight, CheckCircle2,
@@ -51,6 +52,7 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 }
 
 export default function PatientSettingsPage() {
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
   const [notifications, setNotifications] = useState(
     NOTIFICATION_SETTINGS.reduce((acc, n) => ({ ...acc, [n.id]: n.enabled }), {} as Record<string, boolean>)
@@ -59,6 +61,47 @@ export default function PatientSettingsPage() {
   const [aiCompanionEnabled, setAiCompanionEnabled] = useState(true);
   const [moodDataShared, setMoodDataShared] = useState(true);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    first_name: "", last_name: "", email: "", phone: "", timezone: "UTC", pronouns: "",
+  });
+  const [therapistName, setTherapistName] = useState("Your Therapist");
+  const [subscription, setSubscription] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [journalShared, setJournalShared] = useState(false);
+  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+
+  // Load patient profile on mount
+  useEffect(() => {
+    patientAPI.me().then((res: any) => {
+      const p = res?.data || res;
+      setProfileForm({
+        first_name: p.first_name || "",
+        last_name: p.last_name || "",
+        email: p.email || "",
+        phone: p.phone || "",
+        timezone: p.timezone || "UTC",
+        pronouns: p.pronouns || "",
+      });
+      setTherapistName(
+        p.primary_therapist_display_name || p.primary_therapist_name || "Your Therapist"
+      );
+    }).catch(() => {});
+  }, []);
+
+  // Load billing data on mount
+  useEffect(() => {
+    billingAPI.subscription().then((res: any) => setSubscription(res)).catch(() => {});
+    billingAPI.invoices().then((res: any) => {
+      const rows = Array.isArray(res) ? res : (res?.data || []);
+      setInvoices(rows.slice(0, 3));
+    }).catch(() => {});
+  }, []);
+
+  const initials = [profileForm.first_name[0], profileForm.last_name[0]].filter(Boolean).join("").toUpperCase() || "?";
+  const fullName = [profileForm.first_name, profileForm.last_name].filter(Boolean).join(" ") || "Your Name";
 
   const handleNotificationToggle = async (id: string, value: boolean) => {
     setNotifications(prev => ({ ...prev, [id]: value }));
@@ -68,14 +111,30 @@ export default function PatientSettingsPage() {
   };
 
   const handleSaveProfile = async () => {
-    // Profile save is handled via editingProfile form — no-op here
+    setSavingProfile(true);
+    try {
+      await patientAPI.update({
+        first_name: profileForm.first_name,
+        last_name: profileForm.last_name,
+        phone: profileForm.phone,
+        pronouns: profileForm.pronouns,
+        timezone: profileForm.timezone,
+      });
+      setProfileSaved(true);
+      setEditingProfile(false);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch { /* ignore */ }
+    finally { setSavingProfile(false); }
   };
-  const [journalShared, setJournalShared] = useState(false);
-  const [marketingEmails, setMarketingEmails] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(false);
+
+  const handleSignOutAllDevices = async () => {
+    await authAPI.logout();
+    router.push("/login");
+  };
 
   const toggleNotification = (id: string) => {
-    setNotifications(prev => ({ ...prev, [id]: !prev[id] }));
+    const newValue = !notifications[id];
+    handleNotificationToggle(id, newValue);
   };
 
   const notificationGroups: Record<string, typeof NOTIFICATION_SETTINGS> = {};
@@ -132,40 +191,54 @@ export default function PatientSettingsPage() {
                 {/* Avatar */}
                 <div className="flex items-center gap-4 mb-5">
                   <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
-                    <span className="text-xl font-bold text-white">SC</span>
+                    <span className="text-xl font-bold text-white">{initials}</span>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">Sarah Chen</p>
-                    <p className="text-sm text-gray-500">sarah.c@email.com</p>
+                    <p className="font-semibold text-gray-900">{fullName}</p>
+                    <p className="text-sm text-gray-500">{profileForm.email || "—"}</p>
                     {editingProfile && (
-                      <button className="text-xs text-[#0A2342] mt-1 hover:underline">Change photo</button>
+                      <button disabled className="text-xs text-gray-400 mt-1 cursor-not-allowed opacity-60">Change photo (coming soon)</button>
                     )}
                   </div>
                 </div>
 
+                {profileSaved && (
+                  <div className="mb-3 flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Profile saved successfully.
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: "First Name", value: "Sarah" },
-                    { label: "Last Name", value: "Chen" },
-                    { label: "Email", value: "sarah.c@email.com" },
-                    { label: "Phone", value: "+1 (555) 234-5678" },
-                    { label: "Date of Birth", value: "May 14, 1991" },
-                    { label: "Timezone", value: "Eastern Time (ET)" },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
+                    { label: "First Name", key: "first_name" as const },
+                    { label: "Last Name", key: "last_name" as const },
+                    { label: "Email", key: "email" as const },
+                    { label: "Phone", key: "phone" as const },
+                    { label: "Pronouns", key: "pronouns" as const },
+                    { label: "Timezone", key: "timezone" as const },
+                  ].map(({ label, key }) => (
+                    <div key={key}>
                       <label className="text-xs text-gray-400 block mb-1">{label}</label>
-                      {editingProfile ? (
-                        <input defaultValue={value} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2342]/20" />
+                      {editingProfile && key !== "email" ? (
+                        <input
+                          value={profileForm[key]}
+                          onChange={e => setProfileForm(prev => ({ ...prev, [key]: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A2342]/20"
+                        />
                       ) : (
-                        <p className="text-sm text-gray-900">{value}</p>
+                        <p className="text-sm text-gray-900">{profileForm[key] || "—"}</p>
                       )}
                     </div>
                   ))}
                 </div>
 
                 {editingProfile && (
-                  <button onClick={handleSaveProfile} className="mt-4 w-full py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63]">
-                    Save Changes
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                    className="mt-4 w-full py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-medium hover:bg-[#123A63] disabled:opacity-60"
+                  >
+                    {savingProfile ? "Saving…" : "Save Changes"}
                   </button>
                 )}
               </div>
@@ -173,17 +246,8 @@ export default function PatientSettingsPage() {
               {/* Emergency Contact */}
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="font-semibold text-gray-900 mb-3">Emergency Contact</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400">Name</p>
-                    <p className="text-sm text-gray-900">Lisa Chen (Sister)</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Phone</p>
-                    <p className="text-sm text-gray-900">+1 (555) 876-5432</p>
-                  </div>
-                </div>
-                <button className="mt-3 text-xs text-[#0A2342] font-medium">Edit emergency contact</button>
+                <p className="text-sm text-gray-400 mb-2">No emergency contact on file.</p>
+                <button disabled className="mt-1 text-xs text-gray-400 font-medium cursor-not-allowed opacity-60">Edit emergency contact (coming soon)</button>
               </div>
 
               {/* Language */}
@@ -317,28 +381,20 @@ export default function PatientSettingsPage() {
                   <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Recommended</span>
                 </div>
                 <p className="text-xs text-gray-500 mb-3">Add an extra layer of security to your account.</p>
-                <button className="text-sm text-[#0A2342] font-medium hover:text-[#1E4F8C]">Enable 2FA →</button>
+                <button disabled className="text-sm text-gray-400 font-medium cursor-not-allowed opacity-60">Enable 2FA (coming soon)</button>
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="font-semibold text-gray-900 mb-3">Active Sessions</h3>
-                {[
-                  { device: "MacBook Pro (Chrome)", location: "New York, NY", current: true, time: "Now" },
-                  { device: "iPhone 14 (App)", location: "New York, NY", current: false, time: "2 days ago" },
-                ].map((session) => (
-                  <div key={session.device} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-                    <Monitor className="h-4 w-4 text-gray-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">{session.device}</p>
-                      <p className="text-xs text-gray-400">{session.location} · {session.time}</p>
-                    </div>
-                    {session.current ? (
-                      <span className="text-xs text-emerald-600 font-medium">Current</span>
-                    ) : (
-                      <button className="text-xs text-rose-500 hover:text-rose-700">Revoke</button>
-                    )}
+                <div className="flex items-center gap-3 py-2.5">
+                  <Monitor className="h-4 w-4 text-gray-400 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-900">Current Device</p>
+                    <p className="text-xs text-gray-400">This session</p>
                   </div>
-                ))}
+                  <span className="text-xs text-emerald-600 font-medium">Current</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Session management coming soon.</p>
               </div>
             </div>
           )}
@@ -389,15 +445,27 @@ export default function PatientSettingsPage() {
             <div className="space-y-4">
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="font-semibold text-gray-900 mb-3">Current Plan</h3>
-                <div className="bg-[#0A2342] rounded-xl p-4 text-white mb-3">
-                  <p className="text-xs text-white/60 mb-1">Active Plan</p>
-                  <p className="font-bold text-lg">Individual Care</p>
-                  <p className="text-white/70 text-sm">Weekly sessions with Dr. Alex Smith · $150/session</p>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Next billing date</span>
-                  <span className="font-medium text-gray-900">December 22, 2025</span>
-                </div>
+                {subscription ? (
+                  <>
+                    <div className="bg-[#0A2342] rounded-xl p-4 text-white mb-3">
+                      <p className="text-xs text-white/60 mb-1">Active Plan</p>
+                      <p className="font-bold text-lg">{subscription.plan_name || subscription.plan || "Active Plan"}</p>
+                      {subscription.therapist_name && (
+                        <p className="text-white/70 text-sm">With {subscription.therapist_name}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Next billing date</span>
+                      <span className="font-medium text-gray-900">
+                        {subscription.next_billing_date
+                          ? new Date(subscription.next_billing_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                          : "—"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-400 py-2">No active subscription.</div>
+                )}
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
@@ -407,31 +475,47 @@ export default function PatientSettingsPage() {
                     <CreditCard className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">•••• •••• •••• 4242</p>
-                    <p className="text-xs text-gray-400">Expires 12/27</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {subscription?.card_last4 ? `•••• •••• •••• ${subscription.card_last4}` : "No payment method on file"}
+                    </p>
+                    {subscription?.card_expires && (
+                      <p className="text-xs text-gray-400">Expires {subscription.card_expires}</p>
+                    )}
                   </div>
-                  <button className="ml-auto text-xs text-[#0A2342] font-medium">Update</button>
+                  <button disabled className="ml-auto text-xs text-gray-400 font-medium cursor-not-allowed opacity-60">Update (coming soon)</button>
                 </div>
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="font-semibold text-gray-900 mb-3">Recent Invoices</h3>
-                {[
-                  { date: "Dec 15, 2025", amount: "$150", session: "Session #24", status: "paid" },
-                  { date: "Dec 8, 2025", amount: "$150", session: "Session #23", status: "paid" },
-                  { date: "Dec 1, 2025", amount: "$150", session: "Session #22", status: "paid" },
-                ].map(inv => (
-                  <div key={inv.date} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="text-sm text-gray-900">{inv.session}</p>
-                      <p className="text-xs text-gray-400">{inv.date}</p>
+                {invoices.length === 0 ? (
+                  <p className="text-sm text-gray-400">No invoices yet.</p>
+                ) : invoices.map((inv: any, i: number) => {
+                  const amount = inv.amount_cents != null
+                    ? `$${(inv.amount_cents / 100).toFixed(2)}`
+                    : inv.amount != null ? `$${Number(inv.amount).toFixed(2)}` : "—";
+                  const date = inv.created_at || inv.date
+                    ? new Date(inv.created_at || inv.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    : "—";
+                  const status = inv.status || "paid";
+                  return (
+                    <div key={inv.id || i} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
+                      <div>
+                        <p className="text-sm text-gray-900">{inv.description || inv.session_id ? `Session` : "Invoice"}</p>
+                        <p className="text-xs text-gray-400">{date}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-gray-900">{amount}</span>
+                        <span className={cn(
+                          "text-xs px-2 py-0.5 rounded-full",
+                          status === "paid" ? "text-emerald-600 bg-emerald-50" :
+                          status === "pending" ? "text-amber-600 bg-amber-50" :
+                          "text-gray-500 bg-gray-100"
+                        )}>{status}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-900">{inv.amount}</span>
-                      <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{inv.status}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -442,8 +526,8 @@ export default function PatientSettingsPage() {
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="font-semibold text-gray-900 mb-2">Download Your Data</h3>
                 <p className="text-xs text-gray-400 mb-4">Export all your data including mood logs, journal entries, session reports, and assessment history.</p>
-                <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm hover:bg-gray-50">
-                  <Download className="h-4 w-4" /> Request Data Export
+                <button disabled className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-400 rounded-xl text-sm cursor-not-allowed opacity-60">
+                  <Download className="h-4 w-4" /> Request Data Export (coming soon)
                 </button>
               </div>
 
@@ -471,12 +555,15 @@ export default function PatientSettingsPage() {
                   <h3 className="font-semibold text-rose-800">Delete Account</h3>
                 </div>
                 <p className="text-xs text-rose-600 mb-3">This will permanently delete your account. Clinical records may be retained per legal and compliance requirements. This action cannot be undone.</p>
-                <button className="flex items-center gap-2 px-4 py-2 text-rose-600 border border-rose-200 rounded-xl text-sm hover:bg-rose-100">
-                  <Trash2 className="h-4 w-4" /> Request Account Deletion
+                <button disabled className="flex items-center gap-2 px-4 py-2 text-rose-300 border border-rose-200 rounded-xl text-sm cursor-not-allowed opacity-60">
+                  <Trash2 className="h-4 w-4" /> Request Account Deletion (coming soon)
                 </button>
               </div>
 
-              <button className="w-full flex items-center justify-center gap-2 py-2.5 text-rose-600 border border-rose-100 rounded-xl text-sm hover:bg-rose-50">
+              <button
+                onClick={handleSignOutAllDevices}
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-rose-600 border border-rose-100 rounded-xl text-sm hover:bg-rose-50 transition-colors"
+              >
                 <LogOut className="h-4 w-4" /> Sign Out of All Devices
               </button>
             </div>
