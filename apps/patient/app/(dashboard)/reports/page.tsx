@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FileText, Download, Eye, Calendar, Clock, User, CheckCircle2,
   Lock, Star, TrendingUp, TrendingDown, Minus, ChevronRight,
@@ -8,6 +8,7 @@ import {
   BookOpen, ArrowLeft, Printer, Share2, Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 
 interface SessionReport {
   id: string;
@@ -36,7 +37,7 @@ interface GoalProgress {
   status: "on_track" | "needs_attention" | "achieved";
 }
 
-const REPORTS: SessionReport[] = [
+const REPORTS_PLACEHOLDER: SessionReport[] = [
   {
     id: "r1",
     session_number: 24,
@@ -208,9 +209,22 @@ function getStatusStyles(status: GoalProgress["status"]) {
 export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<SessionReport | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "available" | "pending">("all");
+  const [reports, setReports] = useState<SessionReport[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const available = REPORTS.filter(r => r.status === "available");
-  const filtered = REPORTS.filter(r => filterStatus === "all" || r.status === filterStatus);
+  useEffect(() => {
+    apiFetch('/sessions/my-reports').then((data: any) => {
+      const items = Array.isArray(data) ? data : data?.data ?? [];
+      setReports(items);
+    }).catch(() => {
+      setReports([]);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const available = reports.filter(r => r.status === "available");
+  const filtered = reports.filter(r => filterStatus === "all" || r.status === filterStatus);
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading reports…</div>;
 
   if (selectedReport && selectedReport.status === "available") {
     return (

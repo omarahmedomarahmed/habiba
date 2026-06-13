@@ -29,110 +29,6 @@ interface Session {
   reminder_set: boolean;
 }
 
-const SESSIONS: Session[] = [
-  {
-    id: "s1",
-    date: "2025-12-22",
-    time: "10:00 AM",
-    duration: 50,
-    type: "video",
-    status: "upcoming",
-    therapist_name: "Dr. Alex Smith",
-    therapist_title: "Licensed Clinical Psychologist",
-    notes_available: false,
-    session_number: 25,
-    focus: "CBT techniques for perfectionism & year-end review",
-    can_cancel: true,
-    reminder_set: true,
-  },
-  {
-    id: "s2",
-    date: "2025-12-29",
-    time: "10:00 AM",
-    duration: 50,
-    type: "video",
-    status: "upcoming",
-    therapist_name: "Dr. Alex Smith",
-    therapist_title: "Licensed Clinical Psychologist",
-    notes_available: false,
-    session_number: 26,
-    can_cancel: true,
-    reminder_set: false,
-  },
-  {
-    id: "s3",
-    date: "2025-12-15",
-    time: "10:00 AM",
-    duration: 50,
-    type: "video",
-    status: "completed",
-    therapist_name: "Dr. Alex Smith",
-    therapist_title: "Licensed Clinical Psychologist",
-    notes_available: true,
-    session_number: 24,
-    focus: "Anxiety coping strategies + work stress management",
-    homework: "Practice breathing exercises 2x daily; Thought record worksheet",
-    rating: 5,
-    can_cancel: false,
-    reminder_set: false,
-  },
-  {
-    id: "s4",
-    date: "2025-12-08",
-    time: "10:00 AM",
-    duration: 50,
-    type: "video",
-    status: "completed",
-    therapist_name: "Dr. Alex Smith",
-    therapist_title: "Licensed Clinical Psychologist",
-    notes_available: true,
-    session_number: 23,
-    focus: "Perfectionism exploration + childhood patterns",
-    homework: "Journaling: identify 3 perfectionist thoughts per day",
-    rating: 4,
-    can_cancel: false,
-    reminder_set: false,
-  },
-  {
-    id: "s5",
-    date: "2025-12-01",
-    time: "10:00 AM",
-    duration: 50,
-    type: "video",
-    status: "completed",
-    therapist_name: "Dr. Alex Smith",
-    therapist_title: "Licensed Clinical Psychologist",
-    notes_available: true,
-    session_number: 22,
-    focus: "Medication check-in + social avoidance behaviors",
-    can_cancel: false,
-    reminder_set: false,
-  },
-  {
-    id: "s6",
-    date: "2025-11-24",
-    time: "10:00 AM",
-    duration: 50,
-    type: "video",
-    status: "completed",
-    therapist_name: "Dr. Alex Smith",
-    therapist_title: "Licensed Clinical Psychologist",
-    notes_available: true,
-    session_number: 21,
-    focus: "Grief processing + emotional regulation",
-    rating: 5,
-    can_cancel: false,
-    reminder_set: false,
-  },
-];
-
-const THERAPY_STATS = {
-  total_sessions: 24,
-  sessions_this_month: 4,
-  attendance_rate: 96,
-  months_in_therapy: 4,
-  next_session_days: 6,
-};
 
 function getTypeIcon(type: Session["type"]) {
   switch (type) {
@@ -174,33 +70,39 @@ export default function AppointmentsPage() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
-  const [sessions, setSessions] = useState<Session[]>(SESSIONS);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     sessionsAPI.list({ limit: 50 } as any).then((data: any) => {
       const items = Array.isArray(data) ? data : data?.data ?? [];
-      if (items.length > 0) {
-        setSessions(items.map((s: any) => ({
-          id: s.id,
-          date: s.scheduled_at ? s.scheduled_at.split('T')[0] : '',
-          time: s.scheduled_at ? new Date(s.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-          duration: s.duration_minutes || 50,
-          type: s.format || 'video',
-          status: s.status || 'upcoming',
-          therapist_name: s.therapist_name || 'Your Therapist',
-          therapist_title: '',
-          notes_available: !!s.has_ai_note,
-          session_number: s.session_number || 1,
-          can_cancel: s.status === 'scheduled',
-          reminder_set: false,
-        })));
-      }
-    }).catch(() => {});
+      setSessions(items.map((s: any) => ({
+        id: s.id,
+        date: s.scheduled_at ? s.scheduled_at.split('T')[0] : '',
+        time: s.scheduled_at ? new Date(s.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        duration: s.duration_minutes || 50,
+        type: s.format || 'video',
+        status: s.status || 'upcoming',
+        therapist_name: s.therapist_name || 'Your Therapist',
+        therapist_title: '',
+        notes_available: !!s.has_ai_note,
+        session_number: s.session_number || 1,
+        can_cancel: s.status === 'scheduled',
+        reminder_set: false,
+      })));
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const upcoming = sessions.filter(s => s.status === "upcoming" || s.status === "scheduled");
   const completed = sessions.filter(s => s.status === "completed");
   const nextSession = upcoming[0];
+  const thisMonth = new Date().getMonth();
+  const sessionsThisMonth = sessions.filter(s => new Date(s.date).getMonth() === thisMonth).length;
+  const nonCancelled = sessions.filter(s => s.status !== "cancelled");
+  const attendanceRate = nonCancelled.length ? Math.round((completed.length / nonCancelled.length) * 100) : 100;
+  const nextSessionDays = nextSession ? Math.max(0, Math.round((new Date(nextSession.date).getTime() - Date.now()) / 86400000)) : null;
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading sessions…</div>;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -218,10 +120,10 @@ export default function AppointmentsPage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { label: "Total", value: THERAPY_STATS.total_sessions, sub: "sessions" },
-          { label: "Attendance", value: `${THERAPY_STATS.attendance_rate}%`, sub: "rate" },
-          { label: "This Month", value: THERAPY_STATS.sessions_this_month, sub: "sessions" },
-          { label: "Next Session", value: `${THERAPY_STATS.next_session_days}`, sub: "days" },
+          { label: "Total", value: sessions.length, sub: "sessions" },
+          { label: "Attendance", value: `${attendanceRate}%`, sub: "rate" },
+          { label: "This Month", value: sessionsThisMonth, sub: "sessions" },
+          { label: "Next Session", value: nextSessionDays !== null ? `${nextSessionDays}` : "—", sub: "days" },
         ].map(({ label, value, sub }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-200 p-3 text-center">
             <p className="text-lg font-bold text-gray-900">{value}</p>
@@ -450,3 +352,5 @@ export default function AppointmentsPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

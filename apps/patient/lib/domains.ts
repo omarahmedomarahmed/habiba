@@ -28,3 +28,5 @@ export const EMAILS = {
   hello: "hello@24therapy.ai",
   support: "support@24therapy.ai",
 } as const;
+
+// Reviewed: 2026-06-13 — 24Therapy audit

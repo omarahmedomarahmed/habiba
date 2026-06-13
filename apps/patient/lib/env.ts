@@ -9,3 +9,5 @@ export function getApiUrl(): string {
 export function getBaseUrl(): string {
   return getApiUrl().replace(/\/api\/v1\/?$/, '');
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -150,3 +150,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
