@@ -80,3 +80,5 @@ export class TherapistsController {
     return this.therapistsService.updateRadarSettings(therapist.id as string, body);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

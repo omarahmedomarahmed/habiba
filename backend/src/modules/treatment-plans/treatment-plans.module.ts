@@ -10,3 +10,5 @@ import { DatabaseModule } from '../../database/database.module';
   exports: [TreatmentPlansService],
 })
 export class TreatmentPlansModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

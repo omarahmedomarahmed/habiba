@@ -10,3 +10,5 @@ import { UsersService } from './users.service';
   exports: [UsersService],
 })
 export class UsersModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

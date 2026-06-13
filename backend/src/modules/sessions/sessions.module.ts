@@ -13,3 +13,5 @@ import { CrisisModule } from '../crisis/crisis.module';
   exports: [SessionsService],
 })
 export class SessionsModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

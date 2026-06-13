@@ -163,6 +163,18 @@ export class WorkflowsController {
     return this.workflowsService.listPatientHomework(user.organization_id, user.patientId);
   }
 
+  @Patch('tasks/:taskId/start')
+  @Roles('patient', 'therapist', 'org_admin')
+  @ApiOperation({ summary: 'Start a task by id' })
+  @ApiParam({ name: 'taskId', description: 'UUID of the task' })
+  @ApiResponse({ status: 200, description: 'Task started' })
+  async startTaskById(
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.workflowsService.startTaskById(taskId, user.organization_id, user);
+  }
+
   @Patch('tasks/:taskId/complete')
   @Roles('patient', 'therapist', 'org_admin')
   @ApiOperation({
@@ -257,3 +269,5 @@ export class WorkflowsController {
     return this.workflowsService.updateTreatmentPlan(id, user.organization_id, dto);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -270,26 +270,38 @@ export class TherapistsService {
   }
 
   async updateRadarSettings(therapistId: string, settings: Record<string, unknown>) {
+    const ALLOWED_KEYS = [
+      'is_available_now', 'accepts_radar', 'max_sessions_day',
+      'max_response_time_minutes', 'preferred_urgency_levels',
+      'preferred_specializations', 'radar_bio', 'session_rate_usd',
+    ];
+    const filtered = Object.fromEntries(
+      Object.entries(settings).filter(([k]) => ALLOWED_KEYS.includes(k)),
+    );
+    if (Object.keys(filtered).length === 0) return this.getRadarSettings(therapistId);
+
     const existing = await this.getRadarSettings(therapistId);
 
     if (existing) {
-      const setClauses = Object.keys(settings)
+      const setClauses = Object.keys(filtered)
         .map((key, i) => `${key} = $${i + 2}`)
-        .join(", ");
+        .join(', ');
       await this.db.execute(
         `UPDATE radar_therapist_settings SET ${setClauses}, updated_at = NOW() WHERE therapist_id = $1`,
-        [therapistId, ...Object.values(settings)]
+        [therapistId, ...Object.values(filtered)],
       );
     } else {
-      const keys = ["therapist_id", ...Object.keys(settings)];
-      const values = [therapistId, ...Object.values(settings)];
-      const placeholders = values.map((_, i) => `$${i + 1}`).join(", ");
+      const keys = ['therapist_id', ...Object.keys(filtered)];
+      const values = [therapistId, ...Object.values(filtered)];
+      const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
       await this.db.execute(
-        `INSERT INTO radar_therapist_settings (${keys.join(", ")}) VALUES (${placeholders})`,
-        values
+        `INSERT INTO radar_therapist_settings (${keys.join(', ')}) VALUES (${placeholders})`,
+        values,
       );
     }
 
     return this.getRadarSettings(therapistId);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

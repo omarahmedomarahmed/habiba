@@ -18,3 +18,5 @@ export class UsersController {
     return this.r({ data });
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

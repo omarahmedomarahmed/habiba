@@ -592,3 +592,5 @@ export class UpdateTreatmentPlanDto {
   @IsDateString()
   planned_discharge_date?: string;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
