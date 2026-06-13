@@ -1,1 +1,2 @@
-web: node dist/backend/src/main.js
+web: node backend/dist/main.js
+# Reviewed: 2026-06-13 — 24Therapy audit

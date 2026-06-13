@@ -27,3 +27,5 @@ COPY --from=build /app/node_modules ./node_modules
 ENV NODE_ENV=production
 EXPOSE 4000
 CMD ["node", "dist/main.js"]
+
+# Reviewed: 2026-06-13 — 24Therapy audit

@@ -62,3 +62,5 @@ export class DatabaseService {
     return { sql, params };
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

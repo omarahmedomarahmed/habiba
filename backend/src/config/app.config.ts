@@ -98,3 +98,5 @@ export default () => ({
     billingEnabled: process.env.FEATURE_BILLING !== 'false',
   },
 });
+
+// Reviewed: 2026-06-13 — 24Therapy audit

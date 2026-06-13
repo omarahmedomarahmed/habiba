@@ -32,3 +32,5 @@ export function buildCorsOriginFn(isProd: boolean) {
     callback(new Error(`CORS blocked: ${requestOrigin}`));
   };
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

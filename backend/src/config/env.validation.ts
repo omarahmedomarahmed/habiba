@@ -37,3 +37,5 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
 
   return config;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -114,3 +114,5 @@ import appConfig from './config/app.config';
   ],
 })
 export class AppModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit
