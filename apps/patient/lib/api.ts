@@ -273,7 +273,7 @@ export const messagesAPI = {
     apiFetch<Record<string, unknown>>(`/messages/conversations/${conversationId}/read`, { method: "POST" }),
 };
 
-export { setStoredTokens, getAccessToken, getRefreshToken };
+export { setStoredTokens, getAccessToken, getRefreshToken, apiFetch };
 export default apiFetch;
 
 // Reviewed: 2026-06-13 — 24Therapy audit
