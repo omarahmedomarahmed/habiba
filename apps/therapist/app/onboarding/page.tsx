@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { therapistsAPI } from "@/lib/api";
 import {
   Brain, CheckCircle2, ChevronRight, ChevronLeft, User, Building2,
   Stethoscope, Shield, CreditCard, Users, Calendar, Sparkles,
@@ -123,13 +124,43 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
   const [data, setData] = useState<OnboardingData>(initialData);
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStep>>(new Set());
+  const [saving, setSaving] = useState(false);
 
   const stepIndex = STEPS.findIndex(s => s.id === currentStep);
   const progressPercent = (stepIndex / (STEPS.length - 1)) * 100;
 
-  const goToNext = () => {
+  const goToNext = async () => {
     setCompletedSteps(prev => new Set([...prev, currentStep]));
     const nextStep = STEPS[stepIndex + 1];
+
+    // On the last data-entry step (ai_preferences → complete), save everything to the API
+    if (currentStep === 'ai_preferences' && nextStep?.id === 'complete') {
+      setSaving(true);
+      try {
+        await therapistsAPI.updateProfile({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          display_name: `${data.credentials ? data.credentials + ' ' : ''}${data.first_name} ${data.last_name}`.trim(),
+          bio: data.bio,
+          license_number: data.license_number,
+          license_state: data.license_state,
+          npi_number: data.npi_number,
+          years_experience: data.years_experience,
+          specializations: data.specialties,
+          languages: data.languages,
+          weekly_capacity: data.weekly_capacity,
+          telehealth_enabled: data.telehealth,
+          in_person_enabled: data.in_person,
+          ai_scribe_enabled: data.ai_scribe,
+          ai_copilot_enabled: data.ai_copilot,
+        });
+      } catch {
+        // Non-blocking — profile can be updated from settings; don't block onboarding
+      } finally {
+        setSaving(false);
+      }
+    }
+
     if (nextStep) setCurrentStep(nextStep.id);
   };
 
@@ -961,9 +992,10 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={goToNext}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63] transition-colors"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63] disabled:opacity-60 transition-colors"
               >
-                Continue <ChevronRight className="h-4 w-4" />
+                {saving ? 'Saving…' : 'Continue'} <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           )}

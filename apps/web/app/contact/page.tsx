@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getApiUrl } from "@/lib/env";
 import Link from "next/link";
 import {
   Mail, Phone, MapPin, MessageSquare, Building2, Users, Zap,
@@ -71,10 +72,32 @@ export default function ContactPage() {
     name: "", email: "", organization: "", phone: "", therapist_count: "", message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`${getApiUrl()}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          subject: selectedType === 'demo' ? 'Demo Request' : selectedType,
+          message: `${formData.message}\n\nOrganization: ${formData.organization}\nPhone: ${formData.phone}\nTherapists: ${formData.therapist_count}`.trim(),
+          contact_type: selectedType === 'demo' ? 'sales' : selectedType === 'press' ? 'general' : selectedType,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to send');
+      setSubmitted(true);
+    } catch {
+      setError('Something went wrong. Please email us directly at support@24therapy.ai');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -215,12 +238,16 @@ export default function ContactPage() {
                     placeholder="Tell us what you're looking for..."
                   />
                 </div>
+                {error && (
+                  <p className="text-sm text-red-600 text-center">{error}</p>
+                )}
                 <button
                   type="submit"
-                  className="w-full bg-[#0A2342] hover:bg-[#0d2d56] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
+                  disabled={submitting}
+                  className="w-full bg-[#0A2342] hover:bg-[#0d2d56] disabled:opacity-60 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
-                  Send Message
+                  {submitting ? 'Sending…' : 'Send Message'}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
                   We respond within 2-4 hours during business hours (M–F, 8am–6pm ET)

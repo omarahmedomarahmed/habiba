@@ -38,6 +38,17 @@ export class SessionsController {
     return this.response({ usage });
   }
 
+  @Get('my-reports')
+  @ApiOperation({ summary: 'List signed session reports visible to the current patient' })
+  async getMyReports(@Request() req: any) {
+    const patientId = req.user.patientId;
+    if (!patientId) {
+      return this.response({ reports: [] });
+    }
+    const reports = await this.sessionsService.getMyReports(patientId, req.user.organization_id);
+    return this.response({ data: reports });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get session by ID' })
   async findOne(@Request() req: any, @Param('id') id: string) {
