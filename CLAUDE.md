@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-13 (session 15 — portal production-readiness + chat/pricing revamp complete) |
+| **Last Updated** | 2026-06-13 (session 16 — patient portal production-readiness + mobile nav complete) |
 
 ---
 
@@ -70,10 +70,13 @@ docs/              → HIPAA_CHECKLIST.md
 | Memory page | ✅ REAL | Loads from `patientsAPI.memories()` per selected patient; hardcoded seeds removed |
 | Calendar | ✅ REAL | Loads from `sessionsAPI.list()` by date range; New Session → /sessions/new?date= |
 | Patient mood tracker | ✅ REAL | Saves to `patientAPI.addMoodEntry()` |
-| Patient journal | ✅ REAL | Saves to `journalAPI.create()` (`/notes?note_type=journal`) |
-| Patient assessments | ✅ REAL | Submits answers to `assessmentsAPI.submit()`; /assessments/new assign flow wired |
-| Patient homework | ✅ REAL | Mark Complete calls `PATCH /workflows/tasks/:id/complete` |
-| Patient progress | ✅ REAL | Loads from assessmentsAPI + patientAPI.me() goals |
+| Patient journal | ✅ REAL | Full CRUD: list from `journalAPI.list()`, create/edit/delete wired; no more mock entries |
+| Patient assessments | ✅ REAL | List from `assessmentsAPI.list()` (patient-scoped); submit wired; no mock ASSESSMENTS array |
+| Patient homework | ✅ REAL | Mark Complete + Start buttons both wired to PATCH /workflows/tasks/:id/* |
+| Patient progress | ✅ REAL | Loads from assessmentsAPI.list() + patientAPI.me() goals + moodTrend(30); no mock arrays |
+| Patient mood | ✅ REAL | History from `patientAPI.moodTrend(30)`; weekly avgs computed; no MOOD_ENTRIES/AI_INSIGHTS mock |
+| Patient dashboard | ✅ REAL | NEW home page: greeting, therapist card, upcoming session, mood stats from real APIs |
+| Mobile bottom nav | ✅ REAL | md:hidden BottomNav in patient/therapist/admin portals; 5 tabs + More drawer; sidebars hidden on mobile |
 | Find therapist | ✅ REAL | Fetches from `GET /marketplace/search` with static fallback |
 | Org suspension | ✅ REAL | Admin `suspendOrg()`/`activateOrg()` wired to backend |
 | User impersonation | ✅ REAL | `impersonateUser()` opens portal with token |
@@ -195,6 +198,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
+## Commit History (Session 16)
+
+| Hash | Message |
+|------|---------|
+| `c3776ad` | feat(session-16): patient portal production-readiness + mobile nav |
+
 ## Commit History (Session 15)
 
 | Hash | Message |
@@ -289,10 +298,24 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [x] P6: /chat dark UI, starter templates, containerRef scroll fix; hero.tsx reply parse fix
 - [x] P7: pricing per-plan hero metrics, ✓/✗ feature lists, savings strip, price field normalization
 
+### Session 16 additions (complete)
+- [x] Patient dashboard home page (NEW): greeting, therapist name from patientAPI.me(), upcoming session, mood stats, quick-access grid
+- [x] progress/page.tsx: all mock arrays removed; wired to real assessmentsAPI + patientAPI.me() goals + moodTrend
+- [x] journal/page.tsx: JOURNAL_ENTRIES removed; live list from journalAPI.list(); Edit + Delete implemented
+- [x] mood/page.tsx: MOOD_ENTRIES/WEEKLY_AVERAGES/AI_INSIGHTS removed; patientAPI.moodTrend(30); computed stats
+- [x] assessments/page.tsx: ASSESSMENTS mock removed; assessmentsAPI.list() + patientAPI.me() for therapist name
+- [x] homework/page.tsx: Start button wired to PATCH /workflows/tasks/:id/start
+- [x] messages/page.tsx: phone/video buttons marked disabled with tooltip
+- [x] Patient BottomNav: 5-tab mobile nav (Home/Sessions/Messages/Progress/More) + slide-up More drawer
+- [x] Therapist BottomNav: 5-tab (Dashboard/Patients/Sessions/Messages/More); sidebar hidden on mobile
+- [x] Admin BottomNav: dark navy 5-tab (Dashboard/Users/Orgs/Safety/More); sidebar hidden on mobile
+- [x] All 3 portal layouts: pb-20 md:pb-0 on main, BottomNav imported and rendered
+- [x] All 4 builds pass: patient + therapist + admin portals + NestJS API
+
 ### Remaining (true stretch goals)
 - [ ] **Resolve GitHub billing** — unblock CI runners
 - [ ] Prometheus/Grafana wiring (`infra/` scaffolded)
 - [ ] /blog CMS connection
-- [ ] P8 jest test suite updates for new modules (treatment-plans, referrals, reports)
+- [ ] Jest test suite updates for new modules (treatment-plans, referrals, reports, session-16 pages)
 - [ ] Onboarding wizard step 7: remove card-required implication
 - [ ] Formal BAAs before accepting real PHI (see `docs/HIPAA_CHECKLIST.md`)
