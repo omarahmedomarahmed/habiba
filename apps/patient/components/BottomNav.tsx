@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 const PRIMARY_TABS = [
-  { label: "Home", icon: Home, href: "/" },
+  { label: "Home", icon: Home, href: "/home" },
   { label: "Sessions", icon: Calendar, href: "/sessions" },
   { label: "Messages", icon: MessageCircle, href: "/messages" },
   { label: "Progress", icon: TrendingUp, href: "/progress" },
@@ -34,8 +34,7 @@ export function BottomNav() {
 
   const isActive = (href: string | null) => {
     if (!href) return false;
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+    return pathname === href || (href !== "/" && pathname.startsWith(href));
   };
 
   return (
