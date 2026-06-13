@@ -325,3 +325,5 @@ export class ExtractMemoryFromNoteDto {
   @IsNotEmpty()
   note_content: string;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

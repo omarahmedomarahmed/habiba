@@ -28,3 +28,5 @@ export class ListAlertsQueryDto {
   @Type(() => Number)
   limit?: number = 50;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

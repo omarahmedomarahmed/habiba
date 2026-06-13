@@ -35,3 +35,5 @@ export class UpdateListingDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() accepts_insurance?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsArray() @IsString({ each: true }) insurance_providers?: string[];
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

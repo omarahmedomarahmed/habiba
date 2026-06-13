@@ -10,3 +10,5 @@ import { MarketplaceService } from './marketplace.service';
   exports: [MarketplaceService],
 })
 export class MarketplaceModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit
