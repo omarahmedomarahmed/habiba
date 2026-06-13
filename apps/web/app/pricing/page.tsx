@@ -169,20 +169,18 @@ const ENTERPRISE_FEATURES = [
 ];
 
 // ─── Plan Card ────────────────────────────────────────────────────────────────
-function PlanCard({ plan }: { plan: SubscriptionPlan }) {
+function PlanCard({ plan, showSavingsStrip }: { plan: SubscriptionPlan; showSavingsStrip?: boolean }) {
   const isHighlighted = plan.is_featured;
   const price = getPlanDisplayPrice(plan, "monthly");
-  const annualPrice = getPlanDisplayPrice(plan, "annual");
-  const features = plan.features as PlanFeatures;
-
-  const enabledFeatureKeys = Object.entries(features)
-    .filter(([, v]) => v === true)
-    .map(([k]) => k);
+  const planKey = getPlanKey(plan);
+  const heroMetric = PLAN_HERO_METRICS[planKey];
+  const planFeatures = PLAN_FEATURES_MAP[planKey];
+  const displayPrice = (plan as any).price_monthly_usd ?? (plan as any).monthly_price_usd ?? (plan as any).price;
 
   return (
     <div
       className={[
-        "rounded-2xl border-2 overflow-hidden",
+        "rounded-2xl border-2 overflow-hidden flex flex-col",
         isHighlighted
           ? "border-[#1F5EFF] bg-[#0A2342] shadow-2xl shadow-[#0A2342]/30 scale-[1.02]"
           : "border-slate-200 bg-white shadow-sm",
@@ -193,7 +191,7 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
           ⭐ {plan.badge_text}
         </div>
       )}
-      <div className="p-6">
+      <div className="p-6 flex flex-col flex-1">
         <h3
           className={[
             "text-2xl font-bold mb-1",
@@ -205,7 +203,7 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
         {plan.tagline && (
           <p
             className={[
-              "text-sm mb-5",
+              "text-sm mb-4",
               isHighlighted ? "text-white/60" : "text-slate-500",
             ].join(" ")}
           >
@@ -213,8 +211,23 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
           </p>
         )}
 
+        {/* Hero metric — value display */}
+        {heroMetric && (
+          <div className={[
+            "rounded-xl px-4 py-3 mb-5",
+            isHighlighted ? "bg-[#1F5EFF]/20 border border-[#1F5EFF]/30" : "bg-slate-50 border border-slate-200",
+          ].join(" ")}>
+            <span className={["text-xl font-bold", isHighlighted ? "text-white" : "text-[#0A2342]"].join(" ")}>
+              {heroMetric.headline}
+            </span>
+            <span className={["text-xs ml-2", isHighlighted ? "text-white/60" : "text-slate-500"].join(" ")}>
+              — {heroMetric.sub}
+            </span>
+          </div>
+        )}
+
         {/* Pricing */}
-        <div className="mb-6">
+        <div className="mb-5">
           {price.amount === null ? (
             <div>
               <span className={["text-4xl font-bold", isHighlighted ? "text-white" : "text-[#0A2342]"].join(" ")}>
@@ -228,7 +241,7 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
             <div>
               <div className="flex items-baseline gap-1">
                 <span className={["text-5xl font-bold", isHighlighted ? "text-white" : "text-[#0A2342]"].join(" ")}>
-                  ${price.amount}
+                  ${displayPrice ?? price.amount}
                 </span>
                 <span className={["text-sm", isHighlighted ? "text-white/60" : "text-slate-500"].join(" ")}>
                   /month
@@ -247,7 +260,7 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
         <Link
           href={price.amount === null ? "/contact?type=enterprise" : "/signup?role=therapist"}
           className={[
-            "w-full py-3.5 rounded-xl font-semibold text-sm text-center block mb-6 transition-all",
+            "w-full py-3.5 rounded-xl font-semibold text-sm text-center block mb-5 transition-all",
             isHighlighted
               ? "bg-[#1F5EFF] text-white hover:bg-[#1649D4]"
               : "bg-[#0A2342] text-white hover:bg-[#123A63]",
@@ -257,58 +270,58 @@ function PlanCard({ plan }: { plan: SubscriptionPlan }) {
         </Link>
 
         {plan.plan_key === "pay_per_session" && (
-          <p className={["text-xs text-center mb-5 -mt-3", isHighlighted ? "text-white/40" : "text-slate-400"].join(" ")}>
+          <p className={["text-xs text-center mb-4 -mt-3", isHighlighted ? "text-white/40" : "text-slate-400"].join(" ")}>
             First session free · No credit card required
           </p>
         )}
 
-        {/* Core features */}
-        <div className="space-y-1 mb-4">
-          {CORE_FEATURES.map((f) => (
-            <div
-              key={f}
-              className={[
-                "flex items-center gap-2 py-1.5 text-xs",
-                isHighlighted ? "text-white/80" : "text-slate-600",
-              ].join(" ")}
-            >
-              <CheckCircle2
-                className={["w-3.5 h-3.5 shrink-0", isHighlighted ? "text-emerald-400" : "text-emerald-500"].join(" ")}
-              />
-              <span>{f}</span>
-            </div>
-          ))}
-        </div>
+        {/* Savings strip — shown below Starter only */}
+        {showSavingsStrip && (
+          <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
+            💰 20 × $6 = $120 as PAYG → Starter $59 — <strong>save $61/mo</strong>
+          </div>
+        )}
 
-        {/* Patient limit */}
-        <div className={["flex items-center gap-2 py-1.5 text-xs mb-1", isHighlighted ? "text-white/80" : "text-slate-600"].join(" ")}>
-          <CheckCircle2 className={["w-3.5 h-3.5 shrink-0", isHighlighted ? "text-emerald-400" : "text-emerald-500"].join(" ")} />
-          <span>Up to {getLimitDisplay(plan.max_patients)} active patients</span>
-        </div>
-
-        {/* Feature flags */}
-        {enabledFeatureKeys.length > 0 && (
-          <div className={["mt-4 pt-4 border-t", isHighlighted ? "border-white/10" : "border-slate-100"].join(" ")}>
-            <div className="space-y-1">
-              {enabledFeatureKeys.map((key) => (
+        {/* Included / excluded feature lists */}
+        {planFeatures ? (
+          <div className={["mt-auto pt-4 border-t space-y-1", isHighlighted ? "border-white/10" : "border-slate-100"].join(" ")}>
+            {planFeatures.included.map((f) => (
+              <div key={f} className={["flex items-start gap-2 py-0.5 text-xs", isHighlighted ? "text-white/80" : "text-slate-600"].join(" ")}>
+                <CheckCircle2 className={["w-3.5 h-3.5 shrink-0 mt-0.5", isHighlighted ? "text-emerald-400" : "text-emerald-500"].join(" ")} />
+                <span>{f}</span>
+              </div>
+            ))}
+            {planFeatures.excluded.map((f) => (
+              <div key={f} className={["flex items-start gap-2 py-0.5 text-xs", isHighlighted ? "text-white/40" : "text-slate-400"].join(" ")}>
+                <X className="w-3.5 h-3.5 shrink-0 mt-0.5 text-slate-300" />
+                <span>{f}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            {/* Fallback: core features */}
+            <div className="space-y-1 mb-4">
+              {CORE_FEATURES.map((f) => (
                 <div
-                  key={key}
+                  key={f}
                   className={[
-                    "flex items-center gap-2 py-1 text-xs",
+                    "flex items-center gap-2 py-1.5 text-xs",
                     isHighlighted ? "text-white/80" : "text-slate-600",
                   ].join(" ")}
                 >
                   <CheckCircle2
-                    className={[
-                      "w-3.5 h-3.5 shrink-0",
-                      isHighlighted ? "text-emerald-400" : "text-emerald-500",
-                    ].join(" ")}
+                    className={["w-3.5 h-3.5 shrink-0", isHighlighted ? "text-emerald-400" : "text-emerald-500"].join(" ")}
                   />
-                  <span>{FEATURE_LABELS[key] || key}</span>
+                  <span>{f}</span>
                 </div>
               ))}
             </div>
-          </div>
+            <div className={["flex items-center gap-2 py-1.5 text-xs mb-1", isHighlighted ? "text-white/80" : "text-slate-600"].join(" ")}>
+              <CheckCircle2 className={["w-3.5 h-3.5 shrink-0", isHighlighted ? "text-emerald-400" : "text-emerald-500"].join(" ")} />
+              <span>Up to {getLimitDisplay(plan.max_patients)} active patients</span>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -389,19 +402,31 @@ export default async function PricingPage() {
               </Link>
             </div>
           ) : (
-            <div className={`grid grid-cols-1 gap-6 ${
-              mainPlans.length <= 2
-                ? "md:grid-cols-2"
-                : mainPlans.length === 4
-                ? "md:grid-cols-2 lg:grid-cols-4"
-                : mainPlans.length >= 5
-                ? "md:grid-cols-2 xl:grid-cols-3"
-                : "md:grid-cols-3"
-            }`}>
-              {mainPlans.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} />
-              ))}
-            </div>
+            <>
+              <div className={`grid grid-cols-1 gap-6 ${
+                mainPlans.length <= 2
+                  ? "md:grid-cols-2"
+                  : mainPlans.length === 4
+                  ? "md:grid-cols-2 lg:grid-cols-4"
+                  : mainPlans.length >= 5
+                  ? "md:grid-cols-2 xl:grid-cols-3"
+                  : "md:grid-cols-3"
+              }`}>
+                {mainPlans.map((plan) => (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    showSavingsStrip={getPlanKey(plan) === 'starter'}
+                  />
+                ))}
+              </div>
+
+              {/* Crisis safety note */}
+              <div className="mt-8 flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl px-6 py-4 text-emerald-800 text-sm font-medium">
+                <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
+                {CRISIS_NOTE}
+              </div>
+            </>
           )}
 
           {/* Enterprise */}

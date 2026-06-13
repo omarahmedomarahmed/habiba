@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Shield, Search, Filter, Download, Eye, FileText, Users,
   Lock, AlertTriangle, ChevronDown, RefreshCw, Calendar,
   Activity, Clock, ArrowRight, CheckCircle, X, Info
 } from "lucide-react";
+import { organizationsAPI } from "@/lib/api";
 
 type AuditAction =
   | "view_record" | "edit_note" | "create_note" | "delete_note" | "sign_note"
@@ -89,17 +90,46 @@ export default function AuditLogsPage() {
   const [filterOutcome, setFilterOutcome] = useState<"all" | "success" | "failure" | "warning">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("7d");
+  const [logs, setLogs] = useState<AuditEntry[]>(AUDIT_LOGS);
+  const [loading, setLoading] = useState(false);
 
-  const filtered = AUDIT_LOGS.filter((log) => {
-    const matchSearch = !search || log.actor_name.toLowerCase().includes(search.toLowerCase()) || log.patient_name?.toLowerCase().includes(search.toLowerCase()) || ACTION_LABELS[log.action].toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    setLoading(true);
+    organizationsAPI.auditLogs().then((res: any) => {
+      const entries = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+      if (entries.length > 0) {
+        setLogs(entries.map((e: any) => ({
+          id: e.id || "",
+          timestamp: e.created_at || e.timestamp || "",
+          action: e.action || "view_record",
+          category: e.category || "phi_access",
+          actor_name: e.actor_name || e.user_name || "Unknown",
+          actor_role: e.actor_role || e.role || "",
+          target_type: e.target_type || e.resource_type || undefined,
+          target_name: e.target_name || e.resource_id || undefined,
+          patient_id: e.patient_id || undefined,
+          patient_name: e.patient_name || undefined,
+          ip_address: e.ip_address || "",
+          user_agent: e.user_agent || "",
+          outcome: e.outcome || "success",
+          details: e.details || e.notes || undefined,
+          session_id: e.session_id || undefined,
+        })));
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const filtered = logs.filter((log) => {
+    const actionLabel = ACTION_LABELS[log.action as AuditAction] || log.action;
+    const matchSearch = !search || log.actor_name.toLowerCase().includes(search.toLowerCase()) || log.patient_name?.toLowerCase().includes(search.toLowerCase()) || actionLabel.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCat === "all" || log.category === filterCat;
     const matchOutcome = filterOutcome === "all" || log.outcome === filterOutcome;
     return matchSearch && matchCat && matchOutcome;
   });
 
-  const successCount = AUDIT_LOGS.filter(l => l.outcome === "success").length;
-  const failureCount = AUDIT_LOGS.filter(l => l.outcome === "failure").length;
-  const phiCount = AUDIT_LOGS.filter(l => l.category === "phi_access").length;
+  const successCount = logs.filter(l => l.outcome === "success").length;
+  const failureCount = logs.filter(l => l.outcome === "failure").length;
+  const phiCount = logs.filter(l => l.category === "phi_access").length;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -135,7 +165,7 @@ export default function AuditLogsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: "Total Events (7d)", value: AUDIT_LOGS.length, icon: Activity, color: "text-slate-600 bg-slate-100" },
+          { label: "Total Events (7d)", value: logs.length, icon: Activity, color: "text-slate-600 bg-slate-100" },
           { label: "Successful Actions", value: successCount, icon: CheckCircle, color: "text-green-600 bg-green-50" },
           { label: "Failed Attempts", value: failureCount, icon: AlertTriangle, color: "text-red-600 bg-red-50" },
           { label: "PHI Access Events", value: phiCount, icon: Eye, color: "text-blue-600 bg-blue-50" },
@@ -223,7 +253,7 @@ export default function AuditLogsPage() {
                   </div>
 
                   {/* Action */}
-                  <div className="col-span-2 text-sm text-slate-700">{ACTION_LABELS[log.action]}</div>
+                  <div className="col-span-2 text-sm text-slate-700">{ACTION_LABELS[log.action as AuditAction] || log.action}</div>
 
                   {/* Category */}
                   <div className="col-span-2">
@@ -304,7 +334,7 @@ export default function AuditLogsPage() {
 
       {/* Pagination */}
       <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
-        <span>Showing {filtered.length} of {AUDIT_LOGS.length} events</span>
+        <span>Showing {filtered.length} of {logs.length} events</span>
         <div className="flex items-center gap-2">
           <button className="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Previous</button>
           <span className="px-3 py-1.5 bg-[#0A2342] text-white rounded-lg">1</span>
