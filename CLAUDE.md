@@ -11,20 +11,20 @@
 |-------|-------|
 | **Project** | 24Therapy Mental Health OS |
 | **Repo** | https://github.com/omarahmedomarahmed/habiba |
-| **Dev Branch** | `claude/charming-pasteur-p5m7dk` |
+| **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-12 (session 14 — Monetization engine + P6/P7 content sweep complete) |
+| **Last Updated** | 2026-06-13 (session 15 — portal production-readiness + chat/pricing revamp complete) |
 
 ---
 
-## Build Status (Verified 2026-06-12)
+## Build Status (Verified 2026-06-13)
 
 | Package | Build | Routes |
 |---------|-------|--------|
-| `@24therapy/api` | ✅ PASS | 17 modules, ~80 endpoints |
+| `@24therapy/api` | ✅ PASS | 20 modules, ~95 endpoints |
 | `@24therapy/web` | ✅ PASS | 40+ routes |
-| `@24therapy/therapist` | ✅ PASS | 35+ routes |
+| `@24therapy/therapist` | ✅ PASS | 40+ routes |
 | `@24therapy/patient` | ✅ PASS | 18 routes |
 | `@24therapy/admin` | ✅ PASS | 18 routes |
 
@@ -67,20 +67,29 @@ docs/              → HIPAA_CHECKLIST.md
 | Live transcription | ✅ REAL | Browser MediaRecorder → Whisper → session transcript |
 | Emotional AI | ✅ REAL | GPT-4o-mini every 5 segments → copilot panel emotional state card |
 | Crisis detection | ✅ REAL | Keyword scan → GPT-4o risk → WebSocket crisis modal |
-| Memory page | ✅ REAL | Loads from `patientsAPI.memories()` per selected patient |
-| Calendar | ✅ REAL | Loads from `sessionsAPI.list()` by date range |
+| Memory page | ✅ REAL | Loads from `patientsAPI.memories()` per selected patient; hardcoded seeds removed |
+| Calendar | ✅ REAL | Loads from `sessionsAPI.list()` by date range; New Session → /sessions/new?date= |
 | Patient mood tracker | ✅ REAL | Saves to `patientAPI.addMoodEntry()` |
 | Patient journal | ✅ REAL | Saves to `journalAPI.create()` (`/notes?note_type=journal`) |
-| Patient assessments | ✅ REAL | Submits answers to `assessmentsAPI.submit()` |
+| Patient assessments | ✅ REAL | Submits answers to `assessmentsAPI.submit()`; /assessments/new assign flow wired |
 | Patient homework | ✅ REAL | Mark Complete calls `PATCH /workflows/tasks/:id/complete` |
 | Patient progress | ✅ REAL | Loads from assessmentsAPI + patientAPI.me() goals |
 | Find therapist | ✅ REAL | Fetches from `GET /marketplace/search` with static fallback |
 | Org suspension | ✅ REAL | Admin `suspendOrg()`/`activateOrg()` wired to backend |
 | User impersonation | ✅ REAL | `impersonateUser()` opens portal with token |
 | Daily.co video | ✅ REAL | Session room iframe from video_room_url |
-| Patient messages | ✅ REAL | API calls + real-time via Socket.io new_message events |
+| Patient messages | ✅ REAL | API calls + real-time via Socket.io new_message events; + patient picker modal |
 | Radar matching | ✅ REAL | Backend complete; patient can request |
 | Proactive AI companion | ✅ REAL | 5 cron-scheduled message types in ai-companion.service.ts |
+| Treatment plans | ✅ REAL | Full CRUD via `GET/POST/PATCH /treatment-plans` + goals sub-resource |
+| Referrals | ✅ REAL | Full CRUD via `GET/POST/PATCH /referrals`, POST /:id/send |
+| Reports | ✅ REAL | Generate/sign/send via `GET/POST /reports` on session_reports table |
+| Audit logs | ✅ REAL | `GET /organizations/me/audit-logs` queries phi_access_log; portal page wired |
+| Clinical tools | ✅ REAL | /clinical-tools/[slug] runner with live PHQ-9/GAD-7 questionnaires |
+| Team page | ✅ REAL | Loads from `therapistsAPI.list()` |
+| AI workspace | ✅ REAL | Wired to `POST /ai/assistant/chat` with mode field |
+| Guest chat (/chat) | ✅ REAL | Dark UI, starter templates, containerRef scroll (no page scroll) |
+| Pricing page | ✅ REAL | Per-plan hero metrics, ✓/✗ feature lists, savings strip; price field normalized |
 
 ---
 
@@ -99,7 +108,11 @@ docs/              → HIPAA_CHECKLIST.md
 | File | Purpose |
 |------|---------|
 | `backend/src/main.ts` | Entry point, port 4000, global guards, Swagger |
-| `backend/src/app.module.ts` | All 17 modules imported, global JWT guard |
+| `backend/src/app.module.ts` | All 20 modules imported, global JWT guard |
+| `backend/src/modules/ai/prompts.ts` | Centralized AI prompts — GUEST_CHAT_PROMPT, THERAPIST_ASSISTANT_PROMPT, WORKSPACE_MODE_PROMPTS |
+| `backend/src/modules/treatment-plans/` | Full treatment plan CRUD + goals sub-resource |
+| `backend/src/modules/referrals/` | Referral lifecycle (draft→sent→accepted) on `referrals` table |
+| `backend/src/modules/reports/` | Session report generate/sign/send on `session_reports` table |
 | `backend/src/config/env.validation.ts` | Production boot guard — validates required env vars |
 | `backend/src/config/cors.ts` | `buildCorsOriginFn()` — no wildcard CORS |
 | `backend/src/database/database.service.ts` | `query()`, `queryOne()`, `transaction()` |
@@ -182,6 +195,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
+## Commit History (Session 15)
+
+| Hash | Message |
+|------|---------|
+| `1545039` | fix(P0): therapist identity + route order + API client paths |
+| `629c957` | feat(P1): real session lifecycle — persisted start/end, billing surfacing, session detail page |
+| `3badacc` | feat(P2): notes backend module + note creation flow |
+| `3af1f26` | fix(P3): messages/memory/ai-workspace no longer render behind the sidebar |
+| `1673fb7` | feat(PW): workflow/referrals tables + real homework pipeline |
+| `ffbc961` | feat(P4-P7): dead buttons wired, new backend modules, chat/pricing revamp |
+| `0ed38db` | feat(P4-P7 cont): messages new-convo modal, settings cancel sub, pricing revamp, treatment-plans/new |
+| `8698ce0` | feat(P4-P7): audit-logs wired to real endpoint + pricing plan keys |
+| `09eee01` | fix(P4): ai-workspace endpoint and layout cleanup |
+| `be091c4` | fix(P4): calendar dead modal removed + pricing plan display refinements |
+
 ## Commit History (Session 14)
 
 | Hash | Message |
@@ -249,10 +277,22 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [x] Trial-language sweep: all "14-Day Free Trial" / "Start Free Trial" → "Get Started Free" / "First Session Free"
 - [x] scrollIntoView fix in ai-workspace → containerRef.scrollTop pattern
 
+### Session 15 additions (complete)
+- [x] P0: sessions.controller route order fixed, user.therapistId across 6 controllers, API client paths corrected
+- [x] P1: session room start/end persisted to DB; billing outcome polling modal; session detail /sessions/:id page
+- [x] P2: notes backend module (GET/POST/PATCH/DELETE/finalize); notes/new 3-step creation page
+- [x] P3: messages/memory/ai-workspace layout overflow fixed (no more sidebar overlap)
+- [x] PW: migration 021 (clinical_workflows, workflow_tasks, referrals tables); homework pipeline end-to-end
+- [x] P4 backend: treatment-plans module, referrals module, reports module, audit-logs endpoint
+- [x] P4 frontend: clinical-tools buttons wired, /clinical-tools/[slug] runner, /assessments/new, /treatment-plans/new, memory real data, team real data, calendar nav, messages + modal, settings cancel sub
+- [x] P5: backend/src/modules/ai/prompts.ts — centralized prompts registry
+- [x] P6: /chat dark UI, starter templates, containerRef scroll fix; hero.tsx reply parse fix
+- [x] P7: pricing per-plan hero metrics, ✓/✗ feature lists, savings strip, price field normalization
+
 ### Remaining (true stretch goals)
 - [ ] **Resolve GitHub billing** — unblock CI runners
 - [ ] Prometheus/Grafana wiring (`infra/` scaffolded)
 - [ ] /blog CMS connection
-- [ ] Session room end-session modal billing summary line
+- [ ] P8 jest test suite updates for new modules (treatment-plans, referrals, reports)
 - [ ] Onboarding wizard step 7: remove card-required implication
 - [ ] Formal BAAs before accepting real PHI (see `docs/HIPAA_CHECKLIST.md`)
