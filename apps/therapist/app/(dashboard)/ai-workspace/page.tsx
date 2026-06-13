@@ -228,9 +228,7 @@ export default function AIWorkspacePage() {
         id: `err${Date.now()}`,
         role: "assistant",
         content:
-          err instanceof APIError && err.status === 404
-            ? "The AI service is not yet available in this environment. Once the backend AI endpoint is live, your messages will be processed using GPT-4o with full patient context, memory layers, and clinical intelligence."
-            : `AI request failed: ${(err as Error).message}. Please try again.`,
+          `AI request failed: ${(err as Error).message}. Please try again.`,
         timestamp: new Date().toISOString(),
         error: true,
       };
