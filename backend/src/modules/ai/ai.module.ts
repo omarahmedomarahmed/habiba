@@ -15,3 +15,5 @@ import { SessionsModule } from '../sessions/sessions.module';
   exports: [AIService, AICompanionService, ModelGatewayService, ContextBuilderService],
 })
 export class AIModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

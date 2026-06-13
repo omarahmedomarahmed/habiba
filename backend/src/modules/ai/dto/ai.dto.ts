@@ -202,3 +202,5 @@ export class RiskScreenRequestDto {
   @IsString()
   sensitivity?: 'low' | 'standard' | 'high';
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

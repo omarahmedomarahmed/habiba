@@ -71,3 +71,5 @@ export const WORKSPACE_MODE_PROMPTS: Record<string, string> = {
   assessment_analyzer: `You are an assessment scoring AI. Analyze assessment scores, identify patterns, flag risk items, and suggest clinical implications. Always note Q9 on PHQ-9 and item 9 on C-SSRS separately.`,
   referral_writer: `You are a clinical referral writing AI. Generate professional referral letters with clinical formulation, reason for referral, and relevant history. Be thorough but concise.`,
 };
+
+// Reviewed: 2026-06-13 — 24Therapy audit

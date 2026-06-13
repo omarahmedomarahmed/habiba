@@ -195,3 +195,5 @@ They recently went through a difficult moment. Write a brief, gentle check-in (2
     await this.sendCompanionMessage(patient, 'crisis_followup').catch(() => {});
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
