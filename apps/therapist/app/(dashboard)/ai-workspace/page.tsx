@@ -507,3 +507,5 @@ export default function AIWorkspacePage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

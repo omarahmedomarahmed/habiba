@@ -26,3 +26,5 @@ COPY --from=build /app/apps/therapist/.next/static ./apps/therapist/.next/static
 COPY --from=build /app/apps/therapist/public ./apps/therapist/public 2>/dev/null || true
 EXPOSE 3000
 CMD ["node", "apps/therapist/server.js"]
+
+# Reviewed: 2026-06-13 — 24Therapy audit

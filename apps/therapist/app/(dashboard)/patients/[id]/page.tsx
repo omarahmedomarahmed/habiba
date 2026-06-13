@@ -7,7 +7,7 @@ import {
   ArrowLeft, Brain, Calendar, FileText, AlertTriangle, Pill, Target,
   Clock, Activity, MessageSquare, ChevronRight, Plus, MoreHorizontal,
   TrendingDown, TrendingUp, Minus, Video, Download, Edit3, Upload,
-  CheckCircle2, Circle, Flag, Bookmark, ExternalLink
+  CheckCircle2, Circle, Flag, Bookmark, ExternalLink, Filter
 } from "lucide-react";
 import { cn, formatDate, getRiskColor, getInitials } from "@/lib/utils";
 import { patientsAPI, sessionsAPI } from "@/lib/api";
@@ -748,11 +748,4 @@ export default function PatientProfilePage() {
   );
 }
 
-// Missing import that TypeScript would need
-function Filter({ className }: { className?: string }) {
-  return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-    </svg>
-  );
-}
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -497,3 +497,5 @@ export const organizationsAPI = {
 
 export { APIError };
 export default apiFetch;
+
+// Reviewed: 2026-06-13 — 24Therapy audit
