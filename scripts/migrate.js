@@ -77,9 +77,18 @@ async function main() {
       if (appliedMap.has(version)) {
         // Verify checksum hasn't changed
         if (appliedMap.get(version) !== checksum) {
-          console.error(`❌ Checksum mismatch for already-applied migration: ${version}`);
-          console.error(`   Expected: ${appliedMap.get(version)}, got: ${checksum}`);
-          process.exit(1);
+          if (AUTO_BASELINE) {
+            // File was edited after migration was applied — update the stored checksum.
+            console.warn(`⚠️  Checksum updated for ${version} (auto-baseline)`);
+            await client.query(
+              'UPDATE schema_migrations SET checksum = $1 WHERE version = $2',
+              [checksum, version],
+            );
+          } else {
+            console.error(`❌ Checksum mismatch for already-applied migration: ${version}`);
+            console.error(`   Expected: ${appliedMap.get(version)}, got: ${checksum}`);
+            process.exit(1);
+          }
         }
       } else {
         pending.push({ version, file, filePath, sql, checksum });
