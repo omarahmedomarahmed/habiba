@@ -2145,3 +2145,5 @@ export type {
   // COMPLIANCE: AuditLog, ComplianceReport
   // INTEGRATIONS: EHRIntegration, FHIRResource, WebhookEndpoint
 };
+
+// Reviewed: 2026-06-13 — 24Therapy audit

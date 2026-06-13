@@ -238,3 +238,5 @@ describe('CrisisService — getActiveCount', () => {
     expect(result).toEqual({ count: 7 });
   });
 });
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -20,3 +20,5 @@ export const CurrentUser = createParamDecorator(
     return data ? user?.[data] : user;
   },
 );
+
+// Reviewed: 2026-06-13 — 24Therapy audit

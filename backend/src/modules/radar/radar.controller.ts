@@ -81,3 +81,5 @@ export class RadarController {
     return this.radarService.getMarketHealth(req.user.organizationId);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -337,3 +337,5 @@ export class AuthService {
     return safe as User;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

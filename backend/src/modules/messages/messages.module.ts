@@ -8,3 +8,5 @@ import { MessagesService } from './messages.service';
   exports: [MessagesService],
 })
 export class MessagesModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -78,3 +78,5 @@ UPDATE subscription_plans SET
   color_scheme = 'enterprise',
   audience = 'enterprise'
 WHERE plan_key = 'enterprise';
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

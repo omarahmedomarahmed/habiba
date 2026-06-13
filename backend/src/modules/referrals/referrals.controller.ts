@@ -33,3 +33,5 @@ export class ReferralsController {
   @ApiOperation({ summary: 'Send referral' })
   async send(@Param('id') id: string, @CurrentUser() user: any) { return this.svc.send(id, user.organization_id); }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

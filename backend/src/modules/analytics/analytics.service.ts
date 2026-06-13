@@ -730,3 +730,5 @@ export class AnalyticsService {
     return map[period] || 30;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

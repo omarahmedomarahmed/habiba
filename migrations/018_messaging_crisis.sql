@@ -31,3 +31,5 @@ ALTER TABLE risk_assessments
 
 CREATE INDEX IF NOT EXISTS idx_risk_assessments_alert
   ON risk_assessments (organization_id, alert_status, created_at);
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

@@ -369,3 +369,5 @@ export class MailService {
 </html>`;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

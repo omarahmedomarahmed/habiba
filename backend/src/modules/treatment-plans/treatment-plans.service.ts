@@ -116,3 +116,5 @@ export class TreatmentPlansService {
     return Array.isArray(plan.goals) ? plan.goals : [];
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

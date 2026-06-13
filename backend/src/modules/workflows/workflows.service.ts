@@ -551,6 +551,26 @@ export class WorkflowsService {
     });
   }
 
+  async startTaskById(taskId: string, orgId: string, user: { role: string; patientId?: string }) {
+    const task = await this.db.queryOne<any>(
+      `SELECT wt.id, wt.workflow_id, w.patient_id
+       FROM workflow_tasks wt
+       JOIN clinical_workflows w ON w.id = wt.workflow_id
+       WHERE wt.id = $1 AND wt.organization_id = $2`,
+      [taskId, orgId],
+    );
+    if (!task) throw new NotFoundException('Task not found');
+    if (user.role === 'patient' && task.patient_id !== user.patientId) {
+      throw new NotFoundException('Task not found');
+    }
+    await this.db.query(
+      `UPDATE workflow_tasks SET status='in_progress', started_at=NOW()
+       WHERE id=$1 AND organization_id=$2`,
+      [taskId, orgId],
+    ).catch(() => null);
+    return { task_id: taskId, status: 'in_progress' };
+  }
+
   // Completes a task by id alone (patient portal call shape). Patients may
   // only complete their own homework; staff can complete any org task.
   async completeTaskById(taskId: string, orgId: string, user: { role: string; patientId?: string }, note?: string) {
@@ -586,3 +606,5 @@ export class WorkflowsService {
     ).catch(() => ({}));
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

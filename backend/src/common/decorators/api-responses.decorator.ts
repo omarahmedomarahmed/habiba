@@ -18,3 +18,5 @@ export function ApiCrudResponses(entityName: string) {
     ApiForbiddenResponse({ description: 'Insufficient role or organization mismatch' }),
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

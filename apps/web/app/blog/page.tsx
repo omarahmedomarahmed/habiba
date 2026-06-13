@@ -336,3 +336,5 @@ export default function BlogPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

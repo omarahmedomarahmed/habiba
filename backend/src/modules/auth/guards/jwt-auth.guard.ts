@@ -47,3 +47,5 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return user;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -511,3 +511,5 @@ export default function WorkflowPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

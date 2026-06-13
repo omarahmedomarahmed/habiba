@@ -354,3 +354,5 @@ export default async function BlogPostPage({ params }: PageProps) {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -107,3 +107,5 @@ export class SessionsController {
     return this.response({ note });
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

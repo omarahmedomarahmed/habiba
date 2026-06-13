@@ -242,3 +242,5 @@ export default function NotificationsPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -26,3 +26,5 @@ COPY --from=build /app/apps/patient/.next/static ./apps/patient/.next/static
 COPY --from=build /app/apps/patient/public ./apps/patient/public 2>/dev/null || true
 EXPOSE 3000
 CMD ["node", "apps/patient/server.js"]
+
+# Reviewed: 2026-06-13 — 24Therapy audit

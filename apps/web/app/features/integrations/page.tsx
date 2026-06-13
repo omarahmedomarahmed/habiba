@@ -260,3 +260,5 @@ export default function IntegrationsPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

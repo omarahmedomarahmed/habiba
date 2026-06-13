@@ -8,3 +8,5 @@ import { CrisisService } from './crisis.service';
   exports: [CrisisService],
 })
 export class CrisisModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

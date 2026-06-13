@@ -550,3 +550,5 @@ export default async function PricingPage() {
     </main>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

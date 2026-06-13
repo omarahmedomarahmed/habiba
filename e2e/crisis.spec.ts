@@ -129,3 +129,5 @@ test.describe('Crisis alerts (admin portal)', () => {
     await expect(page).not.toHaveURL(/\/login/);
   });
 });
+
+// Reviewed: 2026-06-13 — 24Therapy audit

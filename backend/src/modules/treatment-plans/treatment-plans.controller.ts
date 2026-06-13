@@ -60,3 +60,5 @@ export class TreatmentPlansController {
     return this.svc.addGoal(id, user.organization_id, goal);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

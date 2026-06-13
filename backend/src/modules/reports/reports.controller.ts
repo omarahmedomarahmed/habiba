@@ -33,3 +33,5 @@ export class ReportsController {
   @ApiOperation({ summary: 'Send report' })
   async send(@Param('id') id: string, @CurrentUser() user: any) { return this.svc.send(id, user.organization_id); }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

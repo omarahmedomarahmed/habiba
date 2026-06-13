@@ -136,3 +136,5 @@ export default function AssessmentsPage() {
     />
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

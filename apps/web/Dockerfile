@@ -26,3 +26,5 @@ COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
+
+# Reviewed: 2026-06-13 — 24Therapy audit

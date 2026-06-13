@@ -403,3 +403,5 @@ export default function NotesPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

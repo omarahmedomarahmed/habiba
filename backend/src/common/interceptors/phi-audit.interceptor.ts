@@ -76,3 +76,5 @@ export class PhiAuditInterceptor implements NestInterceptor {
     );
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -11,3 +11,5 @@ import { BillingService } from './billing.service';
   exports: [BillingService],
 })
 export class BillingModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

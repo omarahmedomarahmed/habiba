@@ -360,3 +360,5 @@ export class RadarService {
     );
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

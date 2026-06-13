@@ -420,3 +420,5 @@ export class SessionsService {
     return response.json();
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

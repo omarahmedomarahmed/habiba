@@ -8,3 +8,5 @@ import { AssessmentsService } from './assessments.service';
   exports: [AssessmentsService],
 })
 export class AssessmentsModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

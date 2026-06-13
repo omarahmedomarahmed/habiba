@@ -245,3 +245,5 @@ CURRENT SESSION TRANSCRIPT:
 ${context.current_transcript}`;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

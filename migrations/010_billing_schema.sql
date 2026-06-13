@@ -347,3 +347,5 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_payment_subscription_update
     AFTER UPDATE ON payments
     FOR EACH ROW EXECUTE FUNCTION update_subscription_on_payment();
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

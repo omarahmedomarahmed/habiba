@@ -10,3 +10,5 @@ import { AnalyticsService } from './analytics.service';
   exports: [AnalyticsService],
 })
 export class AnalyticsModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

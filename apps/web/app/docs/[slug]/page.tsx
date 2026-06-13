@@ -317,3 +317,5 @@ export default async function DocArticlePage({ params }: { params: Promise<{ slu
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

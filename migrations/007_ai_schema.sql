@@ -295,3 +295,5 @@ CREATE TRIGGER update_memory_updated_at
 CREATE TRIGGER update_intelligence_updated_at
     BEFORE UPDATE ON session_intelligence
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

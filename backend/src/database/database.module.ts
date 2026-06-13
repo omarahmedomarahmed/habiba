@@ -55,3 +55,5 @@ export { DATABASE_POOL };
   exports: [DATABASE_POOL, DatabaseService],
 })
 export class DatabaseModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

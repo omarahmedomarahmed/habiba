@@ -306,3 +306,5 @@ export default function PatientBillingPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

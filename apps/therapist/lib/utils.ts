@@ -92,3 +92,5 @@ export function buildQueryString(params: Record<string, string | number | boolea
     .join("&");
   return qs ? `?${qs}` : "";
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

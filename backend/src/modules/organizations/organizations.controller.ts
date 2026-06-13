@@ -27,3 +27,5 @@ export class OrganizationsController {
     return this.orgsService.getAuditLogs(user.organization_id, query);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -10,3 +10,5 @@ import { AdminService } from './admin.service';
   exports: [AdminService],
 })
 export class AdminModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

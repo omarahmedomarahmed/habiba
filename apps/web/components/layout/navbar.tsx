@@ -213,3 +213,5 @@ export function Navbar() {
     </nav>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

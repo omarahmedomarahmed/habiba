@@ -219,3 +219,5 @@ export class MessagesService {
     return conversation.patient_user_id;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

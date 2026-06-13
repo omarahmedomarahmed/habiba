@@ -6,3 +6,5 @@ import { MailService } from './mail.service';
   exports: [MailService],
 })
 export class MailModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

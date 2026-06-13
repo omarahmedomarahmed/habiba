@@ -159,3 +159,5 @@ export class AIUsageQueryDto extends AnalyticsDateRangeQueryDto {
   @IsString()
   feature?: string;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

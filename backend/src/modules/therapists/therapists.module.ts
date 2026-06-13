@@ -10,3 +10,5 @@ import { TherapistsService } from './therapists.service';
   exports: [TherapistsService],
 })
 export class TherapistsModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -1,7 +1,7 @@
 # 24Therapy — Complete Setup Guide
 ### No Terminal. No Code. Browser Only.
 > Written for a non-technical founder. Every single click is described.
-> Last updated: 2026-06-11
+> Last updated: 2026-06-13
 
 ---
 
@@ -135,11 +135,16 @@ Run them in this exact order:
 | 14 | `014_analytics_schema.sql` | Platform analytics |
 | 15 | `015_pricing_management.sql` | Pricing plans |
 | 16 | `016_schema_fixes.sql` | **Required fixes — don't skip this one** |
+| 17 | `017_freemium_pricing.sql` | Freemium plan enhancements |
+| 18 | `018_messaging_crisis.sql` | Messaging + crisis tables |
+| 19 | `019_pricing_display_metadata.sql` | Pricing display metadata |
+| 20 | `020_monetization.sql` | Billing engine, session charges, AI credits |
+| 21 | `021_workflows_referrals.sql` | Clinical workflows, tasks, referrals |
 
 > ⚠️ **"relation already exists" errors are normal.** Just continue to the next file.
 > ⚠️ **Do NOT skip 016_schema_fixes.sql.** It fixes critical bugs.
 
-> ✅ **Done when:** All 16 files have been run without red errors.
+> ✅ **Done when:** All 21 files have been run without red errors.
 
 ---
 
@@ -851,3 +856,5 @@ Once everything is live:
 | Video not working | Check `DAILY_API_KEY` in Railway |
 
 > **Always check logs first.** Every platform has a logs or monitoring section. The error message will almost always tell you exactly what's wrong.
+
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->

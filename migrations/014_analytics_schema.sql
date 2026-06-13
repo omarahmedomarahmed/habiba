@@ -485,3 +485,5 @@ BEGIN
         active_therapists  = EXCLUDED.active_therapists;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

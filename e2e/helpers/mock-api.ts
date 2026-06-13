@@ -41,3 +41,5 @@ export function mockLoginFailure(page: Page, status = 401, message = 'Invalid em
 export function mockLoginSuspended(page: Page) {
   return mockLoginFailure(page, 401, 'Account has been suspended. Contact support.');
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

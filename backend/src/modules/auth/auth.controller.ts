@@ -116,3 +116,5 @@ export class AuthController {
     };
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -323,3 +323,5 @@ export function SignupForm() {
     </Suspense>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

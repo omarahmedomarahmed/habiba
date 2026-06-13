@@ -6,7 +6,7 @@ import {
   Brain, Activity, TrendingUp, TrendingDown, AlertTriangle,
   CheckCircle, Clock, Eye, Settings, BarChart2, Zap,
   DollarSign, ArrowUp, ArrowDown, RefreshCw, Shield,
-  Database, Server, Cpu, GitBranch, Play, Pause
+  Database, Server, Cpu, GitBranch, Play, Pause, Plus
 } from 'lucide-react';
 
 const MODEL_PERFORMANCE = [
@@ -413,11 +413,4 @@ export default function AIGovernancePage() {
   );
 }
 
-// Quick fix: import Plus
-function Plus({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  );
-}
+// Reviewed: 2026-06-13 — 24Therapy audit

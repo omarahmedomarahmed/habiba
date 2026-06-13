@@ -784,3 +784,5 @@ At the end of your response you may naturally (not forcefully) mention that a li
     return '';
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

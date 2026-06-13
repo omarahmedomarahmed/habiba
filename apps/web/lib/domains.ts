@@ -117,3 +117,5 @@ export function mailto(address: string, subject?: string): string {
     ? `mailto:${address}?subject=${encodeURIComponent(subject)}`
     : `mailto:${address}`;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

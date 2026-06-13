@@ -22,3 +22,5 @@ export function disconnectSocket() {
   socket?.disconnect();
   socket = null;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -199,3 +199,5 @@ export class AssessmentTrendQueryDto {
   @Type(() => Number)
   count?: number;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -560,3 +560,5 @@ export default function CrisisPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

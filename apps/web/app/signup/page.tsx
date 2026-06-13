@@ -19,3 +19,5 @@ export const metadata: Metadata = {
 export default function SignupPage() {
   return <SignupForm />;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

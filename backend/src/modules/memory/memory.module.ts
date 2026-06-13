@@ -8,3 +8,5 @@ import { MemoryService } from './memory.service';
   exports: [MemoryService],
 })
 export class MemoryModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

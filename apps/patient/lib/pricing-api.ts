@@ -416,3 +416,5 @@ export function getLimitDisplay(val: number | null, unit = ""): string {
   if (val === -1) return "None";
   return `${val}${unit ? " " + unit : ""}`;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

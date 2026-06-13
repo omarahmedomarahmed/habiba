@@ -61,11 +61,11 @@
 │       ├── config/         # Environment config loader
 │       ├── database/       # PostgreSQL pool + DatabaseService
 │       ├── gateways/       # Socket.io WebSocket gateway
-│       └── modules/        # 17 feature modules (see below)
+│       └── modules/        # 20 feature modules (see below)
 ├── packages/
 │   ├── types/             # @24therapy/types — shared TypeScript types
 │   └── config/            # @24therapy/config — shared URL constants
-├── migrations/            # 15 ordered SQL migration files
+├── migrations/            # 21 ordered SQL migration files
 ├── infra/
 │   └── ci/                # CI/CD pipeline config
 ├── turbo.json
@@ -97,6 +97,9 @@
 | `marketplace` | GET /marketplace/search | Public therapist directory |
 | `admin` | GET /admin/dashboard, orgs, users | Super-admin operations |
 | `mail` | Internal service | Resend email delivery |
+| `notes` | CRUD /notes | Clinical session notes (SOAP/DAP/BIRP) |
+| `treatment-plans` | CRUD /treatment-plans | Patient treatment plans + goals |
+| `referrals` | CRUD /referrals | Patient referral lifecycle |
 
 ---
 
@@ -176,7 +179,7 @@ pnpm --filter=@24therapy/api build      # Backend only
 pnpm --filter=@24therapy/web build      # Web only
 ```
 
-All 5 packages build successfully (verified 2026-06-11).
+All 5 packages build successfully (verified 2026-06-13).
 
 ---
 
@@ -198,7 +201,7 @@ All 5 packages build successfully (verified 2026-06-11).
 - **Global JWT guard**: all routes protected by default; use `@Public()` to opt out
 - **Role hierarchy**: `super_admin > admin > manager > therapist > assistant > billing > support > patient`
 - **Pricing source of truth**: PostgreSQL `subscription_plans` table, surfaced via `GET /billing/plans` — never hardcode prices in frontend
-- **Font loading**: `apps/web` and `apps/therapist` use Google Fonts (Inter) — build requires network access or set `NEXT_PUBLIC_FONT_HOST` override
+- **Font loading**: All apps use `next/font` with a self-hosted Inter woff2 from `packages/fonts/` — no external Google Fonts fetch required at build time
 
 ---
 
@@ -216,3 +219,7 @@ See `SETUP_GUIDE.md` for full Vercel + Railway deployment steps.
 | `CLAUDE.md` | AI assistant session state — read first in every session |
 | `SETUP_GUIDE.md` | Step-by-step deployment guide (Vercel + Railway) |
 | `DEV_HANDOVER.md` | Engineering handover log — what's done, what's next |
+| `AUDIT_REPORT.md` | Full-repo audit (session 17) — file inventory + blueprint |
+| `COMPETITIVE_INTELLIGENCE.md` | Market research, competitor analysis, pitch deck |
+
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->

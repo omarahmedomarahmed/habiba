@@ -109,8 +109,8 @@ ORDER BY duration DESC;
 
 ### P2 — Email not sending
 
-1. Check `SENDGRID_API_KEY` is set.
-2. Check `FROM_EMAIL` domain is verified in SendGrid.
+1. Check `RESEND_API_KEY` is set (mail provider is Resend, not SendGrid).
+2. Check `FROM_EMAIL` domain is verified in Resend dashboard.
 3. Auth emails are fire-and-forget — they won't block login. Check backend logs for `[auth] ... email failed`.
 
 ### P2 — Video session room not loading
@@ -162,3 +162,5 @@ No Prometheus/Grafana is wired yet — this is a stretch goal.
 3. Redeploy backend.
 4. **JWT_SECRET rotation invalidates all active sessions** — users will need to log in again. Coordinate with beta users.
 5. **COOKIE_SECRET rotation** invalidates signed cookies — same impact.
+
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->

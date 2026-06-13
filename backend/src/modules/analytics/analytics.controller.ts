@@ -107,3 +107,5 @@ export class AnalyticsController {
     return this.analyticsService.getOutcomeMetrics(user.organization_id, period);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -119,3 +119,5 @@ ORDER BY display_order ASC, price_monthly_usd ASC NULLS LAST;
 
 COMMENT ON TABLE pricing_audit_log IS 'Audit trail for all subscription plan changes made by admins';
 COMMENT ON VIEW public_pricing IS 'Public-facing pricing data — active plans only with display metadata';
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

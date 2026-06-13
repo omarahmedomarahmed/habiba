@@ -138,3 +138,5 @@ CREATE TRIGGER update_risk_assessments_updated_at
 CREATE TRIGGER update_treatment_plans_updated_at
     BEFORE UPDATE ON treatment_plans
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

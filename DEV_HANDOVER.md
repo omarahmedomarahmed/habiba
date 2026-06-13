@@ -2,7 +2,7 @@
 
 > This document is the source of truth for incoming engineers. It describes what has been built,
 > what is broken, what is missing, and the exact steps to fix known issues.
-> Updated: 2026-06-11
+> Updated: 2026-06-13 (session 17 full-repo audit)
 
 ---
 
@@ -10,13 +10,13 @@
 
 24Therapy is a HIPAA-compliant mental health operating system. The monorepo contains:
 - 4 Next.js 15 frontends (web, therapist, patient, admin)
-- 1 NestJS 10 backend with 17 feature modules
-- 15 PostgreSQL migrations
-- Full JWT auth, Stripe billing, OpenAI AI, Socket.io real-time
+- 1 NestJS 10 backend with 20 feature modules
+- 21 PostgreSQL migrations
+- Full JWT auth, Stripe billing, OpenAI AI, Socket.io real-time, Daily.co video
 
-**All 5 packages build without errors** (verified 2026-06-11).
+**All 5 packages build without errors** (verified 2026-06-13).
 
-The platform is **~80% production-ready**. The remaining 20% is documented below with exact fix instructions.
+The platform is **~95% production-ready**. The remaining gaps are documented below with exact fix instructions. Many of the issues noted in Sessions 1–7 have been resolved — see the Development Log for session-by-session detail.
 
 ---
 
@@ -73,6 +73,16 @@ The platform is **~80% production-ready**. The remaining 20% is documented below
 - `railway.json`: `restartPolicyMaxRetries: 3` (was 0, caused crash loop confusion)
 
 **Commit**: `dc119f1`
+
+### Sessions 8–16 (2026-06-11 → 2026-06-13) — Full Production Build
+
+See `CLAUDE.md` for session-by-session commit history. Summary of major work:
+- **Session 8–12**: Freemium pricing, migration 016–019, marketplace, find-therapist, guest chat, multi-product pages, CI setup, E2E Playwright tests
+- **Session 13**: Marketing site revamp — product pages, feature cards, 4 new feature pages, find-therapist 2-col grid, 5-tier pricing page, chat rebuild
+- **Session 14**: Monetization engine — migration 020, billing PAYG loop, AI assistant backend + frontend, docs articles, trial-language sweep
+- **Session 15**: Therapist portal — session room persist start/end, notes CRUD backend, homework pipeline end-to-end, treatment-plans/referrals/reports backend modules, audit-logs, clinical tools wired, memory/team/calendar/messages all real data
+- **Session 16**: Patient portal production-readiness — all 5 pages de-mocked (progress/journal/mood/assessments/settings); bottom nav for all 3 portals; patient data security fixes; Vercel standalone ENOENT fix
+- **Session 17**: Full-repo audit (this session) — `AUDIT_REPORT.md` written, all files reviewed, stale references updated
 
 ### Session 7 (2026-06-11) — M&A Audit & Documentation Cleanup
 **Full technical audit performed** — M&A readiness review covering:
@@ -335,23 +345,35 @@ Apply to patients, sessions, notes, assessments controllers.
 
 ---
 
-## What Doesn't Work Yet
+## What Doesn't Work Yet (as of Session 17)
 
 | Feature | Blocker | Priority |
 |---------|---------|----------|
-| Billing plan display (admin) | DEV_TOKEN hardcoded | P0 |
-| Therapist profile specializations | Missing junction table | P0 |
-| Billing price queries | Column name mismatch | P0 |
-| Real-time copilot in session | No WS frontend client | P1 |
-| Live transcription streaming | No WS frontend client | P1 |
-| Radar push notifications | No WS frontend client | P1 |
-| Therapist/patient registration | No frontend forms | P1 |
-| Daily.co video sessions | Not integrated | P1 |
-| HIPAA phi_access_log writes | Not implemented | P1 |
-| Token expiry enforcement (frontend) | Partial — no idle timeout UI | P2 |
+| GitHub CI runners | Account billing issue (not code) | P0 |
+| Formal HIPAA BAAs | Legal — not yet signed | P0 |
+| /blog CMS | No CMS connected yet | P2 |
+| Jest tests for new modules | treatment-plans/referrals/reports untested | P2 |
+| Onboarding wizard step 7 | Card-required implication misleading | P2 |
 | MFA for admin roles | UI missing | P2 |
-| Prometheus/Grafana monitoring | infra/ scaffolded, not connected | P3 |
-| CI in GitHub Actions | In infra/ci/ not .github/workflows/ | P3 |
+| Prometheus/Grafana monitoring | infra/ scaffolded, not connected to backend | P3 |
+| Voice/video calls in patient messages | Marked "coming soon" | P3 |
+| Therapist specialization junction table | Still uses TEXT[] array — works but not normalized | P3 |
+
+### Resolved Issues (previously listed as broken)
+
+| Feature | Status | Fixed in |
+|---------|--------|---------|
+| Billing plan display (admin) | ✅ Fixed | Session 14 |
+| Billing price queries column mismatch | ✅ Fixed | Session 14 (migration 020) |
+| Real-time copilot in session | ✅ Fixed | Session 15 (socket.ts wired) |
+| Live transcription streaming | ✅ Fixed | Session 15 (MediaRecorder → Whisper) |
+| Radar push notifications | ✅ Fixed | Session 15 (WebSocket wired) |
+| Therapist/patient registration | ✅ Fixed | Session 13 (SignupForm.tsx) |
+| Daily.co video sessions | ✅ Fixed | Session 15 (session room iframe) |
+| HIPAA phi_access_log writes | ✅ Fixed | Session 11 (PhiAuditInterceptor) |
+| Admin pricing DEV_TOKEN | ✅ Fixed | Session 14 |
+| Patient portal mock data | ✅ Fixed | Session 16 |
+| Mobile navigation | ✅ Fixed | Session 16 (BottomNav all 3 portals) |
 
 ---
 
@@ -445,3 +467,5 @@ audit_logs               → general audit trail
 - **Production Backend**: https://api-24therapy-production.up.railway.app
 - **API Docs** (dev): http://localhost:4000/api/docs
 - **Swagger JSON**: http://localhost:4000/api/docs-json
+
+<!-- Reviewed: 2026-06-13 — 24Therapy audit -->

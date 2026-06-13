@@ -58,3 +58,5 @@ FROM sessions s
 WHERE s.status IN ('in_progress', 'completed')
   AND s.created_at >= DATE_TRUNC('month', NOW())
 GROUP BY s.therapist_id;
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

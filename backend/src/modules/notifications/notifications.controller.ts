@@ -297,3 +297,5 @@ export class NotificationsController {
     return this.r(status);
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -70,3 +70,5 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

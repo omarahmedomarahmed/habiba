@@ -539,3 +539,5 @@ export function getDocArticle(slug: string): DocArticle | undefined {
 export function getAllDocSlugs(): string[] {
   return Object.keys(DOC_ARTICLES);
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

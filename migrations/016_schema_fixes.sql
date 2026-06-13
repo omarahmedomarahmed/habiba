@@ -70,3 +70,5 @@ ALTER TABLE patient_consents
   ADD COLUMN IF NOT EXISTS user_agent         TEXT,
   ADD COLUMN IF NOT EXISTS signature          TEXT,
   ADD COLUMN IF NOT EXISTS method             VARCHAR(50) DEFAULT 'click';
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

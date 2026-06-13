@@ -19,3 +19,5 @@ export function exportCSV(rows: Record<string, unknown>[], filename: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

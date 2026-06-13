@@ -119,3 +119,5 @@ test.describe('Logout', () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 5000 });
   });
 });
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -366,3 +366,5 @@ export default function NewSessionPage() {
     </div>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -310,3 +310,5 @@ export default function NewTreatmentPlanPage() {
     </Suspense>
   );
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
