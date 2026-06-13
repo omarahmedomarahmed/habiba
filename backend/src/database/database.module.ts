@@ -25,7 +25,8 @@ export { DATABASE_POOL };
           const varList = missing.map((v) => `  • ${v}`).join('\n');
           throw new Error(
             `\n\n❌ 24Therapy API — missing required environment variables:\n${varList}\n\n` +
-            `Set these in your Railway service → Variables tab.\n` +
+            `Set DATABASE_URL from Neon (neon.tech) → your project → Connection String.\n` +
+            `Then add all required vars to your deployment platform (Railway → Variables).\n` +
             `See backend/.env.example for all required and optional variables.\n`,
           );
         }

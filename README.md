@@ -41,7 +41,7 @@
 | **Storage** | AWS S3 + CloudFront |
 | **Real-time** | Socket.io WebSocket gateway |
 | **Monorepo** | Turborepo + pnpm 9 workspaces |
-| **Deployment** | Vercel (frontends) + Railway (backend) |
+| **Deployment** | Vercel (frontends) + Railway (backend) + Neon (PostgreSQL) |
 
 ---
 

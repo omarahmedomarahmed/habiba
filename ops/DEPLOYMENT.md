@@ -9,7 +9,7 @@
 | `apps/therapist` | Vercel | `app.24therapy.ai` |
 | `apps/patient` | Vercel | `my.24therapy.ai` |
 | `apps/admin` | Vercel | `admin.24therapy.ai` |
-| PostgreSQL | Railway (managed) | internal |
+| PostgreSQL + pgvector | **Neon** (https://neon.tech) | external connection string |
 
 ---
 
@@ -19,7 +19,7 @@
 - pnpm 9.15.4 (`packageManager` in `package.json`)
 - Railway CLI (`npm i -g @railway/cli`) for backend deploys
 - Vercel CLI (`npm i -g vercel`) for frontend deploys
-- A PostgreSQL 15+ instance with pgvector extension
+- **Neon account** (https://neon.tech) — PostgreSQL 16 + pgvector, serverless, free tier available
 
 ---
 
@@ -37,7 +37,7 @@ pnpm install
 ### 2. Database
 
 ```bash
-# Run all migrations (001–021)
+# Run all migrations (001–028) — paste your Neon connection string
 DATABASE_URL=postgres://... node scripts/migrate.js
 
 # Seed super-admin (run once)
@@ -53,15 +53,18 @@ Set these variables in Railway → Variables:
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | `openssl rand -hex 32` |
-| `COOKIE_SECRET` | `openssl rand -hex 32` |
+| `DATABASE_URL` | Neon connection string (`postgresql://...@...neon.tech/...?sslmode=require`) |
+| `DATABASE_SSL` | `true` (required for Neon) |
+| `JWT_SECRET` | `openssl rand -hex 64` (min 32 chars) |
+| `COOKIE_SECRET` | `openssl rand -hex 64` (min 32 chars, different from JWT_SECRET) |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `CORS_ORIGINS` | Comma-separated allowed origins, e.g. `https://app.24therapy.ai,https://admin.24therapy.ai,https://my.24therapy.ai` |
 | `NODE_ENV` | `production` |
 | `DAILY_API_KEY` | Daily.co API key (for video rooms) |
 | `RESEND_API_KEY` | Resend API key (transactional email) |
 | `FROM_EMAIL` | Sender address for transactional email |
+| `MESSAGE_ENCRYPTION_KEY` | `openssl rand -hex 32` — AES-256-GCM encryption for messages at rest |
+| `SENTRY_DSN` | (optional) Sentry DSN for error monitoring |
 
 Deploy:
 ```bash
@@ -115,18 +118,22 @@ Each migration runs in a transaction; a failure rolls back and exits.
 
 | Variable | Default (dev) | Notes |
 |----------|---------------|-------|
-| `DATABASE_URL` | — | Required |
+| `DATABASE_URL` | — | **Required** — Neon connection string |
+| `DATABASE_SSL` | `false` (dev) | Set `true` for Neon in production |
 | `NODE_ENV` | `development` | Set `production` on Railway |
-| `JWT_SECRET` | `dev-only-secret-change-me` | Min 32 chars, no defaults |
-| `COOKIE_SECRET` | `dev-only-cookie-secret` | Min 32 chars, no defaults |
+| `JWT_SECRET` | `dev-only-secret-change-me` | **Required** — min 32 chars |
+| `COOKIE_SECRET` | `dev-only-cookie-secret` | **Required** — min 32 chars |
 | `JWT_ACCESS_EXPIRY` | `15m` | |
 | `JWT_REFRESH_EXPIRY` | `30d` | |
-| `OPENAI_API_KEY` | — | Required in production |
-| `CORS_ORIGINS` | (localhost + staging) | Required in production |
-| `REDIS_URL` | — | Optional — not provisioned by default |
+| `OPENAI_API_KEY` | — | **Required** in production |
+| `CORS_ORIGINS` | (localhost + staging) | **Required** in production — crashes without it |
+| `MESSAGE_ENCRYPTION_KEY` | — | Recommended — 32 hex bytes (`openssl rand -hex 32`) |
+| `SENTRY_DSN` | — | Optional — error monitoring |
+| `REDIS_URL` | — | Optional — not required; app works without it |
 | `DAILY_API_KEY` | — | Video sessions |
-| `RESEND_API_KEY` | — | Transactional email (Resend, not SendGrid) |
+| `RESEND_API_KEY` | — | Transactional email |
 | `FROM_EMAIL` | `noreply@24therapy.ai` | |
+| `STAGING_DATABASE_URL` | — | Optional — for `scripts/backup-verify.js` |
 | `PORT` | `4000` | |
 
 ### Frontend (all apps)
@@ -170,8 +177,9 @@ Railway is configured with `healthcheckPath: /health`, timeout 120 s.
 - [ ] `CORS_ORIGINS` set to exact beta portal URLs (no wildcards)
 - [ ] `SEED_ADMIN_PASSWORD` rotated after seeding
 - [ ] Daily.co webhook secret set
-- [ ] SendGrid domain verified
-- [ ] PostgreSQL backup schedule confirmed
-- [ ] Error monitoring configured (Sentry DSN)
+- [ ] Resend sending domain verified (Resend dashboard → Domains)
+- [ ] Neon database backup confirmed (Neon dashboard → Backups)
+- [ ] Error monitoring configured (`SENTRY_DSN` set in Railway)
+- [ ] `MESSAGE_ENCRYPTION_KEY` set and `scripts/encrypt-messages.js` run for existing rows
 
 <!-- Reviewed: 2026-06-13 — 24Therapy audit -->
