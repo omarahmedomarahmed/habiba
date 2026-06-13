@@ -6,8 +6,41 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { v4 as uuidv4 } from 'uuid';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { DatabaseService } from '../../database/database.service';
 import { CreateConversationDto, SendMessageDto, ListMessagesQueryDto } from './dto/messages.dto';
+
+// AES-256-GCM: key must be 32 bytes (64 hex chars). If MESSAGE_ENCRYPTION_KEY is
+// not set the service operates in plaintext-compatible mode (dev/test safe).
+const ENC_KEY = process.env.MESSAGE_ENCRYPTION_KEY
+  ? Buffer.from(process.env.MESSAGE_ENCRYPTION_KEY, 'hex')
+  : null;
+
+function encryptContent(plaintext: string): { ciphertext: string; encrypted: boolean } {
+  if (!ENC_KEY) return { ciphertext: plaintext, encrypted: false };
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', ENC_KEY, iv);
+  const enc = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  // Format: iv(12B) + tag(16B) + ciphertext, base64-encoded
+  const payload = Buffer.concat([iv, tag, enc]).toString('base64');
+  return { ciphertext: payload, encrypted: true };
+}
+
+function decryptContent(raw: string, encrypted: boolean): string {
+  if (!encrypted || !ENC_KEY) return raw;
+  try {
+    const buf = Buffer.from(raw, 'base64');
+    const iv = buf.subarray(0, 12);
+    const tag = buf.subarray(12, 28);
+    const ciphertext = buf.subarray(28);
+    const decipher = createDecipheriv('aes-256-gcm', ENC_KEY, iv);
+    decipher.setAuthTag(tag);
+    return decipher.update(ciphertext) + decipher.final('utf8');
+  } catch {
+    return '[message unavailable]';
+  }
+}
 
 @Injectable()
 export class MessagesService {
@@ -139,7 +172,7 @@ export class MessagesService {
 
     const messages = await this.db.query<any>(
       `SELECT
-         m.id, m.content, m.sender_id, m.message_type, m.created_at, m.read,
+         m.id, m.content, m.encrypted, m.sender_id, m.message_type, m.created_at, m.read,
          u.role AS sender_role
        FROM messages m
        JOIN users u ON u.id = m.sender_id
@@ -151,6 +184,7 @@ export class MessagesService {
 
     return messages.map((m: any) => ({
       ...m,
+      content: decryptContent(m.content, m.encrypted ?? false),
       is_mine: m.sender_id === userId,
     })).reverse();
   }
@@ -159,11 +193,12 @@ export class MessagesService {
     const conversation = await this.assertParticipant(conversationId, userId, orgId);
 
     const msgId = uuidv4();
+    const { ciphertext, encrypted } = encryptContent(dto.content);
     const message = await this.db.queryOne<any>(
-      `INSERT INTO messages (id, conversation_id, sender_id, content, message_type)
-       VALUES ($1, $2, $3, $4, 'text')
+      `INSERT INTO messages (id, conversation_id, sender_id, content, message_type, encrypted)
+       VALUES ($1, $2, $3, $4, 'text', $5)
        RETURNING *`,
-      [msgId, conversationId, userId, dto.content],
+      [msgId, conversationId, userId, ciphertext, encrypted],
     );
 
     await this.db.execute(
