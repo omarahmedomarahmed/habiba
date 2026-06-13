@@ -64,3 +64,5 @@ export class NotesController {
     return { data };
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

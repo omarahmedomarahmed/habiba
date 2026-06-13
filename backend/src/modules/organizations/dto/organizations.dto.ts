@@ -241,3 +241,5 @@ export class ChangePlanDto {
   @IsString()
   effective_date?: string;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

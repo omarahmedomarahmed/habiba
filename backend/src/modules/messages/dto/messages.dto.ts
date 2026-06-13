@@ -28,3 +28,5 @@ export class ListMessagesQueryDto {
   @IsString()
   before?: string;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

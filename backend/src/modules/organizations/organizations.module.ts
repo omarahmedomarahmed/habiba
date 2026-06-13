@@ -10,3 +10,5 @@ import { OrganizationsService } from './organizations.service';
   exports: [OrganizationsService],
 })
 export class OrganizationsModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

@@ -8,3 +8,5 @@ import { NotesService } from './notes.service';
   exports: [NotesService],
 })
 export class NotesModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

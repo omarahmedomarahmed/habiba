@@ -45,3 +45,5 @@ export class UpdateNoteDto {
   @IsOptional() @IsObject()
   content?: Record<string, unknown>;
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit

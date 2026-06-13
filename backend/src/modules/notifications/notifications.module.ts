@@ -10,3 +10,5 @@ import { NotificationsService } from './notifications.service';
   exports: [NotificationsService],
 })
 export class NotificationsModule {}
+
+// Reviewed: 2026-06-13 — 24Therapy audit

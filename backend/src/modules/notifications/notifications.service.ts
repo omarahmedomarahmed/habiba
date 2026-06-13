@@ -186,13 +186,14 @@ export class NotificationsService {
     return { success: true };
   }
 
-  async markAllRead(userId: string) {
-    await this.db.execute(
+  async markAllRead(userId: string): Promise<number> {
+    const rows = await this.db.query<{ id: string }>(
       `UPDATE notifications SET read = TRUE, read_at = NOW()
-       WHERE user_id = $1 AND read = FALSE`,
-      [userId]
+       WHERE user_id = $1 AND read = FALSE
+       RETURNING id`,
+      [userId],
     );
-    return { success: true };
+    return rows.length;
   }
 
   // ============================================================
@@ -497,3 +498,5 @@ export class NotificationsService {
     return stats;
   }
 }
+
+// Reviewed: 2026-06-13 — 24Therapy audit
