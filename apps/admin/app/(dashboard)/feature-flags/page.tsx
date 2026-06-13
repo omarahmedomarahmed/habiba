@@ -189,8 +189,8 @@ export default function FeatureFlagsPage() {
   const [filterTag, setFilterTag] = useState("all");
 
   useEffect(() => {
-    apiFetch<{ data: FeatureFlag[] }>('/admin/feature-flags')
-      .then(res => { if ((res as any).data?.length > 0) setFlags((res as any).data); })
+    apiFetch<FeatureFlag[]>('/admin/feature-flags')
+      .then(res => { if (Array.isArray(res) && res.length > 0) setFlags(res); })
       .catch(() => {/* keep static fallback */});
   }, []);
 
@@ -205,10 +205,11 @@ export default function FeatureFlagsPage() {
   const handleToggle = async (id: string) => {
     const flag = flags.find(f => f.id === id);
     if (!flag) return;
-    setFlags(prev => prev.map(f => f.id === id ? { ...f, enabled_globally: !f.enabled_globally } : f));
+    const newEnabled = !flag.enabled_globally;
+    setFlags(prev => prev.map(f => f.id === id ? { ...f, enabled_globally: newEnabled } : f));
     try {
       await apiFetch(`/admin/feature-flags/${flag.key}`, {
-        method: 'PUT', body: JSON.stringify({ enabled_globally: !flag.enabled_globally }),
+        method: 'PATCH', body: JSON.stringify({ enabled: newEnabled }),
       });
     } catch { /* optimistic update stays */ }
   };

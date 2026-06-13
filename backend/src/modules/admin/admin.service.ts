@@ -392,11 +392,8 @@ export class AdminService {
 
   async setFeatureFlag(key: string, enabled: boolean, orgId: string | null, adminId: string) {
     await this.db.query(
-      `INSERT INTO feature_flags (id, name, enabled, organization_id, updated_by, updated_at)
-       VALUES ($1,$2,$3,$4,$5,NOW())
-       ON CONFLICT (name, organization_id) DO UPDATE
-       SET enabled=$3, updated_by=$5, updated_at=NOW()`,
-      [uuidv4(), key, enabled, orgId || null, adminId],
+      `UPDATE feature_flags SET enabled=$2, updated_at=NOW() WHERE key=$1`,
+      [key, enabled],
     ).catch(() => null);
     await this.createAuditEntry({
       action: 'feature_flag_updated',

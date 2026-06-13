@@ -107,13 +107,14 @@ export class AdminController {
   }
 
   @Put('feature-flags/:key')
+  @Patch('feature-flags/:key')
   async setFeatureFlag(
     @Param('key') key: string,
     @Body('enabled') enabled: boolean,
-    @Body('org_id') orgId: string,
+    @Body('rollout_pct') rolloutPct: number | undefined,
     @CurrentUser() user: any,
   ) {
-    return this.adminService.setFeatureFlag(key, enabled, orgId, user.id);
+    return this.adminService.setFeatureFlag(key, enabled, null, user.id);
   }
 
   // ─── Marketplace ──────────────────────────────────────────────────────────
