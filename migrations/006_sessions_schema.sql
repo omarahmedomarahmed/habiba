@@ -266,3 +266,5 @@ CREATE TRIGGER after_session_completed
     FOR EACH ROW
     WHEN (OLD.status != 'completed' AND NEW.status = 'completed')
     EXECUTE FUNCTION update_patient_last_session();
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

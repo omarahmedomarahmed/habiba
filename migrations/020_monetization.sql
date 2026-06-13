@@ -224,3 +224,5 @@ SELECT plan_key, 'migration_020', 'price_update', row_to_json(sp)
 FROM subscription_plans sp
 WHERE plan_key IN ('pay_per_session','starter','pro','practice')
 ON CONFLICT DO NOTHING;
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

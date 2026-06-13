@@ -139,3 +139,5 @@ CREATE INDEX idx_adherence_date ON medication_adherence_logs(patient_id, logged_
 CREATE TRIGGER update_patient_medications_updated_at
     BEFORE UPDATE ON patient_medications
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

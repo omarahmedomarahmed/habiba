@@ -386,3 +386,5 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_unread       ON messages(conversation_id, read) WHERE read = FALSE;
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

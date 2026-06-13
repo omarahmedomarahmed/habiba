@@ -195,3 +195,5 @@ CREATE TABLE therapist_invitations (
 CREATE TRIGGER update_therapists_updated_at
     BEFORE UPDATE ON therapists
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

@@ -270,3 +270,5 @@ BEGIN
     RETURN ROUND(v_score::NUMERIC, 4);
 END;
 $$ LANGUAGE plpgsql;
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

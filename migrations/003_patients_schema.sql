@@ -313,3 +313,5 @@ CREATE TRIGGER update_patient_profiles_updated_at
 CREATE TRIGGER update_goals_updated_at
     BEFORE UPDATE ON patient_goals
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

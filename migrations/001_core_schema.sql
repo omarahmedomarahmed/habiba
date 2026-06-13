@@ -223,3 +223,5 @@ INSERT INTO plans (name, code, description, price_monthly, price_yearly, max_the
 ('Professional', 'professional', 'For active therapists with unlimited documentation needs.', 99.00, 990.00, 1, NULL, '{"scribe": true, "copilot": true, "radar": true, "marketplace": true, "analytics": "advanced", "priority_support": true}'),
 ('Practice', 'practice', 'For group practices with multiple therapists.', 249.00, 2490.00, 15, NULL, '{"scribe": true, "copilot": true, "radar": true, "marketplace": true, "analytics": "practice", "assistants": true, "shared_billing": true}'),
 ('Enterprise', 'enterprise', 'Custom pricing for hospitals and large organizations.', NULL, NULL, NULL, NULL, '{"scribe": true, "copilot": true, "radar": true, "marketplace": true, "analytics": "enterprise", "sso": true, "api_access": true, "white_label": true, "dedicated_support": true}');
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

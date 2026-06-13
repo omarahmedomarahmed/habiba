@@ -360,3 +360,5 @@ BEGIN
     RETURN v_audit_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

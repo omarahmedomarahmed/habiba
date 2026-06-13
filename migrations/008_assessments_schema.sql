@@ -246,3 +246,5 @@ CREATE TRIGGER trg_audit_assessment_results
 CREATE INDEX IF NOT EXISTS idx_assessment_schedules_patient  ON assessment_schedules(patient_id);
 CREATE INDEX IF NOT EXISTS idx_assessment_schedules_next_due ON assessment_schedules(next_due_at);
 CREATE INDEX IF NOT EXISTS idx_assessment_trends_patient      ON assessment_trends(patient_id, template_id);
+
+-- Reviewed: 2026-06-13 — 24Therapy audit

@@ -71,3 +71,5 @@ CREATE INDEX IF NOT EXISTS idx_referrals_org       ON referrals(organization_id)
 CREATE INDEX IF NOT EXISTS idx_referrals_therapist ON referrals(therapist_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_patient   ON referrals(patient_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_status    ON referrals(status);
+
+-- Reviewed: 2026-06-13 — 24Therapy audit
