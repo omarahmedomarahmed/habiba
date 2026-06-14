@@ -36,7 +36,7 @@ export class TherapistsService {
     const stats = await this.db.queryOne<Record<string, unknown>>(
       `SELECT
          COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'completed') AS total_sessions,
-         COUNT(DISTINCT p.id) FILTER (WHERE tpa.deleted_at IS NULL) AS active_patients,
+         COUNT(DISTINCT p.id) FILTER (WHERE tpa.ended_at IS NULL) AS active_patients,
          AVG(s.duration_minutes) FILTER (WHERE s.status = 'completed') AS avg_session_duration
        FROM therapists t
        LEFT JOIN sessions s ON s.therapist_id = t.id

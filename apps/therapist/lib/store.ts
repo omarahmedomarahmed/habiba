@@ -75,11 +75,13 @@ interface UIState {
   activePatientId: string | null;
   activeSessionId: string | null;
   notificationCount: number;
+  verificationStatus: 'pending' | 'approved' | 'rejected' | 'suspended' | null;
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
   setActivePatient: (id: string | null) => void;
   setActiveSession: (id: string | null) => void;
   setNotificationCount: (count: number) => void;
+  setVerificationStatus: (status: 'pending' | 'approved' | 'rejected' | 'suspended' | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -87,11 +89,13 @@ export const useUIStore = create<UIState>((set) => ({
   activePatientId: null,
   activeSessionId: null,
   notificationCount: 0,
+  verificationStatus: null,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
   setActivePatient: (id) => set({ activePatientId: id }),
   setActiveSession: (id) => set({ activeSessionId: id }),
   setNotificationCount: (count) => set({ notificationCount: count }),
+  setVerificationStatus: (status) => set({ verificationStatus: status }),
 }));
 
 // ============================================================

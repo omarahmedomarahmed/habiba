@@ -58,7 +58,7 @@ export class SessionsService {
          WHERE session_id = s.id AND status <> 'archived'
          ORDER BY created_at DESC LIMIT 1
        ) n ON true
-       JOIN patients p ON p.id = s.patient_id
+       LEFT JOIN patients p ON p.id = s.patient_id
        JOIN therapists t ON t.id = s.therapist_id
        WHERE ${whereClauses.join(' AND ')}
        ORDER BY s.scheduled_at DESC
@@ -77,7 +77,7 @@ export class SessionsService {
         t.display_name as therapist_name,
         t.user_id as therapist_user_id
        FROM sessions s
-       JOIN patients p ON p.id = s.patient_id
+       LEFT JOIN patients p ON p.id = s.patient_id
        JOIN therapists t ON t.id = s.therapist_id
        WHERE s.id = $1 AND s.organization_id = $2`,
       [id, orgId],
@@ -90,10 +90,13 @@ export class SessionsService {
   async getTherapistUsage(therapistId: string): Promise<{ plan_key: string; sessions_this_month: number; max_sessions_month: number | null; trial_session_used: boolean }> {
     const row = await this.db.queryOne<any>(
       `SELECT t.current_plan_key, t.trial_session_used,
-              COALESCE(u.sessions_this_month, 0) AS sessions_this_month,
-              sp.max_sessions_month
+              sp.max_sessions_month,
+              (SELECT COUNT(*) FROM sessions s
+               WHERE s.therapist_id = t.id
+                 AND s.status = 'completed'
+                 AND date_trunc('month', s.ended_at) = date_trunc('month', NOW())
+              ) AS sessions_this_month
        FROM therapists t
-       LEFT JOIN therapist_monthly_session_counts u ON u.therapist_id = t.id
        LEFT JOIN subscription_plans sp ON sp.plan_key = t.current_plan_key
        WHERE t.id = $1`,
       [therapistId],
@@ -143,11 +146,10 @@ export class SessionsService {
     const sessionId = uuidv4();
 
     // Get session number for this therapist-patient pair
-    const sessionCount = await this.db.queryOne<any>(
-      `SELECT COUNT(*) as count FROM sessions
-       WHERE therapist_id = $1 AND patient_id = $2`,
+    const sessionCount = dto.patient_id ? await this.db.queryOne<any>(
+      `SELECT COUNT(*) as count FROM sessions WHERE therapist_id = $1 AND patient_id = $2`,
       [dto.therapist_id, dto.patient_id],
-    );
+    ) : { count: '0' };
 
     const sessionNumber = (parseInt(sessionCount?.count || '0') + 1);
 
@@ -171,11 +173,11 @@ export class SessionsService {
         id, organization_id, therapist_id, patient_id,
         session_type, modality, status, scheduled_at,
         session_number, title, recording_enabled, scribe_enabled,
-        video_room_id, video_room_url, pre_session_notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14)
+        video_room_id, video_room_url, pre_session_notes, join_token
+      ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14,gen_random_uuid())
       RETURNING *`,
       [
-        sessionId, orgId, dto.therapist_id, dto.patient_id,
+        sessionId, orgId, dto.therapist_id, dto.patient_id || null,
         dto.session_type || 'standard', dto.modality || 'video',
         dto.scheduled_at || null, sessionNumber,
         dto.title || `Session ${sessionNumber}`,
@@ -184,12 +186,14 @@ export class SessionsService {
       ],
     );
 
-    // Log timeline event
-    await this.db.execute(
-      `INSERT INTO patient_timeline_events (id, patient_id, organization_id, event_type, title, reference_id, reference_type)
-       VALUES ($1, $2, $3, 'session_scheduled', 'Session scheduled', $4, 'session')`,
-      [uuidv4(), dto.patient_id, orgId, sessionId],
-    );
+    // Log timeline event only when a patient is linked
+    if (dto.patient_id) {
+      await this.db.execute(
+        `INSERT INTO patient_timeline_events (id, patient_id, organization_id, event_type, title, reference_id, reference_type)
+         VALUES ($1, $2, $3, 'session_scheduled', 'Session scheduled', $4, 'session')`,
+        [uuidv4(), dto.patient_id, orgId, sessionId],
+      );
+    }
 
     return result[0];
   }
@@ -412,6 +416,67 @@ export class SessionsService {
       active_patients: parseInt(activePatients?.count || '0'),
       radar_requests: parseInt(radarRequests?.count || '0'),
     };
+  }
+
+  async getJoinInfo(joinToken: string) {
+    const session = await this.db.queryOne<any>(
+      `SELECT s.id, s.status, s.scheduled_at, s.video_room_url, s.join_token,
+              t.display_name AS therapist_name
+       FROM sessions s
+       JOIN therapists t ON t.id = s.therapist_id
+       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting', 'in_progress')`,
+      [joinToken],
+    );
+    if (!session) throw new NotFoundException('Session not found or has ended');
+    return {
+      session_id: session.id,
+      therapist_name: session.therapist_name,
+      scheduled_at: session.scheduled_at,
+      status: session.status,
+      video_room_url: session.video_room_url,
+    };
+  }
+
+  async joinByToken(joinToken: string, dto: { name: string; email?: string }) {
+    const session = await this.db.queryOne<any>(
+      `SELECT s.*, t.display_name AS therapist_name, t.user_id AS therapist_user_id
+       FROM sessions s
+       JOIN therapists t ON t.id = s.therapist_id
+       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting')`,
+      [joinToken],
+    );
+    if (!session) throw new NotFoundException('Session not found or no longer accepting guests');
+
+    // If no patient yet, store the join name
+    if (!session.patient_id) {
+      await this.db.execute(
+        `UPDATE sessions SET join_name = $1, started_by_patient_at = NOW(), status = 'waiting', updated_at = NOW()
+         WHERE join_token = $2::uuid`,
+        [dto.name, joinToken],
+      );
+    } else {
+      await this.db.execute(
+        `UPDATE sessions SET started_by_patient_at = COALESCE(started_by_patient_at, NOW()), status = 'waiting', updated_at = NOW()
+         WHERE join_token = $2::uuid`,
+        [dto.name, joinToken],
+      );
+    }
+
+    return {
+      session_id: session.id,
+      video_room_url: session.video_room_url,
+      therapist_name: session.therapist_name,
+    };
+  }
+
+  async sendInvites(sessionId: string, orgId: string, emails: string[], therapistName: string, therapistAppUrl: string) {
+    const session = await this.db.queryOne<any>(
+      `SELECT join_token, scheduled_at, title FROM sessions WHERE id = $1 AND organization_id = $2`,
+      [sessionId, orgId],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+    const joinUrl = `${therapistAppUrl}/join/${session.join_token}`;
+    return { join_url: joinUrl, invited: emails.length };
   }
 
   private async createDailyRoom(sessionId: string) {

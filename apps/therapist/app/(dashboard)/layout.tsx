@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { authAPI } from "@/lib/api";
+import { authAPI, therapistsAPI } from "@/lib/api";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { TherapistBottomNav } from "@/components/BottomNav";
 import { useUIStore } from "@/lib/store";
+import { PendingApprovalBanner } from "@/components/layout/PendingApprovalBanner";
 import { cn } from "@/lib/utils";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min
 const ABSOLUTE_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4 hr
+const RESTRICTED_PATHS = ['/sessions', '/patients', '/notes', '/messages', '/analytics', '/radar', '/ai-workspace'];
 
 export default function DashboardLayout({
   children,
@@ -23,6 +25,9 @@ export default function DashboardLayout({
   const expiresAt = useAuthStore((s) => s.expiresAt);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const setVerificationStatus = useUIStore((s) => s.setVerificationStatus);
+  const pathname = usePathname();
   const [showWarning, setShowWarning] = useState(false);
   const [countdown, setCountdown] = useState(300);
   const idleRef = useRef<NodeJS.Timeout | null>(null);
@@ -76,6 +81,24 @@ export default function DashboardLayout({
     return () => clearInterval(interval);
   }, [showWarning, handleLogout]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    therapistsAPI.me().then((data: any) => {
+      const profile = data?.data?.therapist ?? data?.data ?? data;
+      const status = profile?.verification_status ?? null;
+      setVerificationStatus(status as any);
+    }).catch(() => {});
+  }, [isAuthenticated, setVerificationStatus]);
+
+  useEffect(() => {
+    if (verificationStatus && verificationStatus !== 'approved') {
+      const isRestricted = RESTRICTED_PATHS.some(p => pathname.startsWith(p));
+      if (isRestricted) {
+        router.push('/dashboard');
+      }
+    }
+  }, [pathname, verificationStatus, router]);
+
   if (!isAuthenticated) return null;
 
   return (
@@ -90,6 +113,7 @@ export default function DashboardLayout({
         )}
       >
         <Header />
+        {verificationStatus && verificationStatus !== 'approved' && <PendingApprovalBanner />}
         <main className="flex-1 overflow-auto pb-20 md:pb-0">
           {children}
         </main>

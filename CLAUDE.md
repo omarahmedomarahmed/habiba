@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-14 (session 19 — Railway deploy fix + migration consolidation 001-016) |
+| **Last Updated** | 2026-06-14 (session 20 — MVP hardening: instant therapist access, Google Meet sessions, 500 fixes) |
 
 ---
 
@@ -392,4 +392,24 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [ ] nestjs-pino structured logging + log drain (Logtail/Axiom)
 - [ ] Session recording S3/R2 archive (migration 026, 7-year HIPAA retention)
 
-<!-- Reviewed: 2026-06-13 — 24Therapy audit -->
+### Session 20 additions (complete)
+- [x] Backend 500 fix: therapists.service tpa.deleted_at → tpa.ended_at
+- [x] Backend 500 fix: sessions.service getTherapistUsage inline SQL (removed therapist_monthly_session_counts)
+- [x] Backend 500 fix: billing.service getBillingSummary queries session_charges directly
+- [x] Frontend 404 fix: aiAPI.aiChat → /ai/assistant/chat; radarAPI stats/requests → correct URLs
+- [x] migration 029: join_token UUID + started_by_patient_at on sessions table
+- [x] sessions.service: create() emits join_token; patient_id optional; LEFT JOIN patients
+- [x] sessions.controller: GET/POST /sessions/join/:token (@Public), POST /sessions/:id/invite
+- [x] mail.service: sendSessionInvite() for no-account-required email invites
+- [x] sessions/new/page: Google Meet-style (create → join link → email chip invite)
+- [x] app/join/[token]/page: public patient join page (mic perms, name/email, Daily.co iframe)
+- [x] middleware: /join added to public paths
+- [x] api.ts: sessionsAPI.invite(), joinInfo(), joinByToken() added
+- [x] session room: share button copies join link; AI pause/resume (Brain button); OFF RECORD indicator
+- [x] store: verificationStatus in UIStore
+- [x] layout: verification_status check → redirect restricted paths; PendingApprovalBanner
+- [x] dashboard: pending approval card with profile/billing CTAs
+- [x] billing page: updated plan bullets (PAYG/Starter/Unlimited/Practice consistent matrix)
+- [x] web pricing page: PLAN_FEATURES_MAP updated to match consistent feature matrix
+
+<!-- Reviewed: 2026-06-14 — 24Therapy audit -->

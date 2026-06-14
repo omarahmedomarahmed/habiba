@@ -211,6 +211,18 @@ export const sessionsAPI = {
   dashboardStats: () => apiFetch<Record<string, unknown>>("/sessions/dashboard"),
 
   usage: () => apiFetch<{ plan_key: string; sessions_this_month: number; max_sessions_month: number | null; trial_session_used: boolean }>("/sessions/usage"),
+
+  invite: (id: string, emails: string[]) =>
+    apiFetch(`/sessions/${id}/invite`, { method: "POST", body: JSON.stringify({ emails }) }),
+
+  joinInfo: (token: string) =>
+    apiFetch<Record<string, unknown>>(`/sessions/join/${token}`),
+
+  joinByToken: (token: string, body: { name: string; email?: string }) =>
+    apiFetch<{ session_id: string; video_room_url: string }>(`/sessions/join/${token}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // ============================================================
@@ -242,9 +254,9 @@ export const aiAPI = {
     }),
 
   aiChat: (message: string, context?: Record<string, unknown>) =>
-    apiFetch<Record<string, unknown>>("/ai/chat", {
+    apiFetch<Record<string, unknown>>("/ai/assistant/chat", {
       method: "POST",
-      body: JSON.stringify({ message, context }),
+      body: JSON.stringify({ message, mode: 'therapist', context }),
     }),
 
   assistantChat: (body: { message: string; range?: 'today' | 'this_week' | 'last_week'; history?: Array<{ role: string; content: string }> }) =>
@@ -399,7 +411,7 @@ export const referralsAPI = {
 // ============================================================
 export const radarAPI = {
   requests: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/radar/requests", { params }),
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/radar/therapist/requests", { params }),
 
   accept: (requestId: string) =>
     apiFetch(`/radar/requests/${requestId}/accept`, { method: "POST" }),
@@ -407,7 +419,7 @@ export const radarAPI = {
   decline: (requestId: string, reason?: string) =>
     apiFetch(`/radar/requests/${requestId}/decline`, { method: "POST", body: JSON.stringify({ reason }) }),
 
-  stats: () => apiFetch<Record<string, unknown>>("/radar/stats"),
+  stats: () => apiFetch<Record<string, unknown>>("/radar/analytics"),
 };
 
 // ============================================================
