@@ -300,7 +300,7 @@ function JoinSessionInner() {
           </div>
         )}
 
-        {phase === "form" && (
+        {(phase === "form" || phase === "joining") && (
           <>
             {micGranted === false && (
               <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-3 mb-4 flex items-center gap-2">
