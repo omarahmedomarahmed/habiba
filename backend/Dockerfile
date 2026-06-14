@@ -12,7 +12,10 @@ RUN pnpm install --frozen-lockfile --filter=@24therapy/api...
 
 # Copy all source and compile TypeScript → backend/dist/
 COPY . .
-RUN pnpm --filter=@24therapy/api build
+RUN cd backend && node ../node_modules/.bin/tsc -p tsconfig.json
+
+# Fail the BUILD (not runtime) if dist/main.js was not produced
+RUN test -f /app/backend/dist/main.js || (echo "❌ TypeScript build failed — /app/backend/dist/main.js not found" && exit 1)
 
 ENV NODE_ENV=production
 EXPOSE 4000
