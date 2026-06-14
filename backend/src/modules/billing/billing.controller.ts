@@ -333,10 +333,32 @@ export class BillingController {
   @ApiOperation({ summary: "Request a manual payout from wallet balance" })
   requestPayout(
     @Request() req: { user: { therapistId?: string; userId: string } },
-    @Body() body: { amount_cents: number; bank_details: Record<string, string> },
+    @Body() body: { amount_cents: number; bank_details: Record<string, string>; method?: string },
   ) {
     const therapistId = req.user.therapistId || req.user.userId;
-    return this.billingService.requestPayout(therapistId, body.amount_cents, body.bank_details);
+    return this.billingService.requestPayout(therapistId, body.amount_cents, body.bank_details, body.method);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("super_admin", "admin")
+  @Get("admin/payout-requests")
+  @ApiOperation({ summary: "List all therapist payout requests (admin)" })
+  getPayoutRequests(@Query("status") status?: string) {
+    return this.billingService.getPayoutRequests(status);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("super_admin", "admin")
+  @Patch("admin/payout-requests/:id/process")
+  @ApiOperation({ summary: "Mark a payout request as processed (admin)" })
+  processPayoutRequest(
+    @Param("id") id: string,
+    @Request() req: { user: { userId: string } },
+    @Body() body: { note?: string },
+  ) {
+    return this.billingService.processPayoutRequest(id, req.user.userId, body?.note);
   }
 
   @ApiBearerAuth()
