@@ -255,8 +255,13 @@ export class TherapistsService {
     const queryParams: unknown[] = [organizationId];
 
     if (status) {
+      const verificationStatuses = ['pending', 'under_review', 'approved', 'rejected', 'suspended'];
       queryParams.push(status);
-      whereClause += ` AND t.status = $${queryParams.length}`;
+      if (verificationStatuses.includes(status)) {
+        whereClause += ` AND t.verification_status = $${queryParams.length}`;
+      } else {
+        whereClause += ` AND t.status = $${queryParams.length}`;
+      }
     }
 
     if (search) {
