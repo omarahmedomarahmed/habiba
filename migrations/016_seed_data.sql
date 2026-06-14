@@ -67,7 +67,7 @@ VALUES
     'enterprise',
     'Enterprise',
     'Hospitals, universities, healthcare systems',
-    NULL, NULL, NULL, NULL, NULL,
+    0, 0, NULL, NULL, NULL,
     true, false, NULL, 'Contact Sales', 0,
     'slate', 'therapist', 4,
     '["Unlimited therapists & patients","Custom AI models","White-label branding","SSO / SAML","EHR integration","Dedicated support","HIPAA BAA included","Custom SLA"]'::JSONB
