@@ -6,7 +6,7 @@
 -- ------------------------------------------------------------
 -- conversations
 -- ------------------------------------------------------------
-CREATE TABLE conversations (
+CREATE TABLE IF NOT EXISTS conversations (
   id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id  UUID        NOT NULL REFERENCES organizations(id),
   type             VARCHAR(50) NOT NULL DEFAULT 'patient_therapist',
@@ -19,17 +19,17 @@ CREATE TABLE conversations (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_conversations_organization_id ON conversations (organization_id);
-CREATE INDEX idx_conversations_therapist_id    ON conversations (therapist_id);
-CREATE INDEX idx_conversations_patient_id      ON conversations (patient_id);
-CREATE UNIQUE INDEX idx_conversations_patient_therapist_active
+CREATE INDEX IF NOT EXISTS idx_conversations_organization_id ON conversations (organization_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_therapist_id    ON conversations (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_patient_id      ON conversations (patient_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_patient_therapist_active
   ON conversations (patient_id, therapist_id)
   WHERE status = 'active' AND type = 'patient_therapist';
 
 -- ------------------------------------------------------------
 -- messages
 -- ------------------------------------------------------------
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
   id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   conversation_id  UUID        NOT NULL REFERENCES conversations(id),
   sender_id        UUID        NOT NULL REFERENCES users(id),
@@ -44,15 +44,15 @@ CREATE TABLE messages (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_messages_conversation_created ON messages (conversation_id, created_at DESC);
-CREATE INDEX idx_messages_conversation_unread  ON messages (conversation_id, read) WHERE read = FALSE;
-CREATE INDEX idx_messages_sender_id            ON messages (sender_id);
-CREATE INDEX idx_messages_encrypted            ON messages (encrypted) WHERE encrypted = TRUE;
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON messages (conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_unread  ON messages (conversation_id, read) WHERE read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id            ON messages (sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_encrypted            ON messages (encrypted) WHERE encrypted = TRUE;
 
 -- ------------------------------------------------------------
 -- notification_templates
 -- ------------------------------------------------------------
-CREATE TABLE notification_templates (
+CREATE TABLE IF NOT EXISTS notification_templates (
   id           UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   template_key VARCHAR(100) NOT NULL,
   name         VARCHAR(255) NOT NULL,
@@ -69,14 +69,14 @@ CREATE TABLE notification_templates (
   CONSTRAINT notification_templates_key UNIQUE (template_key)
 );
 
-CREATE TRIGGER trg_notification_templates_updated_at
+CREATE OR REPLACE TRIGGER trg_notification_templates_updated_at
   BEFORE UPDATE ON notification_templates
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- notifications
 -- ------------------------------------------------------------
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id              UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID         REFERENCES organizations(id),
   user_id         UUID         NOT NULL REFERENCES users(id),
@@ -99,15 +99,15 @@ CREATE TABLE notifications (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_notifications_user_id           ON notifications (user_id);
-CREATE INDEX idx_notifications_user_read         ON notifications (user_id, read);
-CREATE INDEX idx_notifications_scheduled_pending ON notifications (scheduled_for) WHERE status = 'pending';
-CREATE INDEX idx_notifications_created_desc      ON notifications (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id           ON notifications (user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read         ON notifications (user_id, read);
+CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_pending ON notifications (scheduled_for) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_notifications_created_desc      ON notifications (created_at DESC);
 
 -- ------------------------------------------------------------
 -- notification_preferences
 -- ------------------------------------------------------------
-CREATE TABLE notification_preferences (
+CREATE TABLE IF NOT EXISTS notification_preferences (
   id                       UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id                  UUID         NOT NULL REFERENCES users(id),
   in_app_enabled           BOOLEAN      NOT NULL DEFAULT TRUE,
@@ -138,14 +138,14 @@ CREATE TABLE notification_preferences (
   CONSTRAINT notification_preferences_user_id_key UNIQUE (user_id)
 );
 
-CREATE TRIGGER trg_notification_preferences_updated_at
+CREATE OR REPLACE TRIGGER trg_notification_preferences_updated_at
   BEFORE UPDATE ON notification_preferences
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- email_delivery_log
 -- ------------------------------------------------------------
-CREATE TABLE email_delivery_log (
+CREATE TABLE IF NOT EXISTS email_delivery_log (
   id                  UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   notification_id     UUID         REFERENCES notifications(id),
   recipient_email     VARCHAR(255) NOT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE email_delivery_log (
 -- ------------------------------------------------------------
 -- push_devices
 -- ------------------------------------------------------------
-CREATE TABLE push_devices (
+CREATE TABLE IF NOT EXISTS push_devices (
   id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id      UUID        NOT NULL REFERENCES users(id),
   platform     VARCHAR(20) NOT NULL,
@@ -181,7 +181,7 @@ CREATE TABLE push_devices (
 -- ------------------------------------------------------------
 -- notification_queue
 -- ------------------------------------------------------------
-CREATE TABLE notification_queue (
+CREATE TABLE IF NOT EXISTS notification_queue (
   id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   notification_id  UUID        NOT NULL REFERENCES notifications(id),
   priority         INTEGER     NOT NULL DEFAULT 5,
@@ -196,7 +196,7 @@ CREATE TABLE notification_queue (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_notification_queue_runnable
+CREATE INDEX IF NOT EXISTS idx_notification_queue_runnable
   ON notification_queue (next_attempt_at, priority)
   WHERE completed_at IS NULL AND failed_at IS NULL;
 

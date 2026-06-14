@@ -7,7 +7,7 @@
 -- ------------------------------------------------------------
 -- sessions
 -- ------------------------------------------------------------
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id         UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   therapist_id            UUID         NOT NULL REFERENCES therapists(id) ON DELETE RESTRICT,
@@ -51,16 +51,16 @@ CREATE TABLE sessions (
   )
 );
 
-CREATE INDEX idx_sessions_organization_id       ON sessions (organization_id);
-CREATE INDEX idx_sessions_therapist_id          ON sessions (therapist_id);
-CREATE INDEX idx_sessions_patient_id            ON sessions (patient_id);
-CREATE INDEX idx_sessions_status                ON sessions (status);
-CREATE INDEX idx_sessions_scheduled_at          ON sessions (scheduled_at);
-CREATE INDEX idx_sessions_radar                 ON sessions (id) WHERE radar_session = TRUE;
-CREATE INDEX idx_sessions_org_scheduled_desc    ON sessions (organization_id, scheduled_at DESC);
-CREATE INDEX idx_sessions_radar_request_id      ON sessions (radar_request_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_organization_id       ON sessions (organization_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_therapist_id          ON sessions (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_patient_id            ON sessions (patient_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_status                ON sessions (status);
+CREATE INDEX IF NOT EXISTS idx_sessions_scheduled_at          ON sessions (scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_radar                 ON sessions (id) WHERE radar_session = TRUE;
+CREATE INDEX IF NOT EXISTS idx_sessions_org_scheduled_desc    ON sessions (organization_id, scheduled_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sessions_radar_request_id      ON sessions (radar_request_id);
 
-CREATE TRIGGER trg_sessions_updated_at
+CREATE OR REPLACE TRIGGER trg_sessions_updated_at
   BEFORE UPDATE ON sessions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -83,7 +83,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER after_session_completed
+CREATE OR REPLACE TRIGGER after_session_completed
   AFTER UPDATE ON sessions
   FOR EACH ROW
   WHEN (NEW.status = 'completed' AND OLD.status != 'completed')
@@ -92,7 +92,7 @@ CREATE TRIGGER after_session_completed
 -- ------------------------------------------------------------
 -- session_participants
 -- ------------------------------------------------------------
-CREATE TABLE session_participants (
+CREATE TABLE IF NOT EXISTS session_participants (
   id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id         UUID        NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   user_id            UUID REFERENCES users(id),
@@ -107,12 +107,12 @@ CREATE TABLE session_participants (
   )
 );
 
-CREATE INDEX idx_session_participants_session_id ON session_participants (session_id);
+CREATE INDEX IF NOT EXISTS idx_session_participants_session_id ON session_participants (session_id);
 
 -- ------------------------------------------------------------
 -- session_notes
 -- ------------------------------------------------------------
-CREATE TABLE session_notes (
+CREATE TABLE IF NOT EXISTS session_notes (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id      UUID        NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   therapist_id    UUID        NOT NULL REFERENCES therapists(id) ON DELETE RESTRICT,
@@ -128,16 +128,16 @@ CREATE TABLE session_notes (
   )
 );
 
-CREATE INDEX idx_session_notes_session_id ON session_notes (session_id);
+CREATE INDEX IF NOT EXISTS idx_session_notes_session_id ON session_notes (session_id);
 
-CREATE TRIGGER trg_session_notes_updated_at
+CREATE OR REPLACE TRIGGER trg_session_notes_updated_at
   BEFORE UPDATE ON session_notes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- transcripts
 -- ------------------------------------------------------------
-CREATE TABLE transcripts (
+CREATE TABLE IF NOT EXISTS transcripts (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id            UUID         NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   patient_id            UUID         NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
@@ -161,18 +161,18 @@ CREATE TABLE transcripts (
   )
 );
 
-CREATE INDEX idx_transcripts_session_id  ON transcripts (session_id);
-CREATE INDEX idx_transcripts_patient_id  ON transcripts (patient_id);
-CREATE INDEX idx_transcripts_status      ON transcripts (status);
+CREATE INDEX IF NOT EXISTS idx_transcripts_session_id  ON transcripts (session_id);
+CREATE INDEX IF NOT EXISTS idx_transcripts_patient_id  ON transcripts (patient_id);
+CREATE INDEX IF NOT EXISTS idx_transcripts_status      ON transcripts (status);
 
-CREATE TRIGGER trg_transcripts_updated_at
+CREATE OR REPLACE TRIGGER trg_transcripts_updated_at
   BEFORE UPDATE ON transcripts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- transcript_segments
 -- ------------------------------------------------------------
-CREATE TABLE transcript_segments (
+CREATE TABLE IF NOT EXISTS transcript_segments (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   transcript_id   UUID        NOT NULL REFERENCES transcripts(id) ON DELETE CASCADE,
   session_id      UUID        NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -192,16 +192,16 @@ CREATE TABLE transcript_segments (
   )
 );
 
-CREATE INDEX idx_transcript_segments_transcript_id      ON transcript_segments (transcript_id);
-CREATE INDEX idx_transcript_segments_session_id         ON transcript_segments (session_id);
-CREATE INDEX idx_transcript_segments_transcript_seq     ON transcript_segments (transcript_id, sequence_number);
-CREATE INDEX idx_transcript_segments_text_fts
+CREATE INDEX IF NOT EXISTS idx_transcript_segments_transcript_id      ON transcript_segments (transcript_id);
+CREATE INDEX IF NOT EXISTS idx_transcript_segments_session_id         ON transcript_segments (session_id);
+CREATE INDEX IF NOT EXISTS idx_transcript_segments_transcript_seq     ON transcript_segments (transcript_id, sequence_number);
+CREATE INDEX IF NOT EXISTS idx_transcript_segments_text_fts
   ON transcript_segments USING GIN (to_tsvector('english', text));
 
 -- ------------------------------------------------------------
 -- session_recordings
 -- ------------------------------------------------------------
-CREATE TABLE session_recordings (
+CREATE TABLE IF NOT EXISTS session_recordings (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id        UUID          NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   organization_id   UUID          NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -217,12 +217,12 @@ CREATE TABLE session_recordings (
   created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_session_recordings_session_id ON session_recordings (session_id);
+CREATE INDEX IF NOT EXISTS idx_session_recordings_session_id ON session_recordings (session_id);
 
 -- ------------------------------------------------------------
 -- session_reports
 -- ------------------------------------------------------------
-CREATE TABLE session_reports (
+CREATE TABLE IF NOT EXISTS session_reports (
   id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id         UUID         NOT NULL REFERENCES sessions(id) ON DELETE RESTRICT,
   patient_id         UUID         NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
@@ -245,10 +245,10 @@ CREATE TABLE session_reports (
   )
 );
 
-CREATE INDEX idx_session_reports_session_id  ON session_reports (session_id);
-CREATE INDEX idx_session_reports_patient_id  ON session_reports (patient_id);
+CREATE INDEX IF NOT EXISTS idx_session_reports_session_id  ON session_reports (session_id);
+CREATE INDEX IF NOT EXISTS idx_session_reports_patient_id  ON session_reports (patient_id);
 
-CREATE TRIGGER trg_session_reports_updated_at
+CREATE OR REPLACE TRIGGER trg_session_reports_updated_at
   BEFORE UPDATE ON session_reports
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

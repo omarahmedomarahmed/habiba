@@ -10,7 +10,7 @@
 -- ------------------------------------------------------------
 -- radar_requests
 -- ------------------------------------------------------------
-CREATE TABLE radar_requests (
+CREATE TABLE IF NOT EXISTS radar_requests (
   id                   UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id      UUID          REFERENCES organizations(id),
   patient_id           UUID          REFERENCES patients(id),
@@ -33,19 +33,19 @@ CREATE TABLE radar_requests (
   updated_at           TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_radar_requests_status      ON radar_requests (status);
-CREATE INDEX idx_radar_requests_patient_id  ON radar_requests (patient_id);
-CREATE INDEX idx_radar_requests_created_at  ON radar_requests (created_at DESC);
-CREATE INDEX idx_radar_requests_expires_at  ON radar_requests (expires_at);
+CREATE INDEX IF NOT EXISTS idx_radar_requests_status      ON radar_requests (status);
+CREATE INDEX IF NOT EXISTS idx_radar_requests_patient_id  ON radar_requests (patient_id);
+CREATE INDEX IF NOT EXISTS idx_radar_requests_created_at  ON radar_requests (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_radar_requests_expires_at  ON radar_requests (expires_at);
 
-CREATE TRIGGER trg_radar_requests_updated_at
+CREATE OR REPLACE TRIGGER trg_radar_requests_updated_at
   BEFORE UPDATE ON radar_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- radar_broadcasts
 -- ------------------------------------------------------------
-CREATE TABLE radar_broadcasts (
+CREATE TABLE IF NOT EXISTS radar_broadcasts (
   id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   request_id    UUID        NOT NULL REFERENCES radar_requests(id) ON DELETE CASCADE,
   therapist_id  UUID        NOT NULL REFERENCES therapists(id),
@@ -57,13 +57,13 @@ CREATE TABLE radar_broadcasts (
   CONSTRAINT radar_broadcasts_unique UNIQUE (request_id, therapist_id)
 );
 
-CREATE INDEX idx_radar_broadcasts_request_id   ON radar_broadcasts (request_id);
-CREATE INDEX idx_radar_broadcasts_therapist_id ON radar_broadcasts (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_radar_broadcasts_request_id   ON radar_broadcasts (request_id);
+CREATE INDEX IF NOT EXISTS idx_radar_broadcasts_therapist_id ON radar_broadcasts (therapist_id);
 
 -- ------------------------------------------------------------
 -- radar_matches
 -- ------------------------------------------------------------
-CREATE TABLE radar_matches (
+CREATE TABLE IF NOT EXISTS radar_matches (
   id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   request_id       UUID        NOT NULL REFERENCES radar_requests(id) ON DELETE CASCADE,
   therapist_id     UUID        NOT NULL REFERENCES therapists(id),
@@ -78,14 +78,14 @@ CREATE TABLE radar_matches (
   CONSTRAINT radar_matches_unique UNIQUE (request_id, therapist_id)
 );
 
-CREATE INDEX idx_radar_matches_request_id    ON radar_matches (request_id);
-CREATE INDEX idx_radar_matches_therapist_id  ON radar_matches (therapist_id);
-CREATE INDEX idx_radar_matches_score_desc    ON radar_matches (match_score DESC);
+CREATE INDEX IF NOT EXISTS idx_radar_matches_request_id    ON radar_matches (request_id);
+CREATE INDEX IF NOT EXISTS idx_radar_matches_therapist_id  ON radar_matches (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_radar_matches_score_desc    ON radar_matches (match_score DESC);
 
 -- ------------------------------------------------------------
 -- radar_sessions
 -- ------------------------------------------------------------
-CREATE TABLE radar_sessions (
+CREATE TABLE IF NOT EXISTS radar_sessions (
   id               UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   request_id       UUID          NOT NULL REFERENCES radar_requests(id),
   match_id         UUID          NOT NULL REFERENCES radar_matches(id),
@@ -102,7 +102,7 @@ CREATE TABLE radar_sessions (
 -- ------------------------------------------------------------
 -- radar_therapist_settings
 -- ------------------------------------------------------------
-CREATE TABLE radar_therapist_settings (
+CREATE TABLE IF NOT EXISTS radar_therapist_settings (
   id                     UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   therapist_id           UUID          NOT NULL REFERENCES therapists(id),
   radar_enabled          BOOLEAN       NOT NULL DEFAULT FALSE,
@@ -119,14 +119,14 @@ CREATE TABLE radar_therapist_settings (
   CONSTRAINT radar_therapist_settings_unique UNIQUE (therapist_id)
 );
 
-CREATE TRIGGER trg_radar_therapist_settings_updated_at
+CREATE OR REPLACE TRIGGER trg_radar_therapist_settings_updated_at
   BEFORE UPDATE ON radar_therapist_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- radar_analytics
 -- ------------------------------------------------------------
-CREATE TABLE radar_analytics (
+CREATE TABLE IF NOT EXISTS radar_analytics (
   id                UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   date              DATE        NOT NULL,
   organization_id   UUID        REFERENCES organizations(id),
@@ -145,19 +145,19 @@ CREATE TABLE radar_analytics (
 -- ------------------------------------------------------------
 -- radar_availability_log
 -- ------------------------------------------------------------
-CREATE TABLE radar_availability_log (
+CREATE TABLE IF NOT EXISTS radar_availability_log (
   id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   therapist_id UUID        NOT NULL REFERENCES therapists(id),
   available    BOOLEAN     NOT NULL,
   changed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_radar_availability_log_therapist ON radar_availability_log (therapist_id, changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_radar_availability_log_therapist ON radar_availability_log (therapist_id, changed_at DESC);
 
 -- ------------------------------------------------------------
 -- radar_market_health
 -- ------------------------------------------------------------
-CREATE TABLE radar_market_health (
+CREATE TABLE IF NOT EXISTS radar_market_health (
   id                  UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   date                DATE        NOT NULL,
   language            VARCHAR(20),

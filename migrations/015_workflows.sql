@@ -7,7 +7,7 @@
 -- ------------------------------------------------------------
 -- clinical_workflows
 -- ------------------------------------------------------------
-CREATE TABLE clinical_workflows (
+CREATE TABLE IF NOT EXISTS clinical_workflows (
   id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID        NOT NULL REFERENCES organizations(id),
   therapist_id    UUID        REFERENCES therapists(id),
@@ -24,19 +24,19 @@ CREATE TABLE clinical_workflows (
   completed_at    TIMESTAMPTZ
 );
 
-CREATE INDEX idx_clinical_workflows_organization_id ON clinical_workflows (organization_id);
-CREATE INDEX idx_clinical_workflows_therapist_id    ON clinical_workflows (therapist_id);
-CREATE INDEX idx_clinical_workflows_patient_id      ON clinical_workflows (patient_id);
-CREATE INDEX idx_clinical_workflows_status          ON clinical_workflows (status);
+CREATE INDEX IF NOT EXISTS idx_clinical_workflows_organization_id ON clinical_workflows (organization_id);
+CREATE INDEX IF NOT EXISTS idx_clinical_workflows_therapist_id    ON clinical_workflows (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_clinical_workflows_patient_id      ON clinical_workflows (patient_id);
+CREATE INDEX IF NOT EXISTS idx_clinical_workflows_status          ON clinical_workflows (status);
 
-CREATE TRIGGER trg_clinical_workflows_updated_at
+CREATE OR REPLACE TRIGGER trg_clinical_workflows_updated_at
   BEFORE UPDATE ON clinical_workflows
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- workflow_tasks
 -- ------------------------------------------------------------
-CREATE TABLE workflow_tasks (
+CREATE TABLE IF NOT EXISTS workflow_tasks (
   id                  UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   workflow_id         UUID        NOT NULL REFERENCES clinical_workflows(id) ON DELETE CASCADE,
   organization_id     UUID        NOT NULL REFERENCES organizations(id),
@@ -53,14 +53,14 @@ CREATE TABLE workflow_tasks (
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_workflow_tasks_workflow_id     ON workflow_tasks (workflow_id);
-CREATE INDEX idx_workflow_tasks_organization_id ON workflow_tasks (organization_id);
-CREATE INDEX idx_workflow_tasks_patient_status  ON workflow_tasks (organization_id, assigned_to_patient, status);
+CREATE INDEX IF NOT EXISTS idx_workflow_tasks_workflow_id     ON workflow_tasks (workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_tasks_organization_id ON workflow_tasks (organization_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_tasks_patient_status  ON workflow_tasks (organization_id, assigned_to_patient, status);
 
 -- ------------------------------------------------------------
 -- referrals
 -- ------------------------------------------------------------
-CREATE TABLE referrals (
+CREATE TABLE IF NOT EXISTS referrals (
   id                       UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id          UUID        NOT NULL REFERENCES organizations(id),
   patient_id               UUID        NOT NULL REFERENCES patients(id),
@@ -78,19 +78,19 @@ CREATE TABLE referrals (
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_referrals_organization_id ON referrals (organization_id);
-CREATE INDEX idx_referrals_therapist_id    ON referrals (therapist_id);
-CREATE INDEX idx_referrals_patient_id      ON referrals (patient_id);
-CREATE INDEX idx_referrals_status          ON referrals (status);
+CREATE INDEX IF NOT EXISTS idx_referrals_organization_id ON referrals (organization_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_therapist_id    ON referrals (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_patient_id      ON referrals (patient_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_status          ON referrals (status);
 
-CREATE TRIGGER trg_referrals_updated_at
+CREATE OR REPLACE TRIGGER trg_referrals_updated_at
   BEFORE UPDATE ON referrals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- feature_flags
 -- ------------------------------------------------------------
-CREATE TABLE feature_flags (
+CREATE TABLE IF NOT EXISTS feature_flags (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   key         VARCHAR(100) NOT NULL,
   name        VARCHAR(200) NOT NULL,
@@ -105,17 +105,17 @@ CREATE TABLE feature_flags (
   CONSTRAINT feature_flags_key_unique UNIQUE (key)
 );
 
-CREATE INDEX idx_feature_flags_key     ON feature_flags (key);
-CREATE INDEX idx_feature_flags_enabled ON feature_flags (enabled);
+CREATE INDEX IF NOT EXISTS idx_feature_flags_key     ON feature_flags (key);
+CREATE INDEX IF NOT EXISTS idx_feature_flags_enabled ON feature_flags (enabled);
 
-CREATE TRIGGER trg_feature_flags_updated_at
+CREATE OR REPLACE TRIGGER trg_feature_flags_updated_at
   BEFORE UPDATE ON feature_flags
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- break_glass_access  (HIPAA §164.312(a)(2)(ii) emergency)
 -- ------------------------------------------------------------
-CREATE TABLE break_glass_access (
+CREATE TABLE IF NOT EXISTS break_glass_access (
   id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_user_id  UUID        NOT NULL REFERENCES users(id),
   target_user_id UUID        REFERENCES users(id),
@@ -127,5 +127,5 @@ CREATE TABLE break_glass_access (
   acknowledged   BOOLEAN     NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_break_glass_access_admin_user_id ON break_glass_access (admin_user_id);
-CREATE INDEX idx_break_glass_access_accessed_at   ON break_glass_access (accessed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_break_glass_access_admin_user_id ON break_glass_access (admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_break_glass_access_accessed_at   ON break_glass_access (accessed_at DESC);

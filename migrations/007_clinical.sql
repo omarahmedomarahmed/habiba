@@ -7,7 +7,7 @@
 -- ------------------------------------------------------------
 -- patient_diagnoses
 -- ------------------------------------------------------------
-CREATE TABLE patient_diagnoses (
+CREATE TABLE IF NOT EXISTS patient_diagnoses (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id      UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   therapist_id    UUID         NOT NULL REFERENCES therapists(id) ON DELETE RESTRICT,
@@ -28,17 +28,17 @@ CREATE TABLE patient_diagnoses (
   )
 );
 
-CREATE INDEX idx_patient_diagnoses_patient_id   ON patient_diagnoses (patient_id);
-CREATE INDEX idx_patient_diagnoses_therapist_id ON patient_diagnoses (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_patient_diagnoses_patient_id   ON patient_diagnoses (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_diagnoses_therapist_id ON patient_diagnoses (therapist_id);
 
-CREATE TRIGGER trg_patient_diagnoses_updated_at
+CREATE OR REPLACE TRIGGER trg_patient_diagnoses_updated_at
   BEFORE UPDATE ON patient_diagnoses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- risk_assessments
 -- ------------------------------------------------------------
-CREATE TABLE risk_assessments (
+CREATE TABLE IF NOT EXISTS risk_assessments (
   id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id           UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   therapist_id         UUID REFERENCES therapists(id) ON DELETE SET NULL,
@@ -72,19 +72,19 @@ CREATE TABLE risk_assessments (
   )
 );
 
-CREATE INDEX idx_risk_assessments_patient_id         ON risk_assessments (patient_id);
-CREATE INDEX idx_risk_assessments_level_patient       ON risk_assessments (risk_level, patient_id);
-CREATE INDEX idx_risk_assessments_created_desc        ON risk_assessments (created_at DESC);
-CREATE INDEX idx_risk_assessments_org_alert_created   ON risk_assessments (organization_id, alert_status, created_at);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_patient_id         ON risk_assessments (patient_id);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_level_patient       ON risk_assessments (risk_level, patient_id);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_created_desc        ON risk_assessments (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_org_alert_created   ON risk_assessments (organization_id, alert_status, created_at);
 
-CREATE TRIGGER trg_risk_assessments_updated_at
+CREATE OR REPLACE TRIGGER trg_risk_assessments_updated_at
   BEFORE UPDATE ON risk_assessments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- treatment_plans
 -- ------------------------------------------------------------
-CREATE TABLE treatment_plans (
+CREATE TABLE IF NOT EXISTS treatment_plans (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id          UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   therapist_id        UUID         NOT NULL REFERENCES therapists(id) ON DELETE RESTRICT,
@@ -108,17 +108,17 @@ CREATE TABLE treatment_plans (
   )
 );
 
-CREATE INDEX idx_treatment_plans_patient_id      ON treatment_plans (patient_id);
-CREATE INDEX idx_treatment_plans_status_patient  ON treatment_plans (status, patient_id);
+CREATE INDEX IF NOT EXISTS idx_treatment_plans_patient_id      ON treatment_plans (patient_id);
+CREATE INDEX IF NOT EXISTS idx_treatment_plans_status_patient  ON treatment_plans (status, patient_id);
 
-CREATE TRIGGER trg_treatment_plans_updated_at
+CREATE OR REPLACE TRIGGER trg_treatment_plans_updated_at
   BEFORE UPDATE ON treatment_plans
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- treatment_plan_progress_notes
 -- ------------------------------------------------------------
-CREATE TABLE treatment_plan_progress_notes (
+CREATE TABLE IF NOT EXISTS treatment_plan_progress_notes (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   treatment_plan_id   UUID        NOT NULL REFERENCES treatment_plans(id) ON DELETE CASCADE,
   patient_id          UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -129,12 +129,12 @@ CREATE TABLE treatment_plan_progress_notes (
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_treatment_plan_progress_plan_id ON treatment_plan_progress_notes (treatment_plan_id);
+CREATE INDEX IF NOT EXISTS idx_treatment_plan_progress_plan_id ON treatment_plan_progress_notes (treatment_plan_id);
 
 -- ------------------------------------------------------------
 -- clinical_note_templates
 -- ------------------------------------------------------------
-CREATE TABLE clinical_note_templates (
+CREATE TABLE IF NOT EXISTS clinical_note_templates (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id  UUID REFERENCES organizations(id) ON DELETE CASCADE,
   name             VARCHAR(255) NOT NULL,
@@ -147,14 +147,14 @@ CREATE TABLE clinical_note_templates (
   updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER trg_clinical_note_templates_updated_at
+CREATE OR REPLACE TRIGGER trg_clinical_note_templates_updated_at
   BEFORE UPDATE ON clinical_note_templates
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- assessment_templates
 -- ------------------------------------------------------------
-CREATE TABLE assessment_templates (
+CREATE TABLE IF NOT EXISTS assessment_templates (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id     UUID REFERENCES organizations(id) ON DELETE CASCADE,
   type_key            VARCHAR(100) NOT NULL,
@@ -175,14 +175,14 @@ CREATE TABLE assessment_templates (
   CONSTRAINT assessment_templates_type_key_key UNIQUE (type_key)
 );
 
-CREATE TRIGGER trg_assessment_templates_updated_at
+CREATE OR REPLACE TRIGGER trg_assessment_templates_updated_at
   BEFORE UPDATE ON assessment_templates
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- assessment_questions
 -- ------------------------------------------------------------
-CREATE TABLE assessment_questions (
+CREATE TABLE IF NOT EXISTS assessment_questions (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   template_id     UUID        NOT NULL REFERENCES assessment_templates(id) ON DELETE CASCADE,
   question_text   TEXT        NOT NULL,
@@ -196,12 +196,12 @@ CREATE TABLE assessment_questions (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_assessment_questions_template_id ON assessment_questions (template_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_questions_template_id ON assessment_questions (template_id);
 
 -- ------------------------------------------------------------
 -- assessment_results
 -- ------------------------------------------------------------
-CREATE TABLE assessment_results (
+CREATE TABLE IF NOT EXISTS assessment_results (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id   UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   patient_id        UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -223,20 +223,20 @@ CREATE TABLE assessment_results (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_assessment_results_patient_id     ON assessment_results (patient_id);
-CREATE INDEX idx_assessment_results_session_id     ON assessment_results (session_id);
-CREATE INDEX idx_assessment_results_template_id    ON assessment_results (template_id);
-CREATE INDEX idx_assessment_results_status         ON assessment_results (status);
-CREATE INDEX idx_assessment_results_completed_desc ON assessment_results (completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assessment_results_patient_id     ON assessment_results (patient_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_results_session_id     ON assessment_results (session_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_results_template_id    ON assessment_results (template_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_results_status         ON assessment_results (status);
+CREATE INDEX IF NOT EXISTS idx_assessment_results_completed_desc ON assessment_results (completed_at DESC);
 
-CREATE TRIGGER trg_assessment_results_updated_at
+CREATE OR REPLACE TRIGGER trg_assessment_results_updated_at
   BEFORE UPDATE ON assessment_results
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- assessment_answers
 -- ------------------------------------------------------------
-CREATE TABLE assessment_answers (
+CREATE TABLE IF NOT EXISTS assessment_answers (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   result_id     UUID        NOT NULL REFERENCES assessment_results(id) ON DELETE CASCADE,
   question_id   UUID        NOT NULL REFERENCES assessment_questions(id) ON DELETE RESTRICT,
@@ -245,12 +245,12 @@ CREATE TABLE assessment_answers (
   CONSTRAINT assessment_answers_result_question_key UNIQUE (result_id, question_id)
 );
 
-CREATE INDEX idx_assessment_answers_result_id ON assessment_answers (result_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_answers_result_id ON assessment_answers (result_id);
 
 -- ------------------------------------------------------------
 -- assessment_trends
 -- ------------------------------------------------------------
-CREATE TABLE assessment_trends (
+CREATE TABLE IF NOT EXISTS assessment_trends (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id        UUID    NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   template_id       UUID    NOT NULL REFERENCES assessment_templates(id) ON DELETE CASCADE,
@@ -266,12 +266,12 @@ CREATE TABLE assessment_trends (
   CONSTRAINT assessment_trends_unique UNIQUE (patient_id, template_id, period_start)
 );
 
-CREATE INDEX idx_assessment_trends_patient_template ON assessment_trends (patient_id, template_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_trends_patient_template ON assessment_trends (patient_id, template_id);
 
 -- ------------------------------------------------------------
 -- custom_assessment_sections
 -- ------------------------------------------------------------
-CREATE TABLE custom_assessment_sections (
+CREATE TABLE IF NOT EXISTS custom_assessment_sections (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   template_id   UUID        NOT NULL REFERENCES assessment_templates(id) ON DELETE CASCADE,
   title         VARCHAR(255),
@@ -280,12 +280,12 @@ CREATE TABLE custom_assessment_sections (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_custom_assessment_sections_template ON custom_assessment_sections (template_id);
+CREATE INDEX IF NOT EXISTS idx_custom_assessment_sections_template ON custom_assessment_sections (template_id);
 
 -- ------------------------------------------------------------
 -- assessment_schedules
 -- ------------------------------------------------------------
-CREATE TABLE assessment_schedules (
+CREATE TABLE IF NOT EXISTS assessment_schedules (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   patient_id      UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -300,9 +300,9 @@ CREATE TABLE assessment_schedules (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_assessment_schedules_patient_id  ON assessment_schedules (patient_id);
-CREATE INDEX idx_assessment_schedules_next_due    ON assessment_schedules (next_due_at);
+CREATE INDEX IF NOT EXISTS idx_assessment_schedules_patient_id  ON assessment_schedules (patient_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_schedules_next_due    ON assessment_schedules (next_due_at);
 
-CREATE TRIGGER trg_assessment_schedules_updated_at
+CREATE OR REPLACE TRIGGER trg_assessment_schedules_updated_at
   BEFORE UPDATE ON assessment_schedules
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

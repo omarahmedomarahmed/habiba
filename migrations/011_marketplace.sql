@@ -8,7 +8,7 @@
 -- ------------------------------------------------------------
 -- marketplace_listings
 -- ------------------------------------------------------------
-CREATE TABLE marketplace_listings (
+CREATE TABLE IF NOT EXISTS marketplace_listings (
   id                    UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   therapist_id          UUID          NOT NULL REFERENCES therapists(id),
   organization_id       UUID          NOT NULL REFERENCES organizations(id),
@@ -51,21 +51,21 @@ CREATE TABLE marketplace_listings (
   CONSTRAINT marketplace_listings_slug_unique         UNIQUE (slug)
 );
 
-CREATE INDEX idx_marketplace_listings_is_published    ON marketplace_listings (is_published);
-CREATE INDEX idx_marketplace_listings_featured        ON marketplace_listings (is_featured, featured_until);
-CREATE INDEX idx_marketplace_listings_slug            ON marketplace_listings (slug);
-CREATE INDEX idx_marketplace_listings_overall_rating  ON marketplace_listings (overall_rating DESC);
-CREATE INDEX idx_marketplace_listings_specializations ON marketplace_listings USING GIN (specializations);
-CREATE INDEX idx_marketplace_listings_languages       ON marketplace_listings USING GIN (languages);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_is_published    ON marketplace_listings (is_published);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_featured        ON marketplace_listings (is_featured, featured_until);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_slug            ON marketplace_listings (slug);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_overall_rating  ON marketplace_listings (overall_rating DESC);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_specializations ON marketplace_listings USING GIN (specializations);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_languages       ON marketplace_listings USING GIN (languages);
 
-CREATE TRIGGER trg_marketplace_listings_updated_at
+CREATE OR REPLACE TRIGGER trg_marketplace_listings_updated_at
   BEFORE UPDATE ON marketplace_listings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- marketplace_reviews
 -- ------------------------------------------------------------
-CREATE TABLE marketplace_reviews (
+CREATE TABLE IF NOT EXISTS marketplace_reviews (
   id                   UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
   listing_id           UUID    NOT NULL REFERENCES marketplace_listings(id),
   therapist_id         UUID    NOT NULL REFERENCES therapists(id),
@@ -91,12 +91,12 @@ CREATE TABLE marketplace_reviews (
   CONSTRAINT marketplace_reviews_patient_session_unique UNIQUE (patient_id, session_id)
 );
 
-CREATE INDEX idx_marketplace_reviews_listing_id      ON marketplace_reviews (listing_id);
-CREATE INDEX idx_marketplace_reviews_therapist_id    ON marketplace_reviews (therapist_id);
-CREATE INDEX idx_marketplace_reviews_overall_rating  ON marketplace_reviews (overall_rating);
-CREATE INDEX idx_marketplace_reviews_approval_flag   ON marketplace_reviews (is_approved, is_flagged);
+CREATE INDEX IF NOT EXISTS idx_marketplace_reviews_listing_id      ON marketplace_reviews (listing_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_reviews_therapist_id    ON marketplace_reviews (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_reviews_overall_rating  ON marketplace_reviews (overall_rating);
+CREATE INDEX IF NOT EXISTS idx_marketplace_reviews_approval_flag   ON marketplace_reviews (is_approved, is_flagged);
 
-CREATE TRIGGER trg_marketplace_reviews_updated_at
+CREATE OR REPLACE TRIGGER trg_marketplace_reviews_updated_at
   BEFORE UPDATE ON marketplace_reviews
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -130,14 +130,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_marketplace_reviews_update_rating
+CREATE OR REPLACE TRIGGER trg_marketplace_reviews_update_rating
   AFTER INSERT OR UPDATE ON marketplace_reviews
   FOR EACH ROW EXECUTE FUNCTION update_listing_rating();
 
 -- ------------------------------------------------------------
 -- review_votes
 -- ------------------------------------------------------------
-CREATE TABLE review_votes (
+CREATE TABLE IF NOT EXISTS review_votes (
   id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   review_id  UUID        NOT NULL REFERENCES marketplace_reviews(id),
   user_id    UUID        NOT NULL REFERENCES users(id),
@@ -149,7 +149,7 @@ CREATE TABLE review_votes (
 -- ------------------------------------------------------------
 -- marketplace_searches
 -- ------------------------------------------------------------
-CREATE TABLE marketplace_searches (
+CREATE TABLE IF NOT EXISTS marketplace_searches (
   id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         UUID        REFERENCES users(id),
   search_query    TEXT,
@@ -163,7 +163,7 @@ CREATE TABLE marketplace_searches (
 -- ------------------------------------------------------------
 -- marketplace_bookmarks
 -- ------------------------------------------------------------
-CREATE TABLE marketplace_bookmarks (
+CREATE TABLE IF NOT EXISTS marketplace_bookmarks (
   id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id UUID        NOT NULL REFERENCES patients(id),
   listing_id UUID        NOT NULL REFERENCES marketplace_listings(id),
@@ -174,7 +174,7 @@ CREATE TABLE marketplace_bookmarks (
 -- ------------------------------------------------------------
 -- marketplace_categories
 -- ------------------------------------------------------------
-CREATE TABLE marketplace_categories (
+CREATE TABLE IF NOT EXISTS marketplace_categories (
   id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   type          VARCHAR(50) NOT NULL,
   key           VARCHAR(100) NOT NULL,
@@ -191,7 +191,7 @@ CREATE TABLE marketplace_categories (
 -- ------------------------------------------------------------
 -- marketplace_featured_slots
 -- ------------------------------------------------------------
-CREATE TABLE marketplace_featured_slots (
+CREATE TABLE IF NOT EXISTS marketplace_featured_slots (
   id           UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   listing_id   UUID          NOT NULL REFERENCES marketplace_listings(id),
   slot_type    VARCHAR(50)   NOT NULL,
@@ -207,7 +207,7 @@ CREATE TABLE marketplace_featured_slots (
 -- ------------------------------------------------------------
 -- marketplace_analytics
 -- ------------------------------------------------------------
-CREATE TABLE marketplace_analytics (
+CREATE TABLE IF NOT EXISTS marketplace_analytics (
   id                 UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   date               DATE          NOT NULL,
   listing_id         UUID          REFERENCES marketplace_listings(id),

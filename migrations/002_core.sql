@@ -6,7 +6,7 @@
 -- ------------------------------------------------------------
 -- plans (legacy org plan reference)
 -- ------------------------------------------------------------
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
   id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name                     VARCHAR(100) NOT NULL,
   code                     VARCHAR(50)  NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE plans (
 -- ------------------------------------------------------------
 -- organizations
 -- ------------------------------------------------------------
-CREATE TABLE organizations (
+CREATE TABLE IF NOT EXISTS organizations (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name              VARCHAR(255) NOT NULL,
   slug              VARCHAR(100) NOT NULL,
@@ -54,19 +54,19 @@ CREATE TABLE organizations (
   )
 );
 
-CREATE INDEX idx_organizations_slug        ON organizations (slug);
-CREATE INDEX idx_organizations_status      ON organizations (status);
-CREATE INDEX idx_organizations_plan_id     ON organizations (plan_id);
-CREATE INDEX idx_organizations_not_deleted ON organizations (id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_organizations_slug        ON organizations (slug);
+CREATE INDEX IF NOT EXISTS idx_organizations_status      ON organizations (status);
+CREATE INDEX IF NOT EXISTS idx_organizations_plan_id     ON organizations (plan_id);
+CREATE INDEX IF NOT EXISTS idx_organizations_not_deleted ON organizations (id) WHERE deleted_at IS NULL;
 
-CREATE TRIGGER trg_organizations_updated_at
+CREATE OR REPLACE TRIGGER trg_organizations_updated_at
   BEFORE UPDATE ON organizations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- organization_settings
 -- ------------------------------------------------------------
-CREATE TABLE organization_settings (
+CREATE TABLE IF NOT EXISTS organization_settings (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   branding_settings     JSONB NOT NULL DEFAULT '{"logo_url":null,"primary_color":"#0A2342","secondary_color":"#1F5EFF","accent_color":"#24C8DB","custom_domain":null}',
@@ -80,14 +80,14 @@ CREATE TABLE organization_settings (
   CONSTRAINT org_settings_org_id_key UNIQUE (organization_id)
 );
 
-CREATE TRIGGER trg_organization_settings_updated_at
+CREATE OR REPLACE TRIGGER trg_organization_settings_updated_at
   BEFORE UPDATE ON organization_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- users
 -- ------------------------------------------------------------
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id     UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   email               VARCHAR(255) NOT NULL,
@@ -118,23 +118,23 @@ CREATE TABLE users (
 );
 
 -- Unique email per org (only for non-deleted users)
-CREATE UNIQUE INDEX idx_users_org_email_unique
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_org_email_unique
   ON users (organization_id, email)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_users_organization_id ON users (organization_id);
-CREATE INDEX idx_users_email           ON users (email);
-CREATE INDEX idx_users_role            ON users (role);
-CREATE INDEX idx_users_status          ON users (status);
+CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users (organization_id);
+CREATE INDEX IF NOT EXISTS idx_users_email           ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_role            ON users (role);
+CREATE INDEX IF NOT EXISTS idx_users_status          ON users (status);
 
-CREATE TRIGGER trg_users_updated_at
+CREATE OR REPLACE TRIGGER trg_users_updated_at
   BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- user_permissions
 -- ------------------------------------------------------------
-CREATE TABLE user_permissions (
+CREATE TABLE IF NOT EXISTS user_permissions (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id        UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   permission_key VARCHAR(100) NOT NULL,
@@ -144,12 +144,12 @@ CREATE TABLE user_permissions (
   CONSTRAINT user_permissions_unique UNIQUE (user_id, permission_key)
 );
 
-CREATE INDEX idx_user_permissions_user_id ON user_permissions (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions (user_id);
 
 -- ------------------------------------------------------------
 -- refresh_tokens
 -- ------------------------------------------------------------
-CREATE TABLE refresh_tokens (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id     UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash  VARCHAR(255) NOT NULL,
@@ -161,13 +161,13 @@ CREATE TABLE refresh_tokens (
   CONSTRAINT refresh_tokens_token_hash_key UNIQUE (token_hash)
 );
 
-CREATE INDEX idx_refresh_tokens_user_id    ON refresh_tokens (user_id);
-CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens (token_hash);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id    ON refresh_tokens (user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens (token_hash);
 
 -- ------------------------------------------------------------
 -- sso_connections
 -- ------------------------------------------------------------
-CREATE TABLE sso_connections (
+CREATE TABLE IF NOT EXISTS sso_connections (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   provider        VARCHAR(50)  NOT NULL,
@@ -178,6 +178,6 @@ CREATE TABLE sso_connections (
   updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER trg_sso_connections_updated_at
+CREATE OR REPLACE TRIGGER trg_sso_connections_updated_at
   BEFORE UPDATE ON sso_connections
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
