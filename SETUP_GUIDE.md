@@ -541,7 +541,7 @@ If the Swagger method doesn't work, you can insert the admin account directly in
 ```sql
 -- Step 1: Create the organization for your admin
 INSERT INTO organizations (
-  id, name, slug, plan_type, status
+  id, name, slug, organization_type, status
 ) VALUES (
   uuid_generate_v4(),
   '24Therapy Platform',
@@ -561,20 +561,21 @@ INSERT INTO users (
   last_name,
   role,
   status,
-  email_verified
+  email_verified_at
 )
 SELECT
   uuid_generate_v4(),
   o.id,
   'admin@yourdomain.com',
-  '$2a$12$PASTE_YOUR_BCRYPT_HASH_HERE',
+  '$2b$12$PASTE_YOUR_BCRYPT_HASH_HERE',
   'Your',
   'Name',
   'super_admin',
   'active',
-  true
+  NOW()
 FROM organizations o
-WHERE o.slug = '24therapy-platform';
+WHERE o.slug = '24therapy-platform'
+ON CONFLICT DO NOTHING;
 ```
 
 4. Replace:
