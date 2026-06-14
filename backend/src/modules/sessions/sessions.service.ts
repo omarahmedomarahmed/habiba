@@ -143,7 +143,15 @@ export class SessionsService {
       await this.checkSessionAllowance(dto.therapist_id, orgId);
     }
 
+    // For offline/in-person sessions: auto-create guest patient from name
+    if (!dto.patient_id && dto.patient_name) {
+      dto.patient_id = await this.findOrCreateGuestPatient(
+        orgId, dto.therapist_id, dto.patient_name, dto.patient_email || null,
+      );
+    }
+
     const sessionId = uuidv4();
+    const isOffline = dto.modality === 'in_person';
 
     // Get session number for this therapist-patient pair
     const sessionCount = dto.patient_id ? await this.db.queryOne<any>(
@@ -153,11 +161,11 @@ export class SessionsService {
 
     const sessionNumber = (parseInt(sessionCount?.count || '0') + 1);
 
-    // Create video room if needed
+    // Create video room if needed (only for non-offline video sessions)
     let videoRoomId = null;
     let videoRoomUrl = null;
 
-    if (dto.modality === 'video' && this.config.get('video.dailyApiKey')) {
+    if (dto.modality === 'video' && !isOffline && this.config.get('video.dailyApiKey')) {
       // Create Daily.co room
       try {
         const room = await this.createDailyRoom(sessionId);
@@ -173,16 +181,18 @@ export class SessionsService {
         id, organization_id, therapist_id, patient_id,
         session_type, modality, status, scheduled_at,
         session_number, title, recording_enabled, scribe_enabled,
-        video_room_id, video_room_url, pre_session_notes, join_token
-      ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14,gen_random_uuid())
+        video_room_id, video_room_url, pre_session_notes, join_token,
+        patient_email, auto_generate_note
+      ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14,gen_random_uuid(),$15,$16)
       RETURNING *`,
       [
         sessionId, orgId, dto.therapist_id, dto.patient_id || null,
-        dto.session_type || 'standard', dto.modality || 'video',
-        dto.scheduled_at || null, sessionNumber,
-        dto.title || `Session ${sessionNumber}`,
+        dto.session_type || 'individual', dto.modality || 'video',
+        dto.scheduled_at || new Date().toISOString(), sessionNumber,
+        dto.title || (isOffline ? 'In-Person Session' : `Session ${sessionNumber}`),
         dto.recording_enabled || false, dto.scribe_enabled !== false,
         videoRoomId, videoRoomUrl, dto.pre_session_notes || null,
+        dto.patient_email || null, dto.auto_generate_note !== false,
       ],
     );
 
@@ -195,7 +205,81 @@ export class SessionsService {
       );
     }
 
-    return result[0];
+    const session = result[0];
+    return { ...session, auto_start: !!dto.auto_start };
+  }
+
+  private async findOrCreateGuestPatient(
+    orgId: string,
+    therapistId: string,
+    name: string,
+    email: string | null,
+  ): Promise<string> {
+    if (email) {
+      const existing = await this.db.queryOne<{ id: string }>(
+        `SELECT id FROM patients WHERE organization_id = $1 AND email = $2 AND deleted_at IS NULL LIMIT 1`,
+        [orgId, email.toLowerCase()],
+      );
+      if (existing) return existing.id;
+    }
+
+    const patientId = uuidv4();
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ') || null;
+
+    await this.db.execute(
+      `INSERT INTO patients (id, organization_id, primary_therapist_id, first_name, last_name, email, source, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'offline_session', 'active')`,
+      [patientId, orgId, therapistId, firstName, lastName, email?.toLowerCase() || null],
+    );
+    await this.db.execute(
+      `INSERT INTO patient_profiles (id, patient_id) VALUES ($1, $2)`,
+      [uuidv4(), patientId],
+    );
+    await this.db.execute(
+      `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
+       VALUES ($1, $2, $3, $4, $5) ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
+      [uuidv4(), therapistId, patientId, orgId, therapistId],
+    );
+
+    return patientId;
+  }
+
+  async shareReportWithPatient(sessionId: string, orgId: string, email: string, noteId?: string) {
+    const session = await this.findOne(sessionId, orgId);
+
+    // Get the approved AI note (or specific one)
+    const note = await this.db.queryOne<any>(
+      noteId
+        ? `SELECT n.*, t.display_name AS therapist_name FROM ai_session_notes n JOIN therapists t ON t.id = n.therapist_id WHERE n.id = $1 AND n.organization_id = $2`
+        : `SELECT n.*, t.display_name AS therapist_name FROM ai_session_notes n JOIN therapists t ON t.id = n.therapist_id WHERE n.session_id = $1 AND n.organization_id = $2 AND n.status = 'approved' ORDER BY n.created_at DESC LIMIT 1`,
+      noteId ? [noteId, orgId] : [sessionId, orgId],
+    );
+
+    if (!note) throw new Error('No approved note found for this session');
+
+    const structuredContent = typeof note.structured_content === 'string'
+      ? JSON.parse(note.structured_content)
+      : note.structured_content || {};
+
+    // Import mail service dynamically to avoid circular dep issues
+    const { MailModule } = await import('../mail/mail.module');
+    void MailModule;
+
+    await this.db.execute(
+      `INSERT INTO phi_access_log (id, user_id, organization_id, resource_type, resource_id, action, metadata)
+       VALUES ($1, $2, $3, 'session_report', $4, 'share_with_patient', $5)`,
+      [uuidv4(), session.therapist_id, orgId, sessionId, JSON.stringify({ email, note_id: note.id })],
+    ).catch(() => {});
+
+    return {
+      shared: true,
+      email,
+      therapist_name: note.therapist_name,
+      session_date: session.scheduled_at,
+      content: structuredContent,
+    };
   }
 
   async updateStatus(id: string, orgId: string, status: string, metadata: any = {}) {
@@ -226,7 +310,7 @@ export class SessionsService {
         `INSERT INTO transcripts (id, session_id, patient_id, therapist_id, organization_id, status, language)
          VALUES ($1, $2, $3, $4, $5, 'pending', $6)
          ON CONFLICT (session_id) DO NOTHING`,
-        [uuidv4(), id, session.patient_id, session.therapist_id, orgId, metadata.language || 'en'],
+        [uuidv4(), id, session.patient_id || null, session.therapist_id, orgId, metadata.language || 'en'],
       );
     }
 
@@ -239,11 +323,13 @@ export class SessionsService {
       }
 
       // Log timeline
-      await this.db.execute(
-        `INSERT INTO patient_timeline_events (id, patient_id, organization_id, event_type, title, reference_id, reference_type)
-         VALUES ($1, $2, $3, 'session_completed', 'Session completed', $4, 'session')`,
-        [uuidv4(), session.patient_id, orgId, id],
-      );
+      if (session.patient_id) {
+        await this.db.execute(
+          `INSERT INTO patient_timeline_events (id, patient_id, organization_id, event_type, title, reference_id, reference_type)
+           VALUES ($1, $2, $3, 'session_completed', 'Session completed', $4, 'session')`,
+          [uuidv4(), session.patient_id, orgId, id],
+        );
+      }
 
       // Fire billing hook — never blocks session completion
       this.billingService.onSessionCompleted({
@@ -252,6 +338,11 @@ export class SessionsService {
         organization_id: orgId,
         scheduled_at: session.scheduled_at,
       }).catch((e) => this.logger.error(`Billing hook error: ${e.message}`));
+
+      // Auto-generate AI output (SOAP notes, insights, treatment plan)
+      this.aiService.autoGenerateSessionOutput(id, orgId).catch(
+        (e) => this.logger.error(`Auto-generate failed for session ${id}: ${e.message}`),
+      );
     }
 
     const setClauses = Object.entries(updates)

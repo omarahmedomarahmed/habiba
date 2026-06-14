@@ -223,6 +223,12 @@ export const sessionsAPI = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  shareReport: (id: string, body: { email: string; note_id?: string }) =>
+    apiFetch<{ shared: boolean; email: string }>(`/sessions/${id}/share-report`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // ============================================================
@@ -259,8 +265,14 @@ export const aiAPI = {
       body: JSON.stringify({ message, mode: 'therapist', context }),
     }),
 
-  assistantChat: (body: { message: string; range?: 'today' | 'this_week' | 'last_week'; history?: Array<{ role: string; content: string }> }) =>
+  assistantChat: (body: { message: string; range?: 'today' | 'this_week' | 'last_week'; session_id?: string; patient_id?: string; history?: Array<{ role: string; content: string }> }) =>
     apiFetch<{ reply: string; credits_remaining: number | 'unlimited' } | { success: false; error: string; credits_balance: number; upsell: string }>("/ai/assistant/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  sessionChat: (sessionId: string, body: { message: string; history?: Array<{ role: string; content: string }> }) =>
+    apiFetch<{ reply: string; credits_remaining: number | 'unlimited' } | { success: false; error: string; upsell: string }>(`/ai/sessions/${sessionId}/chat`, {
       method: "POST",
       body: JSON.stringify(body),
     }),

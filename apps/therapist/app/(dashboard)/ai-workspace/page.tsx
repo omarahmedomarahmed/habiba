@@ -10,7 +10,7 @@ import {
   Edit3, Shield, ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { aiAPI, APIError } from "@/lib/api";
+import { aiAPI, sessionsAPI, patientsAPI, APIError } from "@/lib/api";
 
 interface ConversationMessage {
   id: string;
@@ -155,6 +155,23 @@ export default function AIWorkspacePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // Context selectors
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
+
+  useEffect(() => {
+    sessionsAPI.list({ limit: 20 }).then((res: any) => {
+      const list = (res as any)?.data?.sessions ?? (res as any)?.sessions ?? [];
+      setSessions(list);
+    }).catch(() => {});
+    patientsAPI.list({ limit: 30 }).then((res: any) => {
+      const list = (res as any)?.data ?? [];
+      setPatients(Array.isArray(list) ? list : []);
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -184,24 +201,21 @@ export default function AIWorkspacePage() {
     setIsLoading(true);
 
     try {
-      const context: Record<string, unknown> = {
-        mode: activeMode,
-        conversation_history: messages
-          .filter((m) => !m.loading && m.id !== "welcome")
-          .slice(-6)
-          .map((m) => ({ role: m.role, content: m.content })),
-      };
+      const history = messages
+        .filter((m) => !m.loading && m.id !== "welcome")
+        .slice(-6)
+        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-      const result = await aiAPI.aiChat(text, context);
+      const result = await aiAPI.assistantChat({
+        message: text,
+        history,
+        ...(selectedSessionId ? { session_id: selectedSessionId } : {}),
+        ...(selectedPatientId && !selectedSessionId ? { patient_id: selectedPatientId } : {}),
+      });
 
-      const responseText =
-        (result as { message?: string; content?: string; text?: string; response?: string })
-          .message ??
-        (result as { content?: string }).content ??
-        (result as { text?: string }).text ??
-        (result as { response?: string }).response ??
-        String(result);
+      const reply = (result as any)?.reply ?? String(result);
 
+      const responseText = reply;
       const structured = parseStructuredOutput(responseText, activeMode);
 
       const assistantMsg: ConversationMessage = {
@@ -303,6 +317,43 @@ export default function AIWorkspacePage() {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Context selectors */}
+        <div className="p-4 border-b border-gray-100">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-3">Context</p>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Session</label>
+              <select
+                value={selectedSessionId}
+                onChange={(e) => { setSelectedSessionId(e.target.value); if (e.target.value) setSelectedPatientId(""); }}
+                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-secondary/30"
+              >
+                <option value="">All sessions</option>
+                {sessions.map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.patient_name || "Unknown"} — {s.scheduled_at ? new Date(s.scheduled_at).toLocaleDateString() : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Patient</label>
+              <select
+                value={selectedPatientId}
+                onChange={(e) => { setSelectedPatientId(e.target.value); if (e.target.value) setSelectedSessionId(""); }}
+                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-secondary/30"
+              >
+                <option value="">All patients</option>
+                {patients.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {p.first_name} {p.last_name || ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

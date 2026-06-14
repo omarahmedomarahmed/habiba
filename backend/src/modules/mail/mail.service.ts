@@ -218,6 +218,64 @@ export class MailService {
     });
   }
 
+  async sendSessionReport(
+    to: string,
+    therapistName: string,
+    sessionDate: string,
+    content: {
+      session_summary?: string;
+      key_talking_points?: string[];
+      clinical_observations?: string;
+      treatment_recommendations?: string;
+      follow_up?: string;
+    },
+  ): Promise<void> {
+    const dateStr = new Date(sessionDate).toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    const talkingPointsHtml = (content.key_talking_points || []).length > 0
+      ? `<ul style="margin:8px 0 16px;padding-left:20px;color:#475569;">${(content.key_talking_points || []).map(p => `<li style="margin-bottom:6px;line-height:1.5;">${p}</li>`).join('')}</ul>`
+      : '';
+
+    const sectionsHtml = [
+      content.session_summary ? `<h3 style="margin:0 0 6px;font-size:14px;color:#0A2342;">Session Summary</h3><p style="margin:0 0 20px;color:#475569;line-height:1.6;">${content.session_summary}</p>` : '',
+      content.key_talking_points?.length ? `<h3 style="margin:0 0 6px;font-size:14px;color:#0A2342;">Key Topics Discussed</h3>${talkingPointsHtml}` : '',
+      content.treatment_recommendations ? `<h3 style="margin:0 0 6px;font-size:14px;color:#0A2342;">Recommendations</h3><p style="margin:0 0 20px;color:#475569;line-height:1.6;">${content.treatment_recommendations}</p>` : '',
+      content.follow_up ? `<h3 style="margin:0 0 6px;font-size:14px;color:#0A2342;">Next Steps</h3><p style="margin:0 0 20px;color:#475569;line-height:1.6;">${content.follow_up}</p>` : '',
+    ].filter(Boolean).join('');
+
+    await this.send({
+      to,
+      subject: `Your session summary from ${therapistName} — ${dateStr}`,
+      html: `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+        <tr><td style="background:linear-gradient(135deg,#0A2342,#1a3a6b);padding:32px;text-align:center;">
+          <span style="color:white;font-size:20px;font-weight:700;">24Therapy.ai</span>
+          <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:8px 0 0;">Session Report</p>
+        </td></tr>
+        <tr><td style="padding:32px 40px;">
+          <p style="margin:0 0 8px;color:#64748b;font-size:13px;">${dateStr}</p>
+          <h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#0A2342;">Your session with ${therapistName}</h1>
+          <p style="margin:0 0 28px;color:#64748b;font-size:14px;">Here is a summary of your session. This document is for your personal reference.</p>
+          <div style="border-top:1px solid #f1f5f9;padding-top:24px;">
+            ${sectionsHtml || '<p style="color:#94a3b8;font-size:14px;">Your therapist will share notes from this session shortly.</p>'}
+          </div>
+        </td></tr>
+        <tr><td style="padding:20px 40px;border-top:1px solid #f1f5f9;background:#f8fafc;text-align:center;">
+          <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6;">This summary was prepared by ${therapistName} and shared securely via 24Therapy.ai<br>HIPAA-compliant · End-to-end encrypted</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+    });
+  }
+
   private buildSimpleHtml(title: string, bodyHtml: string, cta: { label: string; url: string }): string {
     return `<!DOCTYPE html>
 <html>

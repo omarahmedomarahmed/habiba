@@ -84,7 +84,7 @@ This is a DRAFT for therapist review — never make final clinical decisions.`,
       ON CONFLICT DO NOTHING
       RETURNING *`,
       [
-        noteId, sessionId, session.patient_id, session.therapist_id, orgId,
+        noteId, sessionId, session.patient_id || null, session.therapist_id, orgId,
         format, JSON.stringify(structuredContent),
         Object.values(structuredContent).join('\n\n'),
         response.model_used, promptKey,
@@ -92,12 +92,13 @@ This is a DRAFT for therapist review — never make final clinical decisions.`,
       ],
     );
 
-    // Trigger async memory extraction
-    this.extractMemoriesAsync(sessionId, session.patient_id, session.therapist_id, orgId).catch(
+    // Trigger async memory extraction (only if patient is linked)
+    if (session.patient_id) this.extractMemoriesAsync(sessionId, session.patient_id, session.therapist_id, orgId).catch(
       (err) => this.logger.warn('Memory extraction failed:', err.message),
     );
 
     return { note: result[0] || { structured_content: structuredContent }, ai_metadata: response };
+
   }
 
   async generateSummary(sessionId: string, orgId: string, summaryType = 'brief') {
@@ -134,7 +135,7 @@ This is for therapist use only.`,
         id, session_id, patient_id, therapist_id, organization_id,
         summary_type, content, status
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,'draft') RETURNING *`,
-      [summaryId, sessionId, session.patient_id, session.therapist_id, orgId, summaryType, response.content],
+      [summaryId, sessionId, session.patient_id || null, session.therapist_id, orgId, summaryType, response.content],
     );
 
     return { summary: result[0] };
@@ -223,7 +224,7 @@ Provide clinical suggestions for the therapist.`,
       `SELECT s.*, th.user_id AS therapist_user_id, pt.user_id AS patient_user_id
        FROM sessions s
        JOIN therapists th ON th.id = s.therapist_id
-       JOIN patients   pt ON pt.id = s.patient_id
+       LEFT JOIN patients pt ON pt.id = s.patient_id
        WHERE s.id = $1 AND s.organization_id = $2`,
       [sessionId, orgId],
     );
@@ -512,6 +513,166 @@ Only extract clinically significant information. Max 10 memories.`,
     }
   }
 
+  // ─── Auto-generate after session ends ────────────────────────────────────
+
+  async autoGenerateSessionOutput(sessionId: string, orgId: string): Promise<void> {
+    const session = await this.db.queryOne<any>(
+      'SELECT * FROM sessions WHERE id = $1 AND organization_id = $2',
+      [sessionId, orgId],
+    );
+    if (!session) return;
+
+    const context = await this.contextBuilder.buildSessionContext(
+      sessionId, session.patient_id, session.therapist_id, orgId,
+    );
+    const contextText = this.contextBuilder.formatContextForPrompt(context);
+
+    const systemPrompt = `You are a clinical documentation AI for a mental health therapist.
+Analyze this therapy session and generate comprehensive structured output.
+Return valid JSON with these exact keys:
+{
+  "soap_note": { "subjective": "...", "objective": "...", "assessment": "...", "plan": "..." },
+  "session_summary": "2-3 sentence summary of the session",
+  "key_talking_points": ["point 1", "point 2", "point 3"],
+  "clinical_observations": "observations about patient presentation, affect, behavior",
+  "potential_diagnosis": "diagnostic impressions (NOT a formal diagnosis — therapist review required)",
+  "treatment_recommendations": "evidence-based recommendations for treatment",
+  "follow_up": "recommended follow-up timeframe (e.g. 'In 2 weeks')"
+}
+Keep it clinical, professional, and evidence-based. This is a draft for therapist review.`;
+
+    try {
+      const response = await this.modelGateway.complete({
+        task_type: 'soap_note',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: contextText },
+        ],
+        json_mode: true,
+        session_id: sessionId,
+        patient_id: session.patient_id,
+        organization_id: orgId,
+      });
+
+      let structuredContent: any;
+      try {
+        structuredContent = JSON.parse(response.content);
+      } catch {
+        structuredContent = { content: response.content };
+      }
+
+      const noteId = uuidv4();
+      await this.db.execute(
+        `INSERT INTO ai_session_notes (
+          id, session_id, patient_id, therapist_id, organization_id,
+          note_format, structured_content, raw_content, status,
+          ai_model_used, generation_latency_ms, token_count
+        ) VALUES ($1,$2,$3,$4,$5,'soap',$6,$7,'draft',$8,$9,$10)
+        ON CONFLICT DO NOTHING`,
+        [
+          noteId, sessionId, session.patient_id || null, session.therapist_id, orgId,
+          JSON.stringify(structuredContent),
+          structuredContent.session_summary || Object.values(structuredContent.soap_note || {}).join('\n\n'),
+          response.model_used,
+          response.latency_ms, response.input_tokens + response.output_tokens,
+        ],
+      );
+
+      // Save follow-up recommendation to session
+      if (structuredContent.follow_up) {
+        await this.db.execute(
+          `UPDATE sessions SET follow_up_recommendation = $1, ai_insights = $2, updated_at = NOW() WHERE id = $3`,
+          [
+            structuredContent.follow_up,
+            JSON.stringify({
+              key_talking_points: structuredContent.key_talking_points || [],
+              clinical_observations: structuredContent.clinical_observations || '',
+              potential_diagnosis: structuredContent.potential_diagnosis || '',
+              treatment_recommendations: structuredContent.treatment_recommendations || '',
+            }),
+            sessionId,
+          ],
+        );
+      }
+
+      this.logger.log(`Auto-generated session output for session ${sessionId}`);
+    } catch (err) {
+      this.logger.error(`autoGenerateSessionOutput failed for ${sessionId}: ${err.message}`);
+    }
+  }
+
+  // ─── Session-specific AI chat ─────────────────────────────────────────────
+
+  async sessionChat(
+    sessionId: string,
+    therapistId: string,
+    orgId: string,
+    message: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  ): Promise<{ reply: string; credits_remaining: number | 'unlimited' }> {
+    const therapist = await this.db.queryOne<{ current_plan_key: string }>(
+      `SELECT current_plan_key FROM therapists WHERE id = $1`,
+      [therapistId],
+    );
+    const planKey = therapist?.current_plan_key || 'pay_per_session';
+    const isPaidPlan = ['starter', 'pro', 'practice', 'enterprise'].includes(planKey);
+
+    let creditsRemaining: number | 'unlimited' = 'unlimited';
+    if (!isPaidPlan) {
+      const updated = await this.db.queryOne<{ balance: number }>(
+        `UPDATE ai_assistant_credits SET balance = balance - 1, updated_at = NOW()
+         WHERE therapist_id = $1 AND balance > 0 RETURNING balance`,
+        [therapistId],
+      );
+      if (!updated) {
+        throw Object.assign(
+          new Error('CREDITS_EXHAUSTED'),
+          { credits_balance: 0, upsell: 'Upgrade to Starter ($59/mo) for unlimited messages.' },
+        );
+      }
+      creditsRemaining = updated.balance;
+    }
+
+    const session = await this.db.queryOne<any>(
+      `SELECT s.*, p.first_name AS patient_first_name, p.last_name AS patient_last_name
+       FROM sessions s LEFT JOIN patients p ON p.id = s.patient_id
+       WHERE s.id = $1 AND s.organization_id = $2`,
+      [sessionId, orgId],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+
+    const context = await this.contextBuilder.buildSessionContext(
+      sessionId, session.patient_id, therapistId, orgId,
+    );
+    const contextText = this.contextBuilder.formatContextForPrompt(context);
+    const patientName = session.patient_first_name
+      ? `${session.patient_first_name} ${session.patient_last_name || ''}`.trim()
+      : 'the patient';
+
+    const systemPrompt = `You are a clinical AI assistant helping a therapist reflect on a specific session.
+Session context: Session with ${patientName} on ${session.scheduled_at ? new Date(session.scheduled_at).toLocaleDateString() : 'an unknown date'}.
+${contextText}
+Answer questions about this session, the transcript, and clinical insights.
+Be concise, evidence-based, and always recommend therapist review for clinical decisions.`;
+
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: systemPrompt },
+      ...(history || []).slice(-6).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+      { role: 'user', content: message },
+    ];
+
+    const result = await this.modelGateway.complete({
+      task_type: 'assistant',
+      messages,
+      max_tokens: 600,
+      therapist_id: therapistId,
+      session_id: sessionId,
+      organization_id: orgId,
+    } as any);
+
+    return { reply: result.content, credits_remaining: creditsRemaining };
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // PUBLIC — Anonymous AI chat (marketing site free trial)
   // No auth, no PHI stored, no DB writes. Crisis detection always active.
@@ -653,6 +814,8 @@ At the end of your response you may naturally (not forcefully) mention that a li
     message: string,
     range: 'today' | 'this_week' | 'last_week' | undefined,
     history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    sessionId?: string,
+    patientId?: string,
   ): Promise<{ reply: string; credits_remaining: number | 'unlimited' }> {
     // Verify credits (PAYG) or plan (paid)
     const therapist = await this.db.queryOne<{ current_plan_key: string }>(
@@ -721,6 +884,29 @@ At the end of your response you may naturally (not forcefully) mention that a li
       ].filter(Boolean).join('\n');
     }).join('\n\n');
 
+    // Build optional session/patient specific context
+    let specificContext = '';
+    if (sessionId) {
+      const specificSession = await this.db.queryOne<any>(
+        `SELECT s.*, p.first_name AS patient_first_name, p.last_name AS patient_last_name
+         FROM sessions s LEFT JOIN patients p ON p.id = s.patient_id
+         WHERE s.id = $1 AND s.organization_id = $2`,
+        [sessionId, orgId],
+      );
+      if (specificSession) {
+        const ctx = await this.contextBuilder.buildSessionContext(sessionId, specificSession.patient_id, therapistId, orgId);
+        specificContext = `\n\nFOCUS SESSION:\n${this.contextBuilder.formatContextForPrompt(ctx)}`;
+      }
+    } else if (patientId) {
+      const patient = await this.db.queryOne<any>(
+        `SELECT first_name, last_name FROM patients WHERE id = $1 AND organization_id = $2`,
+        [patientId, orgId],
+      );
+      if (patient) {
+        specificContext = `\n\nFOCUS PATIENT: ${patient.first_name} ${patient.last_name || ''} (${patientId})`;
+      }
+    }
+
     const rangeLabel = range === 'today' ? 'today' : range === 'this_week' ? 'this week' : range === 'last_week' ? 'last week' : 'recent sessions';
     const systemPrompt = [
       `You are a practice assistant for a licensed therapist. You have access to their ${rangeLabel} session data.`,
@@ -731,6 +917,7 @@ At the end of your response you may naturally (not forcefully) mention that a li
       sessions.length > 0
         ? `\n\nSESSION DATA:\n${contextLines}`
         : `\n\nNo sessions found for ${rangeLabel}.`,
+      specificContext,
     ].join('\n');
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [

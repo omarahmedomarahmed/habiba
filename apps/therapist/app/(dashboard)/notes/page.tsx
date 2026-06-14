@@ -276,7 +276,7 @@ export default function NotesPage() {
             const status = STATUS_CONFIG[note.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft;
             const StatusIcon = status.icon;
             return (
-              <Link key={note.id} href={`/sessions/${note.id}/notes`}>
+              <Link key={note.id} href={`/notes/${note.id}`}>
                 <div className={cn(
                   "card p-5 hover:shadow-card-hover transition-all cursor-pointer group",
                   note.risk_flag && "border-l-4 border-l-red-500"

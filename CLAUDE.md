@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-14 (session 20 — MVP hardening: instant therapist access, Google Meet sessions, 500 fixes) |
+| **Last Updated** | 2026-06-14 (session 21 — offline sessions, auto-generate AI output, patient email reports, mobile UX, doc overhaul) |
 
 ---
 
@@ -391,6 +391,28 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [ ] Redis Bull queue for email + notifications (replace fire-and-forget)
 - [ ] nestjs-pino structured logging + log drain (Logtail/Axiom)
 - [ ] Session recording S3/R2 archive (migration 026, 7-year HIPAA retention)
+
+### Session 21 additions (complete)
+- [x] migration 030: patient_id nullable in sessions/transcripts/transcript_segments/ai_session_notes; add patient_email, patient_name_guest, follow_up_recommendation, ai_insights, auto_generate_note to sessions
+- [x] sessions.service: findOrCreateGuestPatient() private helper — auto-creates guest patient for offline sessions
+- [x] sessions.service: create() handles modality='in_person', patient_name, patient_email, auto_start flag
+- [x] sessions.service: updateStatus() fixed — null patient_id in transcript creation; guard timeline event; trigger autoGenerateSessionOutput on complete
+- [x] sessions.service: shareReportWithPatient() — HIPAA-logged report sharing with email
+- [x] sessions.controller: POST /sessions/:id/share-report
+- [x] ai.service: autoGenerateSessionOutput() — full SOAP + key talking points + clinical observations + diagnosis + recommendations + follow_up on session end
+- [x] ai.service: sessionChat() — session-specific AI chat with credit gating
+- [x] ai.service: assistantChat() enhanced with session_id/patient_id context params
+- [x] ai.service: null patient_id fixes — generateSOAPNote, generateSummary, detectRisk (LEFT JOIN), extractMemoriesAsync guard
+- [x] ai.controller: POST /ai/sessions/:id/chat; assistantChat accepts session_id/patient_id
+- [x] mail.service: sendSessionReport() — formatted patient report email via Resend
+- [x] sessions/new/page.tsx: Online/Offline mode toggle — in-person starts immediately, auto-creates guest patient
+- [x] notes/page.tsx: Fixed broken link line 279 → /notes/${note.id}
+- [x] dashboard/page.tsx: Mobile FAB (fixed bottom-right, md:hidden) → /sessions/new
+- [x] ai-workspace/page.tsx: Session/patient context pickers + uses assistantChat() with context
+- [x] lib/api.ts: sessionsAPI.shareReport(), aiAPI.sessionChat(), aiAPI.assistantChat() with session_id/patient_id
+- [x] COMPETITIVE_INTELLIGENCE.md, AUDIT_REPORT.md, DEV_HANDOVER.md: DELETED (outdated)
+- [x] docs/PRODUCT_MVP.md: CREATED — definitive go-to-market product specification
+- [x] CLAUDE.md: Updated with session 21 history
 
 ### Session 20 additions (complete)
 - [x] Backend 500 fix: therapists.service tpa.deleted_at → tpa.ended_at
