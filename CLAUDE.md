@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-13 (session 18 — Phase 1+2+3+4 production-readiness hardening) |
+| **Last Updated** | 2026-06-14 (session 19 — Railway deploy fix + migration consolidation 001-016) |
 
 ---
 
@@ -42,7 +42,7 @@ apps/admin         → Admin portal        :3003  (Next.js 15)
 backend            → NestJS REST API     :4000
 packages/types     → @24therapy/types (shared TS types)
 packages/config    → @24therapy/config (shared URL constants)
-migrations/        → 15 ordered SQL files (001–015)
+migrations/        → 16 ordered SQL files (001–016, consolidated)
 scripts/           → migrate.js, seed.js
 ops/               → DEPLOYMENT.md, RUNBOOK.md
 docs/              → HIPAA_CHECKLIST.md
@@ -125,7 +125,7 @@ docs/              → HIPAA_CHECKLIST.md
 | `apps/*/lib/api.ts` | Per-app API clients with token refresh |
 | `apps/*/lib/store.ts` | Zustand auth + UI stores (sets `tt_auth` cookie) |
 | `apps/*/middleware.ts` | Edge auth redirect using `tt_auth=1` cookie |
-| `migrations/` | 001–019 SQL files, run in order |
+| `migrations/` | 001–016 consolidated SQL files — complete schema from scratch, run in order |
 | `apps/web/components/product/ProductPageLayout.tsx` | Reusable product page template (hero, stats, features grid, CTA) |
 | `scripts/migrate.js` | Migration runner (pg_advisory_lock, checksums, --dry-run) |
 | `scripts/seed.js` | Idempotent org+super-admin seeder (SEED_* env vars) |
@@ -195,6 +195,26 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 | `apps/therapist` | Vercel | `apps/therapist/vercel.json` |
 | `apps/patient` | Vercel | `apps/patient/vercel.json` |
 | `apps/admin` | Vercel | `apps/admin/vercel.json` |
+
+---
+
+## Commit History (Session 19)
+
+| Hash | Message |
+|------|---------|
+| `74a93bc` | fix(railway): single-stage Dockerfile — eliminates cross-stage COPY failures |
+| `3ed21d2` | fix(deploy): invoke tsc directly — bypass pnpm filter silent-exit bug |
+| `56b6aef` | fix(deploy): correct compiled output path — dist/backend/src/main.js |
+| `c25b9fe` | fix(billing): getPlans returns [] instead of 500 on DB error |
+| `e70183e` | feat(migrations): consolidated schema files 001-010 (WIP) |
+| `bb58251` | feat(migrations): complete consolidated schema 009-016 + seed data |
+
+### Session 19 changes
+- Railway deploy fully fixed: single-stage Dockerfile, direct TSC invocation, `rootDir: ".."` in tsconfig
+- All 28 old migration files replaced with 16 clean consolidated files (001-016)
+- `016_seed_data.sql`: all default data in one idempotent file
+- SETUP_GUIDE.md: updated to 16-file migration table, removed manual extension setup step
+- ops/DEPLOYMENT.md: updated migration reference
 
 ---
 

@@ -37,7 +37,7 @@ pnpm install
 ### 2. Database
 
 ```bash
-# Run all migrations (001–028) — paste your Neon connection string
+# Run all 16 migrations — paste your Neon connection string
 DATABASE_URL=postgres://... node scripts/migrate.js
 
 # Seed super-admin (run once)

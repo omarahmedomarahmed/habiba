@@ -86,28 +86,18 @@ postgresql://neondb_owner:AbcXyz123@ep-abc-123.us-east-2.aws.neon.tech/neondb?ss
 
 > If you closed the popup: click **Dashboard** → your project → **Connection Details** → select **Connection string** from the dropdown.
 
-### 2c. Enable required database features
+### 2c. No manual extension setup needed
 
-1. In your Neon project, look at the left sidebar
-2. Click **SQL Editor**
-3. In the blank editor area, paste this exactly:
-```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-4. Click the **Run** button (or press Ctrl+Enter / Cmd+Enter)
-5. You should see two green "Success" messages
-
-> ⚠️ If you see "extension already exists" — that's fine, keep going.
+Extensions (uuid-ossp, pgcrypto, pgvector, pg_trgm) are automatically enabled by `001_extensions.sql` in Step 2d below — you don't need to run any SQL before that.
 
 ### 2d. Run the database migrations
 
-Migrations are SQL scripts that create all the tables your app needs. You must run all 16 of them, in order.
+Migrations are SQL scripts that create all the tables your app needs. There are exactly **16 files** to run, in order. Each file is a clean, complete schema section — no patches or fixes needed.
 
 **How to do each one:**
 1. Go to your GitHub fork: `https://github.com/YOUR-USERNAME/habiba`
 2. Click the **migrations** folder
-3. Click the file name (e.g., `001_core_schema.sql`)
+3. Click the file name (e.g., `001_extensions.sql`)
 4. Click the **Raw** button (top-right of the file view)
 5. Press **Ctrl+A** (or Cmd+A on Mac) to select all, then **Ctrl+C** to copy
 6. Go back to **Neon → SQL Editor**
@@ -117,41 +107,29 @@ Migrations are SQL scripts that create all the tables your app needs. You must r
 
 Run them in this exact order:
 
-| Order | File | Notes |
-|-------|------|-------|
-| 1 | `001_core_schema.sql` | Core tables — users, organizations |
-| 2 | `002_therapists_schema.sql` | Therapist profiles |
-| 3 | `003_patients_schema.sql` | Patient records |
-| 4 | `004_clinical_schema.sql` | Clinical data |
-| 5 | `005_medications_schema.sql` | Medication tracking |
-| 6 | `006_sessions_schema.sql` | Therapy sessions |
-| 7 | `007_ai_schema.sql` | AI memory + risk data |
-| 8 | `008_assessments_schema.sql` | PHQ-9, GAD-7 etc. |
-| 9 | `009_radar_schema.sql` | Instant matching |
-| 10 | `010_billing_schema.sql` | Subscriptions + invoices |
-| 11 | `011_notifications_schema.sql` | Alerts + push notifications |
-| 12 | `012_audit_compliance_schema.sql` | HIPAA audit trail |
-| 13 | `013_marketplace_schema.sql` | Therapist directory |
-| 14 | `014_analytics_schema.sql` | Platform analytics |
-| 15 | `015_pricing_management.sql` | Pricing plans |
-| 16 | `016_schema_fixes.sql` | **Required fixes — don't skip this one** |
-| 17 | `017_freemium_pricing.sql` | Freemium plan enhancements |
-| 18 | `018_messaging_crisis.sql` | Messaging + crisis tables |
-| 19 | `019_pricing_display_metadata.sql` | Pricing display metadata |
-| 20 | `020_monetization.sql` | Billing engine, session charges, AI credits |
-| 21 | `021_workflows_referrals.sql` | Clinical workflows, tasks, referrals |
-| 22 | `022_indexes.sql` | Performance indexes for FK relationships |
-| 23 | `023_fix_pricing_audit_log.sql` | Pricing audit log column fix |
-| 24 | `024_notification_queue_lock_timeout.sql` | Notification lock auto-release |
-| 25 | `025_feature_flags.sql` | Feature flag system |
-| 26 | `027_message_encryption.sql` | Message encryption column |
-| 27 | `028_break_glass.sql` | HIPAA emergency access log |
+| Order | File | What it creates |
+|-------|------|----------------|
+| 1 | `001_extensions.sql` | uuid-ossp, pgcrypto, vector (pgvector), pg_trgm, shared trigger function |
+| 2 | `002_core.sql` | Organizations, users, permissions, refresh tokens, SSO |
+| 3 | `003_therapists.sql` | Therapist profiles, credentials, availability, specializations |
+| 4 | `004_patients.sql` | Patients, profiles, assignments, consents, journal, mood, goals |
+| 5 | `005_medications.sql` | Medication catalog, patient prescriptions, adherence logs |
+| 6 | `006_sessions.sql` | Sessions, participants, notes, transcripts, recordings, reports |
+| 7 | `007_clinical.sql` | Diagnoses, risk assessments, treatment plans, assessments (PHQ-9, GAD-7) |
+| 8 | `008_ai.sql` | AI notes, session intelligence, patient memory (pgvector), prompt registry |
+| 9 | `009_messaging.sql` | Conversations, messages (encrypted), notifications, push devices |
+| 10 | `010_billing.sql` | Subscription plans, subscriptions, invoices, payments, Stripe integration |
+| 11 | `011_marketplace.sql` | Therapist directory, reviews, search, marketplace analytics |
+| 12 | `012_analytics.sql` | Partitioned event tables (2025–2027), platform + therapist metrics |
+| 13 | `013_audit_compliance.sql` | HIPAA audit log (RLS), PHI access log, BAA records, data subject requests |
+| 14 | `014_radar.sql` | Real-time therapist matching engine |
+| 15 | `015_workflows.sql` | Clinical workflows, tasks, referrals, feature flags, break-glass access |
+| 16 | `016_seed_data.sql` | **All default data** — plans, specializations, medications, assessment templates, AI models, feature flags |
 
-> ⚠️ **"relation already exists" errors are normal.** Just continue to the next file.
-> ⚠️ **Do NOT skip 016_schema_fixes.sql.** It fixes critical bugs.
-> ℹ️ There is no file `026_recording_archive.sql` — skip that number, it's not implemented yet.
+> ⚠️ **"extension already exists" messages are normal** — just continue to the next file.
+> ℹ️ Each file is fully idempotent — safe to re-run if something interrupted.
 
-> ✅ **Done when:** All 27 files have been run without red errors.
+> ✅ **Done when:** All 16 files have been run without red error messages.
 
 ---
 
@@ -258,13 +236,13 @@ ADMIN_APP_URL=https://admin.24therapy.ai
 4. You'll see a key already there — click the copy button next to it
 5. Paste as `DAILY_API_KEY`
 
-### 3d. Set the start command
+### 3d. Start command (already configured)
 
-1. Click **Settings** tab on your Railway service
-2. Find **Start Command** and set it to:
-   ```
-   node dist/main.js
-   ```
+Railway uses the `railway.json` file in the repo, which already sets the correct start command:
+```
+node backend/dist/backend/src/main.js
+```
+You do **not** need to set this manually — it's read directly from the repository.
 
 ### 3e. Deploy and verify
 
