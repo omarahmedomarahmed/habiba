@@ -14,11 +14,11 @@ RUN pnpm install --frozen-lockfile --filter=@24therapy/api...
 COPY . .
 RUN cd backend && node ../node_modules/.bin/tsc -p tsconfig.json
 
-# Fail the BUILD (not runtime) if dist/main.js was not produced
-RUN test -f /app/backend/dist/main.js || (echo "❌ TypeScript build failed — /app/backend/dist/main.js not found" && exit 1)
+# Fail the BUILD (not runtime) if main.js was not produced
+RUN test -f /app/backend/dist/backend/src/main.js || (echo "❌ TypeScript build failed — dist/backend/src/main.js not found" && exit 1)
 
 ENV NODE_ENV=production
 EXPOSE 4000
-CMD ["node", "backend/dist/main.js"]
+CMD ["node", "backend/dist/backend/src/main.js"]
 
 # Reviewed: 2026-06-14 — 24Therapy audit
