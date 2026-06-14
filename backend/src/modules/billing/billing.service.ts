@@ -608,9 +608,14 @@ export class BillingService {
   // ============================================================
 
   async getPlans() {
-    return this.db.query(
-      `SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY display_order ASC, monthly_price_usd ASC`
-    );
+    try {
+      return await this.db.query(
+        `SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY display_order ASC, monthly_price_usd ASC NULLS LAST`
+      );
+    } catch {
+      this.logger.warn('subscription_plans query failed — table may be missing or schema incomplete');
+      return [];
+    }
   }
 
   async getAllPlans() {
