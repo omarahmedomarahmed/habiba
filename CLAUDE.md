@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-14 (session 22 — session monetization, Calendly-style booking, therapist wallet, mobile revamp) |
+| **Last Updated** | 2026-06-14 (session 23 — build fix, booking flow completion, website MVP scope, availability UI) |
 
 ---
 
@@ -391,6 +391,19 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [ ] Redis Bull queue for email + notifications (replace fire-and-forget)
 - [ ] nestjs-pino structured logging + log drain (Logtail/Axiom)
 - [ ] Session recording S3/R2 archive (migration 026, 7-year HIPAA retention)
+
+### Session 23 additions (complete)
+- [x] fix(build): wrap useSearchParams in Suspense in join/[token]/page.tsx, t/[slug]/confirmed/page.tsx, settings/page.tsx — resolves Vercel "build worker exited with code 1"
+- [x] billing.service.ts _confirmBookingSession(): create Daily.co video room before INSERT so video_room_url is never NULL; fetch therapist email and fire sendTherapistBookingAlert()
+- [x] mail.service.ts: add sendTherapistBookingAlert() with HTML template (patient name, date/time, earnings)
+- [x] apps/web/app/chat/page.tsx: notFound() — route hidden from MVP, file preserved
+- [x] apps/web/components/layout/navbar.tsx: remove "Try AI Free" → /chat buttons (desktop + mobile)
+- [x] apps/web/components/sections/hero.tsx: replace interactive chat widget with static AI Scribe demo card (transcript + SOAP + copilot insight); hero copy now therapist-focused
+- [x] apps/web/components/sections/cta.tsx: remove "Try AI Free" button + unused MessageSquare import
+- [x] apps/web/app/find-therapist/page.tsx: Book Now → /t/${public_slug} with /signup fallback; public_slug field added to Therapist interface and API mapping
+- [x] marketplace.service.ts: augment search results with therapists.public_slug via secondary query (returned as public_slug on each result)
+- [x] settings/page.tsx: add "Availability" tab with weekly schedule UI (day toggles, time pickers, save via PUT /therapists/me/availability) + timezone selector
+- [x] sessions.service.ts findAll() + findOne(): COALESCE patient_name from patient row → patient_name_guest → patient_email → 'Guest Patient' so Calendly bookings show meaningful names
 
 ### Session 22 additions (complete)
 - [x] migration 031: session price gate columns, offline bill tracking, therapist_wallet, wallet_transactions, payout_requests, therapist_booking_offerings, booking_sessions tables; fixes session_fees alias columns + organizations.stripe_customer_id
