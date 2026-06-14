@@ -229,16 +229,21 @@ function TherapistSettingsInner() {
 
   // Profile state
   const [profile, setProfile] = useState({
-    first_name: "Sarah", last_name: "Chen", email: "sarah.chen@mindfulpractice.com",
-    phone: "+1 (555) 234-5678", title: "Dr.", credentials: "PsyD",
-    license_number: "PSY-12345", license_state: "CA", license_expiry: "2026-06-30",
-    bio: "Licensed psychologist specializing in anxiety, trauma, and OCD. 12 years experience with adults and adolescents using evidence-based approaches including CBT, EMDR, and ACT.",
-    specializations: ["Anxiety", "Trauma/PTSD", "OCD", "Depression", "Relationship Issues"],
-    languages: ["English", "Mandarin"],
-    timezone: "America/Los_Angeles",
-    session_fee: "200",
-    sliding_scale: true,
+    first_name: "", last_name: "", email: "",
+    phone: "", title: "", credentials: "",
+    display_name: "",
+    license_number: "", license_state: "", license_expiry: "",
+    years_experience: "",
+    location: "",
+    bio: "",
+    specializations: [] as string[],
+    languages: [] as string[],
+    timezone: "America/New_York",
+    session_fee: "",
+    sliding_scale: false,
   });
+  const [specialtyInput, setSpecialtyInput] = useState("");
+  const [languageInput, setLanguageInput] = useState("");
 
   // AI preferences
   const [aiPrefs, setAiPrefs] = useState({
@@ -280,7 +285,8 @@ function TherapistSettingsInner() {
 
   // Load real profile on mount
   useEffect(() => {
-    therapistsAPI.me().then((data: any) => {
+    therapistsAPI.me().then((raw: any) => {
+      const data = raw?.data?.therapist ?? raw?.data ?? raw;
       if (data) {
         setProfile((prev) => ({
           ...prev,
@@ -288,10 +294,18 @@ function TherapistSettingsInner() {
           last_name: data.last_name || prev.last_name,
           email: data.email || prev.email,
           phone: data.phone || prev.phone,
+          display_name: data.display_name || prev.display_name,
           bio: data.bio || prev.bio,
           license_number: data.license_number || prev.license_number,
           license_state: data.license_state || prev.license_state,
+          years_experience: data.years_experience != null ? String(data.years_experience) : prev.years_experience,
+          location: data.location || data.city || prev.location,
+          specializations: Array.isArray(data.specializations) && data.specializations.length
+            ? data.specializations
+            : (Array.isArray(data.specialties) ? data.specialties : prev.specializations),
+          languages: Array.isArray(data.languages) && data.languages.length ? data.languages : prev.languages,
         }));
+        if (data.public_slug || data.booking_slug) setSlug(data.public_slug || data.booking_slug);
       }
     }).catch(() => {});
   }, []);
@@ -300,9 +314,14 @@ function TherapistSettingsInner() {
     setSaving(true);
     try {
       await therapistsAPI.updateProfile({
+        display_name: profile.display_name || `${profile.first_name} ${profile.last_name}`.trim(),
         bio: profile.bio,
         license_number: profile.license_number,
         license_state: profile.license_state,
+        years_experience: profile.years_experience ? parseInt(profile.years_experience) : undefined,
+        location: profile.location,
+        specializations: profile.specializations,
+        languages: profile.languages,
         accepting_new_patients: true,
       });
     } catch {
@@ -312,6 +331,15 @@ function TherapistSettingsInner() {
     }
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 3000);
+  };
+
+  const addTag = (key: "specializations" | "languages", value: string) => {
+    const v = value.trim();
+    if (!v) return;
+    setProfile((prev) => prev[key].includes(v) ? prev : { ...prev, [key]: [...prev[key], v] });
+  };
+  const removeTag = (key: "specializations" | "languages", value: string) => {
+    setProfile((prev) => ({ ...prev, [key]: prev[key].filter((x) => x !== value) }));
   };
 
   const handleCopyApiKey = () => {
@@ -381,7 +409,9 @@ function TherapistSettingsInner() {
                   <div className="flex items-start gap-6 mb-6">
                     <div className="relative flex-shrink-0">
                       <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0A2342] to-[#2EC4B6] flex items-center justify-center">
-                        <span className="text-white font-bold text-xl">SC</span>
+                        <span className="text-white font-bold text-xl">
+                          {`${(profile.first_name || "").charAt(0)}${(profile.last_name || "").charAt(0)}`.toUpperCase() || "?"}
+                        </span>
                       </div>
                       <button className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:border-[#2EC4B6]">
                         <Camera className="w-3.5 h-3.5 text-gray-600" />
@@ -424,6 +454,15 @@ function TherapistSettingsInner() {
                           <input
                             value={profile.last_name}
                             onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
+                            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Display Name <span className="text-gray-400">(shown on your public profile)</span></label>
+                          <input
+                            value={profile.display_name}
+                            onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+                            placeholder="e.g. Dr. Sarah Chen, PsyD"
                             className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
                           />
                         </div>
@@ -473,6 +512,8 @@ function TherapistSettingsInner() {
                       { label: "License Number", key: "license_number" },
                       { label: "License State", key: "license_state" },
                       { label: "Expiry Date", key: "license_expiry", type: "date" },
+                      { label: "Years of Experience", key: "years_experience", type: "number" },
+                      { label: "Location / City", key: "location" },
                     ].map((field) => (
                       <div key={field.key}>
                         <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
@@ -513,7 +554,49 @@ function TherapistSettingsInner() {
                         </button>
                       </span>
                     ))}
-                    <button className="flex items-center gap-1 border border-dashed border-gray-300 text-gray-400 px-3 py-1 rounded-full text-sm hover:border-[#2EC4B6] hover:text-[#2EC4B6]">
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={specialtyInput}
+                      onChange={(e) => setSpecialtyInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag("specializations", specialtyInput); setSpecialtyInput(""); } }}
+                      placeholder="Add a specialty and press Enter"
+                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { addTag("specializations", specialtyInput); setSpecialtyInput(""); }}
+                      className="flex items-center gap-1 border border-gray-300 text-gray-600 px-3 py-2 rounded-xl text-sm hover:border-[#2EC4B6] hover:text-[#2EC4B6]"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add
+                    </button>
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Languages Spoken" description="Shown on your public profile and booking page">
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {profile.languages.map((l) => (
+                      <span key={l} className="flex items-center gap-1.5 bg-[#2EC4B6]/10 text-[#0A2342] px-3 py-1 rounded-full text-sm">
+                        {l}
+                        <button onClick={() => removeTag("languages", l)} className="hover:text-red-500">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={languageInput}
+                      onChange={(e) => setLanguageInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag("languages", languageInput); setLanguageInput(""); } }}
+                      placeholder="Add a language and press Enter"
+                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { addTag("languages", languageInput); setLanguageInput(""); }}
+                      className="flex items-center gap-1 border border-gray-300 text-gray-600 px-3 py-2 rounded-xl text-sm hover:border-[#2EC4B6] hover:text-[#2EC4B6]"
+                    >
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>
                   </div>
