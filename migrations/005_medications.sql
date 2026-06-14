@@ -6,7 +6,7 @@
 -- ------------------------------------------------------------
 -- medications (global reference catalogue)
 -- ------------------------------------------------------------
-CREATE TABLE medications (
+CREATE TABLE IF NOT EXISTS medications (
   id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name                 VARCHAR(255) NOT NULL,
   generic_name         VARCHAR(255),
@@ -25,18 +25,18 @@ CREATE TABLE medications (
   updated_at           TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_medications_name_fts
+CREATE INDEX IF NOT EXISTS idx_medications_name_fts
   ON medications USING GIN (to_tsvector('english', name));
-CREATE INDEX idx_medications_classification ON medications (classification);
+CREATE INDEX IF NOT EXISTS idx_medications_classification ON medications (classification);
 
-CREATE TRIGGER trg_medications_updated_at
+CREATE OR REPLACE TRIGGER trg_medications_updated_at
   BEFORE UPDATE ON medications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- patient_medications
 -- ------------------------------------------------------------
-CREATE TABLE patient_medications (
+CREATE TABLE IF NOT EXISTS patient_medications (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id          UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   medication_id       UUID REFERENCES medications(id) ON DELETE SET NULL,
@@ -66,18 +66,18 @@ CREATE TABLE patient_medications (
   )
 );
 
-CREATE INDEX idx_patient_medications_patient_id     ON patient_medications (patient_id);
-CREATE INDEX idx_patient_medications_status_patient ON patient_medications (status, patient_id);
-CREATE INDEX idx_patient_medications_medication_id  ON patient_medications (medication_id);
+CREATE INDEX IF NOT EXISTS idx_patient_medications_patient_id     ON patient_medications (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_medications_status_patient ON patient_medications (status, patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_medications_medication_id  ON patient_medications (medication_id);
 
-CREATE TRIGGER trg_patient_medications_updated_at
+CREATE OR REPLACE TRIGGER trg_patient_medications_updated_at
   BEFORE UPDATE ON patient_medications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- patient_medication_history
 -- ------------------------------------------------------------
-CREATE TABLE patient_medication_history (
+CREATE TABLE IF NOT EXISTS patient_medication_history (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_medication_id UUID         NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
   patient_id            UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -94,13 +94,13 @@ CREATE TABLE patient_medication_history (
   notes                 TEXT
 );
 
-CREATE INDEX idx_patient_med_history_med_id  ON patient_medication_history (patient_medication_id);
-CREATE INDEX idx_patient_med_history_patient ON patient_medication_history (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_med_history_med_id  ON patient_medication_history (patient_medication_id);
+CREATE INDEX IF NOT EXISTS idx_patient_med_history_patient ON patient_medication_history (patient_id);
 
 -- ------------------------------------------------------------
 -- medication_adherence_logs
 -- ------------------------------------------------------------
-CREATE TABLE medication_adherence_logs (
+CREATE TABLE IF NOT EXISTS medication_adherence_logs (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_medication_id UUID        NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
   patient_id            UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -113,5 +113,5 @@ CREATE TABLE medication_adherence_logs (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_adherence_logs_med_id       ON medication_adherence_logs (patient_medication_id);
-CREATE INDEX idx_adherence_logs_patient_date ON medication_adherence_logs (patient_id, logged_date DESC);
+CREATE INDEX IF NOT EXISTS idx_adherence_logs_med_id       ON medication_adherence_logs (patient_medication_id);
+CREATE INDEX IF NOT EXISTS idx_adherence_logs_patient_date ON medication_adherence_logs (patient_id, logged_date DESC);

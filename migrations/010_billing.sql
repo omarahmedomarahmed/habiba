@@ -7,7 +7,7 @@
 -- ------------------------------------------------------------
 -- subscription_plans
 -- ------------------------------------------------------------
-CREATE TABLE subscription_plans (
+CREATE TABLE IF NOT EXISTS subscription_plans (
   id                      UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   plan_key                VARCHAR(50)   NOT NULL,
   name                    VARCHAR(100)  NOT NULL,
@@ -46,14 +46,14 @@ CREATE TABLE subscription_plans (
   CONSTRAINT subscription_plans_key UNIQUE (plan_key)
 );
 
-CREATE TRIGGER trg_subscription_plans_updated_at
+CREATE OR REPLACE TRIGGER trg_subscription_plans_updated_at
   BEFORE UPDATE ON subscription_plans
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- subscriptions
 -- ------------------------------------------------------------
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id        UUID        NOT NULL REFERENCES organizations(id),
   plan_id                UUID        NOT NULL REFERENCES subscription_plans(id),
@@ -74,18 +74,18 @@ CREATE TABLE subscriptions (
   CONSTRAINT subscriptions_stripe_sub_unique UNIQUE (stripe_subscription_id)
 );
 
-CREATE INDEX idx_subscriptions_organization_id ON subscriptions (organization_id);
-CREATE INDEX idx_subscriptions_status          ON subscriptions (status);
-CREATE INDEX idx_subscriptions_stripe_sub_id   ON subscriptions (stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_organization_id ON subscriptions (organization_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status          ON subscriptions (status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_sub_id   ON subscriptions (stripe_subscription_id);
 
-CREATE TRIGGER trg_subscriptions_updated_at
+CREATE OR REPLACE TRIGGER trg_subscriptions_updated_at
   BEFORE UPDATE ON subscriptions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- subscription_history
 -- ------------------------------------------------------------
-CREATE TABLE subscription_history (
+CREATE TABLE IF NOT EXISTS subscription_history (
   id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   subscription_id UUID        NOT NULL REFERENCES subscriptions(id),
   from_plan_id    UUID        REFERENCES subscription_plans(id),
@@ -100,7 +100,7 @@ CREATE TABLE subscription_history (
 -- ------------------------------------------------------------
 -- invoices
 -- ------------------------------------------------------------
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
   id              UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID          NOT NULL REFERENCES organizations(id),
   patient_id      UUID          REFERENCES patients(id),
@@ -126,18 +126,18 @@ CREATE TABLE invoices (
   CONSTRAINT invoices_stripe_id_unique UNIQUE (stripe_invoice_id)
 );
 
-CREATE INDEX idx_invoices_organization_id ON invoices (organization_id);
-CREATE INDEX idx_invoices_patient_id      ON invoices (patient_id);
-CREATE INDEX idx_invoices_status          ON invoices (status);
+CREATE INDEX IF NOT EXISTS idx_invoices_organization_id ON invoices (organization_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_patient_id      ON invoices (patient_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status          ON invoices (status);
 
-CREATE TRIGGER trg_invoices_updated_at
+CREATE OR REPLACE TRIGGER trg_invoices_updated_at
   BEFORE UPDATE ON invoices
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- invoice_line_items
 -- ------------------------------------------------------------
-CREATE TABLE invoice_line_items (
+CREATE TABLE IF NOT EXISTS invoice_line_items (
   id          UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   invoice_id  UUID          NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   description TEXT          NOT NULL,
@@ -151,7 +151,7 @@ CREATE TABLE invoice_line_items (
 -- ------------------------------------------------------------
 -- payments
 -- ------------------------------------------------------------
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id                  UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   invoice_id          UUID          NOT NULL REFERENCES invoices(id),
   organization_id     UUID          NOT NULL REFERENCES organizations(id),
@@ -171,18 +171,18 @@ CREATE TABLE payments (
   CONSTRAINT payments_provider_id_unique UNIQUE (provider_payment_id)
 );
 
-CREATE INDEX idx_payments_invoice_id      ON payments (invoice_id);
-CREATE INDEX idx_payments_organization_id ON payments (organization_id);
-CREATE INDEX idx_payments_status          ON payments (status);
+CREATE INDEX IF NOT EXISTS idx_payments_invoice_id      ON payments (invoice_id);
+CREATE INDEX IF NOT EXISTS idx_payments_organization_id ON payments (organization_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status          ON payments (status);
 
-CREATE TRIGGER trg_payments_updated_at
+CREATE OR REPLACE TRIGGER trg_payments_updated_at
   BEFORE UPDATE ON payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- session_fees
 -- ------------------------------------------------------------
-CREATE TABLE session_fees (
+CREATE TABLE IF NOT EXISTS session_fees (
   id                UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id        UUID          NOT NULL REFERENCES sessions(id),
   patient_id        UUID          NOT NULL REFERENCES patients(id),
@@ -202,14 +202,14 @@ CREATE TABLE session_fees (
   CONSTRAINT session_fees_session_unique UNIQUE (session_id)
 );
 
-CREATE TRIGGER trg_session_fees_updated_at
+CREATE OR REPLACE TRIGGER trg_session_fees_updated_at
   BEFORE UPDATE ON session_fees
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- payouts
 -- ------------------------------------------------------------
-CREATE TABLE payouts (
+CREATE TABLE IF NOT EXISTS payouts (
   id                UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   therapist_id      UUID          NOT NULL REFERENCES therapists(id),
   organization_id   UUID          NOT NULL REFERENCES organizations(id),
@@ -231,18 +231,18 @@ CREATE TABLE payouts (
   CONSTRAINT payouts_stripe_payout_id_unique UNIQUE (stripe_payout_id)
 );
 
-CREATE INDEX idx_payouts_therapist_id    ON payouts (therapist_id);
-CREATE INDEX idx_payouts_status          ON payouts (status);
-CREATE INDEX idx_payouts_period          ON payouts (period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_payouts_therapist_id    ON payouts (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_payouts_status          ON payouts (status);
+CREATE INDEX IF NOT EXISTS idx_payouts_period          ON payouts (period_start, period_end);
 
-CREATE TRIGGER trg_payouts_updated_at
+CREATE OR REPLACE TRIGGER trg_payouts_updated_at
   BEFORE UPDATE ON payouts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- payout_line_items
 -- ------------------------------------------------------------
-CREATE TABLE payout_line_items (
+CREATE TABLE IF NOT EXISTS payout_line_items (
   id              UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   payout_id       UUID          NOT NULL REFERENCES payouts(id),
   session_fee_id  UUID          NOT NULL REFERENCES session_fees(id),
@@ -254,7 +254,7 @@ CREATE TABLE payout_line_items (
 -- ------------------------------------------------------------
 -- usage_records
 -- ------------------------------------------------------------
-CREATE TABLE usage_records (
+CREATE TABLE IF NOT EXISTS usage_records (
   id              UUID           PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID           NOT NULL REFERENCES organizations(id),
   therapist_id    UUID           REFERENCES therapists(id),
@@ -268,13 +268,13 @@ CREATE TABLE usage_records (
   created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_usage_records_organization_id ON usage_records (organization_id);
-CREATE INDEX idx_usage_records_billing         ON usage_records (billing_period, billed);
+CREATE INDEX IF NOT EXISTS idx_usage_records_organization_id ON usage_records (organization_id);
+CREATE INDEX IF NOT EXISTS idx_usage_records_billing         ON usage_records (billing_period, billed);
 
 -- ------------------------------------------------------------
 -- coupons
 -- ------------------------------------------------------------
-CREATE TABLE coupons (
+CREATE TABLE IF NOT EXISTS coupons (
   id                UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   code              VARCHAR(100)  NOT NULL,
   description       TEXT,
@@ -294,7 +294,7 @@ CREATE TABLE coupons (
 -- ------------------------------------------------------------
 -- coupon_redemptions
 -- ------------------------------------------------------------
-CREATE TABLE coupon_redemptions (
+CREATE TABLE IF NOT EXISTS coupon_redemptions (
   id               UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   coupon_id        UUID          NOT NULL REFERENCES coupons(id),
   organization_id  UUID          NOT NULL REFERENCES organizations(id),
@@ -306,7 +306,7 @@ CREATE TABLE coupon_redemptions (
 -- ------------------------------------------------------------
 -- session_charges  (PAYG billing per-session)
 -- ------------------------------------------------------------
-CREATE TABLE session_charges (
+CREATE TABLE IF NOT EXISTS session_charges (
   id                   UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id      UUID          NOT NULL REFERENCES organizations(id),
   therapist_id         UUID          NOT NULL REFERENCES therapists(id),
@@ -323,14 +323,14 @@ CREATE TABLE session_charges (
   status               VARCHAR(20)   NOT NULL DEFAULT 'pending'
 );
 
-CREATE INDEX idx_session_charges_therapist_id    ON session_charges (therapist_id);
-CREATE INDEX idx_session_charges_organization_id ON session_charges (organization_id);
-CREATE INDEX idx_session_charges_session_id      ON session_charges (session_id);
+CREATE INDEX IF NOT EXISTS idx_session_charges_therapist_id    ON session_charges (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_session_charges_organization_id ON session_charges (organization_id);
+CREATE INDEX IF NOT EXISTS idx_session_charges_session_id      ON session_charges (session_id);
 
 -- ------------------------------------------------------------
 -- therapist_session_quota  (Starter plan included sessions)
 -- ------------------------------------------------------------
-CREATE TABLE therapist_session_quota (
+CREATE TABLE IF NOT EXISTS therapist_session_quota (
   id              UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
   therapist_id    UUID    NOT NULL REFERENCES therapists(id) ON DELETE CASCADE,
   organization_id UUID    NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -341,12 +341,12 @@ CREATE TABLE therapist_session_quota (
   CONSTRAINT therapist_session_quota_unique UNIQUE (therapist_id, period_start)
 );
 
-CREATE INDEX idx_therapist_session_quota_period ON therapist_session_quota (therapist_id, period_start DESC);
+CREATE INDEX IF NOT EXISTS idx_therapist_session_quota_period ON therapist_session_quota (therapist_id, period_start DESC);
 
 -- ------------------------------------------------------------
 -- ai_assistant_credits
 -- ------------------------------------------------------------
-CREATE TABLE ai_assistant_credits (
+CREATE TABLE IF NOT EXISTS ai_assistant_credits (
   therapist_id UUID    PRIMARY KEY REFERENCES therapists(id) ON DELETE CASCADE,
   balance      INTEGER NOT NULL DEFAULT 0,
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -355,7 +355,7 @@ CREATE TABLE ai_assistant_credits (
 -- ------------------------------------------------------------
 -- pricing_audit_log
 -- ------------------------------------------------------------
-CREATE TABLE pricing_audit_log (
+CREATE TABLE IF NOT EXISTS pricing_audit_log (
   id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   plan_id         UUID        NOT NULL REFERENCES subscription_plans(id) ON DELETE CASCADE,
   plan_key        VARCHAR(50) NOT NULL,
@@ -367,5 +367,5 @@ CREATE TABLE pricing_audit_log (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_pricing_audit_log_plan_id    ON pricing_audit_log (plan_id);
-CREATE INDEX idx_pricing_audit_log_created_at ON pricing_audit_log (created_at);
+CREATE INDEX IF NOT EXISTS idx_pricing_audit_log_plan_id    ON pricing_audit_log (plan_id);
+CREATE INDEX IF NOT EXISTS idx_pricing_audit_log_created_at ON pricing_audit_log (created_at);

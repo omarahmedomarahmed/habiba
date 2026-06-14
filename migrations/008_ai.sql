@@ -7,7 +7,7 @@
 -- ------------------------------------------------------------
 -- ai_session_notes
 -- ------------------------------------------------------------
-CREATE TABLE ai_session_notes (
+CREATE TABLE IF NOT EXISTS ai_session_notes (
   id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id           UUID         NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   patient_id           UUID         NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
@@ -37,18 +37,18 @@ CREATE TABLE ai_session_notes (
   )
 );
 
-CREATE INDEX idx_ai_session_notes_session_id        ON ai_session_notes (session_id);
-CREATE INDEX idx_ai_session_notes_patient_id        ON ai_session_notes (patient_id);
-CREATE INDEX idx_ai_session_notes_status_therapist  ON ai_session_notes (status, therapist_id);
+CREATE INDEX IF NOT EXISTS idx_ai_session_notes_session_id        ON ai_session_notes (session_id);
+CREATE INDEX IF NOT EXISTS idx_ai_session_notes_patient_id        ON ai_session_notes (patient_id);
+CREATE INDEX IF NOT EXISTS idx_ai_session_notes_status_therapist  ON ai_session_notes (status, therapist_id);
 
-CREATE TRIGGER trg_ai_session_notes_updated_at
+CREATE OR REPLACE TRIGGER trg_ai_session_notes_updated_at
   BEFORE UPDATE ON ai_session_notes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- ai_session_summaries
 -- ------------------------------------------------------------
-CREATE TABLE ai_session_summaries (
+CREATE TABLE IF NOT EXISTS ai_session_summaries (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id            UUID        NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   patient_id            UUID        NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
@@ -66,13 +66,13 @@ CREATE TABLE ai_session_summaries (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_ai_session_summaries_session_id ON ai_session_summaries (session_id);
-CREATE INDEX idx_ai_session_summaries_patient_id ON ai_session_summaries (patient_id);
+CREATE INDEX IF NOT EXISTS idx_ai_session_summaries_session_id ON ai_session_summaries (session_id);
+CREATE INDEX IF NOT EXISTS idx_ai_session_summaries_patient_id ON ai_session_summaries (patient_id);
 
 -- ------------------------------------------------------------
 -- session_intelligence
 -- ------------------------------------------------------------
-CREATE TABLE session_intelligence (
+CREATE TABLE IF NOT EXISTS session_intelligence (
   id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id                UUID        NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   patient_id                UUID        NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
@@ -97,17 +97,17 @@ CREATE TABLE session_intelligence (
   CONSTRAINT session_intelligence_session_key UNIQUE (session_id)
 );
 
-CREATE INDEX idx_session_intelligence_session_id ON session_intelligence (session_id);
-CREATE INDEX idx_session_intelligence_patient_id ON session_intelligence (patient_id);
+CREATE INDEX IF NOT EXISTS idx_session_intelligence_session_id ON session_intelligence (session_id);
+CREATE INDEX IF NOT EXISTS idx_session_intelligence_patient_id ON session_intelligence (patient_id);
 
-CREATE TRIGGER trg_session_intelligence_updated_at
+CREATE OR REPLACE TRIGGER trg_session_intelligence_updated_at
   BEFORE UPDATE ON session_intelligence
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- patient_memory
 -- ------------------------------------------------------------
-CREATE TABLE patient_memory (
+CREATE TABLE IF NOT EXISTS patient_memory (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id          UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   therapist_id        UUID REFERENCES therapists(id) ON DELETE SET NULL,
@@ -139,24 +139,24 @@ CREATE TABLE patient_memory (
   )
 );
 
-CREATE INDEX idx_patient_memory_patient_id       ON patient_memory (patient_id);
-CREATE INDEX idx_patient_memory_type_patient      ON patient_memory (memory_type, patient_id);
-CREATE INDEX idx_patient_memory_status_patient    ON patient_memory (status, patient_id);
-CREATE INDEX idx_patient_memory_source_session    ON patient_memory (source_session_id);
+CREATE INDEX IF NOT EXISTS idx_patient_memory_patient_id       ON patient_memory (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_memory_type_patient      ON patient_memory (memory_type, patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_memory_status_patient    ON patient_memory (status, patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_memory_source_session    ON patient_memory (source_session_id);
 
 -- IVFFlat ANN index for cosine similarity search on embeddings
-CREATE INDEX idx_memory_embedding
+CREATE INDEX IF NOT EXISTS idx_memory_embedding
   ON patient_memory USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);
 
-CREATE TRIGGER trg_patient_memory_updated_at
+CREATE OR REPLACE TRIGGER trg_patient_memory_updated_at
   BEFORE UPDATE ON patient_memory
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- patient_memory_history
 -- ------------------------------------------------------------
-CREATE TABLE patient_memory_history (
+CREATE TABLE IF NOT EXISTS patient_memory_history (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   memory_id        UUID        NOT NULL REFERENCES patient_memory(id) ON DELETE CASCADE,
   patient_id       UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -170,12 +170,12 @@ CREATE TABLE patient_memory_history (
   changed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_patient_memory_history_memory_id ON patient_memory_history (memory_id);
+CREATE INDEX IF NOT EXISTS idx_patient_memory_history_memory_id ON patient_memory_history (memory_id);
 
 -- ------------------------------------------------------------
 -- prompt_registry
 -- ------------------------------------------------------------
-CREATE TABLE prompt_registry (
+CREATE TABLE IF NOT EXISTS prompt_registry (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name                VARCHAR(100) NOT NULL,
   version             VARCHAR(20)  NOT NULL,
@@ -197,13 +197,13 @@ CREATE TABLE prompt_registry (
   )
 );
 
-CREATE INDEX idx_prompt_registry_name_status ON prompt_registry (name, status);
-CREATE INDEX idx_prompt_registry_full_key    ON prompt_registry (full_key);
+CREATE INDEX IF NOT EXISTS idx_prompt_registry_name_status ON prompt_registry (name, status);
+CREATE INDEX IF NOT EXISTS idx_prompt_registry_full_key    ON prompt_registry (full_key);
 
 -- ------------------------------------------------------------
 -- ai_model_registry
 -- ------------------------------------------------------------
-CREATE TABLE ai_model_registry (
+CREATE TABLE IF NOT EXISTS ai_model_registry (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   provider              VARCHAR(50)  NOT NULL,
   model_id              VARCHAR(100) NOT NULL,
@@ -221,7 +221,7 @@ CREATE TABLE ai_model_registry (
 -- ------------------------------------------------------------
 -- ai_request_logs
 -- ------------------------------------------------------------
-CREATE TABLE ai_request_logs (
+CREATE TABLE IF NOT EXISTS ai_request_logs (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -243,15 +243,15 @@ CREATE TABLE ai_request_logs (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_ai_request_logs_org_created    ON ai_request_logs (organization_id, created_at DESC);
-CREATE INDEX idx_ai_request_logs_session_id     ON ai_request_logs (session_id);
-CREATE INDEX idx_ai_request_logs_created_desc   ON ai_request_logs (created_at DESC);
-CREATE INDEX idx_ai_request_logs_type_status    ON ai_request_logs (request_type, status);
+CREATE INDEX IF NOT EXISTS idx_ai_request_logs_org_created    ON ai_request_logs (organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_request_logs_session_id     ON ai_request_logs (session_id);
+CREATE INDEX IF NOT EXISTS idx_ai_request_logs_created_desc   ON ai_request_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_request_logs_type_status    ON ai_request_logs (request_type, status);
 
 -- ------------------------------------------------------------
 -- copilot_suggestion_logs
 -- ------------------------------------------------------------
-CREATE TABLE copilot_suggestion_logs (
+CREATE TABLE IF NOT EXISTS copilot_suggestion_logs (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id          UUID         NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   therapist_id        UUID         NOT NULL REFERENCES therapists(id) ON DELETE RESTRICT,
@@ -263,4 +263,4 @@ CREATE TABLE copilot_suggestion_logs (
   created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_copilot_suggestion_logs_session_id ON copilot_suggestion_logs (session_id);
+CREATE INDEX IF NOT EXISTS idx_copilot_suggestion_logs_session_id ON copilot_suggestion_logs (session_id);

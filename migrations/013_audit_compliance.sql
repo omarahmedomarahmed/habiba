@@ -10,7 +10,7 @@
 -- ------------------------------------------------------------
 -- audit_logs  (append-only; RLS blocks UPDATE/DELETE)
 -- ------------------------------------------------------------
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
   id               UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id          UUID,
   user_email       VARCHAR(255),
@@ -34,18 +34,21 @@ CREATE TABLE audit_logs (
 
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY audit_logs_insert_only ON audit_logs
-  FOR INSERT WITH CHECK (true);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND policyname = 'audit_logs_insert_only') THEN
+    CREATE POLICY audit_logs_insert_only ON audit_logs FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND policyname = 'audit_logs_select') THEN
+    CREATE POLICY audit_logs_select ON audit_logs FOR SELECT USING (true);
+  END IF;
+END $$;
 
-CREATE POLICY audit_logs_select ON audit_logs
-  FOR SELECT USING (true);
-
-CREATE INDEX idx_audit_logs_user_created  ON audit_logs (user_id, created_at DESC);
-CREATE INDEX idx_audit_logs_org_created   ON audit_logs (organization_id, created_at DESC);
-CREATE INDEX idx_audit_logs_resource      ON audit_logs (resource_type, resource_id);
-CREATE INDEX idx_audit_logs_action        ON audit_logs (action);
-CREATE INDEX idx_audit_logs_created_desc  ON audit_logs (created_at DESC);
-CREATE INDEX idx_audit_logs_ip_address    ON audit_logs (ip_address);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_created  ON audit_logs (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_org_created   ON audit_logs (organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource      ON audit_logs (resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action        ON audit_logs (action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_desc  ON audit_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_ip_address    ON audit_logs (ip_address);
 
 -- ------------------------------------------------------------
 -- create_audit_log()
@@ -94,7 +97,7 @@ $$ LANGUAGE plpgsql;
 -- ------------------------------------------------------------
 -- data_subject_requests  (HIPAA §164.524 access requests)
 -- ------------------------------------------------------------
-CREATE TABLE data_subject_requests (
+CREATE TABLE IF NOT EXISTS data_subject_requests (
   id                UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id   UUID        NOT NULL REFERENCES organizations(id),
   patient_id        UUID        REFERENCES patients(id),
@@ -113,14 +116,14 @@ CREATE TABLE data_subject_requests (
   updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER trg_data_subject_requests_updated_at
+CREATE OR REPLACE TRIGGER trg_data_subject_requests_updated_at
   BEFORE UPDATE ON data_subject_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- security_incidents
 -- ------------------------------------------------------------
-CREATE TABLE security_incidents (
+CREATE TABLE IF NOT EXISTS security_incidents (
   id                      UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id         UUID         REFERENCES organizations(id),
   incident_type           VARCHAR(100) NOT NULL,
@@ -139,14 +142,14 @@ CREATE TABLE security_incidents (
   updated_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER trg_security_incidents_updated_at
+CREATE OR REPLACE TRIGGER trg_security_incidents_updated_at
   BEFORE UPDATE ON security_incidents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- data_retention_policies
 -- ------------------------------------------------------------
-CREATE TABLE data_retention_policies (
+CREATE TABLE IF NOT EXISTS data_retention_policies (
   id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id        UUID        NOT NULL REFERENCES organizations(id),
   recordings_days        INTEGER     NOT NULL DEFAULT 730,
@@ -163,14 +166,14 @@ CREATE TABLE data_retention_policies (
   CONSTRAINT data_retention_policies_org_unique UNIQUE (organization_id)
 );
 
-CREATE TRIGGER trg_data_retention_policies_updated_at
+CREATE OR REPLACE TRIGGER trg_data_retention_policies_updated_at
   BEFORE UPDATE ON data_retention_policies
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- phi_access_log
 -- ------------------------------------------------------------
-CREATE TABLE phi_access_log (
+CREATE TABLE IF NOT EXISTS phi_access_log (
   id              UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         UUID         NOT NULL,
   organization_id UUID         NOT NULL,
@@ -184,13 +187,13 @@ CREATE TABLE phi_access_log (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_phi_access_log_patient_created ON phi_access_log (patient_id, created_at DESC);
-CREATE INDEX idx_phi_access_log_user_created    ON phi_access_log (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_phi_access_log_patient_created ON phi_access_log (patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_phi_access_log_user_created    ON phi_access_log (user_id, created_at DESC);
 
 -- ------------------------------------------------------------
 -- access_violations
 -- ------------------------------------------------------------
-CREATE TABLE access_violations (
+CREATE TABLE IF NOT EXISTS access_violations (
   id                  UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id             UUID,
   organization_id     UUID,
@@ -203,13 +206,13 @@ CREATE TABLE access_violations (
   created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_access_violations_user_created ON access_violations (user_id, created_at DESC);
-CREATE INDEX idx_access_violations_ip_created   ON access_violations (ip_address, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_access_violations_user_created ON access_violations (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_access_violations_ip_created   ON access_violations (ip_address, created_at DESC);
 
 -- ------------------------------------------------------------
 -- baa_records  (Business Associate Agreements — HIPAA §164.308)
 -- ------------------------------------------------------------
-CREATE TABLE baa_records (
+CREATE TABLE IF NOT EXISTS baa_records (
   id              UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID         REFERENCES organizations(id),
   vendor_name     VARCHAR(255) NOT NULL,
@@ -223,16 +226,16 @@ CREATE TABLE baa_records (
   updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_baa_records_organization_id ON baa_records (organization_id);
+CREATE INDEX IF NOT EXISTS idx_baa_records_organization_id ON baa_records (organization_id);
 
-CREATE TRIGGER trg_baa_records_updated_at
+CREATE OR REPLACE TRIGGER trg_baa_records_updated_at
   BEFORE UPDATE ON baa_records
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- compliance_checklist
 -- ------------------------------------------------------------
-CREATE TABLE compliance_checklist (
+CREATE TABLE IF NOT EXISTS compliance_checklist (
   id                UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id   UUID         REFERENCES organizations(id),
   requirement       VARCHAR(255) NOT NULL,
@@ -247,6 +250,6 @@ CREATE TABLE compliance_checklist (
   updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER trg_compliance_checklist_updated_at
+CREATE OR REPLACE TRIGGER trg_compliance_checklist_updated_at
   BEFORE UPDATE ON compliance_checklist
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

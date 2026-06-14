@@ -8,7 +8,7 @@
 -- ------------------------------------------------------------
 -- analytics_events  (RANGE-partitioned by created_at)
 -- ------------------------------------------------------------
-CREATE TABLE analytics_events (
+CREATE TABLE IF NOT EXISTS analytics_events (
   id              UUID         NOT NULL DEFAULT uuid_generate_v4(),
   organization_id UUID         REFERENCES organizations(id),
   user_id         UUID         REFERENCES users(id),
@@ -27,27 +27,27 @@ CREATE TABLE analytics_events (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 ) PARTITION BY RANGE (created_at);
 
-CREATE TABLE analytics_events_2025
+CREATE TABLE IF NOT EXISTS analytics_events_2025
   PARTITION OF analytics_events
   FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 
-CREATE TABLE analytics_events_2026
+CREATE TABLE IF NOT EXISTS analytics_events_2026
   PARTITION OF analytics_events
   FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
 
-CREATE TABLE analytics_events_2027
+CREATE TABLE IF NOT EXISTS analytics_events_2027
   PARTITION OF analytics_events
   FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
 
-CREATE INDEX idx_analytics_events_org_created    ON analytics_events (organization_id, created_at DESC);
-CREATE INDEX idx_analytics_events_user_created   ON analytics_events (user_id, created_at DESC);
-CREATE INDEX idx_analytics_events_name_created   ON analytics_events (event_name, created_at DESC);
-CREATE INDEX idx_analytics_events_created_desc   ON analytics_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_org_created    ON analytics_events (organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_user_created   ON analytics_events (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_name_created   ON analytics_events (event_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_created_desc   ON analytics_events (created_at DESC);
 
 -- ------------------------------------------------------------
 -- ai_cost_tracking  (RANGE-partitioned by created_at)
 -- ------------------------------------------------------------
-CREATE TABLE ai_cost_tracking (
+CREATE TABLE IF NOT EXISTS ai_cost_tracking (
   id                UUID          NOT NULL DEFAULT uuid_generate_v4(),
   organization_id   UUID          NOT NULL REFERENCES organizations(id),
   therapist_id      UUID          REFERENCES therapists(id),
@@ -69,26 +69,26 @@ CREATE TABLE ai_cost_tracking (
   created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 ) PARTITION BY RANGE (created_at);
 
-CREATE TABLE ai_cost_tracking_2025
+CREATE TABLE IF NOT EXISTS ai_cost_tracking_2025
   PARTITION OF ai_cost_tracking
   FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 
-CREATE TABLE ai_cost_tracking_2026
+CREATE TABLE IF NOT EXISTS ai_cost_tracking_2026
   PARTITION OF ai_cost_tracking
   FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
 
-CREATE TABLE ai_cost_tracking_2027
+CREATE TABLE IF NOT EXISTS ai_cost_tracking_2027
   PARTITION OF ai_cost_tracking
   FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
 
-CREATE INDEX idx_ai_cost_tracking_org_created   ON ai_cost_tracking (organization_id, created_at DESC);
-CREATE INDEX idx_ai_cost_tracking_model_created ON ai_cost_tracking (model_name, created_at DESC);
-CREATE INDEX idx_ai_cost_tracking_billing_month ON ai_cost_tracking (billing_month);
+CREATE INDEX IF NOT EXISTS idx_ai_cost_tracking_org_created   ON ai_cost_tracking (organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_cost_tracking_model_created ON ai_cost_tracking (model_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_cost_tracking_billing_month ON ai_cost_tracking (billing_month);
 
 -- ------------------------------------------------------------
 -- daily_metrics
 -- ------------------------------------------------------------
-CREATE TABLE daily_metrics (
+CREATE TABLE IF NOT EXISTS daily_metrics (
   id                    UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   date                  DATE          NOT NULL,
   organization_id       UUID          NOT NULL REFERENCES organizations(id),
@@ -120,13 +120,13 @@ CREATE TABLE daily_metrics (
   CONSTRAINT daily_metrics_date_org_unique UNIQUE (date, organization_id)
 );
 
-CREATE INDEX idx_daily_metrics_date_desc      ON daily_metrics (date DESC);
-CREATE INDEX idx_daily_metrics_org_date_desc  ON daily_metrics (organization_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_metrics_date_desc      ON daily_metrics (date DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_metrics_org_date_desc  ON daily_metrics (organization_id, date DESC);
 
 -- ------------------------------------------------------------
 -- platform_daily_metrics
 -- ------------------------------------------------------------
-CREATE TABLE platform_daily_metrics (
+CREATE TABLE IF NOT EXISTS platform_daily_metrics (
   id                       UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   date                     DATE          NOT NULL,
   total_organizations      INTEGER       NOT NULL DEFAULT 0,
@@ -156,7 +156,7 @@ CREATE TABLE platform_daily_metrics (
 -- ------------------------------------------------------------
 -- therapist_performance_metrics
 -- ------------------------------------------------------------
-CREATE TABLE therapist_performance_metrics (
+CREATE TABLE IF NOT EXISTS therapist_performance_metrics (
   id                          UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   therapist_id                UUID          NOT NULL REFERENCES therapists(id),
   organization_id             UUID          NOT NULL REFERENCES organizations(id),
@@ -191,7 +191,7 @@ CREATE TABLE therapist_performance_metrics (
 -- ------------------------------------------------------------
 -- patient_outcome_metrics
 -- ------------------------------------------------------------
-CREATE TABLE patient_outcome_metrics (
+CREATE TABLE IF NOT EXISTS patient_outcome_metrics (
   id                        UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id                UUID        NOT NULL REFERENCES patients(id),
   therapist_id              UUID        NOT NULL REFERENCES therapists(id),
@@ -218,7 +218,7 @@ CREATE TABLE patient_outcome_metrics (
 -- ------------------------------------------------------------
 -- practice_health_metrics
 -- ------------------------------------------------------------
-CREATE TABLE practice_health_metrics (
+CREATE TABLE IF NOT EXISTS practice_health_metrics (
   id                          UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id             UUID          NOT NULL REFERENCES organizations(id),
   period_type                 VARCHAR(20)   NOT NULL,
@@ -253,7 +253,7 @@ CREATE TABLE practice_health_metrics (
 -- ------------------------------------------------------------
 -- ai_model_metrics
 -- ------------------------------------------------------------
-CREATE TABLE ai_model_metrics (
+CREATE TABLE IF NOT EXISTS ai_model_metrics (
   id                    UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
   date                  DATE          NOT NULL,
   model_name            VARCHAR(100)  NOT NULL,
@@ -278,7 +278,7 @@ CREATE TABLE ai_model_metrics (
 -- ------------------------------------------------------------
 -- funnel_events
 -- ------------------------------------------------------------
-CREATE TABLE funnel_events (
+CREATE TABLE IF NOT EXISTS funnel_events (
   id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
   funnel_name     VARCHAR(100) NOT NULL,
   step_name       VARCHAR(100) NOT NULL,
@@ -290,5 +290,5 @@ CREATE TABLE funnel_events (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_funnel_events_funnel_step  ON funnel_events (funnel_name, step_name, created_at DESC);
-CREATE INDEX idx_funnel_events_user_funnel  ON funnel_events (user_id, funnel_name);
+CREATE INDEX IF NOT EXISTS idx_funnel_events_funnel_step  ON funnel_events (funnel_name, step_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_funnel_events_user_funnel  ON funnel_events (user_id, funnel_name);

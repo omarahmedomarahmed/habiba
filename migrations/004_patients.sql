@@ -8,7 +8,7 @@
 -- ------------------------------------------------------------
 -- patients
 -- ------------------------------------------------------------
-CREATE TABLE patients (
+CREATE TABLE IF NOT EXISTS patients (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id       UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   primary_therapist_id  UUID REFERENCES therapists(id) ON DELETE SET NULL,
@@ -42,22 +42,22 @@ CREATE TABLE patients (
   )
 );
 
-CREATE INDEX idx_patients_organization_id      ON patients (organization_id);
-CREATE INDEX idx_patients_primary_therapist_id ON patients (primary_therapist_id);
-CREATE INDEX idx_patients_user_id              ON patients (user_id);
-CREATE INDEX idx_patients_status               ON patients (status);
-CREATE INDEX idx_patients_tags_gin             ON patients USING GIN (tags);
-CREATE INDEX idx_patients_not_deleted          ON patients (id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_patients_last_session_at      ON patients (last_session_at);
+CREATE INDEX IF NOT EXISTS idx_patients_organization_id      ON patients (organization_id);
+CREATE INDEX IF NOT EXISTS idx_patients_primary_therapist_id ON patients (primary_therapist_id);
+CREATE INDEX IF NOT EXISTS idx_patients_user_id              ON patients (user_id);
+CREATE INDEX IF NOT EXISTS idx_patients_status               ON patients (status);
+CREATE INDEX IF NOT EXISTS idx_patients_tags_gin             ON patients USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_patients_not_deleted          ON patients (id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_patients_last_session_at      ON patients (last_session_at);
 
-CREATE TRIGGER trg_patients_updated_at
+CREATE OR REPLACE TRIGGER trg_patients_updated_at
   BEFORE UPDATE ON patients
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- patient_profiles
 -- ------------------------------------------------------------
-CREATE TABLE patient_profiles (
+CREATE TABLE IF NOT EXISTS patient_profiles (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id          UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   occupation          VARCHAR(200),
@@ -80,14 +80,14 @@ CREATE TABLE patient_profiles (
   CONSTRAINT patient_profiles_patient_id_key UNIQUE (patient_id)
 );
 
-CREATE TRIGGER trg_patient_profiles_updated_at
+CREATE OR REPLACE TRIGGER trg_patient_profiles_updated_at
   BEFORE UPDATE ON patient_profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- therapist_patient_assignments
 -- ------------------------------------------------------------
-CREATE TABLE therapist_patient_assignments (
+CREATE TABLE IF NOT EXISTS therapist_patient_assignments (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   therapist_id    UUID        NOT NULL REFERENCES therapists(id) ON DELETE CASCADE,
   patient_id      UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -103,13 +103,13 @@ CREATE TABLE therapist_patient_assignments (
   )
 );
 
-CREATE INDEX idx_tpa_therapist_id ON therapist_patient_assignments (therapist_id);
-CREATE INDEX idx_tpa_patient_id   ON therapist_patient_assignments (patient_id);
+CREATE INDEX IF NOT EXISTS idx_tpa_therapist_id ON therapist_patient_assignments (therapist_id);
+CREATE INDEX IF NOT EXISTS idx_tpa_patient_id   ON therapist_patient_assignments (patient_id);
 
 -- ------------------------------------------------------------
 -- patient_contacts
 -- ------------------------------------------------------------
-CREATE TABLE patient_contacts (
+CREATE TABLE IF NOT EXISTS patient_contacts (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id    UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   relationship  VARCHAR(100),
@@ -122,13 +122,13 @@ CREATE TABLE patient_contacts (
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_patient_contacts_patient_id ON patient_contacts (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_contacts_patient_id ON patient_contacts (patient_id);
 
 -- ------------------------------------------------------------
 -- consent_versions
 -- (defined here so patient_consents FK resolves in this file)
 -- ------------------------------------------------------------
-CREATE TABLE consent_versions (
+CREATE TABLE IF NOT EXISTS consent_versions (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   consent_type   VARCHAR(100) NOT NULL,
   version        VARCHAR(20)  NOT NULL,
@@ -145,7 +145,7 @@ CREATE TABLE consent_versions (
 -- ------------------------------------------------------------
 -- patient_consents
 -- ------------------------------------------------------------
-CREATE TABLE patient_consents (
+CREATE TABLE IF NOT EXISTS patient_consents (
   id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id         UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   organization_id    UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -166,14 +166,14 @@ CREATE TABLE patient_consents (
   created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_patient_consents_patient_id   ON patient_consents (patient_id);
-CREATE INDEX idx_patient_consents_type_patient ON patient_consents (consent_type, patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_consents_patient_id   ON patient_consents (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_consents_type_patient ON patient_consents (consent_type, patient_id);
 
 -- ------------------------------------------------------------
 -- patient_files
 -- (session_id FK to sessions is added in 006_sessions.sql)
 -- ------------------------------------------------------------
-CREATE TABLE patient_files (
+CREATE TABLE IF NOT EXISTS patient_files (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id      UUID          NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   organization_id UUID          NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -189,13 +189,13 @@ CREATE TABLE patient_files (
   deleted_at      TIMESTAMPTZ
 );
 
-CREATE INDEX idx_patient_files_patient_id ON patient_files (patient_id);
-CREATE INDEX idx_patient_files_session_id ON patient_files (session_id);
+CREATE INDEX IF NOT EXISTS idx_patient_files_patient_id ON patient_files (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_files_session_id ON patient_files (session_id);
 
 -- ------------------------------------------------------------
 -- patient_timeline_events
 -- ------------------------------------------------------------
-CREATE TABLE patient_timeline_events (
+CREATE TABLE IF NOT EXISTS patient_timeline_events (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id      UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   organization_id UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -209,14 +209,14 @@ CREATE TABLE patient_timeline_events (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_patient_timeline_patient_id     ON patient_timeline_events (patient_id);
-CREATE INDEX idx_patient_timeline_type_patient   ON patient_timeline_events (event_type, patient_id);
-CREATE INDEX idx_patient_timeline_patient_created ON patient_timeline_events (patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_patient_timeline_patient_id     ON patient_timeline_events (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_timeline_type_patient   ON patient_timeline_events (event_type, patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_timeline_patient_created ON patient_timeline_events (patient_id, created_at DESC);
 
 -- ------------------------------------------------------------
 -- patient_goals
 -- ------------------------------------------------------------
-CREATE TABLE patient_goals (
+CREATE TABLE IF NOT EXISTS patient_goals (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id      UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   therapist_id    UUID REFERENCES therapists(id) ON DELETE SET NULL,
@@ -240,17 +240,17 @@ CREATE TABLE patient_goals (
   )
 );
 
-CREATE INDEX idx_patient_goals_patient_id     ON patient_goals (patient_id);
-CREATE INDEX idx_patient_goals_status_patient ON patient_goals (status, patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_goals_patient_id     ON patient_goals (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_goals_status_patient ON patient_goals (status, patient_id);
 
-CREATE TRIGGER trg_patient_goals_updated_at
+CREATE OR REPLACE TRIGGER trg_patient_goals_updated_at
   BEFORE UPDATE ON patient_goals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- goal_progress_updates
 -- ------------------------------------------------------------
-CREATE TABLE goal_progress_updates (
+CREATE TABLE IF NOT EXISTS goal_progress_updates (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   goal_id        UUID        NOT NULL REFERENCES patient_goals(id) ON DELETE CASCADE,
   patient_id     UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -260,12 +260,12 @@ CREATE TABLE goal_progress_updates (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_goal_progress_goal_id ON goal_progress_updates (goal_id);
+CREATE INDEX IF NOT EXISTS idx_goal_progress_goal_id ON goal_progress_updates (goal_id);
 
 -- ------------------------------------------------------------
 -- patient_mood_entries
 -- ------------------------------------------------------------
-CREATE TABLE patient_mood_entries (
+CREATE TABLE IF NOT EXISTS patient_mood_entries (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id      UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   organization_id UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -277,14 +277,14 @@ CREATE TABLE patient_mood_entries (
   CONSTRAINT patient_mood_score_check CHECK (score BETWEEN 1 AND 10)
 );
 
-CREATE INDEX idx_patient_mood_patient_id       ON patient_mood_entries (patient_id);
-CREATE INDEX idx_patient_mood_patient_recorded ON patient_mood_entries (patient_id, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_patient_mood_patient_id       ON patient_mood_entries (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_mood_patient_recorded ON patient_mood_entries (patient_id, recorded_at DESC);
 
 -- ------------------------------------------------------------
 -- patient_life_events
 -- (source_session_id FK to sessions is added in 006_sessions.sql)
 -- ------------------------------------------------------------
-CREATE TABLE patient_life_events (
+CREATE TABLE IF NOT EXISTS patient_life_events (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id        UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   organization_id   UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -303,14 +303,14 @@ CREATE TABLE patient_life_events (
   )
 );
 
-CREATE INDEX idx_patient_life_events_patient_id ON patient_life_events (patient_id);
-CREATE INDEX idx_patient_life_events_session_id ON patient_life_events (source_session_id);
+CREATE INDEX IF NOT EXISTS idx_patient_life_events_patient_id ON patient_life_events (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_life_events_session_id ON patient_life_events (source_session_id);
 
 -- ------------------------------------------------------------
 -- patient_relationships
 -- (source_session_id FK to sessions is added in 006_sessions.sql)
 -- ------------------------------------------------------------
-CREATE TABLE patient_relationships (
+CREATE TABLE IF NOT EXISTS patient_relationships (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id        UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   relationship_type VARCHAR(50)  NOT NULL,
@@ -323,17 +323,17 @@ CREATE TABLE patient_relationships (
   updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_patient_relationships_patient_id ON patient_relationships (patient_id);
-CREATE INDEX idx_patient_relationships_session_id ON patient_relationships (source_session_id);
+CREATE INDEX IF NOT EXISTS idx_patient_relationships_patient_id ON patient_relationships (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_relationships_session_id ON patient_relationships (source_session_id);
 
-CREATE TRIGGER trg_patient_relationships_updated_at
+CREATE OR REPLACE TRIGGER trg_patient_relationships_updated_at
   BEFORE UPDATE ON patient_relationships
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ------------------------------------------------------------
 -- patient_journal_entries
 -- ------------------------------------------------------------
-CREATE TABLE patient_journal_entries (
+CREATE TABLE IF NOT EXISTS patient_journal_entries (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_id            UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   title                 VARCHAR(255),
@@ -347,8 +347,8 @@ CREATE TABLE patient_journal_entries (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_patient_journal_patient_created ON patient_journal_entries (patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_patient_journal_patient_created ON patient_journal_entries (patient_id, created_at DESC);
 
-CREATE TRIGGER trg_patient_journal_updated_at
+CREATE OR REPLACE TRIGGER trg_patient_journal_updated_at
   BEFORE UPDATE ON patient_journal_entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
