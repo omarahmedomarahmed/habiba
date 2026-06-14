@@ -604,47 +604,116 @@ ON CONFLICT DO NOTHING;
 
 ## Step 8 — Set Up Pricing Plans in Stripe
 
-Before therapists can subscribe, you need to create the pricing plans in Stripe.
+Your database already has 5 subscription plans seeded from `016_seed_data.sql`. You need to create matching products in Stripe and then paste the Stripe Price IDs back into the database so the billing system can create checkouts.
 
-### Create products in Stripe
+**Your plans (already in the database):**
+
+| plan_key | Name | Monthly | Annual | Notes |
+|----------|------|---------|--------|-------|
+| `pay_per_session` | Pay Per Session | $0/mo | — | $6 per completed session |
+| `starter` | Starter | $59/mo | $590/yr | 20 sessions/month |
+| `pro` | Unlimited | $99/mo | $990/yr | ★ Most Popular |
+| `practice` | Practice | $189/mo | $1,890/yr | Multi-therapist teams |
+| `enterprise` | Enterprise | Contact Sales | — | No Stripe price needed |
+
+> ℹ️ **Pay Per Session** and **Enterprise** don't need Stripe recurring prices. Skip them.
+
+---
+
+### 8a. Create products in Stripe
 
 1. Go to **https://dashboard.stripe.com/products**
-2. Click **Add product**
+2. Click **+ Add product** for each plan below
 
-**Create "Therapist Starter" plan:**
-- Name: `Therapist Starter`
-- Description: `AI scribe, session notes, copilot — up to 50 patients`
-- Pricing: Click **Add price** → Recurring → $99/month
+---
+
+**Product 1 — Starter**
+- **Name:** `Starter`
+- **Description:** `20 sessions/month · AI scribe · HIPAA BAA`
+- Click **Add price**:
+  - Recurring, Monthly, **$59.00 USD** → click **Add price**
+  - Click **Add another price** → Recurring, **Every year**, **$590.00 USD** → click **Add price**
 - Click **Save product**
-- Copy the **Price ID** (starts with `price_...`) — you'll need it
+- **Copy both Price IDs** (each starts with `price_...`) — one for monthly, one for annual
 
-**Create "Therapist Pro" plan:**
-- Name: `Therapist Pro`
-- Pricing: $149/month recurring
-- Save and copy Price ID
+---
 
-**Create "Enterprise" plan:**
-- Name: `Enterprise`
-- Pricing: Click **Add price** → Choose **Custom pricing**
-- Save
+**Product 2 — Unlimited (Pro)**
+- **Name:** `Unlimited`
+- **Description:** `Unlimited sessions · Full AI platform · Priority processing`
+- Click **Add price**:
+  - Recurring, Monthly, **$99.00 USD**
+  - Add another price → Recurring, Every year, **$990.00 USD**
+- **Save product** → copy both Price IDs
 
-### Add price IDs to your database
+---
 
-1. Go to **Neon → SQL Editor**
-2. Check what plans exist:
+**Product 3 — Practice**
+- **Name:** `Practice`
+- **Description:** `Multi-therapist teams · from $189/mo for 2 therapists`
+- Click **Add price**:
+  - Recurring, Monthly, **$189.00 USD**
+  - Add another price → Recurring, Every year, **$1,890.00 USD**
+- **Save product** → copy both Price IDs
+
+---
+
+### 8b. Verify your plans are in the database
+
+Run this in **Neon → SQL Editor** to confirm the 5 plans are seeded:
+
 ```sql
-SELECT id, name, plan_key, monthly_price_usd FROM subscription_plans;
+SELECT plan_key, name, monthly_price_usd, annual_price_usd,
+       stripe_price_id_monthly, stripe_price_id_annual
+FROM subscription_plans
+ORDER BY display_order;
 ```
-3. Update with your Stripe price IDs:
-```sql
-UPDATE subscription_plans
-SET stripe_price_id = 'price_YOUR_STARTER_PRICE_ID'
-WHERE plan_key = 'therapist_starter';
 
-UPDATE subscription_plans
-SET stripe_price_id = 'price_YOUR_PRO_PRICE_ID'
-WHERE plan_key = 'therapist_pro';
+You should see 5 rows. The `stripe_price_id_monthly` and `stripe_price_id_annual` columns will be `NULL` — you'll fill them in next.
+
+---
+
+### 8c. Add Stripe Price IDs to the database
+
+Run this in **Neon → SQL Editor**, replacing each `price_...` placeholder with your actual Stripe Price IDs from Step 8a:
+
+```sql
+-- Starter plan
+UPDATE subscription_plans SET
+  stripe_price_id_monthly = 'price_REPLACE_STARTER_MONTHLY',
+  stripe_price_id_annual  = 'price_REPLACE_STARTER_ANNUAL'
+WHERE plan_key = 'starter';
+
+-- Unlimited (Pro) plan
+UPDATE subscription_plans SET
+  stripe_price_id_monthly = 'price_REPLACE_PRO_MONTHLY',
+  stripe_price_id_annual  = 'price_REPLACE_PRO_ANNUAL'
+WHERE plan_key = 'pro';
+
+-- Practice plan
+UPDATE subscription_plans SET
+  stripe_price_id_monthly = 'price_REPLACE_PRACTICE_MONTHLY',
+  stripe_price_id_annual  = 'price_REPLACE_PRACTICE_ANNUAL'
+WHERE plan_key = 'practice';
 ```
+
+After running, verify with:
+```sql
+SELECT plan_key, stripe_price_id_monthly, stripe_price_id_annual
+FROM subscription_plans
+WHERE plan_key IN ('starter','pro','practice');
+```
+
+All 3 rows should now have non-null Stripe Price IDs.
+
+---
+
+### 8d. Add Stripe Customer Portal product catalog (optional but recommended)
+
+In Stripe Dashboard → **Settings** → **Billing** → **Customer portal**:
+- Enable it
+- Under "Products and prices", add your 3 products so therapists can upgrade/downgrade from the portal
+
 
 ---
 
