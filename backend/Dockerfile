@@ -1,8 +1,8 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
-FROM base AS deps
+# Install dependencies — layer cached until package files change
 COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY package.json ./
 COPY backend/package.json ./backend/
@@ -10,26 +10,12 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/config/package.json ./packages/config/
 RUN pnpm install --frozen-lockfile --filter=@24therapy/api...
 
-FROM base AS build
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/backend/node_modules ./backend/node_modules
+# Copy all source and compile TypeScript → backend/dist/
 COPY . .
 RUN pnpm --filter=@24therapy/api build
 
-FROM node:20-alpine AS runner
-WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
-
-COPY --from=build /app/backend/dist ./dist
-COPY --from=build /app/backend/package.json ./
-COPY --from=build /app/node_modules ./node_modules
-
-# Required for preDeployCommand: node scripts/migrate.js --auto-baseline
-COPY --from=build /app/scripts ./scripts
-COPY --from=build /app/migrations ./migrations
-
 ENV NODE_ENV=production
 EXPOSE 4000
-CMD ["node", "dist/main.js"]
+CMD ["node", "backend/dist/main.js"]
 
-# Reviewed: 2026-06-13 — 24Therapy audit
+# Reviewed: 2026-06-14 — 24Therapy audit
