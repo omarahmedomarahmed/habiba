@@ -24,6 +24,10 @@ COPY --from=build /app/backend/dist ./dist
 COPY --from=build /app/backend/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 
+# Required for preDeployCommand: node scripts/migrate.js --auto-baseline
+COPY --from=build /app/scripts ./scripts
+COPY --from=build /app/migrations ./migrations
+
 ENV NODE_ENV=production
 EXPOSE 4000
 CMD ["node", "dist/main.js"]
