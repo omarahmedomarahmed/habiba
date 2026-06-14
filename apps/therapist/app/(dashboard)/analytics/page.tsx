@@ -1,5 +1,8 @@
 "use client";
 
+import { LockedPageOverlay } from "@/components/LockedPageOverlay";
+import { useUIStore } from "@/lib/store";
+
 import { useState, useEffect } from "react";
 import {
   BarChart3, TrendingUp, TrendingDown, Users, Calendar,
@@ -280,7 +283,7 @@ const AI_INSIGHTS = [
   },
 ];
 
-export default function AnalyticsPage() {
+function AnalyticsPageInner() {
   const [period, setPeriod] = useState<Period>("30d");
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
   const [liveMetrics, setLiveMetrics] = useState<any>(null);
@@ -829,6 +832,16 @@ export default function AnalyticsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AnalyticsPage() {
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const isLocked = verificationStatus !== null && verificationStatus !== "approved";
+  return (
+    <LockedPageOverlay isLocked={isLocked}>
+      <AnalyticsPageInner />
+    </LockedPageOverlay>
   );
 }
 

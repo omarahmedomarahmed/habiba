@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { therapistsAPI } from "@/lib/api";
+import { useUIStore } from "@/lib/store";
 import {
   Brain, CheckCircle2, ChevronRight, ChevronLeft, User, Building2,
   Stethoscope, Shield, CreditCard, Users, Calendar, Sparkles,
@@ -125,6 +126,21 @@ export default function OnboardingPage() {
   const [data, setData] = useState<OnboardingData>(initialData);
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStep>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const setVerificationStatus = useUIStore((s) => s.setVerificationStatus);
+
+  const handleSubmitForReview = async () => {
+    setSubmitting(true);
+    try {
+      await therapistsAPI.submitForReview();
+      setVerificationStatus("under_review");
+    } catch {
+      /* non-blocking */
+    } finally {
+      setSubmitting(false);
+      router.push("/dashboard");
+    }
+  };
 
   const stepIndex = STEPS.findIndex(s => s.id === currentStep);
   const progressPercent = (stepIndex / (STEPS.length - 1)) * 100;
@@ -972,12 +988,22 @@ export default function OnboardingPage() {
                 })}
               </div>
 
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="flex items-center gap-2 px-8 py-3.5 bg-[#0A2342] text-white rounded-2xl text-base font-semibold hover:bg-[#123A63] transition-colors mx-auto"
-              >
-                Go to Dashboard <ArrowRight className="h-5 w-5" />
-              </button>
+              <div className="flex flex-col items-center gap-3">
+                <button
+                  onClick={handleSubmitForReview}
+                  disabled={submitting}
+                  className="flex items-center gap-2 px-8 py-3.5 bg-[#1F5EFF] text-white rounded-2xl text-base font-semibold hover:bg-[#1a52e0] transition-colors mx-auto disabled:opacity-60"
+                >
+                  {submitting ? 'Submitting…' : 'Submit for Review'} <ArrowRight className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => router.push("/dashboard")}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Skip for now — go to Dashboard
+                </button>
+                <p className="text-xs text-gray-400 mt-1">We review applications within 24 hours. Your first session is free once approved.</p>
+              </div>
             </div>
           )}
 

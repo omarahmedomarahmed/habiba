@@ -1,5 +1,8 @@
 "use client";
 
+import { LockedPageOverlay } from "@/components/LockedPageOverlay";
+import { useUIStore } from "@/lib/store";
+
 import { useState, useRef, useEffect } from "react";
 import {
   MessageSquare, Search, Send, Plus, Paperclip, Smile,
@@ -44,7 +47,7 @@ const AI_QUICK_REPLIES = [
   "I hear you. What would be most helpful right now?",
 ];
 
-export default function MessagesPage() {
+function MessagesPageInner() {
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -485,6 +488,16 @@ export default function MessagesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const isLocked = verificationStatus !== null && verificationStatus !== "approved";
+  return (
+    <LockedPageOverlay isLocked={isLocked}>
+      <MessagesPageInner />
+    </LockedPageOverlay>
   );
 }
 

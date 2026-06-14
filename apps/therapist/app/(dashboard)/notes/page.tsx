@@ -1,5 +1,8 @@
 "use client";
 
+import { LockedPageOverlay } from "@/components/LockedPageOverlay";
+import { useUIStore } from "@/lib/store";
+
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
@@ -89,7 +92,7 @@ function normalizeNote(raw: Record<string, unknown>): Note {
   };
 }
 
-export default function NotesPage() {
+function NotesPageInner() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -401,6 +404,16 @@ export default function NotesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function NotesPage() {
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const isLocked = verificationStatus !== null && verificationStatus !== "approved";
+  return (
+    <LockedPageOverlay isLocked={isLocked}>
+      <NotesPageInner />
+    </LockedPageOverlay>
   );
 }
 

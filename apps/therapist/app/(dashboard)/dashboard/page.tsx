@@ -7,7 +7,7 @@ import {
   Zap, ChevronRight, Brain, Video, Play, Activity, RefreshCw,
   DollarSign, AlertCircle, ArrowRight
 } from "lucide-react";
-import { sessionsAPI, patientsAPI, notificationsAPI, billingAPI } from "@/lib/api";
+import { sessionsAPI, patientsAPI, notificationsAPI, billingAPI, therapistsAPI } from "@/lib/api";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
 
@@ -47,6 +47,10 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const setNotificationCount = useUIStore((s) => s.setNotificationCount);
   const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const setVerificationStatus = useUIStore((s) => s.setVerificationStatus);
+
+  const [therapistProfile, setTherapistProfile] = useState<any>(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const [stats, setStats] = useState<any>({
     sessions_today: 0, active_patients: 0, pending_notes: 0,
@@ -116,23 +120,99 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
+  useEffect(() => {
+    therapistsAPI.me().then((data: any) => {
+      const profile = data?.data?.therapist ?? data?.data ?? data;
+      setTherapistProfile(profile);
+    }).catch(() => {});
+  }, []);
+
+  const handleSubmitForReview = async () => {
+    setSubmittingReview(true);
+    try {
+      await therapistsAPI.submitForReview();
+      setVerificationStatus("under_review");
+    } catch {
+      /* ignore — banner stays */
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const profileChecklist = (() => {
+    const p = therapistProfile || {};
+    return [
+      { label: "Display name", done: !!(p.display_name || p.first_name) },
+      { label: "Specialty", done: !!(p.specialty || (Array.isArray(p.specializations) && p.specializations.length > 0)) },
+      { label: "Bio", done: !!(p.bio && String(p.bio).trim().length > 0) },
+      { label: "License number", done: !!p.license_number },
+      { label: "Profile photo", done: !!p.avatar_url },
+    ];
+  })();
+  const completedCount = profileChecklist.filter((c) => c.done).length;
+  const profilePct = Math.round((completedCount / profileChecklist.length) * 100);
+
   return (
     <div className="p-6 max-w-[1440px] mx-auto">
       {verificationStatus && verificationStatus !== 'approved' && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-amber-100 rounded-xl">
+            <div className="p-3 bg-amber-100 rounded-xl shrink-0">
               <Clock className="w-6 h-6 text-amber-600" />
             </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-bold text-amber-900 mb-1">Welcome to 24Therapy!</h2>
-              <p className="text-sm text-amber-700 mb-4">Your account is pending admin approval. Complete your profile while you wait — you&apos;ll get instant access to sessions once approved.</p>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-bold text-amber-900 mb-1">
+                {verificationStatus === 'pending' && 'Complete your profile to get started'}
+                {verificationStatus === 'under_review' && 'Application under review'}
+                {verificationStatus === 'rejected' && 'Application not approved'}
+                {verificationStatus === 'suspended' && 'Account suspended'}
+              </h2>
+              <p className="text-sm text-amber-700 mb-4">
+                {verificationStatus === 'pending' && 'Fill in your profile and submit for review. Most applications are approved within 24 hours.'}
+                {verificationStatus === 'under_review' && "We're reviewing your application. You'll hear from us within 24 hours."}
+                {verificationStatus === 'rejected' && 'Your application was not approved. Please contact support@24therapy.ai for details.'}
+                {verificationStatus === 'suspended' && 'Your account has been suspended. Please contact support@24therapy.ai.'}
+              </p>
+
+              {/* Profile completion checklist */}
+              {(verificationStatus === 'pending' || verificationStatus === 'under_review') && (
+                <div className="bg-white/70 border border-amber-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-amber-900">Profile {profilePct}% complete</span>
+                    <span className="text-xs text-amber-600">{completedCount}/{profileChecklist.length}</span>
+                  </div>
+                  <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden mb-3">
+                    <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${profilePct}%` }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {profileChecklist.map((c) => (
+                      <div key={c.label} className="flex items-center gap-2 text-xs">
+                        <span className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[10px]", c.done ? "bg-green-500 text-white" : "bg-amber-200 text-amber-700")}>
+                          {c.done ? '✓' : '○'}
+                        </span>
+                        <span className={c.done ? "text-amber-900" : "text-amber-600"}>{c.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-3">
                 <a href="/settings" className="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 transition-colors">Complete Profile</a>
+                {verificationStatus === 'pending' && (
+                  <button
+                    onClick={handleSubmitForReview}
+                    disabled={submittingReview}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {submittingReview ? 'Submitting…' : 'Submit for Review'}
+                  </button>
+                )}
                 <a href="/billing" className="px-4 py-2 bg-white border border-amber-300 text-amber-800 text-sm font-semibold rounded-lg hover:bg-amber-50 transition-colors">View Plans</a>
               </div>
             </div>
           </div>
+          <p className="mt-3 text-xs text-blue-600 font-medium">🎉 Your first session is free after approval</p>
         </div>
       )}
 
