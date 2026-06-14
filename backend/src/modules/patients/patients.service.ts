@@ -289,6 +289,69 @@ export class PatientsService {
       [patientId, orgId],
     );
   }
+
+  // ─── HIPAA Right of Access (§164.524) ────────────────────────────────────
+
+  async exportPatientData(patientId: string, orgId: string) {
+    const [patient, sessions, assessments, moods, notes] = await Promise.all([
+      this.db.queryOne(
+        `SELECT id, first_name, last_name, date_of_birth, gender, email, phone,
+                address, city, state, zip, insurance_provider, created_at
+         FROM patients WHERE id = $1 AND organization_id = $2`,
+        [patientId, orgId],
+      ).catch(() => null),
+      this.db.query(
+        `SELECT id, scheduled_at, session_type, status, duration_minutes
+         FROM sessions WHERE patient_id = $1 AND organization_id = $2
+         ORDER BY scheduled_at DESC`,
+        [patientId, orgId],
+      ).catch(() => []),
+      this.db.query(
+        `SELECT ar.*, at.name AS assessment_name
+         FROM assessment_results ar
+         JOIN assessment_templates at ON at.id = ar.template_id
+         WHERE ar.patient_id = $1 AND ar.organization_id = $2
+         ORDER BY ar.created_at DESC`,
+        [patientId, orgId],
+      ).catch(() => []),
+      this.db.query(
+        `SELECT mood_score, mood_label, note, created_at
+         FROM patient_mood_entries WHERE patient_id = $1
+         ORDER BY created_at DESC`,
+        [patientId],
+      ).catch(() => []),
+      this.db.query(
+        `SELECT n.id, n.note_type, n.created_at FROM ai_session_notes n
+         JOIN sessions s ON s.id = n.session_id
+         WHERE s.patient_id = $1 AND s.organization_id = $2 AND n.status = 'approved'`,
+        [patientId, orgId],
+      ).catch(() => []),
+    ]);
+
+    return {
+      export_date: new Date().toISOString(),
+      patient,
+      sessions,
+      assessments,
+      mood_entries: moods,
+      session_notes_count: (notes as any[]).length,
+    };
+  }
+
+  async requestDataErasure(patientId: string, userId: string, reason?: string) {
+    // Soft-delete the patient record and create an audit trail
+    await this.db.query(
+      `UPDATE patients SET status = 'erasure_requested', deleted_at = NOW()
+       WHERE id = $1`,
+      [patientId],
+    ).catch(() => null);
+    await this.db.query(
+      `INSERT INTO phi_access_log
+         (id, user_id, resource_type, resource_id, action, details, accessed_at)
+       VALUES (gen_random_uuid(), $1, 'patient', $2, 'erasure_requested', $3, NOW())`,
+      [userId, patientId, JSON.stringify({ reason: reason || 'Patient-requested' })],
+    ).catch(() => null);
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit

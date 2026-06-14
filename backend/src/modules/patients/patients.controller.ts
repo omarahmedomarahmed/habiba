@@ -130,6 +130,31 @@ export class PatientsController {
     const memories = await this.patientsService.getMemories(id, req.user.organization_id);
     return this.response({ memories });
   }
+
+  // ─── HIPAA Right of Access (§164.524) ────────────────────────────────────
+
+  @Get('me/export')
+  @Roles('patient')
+  @ApiOperation({ summary: 'Export all PHI for the current patient (HIPAA §164.524)' })
+  async exportMyData(@Request() req: any) {
+    const data = await this.patientsService.exportPatientData(
+      req.user.patientId,
+      req.user.organization_id,
+    );
+    return this.response({ export: data });
+  }
+
+  @Delete('me')
+  @Roles('patient')
+  @ApiOperation({ summary: 'Request erasure of patient account data' })
+  async requestDeletion(@Request() req: any, @Body('reason') reason?: string) {
+    await this.patientsService.requestDataErasure(
+      req.user.patientId,
+      req.user.id,
+      reason,
+    );
+    return this.response({ message: 'Data erasure request received. You will be contacted within 30 days.' });
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit

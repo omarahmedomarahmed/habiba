@@ -30,6 +30,8 @@ import { NotesModule } from './modules/notes/notes.module';
 import { TreatmentPlansModule } from './modules/treatment-plans/treatment-plans.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { DataLifecycleModule } from './modules/data-lifecycle/data-lifecycle.module';
 import { GatewaysModule } from './gateways/gateways.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
@@ -95,6 +97,8 @@ import appConfig from './config/app.config';
     TreatmentPlansModule,
     ReferralsModule,
     ReportsModule,
+    ContactModule,
+    DataLifecycleModule,
 
     // ─── WebSocket Gateways ───────────────────────────────────────────────────
     GatewaysModule,

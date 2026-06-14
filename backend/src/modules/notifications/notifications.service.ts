@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { DatabaseService } from "../../database/database.service";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 
@@ -482,6 +483,11 @@ export class NotificationsService {
     });
 
     return message;
+  }
+
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async releaseStaleQueueLocks(): Promise<void> {
+    await this.db.query('SELECT release_stale_notification_locks()', []).catch(() => null);
   }
 
   async getQueueStatus(organizationId: string) {

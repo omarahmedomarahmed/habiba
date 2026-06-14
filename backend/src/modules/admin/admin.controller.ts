@@ -107,13 +107,14 @@ export class AdminController {
   }
 
   @Put('feature-flags/:key')
+  @Patch('feature-flags/:key')
   async setFeatureFlag(
     @Param('key') key: string,
     @Body('enabled') enabled: boolean,
-    @Body('org_id') orgId: string,
+    @Body('rollout_pct') rolloutPct: number | undefined,
     @CurrentUser() user: any,
   ) {
-    return this.adminService.setFeatureFlag(key, enabled, orgId, user.id);
+    return this.adminService.setFeatureFlag(key, enabled, null, user.id);
   }
 
   // ─── Marketplace ──────────────────────────────────────────────────────────
@@ -172,6 +173,29 @@ export class AdminController {
   @Get('ai/governance')
   async getAIGovernanceDashboard() {
     return this.adminService.getAIGovernanceDashboard();
+  }
+
+  // ─── Emergency Access (Break-Glass) — HIPAA §164.312(a)(2)(ii) ───────────
+
+  @Post('break-glass')
+  async breakGlassAccess(
+    @Body() body: { target_user_id?: string; reason: string; resources: string[] },
+    @CurrentUser() user: any,
+    @Request() req: any,
+  ) {
+    return this.adminService.recordBreakGlassAccess({
+      adminUserId: user.id,
+      targetUserId: body.target_user_id,
+      reason: body.reason,
+      resources: body.resources,
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      userAgent: req.headers?.['user-agent'],
+    });
+  }
+
+  @Get('break-glass')
+  async listBreakGlassEvents(@Query() query: any) {
+    return this.adminService.listBreakGlassEvents(query);
   }
 }
 

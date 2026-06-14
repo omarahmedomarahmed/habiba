@@ -356,6 +356,24 @@ export class SessionsService {
     );
   }
 
+  async getMyReports(patientId: string, orgId: string) {
+    return this.db.query(
+      `SELECT sr.id, sr.report_type, sr.status, sr.created_at, sr.signed_at,
+              s.scheduled_at AS session_date,
+              t.display_name AS therapist_name,
+              sr.content->>'summary' AS summary
+       FROM session_reports sr
+       JOIN sessions s ON s.id = sr.session_id
+       JOIN therapists t ON t.id = sr.therapist_id
+       WHERE sr.patient_id = $1
+         AND sr.organization_id = $2
+         AND sr.status = 'signed'
+       ORDER BY sr.created_at DESC
+       LIMIT 50`,
+      [patientId, orgId],
+    ).catch(() => []);
+  }
+
   async getDashboardStats(orgId: string, therapistId: string) {
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();

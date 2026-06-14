@@ -237,7 +237,7 @@ export const adminAPI = {
 
   // Analytics
   analyticsOverview: (period?: string) =>
-    apiFetch<any>('/analytics/overview', { params: { period } } as any),
+    apiFetch<any>('/analytics/platform/dashboard', { params: { period } } as any),
   analyticsRevenue: (period?: string) =>
     apiFetch<any>('/analytics/revenue', { params: { period } } as any),
 

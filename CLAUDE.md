@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-13 (session 16 — patient portal production-readiness + mobile nav complete) |
+| **Last Updated** | 2026-06-13 (session 18 — Phase 1+2+3+4 production-readiness hardening) |
 
 ---
 
@@ -22,7 +22,7 @@
 
 | Package | Build | Routes |
 |---------|-------|--------|
-| `@24therapy/api` | ✅ PASS | 20 modules, ~95 endpoints |
+| `@24therapy/api` | ✅ PASS | 24 modules, ~100 endpoints |
 | `@24therapy/web` | ✅ PASS | 40+ routes |
 | `@24therapy/therapist` | ✅ PASS | 40+ routes |
 | `@24therapy/patient` | ✅ PASS | 18 routes |
@@ -198,6 +198,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
 ---
 
+## Commit History (Session 18)
+
+| Hash | Message |
+|------|---------|
+| `a1e5cae` | feat(phase-1): foundation hardening — migrations 022-024, 100 tests passing |
+| `95c21bd` | feat(phase-2): API wiring — contact module, my-reports endpoint, onboarding + intake |
+| `a7fbf53` | feat(phase-2e): feature flags DB + API, analytics URL fix |
+| `3f1b603` | feat(phase-3a+4d): Sentry error monitoring + incident response docs |
+| `f4f1611` | feat(phase-3e): AES-256-GCM message content encryption |
+| `c84e0ad` | feat(phase-4fg): break-glass access + patient right-of-access endpoints |
+| `4c849f2` | feat(phase-4e): data retention cron + policy doc |
+
 ## Commit History (Session 16)
 
 | Hash | Message |
@@ -298,6 +310,41 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [x] P6: /chat dark UI, starter templates, containerRef scroll fix; hero.tsx reply parse fix
 - [x] P7: pricing per-plan hero metrics, ✓/✗ feature lists, savings strip, price field normalization
 
+### Session 18 additions (complete)
+
+**Phase 1 — Foundation Hardening**
+- [x] migration 022: 8 missing FK indexes (organizations, messages, conversations, patient_medications, invoices, sessions, baa_records, assessment_results)
+- [x] migration 023: rename pricing_audit_log.action → change_type (fixes silent INSERT failure from migrations 020+021)
+- [x] migration 024: release_stale_notification_locks() + EVERY_10_MINUTES cron in notifications.service.ts
+- [x] 54 new unit tests across 6 modules: billing, sessions, treatment-plans, referrals, reports, workflows (100 total / 11 suites)
+
+**Phase 2 — Feature Completion**
+- [x] GET /sessions/my-reports (patient role): signed session reports joined with sessions+therapists; placed before :id route
+- [x] ContactModule (POST /contact, @Public()): MailService integration, class-validator DTOs; registered in app.module.ts
+- [x] apps/web/contact/page.tsx: handleSubmit POSTs to /contact with loading/error states
+- [x] apps/therapist/onboarding/page.tsx: goToNext() on ai_preferences→complete calls therapistsAPI.updateProfile() + updateAvailability()
+- [x] apps/therapist/patients/intake/page.tsx: handleEnroll() calls patientsAPI.create() replacing 2500ms fake delay
+- [x] migration 025: feature_flags table with 8 seeded flags; admin feature-flags page fixed (response unwrapping, PATCH endpoint)
+- [x] admin lib/api.ts: analyticsOverview URL fixed (/analytics/platform/dashboard)
+
+**Phase 3 — Infrastructure**
+- [x] @sentry/node in backend; @sentry/nextjs in all 4 Next.js apps; sentry.client/server.config.ts + global-error.tsx in each
+- [x] Sentry.init() in main.ts gated on SENTRY_DSN; beforeSend strips request.data (PHI protection)
+- [x] scripts/backup-verify.js: monthly restore test comparing prod vs staging row counts for 7 tables
+- [x] migration 027: encrypted BOOLEAN on messages table + partial index
+- [x] messages.service.ts: AES-256-GCM encrypt on write, decrypt on read (MESSAGE_ENCRYPTION_KEY env); legacy plaintext rows transparent
+- [x] scripts/encrypt-messages.js: one-time backfill for existing rows (batch 500, --dry-run flag)
+
+**Phase 4 — HIPAA Compliance**
+- [x] migration 028: break_glass_access table (HIPAA §164.312(a)(2)(ii))
+- [x] POST /admin/break-glass + GET /admin/break-glass: emergency access logging
+- [x] GET /patients/me/export: structured PHI export (HIPAA §164.524)
+- [x] DELETE /patients/me: initiates erasure request workflow
+- [x] DataLifecycleModule: 3 cron jobs (phi_access_log purge >6yr, erasure hard-delete >30d, monthly report)
+- [x] ops/INCIDENT_RESPONSE.md: P0-P3 protocol, 5-phase response, HIPAA breach notification timeline
+- [x] ops/BREACH_NOTIFICATION_TEMPLATE.md: pre-drafted letter, HHS OCR checklist, media template
+- [x] docs/DATA_RETENTION_POLICY.md: retention schedule, automated vs manual procedures
+
 ### Session 16 additions (complete)
 - [x] Patient dashboard home page (NEW): greeting, therapist name from patientAPI.me(), upcoming session, mood stats, quick-access grid
 - [x] progress/page.tsx: all mock arrays removed; wired to real assessmentsAPI + patientAPI.me() goals + moodTrend
@@ -316,8 +363,13 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [ ] **Resolve GitHub billing** — unblock CI runners
 - [ ] Prometheus/Grafana wiring (`infra/` scaffolded)
 - [ ] /blog CMS connection
-- [ ] Jest test suite updates for new modules (treatment-plans, referrals, reports, session-16 pages)
 - [ ] Onboarding wizard step 7: remove card-required implication
-- [ ] Formal BAAs before accepting real PHI (see `docs/HIPAA_CHECKLIST.md`)
+- [ ] **Must before first real patient**: Sign BAAs (Railway, Vercel, OpenAI, Resend, Daily.co)
+- [ ] **Must before first real patient**: Penetration test (CSP headers, external firm)
+- [ ] **Must before first real patient**: Designate Security Officer (HIPAA admin safeguard)
+- [ ] Replace admin analytics hardcoded charts (MRR_DATA, TOP_ORGS, AI_COSTS) with real endpoints
+- [ ] Redis Bull queue for email + notifications (replace fire-and-forget)
+- [ ] nestjs-pino structured logging + log drain (Logtail/Axiom)
+- [ ] Session recording S3/R2 archive (migration 026, 7-year HIPAA retention)
 
 <!-- Reviewed: 2026-06-13 — 24Therapy audit -->

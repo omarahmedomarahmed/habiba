@@ -140,11 +140,18 @@ Run them in this exact order:
 | 19 | `019_pricing_display_metadata.sql` | Pricing display metadata |
 | 20 | `020_monetization.sql` | Billing engine, session charges, AI credits |
 | 21 | `021_workflows_referrals.sql` | Clinical workflows, tasks, referrals |
+| 22 | `022_indexes.sql` | Performance indexes for FK relationships |
+| 23 | `023_fix_pricing_audit_log.sql` | Pricing audit log column fix |
+| 24 | `024_notification_queue_lock_timeout.sql` | Notification lock auto-release |
+| 25 | `025_feature_flags.sql` | Feature flag system |
+| 26 | `027_message_encryption.sql` | Message encryption column |
+| 27 | `028_break_glass.sql` | HIPAA emergency access log |
 
 > ⚠️ **"relation already exists" errors are normal.** Just continue to the next file.
 > ⚠️ **Do NOT skip 016_schema_fixes.sql.** It fixes critical bugs.
+> ℹ️ There is no file `026_recording_archive.sql` — skip that number, it's not implemented yet.
 
-> ✅ **Done when:** All 21 files have been run without red errors.
+> ✅ **Done when:** All 27 files have been run without red errors.
 
 ---
 
@@ -188,18 +195,24 @@ DATABASE_URL=<paste your Neon connection string here>
 DATABASE_SSL=true
 JWT_SECRET=<go to https://generate-secret.vercel.app/64 — copy the long random string shown>
 JWT_REFRESH_SECRET=<go to https://generate-secret.vercel.app/64 again — use a DIFFERENT string>
+COOKIE_SECRET=<go to https://generate-secret.vercel.app/64 a third time — use ANOTHER different string>
 OPENAI_API_KEY=<your OpenAI key — see instructions below>
+CORS_ORIGINS=https://24therapy.ai,https://app.24therapy.ai,https://my.24therapy.ai,https://admin.24therapy.ai
 STRIPE_SECRET_KEY=<your Stripe secret key — see instructions below>
 STRIPE_PUBLISHABLE_KEY=<your Stripe publishable key — see instructions below>
 STRIPE_WEBHOOK_SECRET=whsec_placeholder
 RESEND_API_KEY=<your Resend API key — see instructions below>
 FROM_EMAIL=24Therapy <noreply@yourdomain.com>
 DAILY_API_KEY=<your Daily.co API key — see instructions below>
+MESSAGE_ENCRYPTION_KEY=<go to https://generate-secret.vercel.app/64 a fourth time — protects messages at rest>
 APP_URL=https://24therapy.ai
 THERAPIST_APP_URL=https://app.24therapy.ai
 PATIENT_APP_URL=https://my.24therapy.ai
 ADMIN_APP_URL=https://admin.24therapy.ai
 ```
+
+> ⚠️ **COOKIE_SECRET and JWT_SECRET must each be different random strings.** Using the same string for both is a security risk.
+> ⚠️ **If you don't have a domain yet**, set `CORS_ORIGINS` to your 4 Vercel URLs (you'll get them in Step 4). Use: `https://24therapy-web.vercel.app,https://24therapy-therapist.vercel.app,https://24therapy-patient.vercel.app,https://24therapy-admin.vercel.app`
 
 4. Click **Update Variables**
 
@@ -472,7 +485,27 @@ Webhooks let Stripe notify your backend instantly when someone pays, cancels, or
 
 This is your god-mode account. You'll use it to manage everything from the admin portal.
 
-### Method: Use the API directly from your browser
+### Method A: Auto-seed via Railway (easiest — recommended)
+
+The app has a built-in seed script that creates your admin account and first organization automatically on deploy.
+
+1. Go to Railway → your service → **Variables** tab
+2. Click **Raw Editor** and add these 3 lines (replace with your details):
+   ```
+   SEED_ADMIN_EMAIL=admin@yourdomain.com
+   SEED_ADMIN_PASSWORD=YourSecurePassword123!
+   SEED_ORG_NAME=24Therapy
+   ```
+3. Click **Update Variables** — Railway will automatically redeploy
+4. Watch the logs — look for a line like: `✅ Seed complete — admin@yourdomain.com created`
+5. Go to `https://admin.24therapy.ai/login` and log in with those credentials
+
+> ✅ The seed is **safe to run multiple times** — it skips creation if the account already exists.
+> ✅ After creating your account, you can remove or leave the SEED_* variables — they won't cause harm.
+
+---
+
+### Method B: Use the API directly from your browser
 
 1. Open a new browser tab
 2. Go to your API URL with `/api/v1/auth/register` added:
@@ -779,25 +812,33 @@ UPDATE users SET status = 'active' WHERE email = 'your@email.com';
 ★ DATABASE_SSL=true
 ★ JWT_SECRET=<64 random characters from https://generate-secret.vercel.app/64>
 ★ JWT_REFRESH_SECRET=<different 64 random characters>
+★ COOKIE_SECRET=<another different 64 random characters>
 ★ OPENAI_API_KEY=sk-proj-...
+★ CORS_ORIGINS=https://24therapy.ai,https://app.24therapy.ai,https://my.24therapy.ai,https://admin.24therapy.ai
 ★ STRIPE_SECRET_KEY=sk_live_...
 ★ STRIPE_PUBLISHABLE_KEY=pk_live_...
 ★ RESEND_API_KEY=re_...
 ★ FROM_EMAIL=24Therapy <noreply@yourdomain.com>
+  MESSAGE_ENCRYPTION_KEY=<64 random chars from generate-secret.vercel.app/64 — encrypts messages at rest>
   DAILY_API_KEY=...
   STRIPE_WEBHOOK_SECRET=whsec_...
-  CORS_ORIGINS=https://24therapy.ai,https://app.24therapy.ai,https://my.24therapy.ai,https://admin.24therapy.ai
   APP_URL=https://24therapy.ai
   THERAPIST_APP_URL=https://app.24therapy.ai
   PATIENT_APP_URL=https://my.24therapy.ai
   ADMIN_APP_URL=https://admin.24therapy.ai
   API_URL=https://api.24therapy.ai
+  SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
   REDIS_URL=redis://...
   AWS_ACCESS_KEY_ID=...
   AWS_SECRET_ACCESS_KEY=...
   AWS_REGION=us-east-1
   AWS_S3_BUCKET=24therapy-uploads
+  SEED_ADMIN_EMAIL=admin@yourdomain.com
+  SEED_ADMIN_PASSWORD=YourPassword123!
+  SEED_ORG_NAME=24Therapy
 ```
+
+> ★ = App crashes at startup if these are missing or too short (JWT_SECRET / COOKIE_SECRET must be ≥32 characters).
 
 ### Vercel (All 4 websites) — Required ★
 
@@ -808,9 +849,135 @@ UPDATE users SET status = 'active' WHERE email = 'your@email.com';
 ★ NEXT_PUBLIC_PATIENT_URL=https://my.24therapy.ai
 ★ NEXT_PUBLIC_ADMIN_URL=https://admin.24therapy.ai
 ★ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+  NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
 ```
 
 > **Important:** Variables starting with `NEXT_PUBLIC_` are visible to the browser. Never put secret keys in `NEXT_PUBLIC_` variables.
+
+---
+
+---
+
+## Step 11 — Run Your First AI Therapist Demo Session
+
+Once everything above is live, here is the exact sequence to demo the platform to investors, advisors, or your first therapist hire. This takes about 15 minutes.
+
+### What you're showing:
+- Live transcription of a therapy session
+- Real-time AI clinical suggestions (the "Copilot")
+- Auto-generated session notes
+- Patient-facing session summary
+
+---
+
+### Part A: Set up demo accounts (~5 min)
+
+**Already done if you completed Steps 7–10. Skip ahead to Part B.**
+
+If starting fresh:
+
+1. Go to your **admin portal**: `https://admin.24therapy.ai/login`
+2. Log in with your admin credentials (Step 7)
+3. Click **Organizations** → **Add Organization**
+   - Name: `Demo Clinic`
+   - Plan: Starter
+   - Click **Create**
+4. Click **Users** → **Invite User**
+   - Email: `therapist@demo.com` (use a real email you control)
+   - Role: **Therapist**
+   - Organization: `Demo Clinic`
+   - Click **Send Invite**
+5. Open the invite email → click the link → complete registration
+
+---
+
+### Part B: Therapist onboarding (~3 min)
+
+1. Go to `https://app.24therapy.ai/login`
+2. Log in as the demo therapist (`therapist@demo.com`)
+3. The **onboarding wizard** launches automatically — click through each step:
+   - Add a professional bio
+   - Add a license number (use any for demo, e.g. `LIC-DEMO-001`)
+   - Set your specializations (select any that apply)
+   - Set availability — pick a few time slots
+   - Click **Complete Setup**
+4. You land on the therapist dashboard
+
+---
+
+### Part C: Create a demo patient (~2 min)
+
+1. In the therapist dashboard, click **Patients** in the left sidebar
+2. Click **New Patient** (blue button, top right)
+3. Fill in the **Intake Form**:
+   - First name: `Demo`
+   - Last name: `Patient`
+   - Date of birth: any
+   - Email: use a second email you control, or skip if optional
+   - Presenting concern: `Anxiety and stress management`
+4. Click **Enroll Patient**
+5. You'll be redirected to the patient's profile page
+
+---
+
+### Part D: Start the AI session (~10 min — the main demo)
+
+1. In the therapist portal, click **Sessions** in the left sidebar
+2. Click **New Session** (top right)
+3. Fill in:
+   - **Patient**: select `Demo Patient`
+   - **Modality**: Video
+   - **Session type**: Individual therapy
+   - **Scheduled time**: Now (or pick the current time)
+4. Click **Create Session**
+5. On the session details page, click the blue **Start Session** button
+6. A Daily.co video room opens in your browser
+
+**You should now see:**
+- Video of yourself (the therapist)
+- A right-side panel with: "AI Copilot", "Transcript", "Crisis Monitor"
+
+7. **Allow your microphone** when the browser prompts you
+8. **Start speaking naturally** — say something like:
+   > *"Hi, I'm glad you could make it today. How has your week been? Tell me a bit about what's been on your mind."*
+
+9. Watch the **Transcript panel** — your words appear in real-time within a few seconds
+10. After 30–60 seconds of speaking, the **AI Copilot** panel shows:
+    - Suggested next questions
+    - Detected emotional tone (e.g., "patient appears anxious")
+    - Clinical notes reminder
+
+11. Continue speaking for 2–3 minutes, then click **End Session**
+
+---
+
+### Part E: Review AI-generated notes (~2 min)
+
+1. After ending the session, you'll be redirected to the session page
+2. Click the **Notes** tab
+3. You'll see an **AI Draft** note — the system automatically wrote:
+   - Session summary
+   - Key themes discussed
+   - Clinical observations
+   - Suggested follow-up actions
+4. Read through it, make any edits
+5. Click **Sign Note** → the note is finalized and locked
+
+---
+
+### Part F: Patient sees their summary
+
+1. Open a second browser (or incognito window)
+2. Go to `https://my.24therapy.ai/login`
+3. Log in as the demo patient
+4. Click **Reports** in the navigation
+5. The signed session summary appears — this is what the patient sees (summary language, not raw clinical notes)
+
+---
+
+### What to say during the demo
+
+> *"What you just saw is the full AI clinical workflow — live transcription while the session happens, real-time coaching for the therapist, and automatic note generation. The therapist didn't type a single word. The patient gets a clean summary in their portal. This entire workflow is HIPAA-compliant with end-to-end audit logging."*
 
 ---
 
