@@ -121,6 +121,29 @@ export class AIController {
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
+  @Post('sessions/:sessionId/chat')
+  @ApiOperation({ summary: 'Chat with AI about a specific session' })
+  async sessionChat(
+    @Request() req: any,
+    @Param('sessionId') sessionId: string,
+    @Body() body: { message: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
+  ) {
+    const therapistId = req.user.therapistId || req.user.id;
+    try {
+      const result = await this.aiService.sessionChat(
+        sessionId, therapistId, req.user.organization_id, body.message, body.history || [],
+      );
+      return this.response(result);
+    } catch (err: any) {
+      if (err.message === 'CREDITS_EXHAUSTED') {
+        return { success: false, error: 'credits_exhausted', credits_balance: 0, upsell: err.upsell };
+      }
+      throw err;
+    }
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Post('assistant/chat')
   @ApiOperation({ summary: 'Chat with the AI practice assistant about your sessions' })
   async assistantChat(
@@ -128,6 +151,8 @@ export class AIController {
     @Body() body: {
       message: string;
       range?: 'today' | 'this_week' | 'last_week';
+      session_id?: string;
+      patient_id?: string;
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     },
   ) {
@@ -139,6 +164,8 @@ export class AIController {
         body.message,
         body.range,
         body.history || [],
+        body.session_id,
+        body.patient_id,
       );
       return this.response(result);
     } catch (err: any) {

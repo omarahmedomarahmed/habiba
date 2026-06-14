@@ -531,6 +531,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile FAB — quick session start */}
+      <Link
+        href="/sessions/new"
+        className="md:hidden fixed bottom-20 right-4 z-40 w-14 h-14 bg-secondary text-white rounded-full shadow-lg flex items-center justify-center hover:bg-secondary/90 transition-colors"
+        aria-label="Start session"
+      >
+        <Play className="w-6 h-6" />
+      </Link>
     </div>
   );
 }

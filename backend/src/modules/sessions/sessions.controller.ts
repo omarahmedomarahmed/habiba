@@ -142,6 +142,19 @@ export class SessionsController {
     const note = await this.sessionsService.getAINote(id, req.user.organization_id);
     return this.response({ note });
   }
+
+  @Post(':id/share-report')
+  @ApiOperation({ summary: 'Share approved session report with patient by email' })
+  async shareReport(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: { email: string; note_id?: string },
+  ) {
+    const result = await this.sessionsService.shareReportWithPatient(
+      id, req.user.organization_id, body.email, body.note_id,
+    );
+    return this.response(result);
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit
