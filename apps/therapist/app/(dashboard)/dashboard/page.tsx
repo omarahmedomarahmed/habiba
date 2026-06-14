@@ -252,6 +252,18 @@ export default function DashboardPage() {
         return null;
       })()}
 
+      {/* Mobile quick-action grid — only on small screens */}
+      <div className="grid grid-cols-2 gap-3 mb-4 md:hidden">
+        <Link href="/sessions/new" className="bg-secondary text-white rounded-2xl p-4 flex flex-col gap-1.5">
+          <Video className="w-5 h-5" />
+          <span className="text-sm font-semibold">New Session</span>
+        </Link>
+        <Link href="/patients/new" className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-1.5">
+          <Users className="w-5 h-5 text-slate-600" />
+          <span className="text-sm font-semibold text-slate-800">Add Patient</span>
+        </Link>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {loading ? (
@@ -267,7 +279,9 @@ export default function DashboardPage() {
             <StatCard icon={Calendar} label="Sessions Today" value={stats.sessions_today} color="blue" href="/sessions" />
             <StatCard icon={Users} label="Active Patients" value={stats.active_patients} color="green" href="/patients" />
             <StatCard icon={FileText} label="Pending Notes" value={stats.pending_notes} color="amber" href="/notes" />
-            <StatCard icon={TrendingUp} label="Revenue This Month" value={formatCurrency(stats.revenue_this_month)} color="purple" href="/billing" />
+            <div className="hidden md:block">
+              <StatCard icon={TrendingUp} label="Revenue This Month" value={formatCurrency(stats.revenue_this_month)} color="purple" href="/billing" />
+            </div>
           </>
         )}
       </div>

@@ -12,21 +12,26 @@ import {
   Users, Calendar, BarChart3, ExternalLink, Copy, Check, ArrowRight, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { therapistsAPI, billingAPI } from "@/lib/api";
+import { therapistsAPI, billingAPI, bookingAPI } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 type SettingsTab =
   | "profile"
   | "practice"
+  | "availability"
   | "ai"
   | "notifications"
   | "security"
   | "billing"
   | "usage";
 
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", icon: User },
   { id: "practice", label: "Practice", icon: Building2 },
+  { id: "availability", label: "Availability", icon: Calendar },
   { id: "ai", label: "AI & Scribe", icon: Brain },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
@@ -67,13 +72,75 @@ function SectionCard({ title, description, children }: {
   );
 }
 
-export default function TherapistSettingsPage() {
+function TherapistSettingsInner() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as SettingsTab | null;
   const [activeTab, setActiveTab] = useState<SettingsTab>(tabParam || "profile");
   const [billingUsage, setBillingUsage] = useState<any>(null);
   const [billingLoading, setBillingLoading] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+
+  // Booking slug
+  const [slug, setSlug] = useState("");
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [slugCopied, setSlugCopied] = useState(false);
+
+  // Session offerings
+  const [offerings, setOfferings] = useState<{ duration_mins: number; price_cents: number; is_enabled: boolean }[]>([
+    { duration_mins: 30, price_cents: 0, is_enabled: false },
+    { duration_mins: 60, price_cents: 0, is_enabled: false },
+  ]);
+  const [offeringSaving, setOfferingSaving] = useState(false);
+
+  // Wallet
+  const [wallet, setWallet] = useState<any>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutBank, setPayoutBank] = useState("");
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutDone, setPayoutDone] = useState(false);
+
+  // Availability
+  const [availSlots, setAvailSlots] = useState<{ day_of_week: number; start_time: string; end_time: string; is_active: boolean }[]>(
+    DAYS.map((_, i) => ({ day_of_week: i, start_time: "09:00", end_time: "17:00", is_active: i >= 1 && i <= 5 }))
+  );
+  const [availSaving, setAvailSaving] = useState(false);
+  const [availSaved, setAvailSaved] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "availability") {
+      therapistsAPI.availability().then((res: any) => {
+        const data: any[] = Array.isArray(res) ? res : res?.data ?? [];
+        if (data.length > 0) {
+          setAvailSlots(DAYS.map((_, i) => {
+            const row = data.find((d: any) => d.day_of_week === i);
+            return row
+              ? { day_of_week: i, start_time: row.start_time?.slice(0, 5) || "09:00", end_time: row.end_time?.slice(0, 5) || "17:00", is_active: row.is_active }
+              : { day_of_week: i, start_time: "09:00", end_time: "17:00", is_active: false };
+          }));
+        }
+      }).catch(() => {});
+    }
+  }, [activeTab]);
+
+  const handleSaveAvailability = async () => {
+    setAvailSaving(true);
+    setAvailSaved(false);
+    try {
+      await therapistsAPI.updateAvailability(availSlots.map(s => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        is_active: s.is_active,
+      })));
+      setAvailSaved(true);
+      setTimeout(() => setAvailSaved(false), 3000);
+    } catch { /* non-critical */ } finally {
+      setAvailSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (tabParam && TABS.some(t => t.id === tabParam)) {
@@ -87,6 +154,73 @@ export default function TherapistSettingsPage() {
       billingAPI.usageMe().then(setBillingUsage).catch(() => {}).finally(() => setBillingLoading(false));
     }
   }, [activeTab, billingUsage]);
+
+  useEffect(() => {
+    if (activeTab === "billing" && !wallet) {
+      setWalletLoading(true);
+      billingAPI.wallet().then((res: any) => setWallet(res?.data ?? res)).catch(() => {}).finally(() => setWalletLoading(false));
+    }
+  }, [activeTab, wallet]);
+
+  useEffect(() => {
+    if (activeTab === "billing") {
+      bookingAPI.myOfferings().then((res: any) => {
+        const data: any[] = res?.data ?? res ?? [];
+        if (data.length > 0) {
+          setOfferings([
+            { duration_mins: 30, price_cents: data.find((o: any) => o.duration_mins === 30)?.price_cents ?? 0, is_enabled: data.some((o: any) => o.duration_mins === 30 && o.is_enabled) },
+            { duration_mins: 60, price_cents: data.find((o: any) => o.duration_mins === 60)?.price_cents ?? 0, is_enabled: data.some((o: any) => o.duration_mins === 60 && o.is_enabled) },
+          ]);
+        }
+      }).catch(() => {});
+    }
+  }, [activeTab]);
+
+  const handleSaveSlug = async () => {
+    if (!slug.trim()) return;
+    setSlugSaving(true);
+    setSlugError(null);
+    try {
+      await therapistsAPI.updateSlug(slug.trim());
+    } catch (err: any) {
+      setSlugError(err?.data?.message || (err?.status === 409 ? "That slug is already taken." : "Could not save slug."));
+    } finally {
+      setSlugSaving(false);
+    }
+  };
+
+  const copyBookingLink = async () => {
+    const url = `${window.location.origin}/t/${slug}`;
+    await navigator.clipboard.writeText(url);
+    setSlugCopied(true);
+    setTimeout(() => setSlugCopied(false), 2000);
+  };
+
+  const handleSaveOfferings = async () => {
+    setOfferingSaving(true);
+    try {
+      await bookingAPI.updateOfferings(offerings.filter((o) => o.is_enabled).map((o) => ({
+        duration_mins: o.duration_mins,
+        price_cents: Math.round(o.price_cents),
+        is_enabled: true,
+      })));
+    } catch { /* non-critical */ } finally {
+      setOfferingSaving(false);
+    }
+  };
+
+  const handleRequestPayout = async () => {
+    const cents = Math.round(parseFloat(payoutAmount) * 100);
+    if (!cents || cents <= 0 || !payoutBank.trim()) return;
+    setPayoutLoading(true);
+    try {
+      await billingAPI.requestPayout({ amount_cents: cents, bank_details: { account_name: payoutBank } });
+      setPayoutDone(true);
+      setWallet(null);
+    } catch { /* show error */ } finally {
+      setPayoutLoading(false);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -382,6 +516,49 @@ export default function TherapistSettingsPage() {
                     <button className="flex items-center gap-1 border border-dashed border-gray-300 text-gray-400 px-3 py-1 rounded-full text-sm hover:border-[#2EC4B6] hover:text-[#2EC4B6]">
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Booking Link" description="Share with patients to let them self-schedule and pay online">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm text-slate-500 shrink-0 whitespace-nowrap">
+                      {typeof window !== "undefined" ? window.location.origin : "https://app.24therapy.ai"}/t/
+                    </span>
+                    <input
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      placeholder="your-name"
+                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                    />
+                  </div>
+                  {slugError && <p className="text-xs text-red-500 mb-2">{slugError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveSlug}
+                      disabled={slugSaving || !slug.trim()}
+                      className="px-4 py-2 bg-[#0A2342] text-white text-sm font-semibold rounded-xl hover:bg-[#0d2d56] disabled:opacity-50"
+                    >
+                      {slugSaving ? "Saving…" : "Save"}
+                    </button>
+                    {slug && (
+                      <button
+                        onClick={copyBookingLink}
+                        className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm rounded-xl hover:bg-gray-50"
+                      >
+                        {slugCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        {slugCopied ? "Copied!" : "Copy link"}
+                      </button>
+                    )}
+                    {slug && (
+                      <a
+                        href={`/t/${slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm rounded-xl hover:bg-gray-50"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Preview
+                      </a>
+                    )}
                   </div>
                 </SectionCard>
               </>
@@ -819,9 +996,237 @@ export default function TherapistSettingsPage() {
               </>
             )}
 
+            {/* ─── AVAILABILITY TAB ─── */}
+            {activeTab === "availability" && (
+              <>
+                <SectionCard
+                  title="Weekly Schedule"
+                  description="Set the hours you're available for patient bookings. Patients see these slots on your booking page."
+                >
+                  <div className="space-y-3">
+                    {availSlots.map((slot, i) => (
+                      <div key={slot.day_of_week} className={cn(
+                        "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+                        slot.is_active ? "border-[#1F5EFF]/30 bg-blue-50/50" : "border-gray-100 bg-gray-50"
+                      )}>
+                        <button
+                          onClick={() => setAvailSlots(prev => prev.map((s, idx) => idx === i ? { ...s, is_active: !s.is_active } : s))}
+                          className={cn(
+                            "w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
+                            slot.is_active ? "bg-[#1F5EFF] border-[#1F5EFF]" : "border-gray-300 bg-white"
+                          )}
+                        >
+                          {slot.is_active && <Check className="w-3 h-3 text-white" />}
+                        </button>
+                        <span className={cn("w-24 text-sm font-medium shrink-0", slot.is_active ? "text-slate-800" : "text-slate-400")}>
+                          {DAYS[slot.day_of_week]}
+                        </span>
+                        {slot.is_active ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="time"
+                              value={slot.start_time}
+                              onChange={e => setAvailSlots(prev => prev.map((s, idx) => idx === i ? { ...s, start_time: e.target.value } : s))}
+                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1F5EFF]/30 bg-white"
+                            />
+                            <span className="text-slate-400 text-sm">to</span>
+                            <input
+                              type="time"
+                              value={slot.end_time}
+                              onChange={e => setAvailSlots(prev => prev.map((s, idx) => idx === i ? { ...s, end_time: e.target.value } : s))}
+                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1F5EFF]/30 bg-white"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-sm">Unavailable</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSaveAvailability}
+                    disabled={availSaving}
+                    className="mt-4 flex items-center gap-2 px-4 py-2.5 bg-[#1F5EFF] text-white text-sm font-semibold rounded-xl hover:bg-[#1649D4] transition-colors disabled:opacity-50"
+                  >
+                    {availSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : availSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    {availSaving ? "Saving…" : availSaved ? "Saved!" : "Save Availability"}
+                  </button>
+                </SectionCard>
+
+                <SectionCard
+                  title="Timezone"
+                  description="Your availability slots are shown to patients in your local timezone."
+                >
+                  <select
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1F5EFF]/30"
+                    defaultValue="America/New_York"
+                  >
+                    {[
+                      "America/New_York", "America/Chicago", "America/Denver",
+                      "America/Los_Angeles", "America/Phoenix", "Europe/London",
+                      "Europe/Paris", "Asia/Dubai", "Asia/Kolkata", "Asia/Tokyo",
+                    ].map(tz => (
+                      <option key={tz} value={tz}>{tz.replace("_", " ")}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-2">Timezone is saved as part of your profile.</p>
+                </SectionCard>
+              </>
+            )}
+
             {/* ─── BILLING TAB ─── */}
             {activeTab === "billing" && (
               <>
+                {/* ── Wallet ── */}
+                <SectionCard title="Your Wallet" description="85% of patient payments are credited here after sessions">
+                  {walletLoading ? (
+                    <div className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+                  ) : wallet ? (
+                    <>
+                      <div className="bg-gradient-to-r from-emerald-600 to-teal-500 rounded-xl p-4 text-white mb-4">
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <div className="text-sm text-white/70">Available balance</div>
+                            <div className="text-3xl font-bold">${((wallet.balance_cents || 0) / 100).toFixed(2)}</div>
+                          </div>
+                          <button
+                            onClick={() => { setShowPayoutModal(true); setPayoutDone(false); setPayoutAmount(""); }}
+                            className="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+                          >
+                            Request Payout
+                          </button>
+                        </div>
+                        <div className="flex gap-6 mt-3">
+                          <div>
+                            <div className="text-xs text-white/60">Lifetime earned</div>
+                            <div className="text-sm font-semibold">${((wallet.lifetime_earned_cents || 0) / 100).toFixed(2)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-white/60">Lifetime withdrawn</div>
+                            <div className="text-sm font-semibold">${((wallet.lifetime_withdrawn_cents || 0) / 100).toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
+                      {wallet.transactions?.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Recent transactions</div>
+                          {wallet.transactions.slice(0, 10).map((tx: any) => (
+                            <div key={tx.id} className="flex items-center justify-between text-sm border-b border-gray-100 pb-2 last:border-0">
+                              <span className="text-gray-600">{tx.description || tx.type}</span>
+                              <span className={tx.type === "credit" ? "text-emerald-600 font-medium" : "text-red-500 font-medium"}>
+                                {tx.type === "credit" ? "+" : "-"}${(tx.amount_cents / 100).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 text-center py-2">No transactions yet. Earnings appear here after patient payments.</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400 text-center py-4">Loading wallet…</p>
+                  )}
+                </SectionCard>
+
+                {/* ── Session Offerings ── */}
+                <SectionCard title="Session Offerings" description="Configure durations and prices for your booking calendar">
+                  <div className="space-y-3 mb-4">
+                    {offerings.map((o, i) => (
+                      <div key={o.duration_mins} className="flex items-center gap-4 border border-gray-200 rounded-xl p-3">
+                        <ToggleSwitch
+                          enabled={o.is_enabled}
+                          onChange={(v) => setOfferings(prev => prev.map((x, xi) => xi === i ? { ...x, is_enabled: v } : x))}
+                        />
+                        <span className="text-sm font-medium text-gray-700 w-16">{o.duration_mins} min</span>
+                        {o.is_enabled && (
+                          <div className="flex items-center gap-1 flex-1">
+                            <span className="text-gray-400 text-sm">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={o.price_cents > 0 ? (o.price_cents / 100).toFixed(0) : ""}
+                              onChange={(e) => setOfferings(prev => prev.map((x, xi) => xi === i ? { ...x, price_cents: Math.round(parseFloat(e.target.value || "0") * 100) } : x))}
+                              placeholder="Price in USD"
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSaveOfferings}
+                    disabled={offeringSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#0A2342] text-white text-sm font-semibold rounded-xl hover:bg-[#0d2d56] disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {offeringSaving ? "Saving…" : "Save Offerings"}
+                  </button>
+                </SectionCard>
+
+                {/* Payout Modal */}
+                {showPayoutModal && (
+                  <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                      {payoutDone ? (
+                        <>
+                          <div className="flex items-center gap-3 mb-4">
+                            <CheckCircle className="w-8 h-8 text-emerald-500" />
+                            <div>
+                              <h2 className="text-lg font-bold text-gray-900">Payout requested</h2>
+                              <p className="text-sm text-gray-500">We'll process it within 3-5 business days.</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setShowPayoutModal(false)} className="w-full h-10 bg-[#0A2342] text-white rounded-xl text-sm font-semibold">Close</button>
+                        </>
+                      ) : (
+                        <>
+                          <h2 className="text-lg font-bold text-gray-900 mb-4">Request Payout</h2>
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Amount (USD)</label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={wallet ? (wallet.balance_cents / 100).toFixed(2) : undefined}
+                                  value={payoutAmount}
+                                  onChange={(e) => setPayoutAmount(e.target.value)}
+                                  placeholder={`Max $${wallet ? (wallet.balance_cents / 100).toFixed(2) : "0"}`}
+                                  className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Bank account (name or IBAN)</label>
+                              <input
+                                value={payoutBank}
+                                onChange={(e) => setPayoutBank(e.target.value)}
+                                placeholder="Account name or IBAN"
+                                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-3">
+                            <button onClick={() => setShowPayoutModal(false)} className="flex-1 h-10 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleRequestPayout}
+                              disabled={payoutLoading || !payoutAmount || !payoutBank.trim()}
+                              className="flex-1 h-10 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              {payoutLoading ? "Submitting…" : "Request Payout"}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <SectionCard title="Current Plan">
                   {billingLoading ? (
                     <div className="h-24 bg-gray-100 rounded-xl animate-pulse mb-4" />
@@ -1137,6 +1542,14 @@ export default function TherapistSettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TherapistSettingsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-8 h-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#1F5EFF]" /></div>}>
+      <TherapistSettingsInner />
+    </Suspense>
   );
 }
 

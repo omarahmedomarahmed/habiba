@@ -297,6 +297,63 @@ export class BillingController {
     return this.billingService.adminMarkChargePaid(id);
   }
 
+  // ============================================================
+  // PUBLIC — Patient session checkout (called from join page)
+  // ============================================================
+
+  @Public()
+  @Post("patient-session/checkout")
+  @ApiOperation({ summary: "Create Stripe checkout for patient to pay for a priced session" })
+  createPatientSessionCheckout(
+    @Body() body: { session_id: string; join_token: string; patient_email: string; price_cents: number; therapist_id: string }
+  ) {
+    return this.billingService.createPatientSessionCheckout(
+      body.session_id, body.therapist_id, body.price_cents, body.patient_email, body.join_token,
+    ).then(url => ({ checkout_url: url }));
+  }
+
+  // ============================================================
+  // THERAPIST — Wallet
+  // ============================================================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("therapist", "org_admin")
+  @Get("wallet")
+  @ApiOperation({ summary: "Get therapist wallet balance and transaction history" })
+  getWallet(@Request() req: { user: { therapistId?: string; userId: string } }) {
+    const therapistId = req.user.therapistId || req.user.userId;
+    return this.billingService.getWalletSummary(therapistId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("therapist", "org_admin")
+  @Post("wallet/payout-request")
+  @ApiOperation({ summary: "Request a manual payout from wallet balance" })
+  requestPayout(
+    @Request() req: { user: { therapistId?: string; userId: string } },
+    @Body() body: { amount_cents: number; bank_details: Record<string, string> },
+  ) {
+    const therapistId = req.user.therapistId || req.user.userId;
+    return this.billingService.requestPayout(therapistId, body.amount_cents, body.bank_details);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("therapist", "org_admin")
+  @Post("wallet/pay-subscription")
+  @ApiOperation({ summary: "Use wallet balance to pay for a subscription" })
+  paySubscriptionFromWallet(
+    @Request() req: { user: { therapistId?: string; userId: string; organizationId: string } },
+    @Body() body: { plan_key: string; amount_cents: number },
+  ) {
+    const therapistId = req.user.therapistId || req.user.userId;
+    return this.billingService.useWalletForSubscription(
+      therapistId, req.user.organizationId, body.plan_key, body.amount_cents,
+    );
+  }
+
   // Stripe webhook — no auth guard, uses signature verification
   @Public()
   @Post("webhook")

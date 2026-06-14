@@ -131,12 +131,6 @@ export function Navbar() {
               Log in
             </a>
             <Link
-              href="/chat"
-              className="text-sm font-medium text-slate-700 hover:text-[#1F5EFF] px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors border border-slate-200 hover:border-[#1F5EFF]/30"
-            >
-              Try AI Free
-            </Link>
-            <Link
               href="/signup"
               className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1F5EFF] hover:bg-[#0A2342] px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all"
             >
@@ -192,13 +186,6 @@ export function Navbar() {
             >
               Log in
             </a>
-            <Link
-              href="/chat"
-              className="block px-4 py-3 text-sm font-medium text-slate-700 text-center rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              Try AI Free
-            </Link>
             <Link
               href="/signup"
               className="flex items-center justify-center gap-1.5 px-4 py-3 text-sm font-semibold text-white bg-[#1F5EFF] rounded-xl hover:bg-[#0A2342] transition-colors"

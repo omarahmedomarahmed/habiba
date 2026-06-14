@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Calendar, MessageCircle, LayoutGrid,
   FileText, Target, Brain, Wrench, Settings, BarChart3,
-  ClipboardList, Briefcase, X
+  ClipboardList, Briefcase, X, Link2
 } from "lucide-react";
 
 const PRIMARY_TABS = [
@@ -26,6 +26,7 @@ const MORE_ITEMS = [
   { label: "Assessments", icon: ClipboardList, href: "/assessments" },
   { label: "Workflows", icon: Briefcase, href: "/workflow" },
   { label: "Settings", icon: Settings, href: "/settings" },
+  { label: "Booking Link", icon: Link2, href: "/settings?tab=profile" },
 ];
 
 export function TherapistBottomNav() {

@@ -42,6 +42,9 @@ export default function NewSessionPage() {
   const [joinUrl, setJoinUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // Price
+  const [sessionPrice, setSessionPrice] = useState("");
+
   // Loading states
   const [isCreating, setIsCreating] = useState(false);
   const [isSendingInvites, setIsSendingInvites] = useState(false);
@@ -81,12 +84,14 @@ export default function NewSessionPage() {
       const date = sessionDate || today;
       const scheduledAt = new Date(`${date}T${sessionTime}:00`).toISOString();
 
+      const priceCents = sessionPrice ? Math.round(parseFloat(sessionPrice) * 100) : undefined;
       const res = await sessionsAPI.create({
         title: title || "Therapy Session",
         scheduled_at: scheduledAt,
         session_type: "individual",
         modality: "video",
         scribe_enabled: true,
+        ...(priceCents ? { session_price_cents: priceCents } : {}),
       });
 
       const data = (res as any)?.data ?? res;
@@ -120,6 +125,7 @@ export default function NewSessionPage() {
       const date = sessionDate || today;
       const scheduledAt = new Date(`${date}T${sessionTime}:00`).toISOString();
 
+      const priceCents = sessionPrice ? Math.round(parseFloat(sessionPrice) * 100) : undefined;
       const res = await sessionsAPI.create({
         title: title || "In-Person Session",
         scheduled_at: scheduledAt,
@@ -130,6 +136,7 @@ export default function NewSessionPage() {
         patient_email: patientEmail.trim() || undefined,
         auto_start: true,
         auto_generate_note: true,
+        ...(priceCents ? { session_price_cents: priceCents } : {}),
       });
 
       const data = (res as any)?.data ?? res;
@@ -388,6 +395,26 @@ export default function NewSessionPage() {
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Session fee */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-5">
+          <h3 className="text-sm font-semibold text-slate-800 mb-1">Session fee <span className="text-slate-400 font-normal">(optional)</span></h3>
+          <p className="text-xs text-slate-500 mb-3">
+            {mode === "online" ? "Patient must pay before joining." : "You can bill them at the end of the session."}
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 text-sm font-medium">$</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={sessionPrice}
+              onChange={(e) => setSessionPrice(e.target.value)}
+              placeholder="0.00 — leave blank for free"
+              className="flex-1 px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30"
+            />
           </div>
         </div>
 
