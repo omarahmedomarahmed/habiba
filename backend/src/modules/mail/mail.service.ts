@@ -609,6 +609,44 @@ export class MailService {
 </body></html>`,
     });
   }
+
+  // ─── Therapist verification emails ────────────────────────────────────────
+
+  async sendTherapistApproved(email: string, name: string): Promise<void> {
+    const displayName = name || 'there';
+    await this.send({
+      to: email,
+      subject: 'Your 24Therapy account has been approved 🎉',
+      text: `Congratulations ${displayName}!\n\nYour 24Therapy account has been approved. You can now start running sessions, manage patients, and get paid.\n\nYour first session is on us — completely free.\n\nGo to your dashboard: ${this.therapistAppUrl}/dashboard`,
+      html: this.buildSimpleHtml(
+        `Congratulations, ${displayName}! 🎉`,
+        `<p style="margin:0 0 16px;color:#64748b;line-height:1.6;">Your 24Therapy account has been <strong style="color:#059669;">approved</strong>. You now have full access to your therapist portal.</p>
+         <p style="margin:0 0 16px;color:#64748b;line-height:1.6;">Start a session, manage your patients, set up your booking page, and connect your bank account to get paid — 85% of every session is yours.</p>
+         <p style="margin:0 0 24px;color:#1F5EFF;line-height:1.6;font-weight:600;">🎁 Your first session is completely free.</p>`,
+        { label: 'Go to Dashboard', url: `${this.therapistAppUrl}/dashboard` },
+      ),
+    });
+  }
+
+  async sendTherapistRejected(email: string, name: string, reason: string): Promise<void> {
+    const displayName = name || 'there';
+    const reasonText = reason && reason.trim().length > 0 ? reason.trim() : 'Your application did not meet our current onboarding requirements.';
+    await this.send({
+      to: email,
+      subject: 'Update on your 24Therapy application',
+      text: `Hi ${displayName},\n\nUnfortunately, we were unable to approve your 24Therapy application at this time.\n\nReason: ${reasonText}\n\nIf you believe this was a mistake or would like to provide additional information, please contact our support team at support@24therapy.ai.`,
+      html: this.buildSimpleHtml(
+        'Update on your application',
+        `<p style="margin:0 0 16px;color:#64748b;line-height:1.6;">Hi ${displayName}, thank you for your interest in joining 24Therapy.</p>
+         <p style="margin:0 0 16px;color:#64748b;line-height:1.6;">Unfortunately, we were unable to approve your application at this time.</p>
+         <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;">
+           <tr><td style="padding:16px;color:#991b1b;font-size:14px;line-height:1.6;"><strong>Reason:</strong> ${reasonText}</td></tr>
+         </table>
+         <p style="margin:0 0 24px;color:#64748b;line-height:1.6;">If you believe this was a mistake or would like to provide additional information, our support team is happy to help.</p>`,
+        { label: 'Contact Support', url: 'mailto:support@24therapy.ai' },
+      ),
+    });
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit

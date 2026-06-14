@@ -231,7 +231,7 @@ export const adminAPI = {
   therapists: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: any[]; total: number }>('/therapists', { params } as any),
   approveTherapist: (id: string) =>
-    apiFetch<any>(`/therapists/${id}/verify`, { method: 'PATCH', body: JSON.stringify({ verification_status: 'verified' }) }),
+    apiFetch<any>(`/therapists/${id}/verify`, { method: 'PATCH', body: JSON.stringify({ verification_status: 'approved' }) }),
   rejectTherapist: (id: string, reason: string) =>
     apiFetch<any>(`/therapists/${id}/verify`, { method: 'PATCH', body: JSON.stringify({ verification_status: 'rejected', rejection_reason: reason }) }),
 

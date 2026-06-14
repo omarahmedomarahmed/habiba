@@ -75,13 +75,13 @@ interface UIState {
   activePatientId: string | null;
   activeSessionId: string | null;
   notificationCount: number;
-  verificationStatus: 'pending' | 'approved' | 'rejected' | 'suspended' | null;
+  verificationStatus: 'pending' | 'under_review' | 'approved' | 'rejected' | 'suspended' | null;
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
   setActivePatient: (id: string | null) => void;
   setActiveSession: (id: string | null) => void;
   setNotificationCount: (count: number) => void;
-  setVerificationStatus: (status: 'pending' | 'approved' | 'rejected' | 'suspended' | null) => void;
+  setVerificationStatus: (status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'suspended' | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
