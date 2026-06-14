@@ -822,6 +822,7 @@ export class BillingService {
     therapistId: string,
     amountCents: number,
     bankDetails: Record<string, string>,
+    method?: string,
   ): Promise<void> {
     const wallet = await this.db.queryOne<{ balance_cents: number }>(
       `SELECT balance_cents FROM therapist_wallet WHERE therapist_id = $1`,
@@ -832,11 +833,21 @@ export class BillingService {
       throw new BadRequestException('Insufficient wallet balance');
     }
 
+    // Fall back to the therapist's saved payout method if none provided
+    let payoutMethod = method;
+    if (!payoutMethod) {
+      const t = await this.db.queryOne<{ payout_method: string }>(
+        `SELECT payout_method FROM therapists WHERE id = $1`,
+        [therapistId],
+      );
+      payoutMethod = t?.payout_method ?? 'ach';
+    }
+
     const payoutId = this.db.generateId();
     await this.db.execute(
-      `INSERT INTO payout_requests (id, therapist_id, amount_cents, bank_details, status)
-       VALUES ($1, $2, $3, $4, 'pending')`,
-      [payoutId, therapistId, amountCents, JSON.stringify(bankDetails)],
+      `INSERT INTO payout_requests (id, therapist_id, amount_cents, bank_details, status, method)
+       VALUES ($1, $2, $3, $4, 'pending', $5)`,
+      [payoutId, therapistId, amountCents, JSON.stringify(bankDetails), payoutMethod],
     );
 
     // Debit wallet
@@ -867,6 +878,48 @@ export class BillingService {
         therapistData.display_name, therapistData.email, amountCents,
       ).catch(() => {});
     }
+  }
+
+  // ─── Admin payout management ──────────────────────────────────────────────
+
+  async getPayoutRequests(status?: string): Promise<any[]> {
+    const params: unknown[] = [];
+    let where = '';
+    if (status && status !== 'all') {
+      params.push(status);
+      where = `WHERE pr.status = $${params.length}`;
+    }
+    return this.db.query(
+      `SELECT pr.id, pr.therapist_id, pr.amount_cents, pr.bank_details, pr.status,
+              pr.method, pr.notes, pr.admin_note, pr.requested_at, pr.processed_at, pr.processed_by,
+              COALESCE(t.display_name, u.first_name || ' ' || u.last_name) AS therapist_name,
+              u.email AS therapist_email,
+              t.payout_method AS therapist_payout_method
+       FROM payout_requests pr
+       JOIN therapists t ON t.id = pr.therapist_id
+       JOIN users u ON u.id = t.user_id
+       ${where}
+       ORDER BY pr.requested_at DESC
+       LIMIT 200`,
+      params,
+    );
+  }
+
+  async processPayoutRequest(payoutId: string, adminUserId: string, note?: string): Promise<{ success: boolean }> {
+    const payout = await this.db.queryOne<{ status: string }>(
+      `SELECT status FROM payout_requests WHERE id = $1`,
+      [payoutId],
+    );
+    if (!payout) throw new BadRequestException('Payout request not found');
+    if (payout.status === 'processed') return { success: true };
+
+    await this.db.execute(
+      `UPDATE payout_requests
+       SET status = 'processed', processed_at = NOW(), processed_by = $2, notes = COALESCE($3, notes)
+       WHERE id = $1`,
+      [payoutId, adminUserId, note ?? null],
+    );
+    return { success: true };
   }
 
   async useWalletForSubscription(

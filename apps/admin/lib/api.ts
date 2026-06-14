@@ -235,6 +235,12 @@ export const adminAPI = {
   rejectTherapist: (id: string, reason: string) =>
     apiFetch<any>(`/therapists/${id}/verify`, { method: 'PATCH', body: JSON.stringify({ verification_status: 'rejected', rejection_reason: reason }) }),
 
+  // Payouts
+  payoutRequests: (status?: string) =>
+    apiFetch<any[]>('/billing/admin/payout-requests', { params: status ? { status } : undefined } as any),
+  processPayout: (id: string, note?: string) =>
+    apiFetch<any>(`/billing/admin/payout-requests/${id}/process`, { method: 'PATCH', body: JSON.stringify({ note: note ?? '' }) }),
+
   // Analytics
   analyticsOverview: (period?: string) =>
     apiFetch<any>('/analytics/platform/dashboard', { params: { period } } as any),

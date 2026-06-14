@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, Users, Shield, Brain, CreditCard,
   Store, Settings, LogOut, Activity, AlertTriangle, ChevronRight,
   Zap, BarChart2, UserCheck, Target, Layers,
-  Wrench, ToggleLeft, DollarSign, FileSearch
+  Wrench, ToggleLeft, DollarSign, FileSearch, Banknote
 } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ const NAV = [
     section: 'BUSINESS',
     items: [
       { href: '/billing', label: 'Billing & Revenue', icon: CreditCard },
+      { href: '/payouts', label: 'Therapist Payouts', icon: Banknote },
       { href: '/pricing', label: 'Pricing Management', icon: DollarSign },
       { href: '/marketplace', label: 'Marketplace', icon: Store },
       { href: '/analytics', label: 'Analytics', icon: BarChart2 },
