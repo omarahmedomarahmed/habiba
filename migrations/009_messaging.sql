@@ -1,61 +1,60 @@
 -- ============================================================
 -- 009_messaging.sql
--- 24Therapy.ai — Messaging, Notifications, Push, Queue
+-- 24Therapy — Messaging, Notifications, Notification Queue
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- conversations
 -- ------------------------------------------------------------
 CREATE TABLE conversations (
-  id               UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  organization_id  UUID         NOT NULL REFERENCES organizations(id),
-  type             VARCHAR(50)  NOT NULL DEFAULT 'patient_therapist',
-  patient_id       UUID         REFERENCES patients(id),
-  therapist_id     UUID         REFERENCES therapists(id),
-  status           VARCHAR(50)  NOT NULL DEFAULT 'active',
+  id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id  UUID        NOT NULL REFERENCES organizations(id),
+  type             VARCHAR(50) NOT NULL DEFAULT 'patient_therapist',
+  patient_id       UUID        REFERENCES patients(id),
+  therapist_id     UUID        REFERENCES therapists(id),
+  status           VARCHAR(50) NOT NULL DEFAULT 'active',
   subject          VARCHAR(255),
-  priority         VARCHAR(20)  NOT NULL DEFAULT 'normal',
+  priority         VARCHAR(20) NOT NULL DEFAULT 'normal',
   last_message_at  TIMESTAMPTZ,
-  created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_conversations_organization_id ON conversations(organization_id);
-CREATE INDEX idx_conversations_therapist_id    ON conversations(therapist_id);
-CREATE INDEX idx_conversations_patient_id      ON conversations(patient_id);
-
+CREATE INDEX idx_conversations_organization_id ON conversations (organization_id);
+CREATE INDEX idx_conversations_therapist_id    ON conversations (therapist_id);
+CREATE INDEX idx_conversations_patient_id      ON conversations (patient_id);
 CREATE UNIQUE INDEX idx_conversations_patient_therapist_active
-  ON conversations(patient_id, therapist_id)
+  ON conversations (patient_id, therapist_id)
   WHERE status = 'active' AND type = 'patient_therapist';
 
 -- ------------------------------------------------------------
 -- messages
 -- ------------------------------------------------------------
 CREATE TABLE messages (
-  id               UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  conversation_id  UUID         NOT NULL REFERENCES conversations(id),
-  sender_id        UUID         NOT NULL REFERENCES users(id),
-  content          TEXT         NOT NULL,
-  content_type     VARCHAR(50)  NOT NULL DEFAULT 'text',
-  message_type     VARCHAR(50)  NOT NULL DEFAULT 'text',
+  id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id  UUID        NOT NULL REFERENCES conversations(id),
+  sender_id        UUID        NOT NULL REFERENCES users(id),
+  content          TEXT        NOT NULL,
+  content_type     VARCHAR(50) NOT NULL DEFAULT 'text',
+  message_type     VARCHAR(50) NOT NULL DEFAULT 'text',
   file_url         TEXT,
-  read             BOOLEAN      NOT NULL DEFAULT FALSE,
+  read             BOOLEAN     NOT NULL DEFAULT FALSE,
   read_at          TIMESTAMPTZ,
   metadata         JSONB,
-  encrypted        BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  encrypted        BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_messages_conversation_created ON messages(conversation_id, created_at DESC);
-CREATE INDEX idx_messages_unread               ON messages(conversation_id, read) WHERE read = FALSE;
-CREATE INDEX idx_messages_sender_id            ON messages(sender_id);
-CREATE INDEX idx_messages_encrypted            ON messages(encrypted) WHERE encrypted = TRUE;
+CREATE INDEX idx_messages_conversation_created ON messages (conversation_id, created_at DESC);
+CREATE INDEX idx_messages_conversation_unread  ON messages (conversation_id, read) WHERE read = FALSE;
+CREATE INDEX idx_messages_sender_id            ON messages (sender_id);
+CREATE INDEX idx_messages_encrypted            ON messages (encrypted) WHERE encrypted = TRUE;
 
 -- ------------------------------------------------------------
 -- notification_templates
 -- ------------------------------------------------------------
 CREATE TABLE notification_templates (
   id           UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  template_key VARCHAR(100) NOT NULL UNIQUE,
+  template_key VARCHAR(100) NOT NULL,
   name         VARCHAR(255) NOT NULL,
   channel      VARCHAR(50)  NOT NULL,
   subject      VARCHAR(500),
@@ -66,7 +65,8 @@ CREATE TABLE notification_templates (
   language     VARCHAR(20)  NOT NULL DEFAULT 'en',
   version      INTEGER      NOT NULL DEFAULT 1,
   created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  CONSTRAINT notification_templates_key UNIQUE (template_key)
 );
 
 CREATE TRIGGER trg_notification_templates_updated_at
@@ -99,17 +99,17 @@ CREATE TABLE notifications (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_notifications_user_id         ON notifications(user_id);
-CREATE INDEX idx_notifications_user_read        ON notifications(user_id, read);
-CREATE INDEX idx_notifications_scheduled        ON notifications(scheduled_for) WHERE status = 'pending';
-CREATE INDEX idx_notifications_created_desc     ON notifications(created_at DESC);
+CREATE INDEX idx_notifications_user_id           ON notifications (user_id);
+CREATE INDEX idx_notifications_user_read         ON notifications (user_id, read);
+CREATE INDEX idx_notifications_scheduled_pending ON notifications (scheduled_for) WHERE status = 'pending';
+CREATE INDEX idx_notifications_created_desc      ON notifications (created_at DESC);
 
 -- ------------------------------------------------------------
 -- notification_preferences
 -- ------------------------------------------------------------
 CREATE TABLE notification_preferences (
   id                       UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id                  UUID         NOT NULL UNIQUE REFERENCES users(id),
+  user_id                  UUID         NOT NULL REFERENCES users(id),
   in_app_enabled           BOOLEAN      NOT NULL DEFAULT TRUE,
   email_enabled            BOOLEAN      NOT NULL DEFAULT TRUE,
   email_session_reminders  BOOLEAN      NOT NULL DEFAULT TRUE,
@@ -134,7 +134,8 @@ CREATE TABLE notification_preferences (
   quiet_end                TIME,
   timezone                 VARCHAR(100) NOT NULL DEFAULT 'UTC',
   created_at               TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at               TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  updated_at               TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  CONSTRAINT notification_preferences_user_id_key UNIQUE (user_id)
 );
 
 CREATE TRIGGER trg_notification_preferences_updated_at
@@ -145,64 +146,63 @@ CREATE TRIGGER trg_notification_preferences_updated_at
 -- email_delivery_log
 -- ------------------------------------------------------------
 CREATE TABLE email_delivery_log (
-  id                    UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  notification_id       UUID         REFERENCES notifications(id),
-  recipient_email       VARCHAR(255) NOT NULL,
-  provider              VARCHAR(50)  NOT NULL DEFAULT 'resend',
-  provider_message_id   VARCHAR(255),
-  status                VARCHAR(50)  NOT NULL DEFAULT 'sent',
-  opened_at             TIMESTAMPTZ,
-  clicked_at            TIMESTAMPTZ,
-  bounced_at            TIMESTAMPTZ,
-  bounce_type           VARCHAR(50),
-  spam_at               TIMESTAMPTZ,
-  error_code            VARCHAR(100),
-  error_message         TEXT,
-  created_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  id                  UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+  notification_id     UUID         REFERENCES notifications(id),
+  recipient_email     VARCHAR(255) NOT NULL,
+  provider            VARCHAR(50)  NOT NULL DEFAULT 'resend',
+  provider_message_id VARCHAR(255),
+  status              VARCHAR(50)  NOT NULL DEFAULT 'sent',
+  opened_at           TIMESTAMPTZ,
+  clicked_at          TIMESTAMPTZ,
+  bounced_at          TIMESTAMPTZ,
+  bounce_type         VARCHAR(50),
+  spam_at             TIMESTAMPTZ,
+  error_code          VARCHAR(100),
+  error_message       TEXT,
+  created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 -- ------------------------------------------------------------
 -- push_devices
 -- ------------------------------------------------------------
 CREATE TABLE push_devices (
-  id           UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id      UUID         NOT NULL REFERENCES users(id),
-  platform     VARCHAR(20)  NOT NULL,
-  device_token TEXT         NOT NULL,
+  id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id      UUID        NOT NULL REFERENCES users(id),
+  platform     VARCHAR(20) NOT NULL,
+  device_token TEXT        NOT NULL,
   device_name  VARCHAR(255),
   app_version  VARCHAR(50),
-  is_active    BOOLEAN      NOT NULL DEFAULT TRUE,
-  last_used_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-
-  CONSTRAINT uq_push_devices_user_token UNIQUE(user_id, device_token)
+  is_active    BOOLEAN     NOT NULL DEFAULT TRUE,
+  last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT push_devices_user_token_key UNIQUE (user_id, device_token)
 );
 
 -- ------------------------------------------------------------
 -- notification_queue
 -- ------------------------------------------------------------
 CREATE TABLE notification_queue (
-  id              UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  notification_id UUID         NOT NULL REFERENCES notifications(id),
-  priority        INTEGER      NOT NULL DEFAULT 5,
-  attempts        INTEGER      NOT NULL DEFAULT 0,
-  max_attempts    INTEGER      NOT NULL DEFAULT 3,
-  next_attempt_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  locked_at       TIMESTAMPTZ,
-  locked_by       VARCHAR(255),
-  completed_at    TIMESTAMPTZ,
-  failed_at       TIMESTAMPTZ,
-  error_message   TEXT,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  notification_id  UUID        NOT NULL REFERENCES notifications(id),
+  priority         INTEGER     NOT NULL DEFAULT 5,
+  attempts         INTEGER     NOT NULL DEFAULT 0,
+  max_attempts     INTEGER     NOT NULL DEFAULT 3,
+  next_attempt_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  locked_at        TIMESTAMPTZ,
+  locked_by        VARCHAR(255),
+  completed_at     TIMESTAMPTZ,
+  failed_at        TIMESTAMPTZ,
+  error_message    TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_notification_queue_workable
-  ON notification_queue(next_attempt_at, priority)
+CREATE INDEX idx_notification_queue_runnable
+  ON notification_queue (next_attempt_at, priority)
   WHERE completed_at IS NULL AND failed_at IS NULL;
 
 -- ------------------------------------------------------------
 -- release_stale_notification_locks()
--- Releases queue rows locked for more than 10 minutes
+-- Called by the notifications cron every 10 minutes
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION release_stale_notification_locks()
 RETURNS INTEGER AS $$
@@ -210,12 +210,12 @@ DECLARE
   v_count INTEGER;
 BEGIN
   UPDATE notification_queue
-  SET locked_at       = NULL,
-      locked_by       = NULL,
-      next_attempt_at = NOW()
-  WHERE locked_at < NOW() - INTERVAL '10 minutes'
-    AND completed_at IS NULL
-    AND failed_at    IS NULL;
+  SET    locked_at       = NULL,
+         locked_by       = NULL,
+         next_attempt_at = NOW()
+  WHERE  locked_at < NOW() - INTERVAL '10 minutes'
+    AND  completed_at IS NULL
+    AND  failed_at    IS NULL;
 
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
@@ -224,45 +224,42 @@ $$ LANGUAGE plpgsql;
 
 -- ------------------------------------------------------------
 -- enqueue_notification()
--- Creates a notification row + a notification_queue entry
--- in a single call.
--- Usage: SELECT enqueue_notification(
---   p_user_id, p_channel, p_title, p_body,
---   p_org_id, p_template_key, p_priority, p_scheduled_for
--- );
+-- Creates a notification + queues it atomically
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION enqueue_notification(
-  p_user_id       UUID,
-  p_channel       VARCHAR,
-  p_title         VARCHAR,
-  p_body          TEXT,
-  p_org_id        UUID        DEFAULT NULL,
-  p_template_key  VARCHAR     DEFAULT NULL,
-  p_priority      INTEGER     DEFAULT 5,
-  p_scheduled_for TIMESTAMPTZ DEFAULT NOW()
+  p_organization_id  UUID,
+  p_user_id          UUID,
+  p_template_key     VARCHAR,
+  p_channel          VARCHAR,
+  p_title            VARCHAR,
+  p_body             TEXT,
+  p_action_url       TEXT        DEFAULT NULL,
+  p_action_label     VARCHAR     DEFAULT NULL,
+  p_priority         VARCHAR     DEFAULT 'normal',
+  p_metadata         JSONB       DEFAULT NULL,
+  p_scheduled_for    TIMESTAMPTZ DEFAULT NULL
 )
 RETURNS UUID AS $$
 DECLARE
   v_notification_id UUID;
+  v_queue_priority  INTEGER;
 BEGIN
+  v_queue_priority := CASE p_priority
+    WHEN 'urgent' THEN 1
+    WHEN 'high'   THEN 2
+    WHEN 'normal' THEN 5
+    WHEN 'low'    THEN 9
+    ELSE 5
+  END;
+
   INSERT INTO notifications (
-    organization_id,
-    user_id,
-    template_key,
-    channel,
-    title,
-    body,
-    status,
-    scheduled_for
+    organization_id, user_id, template_key, channel,
+    title, body, action_url, action_label,
+    priority, metadata, scheduled_for
   ) VALUES (
-    p_org_id,
-    p_user_id,
-    p_template_key,
-    p_channel,
-    p_title,
-    p_body,
-    'pending',
-    p_scheduled_for
+    p_organization_id, p_user_id, p_template_key, p_channel,
+    p_title, p_body, p_action_url, p_action_label,
+    p_priority, p_metadata, COALESCE(p_scheduled_for, NOW())
   )
   RETURNING id INTO v_notification_id;
 
@@ -272,8 +269,8 @@ BEGIN
     next_attempt_at
   ) VALUES (
     v_notification_id,
-    p_priority,
-    p_scheduled_for
+    v_queue_priority,
+    COALESCE(p_scheduled_for, NOW())
   );
 
   RETURN v_notification_id;
