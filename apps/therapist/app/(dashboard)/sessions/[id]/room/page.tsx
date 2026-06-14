@@ -10,7 +10,7 @@ import {
   Brain, FileText, Flag, Bookmark, Plus, ChevronRight, ChevronDown,
   AlertTriangle, MessageSquare, Clock, Users, Maximize2, Minimize2,
   Zap, Target, Pill, Activity, TrendingDown, Send, X, CheckCircle2,
-  MoreHorizontal, Volume2, Share2, Edit3, Eye
+  MoreHorizontal, Volume2, Share2, Edit3, Eye, CreditCard, Loader2
 } from "lucide-react";
 import { cn, formatSessionTime, getInitials } from "@/lib/utils";
 import { useSessionRoomStore } from "@/lib/store";
@@ -88,6 +88,10 @@ export default function SessionRoomPage() {
   const [endError, setEndError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [billingOutcome, setBillingOutcome] = useState<BillingOutcome | null>(null);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [billEmail, setBillEmail] = useState("");
+  const [billLoading, setBillLoading] = useState<"send" | "cash" | null>(null);
+  const [billDone, setBillDone] = useState<"sent" | "cash" | null>(null);
   const [noteType, setNoteType] = useState<"SOAP" | "DAP" | "BIRP">("SOAP");
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [generatedNote, setGeneratedNote] = useState("");
@@ -297,7 +301,40 @@ export default function SessionRoomPage() {
     setIsLive(false);
     setSessionPhase("ended");
     setIsEnding(false);
+    const isInPerson = (liveSession as any)?.modality === 'in_person';
+    const hasPriceGate = ((liveSession as any)?.session_price_cents || 0) > 0;
+    if (isInPerson && hasPriceGate) {
+      setBillEmail((liveSession as any)?.patient_email || "");
+      setShowBillModal(true);
+    }
     pollBillingOutcome(id);
+  };
+
+  const sendOfflineBill = async () => {
+    if (!billEmail.trim() || !id) return;
+    setBillLoading("send");
+    try {
+      await sessionsAPI.sendOfflineBill(id, {
+        patient_email: billEmail.trim(),
+        amount_cents: (liveSession as any)?.session_price_cents,
+      });
+      setBillDone("sent");
+    } catch { /* non-fatal */ } finally {
+      setBillLoading(null);
+    }
+  };
+
+  const markCashPaid = async () => {
+    if (!id) return;
+    setBillLoading("cash");
+    try {
+      await sessionsAPI.markOfflineCashPaid(id, {
+        amount_cents: (liveSession as any)?.session_price_cents,
+      });
+      setBillDone("cash");
+    } catch { /* non-fatal */ } finally {
+      setBillLoading(null);
+    }
   };
 
   const generateNote = async () => {
@@ -413,6 +450,95 @@ export default function SessionRoomPage() {
           </div>
         </div>
       )}
+      {/* Offline Bill Modal — collect payment after in-person session */}
+      {showBillModal && (
+        <div className="fixed inset-0 z-[9100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            {billDone ? (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-green-500 shrink-0" />
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      {billDone === "sent" ? "Payment link sent" : "Marked as paid"}
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      {billDone === "sent" ? "Patient will receive an email with a Stripe payment link." : "Session marked as cash paid. Earnings added to your wallet."}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowBillModal(false); setActiveRightTab("notes"); }}
+                    className="flex-1 h-10 bg-secondary text-white rounded-xl text-sm font-semibold hover:bg-secondary/90 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Brain className="w-4 h-4" /> Generate note
+                  </button>
+                  <Link href="/sessions" className="flex-1 h-10 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center">
+                    Back to sessions
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="p-2 bg-blue-100 rounded-xl">
+                    <CreditCard className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Collect payment</h2>
+                    <p className="text-xs text-slate-500">
+                      Session fee: ${(((liveSession as any)?.session_price_cents || 0) / 100).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {/* Option A: Send Stripe link */}
+                  <div className="border border-slate-200 rounded-xl p-4">
+                    <p className="text-sm font-semibold text-slate-800 mb-2">Send payment link by email</p>
+                    <input
+                      value={billEmail}
+                      onChange={(e) => setBillEmail(e.target.value)}
+                      placeholder="patient@example.com"
+                      type="email"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 mb-2"
+                    />
+                    <button
+                      onClick={sendOfflineBill}
+                      disabled={!billEmail.trim() || billLoading !== null}
+                      className="w-full h-9 bg-secondary text-white rounded-lg text-sm font-semibold hover:bg-secondary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {billLoading === "send" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      {billLoading === "send" ? "Sending..." : "Send Stripe payment link"}
+                    </button>
+                  </div>
+
+                  {/* Option B: Mark as cash */}
+                  <button
+                    onClick={markCashPaid}
+                    disabled={billLoading !== null}
+                    className="w-full h-10 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {billLoading === "cash" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                    {billLoading === "cash" ? "Marking..." : "Mark as paid (cash / in-person)"}
+                  </button>
+
+                  {/* Option C: Skip */}
+                  <button
+                    onClick={() => setShowBillModal(false)}
+                    disabled={billLoading !== null}
+                    className="w-full h-9 text-slate-400 text-sm hover:text-slate-600 transition-colors"
+                  >
+                    Skip — no charge for this session
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* End Session Modal — confirm, then billing summary */}
       {showEndModal && (
         <div className="fixed inset-0 z-[9000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">

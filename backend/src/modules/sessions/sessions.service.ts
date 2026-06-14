@@ -4,6 +4,7 @@ import { DatabaseService } from '../../database/database.service';
 import { AIService } from '../ai/ai.service';
 import { BillingService } from '../billing/billing.service';
 import { CrisisService } from '../crisis/crisis.service';
+import { MailService } from '../mail/mail.service';
 import { v4 as uuidv4 } from 'uuid';
 
 // Extended crisis keyword list for live transcript scanning
@@ -28,6 +29,7 @@ export class SessionsService {
     @Inject(forwardRef(() => AIService)) private readonly aiService: AIService,
     private readonly crisisService: CrisisService,
     @Inject(forwardRef(() => BillingService)) private readonly billingService: BillingService,
+    private readonly mail: MailService,
   ) {}
 
   async findAll(orgId: string, query: any = {}) {
@@ -176,14 +178,18 @@ export class SessionsService {
       }
     }
 
+    const priceCents = dto.session_price_cents ? parseInt(String(dto.session_price_cents)) : null;
+    const paymentStatus = priceCents && priceCents > 0 ? 'pending' : 'not_required';
+
     const result = await this.db.query(
       `INSERT INTO sessions (
         id, organization_id, therapist_id, patient_id,
         session_type, modality, status, scheduled_at,
         session_number, title, recording_enabled, scribe_enabled,
         video_room_id, video_room_url, pre_session_notes, join_token,
-        patient_email, auto_generate_note
-      ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14,gen_random_uuid(),$15,$16)
+        patient_email, auto_generate_note,
+        session_price_cents, patient_payment_status
+      ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14,gen_random_uuid(),$15,$16,$17,$18)
       RETURNING *`,
       [
         sessionId, orgId, dto.therapist_id, dto.patient_id || null,
@@ -193,6 +199,7 @@ export class SessionsService {
         dto.recording_enabled || false, dto.scribe_enabled !== false,
         videoRoomId, videoRoomUrl, dto.pre_session_notes || null,
         dto.patient_email || null, dto.auto_generate_note !== false,
+        priceCents, paymentStatus,
       ],
     );
 
@@ -512,20 +519,74 @@ export class SessionsService {
   async getJoinInfo(joinToken: string) {
     const session = await this.db.queryOne<any>(
       `SELECT s.id, s.status, s.scheduled_at, s.video_room_url, s.join_token,
-              t.display_name AS therapist_name
+              s.session_price_cents, s.patient_payment_status,
+              t.display_name AS therapist_name,
+              u.avatar_url AS therapist_avatar_url
        FROM sessions s
        JOIN therapists t ON t.id = s.therapist_id
+       JOIN users u ON u.id = t.user_id
        WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting', 'in_progress')`,
       [joinToken],
     );
     if (!session) throw new NotFoundException('Session not found or has ended');
     return {
       session_id: session.id,
+      therapist_id: session.therapist_id,
       therapist_name: session.therapist_name,
+      therapist_avatar_url: session.therapist_avatar_url,
       scheduled_at: session.scheduled_at,
       status: session.status,
       video_room_url: session.video_room_url,
+      requires_payment: !!(session.session_price_cents && session.patient_payment_status !== 'paid'),
+      session_price_cents: session.session_price_cents,
+      patient_payment_status: session.patient_payment_status,
     };
+  }
+
+  async initiatePatientPayment(joinToken: string, dto: { email: string; name?: string }) {
+    const session = await this.db.queryOne<any>(
+      `SELECT s.id, s.therapist_id, s.session_price_cents, s.patient_payment_status, s.join_token
+       FROM sessions s
+       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting')`,
+      [joinToken],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+    if (!session.session_price_cents || session.session_price_cents <= 0) {
+      throw new BadRequestException('Session does not require payment');
+    }
+    if (session.patient_payment_status === 'paid') {
+      throw new BadRequestException('Session already paid');
+    }
+    const checkoutUrl = await this.billingService.createPatientSessionCheckout(
+      session.id, session.therapist_id, session.session_price_cents,
+      dto.email, joinToken,
+    );
+    return { checkout_url: checkoutUrl };
+  }
+
+  async sendOfflineBill(sessionId: string, orgId: string, dto: { patient_email: string; amount_cents: number }) {
+    const session = await this.db.queryOne<any>(
+      `SELECT id, therapist_id, organization_id FROM sessions WHERE id = $1 AND organization_id = $2`,
+      [sessionId, orgId],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+    const checkoutUrl = await this.billingService.createOfflineBillCheckout(
+      sessionId, session.therapist_id, dto.patient_email, dto.amount_cents,
+    );
+    await this.mail.sendOfflinePaymentLink(
+      dto.patient_email, '', '', dto.amount_cents, checkoutUrl || '', new Date(),
+    ).catch(() => {});
+    return { checkout_url: checkoutUrl };
+  }
+
+  async markOfflineCashPaid(sessionId: string, orgId: string, dto: { amount_cents: number }) {
+    const session = await this.db.queryOne<any>(
+      `SELECT id, therapist_id FROM sessions WHERE id = $1 AND organization_id = $2`,
+      [sessionId, orgId],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+    await this.billingService.markOfflineSessionPaid(sessionId, session.therapist_id, dto.amount_cents);
+    return { success: true };
   }
 
   async joinByToken(joinToken: string, dto: { name: string; email?: string }) {

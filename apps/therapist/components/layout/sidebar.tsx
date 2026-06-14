@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import {
   Brain, LayoutDashboard, Users, FileText,
   Settings, CreditCard, MessageSquare, Bell, Calendar,
-  ChevronLeft, ChevronRight, Activity, ArrowRight, Zap
+  ChevronLeft, ChevronRight, Activity, ArrowRight, Zap, Link2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
@@ -126,6 +126,7 @@ export function Sidebar() {
                 { href: "/analytics",      icon: Activity, label: "Analytics" },
                 { href: "/radar",          icon: Zap,      label: "Radar", badge: "LIVE" },
                 { href: "/ai-workspace",   icon: Brain,    label: "AI Workspace" },
+                { href: "/settings?tab=profile", icon: Link2, label: "Booking Link" },
               ].map(({ href, icon: Icon, label, badge }) => (
                 <li key={href}>
                   <Link

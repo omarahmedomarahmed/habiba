@@ -12,7 +12,7 @@ import {
   Users, Calendar, BarChart3, ExternalLink, Copy, Check, ArrowRight, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { therapistsAPI, billingAPI } from "@/lib/api";
+import { therapistsAPI, billingAPI, bookingAPI } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 
 type SettingsTab =
@@ -75,6 +75,28 @@ export default function TherapistSettingsPage() {
   const [billingLoading, setBillingLoading] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
 
+  // Booking slug
+  const [slug, setSlug] = useState("");
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [slugCopied, setSlugCopied] = useState(false);
+
+  // Session offerings
+  const [offerings, setOfferings] = useState<{ duration_mins: number; price_cents: number; is_enabled: boolean }[]>([
+    { duration_mins: 30, price_cents: 0, is_enabled: false },
+    { duration_mins: 60, price_cents: 0, is_enabled: false },
+  ]);
+  const [offeringSaving, setOfferingSaving] = useState(false);
+
+  // Wallet
+  const [wallet, setWallet] = useState<any>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutBank, setPayoutBank] = useState("");
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutDone, setPayoutDone] = useState(false);
+
   useEffect(() => {
     if (tabParam && TABS.some(t => t.id === tabParam)) {
       setActiveTab(tabParam);
@@ -87,6 +109,73 @@ export default function TherapistSettingsPage() {
       billingAPI.usageMe().then(setBillingUsage).catch(() => {}).finally(() => setBillingLoading(false));
     }
   }, [activeTab, billingUsage]);
+
+  useEffect(() => {
+    if (activeTab === "billing" && !wallet) {
+      setWalletLoading(true);
+      billingAPI.wallet().then((res: any) => setWallet(res?.data ?? res)).catch(() => {}).finally(() => setWalletLoading(false));
+    }
+  }, [activeTab, wallet]);
+
+  useEffect(() => {
+    if (activeTab === "billing") {
+      bookingAPI.myOfferings().then((res: any) => {
+        const data: any[] = res?.data ?? res ?? [];
+        if (data.length > 0) {
+          setOfferings([
+            { duration_mins: 30, price_cents: data.find((o: any) => o.duration_mins === 30)?.price_cents ?? 0, is_enabled: data.some((o: any) => o.duration_mins === 30 && o.is_enabled) },
+            { duration_mins: 60, price_cents: data.find((o: any) => o.duration_mins === 60)?.price_cents ?? 0, is_enabled: data.some((o: any) => o.duration_mins === 60 && o.is_enabled) },
+          ]);
+        }
+      }).catch(() => {});
+    }
+  }, [activeTab]);
+
+  const handleSaveSlug = async () => {
+    if (!slug.trim()) return;
+    setSlugSaving(true);
+    setSlugError(null);
+    try {
+      await therapistsAPI.updateSlug(slug.trim());
+    } catch (err: any) {
+      setSlugError(err?.data?.message || (err?.status === 409 ? "That slug is already taken." : "Could not save slug."));
+    } finally {
+      setSlugSaving(false);
+    }
+  };
+
+  const copyBookingLink = async () => {
+    const url = `${window.location.origin}/t/${slug}`;
+    await navigator.clipboard.writeText(url);
+    setSlugCopied(true);
+    setTimeout(() => setSlugCopied(false), 2000);
+  };
+
+  const handleSaveOfferings = async () => {
+    setOfferingSaving(true);
+    try {
+      await bookingAPI.updateOfferings(offerings.filter((o) => o.is_enabled).map((o) => ({
+        duration_mins: o.duration_mins,
+        price_cents: Math.round(o.price_cents),
+        is_enabled: true,
+      })));
+    } catch { /* non-critical */ } finally {
+      setOfferingSaving(false);
+    }
+  };
+
+  const handleRequestPayout = async () => {
+    const cents = Math.round(parseFloat(payoutAmount) * 100);
+    if (!cents || cents <= 0 || !payoutBank.trim()) return;
+    setPayoutLoading(true);
+    try {
+      await billingAPI.requestPayout({ amount_cents: cents, bank_details: { account_name: payoutBank } });
+      setPayoutDone(true);
+      setWallet(null);
+    } catch { /* show error */ } finally {
+      setPayoutLoading(false);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -382,6 +471,49 @@ export default function TherapistSettingsPage() {
                     <button className="flex items-center gap-1 border border-dashed border-gray-300 text-gray-400 px-3 py-1 rounded-full text-sm hover:border-[#2EC4B6] hover:text-[#2EC4B6]">
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Booking Link" description="Share with patients to let them self-schedule and pay online">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm text-slate-500 shrink-0 whitespace-nowrap">
+                      {typeof window !== "undefined" ? window.location.origin : "https://app.24therapy.ai"}/t/
+                    </span>
+                    <input
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      placeholder="your-name"
+                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                    />
+                  </div>
+                  {slugError && <p className="text-xs text-red-500 mb-2">{slugError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveSlug}
+                      disabled={slugSaving || !slug.trim()}
+                      className="px-4 py-2 bg-[#0A2342] text-white text-sm font-semibold rounded-xl hover:bg-[#0d2d56] disabled:opacity-50"
+                    >
+                      {slugSaving ? "Saving…" : "Save"}
+                    </button>
+                    {slug && (
+                      <button
+                        onClick={copyBookingLink}
+                        className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm rounded-xl hover:bg-gray-50"
+                      >
+                        {slugCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        {slugCopied ? "Copied!" : "Copy link"}
+                      </button>
+                    )}
+                    {slug && (
+                      <a
+                        href={`/t/${slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 text-sm rounded-xl hover:bg-gray-50"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Preview
+                      </a>
+                    )}
                   </div>
                 </SectionCard>
               </>
@@ -822,6 +954,156 @@ export default function TherapistSettingsPage() {
             {/* ─── BILLING TAB ─── */}
             {activeTab === "billing" && (
               <>
+                {/* ── Wallet ── */}
+                <SectionCard title="Your Wallet" description="85% of patient payments are credited here after sessions">
+                  {walletLoading ? (
+                    <div className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+                  ) : wallet ? (
+                    <>
+                      <div className="bg-gradient-to-r from-emerald-600 to-teal-500 rounded-xl p-4 text-white mb-4">
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <div className="text-sm text-white/70">Available balance</div>
+                            <div className="text-3xl font-bold">${((wallet.balance_cents || 0) / 100).toFixed(2)}</div>
+                          </div>
+                          <button
+                            onClick={() => { setShowPayoutModal(true); setPayoutDone(false); setPayoutAmount(""); }}
+                            className="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+                          >
+                            Request Payout
+                          </button>
+                        </div>
+                        <div className="flex gap-6 mt-3">
+                          <div>
+                            <div className="text-xs text-white/60">Lifetime earned</div>
+                            <div className="text-sm font-semibold">${((wallet.lifetime_earned_cents || 0) / 100).toFixed(2)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-white/60">Lifetime withdrawn</div>
+                            <div className="text-sm font-semibold">${((wallet.lifetime_withdrawn_cents || 0) / 100).toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
+                      {wallet.transactions?.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Recent transactions</div>
+                          {wallet.transactions.slice(0, 10).map((tx: any) => (
+                            <div key={tx.id} className="flex items-center justify-between text-sm border-b border-gray-100 pb-2 last:border-0">
+                              <span className="text-gray-600">{tx.description || tx.type}</span>
+                              <span className={tx.type === "credit" ? "text-emerald-600 font-medium" : "text-red-500 font-medium"}>
+                                {tx.type === "credit" ? "+" : "-"}${(tx.amount_cents / 100).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 text-center py-2">No transactions yet. Earnings appear here after patient payments.</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400 text-center py-4">Loading wallet…</p>
+                  )}
+                </SectionCard>
+
+                {/* ── Session Offerings ── */}
+                <SectionCard title="Session Offerings" description="Configure durations and prices for your booking calendar">
+                  <div className="space-y-3 mb-4">
+                    {offerings.map((o, i) => (
+                      <div key={o.duration_mins} className="flex items-center gap-4 border border-gray-200 rounded-xl p-3">
+                        <ToggleSwitch
+                          enabled={o.is_enabled}
+                          onChange={(v) => setOfferings(prev => prev.map((x, xi) => xi === i ? { ...x, is_enabled: v } : x))}
+                        />
+                        <span className="text-sm font-medium text-gray-700 w-16">{o.duration_mins} min</span>
+                        {o.is_enabled && (
+                          <div className="flex items-center gap-1 flex-1">
+                            <span className="text-gray-400 text-sm">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={o.price_cents > 0 ? (o.price_cents / 100).toFixed(0) : ""}
+                              onChange={(e) => setOfferings(prev => prev.map((x, xi) => xi === i ? { ...x, price_cents: Math.round(parseFloat(e.target.value || "0") * 100) } : x))}
+                              placeholder="Price in USD"
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSaveOfferings}
+                    disabled={offeringSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#0A2342] text-white text-sm font-semibold rounded-xl hover:bg-[#0d2d56] disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {offeringSaving ? "Saving…" : "Save Offerings"}
+                  </button>
+                </SectionCard>
+
+                {/* Payout Modal */}
+                {showPayoutModal && (
+                  <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                      {payoutDone ? (
+                        <>
+                          <div className="flex items-center gap-3 mb-4">
+                            <CheckCircle className="w-8 h-8 text-emerald-500" />
+                            <div>
+                              <h2 className="text-lg font-bold text-gray-900">Payout requested</h2>
+                              <p className="text-sm text-gray-500">We'll process it within 3-5 business days.</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setShowPayoutModal(false)} className="w-full h-10 bg-[#0A2342] text-white rounded-xl text-sm font-semibold">Close</button>
+                        </>
+                      ) : (
+                        <>
+                          <h2 className="text-lg font-bold text-gray-900 mb-4">Request Payout</h2>
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Amount (USD)</label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={wallet ? (wallet.balance_cents / 100).toFixed(2) : undefined}
+                                  value={payoutAmount}
+                                  onChange={(e) => setPayoutAmount(e.target.value)}
+                                  placeholder={`Max $${wallet ? (wallet.balance_cents / 100).toFixed(2) : "0"}`}
+                                  className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Bank account (name or IBAN)</label>
+                              <input
+                                value={payoutBank}
+                                onChange={(e) => setPayoutBank(e.target.value)}
+                                placeholder="Account name or IBAN"
+                                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-3">
+                            <button onClick={() => setShowPayoutModal(false)} className="flex-1 h-10 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleRequestPayout}
+                              disabled={payoutLoading || !payoutAmount || !payoutBank.trim()}
+                              className="flex-1 h-10 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              {payoutLoading ? "Submitting…" : "Request Payout"}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <SectionCard title="Current Plan">
                   {billingLoading ? (
                     <div className="h-24 bg-gray-100 rounded-xl animate-pulse mb-4" />

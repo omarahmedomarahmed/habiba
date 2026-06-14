@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-14 (session 21 — offline sessions, auto-generate AI output, patient email reports, mobile UX, doc overhaul) |
+| **Last Updated** | 2026-06-14 (session 22 — session monetization, Calendly-style booking, therapist wallet, mobile revamp) |
 
 ---
 
@@ -391,6 +391,29 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [ ] Redis Bull queue for email + notifications (replace fire-and-forget)
 - [ ] nestjs-pino structured logging + log drain (Logtail/Axiom)
 - [ ] Session recording S3/R2 archive (migration 026, 7-year HIPAA retention)
+
+### Session 22 additions (complete)
+- [x] migration 031: session price gate columns, offline bill tracking, therapist_wallet, wallet_transactions, payout_requests, therapist_booking_offerings, booking_sessions tables; fixes session_fees alias columns + organizations.stripe_customer_id
+- [x] BookingModule (booking.service.ts + booking.controller.ts + booking.module.ts): getPublicProfile, getAvailableSlots, createBookingCheckout, getBookingConfirmation, getMyOfferings/updateOfferings/getUpcomingBookings
+- [x] billing.service.ts: createPatientSessionCheckout, createOfflineBillCheckout, createBookingCheckout, markOfflineSessionPaid, _creditTherapistWallet (idempotent, 85/15 split), getWalletSummary, requestPayout, useWalletForSubscription, _confirmBookingSession; webhook branches for patient_session_payment/offline_session_bill/patient_booking
+- [x] billing.controller.ts: @Public patient-session/checkout + wallet + payout-request + pay-subscription endpoints
+- [x] sessions.service.ts: session_price_cents in create(), getJoinInfo() with payment gate fields, initiatePatientPayment, sendOfflineBill, markOfflineCashPaid
+- [x] sessions.controller.ts: POST join/:token/pay (@Public), POST :id/offline-bill/send, POST :id/offline-bill/mark-paid
+- [x] therapists.service.ts: updatePublicSlug() with regex validation + 409 on duplicate
+- [x] therapists.controller.ts: PATCH me/public-slug
+- [x] mail.service.ts: sendBookingConfirmation, sendOfflinePaymentLink, sendPayoutRequestReceived
+- [x] app.module.ts: BookingModule imported
+- [x] middleware.ts: /t added to PUBLIC_PATHS
+- [x] join/[token]/page.tsx: complete rewrite with payment gate phase-based state machine (loading → error → payment → mic → form → joining → session → waiting); therapist avatar + price display; ?paid=1 Stripe return handling
+- [x] sessions/new/page.tsx: optional session price field for both online and offline modes; passes session_price_cents to create()
+- [x] sessions/[id]/room/page.tsx: offline bill modal after in_person+priced session end (3 options: send Stripe link, mark cash paid, skip)
+- [x] app/t/[slug]/page.tsx: public Calendly-like booking page (5-step: profile → duration → calendar → slots → form+pay); mobile-first dark-on-light
+- [x] app/t/[slug]/confirmed/page.tsx: booking confirmation page with join link + copy button
+- [x] settings/page.tsx: Booking Link section (slug input + preview + copy), Session Offerings (30/60min toggle+price), Wallet (balance + transactions + payout modal)
+- [x] dashboard/page.tsx: mobile quick-action grid (New Session + Add Patient), Revenue stat hidden on mobile
+- [x] sidebar.tsx: Booking Link added to ADVANCED section
+- [x] BottomNav.tsx: Booking Link added to More drawer
+- [x] lib/api.ts: bookingAPI, sessionsAPI.initiatePatientPayment/sendOfflineBill/markOfflineCashPaid, therapistsAPI.updateSlug, billingAPI.wallet/requestPayout/paySubscription
 
 ### Session 21 additions (complete)
 - [x] migration 030: patient_id nullable in sessions/transcripts/transcript_segments/ai_session_notes; add patient_email, patient_name_guest, follow_up_recommendation, ai_insights, auto_generate_note to sessions

@@ -448,6 +448,116 @@ export class MailService {
 </body>
 </html>`;
   }
+
+  async sendBookingConfirmation(
+    patientEmail: string,
+    patientName: string,
+    therapistName: string,
+    therapistAvatarUrl: string | null,
+    scheduledAt: Date,
+    joinUrl: string,
+    durationMins: number,
+    priceCents: number,
+  ): Promise<void> {
+    const dateStr = scheduledAt.toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    const priceStr = (priceCents / 100).toFixed(2);
+    await this.send({
+      to: patientEmail,
+      subject: `Your session with ${therapistName} is confirmed`,
+      html: `<!DOCTYPE html><html><body style="font-family:Inter,sans-serif;background:#f8fafc;margin:0;padding:32px 0;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+  <table width="600" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <tr><td style="background:#1F5EFF;padding:32px 48px;text-align:center;">
+      ${therapistAvatarUrl ? `<img src="${therapistAvatarUrl}" width="64" height="64" style="border-radius:50%;border:3px solid rgba(255,255,255,0.4);margin-bottom:16px;" />` : ''}
+      <h1 style="color:#fff;margin:0;font-size:22px;">Booking Confirmed</h1>
+      <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;">with ${therapistName}</p>
+    </td></tr>
+    <tr><td style="padding:40px 48px;">
+      <p style="color:#1e293b;font-size:16px;">Hi ${patientName},</p>
+      <p style="color:#475569;">Your session has been confirmed. Here are the details:</p>
+      <div style="background:#f8fafc;border-radius:12px;padding:20px;margin:24px 0;">
+        <p style="margin:8px 0;color:#1e293b;"><strong>Date & Time:</strong> ${dateStr}</p>
+        <p style="margin:8px 0;color:#1e293b;"><strong>Duration:</strong> ${durationMins} minutes</p>
+        <p style="margin:8px 0;color:#1e293b;"><strong>Amount Paid:</strong> $${priceStr}</p>
+      </div>
+      <table cellpadding="0" cellspacing="0" style="margin:32px 0;">
+        <tr><td style="border-radius:12px;background:#1F5EFF;">
+          <a href="${joinUrl}" style="display:inline-block;padding:14px 40px;color:#fff;text-decoration:none;font-weight:600;font-size:16px;">
+            Join Session →
+          </a>
+        </td></tr>
+      </table>
+      <p style="color:#94a3b8;font-size:13px;">Save this link — you'll need it to join. No account required.</p>
+    </td></tr>
+    <tr><td style="padding:24px 48px;border-top:1px solid #f1f5f9;text-align:center;">
+      <p style="margin:0;color:#94a3b8;font-size:12px;">24Therapy.ai — HIPAA-compliant mental health platform</p>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>`,
+    });
+  }
+
+  async sendOfflinePaymentLink(
+    patientEmail: string,
+    patientName: string,
+    therapistName: string,
+    amountCents: number,
+    paymentUrl: string,
+    sessionDate: Date,
+  ): Promise<void> {
+    const dateStr = sessionDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const amountStr = (amountCents / 100).toFixed(2);
+    await this.send({
+      to: patientEmail,
+      subject: `Payment request from ${therapistName}`,
+      html: `<!DOCTYPE html><html><body style="font-family:Inter,sans-serif;background:#f8fafc;margin:0;padding:32px 0;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+  <table width="600" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <tr><td style="background:#0f172a;padding:32px 48px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:22px;">Session Invoice</h1>
+      <p style="color:rgba(255,255,255,0.7);margin:8px 0 0;">from ${therapistName}</p>
+    </td></tr>
+    <tr><td style="padding:40px 48px;">
+      <p style="color:#475569;">You have a payment due for your session on <strong>${dateStr}</strong>.</p>
+      <div style="background:#f8fafc;border-radius:12px;padding:20px;margin:24px 0;text-align:center;">
+        <p style="color:#94a3b8;margin:0 0 8px;font-size:13px;">AMOUNT DUE</p>
+        <p style="color:#1e293b;font-size:36px;font-weight:700;margin:0;">$${amountStr}</p>
+      </div>
+      <table cellpadding="0" cellspacing="0" style="margin:32px auto;display:block;text-align:center;">
+        <tr><td style="border-radius:12px;background:#1F5EFF;">
+          <a href="${paymentUrl}" style="display:inline-block;padding:14px 40px;color:#fff;text-decoration:none;font-weight:600;font-size:16px;">
+            Pay Now →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="padding:24px 48px;border-top:1px solid #f1f5f9;text-align:center;">
+      <p style="margin:0;color:#94a3b8;font-size:12px;">24Therapy.ai — HIPAA-compliant mental health platform</p>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>`,
+    });
+  }
+
+  async sendPayoutRequestReceived(
+    therapistName: string,
+    therapistEmail: string,
+    amountCents: number,
+  ): Promise<void> {
+    const adminEmail = this.config.get<string>('ADMIN_EMAIL') || 'admin@24therapy.ai';
+    const amountStr = (amountCents / 100).toFixed(2);
+    await this.send({
+      to: adminEmail,
+      subject: `Payout request: ${therapistName} — $${amountStr}`,
+      html: `<p><strong>${therapistName}</strong> (${therapistEmail}) has requested a payout of <strong>$${amountStr}</strong>.</p>
+<p>Please review and process in the admin panel.</p>`,
+    });
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit

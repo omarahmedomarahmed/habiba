@@ -604,6 +604,360 @@ export class BillingService {
   }
 
   // ============================================================
+  // PATIENT SESSION PAYMENTS — Stripe Checkout
+  // ============================================================
+
+  async createPatientSessionCheckout(
+    sessionId: string,
+    therapistId: string,
+    priceCents: number,
+    patientEmail: string,
+    joinToken: string,
+  ): Promise<string | null> {
+    if (!this.stripeConfigured) return null;
+
+    const therapist = await this.db.queryOne<{ display_name: string; avatar_url?: string }>(
+      `SELECT t.display_name, u.avatar_url
+       FROM therapists t JOIN users u ON u.id = t.user_id WHERE t.id = $1`,
+      [therapistId],
+    );
+
+    const therapistAppUrl = this.config.get<string>('THERAPIST_APP_URL') || 'https://app.24therapy.ai';
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: patientEmail,
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Session with ${therapist?.display_name || 'Your Therapist'}`,
+            ...(therapist?.avatar_url ? { images: [therapist.avatar_url] } : {}),
+          },
+          unit_amount: priceCents,
+        },
+        quantity: 1,
+      }],
+      success_url: `${therapistAppUrl}/join/${joinToken}?paid=1`,
+      cancel_url: `${therapistAppUrl}/join/${joinToken}`,
+      metadata: { type: 'patient_session_payment', session_id: sessionId, therapist_id: therapistId },
+    });
+
+    await this.db.execute(
+      `UPDATE sessions SET patient_stripe_checkout_session_id = $1, patient_payment_status = 'pending'
+       WHERE id = $2`,
+      [session.id, sessionId],
+    );
+
+    return session.url;
+  }
+
+  async createOfflineBillCheckout(
+    sessionId: string,
+    therapistId: string,
+    patientEmail: string,
+    amountCents: number,
+  ): Promise<string | null> {
+    if (!this.stripeConfigured) return null;
+
+    const therapist = await this.db.queryOne<{ display_name: string; avatar_url?: string }>(
+      `SELECT t.display_name, u.avatar_url
+       FROM therapists t JOIN users u ON u.id = t.user_id WHERE t.id = $1`,
+      [therapistId],
+    );
+
+    const therapistAppUrl = this.config.get<string>('THERAPIST_APP_URL') || 'https://app.24therapy.ai';
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: patientEmail,
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Session Bill from ${therapist?.display_name || 'Your Therapist'}`,
+            ...(therapist?.avatar_url ? { images: [therapist.avatar_url] } : {}),
+          },
+          unit_amount: amountCents,
+        },
+        quantity: 1,
+      }],
+      success_url: `${therapistAppUrl}/settings?billing_paid=1`,
+      cancel_url: `${therapistAppUrl}/sessions`,
+      metadata: { type: 'offline_session_bill', session_id: sessionId, therapist_id: therapistId },
+    });
+
+    await this.db.execute(
+      `UPDATE sessions SET offline_bill_stripe_url = $1, offline_bill_status = 'sent',
+       offline_bill_sent_at = NOW() WHERE id = $2`,
+      [session.url, sessionId],
+    );
+
+    return session.url;
+  }
+
+  async createBookingCheckout(
+    bookingId: string,
+    therapistId: string,
+    priceCents: number,
+    patientEmail: string,
+    therapistName: string,
+    therapistAvatarUrl: string | null,
+    successUrl: string,
+    cancelUrl: string,
+  ): Promise<string | null> {
+    if (!this.stripeConfigured) return null;
+
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: patientEmail,
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Session with ${therapistName}`,
+            ...(therapistAvatarUrl ? { images: [therapistAvatarUrl] } : {}),
+          },
+          unit_amount: priceCents,
+        },
+        quantity: 1,
+      }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { type: 'patient_booking', booking_session_id: bookingId, therapist_id: therapistId },
+    });
+
+    await this.db.execute(
+      `UPDATE booking_sessions SET stripe_checkout_session_id = $1 WHERE id = $2`,
+      [session.id, bookingId],
+    );
+
+    return session.url;
+  }
+
+  async markOfflineSessionPaid(
+    sessionId: string,
+    therapistId: string,
+    amountCents: number,
+  ): Promise<void> {
+    await this.db.execute(
+      `UPDATE sessions SET offline_bill_status = 'cash_paid', patient_payment_status = 'paid',
+       patient_paid_at = NOW(), session_price_cents = COALESCE(session_price_cents, $2)
+       WHERE id = $1`,
+      [sessionId, amountCents],
+    );
+    await this._creditTherapistWallet(therapistId, amountCents, sessionId, 'session_fee');
+  }
+
+  // ============================================================
+  // THERAPIST WALLET
+  // ============================================================
+
+  private async _creditTherapistWallet(
+    therapistId: string,
+    grossAmountCents: number,
+    referenceId: string,
+    referenceType: 'session_fee' | 'booking_session',
+  ): Promise<void> {
+    const therapistEarnings = Math.floor(grossAmountCents * 0.85);
+
+    // Upsert wallet balance
+    const walletRow = await this.db.queryOne<{ balance_cents: number }>(
+      `INSERT INTO therapist_wallet (therapist_id, balance_cents, lifetime_earned_cents)
+       VALUES ($1, $2, $2)
+       ON CONFLICT (therapist_id) DO UPDATE
+         SET balance_cents = therapist_wallet.balance_cents + $2,
+             lifetime_earned_cents = therapist_wallet.lifetime_earned_cents + $2,
+             updated_at = NOW()
+       RETURNING balance_cents`,
+      [therapistId, therapistEarnings],
+    );
+
+    const balanceAfter = walletRow?.balance_cents ?? therapistEarnings;
+
+    await this.db.execute(
+      `INSERT INTO wallet_transactions
+         (id, therapist_id, type, amount_cents, balance_after_cents, reference_type, reference_id, description)
+       VALUES ($1, $2, 'credit', $3, $4, $5, $6::uuid, 'Session payment received')`,
+      [
+        this.db.generateId(), therapistId, therapistEarnings, balanceAfter,
+        referenceType, referenceId,
+      ],
+    );
+  }
+
+  async getWalletSummary(therapistId: string) {
+    const wallet = await this.db.queryOne<any>(
+      `SELECT balance_cents, lifetime_earned_cents, lifetime_withdrawn_cents, currency
+       FROM therapist_wallet WHERE therapist_id = $1`,
+      [therapistId],
+    );
+
+    const transactions = await this.db.query(
+      `SELECT id, type, amount_cents, balance_after_cents, reference_type, description, created_at
+       FROM wallet_transactions WHERE therapist_id = $1
+       ORDER BY created_at DESC LIMIT 20`,
+      [therapistId],
+    );
+
+    const pendingPayouts = await this.db.query(
+      `SELECT id, amount_cents, status, requested_at FROM payout_requests
+       WHERE therapist_id = $1 AND status IN ('pending', 'processing')
+       ORDER BY requested_at DESC`,
+      [therapistId],
+    );
+
+    return {
+      balance_cents: wallet?.balance_cents ?? 0,
+      lifetime_earned_cents: wallet?.lifetime_earned_cents ?? 0,
+      lifetime_withdrawn_cents: wallet?.lifetime_withdrawn_cents ?? 0,
+      currency: wallet?.currency ?? 'USD',
+      transactions,
+      pending_payouts: pendingPayouts,
+    };
+  }
+
+  async requestPayout(
+    therapistId: string,
+    amountCents: number,
+    bankDetails: Record<string, string>,
+  ): Promise<void> {
+    const wallet = await this.db.queryOne<{ balance_cents: number }>(
+      `SELECT balance_cents FROM therapist_wallet WHERE therapist_id = $1`,
+      [therapistId],
+    );
+
+    if (!wallet || wallet.balance_cents < amountCents) {
+      throw new BadRequestException('Insufficient wallet balance');
+    }
+
+    const payoutId = this.db.generateId();
+    await this.db.execute(
+      `INSERT INTO payout_requests (id, therapist_id, amount_cents, bank_details, status)
+       VALUES ($1, $2, $3, $4, 'pending')`,
+      [payoutId, therapistId, amountCents, JSON.stringify(bankDetails)],
+    );
+
+    // Debit wallet
+    const walletRow = await this.db.queryOne<{ balance_cents: number }>(
+      `UPDATE therapist_wallet
+       SET balance_cents = balance_cents - $1,
+           lifetime_withdrawn_cents = lifetime_withdrawn_cents + $1,
+           updated_at = NOW()
+       WHERE therapist_id = $2
+       RETURNING balance_cents`,
+      [amountCents, therapistId],
+    );
+
+    await this.db.execute(
+      `INSERT INTO wallet_transactions
+         (id, therapist_id, type, amount_cents, balance_after_cents, reference_type, description)
+       VALUES ($1, $2, 'payout', $3, $4, 'payout', 'Payout requested')`,
+      [this.db.generateId(), therapistId, amountCents, walletRow?.balance_cents ?? 0],
+    );
+
+    // Notify admin
+    const therapistData = await this.db.queryOne<{ display_name: string; email: string }>(
+      `SELECT t.display_name, u.email FROM therapists t JOIN users u ON u.id = t.user_id WHERE t.id = $1`,
+      [therapistId],
+    );
+    if (therapistData) {
+      this.mail.sendPayoutRequestReceived(
+        therapistData.display_name, therapistData.email, amountCents,
+      ).catch(() => {});
+    }
+  }
+
+  async useWalletForSubscription(
+    therapistId: string,
+    orgId: string,
+    planKey: string,
+    amountCents: number,
+  ): Promise<void> {
+    const wallet = await this.db.queryOne<{ balance_cents: number }>(
+      `SELECT balance_cents FROM therapist_wallet WHERE therapist_id = $1`,
+      [therapistId],
+    );
+
+    if (!wallet || wallet.balance_cents < amountCents) {
+      throw new BadRequestException('Insufficient wallet balance');
+    }
+
+    const walletRow = await this.db.queryOne<{ balance_cents: number }>(
+      `UPDATE therapist_wallet
+       SET balance_cents = balance_cents - $1, updated_at = NOW()
+       WHERE therapist_id = $2
+       RETURNING balance_cents`,
+      [amountCents, therapistId],
+    );
+
+    await this.db.execute(
+      `INSERT INTO wallet_transactions
+         (id, therapist_id, type, amount_cents, balance_after_cents, reference_type, description)
+       VALUES ($1, $2, 'subscription_debit', $3, $4, 'subscription', $5)`,
+      [
+        this.db.generateId(), therapistId, amountCents, walletRow?.balance_cents ?? 0,
+        `Subscription payment: ${planKey}`,
+      ],
+    );
+  }
+
+  private async _confirmBookingSession(bookingId: string, therapistId: string): Promise<void> {
+    const booking = await this.db.queryOne<any>(
+      `SELECT bs.*, t.display_name AS therapist_name, t.public_slug, u.avatar_url
+       FROM booking_sessions bs
+       JOIN therapists t ON t.id = bs.therapist_id
+       JOIN users u ON u.id = t.user_id
+       WHERE bs.id = $1`,
+      [bookingId],
+    );
+    if (!booking) return;
+
+    const joinToken = this.db.generateId();
+    const sessionId = this.db.generateId();
+
+    // Create the actual session
+    await this.db.execute(
+      `INSERT INTO sessions (id, organization_id, therapist_id, modality, status,
+        scheduled_at, duration_minutes, patient_email, session_price_cents,
+        patient_payment_status, patient_paid_at, join_token, auto_generate_note)
+       SELECT $1,
+         (SELECT organization_id FROM therapists WHERE id = $2),
+         $2, 'video', 'scheduled',
+         $3, $4, $5, $6, 'paid', NOW(), $7::uuid, TRUE`,
+      [
+        sessionId, therapistId, booking.scheduled_at, booking.duration_mins,
+        booking.patient_email, booking.price_cents, joinToken,
+      ],
+    );
+
+    // Update booking record
+    await this.db.execute(
+      `UPDATE booking_sessions SET session_id = $1, join_token = $2::uuid,
+       status = 'confirmed', confirmation_sent_at = NOW() WHERE id = $3`,
+      [sessionId, joinToken, bookingId],
+    );
+
+    // Credit wallet
+    await this._creditTherapistWallet(therapistId, booking.price_cents, bookingId, 'booking_session');
+
+    // Send confirmation email
+    const therapistAppUrl = this.config.get<string>('THERAPIST_APP_URL') || 'https://app.24therapy.ai';
+    const joinUrl = `${therapistAppUrl}/join/${joinToken}`;
+    this.mail.sendBookingConfirmation(
+      booking.patient_email,
+      booking.patient_name,
+      booking.therapist_name,
+      booking.avatar_url,
+      new Date(booking.scheduled_at),
+      joinUrl,
+      booking.duration_mins,
+      booking.price_cents,
+    ).catch(() => {});
+  }
+
+  // ============================================================
   // SUBSCRIPTION PLANS — Public
   // ============================================================
 
@@ -961,6 +1315,55 @@ export class BillingService {
   }
 
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    // Patient paying for a priced online session
+    if (session.mode === 'payment' && session.metadata?.type === 'patient_session_payment') {
+      const sessionId = session.metadata.session_id;
+      const therapistId = session.metadata.therapist_id;
+      await this.db.execute(
+        `UPDATE sessions SET patient_payment_status = 'paid', patient_paid_at = NOW(),
+         patient_stripe_payment_intent_id = $2 WHERE id = $1`,
+        [sessionId, session.payment_intent as string],
+      );
+      const sess = await this.db.queryOne<{ session_price_cents: number }>(
+        `SELECT session_price_cents FROM sessions WHERE id = $1`, [sessionId],
+      );
+      if (sess?.session_price_cents) {
+        await this._creditTherapistWallet(therapistId, sess.session_price_cents, sessionId, 'session_fee');
+      }
+      return;
+    }
+
+    // Patient paying offline session bill via Stripe link
+    if (session.mode === 'payment' && session.metadata?.type === 'offline_session_bill') {
+      const sessionId = session.metadata.session_id;
+      const therapistId = session.metadata.therapist_id;
+      await this.db.execute(
+        `UPDATE sessions SET offline_bill_status = 'stripe_paid', patient_payment_status = 'paid',
+         patient_paid_at = NOW() WHERE id = $1`,
+        [sessionId],
+      );
+      const sess = await this.db.queryOne<{ session_price_cents: number }>(
+        `SELECT session_price_cents FROM sessions WHERE id = $1`, [sessionId],
+      );
+      if (sess?.session_price_cents) {
+        await this._creditTherapistWallet(therapistId, sess.session_price_cents, sessionId, 'session_fee');
+      }
+      return;
+    }
+
+    // Patient booking via public /t/[slug] page
+    if (session.mode === 'payment' && session.metadata?.type === 'patient_booking') {
+      const bookingId = session.metadata.booking_session_id;
+      const therapistId = session.metadata.therapist_id;
+      await this.db.execute(
+        `UPDATE booking_sessions SET status = 'paid', paid_at = NOW(),
+         stripe_payment_intent_id = $2 WHERE id = $1`,
+        [bookingId, session.payment_intent as string],
+      );
+      await this._confirmBookingSession(bookingId, therapistId);
+      return;
+    }
+
     // Payment-mode: therapist paying a session charge
     if (session.mode === 'payment' && session.metadata?.session_charge_id) {
       const chargeId = session.metadata.session_charge_id;

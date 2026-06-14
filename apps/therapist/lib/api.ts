@@ -229,6 +229,24 @@ export const sessionsAPI = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  initiatePatientPayment: (token: string, body: { email: string; name?: string }) =>
+    apiFetch<{ checkout_url: string | null }>(`/sessions/join/${token}/pay`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  sendOfflineBill: (id: string, body: { patient_email: string; amount_cents: number }) =>
+    apiFetch<{ checkout_url: string | null }>(`/sessions/${id}/offline-bill/send`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  markOfflineCashPaid: (id: string, body: { amount_cents: number }) =>
+    apiFetch<{ success: boolean }>(`/sessions/${id}/offline-bill/mark-paid`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // ============================================================
@@ -293,6 +311,8 @@ export const therapistsAPI = {
   availability: () => apiFetch<Record<string, unknown>[]>("/therapists/me/availability"),
   updateAvailability: (data: Record<string, unknown>[]) =>
     apiFetch("/therapists/me/availability", { method: "PUT", body: JSON.stringify(data) }),
+  updateSlug: (slug: string) =>
+    apiFetch("/therapists/me/public-slug", { method: "PATCH", body: JSON.stringify({ slug }) }),
 };
 
 // ============================================================
@@ -339,6 +359,11 @@ export const billingAPI = {
   refreshChargeCheckout: (chargeId: string) =>
     apiFetch<{ charge_id: string; checkout_url: string | null }>(`/billing/charges/${chargeId}/checkout`, { method: "POST" }),
   cancel: () => apiFetch<Record<string, unknown>>("/billing/cancel", { method: "POST" }),
+  wallet: () => apiFetch<Record<string, unknown>>("/billing/wallet"),
+  requestPayout: (body: { amount_cents: number; bank_details: Record<string, string> }) =>
+    apiFetch("/billing/wallet/payout-request", { method: "POST", body: JSON.stringify(body) }),
+  paySubscription: (body: { plan_key: string; amount_cents: number }) =>
+    apiFetch("/billing/wallet/pay-subscription", { method: "POST", body: JSON.stringify(body) }),
 };
 
 // ============================================================
@@ -517,6 +542,31 @@ export const memoriesAPI = {
 export const organizationsAPI = {
   auditLogs: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: Record<string, unknown>[]; total: number }>("/organizations/me/audit-logs", { params }),
+};
+
+// ============================================================
+// BOOKING (public — no auth needed)
+// ============================================================
+export const bookingAPI = {
+  profile: (slug: string) =>
+    apiFetch<Record<string, unknown>>(`/booking/t/${slug}`),
+  slots: (slug: string, date: string, durationMins: number) =>
+    apiFetch<Array<{ starts_at: string; ends_at: string; available: boolean }>>(
+      `/booking/t/${slug}/slots?date=${date}&duration_mins=${durationMins}`,
+    ),
+  checkout: (slug: string, body: Record<string, unknown>) =>
+    apiFetch<{ checkout_url: string | null; booking_id: string }>(
+      `/booking/t/${slug}/checkout`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  confirmation: (bookingId: string) =>
+    apiFetch<Record<string, unknown>>(`/booking/confirmed/${bookingId}`),
+  myOfferings: () =>
+    apiFetch<Array<{ id: string; duration_mins: number; price_cents: number; is_enabled: boolean }>>("/booking/me/offerings"),
+  updateOfferings: (body: Array<{ duration_mins: number; price_cents: number; is_enabled: boolean }>) =>
+    apiFetch("/booking/me/offerings", { method: "PUT", body: JSON.stringify(body) }),
+  upcoming: () =>
+    apiFetch<Record<string, unknown>[]>("/booking/me/upcoming"),
 };
 
 export { APIError };

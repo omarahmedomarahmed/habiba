@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from "@nestjs/common";
 import { DatabaseService } from "../../database/database.service";
 
 @Injectable()
@@ -95,6 +95,34 @@ export class TherapistsService {
     }
 
     return this.getMyProfile(userId, organizationId);
+  }
+
+  // ============================================================
+  // BOOKING SLUG
+  // ============================================================
+
+  async updatePublicSlug(userId: string, organizationId: string, slug: string): Promise<void> {
+    if (!/^[a-z0-9-]{3,50}$/.test(slug)) {
+      throw new BadRequestException('Slug must be 3-50 characters: lowercase letters, numbers, and hyphens only');
+    }
+
+    const therapist = await this.db.queryOne<{ id: string }>(
+      `SELECT id FROM therapists WHERE user_id = $1 AND organization_id = $2 AND deleted_at IS NULL`,
+      [userId, organizationId],
+    );
+    if (!therapist) throw new NotFoundException('Therapist profile not found');
+
+    try {
+      await this.db.execute(
+        `UPDATE therapists SET public_slug = $1, updated_at = NOW() WHERE id = $2`,
+        [slug, therapist.id],
+      );
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        throw new ConflictException('This booking URL is already taken');
+      }
+      throw err;
+    }
   }
 
   // ============================================================

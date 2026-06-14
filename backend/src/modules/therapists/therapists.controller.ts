@@ -27,6 +27,15 @@ export class TherapistsController {
     return this.therapistsService.updateProfile(req.user.userId, req.user.organizationId, body);
   }
 
+  @Patch("me/public-slug")
+  @ApiOperation({ summary: "Update my booking page slug" })
+  updatePublicSlug(
+    @Request() req: { user: { userId: string; organizationId: string } },
+    @Body() body: { slug: string },
+  ) {
+    return this.therapistsService.updatePublicSlug(req.user.userId, req.user.organizationId, body.slug);
+  }
+
   @Get("me/stats")
   @ApiOperation({ summary: "Get my dashboard stats" })
   getDashboardStats(@Request() req: { user: { userId: string; organizationId: string } }) {
