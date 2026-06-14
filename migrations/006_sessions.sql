@@ -257,14 +257,17 @@ CREATE OR REPLACE TRIGGER trg_session_reports_updated_at
 -- patient_relationships → sessions (tables created in 004, sessions
 -- table now exists)
 -- ------------------------------------------------------------
-ALTER TABLE patient_files
-  ADD CONSTRAINT fk_patient_files_session
-  FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL;
-
-ALTER TABLE patient_life_events
-  ADD CONSTRAINT fk_life_events_session
-  FOREIGN KEY (source_session_id) REFERENCES sessions(id) ON DELETE SET NULL;
-
-ALTER TABLE patient_relationships
-  ADD CONSTRAINT fk_relationships_session
-  FOREIGN KEY (source_session_id) REFERENCES sessions(id) ON DELETE SET NULL;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_patient_files_session') THEN
+    ALTER TABLE patient_files ADD CONSTRAINT fk_patient_files_session
+      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_life_events_session') THEN
+    ALTER TABLE patient_life_events ADD CONSTRAINT fk_life_events_session
+      FOREIGN KEY (source_session_id) REFERENCES sessions(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_relationships_session') THEN
+    ALTER TABLE patient_relationships ADD CONSTRAINT fk_relationships_session
+      FOREIGN KEY (source_session_id) REFERENCES sessions(id) ON DELETE SET NULL;
+  END IF;
+END $$;
