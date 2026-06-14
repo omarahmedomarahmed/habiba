@@ -127,20 +127,20 @@ async function main() {
       return;
     }
 
-    // Auto-baseline: DB already has the full schema but none of the current migration
-    // file versions are recorded. This covers two cases:
+    // Auto-baseline: if --auto-baseline is set and the DB already has the full
+    // schema (organizations table exists), stamp ALL pending migrations without
+    // running their SQL. Handles both:
     //   (a) Pre-runner deployment — schema_migrations is empty
-    //   (b) Migration file rename — old versions are in schema_migrations but none
-    //       of the current file names match (e.g. 001_core_schema → 001_extensions)
-    // Condition: --auto-baseline flag AND ALL current files are pending AND DB has schema.
-    if (AUTO_BASELINE && pending.length === migrationFiles.length) {
+    //   (b) Migration file rename — old names in schema_migrations, new names pending
+    //   (c) Partial prior runs — some new names already applied, rest still pending
+    if (AUTO_BASELINE && pending.length > 0) {
       const { rows } = await client.query(`
         SELECT COUNT(*) AS count FROM information_schema.tables
         WHERE table_schema = 'public' AND table_name = 'organizations'
       `);
       if (parseInt(rows[0].count) > 0) {
-        console.log('\n🔍 Auto-baseline: DB has schema but none of the current migration files are recorded.');
-        console.log(`📋 Stamping ${pending.length} migration(s) as applied without running SQL…`);
+        console.log('\n🔍 Auto-baseline: DB has schema — stamping pending migrations without running SQL.');
+        console.log(`📋 Stamping ${pending.length} migration(s) as applied…`);
         for (const m of pending) {
           await client.query(
             'INSERT INTO schema_migrations (version, checksum, applied_at, duration_ms) VALUES ($1, $2, NOW(), 0) ON CONFLICT DO NOTHING',
