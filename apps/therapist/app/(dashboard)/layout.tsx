@@ -90,14 +90,10 @@ export default function DashboardLayout({
     }).catch(() => {});
   }, [isAuthenticated, setVerificationStatus]);
 
-  useEffect(() => {
-    if (verificationStatus && verificationStatus !== 'approved') {
-      const isRestricted = RESTRICTED_PATHS.some(p => pathname.startsWith(p));
-      if (isRestricted) {
-        router.push('/dashboard');
-      }
-    }
-  }, [pathname, verificationStatus, router]);
+  // Note: restricted pages now show a LockedPageOverlay instead of redirecting.
+  // RESTRICTED_PATHS is kept for reference / future use by the overlay logic.
+  void RESTRICTED_PATHS;
+  void pathname;
 
   if (!isAuthenticated) return null;
 

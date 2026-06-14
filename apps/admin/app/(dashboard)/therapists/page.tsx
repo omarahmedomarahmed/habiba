@@ -10,11 +10,11 @@ import { adminAPI, APIError } from '@/lib/api';
 import { exportCSV } from '@/lib/csv';
 
 const STATUS_COLORS: Record<string, string> = {
-  verified: 'bg-green-400/20 text-green-300',
+  approved: 'bg-green-400/20 text-green-300',
   pending: 'bg-amber-400/20 text-amber-300',
   under_review: 'bg-blue-400/20 text-blue-300',
-  suspended: 'bg-red-400/20 text-red-300',
-  rejected: 'bg-gray-400/20 text-gray-400',
+  suspended: 'bg-gray-400/20 text-gray-400',
+  rejected: 'bg-red-400/20 text-red-300',
 };
 
 const DOC_STATUS: Record<string, string> = {
@@ -49,6 +49,8 @@ export default function TherapistsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selected, setSelected] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
@@ -105,7 +107,7 @@ export default function TherapistsPage() {
     setActionLoading(id);
     try {
       await adminAPI.approveTherapist(id);
-      setTherapists(prev => prev.map(t => t.id === id ? { ...t, status: 'verified', verification_status: 'verified' } : t));
+      setTherapists(prev => prev.map(t => t.id === id ? { ...t, status: 'approved', verification_status: 'approved' } : t));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to approve therapist');
     } finally {
@@ -113,13 +115,15 @@ export default function TherapistsPage() {
     }
   };
 
-  const handleReject = async (id: string) => {
-    const reason = prompt('Reason for rejection:');
-    if (!reason) return;
+  const confirmReject = async () => {
+    const id = rejectTarget;
+    if (!id) return;
     setActionLoading(id);
     try {
-      await adminAPI.rejectTherapist(id, reason);
+      await adminAPI.rejectTherapist(id, rejectReason.trim());
       setTherapists(prev => prev.map(t => t.id === id ? { ...t, status: 'rejected', verification_status: 'rejected' } : t));
+      setRejectTarget(null);
+      setRejectReason('');
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to reject therapist');
     } finally {
@@ -130,9 +134,9 @@ export default function TherapistsPage() {
   // Stats from current page
   const stats = {
     total,
-    verified: therapists.filter(t => (t.status || t.verification_status) === 'verified').length,
-    pending: therapists.filter(t => (t.status || t.verification_status) === 'pending').length,
-    suspended: therapists.filter(t => (t.status || t.verification_status) === 'suspended').length,
+    verified: therapists.filter(t => (t.verification_status || t.status) === 'approved').length,
+    pending: therapists.filter(t => ['pending', 'under_review'].includes(t.verification_status || t.status)).length,
+    suspended: therapists.filter(t => (t.verification_status || t.status) === 'suspended').length,
   };
 
   const totalPages = Math.ceil(total / LIMIT);
@@ -205,11 +209,11 @@ export default function TherapistsPage() {
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300 focus:outline-none focus:border-blue-500"
         >
           <option value="all">All Status</option>
-          <option value="verified">Verified</option>
           <option value="pending">Pending</option>
           <option value="under_review">Under Review</option>
-          <option value="suspended">Suspended</option>
+          <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
+          <option value="suspended">Suspended</option>
         </select>
         <span className="text-xs text-gray-500">{loading ? '…' : `${total} results`}</span>
       </div>
@@ -254,7 +258,7 @@ export default function TherapistsPage() {
                           ? `${therapist.first_name} ${therapist.last_name}`
                           : therapist.name || therapist.email}
                       </span>
-                      {status === 'verified' && <CheckCircle className="w-4 h-4 text-blue-400" />}
+                      {status === 'approved' && <CheckCircle className="w-4 h-4 text-green-400" />}
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_COLORS[status] || 'bg-gray-400/20 text-gray-400'}`}>
                         {status}
                       </span>
@@ -365,7 +369,7 @@ export default function TherapistsPage() {
                               {isActing ? 'Approving...' : 'Approve & Verify'}
                             </button>
                             <button
-                              onClick={() => handleReject(therapist.id)}
+                              onClick={() => { setRejectTarget(therapist.id); setRejectReason(''); }}
                               disabled={isActing}
                               className="w-full flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50"
                             >
@@ -382,7 +386,7 @@ export default function TherapistsPage() {
                           <Mail className="w-3.5 h-3.5" />
                           Send Email
                         </button>
-                        {status === 'verified' && (
+                        {status === 'approved' && (
                           <button className="w-full flex items-center gap-2 px-3 py-2 bg-red-900/30 border border-red-700/30 text-red-300 hover:text-red-200 rounded-lg text-xs transition-all">
                             <AlertTriangle className="w-3.5 h-3.5" />
                             Suspend Account
@@ -417,6 +421,46 @@ export default function TherapistsPage() {
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setRejectTarget(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                <XCircle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Reject Application</h3>
+                <p className="text-xs text-gray-500">The therapist will be notified by email.</p>
+              </div>
+            </div>
+            <label className="block text-xs text-gray-400 mb-1.5">Reason for rejection</label>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              placeholder="e.g. License could not be verified. Please re-submit with valid documentation."
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500 resize-none"
+            />
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => { setRejectTarget(null); setRejectReason(''); }}
+                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReject}
+                disabled={actionLoading === rejectTarget}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {actionLoading === rejectTarget ? 'Rejecting…' : 'Confirm Rejection'}
+              </button>
+            </div>
           </div>
         </div>
       )}

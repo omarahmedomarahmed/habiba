@@ -1,5 +1,8 @@
 "use client";
 
+import { LockedPageOverlay } from "@/components/LockedPageOverlay";
+import { useUIStore } from "@/lib/store";
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Zap, Clock, Globe, DollarSign, Shield,
@@ -175,7 +178,7 @@ function SkeletonCard() {
 }
 
 // ── page ─────────────────────────────────────────────────────────────────────
-export default function RadarPage() {
+function RadarPageInner() {
   const { accessToken } = useAuthStore();
   const [requests, setRequests] = useState<RadarRequest[]>([]);
   const [stats, setStats] = useState<Partial<RadarStats>>({});
@@ -667,6 +670,16 @@ export default function RadarPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RadarPage() {
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const isLocked = verificationStatus !== null && verificationStatus !== "approved";
+  return (
+    <LockedPageOverlay isLocked={isLocked}>
+      <RadarPageInner />
+    </LockedPageOverlay>
   );
 }
 

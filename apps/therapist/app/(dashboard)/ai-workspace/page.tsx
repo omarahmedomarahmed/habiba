@@ -1,5 +1,8 @@
 "use client";
 
+import { LockedPageOverlay } from "@/components/LockedPageOverlay";
+import { useUIStore } from "@/lib/store";
+
 import { useState, useRef, useEffect } from "react";
 import {
   Brain, Send, User, Sparkles, FileText, Target,
@@ -139,7 +142,7 @@ function parseStructuredOutput(text: string, mode: WorkspaceMode): StructuredOut
   return undefined;
 }
 
-export default function AIWorkspacePage() {
+function AIWorkspacePageInner() {
   const [activeMode, setActiveMode] = useState<WorkspaceMode>("copilot");
   const [messages, setMessages] = useState<ConversationMessage[]>([
     {
@@ -556,6 +559,16 @@ export default function AIWorkspacePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AIWorkspacePage() {
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const isLocked = verificationStatus !== null && verificationStatus !== "approved";
+  return (
+    <LockedPageOverlay isLocked={isLocked}>
+      <AIWorkspacePageInner />
+    </LockedPageOverlay>
   );
 }
 

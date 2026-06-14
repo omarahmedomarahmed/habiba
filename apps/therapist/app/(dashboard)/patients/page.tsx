@@ -1,5 +1,8 @@
 "use client";
 
+import { LockedPageOverlay } from "@/components/LockedPageOverlay";
+import { useUIStore } from "@/lib/store";
+
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
@@ -32,7 +35,7 @@ function SkeletonRow() {
   );
 }
 
-export default function PatientsPage() {
+function PatientsPageInner() {
   const [patients, setPatients] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -399,6 +402,16 @@ export default function PatientsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PatientsPage() {
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const isLocked = verificationStatus !== null && verificationStatus !== "approved";
+  return (
+    <LockedPageOverlay isLocked={isLocked}>
+      <PatientsPageInner />
+    </LockedPageOverlay>
   );
 }
 

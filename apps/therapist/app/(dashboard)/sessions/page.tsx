@@ -1,5 +1,8 @@
 "use client";
 
+import { LockedPageOverlay } from "@/components/LockedPageOverlay";
+import { useUIStore } from "@/lib/store";
+
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
@@ -166,7 +169,7 @@ function SkeletonCard() {
   );
 }
 
-export default function SessionsPage() {
+function SessionsPageInner() {
   const [view, setView] = useState<"upcoming" | "past">("upcoming");
   const [search, setSearch] = useState("");
   const [sessions, setSessions] = useState<any[]>([]);
@@ -333,6 +336,16 @@ export default function SessionsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SessionsPage() {
+  const verificationStatus = useUIStore((s) => s.verificationStatus);
+  const isLocked = verificationStatus !== null && verificationStatus !== "approved";
+  return (
+    <LockedPageOverlay isLocked={isLocked}>
+      <SessionsPageInner />
+    </LockedPageOverlay>
   );
 }
 

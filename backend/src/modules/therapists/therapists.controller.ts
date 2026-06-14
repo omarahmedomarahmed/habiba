@@ -1,8 +1,10 @@
 import {
-  Controller, Get, Patch, Put, Body, Query, UseGuards, Request
+  Controller, Get, Patch, Put, Body, Query, Param, UseGuards, Request
 } from "@nestjs/common";
 import { TherapistsService } from "./therapists.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 
 @ApiTags("Therapists")
@@ -87,6 +89,40 @@ export class TherapistsController {
   ) {
     const therapist = await this.therapistsService.getMyProfile(req.user.userId, req.user.organizationId) as any;
     return this.therapistsService.updateRadarSettings(therapist.id as string, body);
+  }
+
+  @Patch("me/submit-review")
+  @ApiOperation({ summary: "Submit my profile for admin review" })
+  async submitForReview(@Request() req: { user: { therapistId: string } }): Promise<{ success: boolean }> {
+    await this.therapistsService.submitForReview(req.user.therapistId);
+    return { success: true };
+  }
+
+  @Patch("me/bank-details")
+  @ApiOperation({ summary: "Update my payout bank details" })
+  async updateBankDetails(
+    @Request() req: { user: { therapistId: string } },
+    @Body() body: { payout_method: "ach" | "wire" | "swift"; bank_details: Record<string, unknown> },
+  ): Promise<{ success: boolean }> {
+    await this.therapistsService.updateBankDetails(req.user.therapistId, body.payout_method, body.bank_details);
+    return { success: true };
+  }
+
+  @Patch(":id/verify")
+  @UseGuards(RolesGuard)
+  @Roles("super_admin", "admin", "org_admin")
+  @ApiOperation({ summary: "Approve or reject a therapist (admin)" })
+  async verifyTherapist(
+    @Param("id") id: string,
+    @Body() body: { verification_status: "approved" | "rejected"; rejection_reason?: string },
+    @Request() req: { user: { userId: string } },
+  ): Promise<{ success: boolean }> {
+    if (body.verification_status === "approved") {
+      await this.therapistsService.approveTherapist(id, req.user.userId);
+    } else {
+      await this.therapistsService.rejectTherapist(id, req.user.userId, body.rejection_reason ?? "");
+    }
+    return { success: true };
   }
 }
 

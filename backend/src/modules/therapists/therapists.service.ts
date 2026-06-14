@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from "@nestjs/common";
 import { DatabaseService } from "../../database/database.service";
+import { MailService } from "../mail/mail.service";
 
 @Injectable()
 export class TherapistsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly mail: MailService,
+  ) {}
 
   // ============================================================
   // PROFILE
@@ -251,8 +255,13 @@ export class TherapistsService {
     const queryParams: unknown[] = [organizationId];
 
     if (status) {
+      const verificationStatuses = ['pending', 'under_review', 'approved', 'rejected', 'suspended'];
       queryParams.push(status);
-      whereClause += ` AND t.status = $${queryParams.length}`;
+      if (verificationStatuses.includes(status)) {
+        whereClause += ` AND t.verification_status = $${queryParams.length}`;
+      } else {
+        whereClause += ` AND t.status = $${queryParams.length}`;
+      }
     }
 
     if (search) {
@@ -329,6 +338,65 @@ export class TherapistsService {
     }
 
     return this.getRadarSettings(therapistId);
+  }
+
+  // ============================================================
+  // VERIFICATION / APPROVAL (admin)
+  // ============================================================
+
+  async approveTherapist(therapistId: string, adminUserId: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE therapists SET verification_status = 'approved', verified_by = $2, verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      [therapistId, adminUserId],
+    );
+    const t = await this.db.queryOne<{ email: string; display_name: string }>(
+      `SELECT u.email, COALESCE(t.display_name, u.first_name) AS display_name
+       FROM therapists t JOIN users u ON u.id = t.user_id WHERE t.id = $1`,
+      [therapistId],
+    );
+    if (t) await this.mail.sendTherapistApproved(t.email, t.display_name);
+  }
+
+  async rejectTherapist(therapistId: string, adminUserId: string, reason: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE therapists SET verification_status = 'rejected', verified_by = $2, verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      [therapistId, adminUserId],
+    );
+    const t = await this.db.queryOne<{ email: string; display_name: string }>(
+      `SELECT u.email, COALESCE(t.display_name, u.first_name) AS display_name
+       FROM therapists t JOIN users u ON u.id = t.user_id WHERE t.id = $1`,
+      [therapistId],
+    );
+    if (t) await this.mail.sendTherapistRejected(t.email, t.display_name, reason);
+  }
+
+  async submitForReview(therapistId: string): Promise<void> {
+    if (!therapistId) throw new NotFoundException("Therapist profile not found");
+    // Only transition pending → under_review
+    await this.db.execute(
+      `UPDATE therapists SET verification_status = 'under_review', updated_at = NOW()
+       WHERE id = $1 AND verification_status = 'pending'`,
+      [therapistId],
+    );
+  }
+
+  // ============================================================
+  // BANK DETAILS / PAYOUTS
+  // ============================================================
+
+  async updateBankDetails(
+    therapistId: string,
+    payoutMethod: 'ach' | 'wire' | 'swift',
+    bankDetails: Record<string, unknown>,
+  ): Promise<void> {
+    if (!therapistId) throw new NotFoundException("Therapist profile not found");
+    if (!['ach', 'wire', 'swift'].includes(payoutMethod)) {
+      throw new BadRequestException("Invalid payout method");
+    }
+    await this.db.execute(
+      `UPDATE therapists SET payout_method = $2, bank_details = $3, updated_at = NOW() WHERE id = $1`,
+      [therapistId, payoutMethod, JSON.stringify(bankDetails ?? {})],
+    );
   }
 }
 

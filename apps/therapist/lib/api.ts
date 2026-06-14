@@ -313,6 +313,13 @@ export const therapistsAPI = {
     apiFetch("/therapists/me/availability", { method: "PUT", body: JSON.stringify(data) }),
   updateSlug: (slug: string) =>
     apiFetch("/therapists/me/public-slug", { method: "PATCH", body: JSON.stringify({ slug }) }),
+  submitForReview: () =>
+    apiFetch<{ success: boolean }>("/therapists/me/submit-review", { method: "PATCH" }),
+  updateBankDetails: (payout_method: "ach" | "wire" | "swift", bank_details: Record<string, unknown>) =>
+    apiFetch<{ success: boolean }>("/therapists/me/bank-details", {
+      method: "PATCH",
+      body: JSON.stringify({ payout_method, bank_details }),
+    }),
 };
 
 // ============================================================
