@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, H
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { SessionsService } from './sessions.service';
+import { Public } from '../auth/decorators/public.decorator';
 import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('sessions')
@@ -47,6 +48,30 @@ export class SessionsController {
     }
     const reports = await this.sessionsService.getMyReports(patientId, req.user.organization_id);
     return this.response({ data: reports });
+  }
+
+  @Get('join/:token')
+  @Public()
+  @ApiOperation({ summary: 'Get session info by join token (public)' })
+  async getJoinInfo(@Param('token') token: string) {
+    const info = await this.sessionsService.getJoinInfo(token);
+    return this.response({ session: info });
+  }
+
+  @Post('join/:token')
+  @Public()
+  @ApiOperation({ summary: 'Join session by token (public)' })
+  async joinByToken(@Param('token') token: string, @Body() dto: { name: string; email?: string }) {
+    const result = await this.sessionsService.joinByToken(token, dto);
+    return this.response(result);
+  }
+
+  @Post(':id/invite')
+  @ApiOperation({ summary: 'Send session invite emails' })
+  async sendInvites(@Request() req: any, @Param('id') id: string, @Body() body: { emails: string[] }) {
+    const therapistAppUrl = process.env.THERAPIST_APP_URL || 'https://app.24therapy.ai';
+    const result = await this.sessionsService.sendInvites(id, req.user.organization_id, body.emails, req.user.displayName || '', therapistAppUrl);
+    return this.response(result);
   }
 
   @Get(':id')

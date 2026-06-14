@@ -76,6 +76,8 @@ export default function SessionRoomPage() {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [isLive, setIsLive] = useState(false);
+  const [isAiPaused, setIsAiPaused] = useState(false);
+  const [joinLinkCopied, setJoinLinkCopied] = useState(false);
   const [activeRightTab, setActiveRightTab] = useState<"copilot" | "notes" | "risk">("copilot");
   const [activeLeftTab, setActiveLeftTab] = useState<"context" | "transcript">("transcript");
   const [note, setNote] = useState("");
@@ -100,6 +102,7 @@ export default function SessionRoomPage() {
   } | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const isAiPausedRef = useRef(false);
   const [liveSession, setLiveSession] = useState<Record<string, unknown> | null>(null);
   const [patientCtx, setPatientCtx] = useState<{
     name: string; diagnoses: string[]; medications: any[]; goals: any[];
@@ -220,7 +223,7 @@ export default function SessionRoomPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       recorder.ondataavailable = async (e) => {
-        if (e.data.size < 500 || isMuted || !accessToken) return;
+        if (e.data.size < 500 || isMuted || isAiPausedRef.current || !accessToken) return;
         try {
           const form = new FormData();
           form.append('audio', e.data, 'chunk.webm');
@@ -531,8 +534,17 @@ export default function SessionRoomPage() {
           </div>
           {isLive && (
             <div className="flex items-center gap-1.5 ml-3">
-              <div className="w-2 h-2 bg-red-500 rounded-full live-dot" />
-              <span className="text-red-400 text-xs font-semibold">LIVE</span>
+              {isAiPaused ? (
+                <>
+                  <div className="w-2 h-2 bg-amber-400 rounded-full" />
+                  <span className="text-amber-400 text-xs font-semibold">OFF RECORD</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 bg-red-500 rounded-full live-dot" />
+                  <span className="text-red-400 text-xs font-semibold">LIVE</span>
+                </>
+              )}
               <span className="text-slate-400 text-xs">{formatSessionTime(sessionDuration)}</span>
             </div>
           )}
@@ -547,8 +559,19 @@ export default function SessionRoomPage() {
           <button className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors">
             <Settings2 className="w-4 h-4" />
           </button>
-          <button className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors">
-            <Share2 className="w-4 h-4" />
+          <button
+            onClick={async () => {
+              const token = (liveSession as any)?.join_token;
+              if (token) {
+                await navigator.clipboard.writeText(`${window.location.origin}/join/${token}`);
+                setJoinLinkCopied(true);
+                setTimeout(() => setJoinLinkCopied(false), 2000);
+              }
+            }}
+            title="Copy join link"
+            className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+          >
+            {joinLinkCopied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
           </button>
           <Link href="/sessions" className="flex items-center gap-1.5 h-7 px-2.5 text-slate-400 hover:text-white border border-slate-700 rounded text-xs transition-colors">
             <X className="w-3 h-3" /> Exit
@@ -809,9 +832,33 @@ export default function SessionRoomPage() {
               <MessageSquare className="w-4 h-4" />
             </button>
 
-            <button className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors">
-              <Share2 className="w-4 h-4" />
+            <button
+              onClick={async () => {
+                const token = (liveSession as any)?.join_token;
+                if (token) {
+                  await navigator.clipboard.writeText(`${window.location.origin}/join/${token}`);
+                  setJoinLinkCopied(true);
+                  setTimeout(() => setJoinLinkCopied(false), 2000);
+                }
+              }}
+              title="Copy join link"
+              className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors"
+            >
+              {joinLinkCopied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
             </button>
+
+            {isLive && (
+              <button
+                onClick={() => { const next = !isAiPaused; setIsAiPaused(next); isAiPausedRef.current = next; }}
+                title={isAiPaused ? "Resume AI recording" : "Pause AI (off the record)"}
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                  isAiPaused ? "bg-amber-500/20 text-amber-400 border border-amber-500/50" : "bg-slate-700 text-white hover:bg-slate-600"
+                )}
+              >
+                <Brain className="w-4 h-4" />
+              </button>
+            )}
 
             <button className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors">
               <Flag className="w-4 h-4" />

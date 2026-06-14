@@ -1159,10 +1159,29 @@ export class BillingService {
   // ============================================================
 
   async getBillingSummary(organizationId: string) {
-    return this.db.queryOne(
-      `SELECT * FROM billing_summary WHERE organization_id = $1`,
-      [organizationId]
+    const charges = await this.db.query(
+      `SELECT sc.id, sc.session_id, sc.amount_usd, sc.status, sc.stripe_checkout_url,
+              sc.created_at, s.scheduled_at AS session_date,
+              CONCAT(u.first_name, ' ', u.last_name) AS patient_name
+       FROM session_charges sc
+       JOIN sessions s ON s.id = sc.session_id
+       JOIN patients p ON p.id = s.patient_id
+       JOIN users u ON u.id = p.user_id
+       WHERE sc.organization_id = $1
+       ORDER BY sc.created_at DESC
+       LIMIT 50`,
+      [organizationId],
     );
+    const totals = await this.db.queryOne<any>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'paid') AS paid_count,
+         COUNT(*) FILTER (WHERE status = 'pending') AS pending_count,
+         COALESCE(SUM(amount_usd) FILTER (WHERE status = 'paid'), 0) AS total_collected_usd,
+         COALESCE(SUM(amount_usd) FILTER (WHERE status = 'pending'), 0) AS total_pending_usd
+       FROM session_charges WHERE organization_id = $1`,
+      [organizationId],
+    );
+    return { charges, ...totals };
   }
 
   // ============================================================

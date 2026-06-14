@@ -182,6 +182,28 @@ export class MailService {
     });
   }
 
+  async sendSessionInvite(to: string, therapistName: string, joinUrl: string, scheduledAt?: Date): Promise<void> {
+    const timeStr = scheduledAt ? new Date(scheduledAt).toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }) : 'Anytime (join when ready)';
+    await this.send({
+      to,
+      subject: `${therapistName} invited you to a therapy session`,
+      html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>You've been invited to a session</h2>
+        <p><strong>${therapistName}</strong> has invited you to a therapy session.</p>
+        <p><strong>Time:</strong> ${timeStr}</p>
+        <p>No account needed — just click the button below to join:</p>
+        <a href="${joinUrl}" style="display:inline-block;background:#1F5EFF;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;">Join Session</a>
+        <p style="color:#666;font-size:12px;">Or copy this link: ${joinUrl}</p>
+        <p style="color:#888;font-size:11px;">Your privacy is protected. This session uses end-to-end encryption.</p>
+      </div>
+    `,
+    });
+  }
+
   async sendQuotaWarning(email: string, remaining: number): Promise<void> {
     await this.send({
       to: email,
