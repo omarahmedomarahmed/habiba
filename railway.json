@@ -6,7 +6,7 @@
   },
   "deploy": {
     "preDeployCommand": "node scripts/migrate.js --auto-baseline",
-    "startCommand": "node dist/main.js",
+    "startCommand": "node backend/dist/main.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
