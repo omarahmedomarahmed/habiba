@@ -99,8 +99,27 @@ export class MarketplaceService {
     const totalRow = results[0];
     const total = totalRow ? parseInt((totalRow as any).total_count || '0', 10) : 0;
 
+    // Augment results with therapists.public_slug for booking page links
+    let slugMap: Record<string, string> = {};
+    if (results.length > 0) {
+      const therapistIds = results.map((r: any) => r.therapist_id).filter(Boolean);
+      if (therapistIds.length > 0) {
+        const slugRows = await this.db.query(
+          `SELECT id, public_slug FROM therapists WHERE id = ANY($1::uuid[]) AND public_slug IS NOT NULL`,
+          [therapistIds],
+        );
+        for (const row of slugRows as any[]) {
+          slugMap[row.id] = row.public_slug;
+        }
+      }
+    }
+    const augmentedResults = results.map((r: any) => ({
+      ...r,
+      public_slug: slugMap[r.therapist_id] ?? null,
+    }));
+
     return {
-      results,
+      results: augmentedResults,
       total,
       page,
       limit,

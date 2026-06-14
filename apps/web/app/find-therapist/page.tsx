@@ -36,6 +36,7 @@ interface Therapist {
   bio: string;
   match_score: number;
   next_available: string;
+  public_slug?: string;
 }
 
 const THERAPISTS: Therapist[] = [
@@ -182,6 +183,7 @@ export default function FindTherapistPage() {
           match_score: 90,
           next_available: (t.next_available as string) || 'This week',
           approaches: (t.approaches as string[]) || [],
+          public_slug: (t.public_slug as string) || (t.booking_slug as string) || undefined,
         })));
       } catch { /* keep static fallback */ }
     }
@@ -444,7 +446,7 @@ export default function FindTherapistPage() {
                   View Profile
                 </button>
                 <Link
-                  href={`/signup?role=patient&therapist=${t.id}`}
+                  href={t.public_slug ? `/t/${t.public_slug}` : `/signup?role=patient&therapist=${t.id}`}
                   className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63] text-center"
                 >
                   Book Now

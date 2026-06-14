@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Brain, Users, Shield, MessageSquare, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Brain, Users, Shield, Sparkles, CheckCircle2 } from "lucide-react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
@@ -95,13 +95,6 @@ export function CTASection() {
             <Sparkles className="w-5 h-5" />
             Start Free — No Credit Card
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
-          </Link>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-2 bg-white/8 hover:bg-white/15 text-white font-semibold px-8 py-4 rounded-2xl border border-white/15 hover:border-white/25 hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm"
-          >
-            <MessageSquare className="w-5 h-5" />
-            Try AI Free
           </Link>
           <Link
             href="/find-therapist"

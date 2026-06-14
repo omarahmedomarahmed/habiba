@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Video, Calendar, Clock, Link2, Loader2, Copy } from "lucide-react";
 
@@ -27,7 +27,7 @@ interface BookingConfirmation {
   session_id: string | null;
 }
 
-export default function BookingConfirmedPage() {
+function BookingConfirmedInner() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get("booking_id");
 
@@ -146,5 +146,17 @@ export default function BookingConfirmedPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function BookingConfirmedPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    }>
+      <BookingConfirmedInner />
+    </Suspense>
   );
 }

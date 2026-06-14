@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { therapistsAPI, billingAPI, bookingAPI } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 type SettingsTab =
   | "profile"
@@ -67,7 +68,7 @@ function SectionCard({ title, description, children }: {
   );
 }
 
-export default function TherapistSettingsPage() {
+function TherapistSettingsInner() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as SettingsTab | null;
   const [activeTab, setActiveTab] = useState<SettingsTab>(tabParam || "profile");
@@ -1419,6 +1420,14 @@ export default function TherapistSettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TherapistSettingsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-8 h-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#1F5EFF]" /></div>}>
+      <TherapistSettingsInner />
+    </Suspense>
   );
 }
 

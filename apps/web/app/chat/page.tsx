@@ -1,3 +1,13 @@
+import { notFound } from "next/navigation";
+
+export default function ChatPage() {
+  notFound();
+}
+
+// File kept for reference. Route hidden from MVP.
+// Original client component below:
+
+/*
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -396,5 +406,4 @@ export default function ChatPage() {
     </div>
   );
 }
-
-// Reviewed: 2026-06-13 — 24Therapy audit
+*/

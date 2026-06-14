@@ -558,6 +558,57 @@ export class MailService {
 <p>Please review and process in the admin panel.</p>`,
     });
   }
+
+  async sendTherapistBookingAlert(
+    therapistEmail: string,
+    therapistName: string,
+    patientName: string,
+    scheduledAt: Date,
+    durationMins: number,
+    priceCents: number,
+    dashboardUrl: string,
+  ): Promise<void> {
+    const earnedCents = Math.floor(priceCents * 0.85);
+    const earnedStr = (earnedCents / 100).toFixed(2);
+    const dateStr = scheduledAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const timeStr = scheduledAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    await this.send({
+      to: therapistEmail,
+      subject: `New booking from ${patientName}`,
+      text: `Hi ${therapistName},\n\nYou have a new paid booking from ${patientName}.\n\nDate: ${dateStr}\nTime: ${timeStr}\nDuration: ${durationMins} minutes\nYou earn: $${earnedStr}\n\nView in dashboard: ${dashboardUrl}`,
+      html: `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#0A2342,#1a3a6b);padding:32px;text-align:center;">
+  <span style="color:white;font-size:20px;font-weight:700;">24Therapy.ai</span>
+</td></tr>
+<tr><td style="padding:40px 48px;">
+  <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0A2342;">New booking from ${patientName}</h1>
+  <p style="margin:0 0 24px;color:#64748b;">Hi ${therapistName}, a patient has booked and paid for a session.</p>
+  <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;background:#f8fafc;border-radius:12px;padding:20px;">
+    <tr><td style="padding:6px 0;color:#64748b;font-size:14px;"><strong style="color:#0A2342;">Patient:</strong> ${patientName}</td></tr>
+    <tr><td style="padding:6px 0;color:#64748b;font-size:14px;"><strong style="color:#0A2342;">Date:</strong> ${dateStr}</td></tr>
+    <tr><td style="padding:6px 0;color:#64748b;font-size:14px;"><strong style="color:#0A2342;">Time:</strong> ${timeStr}</td></tr>
+    <tr><td style="padding:6px 0;color:#64748b;font-size:14px;"><strong style="color:#0A2342;">Duration:</strong> ${durationMins} minutes</td></tr>
+    <tr><td style="padding:6px 0;color:#059669;font-size:14px;"><strong>You earn: $${earnedStr}</strong> (85% of payment)</td></tr>
+  </table>
+  <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+    <tr><td style="border-radius:12px;background:#1F5EFF;">
+      <a href="${dashboardUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">View in Dashboard</a>
+    </td></tr>
+  </table>
+  <p style="margin:0;color:#94a3b8;font-size:13px;">The session link has been sent to the patient. Check your dashboard for details.</p>
+</td></tr>
+<tr><td style="padding:24px 48px;border-top:1px solid #f1f5f9;text-align:center;">
+  <p style="margin:0;color:#94a3b8;font-size:12px;">24Therapy.ai — HIPAA-compliant mental health platform</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>`,
+    });
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit

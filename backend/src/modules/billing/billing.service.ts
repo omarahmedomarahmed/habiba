@@ -905,7 +905,7 @@ export class BillingService {
 
   private async _confirmBookingSession(bookingId: string, therapistId: string): Promise<void> {
     const booking = await this.db.queryOne<any>(
-      `SELECT bs.*, t.display_name AS therapist_name, t.public_slug, u.avatar_url
+      `SELECT bs.*, t.display_name AS therapist_name, t.public_slug, u.avatar_url, u.email AS therapist_email
        FROM booking_sessions bs
        JOIN therapists t ON t.id = bs.therapist_id
        JOIN users u ON u.id = t.user_id
@@ -917,18 +917,38 @@ export class BillingService {
     const joinToken = this.db.generateId();
     const sessionId = this.db.generateId();
 
+    // Create Daily.co video room
+    let videoRoomUrl: string | null = null;
+    try {
+      const dailyApiKey = this.config.get<string>('DAILY_API_KEY') || this.config.get<string>('video.dailyApiKey');
+      if (dailyApiKey) {
+        const dailyRes = await fetch('https://api.daily.co/v1/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${dailyApiKey}` },
+          body: JSON.stringify({
+            name: `therapy-${sessionId}`,
+            properties: { enable_chat: true, enable_knocking: false, exp: Math.floor(Date.now() / 1000) + 3600 * 4 },
+          }),
+        });
+        if (dailyRes.ok) {
+          const room = await dailyRes.json();
+          videoRoomUrl = room.url ?? null;
+        }
+      }
+    } catch { /* non-critical — session still created */ }
+
     // Create the actual session
     await this.db.execute(
       `INSERT INTO sessions (id, organization_id, therapist_id, modality, status,
         scheduled_at, duration_minutes, patient_email, session_price_cents,
-        patient_payment_status, patient_paid_at, join_token, auto_generate_note)
+        patient_payment_status, patient_paid_at, join_token, video_room_url, auto_generate_note)
        SELECT $1,
          (SELECT organization_id FROM therapists WHERE id = $2),
          $2, 'video', 'scheduled',
-         $3, $4, $5, $6, 'paid', NOW(), $7::uuid, TRUE`,
+         $3, $4, $5, $6, 'paid', NOW(), $7::uuid, $8, TRUE`,
       [
         sessionId, therapistId, booking.scheduled_at, booking.duration_mins,
-        booking.patient_email, booking.price_cents, joinToken,
+        booking.patient_email, booking.price_cents, joinToken, videoRoomUrl,
       ],
     );
 
@@ -942,9 +962,10 @@ export class BillingService {
     // Credit wallet
     await this._creditTherapistWallet(therapistId, booking.price_cents, bookingId, 'booking_session');
 
-    // Send confirmation email
     const therapistAppUrl = this.config.get<string>('THERAPIST_APP_URL') || 'https://app.24therapy.ai';
     const joinUrl = `${therapistAppUrl}/join/${joinToken}`;
+
+    // Send patient confirmation email
     this.mail.sendBookingConfirmation(
       booking.patient_email,
       booking.patient_name,
@@ -955,6 +976,19 @@ export class BillingService {
       booking.duration_mins,
       booking.price_cents,
     ).catch(() => {});
+
+    // Alert therapist
+    if (booking.therapist_email) {
+      this.mail.sendTherapistBookingAlert(
+        booking.therapist_email,
+        booking.therapist_name,
+        booking.patient_name,
+        new Date(booking.scheduled_at),
+        booking.duration_mins,
+        booking.price_cents,
+        `${therapistAppUrl}/sessions`,
+      ).catch(() => {});
+    }
   }
 
   // ============================================================
