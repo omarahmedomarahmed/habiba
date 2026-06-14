@@ -40,7 +40,8 @@ export const useAuthStore = create<AuthState>()(
       expiresAt: null,
       setAuth: (user, accessToken, refreshToken, expiresIn = 900) => {
         if (typeof document !== 'undefined') {
-          document.cookie = 'tt_auth=1; path=/; SameSite=Lax';
+          // 7-day persistent cookie so middleware auth survives browser restarts
+          document.cookie = 'tt_auth=1; path=/; SameSite=Lax; max-age=604800';
         }
         set({ user, accessToken, refreshToken, isAuthenticated: true, expiresAt: Date.now() + expiresIn * 1000 });
       },

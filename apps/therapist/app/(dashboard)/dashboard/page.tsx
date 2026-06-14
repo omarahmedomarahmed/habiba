@@ -151,63 +151,66 @@ export default function DashboardPage() {
         const quota = billingUsage?.quota;
         const trialUsed = billingUsage?.trial_session_used;
 
-        if (planKey === "pay_per_session" && !trialUsed) {
+        if ((planKey === "pay_per_session" || planKey === "free_trial") && !trialUsed) {
           return (
-            <div className="mb-4 flex items-center gap-3 bg-gradient-to-r from-[#0A2342] to-[#1F5EFF] text-white rounded-xl px-4 py-3">
-              <span className="text-2xl">🎁</span>
+            <div className="mb-4 rounded-xl overflow-hidden bg-gradient-to-r from-[#0A2342] to-[#1F5EFF] text-white px-5 py-4 flex items-center gap-4">
+              <span className="text-3xl shrink-0">🎁</span>
               <div className="flex-1">
-                <p className="font-semibold text-sm">Your first session is free — schedule when ready</p>
-                <p className="text-xs text-white/70 mt-0.5">No credit card needed. Just start your practice.</p>
+                <p className="font-bold text-base">Your first session is completely free</p>
+                <p className="text-sm text-white/70 mt-0.5">No credit card needed. After your first session: $6/session, or upgrade to Starter ($59/mo) to save 50%.</p>
               </div>
-              <Link href="/sessions/new" className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
-                Schedule <ArrowRight className="w-3 h-3" />
+              <Link href="/sessions/new" className="shrink-0 flex items-center gap-1.5 bg-white text-[#1F5EFF] text-sm font-semibold px-4 py-2 rounded-lg hover:bg-white/90 transition-colors">
+                Schedule free session <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           );
         }
 
-        if (planKey === "pay_per_session" && pendingBill) {
+        if ((planKey === "pay_per_session" || planKey === "free_trial") && pendingBill) {
           return (
-            <div className="mb-4 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div className="mb-4 flex items-center gap-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
               <div className="flex-1">
-                <p className="font-semibold text-sm text-red-800">Pay your ${Number(pendingBill.amount_due_usd).toFixed(2)} session bill to schedule new sessions</p>
-                <p className="text-xs text-red-600 mt-0.5">Save 50% with Starter — $59/mo for 20 sessions</p>
+                <p className="font-semibold text-sm text-red-800">
+                  Payment required — ${Number(pendingBill.amount_due_usd).toFixed(2)} due before your next session
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  Or upgrade to Starter for $59/mo and get 20 sessions (saves you 50% vs pay-per-session)
+                </p>
               </div>
-              {pendingBill.stripe_checkout_url ? (
-                <a href={pendingBill.stripe_checkout_url} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
-                  <DollarSign className="w-3 h-3" /> Pay now
-                </a>
-              ) : (
-                <Link href="/settings?tab=billing" className="flex items-center gap-1 bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg">
-                  View bill
+              <div className="flex gap-2 shrink-0">
+                {pendingBill.stripe_checkout_url && (
+                  <a href={pendingBill.stripe_checkout_url} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                    <DollarSign className="w-3 h-3" /> Pay ${Number(pendingBill.amount_due_usd).toFixed(2)}
+                  </a>
+                )}
+                <Link href="/billing" className="flex items-center gap-1 border border-red-300 text-red-600 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                  Upgrade plan
                 </Link>
-              )}
+              </div>
             </div>
           );
         }
 
         if (planKey === "starter" && quota) {
-          const remaining = quota.remaining ?? (quota.included + quota.rollover_in - quota.used);
+          const remaining = quota.remaining ?? (quota.included + (quota.rollover_in || 0) - quota.used);
           const isNearLimit = remaining <= 3;
           return (
             <div className={cn(
               "mb-4 flex items-center gap-3 rounded-xl px-4 py-3",
               isNearLimit ? "bg-amber-50 border border-amber-200" : "bg-slate-50 border border-slate-200"
             )}>
-              <Calendar className={cn("w-5 h-5 flex-shrink-0", isNearLimit ? "text-amber-500" : "text-slate-400")} />
+              <Calendar className={cn("w-5 h-5 shrink-0", isNearLimit ? "text-amber-500" : "text-slate-400")} />
               <div className="flex-1">
                 <p className={cn("font-semibold text-sm", isNearLimit ? "text-amber-800" : "text-slate-700")}>
-                  {remaining} of {quota.included + quota.rollover_in} sessions left this month
-                  {quota.rollover_in > 0 && <span className="text-xs font-normal ml-1">(+{quota.rollover_in} rolled over)</span>}
+                  {remaining} sessions left this month
+                  {quota.rollover_in > 0 && <span className="text-xs font-normal ml-1 text-slate-500">(+{quota.rollover_in} rolled over)</span>}
                 </p>
-                {isNearLimit && (
-                  <p className="text-xs text-amber-600 mt-0.5">Upgrade to Unlimited for no limits</p>
-                )}
+                {isNearLimit && <p className="text-xs text-amber-600 mt-0.5">Upgrade to Unlimited — no session caps</p>}
               </div>
               {isNearLimit && (
-                <Link href="/settings?tab=billing" className="flex items-center gap-1 bg-amber-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors">
+                <Link href="/billing" className="flex items-center gap-1 bg-amber-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors">
                   Upgrade <ArrowRight className="w-3 h-3" />
                 </Link>
               )}
@@ -215,12 +218,14 @@ export default function DashboardPage() {
           );
         }
 
-        if (planKey === "pay_per_session") {
+        if ((planKey === "pay_per_session" || planKey === "free_trial") && trialUsed) {
           return (
             <div className="mb-4 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
-              <DollarSign className="w-4 h-4 text-slate-400 flex-shrink-0" />
-              <p className="text-sm text-slate-600 flex-1">Pay as you go — $6/session · <span className="text-[#1F5EFF]">Save 50% with Starter $59/mo</span></p>
-              <Link href="/settings?tab=billing" className="text-xs text-[#1F5EFF] hover:underline">Switch plans</Link>
+              <DollarSign className="w-4 h-4 text-slate-400 shrink-0" />
+              <p className="text-sm text-slate-600 flex-1">$6 per completed session · <span className="text-[#1F5EFF] font-medium">Upgrade to Starter for 50% off</span></p>
+              <Link href="/billing" className="text-xs text-[#1F5EFF] font-medium hover:underline flex items-center gap-1">
+                View plans <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
           );
         }
