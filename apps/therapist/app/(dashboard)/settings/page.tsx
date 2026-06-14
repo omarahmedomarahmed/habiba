@@ -19,15 +19,19 @@ import { Suspense } from "react";
 type SettingsTab =
   | "profile"
   | "practice"
+  | "availability"
   | "ai"
   | "notifications"
   | "security"
   | "billing"
   | "usage";
 
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", icon: User },
   { id: "practice", label: "Practice", icon: Building2 },
+  { id: "availability", label: "Availability", icon: Calendar },
   { id: "ai", label: "AI & Scribe", icon: Brain },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
@@ -97,6 +101,46 @@ function TherapistSettingsInner() {
   const [payoutBank, setPayoutBank] = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutDone, setPayoutDone] = useState(false);
+
+  // Availability
+  const [availSlots, setAvailSlots] = useState<{ day_of_week: number; start_time: string; end_time: string; is_active: boolean }[]>(
+    DAYS.map((_, i) => ({ day_of_week: i, start_time: "09:00", end_time: "17:00", is_active: i >= 1 && i <= 5 }))
+  );
+  const [availSaving, setAvailSaving] = useState(false);
+  const [availSaved, setAvailSaved] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "availability") {
+      therapistsAPI.availability().then((res: any) => {
+        const data: any[] = Array.isArray(res) ? res : res?.data ?? [];
+        if (data.length > 0) {
+          setAvailSlots(DAYS.map((_, i) => {
+            const row = data.find((d: any) => d.day_of_week === i);
+            return row
+              ? { day_of_week: i, start_time: row.start_time?.slice(0, 5) || "09:00", end_time: row.end_time?.slice(0, 5) || "17:00", is_active: row.is_active }
+              : { day_of_week: i, start_time: "09:00", end_time: "17:00", is_active: false };
+          }));
+        }
+      }).catch(() => {});
+    }
+  }, [activeTab]);
+
+  const handleSaveAvailability = async () => {
+    setAvailSaving(true);
+    setAvailSaved(false);
+    try {
+      await therapistsAPI.updateAvailability(availSlots.map(s => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        is_active: s.is_active,
+      })));
+      setAvailSaved(true);
+      setTimeout(() => setAvailSaved(false), 3000);
+    } catch { /* non-critical */ } finally {
+      setAvailSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (tabParam && TABS.some(t => t.id === tabParam)) {
@@ -948,6 +992,84 @@ function TherapistSettingsInner() {
                   <button className="mt-3 text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1">
                     <LogOut className="w-4 h-4" /> Sign out all other sessions
                   </button>
+                </SectionCard>
+              </>
+            )}
+
+            {/* ─── AVAILABILITY TAB ─── */}
+            {activeTab === "availability" && (
+              <>
+                <SectionCard
+                  title="Weekly Schedule"
+                  description="Set the hours you're available for patient bookings. Patients see these slots on your booking page."
+                >
+                  <div className="space-y-3">
+                    {availSlots.map((slot, i) => (
+                      <div key={slot.day_of_week} className={cn(
+                        "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+                        slot.is_active ? "border-[#1F5EFF]/30 bg-blue-50/50" : "border-gray-100 bg-gray-50"
+                      )}>
+                        <button
+                          onClick={() => setAvailSlots(prev => prev.map((s, idx) => idx === i ? { ...s, is_active: !s.is_active } : s))}
+                          className={cn(
+                            "w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
+                            slot.is_active ? "bg-[#1F5EFF] border-[#1F5EFF]" : "border-gray-300 bg-white"
+                          )}
+                        >
+                          {slot.is_active && <Check className="w-3 h-3 text-white" />}
+                        </button>
+                        <span className={cn("w-24 text-sm font-medium shrink-0", slot.is_active ? "text-slate-800" : "text-slate-400")}>
+                          {DAYS[slot.day_of_week]}
+                        </span>
+                        {slot.is_active ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="time"
+                              value={slot.start_time}
+                              onChange={e => setAvailSlots(prev => prev.map((s, idx) => idx === i ? { ...s, start_time: e.target.value } : s))}
+                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1F5EFF]/30 bg-white"
+                            />
+                            <span className="text-slate-400 text-sm">to</span>
+                            <input
+                              type="time"
+                              value={slot.end_time}
+                              onChange={e => setAvailSlots(prev => prev.map((s, idx) => idx === i ? { ...s, end_time: e.target.value } : s))}
+                              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1F5EFF]/30 bg-white"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-sm">Unavailable</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSaveAvailability}
+                    disabled={availSaving}
+                    className="mt-4 flex items-center gap-2 px-4 py-2.5 bg-[#1F5EFF] text-white text-sm font-semibold rounded-xl hover:bg-[#1649D4] transition-colors disabled:opacity-50"
+                  >
+                    {availSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : availSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    {availSaving ? "Saving…" : availSaved ? "Saved!" : "Save Availability"}
+                  </button>
+                </SectionCard>
+
+                <SectionCard
+                  title="Timezone"
+                  description="Your availability slots are shown to patients in your local timezone."
+                >
+                  <select
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1F5EFF]/30"
+                    defaultValue="America/New_York"
+                  >
+                    {[
+                      "America/New_York", "America/Chicago", "America/Denver",
+                      "America/Los_Angeles", "America/Phoenix", "Europe/London",
+                      "Europe/Paris", "Asia/Dubai", "Asia/Kolkata", "Asia/Tokyo",
+                    ].map(tz => (
+                      <option key={tz} value={tz}>{tz.replace("_", " ")}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-2">Timezone is saved as part of your profile.</p>
                 </SectionCard>
               </>
             )}

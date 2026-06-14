@@ -47,8 +47,13 @@ export class SessionsService {
 
     const sessions = await this.db.query(
       `SELECT s.*,
-        p.first_name || ' ' || COALESCE(p.last_name, '') as patient_name,
-        p.email as patient_email,
+        COALESCE(
+          NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
+          s.patient_name_guest,
+          s.patient_email,
+          'Guest Patient'
+        ) as patient_name,
+        COALESCE(p.email, s.patient_email) as patient_email,
         t.display_name as therapist_name,
         (SELECT COUNT(*) FROM transcript_segments ts JOIN transcripts tr ON tr.id = ts.transcript_id WHERE tr.session_id = s.id) as transcript_segment_count,
         n.id as has_ai_note,
@@ -74,8 +79,13 @@ export class SessionsService {
   async findOne(id: string, orgId: string) {
     const session = await this.db.queryOne(
       `SELECT s.*,
-        p.first_name || ' ' || COALESCE(p.last_name, '') as patient_name,
-        p.email as patient_email,
+        COALESCE(
+          NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
+          s.patient_name_guest,
+          s.patient_email,
+          'Guest Patient'
+        ) as patient_name,
+        COALESCE(p.email, s.patient_email) as patient_email,
         t.display_name as therapist_name,
         t.user_id as therapist_user_id
        FROM sessions s
