@@ -570,8 +570,7 @@ export class SessionsService {
       throw new BadRequestException('Session already paid');
     }
     const checkoutUrl = await this.billingService.createPatientSessionCheckout(
-      session.id, session.therapist_id, session.session_price_cents,
-      dto.email, joinToken,
+      session.id, session.therapist_id, dto.email, joinToken,
     );
     return { checkout_url: checkoutUrl };
   }
