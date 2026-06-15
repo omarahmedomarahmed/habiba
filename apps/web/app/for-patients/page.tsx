@@ -54,7 +54,7 @@ export default function ForPatientsPage() {
         const res = await fetch(`${API_URL}/marketplace/search?${params}`);
         if (!res.ok) return;
         const json = await res.json();
-        const data: Record<string, unknown>[] = json.data?.listings || json.data || [];
+        const data = (json.data?.listings || json.data || []) as Array<Record<string, unknown>>;
         if (data.length === 0) return;
         setTherapists(data.map((t) => ({
           id: t.id as string,
@@ -67,7 +67,7 @@ export default function ForPatientsPage() {
           availability: (t.availability_status as string) || "this_week",
           public_slug: t.public_slug as string | undefined,
         })));
-      } catch {
+      } catch (_e) {
         // silently keep static fallback
       }
     }
@@ -78,8 +78,8 @@ export default function ForPatientsPage() {
     <div className="min-h-screen bg-white">
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#0A2342] via-[#0d2d56] to-[#1a3a6a] text-white pt-28 pb-20">
-        <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[#2EC4B6]/10 blur-3xl pointer-events-none animate-[pulse_5s_ease-in-out_infinite]" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl pointer-events-none animate-[pulse_7s_ease-in-out_infinite]" />
+        <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" style={{ animation: "pulse 5s ease-in-out infinite" }} />
+        <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" style={{ animation: "pulse 7s ease-in-out infinite" }} />
 
         <div className="relative max-w-4xl mx-auto px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 text-sm mb-8">
@@ -181,7 +181,7 @@ export default function ForPatientsPage() {
                   Book Session
                 </Link>
               </div>
-            )))}
+            ))}
           </div>
 
           <div className="text-center">
