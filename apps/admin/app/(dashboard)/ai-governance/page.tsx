@@ -88,14 +88,42 @@ const ENFORCEMENT_COLORS: Record<string, string> = {
 export default function AIGovernancePage() {
   const [activeTab, setActiveTab] = useState<'models' | 'safety' | 'costs' | 'memory'>('models');
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const [liveModels, setLiveModels] = useState(MODEL_PERFORMANCE);
+  const [liveModels, setLiveModels] = useState<any[]>([]);
+  const [modelLoading, setModelLoading] = useState(true);
 
   useEffect(() => {
-    adminAPI.platformStats()
-      .then((stats: any) => {
-        if (stats?.ai_models?.length > 0) setLiveModels(stats.ai_models);
+    adminAPI.aiModelStats('30d')
+      .then((data: any) => {
+        if (data?.models?.length > 0) {
+          // Normalize DB shape to page's expected shape
+          setLiveModels(data.models.map((m: any) => ({
+            id: m.model_name,
+            model: m.model_name,
+            provider: m.model_name.includes('gpt') || m.model_name.includes('whisper') || m.model_name.includes('embedding') ? 'OpenAI' : m.model_name.includes('claude') ? 'Anthropic' : 'Unknown',
+            version: m.model_name,
+            status: 'active',
+            use_cases: [],
+            requests_today: Number(m.requests ?? 0),
+            requests_month: Number(m.requests ?? 0),
+            tokens_today: Number(m.total_tokens ?? 0),
+            tokens_month: Number(m.total_tokens ?? 0),
+            cost_today: Number(m.total_cost ?? 0),
+            cost_month: Number(m.total_cost ?? 0),
+            avg_latency_ms: Math.round(Number(m.avg_latency_ms ?? 0)),
+            p99_latency_ms: Math.round(Number(m.p99_latency_ms ?? 0)),
+            success_rate: Number(m.success_rate ?? 100),
+            error_rate: 100 - Number(m.success_rate ?? 100),
+            avg_quality_score: null,
+            safety_incidents: 0,
+            enabled: true,
+            fallback_model: null,
+          })));
+        } else {
+          setLiveModels(MODEL_PERFORMANCE);
+        }
       })
-      .catch(() => {/* keep static fallback */});
+      .catch(() => { setLiveModels(MODEL_PERFORMANCE); })
+      .finally(() => setModelLoading(false));
   }, []);
 
   const totalCostToday = liveModels.reduce((acc, m) => acc + m.cost_today, 0);

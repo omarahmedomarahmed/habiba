@@ -246,6 +246,8 @@ export const adminAPI = {
     apiFetch<any>('/analytics/platform/dashboard', { params: { period } } as any),
   analyticsRevenue: (period?: string) =>
     apiFetch<any>('/analytics/revenue', { params: { period } } as any),
+  aiModelStats: (period?: string) =>
+    apiFetch<{ period: string; models: any[]; task_breakdown: any[] }>('/analytics/platform/ai-models', { params: { period } } as any),
 
   // System health — real per-service status from backend
   systemHealth: () => apiFetch<{

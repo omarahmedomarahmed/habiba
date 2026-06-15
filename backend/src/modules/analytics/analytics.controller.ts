@@ -96,6 +96,13 @@ export class AnalyticsController {
     return this.analyticsService.getAICostAnalytics(user.organization_id, period);
   }
 
+  // ─── Platform AI Model Stats (admin only) ───────────────────────────────
+  @Get('platform/ai-models')
+  @Roles('super_admin')
+  async getPlatformAIModels(@Query('period') period: string = '30d') {
+    return this.analyticsService.getPlatformAIModelStats(period);
+  }
+
   // ─── Outcome Metrics ────────────────────────────────────────────────────
 
   @Get('outcomes')

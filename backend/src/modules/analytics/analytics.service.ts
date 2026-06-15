@@ -720,6 +720,40 @@ export class AnalyticsService {
     ).catch(() => ({ total_patients_assessed: 0, improved: 0, stable: 0, declined: 0 }));
   }
 
+  // ─── Platform AI Model Stats ──────────────────────────────────────────────
+
+  async getPlatformAIModelStats(period: string = '30d') {
+    const days = this.parsePeriodToDays(period);
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+
+    const modelStats = await this.db.query<any>(
+      `SELECT
+        model_name,
+        COUNT(*) as requests,
+        SUM(total_tokens) as total_tokens,
+        COALESCE(SUM(cost_usd), 0) as total_cost,
+        AVG(latency_ms) as avg_latency_ms,
+        PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY latency_ms) as p99_latency_ms,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as success_count,
+        COUNT(CASE WHEN status = 'error' THEN 1 END) as error_count,
+        ROUND(100.0 * COUNT(CASE WHEN status = 'success' THEN 1 END) / NULLIF(COUNT(*), 0), 2) as success_rate
+      FROM ai_usage_log
+      WHERE created_at >= $1
+      GROUP BY model_name
+      ORDER BY total_cost DESC`,
+      [since],
+    ).catch(() => []);
+
+    const taskBreakdown = await this.db.query<any>(
+      `SELECT task_type, COUNT(*) as calls, SUM(cost_usd) as cost
+       FROM ai_usage_log WHERE created_at >= $1
+       GROUP BY task_type ORDER BY calls DESC`,
+      [since],
+    ).catch(() => []);
+
+    return { period, since, models: modelStats, task_breakdown: taskBreakdown };
+  }
+
   // ─── Utilities ────────────────────────────────────────────────────────────
 
   private parsePeriodToDays(period: string): number {

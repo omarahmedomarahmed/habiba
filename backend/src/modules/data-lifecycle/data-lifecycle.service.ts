@@ -50,6 +50,20 @@ export class DataLifecycleService {
     }
   }
 
+  // Run at 2am UTC on Sundays — VACUUM ANALYZE the vector index so IVFFlat
+  // query accuracy stays high as patient_memory grows
+  @Cron('0 2 * * 0')
+  async maintainVectorIndex(): Promise<void> {
+    try {
+      // VACUUM ANALYZE refreshes planner statistics and reclaims dead tuple space.
+      // For IVFFlat, this helps the planner choose the correct index scan strategy.
+      await this.db['pool']?.query('VACUUM ANALYZE patient_memory');
+      this.logger.log('[DataLifecycle] VACUUM ANALYZE patient_memory completed');
+    } catch (err: any) {
+      this.logger.warn(`[DataLifecycle] VACUUM ANALYZE patient_memory failed: ${err?.message}`);
+    }
+  }
+
   // Run at 5am UTC on the 1st of each month
   @Cron('0 5 1 * *')
   async logRetentionReport(): Promise<void> {
