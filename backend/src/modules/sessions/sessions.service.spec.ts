@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionsService } from './sessions.service';
 import { DatabaseService } from '../../database/database.service';
 import { ConfigService } from '@nestjs/config';
 import { AIService } from '../ai/ai.service';
 import { BillingService } from '../billing/billing.service';
 import { CrisisService } from '../crisis/crisis.service';
+import { MailService } from '../mail/mail.service';
 
 function makeDb(overrides: Partial<DatabaseService> = {}): jest.Mocked<DatabaseService> {
   return {
@@ -38,6 +40,14 @@ function makeCrisis(): jest.Mocked<CrisisService> {
   return {} as unknown as jest.Mocked<CrisisService>;
 }
 
+function makeEventEmitter(): jest.Mocked<EventEmitter2> {
+  return { emit: jest.fn(), emitAsync: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
+}
+
+function makeMail(): jest.Mocked<MailService> {
+  return { sendSessionInvite: jest.fn(), sendSessionReport: jest.fn() } as unknown as jest.Mocked<MailService>;
+}
+
 async function buildService(
   db: jest.Mocked<DatabaseService>,
   billing?: jest.Mocked<BillingService>,
@@ -47,9 +57,11 @@ async function buildService(
       SessionsService,
       { provide: DatabaseService, useValue: db },
       { provide: ConfigService, useValue: makeConfig() },
+      { provide: EventEmitter2, useValue: makeEventEmitter() },
       { provide: AIService, useValue: makeAI() },
-      { provide: BillingService, useValue: billing ?? makeBilling() },
       { provide: CrisisService, useValue: makeCrisis() },
+      { provide: BillingService, useValue: billing ?? makeBilling() },
+      { provide: MailService, useValue: makeMail() },
     ],
   }).compile();
   return module.get(SessionsService);

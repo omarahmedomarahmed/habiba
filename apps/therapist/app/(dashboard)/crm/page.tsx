@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users, Search, Plus, Phone, Mail, Building2, Globe, TrendingUp,
   Calendar, ChevronRight, ArrowRight, CheckCircle, Clock,
@@ -8,71 +8,21 @@ import {
   Eye, MoreHorizontal, Filter, Download, Zap
 } from 'lucide-react';
 
-const LEADS = [
-  {
-    id: '1', name: 'Dr. Jennifer Walsh', company: 'Serenity Mental Health', title: 'Founder',
-    email: 'j.walsh@serenity.com', phone: '+1 617 555 0192',
-    stage: 'demo_scheduled', source: 'LinkedIn Outreach', value: 1200,
-    practice_size: 8, country: 'US', city: 'Boston',
-    last_contact: '2h ago', created: '2024-05-28',
-    assigned_to: 'Sales Rep A', notes: 'Highly interested in AI notes. Has 8 therapists. Trial ASAP.',
-    score: 92,
-  },
-  {
-    id: '2', name: 'Dr. Robert Chen', company: 'Pacific Mind Clinic', title: 'Clinical Director',
-    email: 'r.chen@pacificmind.com', phone: '+1 415 555 0284',
-    stage: 'proposal_sent', source: 'Referral', value: 8900,
-    practice_size: 24, country: 'US', city: 'San Francisco',
-    last_contact: '1d ago', created: '2024-05-20',
-    assigned_to: 'Sales Rep B', notes: 'Enterprise deal. 24 therapists + admin staff. Strong EHR integration need.',
-    score: 88,
-  },
-  {
-    id: '3', name: 'Dr. Maya Singh', company: 'Mindful Path UK', title: 'CEO',
-    email: 'm.singh@mindfulpath.uk', phone: '+44 20 7946 0102',
-    stage: 'qualified', source: 'Website Demo Request', value: 3600,
-    practice_size: 12, country: 'UK', city: 'London',
-    last_contact: '3d ago', created: '2024-05-15',
-    assigned_to: 'Sales Rep A', notes: 'UK expansion opportunity. GDPR compliance questions.',
-    score: 76,
-  },
-  {
-    id: '4', name: 'Dr. Hassan Al-Rashid', company: 'Noor Therapy Center', title: 'Owner',
-    email: 'h.rashid@noortherapy.ae', phone: '+971 4 555 0291',
-    stage: 'new', source: 'Conference — IAPSP 2024', value: 5000,
-    practice_size: 15, country: 'UAE', city: 'Dubai',
-    last_contact: '1w ago', created: '2024-05-10',
-    assigned_to: 'Sales Rep B', notes: 'Arabic language support is critical. Growing market.',
-    score: 71,
-  },
-  {
-    id: '5', name: 'Sarah Kim', company: 'TheraTech Solutions', title: 'CTO',
-    email: 's.kim@theratech.io', phone: '+1 212 555 0104',
-    stage: 'won', source: 'API Partnership', value: 24000,
-    practice_size: 50, country: 'US', city: 'New York',
-    last_contact: '5d ago', created: '2024-04-01',
-    assigned_to: 'Sales Rep A', notes: 'Enterprise API deal. Integration with their existing platform.',
-    score: 100,
-  },
-  {
-    id: '6', name: 'Dr. Clara Müller', company: 'Gesundheit Praxis', title: 'Director',
-    email: 'c.muller@gesundheit.de', phone: '+49 30 555 0182',
-    stage: 'lost', source: 'Cold Outreach', value: 0,
-    practice_size: 6, country: 'DE', city: 'Berlin',
-    last_contact: '2w ago', created: '2024-04-20',
-    assigned_to: 'Sales Rep B', notes: 'Lost to competitor. No German language support was blocker.',
-    score: 0,
-  },
-];
+interface Lead {
+  id: string; name: string; company: string; title: string;
+  email: string; phone: string; stage: string; source: string; value: number;
+  practice_size: number; country: string; city: string;
+  last_contact: string; created: string; assigned_to: string; notes: string; score: number;
+}
 
 const STAGES = [
-  { id: 'new', label: 'New Lead', color: 'bg-gray-700', count: 1 },
-  { id: 'qualified', label: 'Qualified', color: 'bg-blue-700', count: 1 },
-  { id: 'demo_scheduled', label: 'Demo Scheduled', color: 'bg-purple-700', count: 1 },
-  { id: 'proposal_sent', label: 'Proposal Sent', color: 'bg-amber-700', count: 1 },
-  { id: 'negotiation', label: 'Negotiation', color: 'bg-orange-700', count: 0 },
-  { id: 'won', label: 'Won ✓', color: 'bg-green-700', count: 1 },
-  { id: 'lost', label: 'Lost', color: 'bg-red-700', count: 1 },
+  { id: 'new', label: 'New Lead', color: 'bg-gray-700' },
+  { id: 'qualified', label: 'Qualified', color: 'bg-blue-700' },
+  { id: 'demo_scheduled', label: 'Demo Scheduled', color: 'bg-purple-700' },
+  { id: 'proposal_sent', label: 'Proposal Sent', color: 'bg-amber-700' },
+  { id: 'negotiation', label: 'Negotiation', color: 'bg-orange-700' },
+  { id: 'won', label: 'Won ✓', color: 'bg-green-700' },
+  { id: 'lost', label: 'Lost', color: 'bg-red-700' },
 ];
 
 const STAGE_COLORS: Record<string, string> = {
@@ -96,19 +46,23 @@ export default function CRMPage() {
   const [view, setView] = useState<'pipeline' | 'list' | 'analytics'>('pipeline');
   const [search, setSearch] = useState('');
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
 
-  const filteredLeads = LEADS.filter(l =>
+  // No backend CRM endpoint yet — leads populated when API is available
+  useEffect(() => { setLeads([]); }, []);
+
+  const filteredLeads = leads.filter(l =>
     l.name.toLowerCase().includes(search.toLowerCase()) ||
     l.company.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalPipelineValue = LEADS.filter(l => !['won', 'lost'].includes(l.stage))
+  const totalPipelineValue = leads.filter(l => !['won', 'lost'].includes(l.stage))
     .reduce((acc, l) => acc + l.value, 0);
 
-  const wonRevenue = LEADS.filter(l => l.stage === 'won')
+  const wonRevenue = leads.filter(l => l.stage === 'won')
     .reduce((acc, l) => acc + l.value, 0);
 
-  const selectedLeadData = selectedLead ? LEADS.find(l => l.id === selectedLead) : null;
+  const selectedLeadData = selectedLead ? leads.find(l => l.id === selectedLead) : null;
 
   return (
     <div className="p-6 space-y-6 h-full">
@@ -151,7 +105,7 @@ export default function CRMPage() {
       {/* KPIs */}
       <div className="grid grid-cols-5 gap-4">
         {[
-          { label: 'Total Leads', value: LEADS.length, icon: Users, color: 'text-white' },
+          { label: 'Total Leads', value: leads.length, icon: Users, color: 'text-white' },
           { label: 'Pipeline Value', value: `$${(totalPipelineValue / 1000).toFixed(1)}K/mo`, icon: TrendingUp, color: 'text-blue-400' },
           { label: 'Won Revenue', value: `$${(wonRevenue / 1000).toFixed(0)}K/mo`, icon: DollarSign, color: 'text-green-400' },
           { label: 'Win Rate', value: '28%', icon: Star, color: 'text-amber-400' },
@@ -171,7 +125,7 @@ export default function CRMPage() {
       {view === 'pipeline' && (
         <div className="flex gap-3 overflow-x-auto pb-4">
           {STAGES.map((stage) => {
-            const stageLeads = LEADS.filter(l => l.stage === stage.id);
+            const stageLeads = leads.filter(l => l.stage === stage.id);
             const stageValue = stageLeads.reduce((acc, l) => acc + l.value, 0);
             return (
               <div key={stage.id} className="w-72 shrink-0">
@@ -344,9 +298,11 @@ export default function CRMPage() {
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
               <h3 className="text-sm font-semibold text-white mb-4">Pipeline by Stage</h3>
               <div className="space-y-3">
-                {STAGES.map((stage) => {
-                  const count = LEADS.filter(l => l.stage === stage.id).length;
-                  const value = LEADS.filter(l => l.stage === stage.id).reduce((a, l) => a + l.value, 0);
+                {leads.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-4">No pipeline data yet.</p>
+                ) : STAGES.map((stage) => {
+                  const count = leads.filter(l => l.stage === stage.id).length;
+                  const value = leads.filter(l => l.stage === stage.id).reduce((a, l) => a + l.value, 0);
                   return (
                     <div key={stage.id}>
                       <div className="flex items-center justify-between mb-1">
@@ -362,7 +318,7 @@ export default function CRMPage() {
                       <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full ${stage.color}`}
-                          style={{ width: `${(count / LEADS.length) * 100}%` }}
+                          style={{ width: `${leads.length ? (count / leads.length) * 100 : 0}%` }}
                         />
                       </div>
                     </div>
@@ -373,44 +329,44 @@ export default function CRMPage() {
 
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
               <h3 className="text-sm font-semibold text-white mb-4">Lead Sources</h3>
-              <div className="space-y-3">
-                {[
-                  { source: 'LinkedIn Outreach', count: 1, color: 'bg-blue-500' },
-                  { source: 'Website Demo Request', count: 1, color: 'bg-green-500' },
-                  { source: 'Referral', count: 1, color: 'bg-purple-500' },
-                  { source: 'Conference', count: 1, color: 'bg-amber-500' },
-                  { source: 'API Partnership', count: 1, color: 'bg-cyan-500' },
-                  { source: 'Cold Outreach', count: 1, color: 'bg-gray-500' },
-                ].map(({ source, count, color }) => (
-                  <div key={source} className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${color}`} />
-                    <span className="text-xs text-gray-300 flex-1">{source}</span>
-                    <span className="text-xs text-white font-medium">{count}</span>
-                  </div>
-                ))}
-              </div>
+              {leads.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-4">No source data yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {Array.from(new Set(leads.map(l => l.source))).map((source, i) => {
+                    const count = leads.filter(l => l.source === source).length;
+                    const colors = ['bg-blue-500','bg-green-500','bg-purple-500','bg-amber-500','bg-cyan-500','bg-gray-500'];
+                    return (
+                      <div key={source} className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${colors[i % colors.length]}`} />
+                        <span className="text-xs text-gray-300 flex-1">{source}</span>
+                        <span className="text-xs text-white font-medium">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <h3 className="text-sm font-semibold text-white mb-4">Recent Activities</h3>
-            <div className="space-y-3">
-              {[
-                { action: 'Demo scheduled', contact: 'Dr. Jennifer Walsh', time: '2h ago', icon: Calendar, color: 'text-purple-400' },
-                { action: 'Proposal sent', contact: 'Dr. Robert Chen', time: '1d ago', icon: Mail, color: 'text-blue-400' },
-                { action: 'Won deal', contact: 'Sarah Kim — TheraTech', time: '5d ago', icon: CheckCircle, color: 'text-green-400' },
-                { action: 'Lead qualified', contact: 'Dr. Maya Singh', time: '3d ago', icon: Star, color: 'text-amber-400' },
-              ].map((activity, i) => (
-                <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-800 last:border-0">
-                  <activity.icon className={`w-4 h-4 ${activity.color} shrink-0`} />
-                  <div className="flex-1">
-                    <span className="text-sm text-white">{activity.action}</span>
-                    <span className="text-xs text-gray-500 ml-2">— {activity.contact}</span>
+            {leads.length === 0 ? (
+              <p className="text-xs text-gray-500 text-center py-4">No recent activities yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {leads.slice(0, 5).map((lead, i) => (
+                  <div key={lead.id} className="flex items-center gap-3 py-2 border-b border-gray-800 last:border-0">
+                    <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
+                    <div className="flex-1">
+                      <span className="text-sm text-white capitalize">{lead.stage.replace(/_/g, ' ')}</span>
+                      <span className="text-xs text-gray-500 ml-2">— {lead.name}</span>
+                    </div>
+                    <span className="text-xs text-gray-600">{lead.last_contact}</span>
                   </div>
-                  <span className="text-xs text-gray-600">{activity.time}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

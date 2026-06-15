@@ -34,23 +34,7 @@ interface CalendarEvent {
   color: string;
 }
 
-// Dec 2024 calendar data
-const TODAY = new Date(2024, 11, 23); // Dec 23 2024
-const CURRENT_MONTH = 11; // December
-const CURRENT_YEAR = 2024;
-
-const EVENTS: CalendarEvent[] = [
-  { id: "e1", patient_name: "Sarah M.", patient_initials: "SM", start_time: "10:00 AM", end_time: "10:50 AM", date: "2024-12-23", day_of_week: 1, hour: 10, duration_mins: 50, type: "video", status: "scheduled", session_number: 8, color: "bg-blue-500" },
-  { id: "e2", patient_name: "James K.", patient_initials: "JK", start_time: "1:00 PM", end_time: "1:50 PM", date: "2024-12-23", day_of_week: 1, hour: 13, duration_mins: 50, type: "video", status: "scheduled", session_number: 3, color: "bg-violet-500" },
-  { id: "e3", patient_name: "Maria L.", patient_initials: "ML", start_time: "3:00 PM", end_time: "3:50 PM", date: "2024-12-23", day_of_week: 1, hour: 15, duration_mins: 50, type: "phone", status: "scheduled", session_number: 12, color: "bg-orange-500" },
-  { id: "e4", patient_name: "David R.", patient_initials: "DR", start_time: "11:00 AM", end_time: "11:50 AM", date: "2024-12-24", day_of_week: 2, hour: 11, duration_mins: 50, type: "in_person", status: "scheduled", session_number: 5, color: "bg-emerald-500" },
-  { id: "e5", patient_name: "Emma T.", patient_initials: "ET", start_time: "2:00 PM", end_time: "2:50 PM", date: "2024-12-24", day_of_week: 2, hour: 14, duration_mins: 50, type: "video", status: "scheduled", is_intake: true, color: "bg-rose-500" },
-  { id: "e6", patient_name: "Group: Anxiety Support", patient_initials: "GRP", start_time: "9:00 AM", end_time: "10:00 AM", date: "2024-12-26", day_of_week: 4, hour: 9, duration_mins: 60, type: "group", status: "scheduled", color: "bg-[#2EC4B6]" },
-  { id: "e7", patient_name: "Sarah M.", patient_initials: "SM", start_time: "10:00 AM", end_time: "10:50 AM", date: "2024-12-30", day_of_week: 1, hour: 10, duration_mins: 50, type: "video", status: "scheduled", session_number: 9, color: "bg-blue-500" },
-  { id: "e8", patient_name: "New Patient", patient_initials: "NP", start_time: "1:30 PM", end_time: "3:00 PM", date: "2024-12-30", day_of_week: 1, hour: 13, duration_mins: 90, type: "video", status: "scheduled", is_intake: true, color: "bg-rose-500" },
-  { id: "e9", patient_name: "Maria L.", patient_initials: "ML", start_time: "10:00 AM", end_time: "10:50 AM", date: "2024-12-19", day_of_week: 4, hour: 10, duration_mins: 50, type: "phone", status: "completed", session_number: 11, color: "bg-orange-500" },
-  { id: "e10", patient_name: "James K.", patient_initials: "JK", start_time: "2:00 PM", end_time: "2:50 PM", date: "2024-12-20", day_of_week: 5, hour: 14, duration_mins: 50, type: "video", status: "no_show", session_number: 2, color: "bg-violet-500" },
-];
+const TODAY = new Date();
 
 const STATUS_CONFIG: Record<SessionStatus, { label: string; dot: string }> = {
   scheduled: { label: "Scheduled", dot: "bg-blue-500" },
@@ -89,7 +73,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState(TODAY);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>(EVENTS);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   const fetchEvents = useCallback(async () => {
     const d = currentDate;
@@ -111,8 +95,8 @@ export default function CalendarPage() {
           color: s.status === 'completed' ? 'green' : s.status === 'cancelled' ? 'red' : 'blue',
         })));
       }
-    } catch {
-      // keep static events as fallback
+    } catch (_e) {
+      // show empty calendar on error
     }
   }, [currentDate]);
 
@@ -156,7 +140,7 @@ export default function CalendarPage() {
     setCurrentDate(d);
   };
 
-  const goToday = () => setCurrentDate(new Date(TODAY));
+  const goToday = () => setCurrentDate(new Date());
 
   const headerLabel = () => {
     if (view === "month") return `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
@@ -411,7 +395,7 @@ export default function CalendarPage() {
           {view === "list" && (
             <div className="p-6">
               <div className="space-y-6">
-                {["2024-12-23","2024-12-24","2024-12-26","2024-12-30"].map((dateStr) => {
+                {Array.from(new Set(events.map((e) => e.date))).sort().map((dateStr) => {
                   const dayEvents = eventsForDate(dateStr);
                   if (dayEvents.length === 0) return null;
                   const date = new Date(dateStr + "T00:00:00");

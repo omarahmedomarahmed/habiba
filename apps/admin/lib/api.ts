@@ -204,10 +204,10 @@ export const adminAPI = {
 
   // Organizations
   organizations: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: any[]; total: number }>('/organizations', { params } as any),
-  getOrganization: (id: string) => apiFetch<any>(`/organizations/${id}`),
+    apiFetch<{ data: any[]; total: number }>('/admin/organizations', { params } as any),
+  getOrganization: (id: string) => apiFetch<any>(`/admin/organizations/${id}`),
   updateOrganization: (id: string, data: any) =>
-    apiFetch<any>(`/organizations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    apiFetch<any>(`/admin/organizations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   // Users
   users: (params?: Record<string, string | number | undefined>) =>
@@ -245,7 +245,7 @@ export const adminAPI = {
   analyticsOverview: (period?: string) =>
     apiFetch<any>('/analytics/platform/dashboard', { params: { period } } as any),
   analyticsRevenue: (period?: string) =>
-    apiFetch<any>('/analytics/revenue', { params: { period } } as any),
+    apiFetch<any>('/analytics/platform/dashboard', { params: { period } } as any),
   aiModelStats: (period?: string) =>
     apiFetch<{ period: string; models: any[]; task_breakdown: any[] }>('/analytics/platform/ai-models', { params: { period } } as any),
 
@@ -268,7 +268,7 @@ export const adminAPI = {
 
   // PHI access log (HIPAA)
   phiAuditLog: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: any[]; total: number }>('/admin/phi-access-log', { params } as any),
+    apiFetch<{ data: any[]; total: number }>('/admin/audit-log', { params } as any),
 };
 
 // ============================================================
