@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/friendly-ritchie-jaaxsw` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-15 (session 25 — God Mode audit + systematic remediation: P0 billing, security hardening, real analytics, real system health) |
+| **Last Updated** | 2026-06-15 (session 26 — marketing site complete revamp: content audit, /for-patients, PublicAssessmentTaker, crisis-detection page, FeaturePagePricingCTA, therapist-only auth, enterprise API story, no fake stats) |
 
 ---
 
@@ -307,6 +307,7 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 ### All P0–P9 complete ✅
 ### All marketing revamp P1–P7 complete ✅ (Session 13)
 ### Monetization engine + content sweep complete ✅ (Session 14)
+### Full marketing site revamp complete ✅ (Session 26)
 
 ### Session 14 additions (complete)
 - [x] migration 020: billing engine tables (session_charges, therapist_session_quota, ai_assistant_credits), plan prices locked, free_trial deactivated
@@ -378,6 +379,36 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [x] Admin BottomNav: dark navy 5-tab (Dashboard/Users/Orgs/Safety/More); sidebar hidden on mobile
 - [x] All 3 portal layouts: pb-20 md:pb-0 on main, BottomNav imported and rendered
 - [x] All 4 builds pass: patient + therapist + admin portals + NestJS API
+
+### Session 26 additions (complete — marketing site revamp)
+
+**Marketing site revamp (all phases):**
+- [x] FeaturePagePricingCTA: new static component (4 plan cards: PAYG/Starter/Unlimited/Enterprise), dark navy, renders at bottom of all feature pages
+- [x] ProductPageLayout: added `showPricingCta`, `pricingCtaHeadline`, `pricingCtaSubheadline` props
+- [x] Pricing: removed Practice tier from pricing-api.ts FALLBACK_PLANS, pricing-toggle-cards.tsx, pricing page; 4-tier model finalized
+- [x] Hero: animated gradient blobs (4 layers), therapist search bar (text + specialty select → /find-therapist), HeroTherapistPreview (3 live cards from /marketplace/search), two CTAs (Find a Therapist + Join as Therapist); removed AI demo card and static stat strip
+- [x] HeroTherapistPreview: new "use client" component, fetches /marketplace/search?limit=3, static fallback on error, stagger animation
+- [x] testimonials.tsx: removed patient testimonial; added third therapist quote
+- [x] page.tsx: removed CTASection from homepage bottom (pricing section is terminal CTA)
+- [x] signup/SignupForm.tsx: therapist-only (no role toggle); `?role=patient` shows redirect message card
+- [x] login/page.tsx: therapist-only; removed patient portal button; added patient booking link note
+- [x] Feature pages converted to Server Components (removed "use client"): ai-copilot, teletherapy, memory-layer, analytics
+- [x] All feature pages: FeaturePagePricingCTA replaces generic bottom CTA (ai-scribe, ai-copilot, teletherapy, memory-layer, analytics, assessments, radar-matching)
+- [x] features/crisis-detection/page.tsx: NEW — crisis visualizer (pulsing dot + risk signal + C-SSRS protocol), FeaturePagePricingCTA at bottom
+- [x] Navbar: added Crisis Detection + Teletherapy to Product dropdown; added For Patients to Solutions dropdown; removed Smart Scheduling + Integrations
+- [x] features/page.tsx: all 6 stats replaced with verifiable product capabilities; Risk Detection → Crisis Detection with correct link
+- [x] trust.tsx: removed SOC 2 Type II + ISO 27001; new badges: HIPAA/AES-256/GDPR/BAA/E2E/99.9%; all fake user counts removed from stats
+- [x] for-therapists/page.tsx: removed 8.5h/week, $3,200/mo, 94%, 500+ therapists, "8 Specialized AI Agents" unverifiable claims; updated testimonials to 3 real product quotes
+- [x] enterprise/page.tsx: replaced fake hero stats with real capabilities; added "What Enterprise Integration Looks Like" section (4 API capability cards + JSON webhook payload); removed fake phone number; "Talk to Our Integration Team" CTA
+- [x] find-therapist/page.tsx: Book Session button in detail panel → /t/{slug} instead of patient signup
+- [x] for-patients/page.tsx: NEW — hero, therapist search grid (6 cards, live API), 3 feature cards (No Account/Licensed/Privacy), PublicAssessmentTaker component
+- [x] PublicAssessmentTaker: PHQ-9 (9q, 0–3), GAD-7 (7q, 0–3), PCL-5 (5q, 0–4); multi-step flow; client-side scoring; recommendation banner for Moderate+; optional email → POST /assessments/public/submit → 50% discount code; disclaimer + 988 crisis line
+- [x] Backend: PublicAssessmentsController (POST /assessments/public/submit, @Public(), throttled); creates Stripe promo code HEALTH50-{RANDOM}; sends email via MailService
+- [x] AssessmentsModule: imports MailModule, registers PublicAssessmentsController
+- [x] mail.service.ts: sendAssessmentResults() — HTML email with results table, colored promo code box, Find a Therapist CTA, disclaimer
+- [x] New env var needed: `STRIPE_ASSESSMENT_COUPON_ID` — pre-create 50% off coupon in Stripe, set ID here
+- [x] Web build verified ✅ passing (NEXT_PUBLIC_API_URL=https://api.24therapy.ai pnpm --filter @24therapy/web build)
+- [x] Backend tsc --noEmit: only pre-existing error in sessions.service.ts:574 (not this session's code)
 
 ### Remaining (true stretch goals)
 - [ ] **Resolve GitHub billing** — unblock CI runners
