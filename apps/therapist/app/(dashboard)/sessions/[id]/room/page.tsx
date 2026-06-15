@@ -104,6 +104,7 @@ export default function SessionRoomPage() {
     emotion: string; intensity: string; minimizing_language: boolean;
     trajectory: string; clinical_note: string; intervention_suggestion: string;
   } | null>(null);
+  const [patientJoinStatus, setPatientJoinStatus] = useState<"none" | "paid" | "joining" | "joined">("none");
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const isAiPausedRef = useRef(false);
@@ -181,6 +182,19 @@ export default function SessionRoomPage() {
       socket.off('emotional_context', handleEmotional);
     };
   }, [accessToken, sessionPhase, id]);
+
+  // Listen for patient join status events
+  useEffect(() => {
+    if (!accessToken) return;
+    const socket = getSocket(accessToken);
+    const handlePatientJoin = (data: { session_id: string; status: string }) => {
+      if (data.session_id === id) {
+        setPatientJoinStatus(data.status as typeof patientJoinStatus);
+      }
+    };
+    socket.on('patient_join_status', handlePatientJoin);
+    return () => { socket.off('patient_join_status', handlePatientJoin); };
+  }, [accessToken, id]);
 
   // Disconnect socket when session ends or component unmounts
   useEffect(() => {
@@ -677,8 +691,19 @@ export default function SessionRoomPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Patient join status */}
+          {patientJoinStatus !== "none" && (
+            <div className="flex items-center gap-1.5">
+              <div className={`w-2 h-2 rounded-full ${patientJoinStatus === "joined" ? "bg-green-400 animate-pulse" : patientJoinStatus === "paid" ? "bg-blue-400" : "bg-purple-400 animate-pulse"}`} />
+              <span className={`text-xs ${patientJoinStatus === "joined" ? "text-green-400" : patientJoinStatus === "paid" ? "text-blue-400" : "text-purple-400"}`}>
+                {patientJoinStatus === "paid" && "Payment complete"}
+                {patientJoinStatus === "joining" && "Patient joining…"}
+                {patientJoinStatus === "joined" && "Patient joined"}
+              </span>
+            </div>
+          )}
           {/* Session phase indicator */}
-          {sessionPhase === "waiting" && (
+          {sessionPhase === "waiting" && patientJoinStatus === "none" && (
             <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full">Waiting to start</span>
           )}
 
