@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TreatmentPlansService {
+  private readonly logger = new Logger(TreatmentPlansService.name);
+
   constructor(private readonly db: DatabaseService) {}
 
   async list(orgId: string, query: any = {}) {
@@ -20,7 +22,7 @@ export class TreatmentPlansService {
        WHERE ${where.join(' AND ')} ORDER BY tp.updated_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params,
-    ).catch(() => []);
+    ).catch((err) => { this.logger.error(`list failed: ${err.message}`); return []; });
     return rows;
   }
 
@@ -41,7 +43,7 @@ export class TreatmentPlansService {
        FROM treatment_plans tp LEFT JOIN patients p ON p.id = tp.patient_id
        WHERE tp.id = $1 AND tp.organization_id = $2`,
       [id, orgId],
-    ).catch(() => null);
+    );
     if (!plan) throw new NotFoundException('Treatment plan not found');
     return plan;
   }
@@ -73,7 +75,7 @@ export class TreatmentPlansService {
         dto.clinical_notes || '',
         now, now,
       ],
-    ).catch(() => null);
+    );
     return this.getOne(id, orgId);
   }
 
@@ -95,7 +97,7 @@ export class TreatmentPlansService {
       `UPDATE treatment_plans SET ${fields.join(', ')}, updated_at = $${params.length - 2}
        WHERE id = $${params.length - 1} AND organization_id = $${params.length}`,
       params,
-    ).catch(() => null);
+    );
     return this.getOne(id, orgId);
   }
 
@@ -107,7 +109,7 @@ export class TreatmentPlansService {
     await this.db.query(
       `UPDATE treatment_plans SET goals = $1, updated_at = $2 WHERE id = $3 AND organization_id = $4`,
       [JSON.stringify(goals), new Date().toISOString(), planId, orgId],
-    ).catch(() => null);
+    );
     return newGoal;
   }
 

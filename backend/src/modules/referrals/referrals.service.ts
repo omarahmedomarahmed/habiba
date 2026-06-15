@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ReferralsService {
+  private readonly logger = new Logger(ReferralsService.name);
+
   constructor(private readonly db: DatabaseService) {}
 
   async list(orgId: string, query: any = {}) {
@@ -19,7 +21,7 @@ export class ReferralsService {
        WHERE ${where.join(' AND ')} ORDER BY r.created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params,
-    ).catch(() => []);
+    ).catch((err) => { this.logger.error(`list failed: ${err.message}`); return []; });
   }
 
   async create(orgId: string, therapistId: string, dto: any) {
@@ -34,7 +36,7 @@ export class ReferralsService {
        dto.referred_to_email || null, dto.referred_to_organization || null,
        dto.specialty || null, dto.reason || null, dto.urgency || 'routine',
        'draft', dto.letter_content || null, now, now],
-    ).catch(() => null);
+    );
     return { id };
   }
 
@@ -50,7 +52,7 @@ export class ReferralsService {
       `UPDATE referrals SET ${fields.join(', ')}, updated_at = $${params.length - 2}
        WHERE id = $${params.length - 1} AND organization_id = $${params.length}`,
       params,
-    ).catch(() => null);
+    );
   }
 
   async send(id: string, orgId: string) {
@@ -59,9 +61,9 @@ export class ReferralsService {
       `UPDATE referrals SET status = 'sent', sent_at = $1, updated_at = $1
        WHERE id = $2 AND organization_id = $3`,
       [now, id, orgId],
-    ).catch(() => null);
+    );
     return { success: true };
   }
 }
 
-// Reviewed: 2026-06-13 — 24Therapy audit
+// Reviewed: 2026-06-15 — audit remediation
