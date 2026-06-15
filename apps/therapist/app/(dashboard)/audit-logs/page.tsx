@@ -34,20 +34,6 @@ interface AuditEntry {
   session_id?: string;
 }
 
-const AUDIT_LOGS: AuditEntry[] = [
-  { id: "a1", timestamp: "2026-06-04T14:32:11Z", action: "sign_note", category: "notes", actor_name: "Dr. Sarah Chen", actor_role: "Owner", target_type: "Clinical Note", target_name: "Session Note #1842", patient_id: "P001", patient_name: "Jordan A.", ip_address: "192.168.1.45", user_agent: "Chrome/120", outcome: "success", details: "SOAP note signed and finalized for session 2026-06-04" },
-  { id: "a2", timestamp: "2026-06-04T14:28:55Z", action: "ai_generation", category: "ai", actor_name: "Dr. Sarah Chen", actor_role: "Owner", target_type: "AI Scribe", target_name: "Session Note Draft", patient_id: "P001", patient_name: "Jordan A.", ip_address: "192.168.1.45", user_agent: "Chrome/120", outcome: "success", details: "SOAP note generated via AI Scribe. Model: gpt-4o. Format: SOAP. Duration: 47 min session." },
-  { id: "a3", timestamp: "2026-06-04T14:15:02Z", action: "session_start", category: "phi_access", actor_name: "Dr. Sarah Chen", actor_role: "Owner", target_type: "Session", target_name: "Video Session", patient_id: "P001", patient_name: "Jordan A.", ip_address: "192.168.1.45", user_agent: "Chrome/120", outcome: "success" },
-  { id: "a4", timestamp: "2026-06-04T13:50:31Z", action: "view_patient", category: "phi_access", actor_name: "Marcus Webb", actor_role: "Supervisor", target_type: "Patient Record", target_name: "Full Patient File", patient_id: "P003", patient_name: "Alex R.", ip_address: "192.168.1.52", user_agent: "Chrome/120", outcome: "success", details: "Supervisory review of intern caseload" },
-  { id: "a5", timestamp: "2026-06-04T13:42:19Z", action: "edit_note", category: "notes", actor_name: "Aisha Donnelly", actor_role: "Intern", target_type: "Clinical Note", target_name: "Progress Note #0937", patient_id: "P007", patient_name: "Sam K.", ip_address: "192.168.1.61", user_agent: "Firefox/121", outcome: "success", details: "Edited diagnostic impression section. Pending supervisor co-sign." },
-  { id: "a6", timestamp: "2026-06-04T12:30:00Z", action: "export_records", category: "exports", actor_name: "Dr. Sarah Chen", actor_role: "Owner", target_type: "Patient Records", target_name: "Treatment Summary Export", patient_id: "P002", patient_name: "Riley M.", ip_address: "192.168.1.45", user_agent: "Chrome/120", outcome: "success", details: "PDF export for insurance authorization. Patient consent obtained." },
-  { id: "a7", timestamp: "2026-06-04T11:15:44Z", action: "failed_login", category: "auth", actor_name: "Unknown", actor_role: "—", ip_address: "94.240.11.182", user_agent: "Python-requests/2.28", outcome: "failure", details: "3 failed login attempts from unknown IP. Account temporarily locked for 15 minutes." },
-  { id: "a8", timestamp: "2026-06-04T10:58:22Z", action: "login", category: "auth", actor_name: "Dr. Priya Patel", actor_role: "Therapist", ip_address: "10.0.0.23", user_agent: "Safari/17", outcome: "success" },
-  { id: "a9", timestamp: "2026-06-04T10:31:10Z", action: "view_record", category: "phi_access", actor_name: "James Okafor", actor_role: "Therapist", target_type: "Session Transcript", target_name: "Session Transcript #2241", patient_id: "P011", patient_name: "Casey T.", ip_address: "10.0.0.31", user_agent: "Chrome/120", outcome: "success" },
-  { id: "a10", timestamp: "2026-06-04T09:14:05Z", action: "change_permission", category: "admin", actor_name: "Dr. Sarah Chen", actor_role: "Owner", target_type: "User", target_name: "Aisha Donnelly", ip_address: "192.168.1.45", user_agent: "Chrome/120", outcome: "success", details: "Expanded supervisor access to include Aisha Donnelly's caseload" },
-  { id: "a11", timestamp: "2026-06-03T16:45:22Z", action: "create_note", category: "notes", actor_name: "Dr. Priya Patel", actor_role: "Therapist", target_type: "Clinical Note", target_name: "Intake Assessment Note", patient_id: "P015", patient_name: "New Patient", ip_address: "10.0.0.23", user_agent: "Safari/17", outcome: "success" },
-  { id: "a12", timestamp: "2026-06-03T15:00:00Z", action: "download_report", category: "exports", actor_name: "Dr. Sarah Chen", actor_role: "Owner", target_type: "Practice Report", target_name: "Monthly Outcomes Report", ip_address: "192.168.1.45", user_agent: "Chrome/120", outcome: "success" },
-];
 
 const CATEGORY_CONFIG: Record<Exclude<AuditCategory, "all">, { label: string; color: string; bg: string; icon: typeof Shield }> = {
   phi_access: { label: "PHI Access", color: "text-blue-700", bg: "bg-blue-100", icon: Eye },
@@ -90,15 +76,14 @@ export default function AuditLogsPage() {
   const [filterOutcome, setFilterOutcome] = useState<"all" | "success" | "failure" | "warning">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("7d");
-  const [logs, setLogs] = useState<AuditEntry[]>(AUDIT_LOGS);
+  const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     organizationsAPI.auditLogs().then((res: any) => {
       const entries = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
-      if (entries.length > 0) {
-        setLogs(entries.map((e: any) => ({
+      setLogs(entries.map((e: any) => ({
           id: e.id || "",
           timestamp: e.created_at || e.timestamp || "",
           action: e.action || "view_record",
@@ -115,7 +100,6 @@ export default function AuditLogsPage() {
           details: e.details || e.notes || undefined,
           session_id: e.session_id || undefined,
         })));
-      }
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
