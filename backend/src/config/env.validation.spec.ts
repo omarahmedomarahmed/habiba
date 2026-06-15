@@ -63,6 +63,8 @@ describe('validateEnv', () => {
       DATABASE_URL: 'postgres://x',
       OPENAI_API_KEY: 'sk-x',
       CORS_ORIGINS: 'https://app.example.com',
+      MESSAGE_ENCRYPTION_KEY: 'a'.repeat(32),
+      STRIPE_WEBHOOK_SECRET: 'whsec_test',
     };
 
     it('rejects known-default JWT_SECRET', () => {
@@ -99,6 +101,8 @@ describe('validateEnv', () => {
         CORS_ORIGINS: 'https://app.24therapy.ai',
         JWT_SECRET: STRONG,
         COOKIE_SECRET: STRONG,
+        MESSAGE_ENCRYPTION_KEY: 'a'.repeat(32),
+        STRIPE_WEBHOOK_SECRET: 'whsec_test',
       };
       expect(() => validateEnv(cfg)).not.toThrow();
       expect(validateEnv(cfg)).toBe(cfg);
