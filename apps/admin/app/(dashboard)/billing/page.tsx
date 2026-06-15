@@ -110,6 +110,24 @@ export default function BillingPage() {
 
   const invTotalPages = Math.ceil(invTotal / LIMIT);
 
+  const handleExport = () => {
+    const rows = invoices.map(inv => [
+      inv.invoice_number || inv.id || '',
+      inv.organization?.name || inv.org_name || inv.org || inv.patient_name || '',
+      String((inv.amount || inv.total || 0) / 100 || inv.amount || inv.total || 0),
+      inv.status || '',
+      inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '',
+    ]);
+    const csv = ['Invoice,Organization,Amount,Status,Date', ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoices-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const mrr = stats?.mrr ?? stats?.revenue_this_month ?? 0;
   const arr = mrr * 12;
   const outstanding = stats?.outstanding_amount ?? 0;
@@ -134,9 +152,9 @@ export default function BillingPage() {
             <RefreshCw className={`w-4 h-4 ${loadingStats ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          <button className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
+          <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
             <Download className="w-4 h-4" />
-            Export
+            Export CSV
           </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-all">
             <DollarSign className="w-4 h-4" />

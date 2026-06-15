@@ -26,9 +26,9 @@ interface Alert {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  critical: 'bg-red-100 text-red-800 border-red-200',
-  high: 'bg-orange-100 text-orange-800 border-orange-200',
-  elevated: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  critical: 'bg-red-900/30 text-red-400 border-red-700/50',
+  high: 'bg-orange-900/30 text-orange-400 border-orange-700/50',
+  elevated: 'bg-yellow-900/30 text-yellow-400 border-yellow-700/50',
 };
 
 export default function CrisisAlertsPage() {
@@ -81,8 +81,8 @@ export default function CrisisAlertsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Crisis Alerts</h1>
-          <p className="text-slate-500 text-sm mt-1">Real-time patient safety monitoring across all sessions</p>
+          <h1 className="text-2xl font-bold text-white">Crisis Alerts</h1>
+          <p className="text-gray-400 text-sm mt-1">Real-time patient safety monitoring across all sessions</p>
         </div>
         <div className="flex items-center gap-3">
           {activeCount > 0 && (
@@ -91,7 +91,7 @@ export default function CrisisAlertsPage() {
               {activeCount} active
             </span>
           )}
-          <button onClick={load} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+          <button onClick={load} className="p-2 text-gray-400 hover:text-gray-300 rounded-lg hover:bg-gray-800">
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
@@ -99,11 +99,11 @@ export default function CrisisAlertsPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-6">
-        <Filter className="w-4 h-4 text-slate-400" />
+        <Filter className="w-4 h-4 text-gray-400" />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700"
+          className="text-sm border border-gray-700 rounded-lg px-3 py-1.5 bg-gray-800 text-gray-300"
         >
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>
@@ -113,7 +113,7 @@ export default function CrisisAlertsPage() {
         <select
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700"
+          className="text-sm border border-gray-700 rounded-lg px-3 py-1.5 bg-gray-800 text-gray-300"
         >
           <option value="">All Levels</option>
           <option value="critical">Critical</option>
@@ -127,9 +127,9 @@ export default function CrisisAlertsPage() {
           <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
         </div>
       ) : alerts.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
+        <div className="text-center py-16 text-gray-500">
           <CheckCircle className="w-10 h-10 mx-auto mb-3 text-green-400" />
-          <p className="font-medium text-slate-600">No crisis alerts</p>
+          <p className="font-medium text-gray-300">No crisis alerts</p>
           <p className="text-sm">All sessions are currently safe.</p>
         </div>
       ) : (
@@ -140,7 +140,7 @@ export default function CrisisAlertsPage() {
               className={cn(
                 'border rounded-xl p-5 transition-opacity',
                 alert.alert_status === 'acknowledged' ? 'opacity-60' : '',
-                LEVEL_COLORS[alert.risk_level] || 'bg-slate-50 text-slate-700 border-slate-200',
+                LEVEL_COLORS[alert.risk_level] || 'bg-gray-800 text-gray-300 border-gray-700',
               )}
             >
               <div className="flex items-start justify-between gap-4">

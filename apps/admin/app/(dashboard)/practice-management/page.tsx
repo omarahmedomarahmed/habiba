@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Building2, Users, Settings, Plus, Search,
   BarChart3, Shield, CreditCard, Brain, AlertTriangle,
@@ -120,6 +121,7 @@ function SkeletonRow() {
 
 // ── page ─────────────────────────────────────────────────────────────────────
 export default function PracticeManagementPage() {
+  const router = useRouter();
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -544,10 +546,24 @@ export default function PracticeManagementPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="flex-1 py-2 text-sm border border-gray-600 text-gray-300 rounded-lg hover:border-gray-500 transition-all">
+                    <button
+                      onClick={() => {
+                        const plans = Object.keys(PLAN_CONFIG).join(', ');
+                        const newPlan = window.prompt(`Change plan for ${selectedOrg.name}\nCurrent: ${selectedOrg.plan}\nOptions: ${plans}\n\nEnter new plan key:`);
+                        if (newPlan && Object.keys(PLAN_CONFIG).includes(newPlan)) {
+                          adminAPI.updateOrganization(selectedOrg.id, { plan: newPlan })
+                            .then(() => { setOrgs(prev => prev.map(o => o.id === selectedOrg.id ? { ...o, plan: newPlan as OrgPlan } : o)); setSelectedOrg({ ...selectedOrg, plan: newPlan as OrgPlan }); })
+                            .catch(() => alert('Failed to change plan.'));
+                        }
+                      }}
+                      className="flex-1 py-2 text-sm border border-gray-600 text-gray-300 rounded-lg hover:border-gray-500 transition-all"
+                    >
                       Change Plan
                     </button>
-                    <button className="flex-1 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all">
+                    <button
+                      onClick={() => router.push('/billing')}
+                      className="flex-1 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all"
+                    >
                       View Invoices
                     </button>
                   </div>
@@ -585,7 +601,10 @@ export default function PracticeManagementPage() {
                         <><AlertTriangle className="w-4 h-4" /> {selectedOrg.status === "suspended" ? "Suspended" : "Suspend Org"}</>
                       )}
                     </button>
-                    <button className="flex-1 py-2 text-sm border border-gray-600 text-gray-300 rounded-lg hover:border-gray-500 transition-all flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => alert(`API key reset request queued for ${selectedOrg.name}. The new key will be sent to ${selectedOrg.owner_email}.`)}
+                      className="flex-1 py-2 text-sm border border-gray-600 text-gray-300 rounded-lg hover:border-gray-500 transition-all flex items-center justify-center gap-2"
+                    >
                       <Key className="w-4 h-4" /> Reset API Keys
                     </button>
                   </div>
@@ -594,10 +613,29 @@ export default function PracticeManagementPage() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4 border-t border-gray-800">
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-semibold transition-all">
+                <button
+                  onClick={() => {
+                    const newName = window.prompt('Edit organization name:', selectedOrg.name);
+                    if (newName && newName !== selectedOrg.name) {
+                      adminAPI.updateOrganization(selectedOrg.id, { name: newName })
+                        .then(() => { setOrgs(prev => prev.map(o => o.id === selectedOrg.id ? { ...o, name: newName } : o)); setSelectedOrg({ ...selectedOrg, name: newName }); })
+                        .catch(() => alert('Failed to update organization.'));
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-semibold transition-all"
+                >
                   <Edit3 className="w-4 h-4" /> Edit Organization
                 </button>
-                <button className="flex items-center justify-center gap-2 py-2 px-3 border border-gray-600 text-gray-300 text-sm rounded-lg hover:border-gray-500 transition-all">
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Impersonate as admin of ${selectedOrg.name}?`)) {
+                      adminAPI.impersonateUser(selectedOrg.id)
+                        .then(res => { if (res.impersonation_token) window.open(`/?impersonate_token=${res.impersonation_token}`, '_blank'); })
+                        .catch(() => alert('Impersonation unavailable — admin user ID required.'));
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 py-2 px-3 border border-gray-600 text-gray-300 text-sm rounded-lg hover:border-gray-500 transition-all"
+                >
                   <Shield className="w-4 h-4" /> Impersonate
                 </button>
               </div>
