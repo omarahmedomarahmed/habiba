@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, Shield, Brain, CreditCard,
-  Store, Settings, LogOut, Activity, AlertTriangle, ChevronRight,
+  Settings, LogOut, Activity, AlertTriangle, ChevronRight,
   Zap, BarChart2, UserCheck, Target, Layers,
   Wrench, ToggleLeft, DollarSign, FileSearch, Banknote
 } from 'lucide-react';
@@ -36,7 +36,6 @@ const NAV = [
       { href: '/billing', label: 'Billing & Revenue', icon: CreditCard },
       { href: '/payouts', label: 'Therapist Payouts', icon: Banknote },
       { href: '/pricing', label: 'Pricing Management', icon: DollarSign },
-      { href: '/marketplace', label: 'Marketplace', icon: Store },
       { href: '/analytics', label: 'Analytics', icon: BarChart2 },
       { href: '/crm', label: 'CRM & Sales', icon: Target },
     ],
@@ -46,7 +45,6 @@ const NAV = [
     items: [
       { href: '/support-tools', label: 'Support Tools', icon: Wrench },
       { href: '/feature-flags', label: 'Feature Flags', icon: ToggleLeft },
-      { href: '/ai-costs', label: 'AI Costs', icon: DollarSign },
       { href: '/audit-logs', label: 'Audit Logs', icon: FileSearch },
     ],
   },
@@ -122,7 +120,7 @@ export default function AdminSidebar() {
           <Shield className="w-3.5 h-3.5 text-blue-400" />
           <span className="text-xs text-blue-300 font-medium">HIPAA Compliant</span>
         </div>
-        <p className="text-[10px] text-gray-500 mt-0.5">SOC 2 Type II • HITECH • GDPR</p>
+        <p className="text-[10px] text-gray-500 mt-0.5">HITECH • GDPR • AES-256</p>
       </div>
 
       {/* User */}

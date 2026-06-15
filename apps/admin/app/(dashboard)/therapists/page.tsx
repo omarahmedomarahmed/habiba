@@ -378,16 +378,22 @@ export default function TherapistsPage() {
                             </button>
                           </>
                         )}
-                        <button className="w-full flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs transition-all">
+                        <button
+                          onClick={() => therapist.public_slug ? window.open(`/t/${therapist.public_slug}`, '_blank') : window.open(`/therapists/${therapist.id}`, '_blank')}
+                          className="w-full flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs transition-all">
                           <Eye className="w-3.5 h-3.5" />
                           View Full Profile
                         </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs transition-all">
+                        <button
+                          onClick={() => therapist.email && window.open(`mailto:${therapist.email}`, '_blank')}
+                          className="w-full flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs transition-all">
                           <Mail className="w-3.5 h-3.5" />
                           Send Email
                         </button>
                         {status === 'approved' && (
-                          <button className="w-full flex items-center gap-2 px-3 py-2 bg-red-900/30 border border-red-700/30 text-red-300 hover:text-red-200 rounded-lg text-xs transition-all">
+                          <button
+                            onClick={() => { if (window.confirm('Suspend this therapist account?')) adminAPI.rejectTherapist(therapist.id, 'Suspended by admin').then(fetchTherapists); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 bg-red-900/30 border border-red-700/30 text-red-300 hover:text-red-200 rounded-lg text-xs transition-all">
                             <AlertTriangle className="w-3.5 h-3.5" />
                             Suspend Account
                           </button>

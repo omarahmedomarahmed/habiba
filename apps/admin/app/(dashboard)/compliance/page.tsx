@@ -23,9 +23,9 @@ const AUDIT_LOGS = [
 const COMPLIANCE_FRAMEWORKS = [
   { name: 'HIPAA', status: 'compliant', last_review: '2024-05-15', score: 97, issues: 0, next_review: '2024-08-15' },
   { name: 'GDPR', status: 'compliant', last_review: '2024-04-20', score: 94, issues: 1, next_review: '2024-07-20' },
-  { name: 'SOC 2 Type II', status: 'compliant', last_review: '2024-03-01', score: 96, issues: 0, next_review: '2024-09-01' },
   { name: 'HITECH', status: 'compliant', last_review: '2024-05-15', score: 98, issues: 0, next_review: '2024-08-15' },
-  { name: 'ISO 27001', status: 'in_progress', last_review: '2024-01-10', score: 78, issues: 4, next_review: '2024-07-10' },
+  { name: 'BAA Coverage', status: 'compliant', last_review: '2024-05-01', score: 100, issues: 0, next_review: '2025-05-01' },
+  { name: 'AES-256 Encryption', status: 'compliant', last_review: '2024-06-01', score: 100, issues: 0, next_review: '2024-12-01' },
 ];
 
 const CONSENT_RECORDS = [
@@ -54,6 +54,21 @@ export default function CompliancePage() {
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [liveAuditLogs, setLiveAuditLogs] = useState(AUDIT_LOGS);
+
+  const handleExportReport = () => {
+    const report = {
+      generated_at: new Date().toISOString(),
+      frameworks: COMPLIANCE_FRAMEWORKS,
+      audit_log_sample: liveAuditLogs.slice(0, 50),
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compliance-report-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     async function load() {
@@ -100,7 +115,7 @@ export default function CompliancePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
+          <button onClick={handleExportReport} className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
             <Download className="w-4 h-4" />
             Export Report
           </button>

@@ -23,15 +23,6 @@ interface Therapist {
   public_slug?: string;
 }
 
-const STATIC_THERAPISTS: Therapist[] = [
-  { id: "1", name: "Dr. Alexandra Smith", title: "Licensed Clinical Psychologist", initials: "AS", gradient: "from-rose-500 to-pink-600", specializations: ["Anxiety", "Depression"], rating: 4.9, availability: "today" },
-  { id: "2", name: "Marcus Williams, LCSW", title: "Licensed Clinical Social Worker", initials: "MW", gradient: "from-blue-500 to-indigo-600", specializations: ["PTSD", "Trauma"], rating: 4.8, availability: "this_week" },
-  { id: "3", name: "Dr. Priya Nair", title: "Psychiatrist & Therapist", initials: "PN", gradient: "from-emerald-500 to-teal-600", specializations: ["OCD", "ADHD"], rating: 5.0, availability: "this_week" },
-  { id: "4", name: "Sofia Martinez, LMFT", title: "Marriage & Family Therapist", initials: "SM", gradient: "from-amber-500 to-orange-600", specializations: ["Relationships", "Family"], rating: 4.7, availability: "today" },
-  { id: "5", name: "Dr. James Chen", title: "Licensed Psychologist", initials: "JC", gradient: "from-violet-500 to-purple-600", specializations: ["Depression", "Grief"], rating: 4.8, availability: "next_week" },
-  { id: "6", name: "Aisha Okonkwo, LPC", title: "Licensed Professional Counselor", initials: "AO", gradient: "from-cyan-500 to-blue-600", specializations: ["LGBTQ+", "Life Transitions"], rating: 4.9, availability: "today" },
-];
-
 const AVAIL_LABELS: Record<string, string> = {
   today: "Available Today",
   this_week: "This Week",
@@ -50,7 +41,7 @@ const SPECIALTIES = [
 ];
 
 export default function ForPatientsPage() {
-  const [therapists, setTherapists] = useState<Therapist[]>(STATIC_THERAPISTS);
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [search, setSearch] = useState("");
   const [specialty, setSpecialty] = useState("All Specialties");
 
@@ -150,7 +141,12 @@ export default function ForPatientsPage() {
 
           {/* Therapist grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            {therapists.slice(0, 6).map((t) => (
+            {therapists.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-lg font-medium text-slate-700 mb-1">Therapist directory loading</p>
+                <p className="text-sm text-slate-500">Check back soon or <a href="/find-therapist" className="text-[#2EC4B6] underline">browse the full directory</a></p>
+              </div>
+            ) : therapists.slice(0, 6).map((t) => (
               <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md hover:border-[#2EC4B6]/40 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.gradient} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
@@ -185,7 +181,7 @@ export default function ForPatientsPage() {
                   Book Session
                 </Link>
               </div>
-            ))}
+            )))}
           </div>
 
           <div className="text-center">
