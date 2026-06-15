@@ -236,7 +236,7 @@ export default function AIGovernancePage() {
 
               {/* Use cases */}
               <div className="flex gap-1.5 mb-4">
-                {model.use_cases.map((uc) => (
+                {model.use_cases.map((uc: string) => (
                   <span key={uc} className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded">
                     {uc}
                   </span>
