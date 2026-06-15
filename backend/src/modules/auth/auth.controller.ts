@@ -9,6 +9,7 @@ import {
   Get,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiUnauthorizedResponse, ApiBadRequestResponse } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -23,6 +24,7 @@ export class AuthController {
 
   @Post('register')
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 5 }, long: { ttl: 3600000, limit: 20 } })
   @ApiOperation({ summary: 'Register a new account (therapist or patient)' })
   @ApiResponse({ status: 201, description: 'Account created, tokens returned' })
   @ApiBadRequestResponse({ description: 'Validation error or email already exists' })
@@ -37,6 +39,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 10 }, long: { ttl: 3600000, limit: 30 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful, tokens returned' })
@@ -92,6 +95,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 3 }, long: { ttl: 3600000, limit: 10 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset email' })
   async forgotPassword(@Body('email') email: string) {
@@ -105,6 +109,7 @@ export class AuthController {
 
   @Post('reset-password')
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 5 }, long: { ttl: 3600000, limit: 15 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
   async resetPassword(@Body() body: { token: string; password: string }) {

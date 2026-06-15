@@ -40,10 +40,21 @@ export class DatabaseService {
     return uuidv4();
   }
 
-  // Build WHERE clause for multi-tenant scoping
-  buildOrgFilter(organizationId: string, alias = ''): string {
+  // Build WHERE clause for multi-tenant scoping.
+  // Returns a SQL fragment using $N placeholders; caller must append the provided param value to their params array.
+  // Example: const orgFilter = this.db.buildOrgFilter(orgId, 't', params); // params grows by 1
+  buildOrgFilter(organizationId: string, alias = '', existingParams: any[] = []): { sql: string; params: any[] } {
     const prefix = alias ? `${alias}.` : '';
-    return `${prefix}organization_id = '${organizationId}'`;
+    const params = [...existingParams, organizationId];
+    const sql = `${prefix}organization_id = $${params.length}`;
+    return { sql, params };
+  }
+
+  // Convenience: return just the SQL snippet for use in template literals where params are managed separately.
+  // The caller MUST pass organizationId as the corresponding $N param themselves.
+  orgFilterSql(alias = '', paramIndex: number): string {
+    const prefix = alias ? `${alias}.` : '';
+    return `${prefix}organization_id = $${paramIndex}`;
   }
 
   // Paginate helper

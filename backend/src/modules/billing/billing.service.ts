@@ -610,11 +610,20 @@ export class BillingService {
   async createPatientSessionCheckout(
     sessionId: string,
     therapistId: string,
-    priceCents: number,
     patientEmail: string,
     joinToken: string,
   ): Promise<string | null> {
     if (!this.stripeConfigured) return null;
+
+    // Fetch authoritative price from DB — never trust client-supplied price_cents
+    const sessionRow = await this.db.queryOne<{ session_price_cents: number }>(
+      `SELECT session_price_cents FROM sessions WHERE id = $1 AND join_token = $2::uuid AND status IN ('scheduled','waiting','in_progress')`,
+      [sessionId, joinToken],
+    );
+    if (!sessionRow || !sessionRow.session_price_cents || sessionRow.session_price_cents <= 0) {
+      throw new Error('Session not found, invalid join token, or session has no price set');
+    }
+    const priceCents = sessionRow.session_price_cents;
 
     const therapist = await this.db.queryOne<{ display_name: string; avatar_url?: string }>(
       `SELECT t.display_name, u.avatar_url

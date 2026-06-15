@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { SessionsService } from './sessions.service';
 import { Public } from '../auth/decorators/public.decorator';
@@ -52,6 +53,7 @@ export class SessionsController {
 
   @Get('join/:token')
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 20 }, long: { ttl: 3600000, limit: 100 } })
   @ApiOperation({ summary: 'Get session info by join token (public)' })
   async getJoinInfo(@Param('token') token: string) {
     const info = await this.sessionsService.getJoinInfo(token);
@@ -60,6 +62,7 @@ export class SessionsController {
 
   @Post('join/:token')
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 10 }, long: { ttl: 3600000, limit: 50 } })
   @ApiOperation({ summary: 'Join session by token (public)' })
   async joinByToken(@Param('token') token: string, @Body() dto: { name: string; email?: string }) {
     const result = await this.sessionsService.joinByToken(token, dto);
@@ -68,6 +71,7 @@ export class SessionsController {
 
   @Post('join/:token/pay')
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 5 }, long: { ttl: 3600000, limit: 20 } })
   @ApiOperation({ summary: 'Initiate patient payment for a priced session (public)' })
   async initiatePatientPayment(
     @Param('token') token: string,

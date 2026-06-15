@@ -257,8 +257,6 @@ function TherapistSettingsInner() {
   const [savedToast, setSavedToast] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [copiedApiKey, setCopiedApiKey] = useState(false);
-
   // Profile state
   const [profile, setProfile] = useState({
     first_name: "", last_name: "", email: "",
@@ -374,11 +372,7 @@ function TherapistSettingsInner() {
     setProfile((prev) => ({ ...prev, [key]: prev[key].filter((x) => x !== value) }));
   };
 
-  const handleCopyApiKey = () => {
-    navigator.clipboard.writeText("sk_live_24therapy_abc123xyz");
-    setCopiedApiKey(true);
-    setTimeout(() => setCopiedApiKey(false), 2000);
-  };
+  // API key generation is not yet implemented — placeholder removed for security
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1065,22 +1059,12 @@ function TherapistSettingsInner() {
                 </SectionCard>
 
                 <SectionCard title="API Access" description="API key for integrations and automation">
-                  <div className="flex items-center gap-3 mb-3">
-                    <code className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-sm font-mono">
-                      sk_live_••••••••••••••••••••abc123
-                    </code>
-                    <button
-                      onClick={handleCopyApiKey}
-                      className="flex items-center gap-1.5 border border-gray-300 text-gray-600 px-3 py-2 rounded-xl text-sm hover:border-gray-400"
-                    >
-                      {copiedApiKey ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                      {copiedApiKey ? "Copied!" : "Copy"}
-                    </button>
-                    <button className="border border-gray-300 text-gray-600 px-3 py-2 rounded-xl text-sm hover:border-gray-400">
-                      Regenerate
-                    </button>
+                  <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800">API Access — Coming Soon</p>
+                      <p className="text-xs text-amber-600 mt-1">Programmatic API access for integrations is under development. Contact support to join the early access programme.</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400">Keep your API key secret. It provides access to your patient data.</p>
                 </SectionCard>
 
                 <SectionCard title="Active Sessions">

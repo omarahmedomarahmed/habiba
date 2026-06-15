@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
   Headers, RawBodyRequest, UseGuards, Request, Req, HttpCode
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { BillingService } from "./billing.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -302,13 +303,15 @@ export class BillingController {
   // ============================================================
 
   @Public()
+  @Throttle({ short: { ttl: 60000, limit: 5 }, long: { ttl: 3600000, limit: 20 } })
   @Post("patient-session/checkout")
   @ApiOperation({ summary: "Create Stripe checkout for patient to pay for a priced session" })
   createPatientSessionCheckout(
-    @Body() body: { session_id: string; join_token: string; patient_email: string; price_cents: number; therapist_id: string }
+    @Body() body: { session_id: string; join_token: string; patient_email: string; therapist_id: string }
   ) {
+    // price_cents is intentionally NOT accepted from client — fetched from DB in service to prevent price manipulation
     return this.billingService.createPatientSessionCheckout(
-      body.session_id, body.therapist_id, body.price_cents, body.patient_email, body.join_token,
+      body.session_id, body.therapist_id, body.patient_email, body.join_token,
     ).then(url => ({ checkout_url: url }));
   }
 
