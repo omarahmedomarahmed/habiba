@@ -11,10 +11,10 @@
 |-------|-------|
 | **Project** | 24Therapy Mental Health OS |
 | **Repo** | https://github.com/omarahmedomarahmed/habiba |
-| **Dev Branch** | `claude/magical-cori-9vbw6k` |
+| **Dev Branch** | `claude/friendly-ritchie-jaaxsw` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-15 (session 24 — admin approval, lock overlay UX, bank details, public profiles, Add-to-Calendar, patient join status WS) |
+| **Last Updated** | 2026-06-15 (session 25 — God Mode audit + systematic remediation: P0 billing, security hardening, real analytics, real system health) |
 
 ---
 
@@ -484,4 +484,53 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [x] billing page: updated plan bullets (PAYG/Starter/Unlimited/Practice consistent matrix)
 - [x] web pricing page: PLAN_FEATURES_MAP updated to match consistent feature matrix
 
-<!-- Reviewed: 2026-06-14 — 24Therapy audit -->
+### Session 25 additions (complete — audit remediation)
+
+Full codebase audit (TECHNICAL_AUDIT_REPORT.md, 1737 lines) + systematic remediation:
+
+**P0 — Critical Security**
+- [x] billing.controller: remove client-supplied price_cents from patient-session/checkout (CRITICAL price manipulation fix)
+- [x] billing.service: createPatientSessionCheckout() fetches authoritative price from DB using session_id + join_token validation
+- [x] settings/page.tsx (therapist): remove hardcoded `sk_live_24therapy_abc123xyz` API key; replace with "coming soon" notice
+- [x] env.validation.ts: add MESSAGE_ENCRYPTION_KEY + STRIPE_WEBHOOK_SECRET to required production vars
+- [x] billing.service: handleWebhook() throws immediately if STRIPE_WEBHOOK_SECRET unset (not empty string)
+- [x] database.service: convert buildOrgFilter() from string interpolation to parameterized query + orgFilterSql() helper
+
+**P1 — High Security**
+- [x] auth.controller: @Throttle() on register/login/forgot-password/reset-password (3–10 rpm)
+- [x] billing.controller: @Throttle() on patient-session/checkout (5 rpm)
+- [x] sessions.controller: @Throttle() on all public join endpoints
+- [x] ai.public.controller: @Throttle() on /ai/chat/anonymous (10/min, 50/hr)
+- [x] crisis.service: change initial alert insert to status='pending'; mark 'delivered' after notifications succeed (sweeper can recover failures)
+- [x] mail.service: suppress full body logging in production when RESEND_API_KEY absent (prevent token/PHI leakage)
+- [x] auth.service: replace console.error with NestJS Logger in welcome email + password reset handlers
+
+**P1 — Frontend**
+- [x] analytics/page.tsx (admin): replace 7 hardcoded fake data arrays with real GET /analytics/platform/dashboard calls; loading/error/empty states
+- [x] dashboard/page.tsx (admin): replace hardcoded all-operational system health with real GET /admin/health per-service check
+- [x] admin.service.ts: getSystemHealthDetailed() pings DB + checks env config for AI/Video/Billing/Notifications
+- [x] billing/page.tsx (therapist): load subscription plans from GET /billing/plans instead of hardcoded PLANS constant
+
+**P2 — Security Headers**
+- [x] All 4 Next.js apps: add Strict-Transport-Security (max-age=63072000; includeSubDomains; preload)
+- [x] apps/web: change X-Frame-Options from SAMEORIGIN to DENY
+- [x] apps/patient: add full security headers (was missing entirely)
+- [x] apps/therapist + patient: Permissions-Policy allows camera/mic for video sessions
+
+**P2 — Database**
+- [x] migration 033: composite indexes (sessions.therapist_id, scheduled_at), (org, status, scheduled_at), risk_assessments dedup/sweeper, phi_access_log retention
+
+**P2 — Analytics**
+- [x] analytics: GET /analytics/platform/ai-models — per-model stats from ai_usage_log (requests, cost, latency, success rate)
+- [x] ai-governance page (admin): fetch real per-model stats; fall back to static data only when DB empty
+- [x] data-lifecycle: weekly VACUUM ANALYZE on patient_memory to maintain IVFFlat index accuracy
+
+**P2 — Error Handling**
+- [x] treatment-plans.service: write operations now propagate DB errors instead of silent null
+- [x] referrals.service: write operations now propagate DB errors; list query logs error
+- [x] workflows.service: write operations (updateStatus, completeTask, startTask, updateTreatmentPlan) propagate errors
+
+**Audit report**
+- [x] TECHNICAL_AUDIT_REPORT.md: 1737-line comprehensive audit (repo forensics, feature matrix, security, HIPAA, AI, DevOps, env vars, tech debt top 100, acquisition readiness)
+
+<!-- Reviewed: 2026-06-15 — 24Therapy audit -->
