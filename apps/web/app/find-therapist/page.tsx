@@ -137,10 +137,15 @@ import { getApiUrl } from '@/lib/env';
 
 const API_URL = getApiUrl();
 
+const LANGUAGES = ["English", "Spanish", "French", "Arabic", "Mandarin", "Portuguese", "German", "Hindi", "Tagalog", "Korean"];
+
 export default function FindTherapistPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([]);
-  const [liveTherapists, setLiveTherapists] = useState<Therapist[]>(THERAPISTS);
+  const [filterLanguage, setFilterLanguage] = useState("");
+  const [liveTherapists, setLiveTherapists] = useState<Therapist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("any");
   const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
@@ -148,21 +153,23 @@ export default function FindTherapistPage() {
 
   useEffect(() => {
     async function fetchTherapists() {
+      setLoading(true);
+      setFetchError(false);
       try {
         const params = new URLSearchParams();
         if (searchQuery) params.set('q', searchQuery);
         if (selectedSpecs.length) params.set('specializations', selectedSpecs.join(','));
+        if (filterLanguage) params.set('languages', filterLanguage);
         const res = await fetch(`${API_URL}/marketplace/search?${params}`);
-        if (!res.ok) return;
+        if (!res.ok) throw new Error('API error');
         const json = await res.json();
         const data: Record<string, unknown>[] = json.data?.listings || json.data || [];
-        if (data.length === 0) return;
         setLiveTherapists(data.map(t => ({
           id: t.id as string,
-          name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || (t.name as string) || 'Therapist',
-          license: (t.license_type as string) || 'LCSW',
-          title: (t.title as string) || (t.specialization as string) || 'Therapist',
-          photo_initials: (`${t.first_name || 'T'}`).charAt(0).toUpperCase(),
+          name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || (t.display_name as string) || 'Therapist',
+          license: (t.license_type as string) || '',
+          title: (t.title as string) || (t.specialization as string) || 'Licensed Therapist',
+          photo_initials: (`${t.first_name || t.display_name || 'T'}`).charAt(0).toUpperCase(),
           gradient: 'from-blue-500 to-violet-600',
           location: (t.location as string) || 'Online',
           specializations: (t.specializations as string[]) || [],
@@ -175,20 +182,25 @@ export default function FindTherapistPage() {
           video: true,
           messaging: true,
           phone: false,
-          rate_per_session: (t.session_price as number) || 150,
+          rate_per_session: (t.session_price_cents as number) ? Math.round((t.session_price_cents as number) / 100) : (t.session_price as number) || 0,
           accepting_new: (t.accepting_new_patients as boolean) ?? true,
-          verified: (t.marketplace_enabled as boolean) ?? true,
+          verified: (t.verification_status as string) === 'approved',
           premium: false,
           bio: (t.bio as string) || '',
           match_score: 90,
-          next_available: (t.next_available as string) || 'This week',
-          approaches: (t.approaches as string[]) || [],
+          next_available: 'This week',
+          approaches: [],
           public_slug: (t.public_slug as string) || (t.booking_slug as string) || undefined,
         })));
-      } catch { /* keep static fallback */ }
+      } catch {
+        setFetchError(true);
+        setLiveTherapists([]);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchTherapists();
-  }, [searchQuery, selectedSpecs]);
+  }, [searchQuery, selectedSpecs, filterLanguage]);
 
   const toggleSpec = (spec: string) => {
     setSelectedSpecs(prev => prev.includes(spec) ? prev.filter(s => s !== spec) : [...prev, spec]);
@@ -363,6 +375,18 @@ export default function FindTherapistPage() {
               </div>
             </div>
 
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Language</p>
+              <select
+                value={filterLanguage}
+                onChange={(e) => setFilterLanguage(e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:outline-none focus:border-[#0A2342] w-48 bg-white"
+              >
+                <option value="">All Languages</option>
+                {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Specialization</p>
               <div className="flex flex-wrap gap-2">
@@ -382,16 +406,21 @@ export default function FindTherapistPage() {
 
         {/* Results */}
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-600">{filteredTherapists.length} therapists found</p>
-          <select className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm text-gray-600 focus:outline-none">
-            <option>Best Match</option>
-            <option>Highest Rated</option>
-            <option>Available Soonest</option>
-            <option>Lowest Rate</option>
-          </select>
+          <p className="text-sm text-gray-600">
+            {loading ? "Loading…" : fetchError ? "Could not load therapists" : `${filteredTherapists.length} therapist${filteredTherapists.length !== 1 ? "s" : ""} found`}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Empty / error state */}
+        {!loading && (fetchError || filteredTherapists.length === 0) && (
+          <div className="text-center py-16 text-gray-400">
+            <Users className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+            <p className="font-medium text-gray-500">{fetchError ? "Could not load therapists" : "No therapists found"}</p>
+            <p className="text-sm mt-1">{fetchError ? "Please try again later." : "Try adjusting your filters or search terms."}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTherapists.map(t => (
             <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:border-[#1F5EFF]/30 hover:shadow-md transition-all flex flex-col">
               <div className="flex items-start gap-4 flex-1">
@@ -439,14 +468,14 @@ export default function FindTherapistPage() {
               </div>
 
               <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => setSelectedTherapist(t)}
-                  className="flex-1 py-2.5 border border-[#0A2342] text-[#0A2342] rounded-xl text-sm font-medium hover:bg-slate-50"
+                <Link
+                  href={`/therapists/${t.id}`}
+                  className="flex-1 py-2.5 border border-[#0A2342] text-[#0A2342] rounded-xl text-sm font-medium hover:bg-slate-50 text-center"
                 >
                   View Profile
-                </button>
+                </Link>
                 <Link
-                  href={t.public_slug ? `/t/${t.public_slug}` : `/signup?role=patient&therapist=${t.id}`}
+                  href={t.public_slug ? `/t/${t.public_slug}` : `/signup`}
                   className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63] text-center"
                 >
                   Book Now

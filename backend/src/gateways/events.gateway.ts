@@ -405,6 +405,16 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  @OnEvent("session.patient_joined")
+  handlePatientJoined(payload: { sessionId: string; therapistUserId: string; patientName: string }) {
+    this.server.to(`user:${payload.therapistUserId}`).emit("patient_join_status", {
+      session_id: payload.sessionId,
+      status: "joined",
+      patient_name: payload.patientName,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // ============================================================
   // HELPERS
   // ============================================================

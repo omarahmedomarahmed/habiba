@@ -47,6 +47,18 @@ function BookingConfirmedInner() {
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/join/${booking.join_token}`
     : null;
 
+  const gcalUrl = booking?.scheduled_at && joinUrl
+    ? (() => {
+        const start = new Date(booking.scheduled_at);
+        const end = new Date(start.getTime() + booking.duration_mins * 60 * 1000);
+        const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+        return `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+          `&text=${encodeURIComponent(`Session with ${booking.therapist_name}`)}` +
+          `&dates=${fmt(start)}/${fmt(end)}` +
+          `&details=${encodeURIComponent(`Join your session: ${joinUrl}`)}&sf=true&output=xml`;
+      })()
+    : null;
+
   const copyLink = async () => {
     if (!joinUrl) return;
     await navigator.clipboard.writeText(joinUrl);
@@ -132,6 +144,17 @@ function BookingConfirmedInner() {
                   <Video className="w-4 h-4" />
                   Join Session
                 </a>
+                {gcalUrl && (
+                  <a
+                    href={gcalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <Calendar className="w-4 h-4 text-blue-500" />
+                    Add to Google Calendar
+                  </a>
+                )}
               </div>
             )}
           </div>

@@ -136,6 +136,16 @@ export class MarketplaceController {
     return this.r(stats);
   }
 
+  // ─── Get therapist public profile by ID (public) ─────────────────────────
+
+  @Get('therapist/:id')
+  @Public()
+  @ApiOperation({ summary: 'Get public therapist profile by ID' })
+  async getTherapistById(@Param('id') id: string) {
+    const therapist = await this.service.getTherapistById(id);
+    return this.r(therapist);
+  }
+
   // ─── Get listing by ID (public) ──────────────────────────────────────────
 
   @Get('listings/:id')

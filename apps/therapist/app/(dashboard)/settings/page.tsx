@@ -102,6 +102,16 @@ function TherapistSettingsInner() {
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutDone, setPayoutDone] = useState(false);
 
+  // Bank details
+  type PayoutMethod = "ach" | "wire" | "swift";
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>("ach");
+  const [bankDetails, setBankDetails] = useState({
+    bank_name: "", routing_number: "", account_number: "", account_type: "checking",
+    beneficiary_address: "", swift_bic: "", iban_or_account: "", bank_address: "", country_code: "",
+  });
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankSaved, setBankSaved] = useState(false);
+
   // Availability
   const [availSlots, setAvailSlots] = useState<{ day_of_week: number; start_time: string; end_time: string; is_active: boolean }[]>(
     DAYS.map((_, i) => ({ day_of_week: i, start_time: "09:00", end_time: "17:00", is_active: i >= 1 && i <= 5 }))
@@ -164,6 +174,17 @@ function TherapistSettingsInner() {
 
   useEffect(() => {
     if (activeTab === "billing") {
+      therapistsAPI.me().then((res: any) => {
+        const d = res?.data ?? res;
+        if (d?.payout_method) setPayoutMethod(d.payout_method as PayoutMethod);
+        if (d?.bank_details) setBankDetails((prev) => ({ ...prev, ...d.bank_details }));
+      }).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "billing") {
       bookingAPI.myOfferings().then((res: any) => {
         const data: any[] = res?.data ?? res ?? [];
         if (data.length > 0) {
@@ -209,12 +230,23 @@ function TherapistSettingsInner() {
     }
   };
 
+  const handleSaveBankDetails = async () => {
+    setBankSaving(true);
+    try {
+      await therapistsAPI.updateBankDetails(payoutMethod, bankDetails as Record<string, unknown>);
+      setBankSaved(true);
+      setTimeout(() => setBankSaved(false), 3000);
+    } catch { /* non-critical */ } finally {
+      setBankSaving(false);
+    }
+  };
+
   const handleRequestPayout = async () => {
     const cents = Math.round(parseFloat(payoutAmount) * 100);
-    if (!cents || cents <= 0 || !payoutBank.trim()) return;
+    if (!cents || cents <= 0) return;
     setPayoutLoading(true);
     try {
-      await billingAPI.requestPayout({ amount_cents: cents, bank_details: { account_name: payoutBank } });
+      await billingAPI.requestPayout({ amount_cents: cents, bank_details: { account_name: payoutBank, method: payoutMethod } });
       setPayoutDone(true);
       setWallet(null);
     } catch { /* show error */ } finally {
@@ -1211,6 +1243,100 @@ function TherapistSettingsInner() {
                   )}
                 </SectionCard>
 
+                {/* ── Payout Bank Details ── */}
+                <SectionCard title="Payout Settings" description="Where we send your earnings. Processed within 48 hours of request.">
+                  {/* Method tabs */}
+                  <div className="flex gap-2 mb-5">
+                    {(["ach", "wire", "swift"] as PayoutMethod[]).map((m) => (
+                      <button key={m} onClick={() => setPayoutMethod(m)}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${payoutMethod === m ? "bg-[#0A2342] text-white border-[#0A2342]" : "text-gray-600 border-gray-200 hover:border-gray-300 bg-white"}`}>
+                        {m.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* ACH fields */}
+                    {payoutMethod === "ach" && (<>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
+                          <input value={bankDetails.bank_name} onChange={(e) => setBankDetails(d => ({...d, bank_name: e.target.value}))} placeholder="e.g. Chase" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Account Type</label>
+                          <select value={bankDetails.account_type} onChange={(e) => setBankDetails(d => ({...d, account_type: e.target.value}))} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF] bg-white">
+                            <option value="checking">Checking</option>
+                            <option value="savings">Savings</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Routing Number (9 digits)</label>
+                        <input value={bankDetails.routing_number} onChange={(e) => setBankDetails(d => ({...d, routing_number: e.target.value}))} placeholder="021000021" maxLength={9} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Account Number</label>
+                        <input value={bankDetails.account_number} onChange={(e) => setBankDetails(d => ({...d, account_number: e.target.value}))} placeholder="Your account number" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                    </>)}
+
+                    {/* Wire fields */}
+                    {payoutMethod === "wire" && (<>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
+                        <input value={bankDetails.bank_name} onChange={(e) => setBankDetails(d => ({...d, bank_name: e.target.value}))} placeholder="e.g. Bank of America" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Account Number</label>
+                        <input value={bankDetails.account_number} onChange={(e) => setBankDetails(d => ({...d, account_number: e.target.value}))} placeholder="Your account number" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">ABA Routing Number</label>
+                        <input value={bankDetails.routing_number} onChange={(e) => setBankDetails(d => ({...d, routing_number: e.target.value}))} placeholder="9-digit routing number" maxLength={9} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Beneficiary Address</label>
+                        <input value={bankDetails.beneficiary_address} onChange={(e) => setBankDetails(d => ({...d, beneficiary_address: e.target.value}))} placeholder="Your mailing address" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                    </>)}
+
+                    {/* SWIFT fields */}
+                    {payoutMethod === "swift" && (<>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">SWIFT / BIC Code</label>
+                          <input value={bankDetails.swift_bic} onChange={(e) => setBankDetails(d => ({...d, swift_bic: e.target.value.toUpperCase()}))} placeholder="CHASUS33" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF] uppercase" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Country Code (ISO)</label>
+                          <input value={bankDetails.country_code} onChange={(e) => setBankDetails(d => ({...d, country_code: e.target.value.toUpperCase()}))} placeholder="US" maxLength={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF] uppercase" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">IBAN or Account Number</label>
+                        <input value={bankDetails.iban_or_account} onChange={(e) => setBankDetails(d => ({...d, iban_or_account: e.target.value}))} placeholder="IBAN or account number" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
+                        <input value={bankDetails.bank_name} onChange={(e) => setBankDetails(d => ({...d, bank_name: e.target.value}))} placeholder="e.g. Deutsche Bank" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Bank Address</label>
+                        <input value={bankDetails.bank_address} onChange={(e) => setBankDetails(d => ({...d, bank_address: e.target.value}))} placeholder="Full bank address" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#1F5EFF]" />
+                      </div>
+                    </>)}
+                  </div>
+
+                  <p className="text-xs text-gray-400 mt-4 mb-4">ACH: 1–3 business days · Wire: 2–5 days · SWIFT: 3–7 days after initiation.</p>
+
+                  <button onClick={handleSaveBankDetails} disabled={bankSaving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#0A2342] text-white text-sm font-semibold rounded-xl hover:bg-[#1F5EFF] transition-colors disabled:opacity-50">
+                    {bankSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : bankSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    {bankSaved ? "Saved!" : "Save Bank Details"}
+                  </button>
+                </SectionCard>
+
                 {/* ── Session Offerings ── */}
                 <SectionCard title="Session Offerings" description="Configure durations and prices for your booking calendar">
                   <div className="space-y-3 mb-4">
@@ -1265,32 +1391,30 @@ function TherapistSettingsInner() {
                         </>
                       ) : (
                         <>
-                          <h2 className="text-lg font-bold text-gray-900 mb-4">Request Payout</h2>
-                          <div className="space-y-3 mb-4">
+                          <h2 className="text-lg font-bold text-gray-900 mb-1">Request Payout</h2>
+                          <p className="text-xs text-gray-500 mb-4">Via {payoutMethod.toUpperCase()} · Processed within 48 hours</p>
+                          <div className="space-y-3 mb-5">
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">Amount (USD)</label>
                               <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                                 <input
                                   type="number"
-                                  min="1"
+                                  min="50"
                                   max={wallet ? (wallet.balance_cents / 100).toFixed(2) : undefined}
                                   value={payoutAmount}
                                   onChange={(e) => setPayoutAmount(e.target.value)}
-                                  placeholder={`Max $${wallet ? (wallet.balance_cents / 100).toFixed(2) : "0"}`}
-                                  className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                                  placeholder={`Min $50 · Max $${wallet ? (wallet.balance_cents / 100).toFixed(2) : "0"}`}
+                                  className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#1F5EFF]"
                                 />
                               </div>
                             </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Bank account (name or IBAN)</label>
-                              <input
-                                value={payoutBank}
-                                onChange={(e) => setPayoutBank(e.target.value)}
-                                placeholder="Account name or IBAN"
-                                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
-                              />
-                            </div>
+                            {bankDetails.bank_name && (
+                              <div className="bg-gray-50 rounded-xl px-3 py-2.5 text-xs text-gray-600">
+                                Sending to: <span className="font-medium">{bankDetails.bank_name}</span>
+                                {bankDetails.account_number && ` ····${bankDetails.account_number.slice(-4)}`}
+                              </div>
+                            )}
                           </div>
                           <div className="flex gap-3">
                             <button onClick={() => setShowPayoutModal(false)} className="flex-1 h-10 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
@@ -1298,7 +1422,7 @@ function TherapistSettingsInner() {
                             </button>
                             <button
                               onClick={handleRequestPayout}
-                              disabled={payoutLoading || !payoutAmount || !payoutBank.trim()}
+                              disabled={payoutLoading || !payoutAmount}
                               className="flex-1 h-10 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
                             >
                               {payoutLoading ? "Submitting…" : "Request Payout"}

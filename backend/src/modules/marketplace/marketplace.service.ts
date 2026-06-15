@@ -540,6 +540,27 @@ export class MarketplaceService {
   }
 
   // ============================================================
+  // PUBLIC THERAPIST PROFILE BY ID
+  // ============================================================
+
+  async getTherapistById(id: string) {
+    const therapist = await this.db.queryOne<any>(
+      `SELECT
+         t.id, t.display_name, t.bio, t.specialty, t.specializations,
+         t.languages, t.avatar_url, t.license_number, t.years_experience,
+         t.location, t.public_slug, t.verification_status,
+         (SELECT price_cents FROM therapist_booking_offerings
+          WHERE therapist_id = t.id AND is_active = TRUE ORDER BY duration_mins ASC LIMIT 1
+         ) AS session_price_cents
+       FROM therapists t
+       WHERE t.id = $1 AND t.verification_status = 'approved'`,
+      [id],
+    );
+    if (!therapist) throw new NotFoundException('Therapist not found');
+    return therapist;
+  }
+
+  // ============================================================
   // BOOKING FLOW
   // ============================================================
 

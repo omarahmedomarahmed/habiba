@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger, forwardRef, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../../database/database.service';
 import { AIService } from '../ai/ai.service';
 import { BillingService } from '../billing/billing.service';
@@ -26,6 +27,7 @@ export class SessionsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly config: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
     @Inject(forwardRef(() => AIService)) private readonly aiService: AIService,
     private readonly crisisService: CrisisService,
     @Inject(forwardRef(() => BillingService)) private readonly billingService: BillingService,
@@ -623,6 +625,15 @@ export class SessionsService {
         [dto.name, joinToken],
       );
     }
+
+    // Notify therapist in real-time that patient joined
+    try {
+      this.eventEmitter.emit('session.patient_joined', {
+        sessionId: session.id,
+        therapistUserId: session.therapist_user_id,
+        patientName: dto.name,
+      });
+    } catch { /* non-critical */ }
 
     return {
       session_id: session.id,
