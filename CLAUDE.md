@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/friendly-ritchie-jaaxsw` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-15 (session 28 — therapist portal mock data removal: analytics, calendar, CRM, memory graph, audit-logs; backend test fixes; all 100 tests pass) |
+| **Last Updated** | 2026-06-15 (session 29 — production bug fixes: backend 500s, therapist logout hydration race, admin 404 API URLs) |
 
 ---
 
@@ -198,6 +198,29 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 | `apps/therapist` | Vercel | `apps/therapist/vercel.json` |
 | `apps/patient` | Vercel | `apps/patient/vercel.json` |
 | `apps/admin` | Vercel | `apps/admin/vercel.json` |
+
+---
+
+## Commit History (Session 29)
+
+| Hash | Message |
+|------|---------|
+| `2aef726` | fix(prod): resolve backend 500s, therapist logout, and admin 404s |
+
+### Session 29 changes
+- patients.service.ts: fixed invalid SQL — `MAX(score) ORDER BY recorded_at DESC LIMIT 1` in scalar subquery → `SELECT score ... ORDER BY recorded_at DESC LIMIT 1`
+- therapists.service.ts: fixed `getDashboardStats()` — `tpa.deleted_at IS NULL AND tpa.is_primary = TRUE` → `tpa.ended_at IS NULL` (correct columns for therapist_patient_assignments)
+- therapists.service.ts: fixed `findAll()` patient_count subquery — same `deleted_at` → `ended_at` fix
+- therapists.service.ts: fixed `getDashboardStats()` revenue — `sf.amount` → `sf.gross_amount` (correct column in session_fees table)
+- therapists.service.ts: fixed `getAvailability()` — `date` → `exception_date` (correct column in therapist_availability_exceptions)
+- therapists.service.ts: fixed `updateAvailability()` — `is_available` → `is_active` + added required `timezone` column
+- radar.service.ts: fixed `createRequest()` column mismatches: `urgency_level`→`urgency`, `session_type`→`preferred_session_type`, `budget_min/max`→`budget_per_session`, `therapist_gender_preference`→`preferred_gender`; removed non-existent `specialization` column
+- radar.service.ts: fixed `triggerMatching()` — `is_available_now`→`radar_available_now`, `accepts_radar`→`radar_enabled`, `t.status='active'`→`t.verification_status='approved'`; removed non-existent match_score/status from radar_broadcasts INSERT
+- radar.service.ts: fixed `getTherapistRequests()` — corrected column names, `rb.status='sent'`→`rb.responded_at IS NULL`
+- radar.service.ts: fixed `acceptRequest()` and `declineRequest()` — `SET status=`→`SET response=`, `status='sent'`→`responded_at IS NULL`
+- billing.service.ts: `getBillingSummary()` — changed INNER JOINs to LEFT JOINs on patient/user (handles offline/guest sessions with NULL patient_id)
+- layout.tsx (therapist): fixed Zustand hydration race — `hasHydrated` state gate prevents `/login` redirect before localStorage rehydrates on first render; auth refresh errors only log out on explicit HTTP 401, not network failures
+- admin/lib/api.ts: `organizations()` → `/admin/organizations`; `phiAuditLog()` → `/admin/audit-log`; `analyticsRevenue()` → `/analytics/platform/dashboard`
 
 ---
 
