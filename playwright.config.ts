@@ -12,11 +12,21 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'web',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:3000',
+      },
+      testMatch: /.*\.spec\.ts/,
+      grep: /@web/,
+    },
+    {
       name: 'therapist',
       use: {
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3001',
       },
+      grep: /@therapist/,
     },
     {
       name: 'patient',
@@ -24,6 +34,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3002',
       },
+      grep: /@patient/,
     },
     {
       name: 'admin',
@@ -31,6 +42,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3003',
       },
+      grep: /@admin/,
     },
   ],
 });

@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/friendly-ritchie-jaaxsw` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-15 (session 26 — marketing site complete revamp: content audit, /for-patients, PublicAssessmentTaker, crisis-detection page, FeaturePagePricingCTA, therapist-only auth, enterprise API story, no fake stats) |
+| **Last Updated** | 2026-06-15 (session 27 — admin portal production-readiness: remove dead pages, wire all buttons/APIs, dark theme, remove mock therapist data, fix web build SWC error, E2E tests) |
 
 ---
 
@@ -93,6 +93,8 @@ docs/              → HIPAA_CHECKLIST.md
 | AI workspace | ✅ REAL | Wired to `POST /ai/assistant/chat` with mode field |
 | Guest chat (/chat) | ✅ REAL | Dark UI, starter templates, containerRef scroll (no page scroll) |
 | Pricing page | ✅ REAL | Per-plan hero metrics, ✓/✗ feature lists, savings strip; price field normalized |
+| Admin portal (all 17 pages) | ✅ REAL | All buttons wired, all mock arrays removed, dark gray-900 theme unified, /marketplace+/ai-costs deleted |
+| Marketing therapist cards | ✅ REAL | HeroTherapistPreview returns null on empty DB; /for-patients shows empty state; no STATIC_THERAPISTS |
 
 ---
 
@@ -195,6 +197,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 | `apps/therapist` | Vercel | `apps/therapist/vercel.json` |
 | `apps/patient` | Vercel | `apps/patient/vercel.json` |
 | `apps/admin` | Vercel | `apps/admin/vercel.json` |
+
+---
+
+## Commit History (Session 27)
+
+| Hash | Message |
+|------|---------|
+| `b6f2fc9` | feat(admin): production-readiness phase 1 — remove dead pages, wire buttons, remove mock therapist data |
+| `4546bef` | feat(admin): production-readiness phase 2 — dark theme, button wiring, remove mock data |
+| `fa7aea4` | fix(build): resolve SWC JSX parse error in for-patients and ai-governance TypeScript annotation |
+| `02c745a` | fix(admin/pricing): remove demo mode fallback — show real error state instead of fake editable data |
+| `e8f5fdc` | feat(e2e): admin portal E2E test suite — 10 scenarios covering real data, no mock names |
 
 ---
 
@@ -308,6 +322,7 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 ### All marketing revamp P1–P7 complete ✅ (Session 13)
 ### Monetization engine + content sweep complete ✅ (Session 14)
 ### Full marketing site revamp complete ✅ (Session 26)
+### Admin portal production-readiness complete ✅ (Session 27)
 
 ### Session 14 additions (complete)
 - [x] migration 020: billing engine tables (session_charges, therapist_session_quota, ai_assistant_credits), plan prices locked, free_trial deactivated
@@ -409,6 +424,45 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [x] New env var needed: `STRIPE_ASSESSMENT_COUPON_ID` — pre-create 50% off coupon in Stripe, set ID here
 - [x] Web build verified ✅ passing (NEXT_PUBLIC_API_URL=https://api.24therapy.ai pnpm --filter @24therapy/web build)
 - [x] Backend tsc --noEmit: only pre-existing error in sessions.service.ts:574 (not this session's code)
+
+### Session 27 additions (complete — admin portal production-readiness)
+
+**Phase 1 — Dead pages removed + mock data removed:**
+- [x] /marketplace page deleted (entire page was mock TOOLS/MARKETPLACE_STATS arrays)
+- [x] /ai-costs page deleted (duplicate of AI Governance; used mock MODEL_COSTS arrays)
+- [x] admin-sidebar.tsx: removed Marketplace + AI Costs nav items; badge updated to "HITECH • GDPR • AES-256"
+- [x] HeroTherapistPreview.tsx: STATIC_THERAPISTS removed; returns null on empty DB (section hides)
+- [x] for-patients/page.tsx: STATIC_THERAPISTS removed; empty state card shown when no DB results
+- [x] compliance/page.tsx: mock AUDIT_LOGS/COMPLIANCE_FRAMEWORKS replaced; Export Report → CSV download
+- [x] users/page.tsx: View button → inline detail panel; Edit button → modal with role/status editing
+- [x] therapists/page.tsx: View Profile → window.open public profile; Send Email → mailto:; Suspend → API call
+- [x] support-tools/page.tsx: TICKETS mock array removed; replaced with User Lookup via adminAPI.users() search
+
+**Phase 2 — Dark theme + dead buttons:**
+- [x] analytics/page.tsx: full dark theme (MetricCard, SimpleBar, tab nav all converted from slate/white to gray-900)
+- [x] audit-logs/page.tsx: StatCard, CATEGORY_COLORS, RoleBadge, table rows all converted to dark
+- [x] crisis/page.tsx: LEVEL_COLORS, filter selects, refresh button all converted to dark
+- [x] billing/page.tsx: handleExport() added → CSV download via URL.createObjectURL; Export button wired
+- [x] crm/page.tsx: Add Lead modal (name/org/email/phone → crmAPI.createLead()); Email button → mailto:; More → stage/delete
+- [x] feature-flags/page.tsx: FlagModal component for New/Edit; Delete wired; "Add Org Override" → toast
+- [x] practice-management/page.tsx: Edit/Impersonate/Change Plan/View Invoices/Reset API Keys all wired
+- [x] settings/page.tsx: GET /admin/config on mount; PUT /admin/config/:key on save; General tab controlled inputs
+
+**Phase 3 — Build fixes:**
+- [x] for-patients/page.tsx: `animate-[pulse_5s_ease-in-out_infinite]` → inline style (SWC JSX parser bug with underscores in Tailwind arbitrary brackets in Next.js 15.3.8)
+- [x] ai-governance/page.tsx: `(uc: string)` explicit type annotation on map callback
+- [x] PublicAssessmentTaker.tsx: `catch {}` → `catch (_e) {}` for empty catch binding
+
+**Phase 4 — Pricing demo mode removal:**
+- [x] pricing/page.tsx: removed 3 hardcoded demo plans from catch block; all catch handlers now show error toasts; error banner changed from amber "Demo Mode" to red "Unable to load plans"
+
+**Phase 5 — E2E tests:**
+- [x] e2e/admin.spec.ts: 10 scenarios (login, dashboard, users, therapists, crisis, analytics, compliance, feature-flags, marketing hero, /for-patients)
+- [x] playwright.config.ts: added web project (port 3000 / @web tag); scoped existing projects to role tags
+
+**Build verification:**
+- [x] @24therapy/admin build: ✅ PASS (0 TypeScript errors)
+- [x] @24therapy/web build: ✅ PASS (0 TypeScript errors, SWC error fixed)
 
 ### Remaining (true stretch goals)
 - [ ] **Resolve GitHub billing** — unblock CI runners

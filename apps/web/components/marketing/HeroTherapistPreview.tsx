@@ -17,39 +17,6 @@ interface Therapist {
   public_slug?: string;
 }
 
-const STATIC_THERAPISTS: Therapist[] = [
-  {
-    id: "1",
-    first_name: "Dr. Alexandra",
-    last_name: "Smith",
-    title: "Licensed Clinical Psychologist",
-    specializations: ["Anxiety", "Trauma"],
-    average_rating: 4.9,
-    availability: "today",
-    public_slug: "",
-  },
-  {
-    id: "2",
-    first_name: "Marcus",
-    last_name: "Williams",
-    title: "Licensed Professional Counselor",
-    specializations: ["Depression", "Grief"],
-    average_rating: 4.8,
-    availability: "this_week",
-    public_slug: "",
-  },
-  {
-    id: "3",
-    first_name: "Dr. Priya",
-    last_name: "Nair",
-    title: "Psychiatrist",
-    specializations: ["ADHD", "OCD"],
-    average_rating: 5.0,
-    availability: "today",
-    public_slug: "",
-  },
-];
-
 const AVAIL_BADGE: Record<string, { label: string; cls: string }> = {
   today:     { label: "Available today",     cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
   this_week: { label: "Available this week", cls: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
@@ -103,11 +70,13 @@ export function HeroTherapistPreview() {
         const list: Therapist[] = Array.isArray(data)
           ? data
           : data?.data ?? data?.therapists ?? [];
-        setTherapists(list.length > 0 ? list.slice(0, 3) : STATIC_THERAPISTS);
+        setTherapists(list.slice(0, 3));
       })
-      .catch(() => setTherapists(STATIC_THERAPISTS))
+      .catch(() => setTherapists([]))
       .finally(() => setLoading(false));
   }, []);
+
+  if (!loading && therapists.length === 0) return null;
 
   return (
     <div className="mt-8">

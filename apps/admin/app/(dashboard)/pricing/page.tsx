@@ -788,43 +788,7 @@ export default function PricingManagementPage() {
         setMetrics(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      // Use demo data when API is not connected
-      setError('API not connected — showing demo data. Connect backend to manage real plans.');
-      setPlans([
-        {
-          id: 'demo-1', plan_key: 'professional', name: 'Professional',
-          tagline: 'Full AI-powered practice management',
-          description: 'Unlimited AI for solo therapists',
-          price_monthly_usd: 99, price_annual_usd: 990,
-          max_therapists: 1, max_patients: null, max_sessions_month: null, ai_notes_included: null,
-          features: { radar: true, api_access: false, white_label: false, advanced_analytics: true, custom_branding: true, hipaa_baa: true },
-          stripe_price_id_monthly: null, stripe_price_id_annual: null,
-          is_active: true, is_featured: true, badge_text: 'Most Popular',
-          cta_text: 'Start Free Trial', trial_days: 14, add_ons: [], highlight_color: null, display_order: 1,
-        },
-        {
-          id: 'demo-2', plan_key: 'practice', name: 'Practice',
-          tagline: 'Multi-therapist group practices',
-          description: 'Multi-therapist team plans',
-          price_monthly_usd: 299, price_annual_usd: 2990,
-          max_therapists: 10, max_patients: null, max_sessions_month: null, ai_notes_included: null,
-          features: { radar: true, api_access: false, white_label: false, advanced_analytics: true, custom_branding: true, hipaa_baa: true, multi_location: true },
-          stripe_price_id_monthly: null, stripe_price_id_annual: null,
-          is_active: true, is_featured: false, badge_text: null,
-          cta_text: 'Start Free Trial', trial_days: 14, add_ons: [], highlight_color: null, display_order: 2,
-        },
-        {
-          id: 'demo-3', plan_key: 'enterprise', name: 'Enterprise',
-          tagline: 'Hospitals, universities, healthcare systems',
-          description: 'Custom pricing for large organizations',
-          price_monthly_usd: null, price_annual_usd: null,
-          max_therapists: null, max_patients: null, max_sessions_month: null, ai_notes_included: null,
-          features: { radar: true, api_access: true, white_label: true, advanced_analytics: true, custom_branding: true, hipaa_baa: true, sso: true, ehr_integration: true, dedicated_support: true, custom_ai: true },
-          stripe_price_id_monthly: null, stripe_price_id_annual: null,
-          is_active: true, is_featured: false, badge_text: null,
-          cta_text: 'Contact Sales', trial_days: 0, add_ons: [], highlight_color: null, display_order: 3,
-        },
-      ]);
+      setError('Unable to load plans from API. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -867,17 +831,7 @@ export default function PricingManagementPage() {
       setIsNewPlan(false);
       showToast('success', isNewPlan ? 'Plan created successfully' : 'Plan updated successfully');
     } catch (err) {
-      // In demo mode, update local state
-      if (isNewPlan) {
-        const newPlan = { ...data, id: `demo-${Date.now()}` } as SubscriptionPlan;
-        setPlans(prev => [...prev, newPlan].sort((a, b) => a.display_order - b.display_order));
-        showToast('success', 'Plan created (demo mode — connect API to persist)');
-      } else {
-        setPlans(prev => prev.map(p => p.id === editPlan?.id ? { ...p, ...data } as SubscriptionPlan : p));
-        showToast('success', 'Plan updated (demo mode — connect API to persist)');
-      }
-      setEditPlan(null);
-      setIsNewPlan(false);
+      showToast('error', err instanceof Error ? err.message : 'Failed to save plan');
     } finally {
       setSaving(false);
     }
@@ -897,9 +851,7 @@ export default function PricingManagementPage() {
         throw new Error('API error');
       }
     } catch {
-      // Demo mode toggle
-      setPlans(prev => prev.map(p => p.id === planId ? { ...p, is_active: !p.is_active } : p));
-      showToast('success', 'Plan toggled (demo mode)');
+      showToast('error', 'Failed to toggle plan');
     }
   };
 
@@ -918,8 +870,7 @@ export default function PricingManagementPage() {
         showToast('success', updated.is_featured ? 'Plan featured' : 'Plan unfeatured');
       } else throw new Error();
     } catch {
-      setPlans(prev => prev.map(p => p.id === planId ? { ...p, is_featured: !p.is_featured } : p));
-      showToast('success', 'Updated (demo mode)');
+      showToast('error', 'Failed to update plan');
     }
   };
 
@@ -938,8 +889,7 @@ export default function PricingManagementPage() {
         throw new Error(err.message || 'Cannot delete plan');
       }
     } catch (err) {
-      setPlans(prev => prev.filter(p => p.id !== planId));
-      showToast('success', 'Plan deleted (demo mode)');
+      showToast('error', err instanceof Error ? err.message : 'Failed to delete plan');
     }
   };
 
@@ -1034,11 +984,11 @@ export default function PricingManagementPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-amber-300">Demo Mode Active</p>
-            <p className="text-xs text-amber-400/80 mt-0.5">{error}</p>
+            <p className="text-sm font-medium text-red-300">Unable to load plans</p>
+            <p className="text-xs text-red-400/80 mt-0.5">{error}</p>
           </div>
         </div>
       )}

@@ -23,15 +23,6 @@ interface Therapist {
   public_slug?: string;
 }
 
-const STATIC_THERAPISTS: Therapist[] = [
-  { id: "1", name: "Dr. Alexandra Smith", title: "Licensed Clinical Psychologist", initials: "AS", gradient: "from-rose-500 to-pink-600", specializations: ["Anxiety", "Depression"], rating: 4.9, availability: "today" },
-  { id: "2", name: "Marcus Williams, LCSW", title: "Licensed Clinical Social Worker", initials: "MW", gradient: "from-blue-500 to-indigo-600", specializations: ["PTSD", "Trauma"], rating: 4.8, availability: "this_week" },
-  { id: "3", name: "Dr. Priya Nair", title: "Psychiatrist & Therapist", initials: "PN", gradient: "from-emerald-500 to-teal-600", specializations: ["OCD", "ADHD"], rating: 5.0, availability: "this_week" },
-  { id: "4", name: "Sofia Martinez, LMFT", title: "Marriage & Family Therapist", initials: "SM", gradient: "from-amber-500 to-orange-600", specializations: ["Relationships", "Family"], rating: 4.7, availability: "today" },
-  { id: "5", name: "Dr. James Chen", title: "Licensed Psychologist", initials: "JC", gradient: "from-violet-500 to-purple-600", specializations: ["Depression", "Grief"], rating: 4.8, availability: "next_week" },
-  { id: "6", name: "Aisha Okonkwo, LPC", title: "Licensed Professional Counselor", initials: "AO", gradient: "from-cyan-500 to-blue-600", specializations: ["LGBTQ+", "Life Transitions"], rating: 4.9, availability: "today" },
-];
-
 const AVAIL_LABELS: Record<string, string> = {
   today: "Available Today",
   this_week: "This Week",
@@ -50,7 +41,7 @@ const SPECIALTIES = [
 ];
 
 export default function ForPatientsPage() {
-  const [therapists, setTherapists] = useState<Therapist[]>(STATIC_THERAPISTS);
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [search, setSearch] = useState("");
   const [specialty, setSpecialty] = useState("All Specialties");
 
@@ -63,7 +54,7 @@ export default function ForPatientsPage() {
         const res = await fetch(`${API_URL}/marketplace/search?${params}`);
         if (!res.ok) return;
         const json = await res.json();
-        const data: Record<string, unknown>[] = json.data?.listings || json.data || [];
+        const data = (json.data?.listings || json.data || []) as Array<Record<string, unknown>>;
         if (data.length === 0) return;
         setTherapists(data.map((t) => ({
           id: t.id as string,
@@ -76,7 +67,7 @@ export default function ForPatientsPage() {
           availability: (t.availability_status as string) || "this_week",
           public_slug: t.public_slug as string | undefined,
         })));
-      } catch {
+      } catch (_e) {
         // silently keep static fallback
       }
     }
@@ -87,8 +78,8 @@ export default function ForPatientsPage() {
     <div className="min-h-screen bg-white">
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#0A2342] via-[#0d2d56] to-[#1a3a6a] text-white pt-28 pb-20">
-        <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[#2EC4B6]/10 blur-3xl pointer-events-none animate-[pulse_5s_ease-in-out_infinite]" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl pointer-events-none animate-[pulse_7s_ease-in-out_infinite]" />
+        <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" style={{ animation: "pulse 5s ease-in-out infinite" }} />
+        <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" style={{ animation: "pulse 7s ease-in-out infinite" }} />
 
         <div className="relative max-w-4xl mx-auto px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 text-sm mb-8">
@@ -150,7 +141,12 @@ export default function ForPatientsPage() {
 
           {/* Therapist grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            {therapists.slice(0, 6).map((t) => (
+            {therapists.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-lg font-medium text-slate-700 mb-1">Therapist directory loading</p>
+                <p className="text-sm text-slate-500">Check back soon or <a href="/find-therapist" className="text-[#2EC4B6] underline">browse the full directory</a></p>
+              </div>
+            ) : therapists.slice(0, 6).map((t) => (
               <div key={t.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md hover:border-[#2EC4B6]/40 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.gradient} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>

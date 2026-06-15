@@ -161,7 +161,7 @@ export function PublicAssessmentTaker() {
       });
       if (!res.ok) throw new Error("Failed");
       setSubmitted(true);
-    } catch {
+    } catch (_e) {
       setSubmitError(true);
     } finally {
       setSubmitting(false);

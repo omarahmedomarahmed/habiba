@@ -157,6 +157,9 @@ export default function AdminCRMPage() {
   const [selectedStage, setSelectedStage] = useState<"all" | LeadStage>("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [total, setTotal] = useState(0);
+  const [showAddLead, setShowAddLead] = useState(false);
+  const [newLead, setNewLead] = useState({ name: '', organization: '', email: '', phone: '', type: 'solo_therapist' as LeadType, deal_value: 0 });
+  const [savingLead, setSavingLead] = useState(false);
 
   // ── fetch leads ──────────────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
@@ -195,6 +198,21 @@ export default function AdminCRMPage() {
       setStatsLoading(false);
     }
   }, []);
+
+  const handleAddLead = async () => {
+    if (!newLead.name || !newLead.organization) return;
+    setSavingLead(true);
+    try {
+      await crmAPI.createLead(newLead);
+      setShowAddLead(false);
+      setNewLead({ name: '', organization: '', email: '', phone: '', type: 'solo_therapist', deal_value: 0 });
+      fetchLeads();
+    } catch {
+      alert('Failed to create lead. Please try again.');
+    } finally {
+      setSavingLead(false);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(fetchLeads, searchQuery ? 400 : 0);
@@ -256,7 +274,7 @@ export default function AdminCRMPage() {
               </button>
             ))}
           </div>
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+          <button onClick={() => setShowAddLead(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
             <Plus className="w-4 h-4" /> Add Lead
           </button>
         </div>
@@ -657,6 +675,56 @@ export default function AdminCRMPage() {
         </div>
       )}
 
+      {/* Add Lead Modal */}
+      {showAddLead && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={() => setShowAddLead(false)}>
+          <div className="w-[480px] bg-gray-900 border border-gray-700 rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-white">Add Lead</h2>
+              <button onClick={() => setShowAddLead(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Contact Name *</label>
+                <input value={newLead.name} onChange={e => setNewLead(p => ({ ...p, name: e.target.value }))} placeholder="Jane Smith" className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Organization *</label>
+                <input value={newLead.organization} onChange={e => setNewLead(p => ({ ...p, organization: e.target.value }))} placeholder="Clinic name" className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Email</label>
+                  <input type="email" value={newLead.email} onChange={e => setNewLead(p => ({ ...p, email: e.target.value }))} placeholder="jane@clinic.com" className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Phone</label>
+                  <input value={newLead.phone} onChange={e => setNewLead(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 0100" className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Type</label>
+                  <select value={newLead.type} onChange={e => setNewLead(p => ({ ...p, type: e.target.value as LeadType }))} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500">
+                    {VALID_TYPES.map(t => <option key={t} value={t}>{TYPE_CONFIG[t].label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Est. Deal Value ($)</label>
+                  <input type="number" min={0} value={newLead.deal_value} onChange={e => setNewLead(p => ({ ...p, deal_value: parseInt(e.target.value) || 0 }))} className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowAddLead(false)} className="flex-1 px-4 py-2 text-gray-400 hover:text-white text-sm border border-gray-700 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleAddLead} disabled={savingLead || !newLead.name || !newLead.organization} className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {savingLead ? 'Saving...' : 'Add Lead'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Lead Detail Panel */}
       {selectedLead && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-end" onClick={() => setSelectedLead(null)}>
@@ -736,13 +804,28 @@ export default function AdminCRMPage() {
               )}
 
               <div className="flex gap-2 pt-4 border-t border-gray-700">
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-semibold transition-all">
+                <button
+                  onClick={() => selectedLead.email && window.open('mailto:' + selectedLead.email, '_blank')}
+                  disabled={!selectedLead.email}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Mail className="w-4 h-4" /> Email
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 border border-gray-600 text-gray-300 text-sm rounded-lg hover:border-gray-500 transition-all">
+                <button
+                  onClick={() => alert('Calendar integration coming soon')}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 border border-gray-600 text-gray-300 text-sm rounded-lg hover:border-gray-500 transition-all"
+                >
                   <Calendar className="w-4 h-4" /> Schedule
                 </button>
-                <button className="flex items-center justify-center gap-2 py-2 px-3 border border-gray-600 text-gray-300 text-sm rounded-lg hover:border-gray-500 transition-all">
+                <button
+                  onClick={() => {
+                    const action = window.prompt('Action:\n1 = Update stage\n2 = Delete lead\n\nEnter 1 or 2:');
+                    if (action === '2' && window.confirm('Delete this lead?')) {
+                      crmAPI.updateLead(selectedLead.id, { stage: 'closed_lost' }).then(() => { setSelectedLead(null); fetchLeads(); }).catch(() => {});
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 py-2 px-3 border border-gray-600 text-gray-300 text-sm rounded-lg hover:border-gray-500 transition-all"
+                >
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
               </div>

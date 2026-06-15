@@ -1,20 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Settings, Shield, Brain, Bell, Globe, Key, Server, Database,
   Mail, Code, Save, Eye, EyeOff, AlertTriangle,
   CheckCircle, Lock, RefreshCw, Plus, Trash2, Webhook
 } from 'lucide-react';
 import { DOMAINS, EMAILS } from '@/lib/domains';
+import apiFetch from '@/lib/api';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'security' | 'ai' | 'notifications' | 'api' | 'integrations'>('general');
   const [saved, setSaved] = useState(false);
+  const [configData, setConfigData] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    apiFetch<{ key: string; value: string }[]>('/admin/config')
+      .then(entries => {
+        const map: Record<string, string> = {};
+        entries.forEach(e => { map[e.key] = e.value; });
+        setConfigData(map);
+      })
+      .catch(() => {}); // silently keep defaults if API unavailable
+  }, []);
+
+  const handleSave = async () => {
+    setSaveError(null);
+    try {
+      await Promise.all(
+        Object.entries(configData).map(([key, value]) =>
+          apiFetch(`/admin/config/${key}`, { method: 'PUT', body: JSON.stringify({ value }) })
+        )
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setSaveError('Failed to save settings. Please try again.');
+      setTimeout(() => setSaveError(null), 4000);
+    }
   };
 
   return (
@@ -42,6 +66,13 @@ export default function SettingsPage() {
           {saved ? 'Saved!' : 'Save Changes'}
         </button>
       </div>
+
+      {saveError && (
+        <div className="flex items-center gap-2 p-3 bg-red-900/20 border border-red-700/30 rounded-lg text-red-400 text-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {saveError}
+        </div>
+      )}
 
       <div className="flex gap-6">
         {/* Sidebar */}
@@ -80,17 +111,18 @@ export default function SettingsPage() {
                 <h3 className="text-sm font-semibold text-white mb-5">Platform Information</h3>
                 <div className="space-y-4">
                   {[
-                    { label: 'Platform Name', value: '24Therapy Mental Health OS', type: 'text' },
-                    { label: 'Support Email', value: EMAILS.support, type: 'email' },
-                    { label: 'Legal Contact', value: EMAILS.legal, type: 'email' },
-                    { label: 'Privacy Policy URL', value: `${DOMAINS.web}/privacy`, type: 'url' },
-                    { label: 'Terms of Service URL', value: `${DOMAINS.web}/terms`, type: 'url' },
-                  ].map(({ label, value, type }) => (
+                    { label: 'Platform Name', configKey: 'platform_name', defaultVal: '24Therapy Mental Health OS', type: 'text' },
+                    { label: 'Support Email', configKey: 'support_email', defaultVal: EMAILS.support, type: 'email' },
+                    { label: 'Legal Contact', configKey: 'legal_email', defaultVal: EMAILS.legal, type: 'email' },
+                    { label: 'Privacy Policy URL', configKey: 'privacy_url', defaultVal: `${DOMAINS.web}/privacy`, type: 'url' },
+                    { label: 'Terms of Service URL', configKey: 'terms_url', defaultVal: `${DOMAINS.web}/terms`, type: 'url' },
+                  ].map(({ label, configKey, defaultVal, type }) => (
                     <div key={label}>
                       <label className="block text-xs font-medium text-gray-400 mb-1.5">{label}</label>
                       <input
                         type={type}
-                        defaultValue={value}
+                        value={configData[configKey] ?? defaultVal}
+                        onChange={e => setConfigData(prev => ({ ...prev, [configKey]: e.target.value }))}
                         className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>

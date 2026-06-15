@@ -2,6 +2,9 @@
 # 24Therapy Monorepo — .gitignore
 # ============================================================
 
+# Claude Code internal state
+.claude/
+
 # Dependencies
 node_modules/
 .pnpm-store/
