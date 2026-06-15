@@ -19,6 +19,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ModelGatewayService } from './model-gateway.service';
 
@@ -62,6 +63,7 @@ export class AIPublicController {
 
   @Post('chat/anonymous')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { ttl: 60000, limit: 10 }, long: { ttl: 3600000, limit: 50 } })
   @ApiOperation({
     summary: 'Anonymous AI mental health chat (no auth required)',
     description: 'Public AI chat endpoint. Max 10 messages per session. No PHI stored.',
