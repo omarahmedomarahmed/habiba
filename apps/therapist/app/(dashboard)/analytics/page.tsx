@@ -162,69 +162,6 @@ const DIAGNOSIS_DIST = [
   { label: "Other", count: 3, pct: 9 },
 ];
 
-// Patient outcome outcomes
-const PATIENT_OUTCOMES = [
-  {
-    id: "p1",
-    name: "Sarah Chen",
-    sessions: 24,
-    phq9_start: 17,
-    phq9_current: 13,
-    gad7_start: 14,
-    gad7_current: 8,
-    trend: "improving",
-    goals_pct: 65,
-    months_in_treatment: 16,
-  },
-  {
-    id: "p2",
-    name: "Marcus Webb",
-    sessions: 16,
-    phq9_start: 15,
-    phq9_current: 12,
-    gad7_start: 11,
-    gad7_current: 9,
-    trend: "improving",
-    goals_pct: 45,
-    months_in_treatment: 10,
-  },
-  {
-    id: "p3",
-    name: "Priya Nair",
-    sessions: 35,
-    phq9_start: 21,
-    phq9_current: 10,
-    gad7_start: 18,
-    gad7_current: 7,
-    trend: "significant_improvement",
-    goals_pct: 88,
-    months_in_treatment: 28,
-  },
-  {
-    id: "p4",
-    name: "James Rodriguez",
-    sessions: 20,
-    phq9_start: 18,
-    phq9_current: 15,
-    gad7_start: 16,
-    gad7_current: 14,
-    trend: "mild_improvement",
-    goals_pct: 32,
-    months_in_treatment: 14,
-  },
-  {
-    id: "p5",
-    name: "Emily Park",
-    sessions: 8,
-    phq9_start: 19,
-    phq9_current: 17,
-    gad7_start: 14,
-    gad7_current: 13,
-    trend: "early",
-    goals_pct: 15,
-    months_in_treatment: 3,
-  },
-];
 
 // Monthly sessions chart
 const MONTHLY_SESSIONS = [
@@ -247,50 +184,25 @@ const TREND_CONFIG = {
   declining: { label: "Needs Attention", color: "text-red-700", bg: "bg-red-100", dot: "bg-red-500" },
 };
 
-// AI clinical insights
-const AI_INSIGHTS = [
-  {
-    id: "i1",
-    type: "pattern",
-    title: "Seasonal PHQ-9 Elevation",
-    description: "3 patients showing seasonal mood worsening consistent with prior year pattern (Nov–Jan). Consider proactive outreach and seasonal care adjustments.",
-    action: "View Patients",
-    severity: "medium",
-  },
-  {
-    id: "i2",
-    type: "outcome",
-    title: "Above-Average Outcomes for CBT Patients",
-    description: "Your CBT patients are achieving 23% faster PHQ-9 reduction compared to your GAD-7 benchmark. Behavioral activation component shows strongest correlation with improvement.",
-    action: "View Analysis",
-    severity: "positive",
-  },
-  {
-    id: "i3",
-    type: "risk",
-    title: "1 Patient — No Contact in 14 Days",
-    description: "Marcus Webb has not attended his last 2 scheduled sessions. Radar score increased to 71. Proactive outreach recommended.",
-    action: "Contact Patient",
-    severity: "high",
-  },
-  {
-    id: "i4",
-    type: "efficiency",
-    title: "Documentation Efficiency: +47 Hours Saved",
-    description: "AI Scribe generated 124 notes this month. Average note generation time: 23 seconds. You are in the top 12% of 24Therapy clinicians for note approval speed.",
-    action: "View Notes",
-    severity: "positive",
-  },
-];
 
 function AnalyticsPageInner() {
   const [period, setPeriod] = useState<Period>("30d");
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
   const [liveMetrics, setLiveMetrics] = useState<any>(null);
+  const [patientOutcomes, setPatientOutcomes] = useState<any[]>([]);
+  const [aiInsights, setAiInsights] = useState<any[]>([]);
 
   useEffect(() => {
     analyticsAPI.dashboard(period).then((data: any) => {
-      if (data) setLiveMetrics(data);
+      if (data) {
+        setLiveMetrics(data);
+        if (Array.isArray(data.patient_outcomes)) setPatientOutcomes(data.patient_outcomes);
+        if (Array.isArray(data.ai_insights)) setAiInsights(data.ai_insights);
+      }
+    }).catch(() => {});
+    analyticsAPI.patientOutcomes().then((data: any) => {
+      const items = Array.isArray(data) ? data : (data?.data ?? []);
+      if (items.length > 0) setPatientOutcomes(items);
     }).catch(() => {});
   }, [period]);
 
@@ -496,7 +408,9 @@ function AnalyticsPageInner() {
               <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">Live</span>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {AI_INSIGHTS.map((insight) => (
+              {aiInsights.length === 0 ? (
+                <div className="col-span-2 text-center py-8 text-gray-400 text-sm">No AI insights available yet.</div>
+              ) : aiInsights.map((insight) => (
                 <div
                   key={insight.id}
                   className={cn(
@@ -580,10 +494,12 @@ function AnalyticsPageInner() {
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">Individual Patient Outcomes</h3>
-              <span className="text-xs text-gray-500">{PATIENT_OUTCOMES.length} patients shown</span>
+              <span className="text-xs text-gray-500">{patientOutcomes.length} patients shown</span>
             </div>
             <div className="divide-y divide-gray-100">
-              {PATIENT_OUTCOMES.map((patient) => {
+              {patientOutcomes.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">No outcome data yet. Outcomes appear after patients complete assessments.</div>
+              ) : patientOutcomes.map((patient) => {
                 const phq9Change = patient.phq9_current - patient.phq9_start;
                 const gad7Change = patient.gad7_current - patient.gad7_start;
                 const trend = TREND_CONFIG[patient.trend as keyof typeof TREND_CONFIG] || TREND_CONFIG.stable;
@@ -592,7 +508,7 @@ function AnalyticsPageInner() {
                   <div key={patient.id} className="px-5 py-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="w-9 h-9 bg-[#0A2342] rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {patient.name.split(" ").map(n => n[0]).join("")}
+                        {patient.name.split(" ").map((n: string) => n[0]).join("")}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
