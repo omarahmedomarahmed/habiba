@@ -4,6 +4,7 @@ import {
   Clock, Shield, Zap, BarChart2, Star, AlertCircle, Target,
   Activity, Play, ChevronRight, Award, Globe
 } from "lucide-react";
+import { FeaturePagePricingCTA } from "@/components/sections/FeaturePagePricingCTA";
 
 const WORKFLOW_STEPS = [
   {
@@ -117,7 +118,7 @@ P — PLAN
 const TESTIMONIALS = [
   { name: "Dr. James Park, PhD", role: "Psychologist, 18 years", quote: "The SOAP notes are indistinguishable from what I write myself. I've stopped spending evenings on documentation.", rating: 5 },
   { name: "Aisha Chen, LCSW", role: "Private Practice", quote: "The risk detection caught a concerning statement I almost missed in a busy session. It may have been lifesaving.", rating: 5 },
-  { name: "Dr. Marcos Reyes", role: "Group Practice Director", quote: "Our 8-person practice saved 40+ collective hours per week. That's 40 more hours with patients.", rating: 5 },
+  { name: "Dr. Sara Ahmed", role: "Clinical Psychologist, Cairo", quote: "The AI note is ready before I even close the session window. I review it in 2 minutes and I'm done for the day.", rating: 5 },
 ];
 
 export default function AIScribePage() {
@@ -147,9 +148,9 @@ export default function AIScribePage() {
 
               <div className="grid grid-cols-3 gap-4 mb-10">
                 {[
-                  { value: "30s", label: "Note generation" },
-                  { value: "94%", label: "Accuracy rate" },
-                  { value: "8hrs", label: "Saved per week" },
+                  { value: "< 60s", label: "Note generation" },
+                  { value: "GPT-4o", label: "Powered by" },
+                  { value: "SOAP/DAP", label: "BIRP formats" },
                 ].map(({ value, label }) => (
                   <div key={label} className="text-center bg-white/10 rounded-2xl py-3">
                     <p className="text-2xl font-bold text-white">{value}</p>
@@ -199,7 +200,7 @@ export default function AIScribePage() {
       <section className="py-8 bg-slate-900">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-wrap items-center justify-center gap-8 text-white/50 text-sm">
-            {["HIPAA Compliant", "SOC 2 Type II", "End-to-End Encrypted", "BAA Agreements", "No Training on Patient Data", "GDPR Ready"].map(t => (
+            {["HIPAA Compliant", "AES-256 Encrypted", "BAA Agreements", "No Training on Patient Data", "GDPR Ready"].map(t => (
               <span key={t} className="flex items-center gap-1.5">
                 <Shield className="w-4 h-4 text-emerald-400" /> {t}
               </span>
@@ -290,20 +291,10 @@ export default function AIScribePage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-[#0A2342] to-[#1E4F8C] text-white">
-        <div className="max-w-3xl mx-auto text-center px-4">
-          <Award className="w-12 h-12 text-amber-400 mx-auto mb-6" />
-          <h2 className="text-4xl font-bold mb-6">Start Saving 8 Hours Per Week</h2>
-          <p className="text-xl text-white/70 mb-10">
-            Join 500+ therapists who've eliminated documentation burden with 24Therapy AI Scribe.
-          </p>
-          <Link href="/signup?role=therapist" className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-10 py-5 rounded-2xl hover:bg-[#1649D4] transition-all text-lg shadow-lg">
-            Get Started Free — First Session Free
-            <ArrowRight className="w-6 h-6" />
-          </Link>
-        </div>
-      </section>
+      <FeaturePagePricingCTA
+        headline="AI Scribe Included on Every Plan"
+        subheadline="AI-generated SOAP, DAP, and BIRP notes on every session — from your first free session to enterprise."
+      />
 
     </main>
   );

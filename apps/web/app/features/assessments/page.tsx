@@ -102,6 +102,43 @@ const EXTRA = (
   </section>
 );
 
+const PHQ9_PREVIEW = (
+  <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 max-w-xl mx-auto text-left">
+    <div className="flex items-center gap-2 mb-4">
+      <ClipboardList className="w-4 h-4 text-[#2EC4B6]" />
+      <span className="text-xs text-white/70 font-medium uppercase tracking-wide">PHQ-9 · In Progress</span>
+    </div>
+    <div className="space-y-2 mb-4">
+      {[
+        { q: "Little interest or pleasure in doing things", v: 2 },
+        { q: "Feeling down, depressed, or hopeless", v: 3 },
+        { q: "Trouble falling or staying asleep", v: 1 },
+      ].map((item, i) => (
+        <div key={i} className="bg-white/8 rounded-xl p-3 flex items-center justify-between gap-3">
+          <span className="text-xs text-white/70 flex-1">{item.q}</span>
+          <div className="flex gap-1">
+            {[0, 1, 2, 3].map((val) => (
+              <div
+                key={val}
+                className={`w-6 h-6 rounded-lg text-[10px] font-bold flex items-center justify-center ${
+                  val === item.v ? "bg-[#2EC4B6] text-white" : "bg-white/10 text-white/30"
+                }`}
+              >
+                {val}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-3 flex items-center justify-between">
+      <span className="text-xs text-amber-300 font-medium">Score: 14 / 27</span>
+      <span className="text-xs bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded-full font-semibold">Moderate Depression</span>
+    </div>
+    <div className="mt-3 text-center text-[10px] text-white/30">Auto-scored · Linked to treatment goals · Trend tracked</div>
+  </div>
+);
+
 export default function AssessmentsPage() {
   return (
     <ProductPageLayout
@@ -115,24 +152,24 @@ export default function AssessmentsPage() {
         </>
       }
       heroSubtitle="Send validated screening tools to patients between sessions. Scores are automatic, trends are visual, and results feed directly into treatment plans and progress notes."
-      ctaPrimary={{ label: "Get Started Free", href: "/signup" }}
+      ctaPrimary={{ label: "Get Started Free", href: "/signup?role=therapist" }}
       ctaSecondary={{ label: "See All Tools", href: "#tools" }}
+      heroPreview={PHQ9_PREVIEW}
+      heroAccent="blue"
       stats={[
         { value: "15+", label: "Validated tools" },
         { value: "Auto", label: "Scoring & alerts" },
-        { value: "Any", label: "Device delivery" },
-        { value: "PHQ-9", label: "Included free" },
+        { value: "PHQ-9 / GAD-7", label: "Included on all plans" },
+        { value: "Real-time", label: "Trend tracking" },
       ]}
       featuresTitle="What Assessments Does"
       featuresSubtitle="Everything from standardized screening to custom questionnaires — with scoring, trends, and treatment goal integration."
       featureItems={FEATURE_ITEMS}
       featureColumns={4}
       extra={EXTRA}
-      ctaIcon={ClipboardList}
-      ctaTitle="Measure What Matters"
-      ctaSubtitle="Evidence-based outcomes start with evidence-based measurement. Start using assessments in your practice today — included with every plan."
-      ctaButtonLabel="Get Started Free"
-      ctaButtonHref="/signup"
+      showPricingCta
+      pricingCtaHeadline="PHQ-9 & GAD-7 Included on Every Plan"
+      pricingCtaSubheadline="Advanced tools and custom assessments available on Starter and above."
     />
   );
 }

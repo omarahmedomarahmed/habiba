@@ -12,13 +12,13 @@ const navItems = [
     href: "/features",
     children: [
       { label: "AI Scribe", href: "/ai-scribe", desc: "Auto-generate SOAP/DAP/BIRP notes in seconds" },
-      { label: "Clinical Copilot", href: "/features/ai-copilot", desc: "Live session guidance & risk detection" },
+      { label: "Clinical Copilot", href: "/features/ai-copilot", desc: "Live session guidance & intervention suggestions" },
+      { label: "Crisis Detection", href: "/features/crisis-detection", desc: "Real-time monitoring for safety signals" },
       { label: "Radar Matching", href: "/features/radar-matching", desc: "Connect patients to therapists in < 5 min" },
       { label: "Patient Memory", href: "/features/memory-layer", desc: "Longitudinal AI knowledge graph" },
       { label: "Assessments", href: "/features/assessments", desc: "PHQ-9, GAD-7, PCL-5 & custom tools" },
-      { label: "Smart Scheduling", href: "/features/smart-scheduling", desc: "Zero-friction patient booking" },
       { label: "Analytics", href: "/features/analytics", desc: "Revenue & outcome intelligence" },
-      { label: "Integrations", href: "/features/integrations", desc: "EHR, calendar, billing connections" },
+      { label: "Teletherapy", href: "/features/teletherapy", desc: "HIPAA-secure video with AI built in" },
     ],
   },
   {
@@ -26,8 +26,9 @@ const navItems = [
     href: "/for-therapists",
     children: [
       { label: "For Therapists", href: "/for-therapists", desc: "AI tools for solo & group practices" },
+      { label: "For Patients", href: "/for-patients", desc: "Find a therapist & take free assessments" },
       { label: "For Enterprises", href: "/enterprise", desc: "Clinics, hospitals & health systems" },
-      { label: "Find a Therapist", href: "/find-therapist", desc: "AI-powered patient matching" },
+      { label: "Find a Therapist", href: "/find-therapist", desc: "Browse licensed therapists by specialty" },
     ],
   },
   { label: "Pricing", href: "/pricing" },

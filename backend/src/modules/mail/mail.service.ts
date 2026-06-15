@@ -131,6 +131,67 @@ export class MailService {
     });
   }
 
+  // ─── Public assessment results email ─────────────────────────────────────
+
+  async sendAssessmentResults(
+    email: string,
+    results: Array<{ type: string; score: number; severity: string }>,
+    promoCode: string | null,
+  ): Promise<void> {
+    const NAMES: Record<string, string> = { phq9: 'PHQ-9 (Depression)', gad7: 'GAD-7 (Anxiety)', pcl5: 'PCL-5 (PTSD Screen)' };
+    const rows = results.map(r => `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#334155;">${NAMES[r.type] || r.type}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#334155;text-align:center;font-weight:600;">${r.score}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#334155;">${r.severity}</td>
+      </tr>`).join('');
+
+    const promoSection = promoCode ? `
+      <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:20px;margin:24px 0;text-align:center;">
+        <p style="margin:0 0 8px;font-size:13px;color:#16a34a;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Your 50% Discount Code</p>
+        <p style="margin:0 0 8px;font-size:28px;font-weight:800;color:#166534;letter-spacing:0.1em;">${promoCode}</p>
+        <p style="margin:0;font-size:12px;color:#16a34a;">50% off your first session · One use · New patients only</p>
+      </div>` : '';
+
+    await this.send({
+      to: email,
+      subject: 'Your 24Therapy Mental Health Assessment Results',
+      text: `Your assessment results:\n\n${results.map(r => `${NAMES[r.type] || r.type}: ${r.score} — ${r.severity}`).join('\n')}\n\n${promoCode ? `Your 50% discount code: ${promoCode}\n\n` : ''}Find a therapist: ${this.appUrl}/find-therapist\n\nDisclaimer: This is not a clinical diagnosis. Results are for self-awareness only.`,
+      html: `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#0A2342,#1a3a6b);padding:32px;text-align:center;">
+  <span style="color:white;font-size:20px;font-weight:700;">24Therapy.ai</span>
+  <p style="color:rgba(255,255,255,0.7);margin:8px 0 0;font-size:14px;">Mental Health Assessment Results</p>
+</td></tr>
+<tr><td style="padding:32px;">
+  <h2 style="margin:0 0 20px;color:#0A2342;font-size:20px;">Your Assessment Results</h2>
+  <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:4px;">
+    <tr style="background:#f8fafc;">
+      <th style="padding:10px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Assessment</th>
+      <th style="padding:10px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Score</th>
+      <th style="padding:10px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Level</th>
+    </tr>
+    ${rows}
+  </table>
+  ${promoSection}
+  <div style="text-align:center;margin:24px 0;">
+    <a href="${this.appUrl}/find-therapist" style="background:#2EC4B6;color:white;text-decoration:none;font-weight:600;font-size:15px;padding:14px 32px;border-radius:10px;display:inline-block;">Find a Therapist →</a>
+  </div>
+  <p style="margin:0;font-size:11px;color:#94a3b8;text-align:center;">This is not a clinical diagnosis. Results are for self-awareness only. If you are in crisis, call or text 988.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+    });
+  }
+
   // ─── Billing email templates ──────────────────────────────────────────────
 
   async sendFirstSessionFree(email: string): Promise<void> {

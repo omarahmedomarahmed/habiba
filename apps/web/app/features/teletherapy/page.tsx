@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import {
   Video, Shield, Mic, Lock, Wifi, Clock, CheckCircle, ArrowRight,
@@ -7,6 +5,7 @@ import {
   FileText, Camera, Volume2, Settings, Play, Heart, Building2,
   Activity, RefreshCw, Award, ChevronRight, Download, BarChart3
 } from "lucide-react";
+import { FeaturePagePricingCTA } from "@/components/sections/FeaturePagePricingCTA";
 
 const FEATURES = [
   {
@@ -300,31 +299,10 @@ export default function TeletherapyPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-4 bg-gradient-to-br from-[#0A2342] to-[#1F5EFF] text-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <Video className="w-10 h-10 text-[#2EC4B6] mx-auto mb-6" />
-          <h2 className="text-3xl font-bold mb-4">See a session in action</h2>
-          <p className="text-white/70 mb-8 text-lg">
-            Schedule a live demo and we'll walk you through a complete session — from waiting room to AI-generated note.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/signup?role=therapist"
-              className="bg-[#2EC4B6] hover:bg-[#26b0a3] text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2"
-            >
-              Get Started Free <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/contact"
-              className="bg-white/10 border border-white/30 text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/20"
-            >
-              Request Demo
-            </Link>
-          </div>
-          <p className="text-white/40 text-sm mt-6">HIPAA compliant from day 1 · No IT setup · BAA included</p>
-        </div>
-      </section>
+      <FeaturePagePricingCTA
+        headline="HIPAA-Secure Teletherapy on Every Plan"
+        subheadline="Video sessions, AI scribe, and crisis detection included from pay-as-you-go. Recordings on Starter and above."
+      />
     </div>
   );
 }

@@ -24,13 +24,13 @@ const testimonials = [
     highlight: "Complete patient context",
   },
   {
-    name: "Leila Mansour",
-    role: "Patient",
-    location: "Egypt",
-    avatar: "LM",
+    name: "Dr. Rania Fouad",
+    role: "Licensed Counselor",
+    location: "Cairo, Egypt",
+    avatar: "RF",
     rating: 5,
-    text: "I was skeptical about AI in therapy, but the initial chat helped me understand exactly what I needed. I was matched with my therapist the same day. The progress tracking motivates me to keep going.",
-    highlight: "Found therapist same day",
+    text: "The crisis detection feature gives me real peace of mind. During one session, it flagged risk indicators I almost missed. The alert came instantly and I was able to respond appropriately. It genuinely matters.",
+    highlight: "Crisis safety net works",
   },
   {
     name: "Dr. Yasmine Khalil",
@@ -89,10 +89,10 @@ export function TestimonialsSection() {
             Trusted by Mental Health Professionals
           </div>
           <h2 className="text-4xl sm:text-5xl font-bold text-[#0A2342] mb-4">
-            Loved by Therapists &amp; Patients
+            Loved by Therapists
           </h2>
           <p className="text-xl text-slate-600">
-            Real stories from real mental health professionals.
+            Hear from licensed mental health professionals using 24Therapy every day.
           </p>
         </motion.div>
 

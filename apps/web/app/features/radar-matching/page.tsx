@@ -112,20 +112,18 @@ export default function RadarMatchingPage() {
       ctaSecondary={{ label: "For Therapists", href: "/for-therapists" }}
       heroPreview={HERO_PREVIEW}
       stats={[
-        { value: "< 5 min", label: "Average response time" },
-        { value: "94%", label: "Match satisfaction score" },
-        { value: "24 / 7", label: "Therapist availability" },
+        { value: "< 5 min", label: "Avg. response time" },
         { value: "8", label: "Matching dimensions" },
+        { value: "24/7", label: "Therapist availability" },
+        { value: "Real-time", label: "Availability signals" },
       ]}
       featuresTitle="How Radar Works"
       featuresSubtitle="Eight systems working together to connect the right patient with the right therapist — every time."
       featureItems={FEATURE_ITEMS}
       featureColumns={4}
-      ctaIcon={Radio}
-      ctaTitle="Ready to Go On-Call?"
-      ctaSubtitle="Therapists who join Radar see an average of 4 additional sessions per week from patients who need help right now."
-      ctaButtonLabel="Join as a Therapist"
-      ctaButtonHref="/for-therapists"
+      showPricingCta
+      pricingCtaHeadline="Radar Matching is Included on Starter and Above"
+      pricingCtaSubheadline="Start with pay-as-you-go, upgrade when you're ready for instant patient matching."
     />
   );
 }

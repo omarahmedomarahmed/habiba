@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { FeaturePagePricingCTA } from "@/components/sections/FeaturePagePricingCTA";
 
 interface FeatureItem {
   icon: LucideIcon;
@@ -24,11 +25,18 @@ interface ProductPageLayoutProps {
   featureItems: FeatureItem[];
   featureColumns?: 2 | 3 | 4;
   extra?: ReactNode;
-  ctaIcon: LucideIcon;
-  ctaTitle: string;
-  ctaSubtitle: string;
-  ctaButtonLabel: string;
-  ctaButtonHref: string;
+  // Legacy generic CTA (used when showPricingCta is false)
+  ctaIcon?: LucideIcon;
+  ctaTitle?: string;
+  ctaSubtitle?: string;
+  ctaButtonLabel?: string;
+  ctaButtonHref?: string;
+  // Pricing CTA (replaces legacy CTA when true)
+  showPricingCta?: boolean;
+  pricingCtaHeadline?: string;
+  pricingCtaSubheadline?: string;
+  // Hero accent color for animated blobs
+  heroAccent?: "teal" | "blue" | "purple" | "indigo";
 }
 
 const GRID_COLS: Record<2 | 3 | 4, string> = {
@@ -41,6 +49,13 @@ const STATS_COLS: Record<number, string> = {
   2: "grid-cols-2",
   3: "grid-cols-3",
   4: "grid-cols-2 md:grid-cols-4",
+};
+
+const ACCENT_COLORS: Record<string, { blob1: string; blob2: string }> = {
+  teal:   { blob1: "bg-[#2EC4B6]/15", blob2: "bg-[#1F5EFF]/10" },
+  blue:   { blob1: "bg-[#1F5EFF]/15", blob2: "bg-[#2EC4B6]/10" },
+  purple: { blob1: "bg-purple-500/15", blob2: "bg-[#2EC4B6]/10" },
+  indigo: { blob1: "bg-indigo-500/15", blob2: "bg-[#1F5EFF]/10" },
 };
 
 export function ProductPageLayout({
@@ -63,14 +78,31 @@ export function ProductPageLayout({
   ctaSubtitle,
   ctaButtonLabel,
   ctaButtonHref,
+  showPricingCta = false,
+  pricingCtaHeadline,
+  pricingCtaSubheadline,
+  heroAccent = "teal",
 }: ProductPageLayoutProps) {
+  const accent = ACCENT_COLORS[heroAccent] ?? ACCENT_COLORS.teal;
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="bg-gradient-to-br from-[#0A2342] to-[#1a3a6a] text-white py-24 relative overflow-hidden">
-        <div className="absolute top-10 right-10 w-96 h-96 bg-[#2EC4B6]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#1F5EFF]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="max-w-5xl mx-auto px-6 text-center relative">
+      <section className="bg-gradient-to-br from-[#071A33] via-[#0A2342] to-[#0D2A4A] text-white py-24 relative overflow-hidden">
+        {/* Animated blobs */}
+        <div className={`absolute top-8 right-12 w-96 h-96 ${accent.blob1} rounded-full blur-3xl pointer-events-none animate-[pulse_4s_ease-in-out_infinite]`} />
+        <div className={`absolute bottom-0 left-0 w-72 h-72 ${accent.blob2} rounded-full blur-3xl pointer-events-none animate-[pulse_6s_ease-in-out_infinite_1s]`} />
+        <div className="absolute top-1/2 left-1/3 w-48 h-48 bg-white/3 rounded-full blur-2xl pointer-events-none animate-[pulse_5s_ease-in-out_infinite_2s]" />
+        {/* Dot grid */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.8) 1px, transparent 0)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+
+        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 mb-8">
             <BadgeIcon className="w-4 h-4 text-[#2EC4B6]" />
             <span className="text-sm font-medium">{badgeLabel}</span>
@@ -81,11 +113,11 @@ export function ProductPageLayout({
             )}
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">{heroTitle}</h1>
-          <p className="text-xl text-white/80 max-w-3xl mx-auto mb-10">{heroSubtitle}</p>
+          <p className="text-xl text-white/75 max-w-3xl mx-auto mb-10">{heroSubtitle}</p>
           <div className="flex flex-wrap justify-center gap-4 mb-12">
             <Link
               href={ctaPrimary.href}
-              className="bg-[#2EC4B6] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#26b0a2] transition flex items-center gap-2"
+              className="bg-[#2EC4B6] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#26b0a2] transition-all flex items-center gap-2 shadow-lg shadow-[#2EC4B6]/20"
             >
               {ctaPrimary.label}
               <ArrowRight className="w-4 h-4" />
@@ -93,7 +125,7 @@ export function ProductPageLayout({
             {ctaSecondary && (
               <Link
                 href={ctaSecondary.href}
-                className="border border-white/30 text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/10 transition"
+                className="border border-white/30 text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/10 transition-all"
               >
                 {ctaSecondary.label}
               </Link>
@@ -132,9 +164,9 @@ export function ProductPageLayout({
               return (
                 <div
                   key={feature.title}
-                  className="bg-slate-50 rounded-2xl border border-slate-200 p-5 hover:shadow-md hover:border-[#2EC4B6]/40 transition-all"
+                  className="bg-slate-50 rounded-2xl border border-slate-200 p-5 hover:shadow-md hover:border-[#2EC4B6]/40 transition-all group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0A2342] to-[#1F5EFF] flex items-center justify-center mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0A2342] to-[#1F5EFF] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
                     <Icon className="w-5 h-5 text-white" />
                   </div>
                   <h3 className="font-bold text-slate-900 text-sm mb-2">{feature.title}</h3>
@@ -152,23 +184,28 @@ export function ProductPageLayout({
 
       {extra}
 
-      {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-[#0A2342] to-[#1a3a6a] text-white">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <CtaIcon className="w-14 h-14 text-[#2EC4B6] mx-auto mb-5" />
-          <h2 className="text-3xl font-bold mb-4">{ctaTitle}</h2>
-          <p className="text-white/80 mb-8">{ctaSubtitle}</p>
-          <Link
-            href={ctaButtonHref}
-            className="bg-[#2EC4B6] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#26b0a2] transition inline-flex items-center gap-2"
-          >
-            {ctaButtonLabel}
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
+      {/* Bottom CTA — either pricing strip or legacy generic CTA */}
+      {showPricingCta ? (
+        <FeaturePagePricingCTA
+          headline={pricingCtaHeadline}
+          subheadline={pricingCtaSubheadline}
+        />
+      ) : CtaIcon && ctaTitle ? (
+        <section className="py-20 bg-gradient-to-br from-[#0A2342] to-[#1a3a6a] text-white">
+          <div className="max-w-3xl mx-auto px-6 text-center">
+            <CtaIcon className="w-14 h-14 text-[#2EC4B6] mx-auto mb-5" />
+            <h2 className="text-3xl font-bold mb-4">{ctaTitle}</h2>
+            <p className="text-white/80 mb-8">{ctaSubtitle}</p>
+            <Link
+              href={ctaButtonHref!}
+              className="bg-[#2EC4B6] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#26b0a2] transition inline-flex items-center gap-2"
+            >
+              {ctaButtonLabel}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
-
-// Reviewed: 2026-06-13 — 24Therapy audit

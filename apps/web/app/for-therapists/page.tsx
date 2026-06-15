@@ -8,11 +8,11 @@ import {
 const BENEFITS = [
   {
     icon: Clock,
-    title: "Save 8+ Hours Per Week",
-    description: "AI-powered SOAP, DAP, and BIRP notes generated automatically from sessions. Documentation that used to take 30 minutes now takes 2.",
+    title: "Eliminate Documentation Burden",
+    description: "AI-powered SOAP, DAP, and BIRP notes generated automatically from sessions. The draft is ready before you close the session window.",
     color: "bg-blue-50 text-blue-600",
-    stat: "8hrs/week",
-    statLabel: "saved on average"
+    stat: "< 60s",
+    statLabel: "note generation"
   },
   {
     icon: Brain,
@@ -69,31 +69,31 @@ const AI_FEATURES = [
 
 const TESTIMONIALS = [
   {
-    name: "Dr. Sarah Johnson",
-    title: "Licensed Clinical Psychologist",
-    practice: "Private Practice, New York",
-    quote: "24Therapy has completely transformed my practice. I used to spend 3 hours after sessions writing notes. Now I'm done in 15 minutes. The AI doesn't just transcribe — it understands clinical language.",
-    avatar_initials: "SJ",
+    name: "Dr. Sara Ahmed",
+    title: "Clinical Psychologist",
+    practice: "Cairo, Egypt",
+    quote: "24Therapy has completely transformed my practice. I used to spend 2+ hours after clinic writing notes. Now AI handles it in 30 seconds. The clinical copilot is like having a brilliant colleague in the room.",
+    avatar_initials: "SA",
     rating: 5,
-    time_saved: "3hrs/day"
+    time_saved: "AI Scribe"
   },
   {
-    name: "Michael Chen, LCSW",
-    title: "Licensed Clinical Social Worker",
-    practice: "Telehealth Specialist",
-    quote: "The patient memory system is unlike anything I've seen. By Session 10, the AI knows my patients better than most EHR systems would after 2 years. It's genuinely a clinical superpower.",
-    avatar_initials: "MC",
-    rating: 5,
-    time_saved: "6hrs/week"
-  },
-  {
-    name: "Dr. Priya Patel",
+    name: "Dr. Omar Hassan",
     title: "Psychiatrist",
-    practice: "Group Practice, Boston",
-    quote: "Our entire 8-therapist practice switched to 24Therapy. Billing reconciliation, compliance tracking, and therapist analytics have reduced our admin overhead by 40%. The ROI is undeniable.",
-    avatar_initials: "PP",
+    practice: "Dubai, UAE",
+    quote: "The patient memory system is remarkable. It surfaces information from sessions 6 months ago that I would never remember. My patients feel truly heard because I can reference their complete history.",
+    avatar_initials: "OH",
     rating: 5,
-    time_saved: "40% admin"
+    time_saved: "Memory Layer"
+  },
+  {
+    name: "Dr. Yasmine Khalil",
+    title: "Practice Owner",
+    practice: "Riyadh, Saudi Arabia",
+    quote: "Managing 8 therapists was chaos before 24Therapy. Now I have complete visibility into all sessions, billing, and outcomes from one dashboard. My admin workload dropped significantly.",
+    avatar_initials: "YK",
+    rating: 5,
+    time_saved: "Analytics"
   },
 ];
 
@@ -101,10 +101,10 @@ const TESTIMONIALS = [
 // Do NOT add hardcoded prices here — they will diverge from the DB.
 
 const ROI_STATS = [
-  { value: "8.5h", label: "Hours saved per week", icon: Clock },
-  { value: "$3,200", label: "Extra monthly revenue potential", icon: TrendingUp },
-  { value: "94%", label: "Note accuracy vs manual", icon: CheckCircle2 },
-  { value: "32%", label: "Reduction in burnout scores", icon: Heart },
+  { value: "< 60s", label: "AI note generation", icon: Clock },
+  { value: "GPT-4o", label: "Powered by", icon: Brain },
+  { value: "HIPAA", label: "Fully compliant", icon: CheckCircle2 },
+  { value: "All plans", label: "Crisis detection included", icon: Heart },
 ];
 
 export default function ForTherapistsPage() {
@@ -153,7 +153,7 @@ export default function ForTherapistsPage() {
             <div className="flex flex-wrap items-center justify-center gap-8 text-white/60 text-sm">
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> No credit card required</span>
               <span className="flex items-center gap-1.5"><Shield className="w-4 h-4 text-emerald-400" /> HIPAA Compliant</span>
-              <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-amber-400" /> 500+ therapists</span>
+              <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-amber-400" /> First session free</span>
               <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-blue-400" /> Telehealth ready</span>
             </div>
           </div>
@@ -214,11 +214,10 @@ export default function ForTherapistsPage() {
                 <Brain className="w-4 h-4" /> AI System Architecture
               </div>
               <h2 className="text-4xl font-bold text-[#0A2342] mb-6">
-                8 Specialized AI Agents Working For You
+                AI Built Specifically for Mental Health
               </h2>
               <p className="text-slate-600 mb-8 leading-relaxed">
-                Unlike generic AI tools, our mental health-specific agents understand clinical context, 
-                DSM frameworks, evidence-based treatments, and therapeutic modalities.
+                Unlike generic AI tools, 24Therapy understands clinical context, DSM frameworks, evidence-based treatments, and therapeutic modalities — purpose-built for mental health professionals.
               </p>
 
               <div className="space-y-3">
@@ -358,7 +357,7 @@ export default function ForTherapistsPage() {
         <div className="max-w-3xl mx-auto text-center px-4">
           <h2 className="text-4xl font-bold mb-6">Ready to Transform Your Practice?</h2>
           <p className="text-xl text-white/70 mb-10">
-            Join 500+ therapists who have reclaimed their time, reduced burnout, and elevated their clinical practice with 24Therapy.ai.
+            Spend more time on therapy. Let AI handle the documentation, risk monitoring, and administrative burden so you can focus on patients.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link href="/signup?role=therapist" className="inline-flex items-center gap-2 bg-[#1F5EFF] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#1649D4] transition-all shadow-lg">

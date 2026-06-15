@@ -1,11 +1,10 @@
-"use client";
-
 import Link from "next/link";
 import {
   Bot, Brain, Zap, Shield, Clock, MessageSquare, ArrowRight,
   CheckCircle, Star, Activity, Target, FileText, Eye, Sparkles,
   Heart, TrendingUp, AlertTriangle, BookOpen, RefreshCw
 } from "lucide-react";
+import { FeaturePagePricingCTA } from "@/components/sections/FeaturePagePricingCTA";
 
 const COPILOT_FEATURES = [
   {
@@ -136,7 +135,7 @@ export default function AICopilotPage() {
             {[
               { v: "< 2s", l: "Suggestion Latency" },
               { v: "8", l: "Therapy Modalities" },
-              { v: "94%", l: "Therapist Satisfaction" },
+              { v: "GPT-4o", l: "Powered by" },
               { v: "200+", l: "Clinical Protocols" },
             ].map((s) => (
               <div key={s.l}>
@@ -217,19 +216,10 @@ export default function AICopilotPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-[#0A2342] to-[#1a3a6a] text-white">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <Bot className="w-14 h-14 text-[#2EC4B6] mx-auto mb-5" />
-          <h2 className="text-3xl font-bold mb-4">Experience the AI Copilot</h2>
-          <p className="text-white/80 mb-8">
-            Try a live demo with a practice scenario — see exactly how the Copilot would assist during a real session with your patient population.
-          </p>
-          <Link href="/contact?type=demo" className="bg-[#2EC4B6] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#26b0a2] transition inline-flex items-center gap-2">
-            Request Copilot Demo <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
+      <FeaturePagePricingCTA
+        headline="AI Copilot Is Included on Every Plan"
+        subheadline="Real-time clinical guidance in every session — from pay-as-you-go to enterprise."
+      />
     </div>
   );
 }

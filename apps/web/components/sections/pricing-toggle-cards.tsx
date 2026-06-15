@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils";
 import type { SubscriptionPlan } from "@/lib/pricing-api";
 
 const PLAN_ICONS: Record<string, React.ElementType> = {
+  pay_per_session: Zap,
   starter: User,
   free: User,
   professional: Zap,
-  practice: Users,
+  pro: Zap,
   enterprise: Building2,
 };
 

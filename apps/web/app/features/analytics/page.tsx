@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import {
   BarChart3, TrendingUp, Brain, Target, DollarSign, Users, ArrowRight,
@@ -7,6 +5,7 @@ import {
   Sparkles, Star, BarChart2, ClipboardList, Heart, AlertTriangle,
   Download, RefreshCw, Zap, Globe, ChevronRight, Award
 } from "lucide-react";
+import { FeaturePagePricingCTA } from "@/components/sections/FeaturePagePricingCTA";
 
 const ANALYTICS_MODULES = [
   {
@@ -270,27 +269,10 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-4 bg-gradient-to-br from-[#0A2342] to-[#1F5EFF] text-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <BarChart3 className="w-10 h-10 text-[#2EC4B6] mx-auto mb-6" />
-          <h2 className="text-3xl font-bold mb-4">Your practice data, finally actionable</h2>
-          <p className="text-white/70 mb-8 text-lg">
-            Stop guessing. Start leading your practice with evidence-based intelligence.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link
-              href="/signup?role=therapist"
-              className="bg-[#2EC4B6] hover:bg-[#26b0a3] text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2"
-            >
-              Get Started Free <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link href="/pricing" className="bg-white/10 border border-white/30 text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/20">
-              View Pricing
-            </Link>
-          </div>
-        </div>
-      </section>
+      <FeaturePagePricingCTA
+        headline="Analytics Included on Starter and Above"
+        subheadline="Clinical outcomes, revenue intelligence, and AI performance metrics — from one dashboard."
+      />
     </div>
   );
 }

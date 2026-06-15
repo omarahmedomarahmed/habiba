@@ -5,12 +5,12 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 const stats = [
-  { icon: Users, value: "2,500+", label: "Therapists Onboarded", color: "bg-blue-50 text-blue-600 border-blue-100" },
-  { icon: Brain, value: "50,000+", label: "Sessions Processed", color: "bg-purple-50 text-purple-600 border-purple-100" },
-  { icon: Clock, value: "< 5 min", label: "Avg Therapist Wait", color: "bg-green-50 text-green-600 border-green-100" },
-  { icon: Star, value: "4.9/5", label: "Therapist Satisfaction", color: "bg-amber-50 text-amber-600 border-amber-100" },
-  { icon: Globe, value: "12+", label: "Countries Supported", color: "bg-orange-50 text-orange-600 border-orange-100" },
-  { icon: ShieldCheck, value: "100%", label: "HIPAA Compliant", color: "bg-teal-50 text-teal-600 border-teal-100" },
+  { icon: ShieldCheck, value: "HIPAA", label: "Fully Compliant", color: "bg-teal-50 text-teal-600 border-teal-100" },
+  { icon: Brain, value: "GPT-4o", label: "AI Engine", color: "bg-purple-50 text-purple-600 border-purple-100" },
+  { icon: Clock, value: "< 60s", label: "Note Generation", color: "bg-blue-50 text-blue-600 border-blue-100" },
+  { icon: Globe, value: "40+", label: "Languages Supported", color: "bg-orange-50 text-orange-600 border-orange-100" },
+  { icon: Star, value: "100%", label: "Sessions Monitored", color: "bg-amber-50 text-amber-600 border-amber-100" },
+  { icon: Users, value: "BAA", label: "Included on All Plans", color: "bg-green-50 text-green-600 border-green-100" },
 ];
 
 const cardVariants = {
@@ -68,7 +68,7 @@ export function TrustSection() {
           transition={{ delay: 0.5, duration: 0.5 }}
           className="mt-10 flex flex-wrap items-center justify-center gap-3"
         >
-          {["HIPAA Compliant", "SOC 2 Type II", "GDPR Ready", "ISO 27001", "256-bit Encryption", "99.9% Uptime SLA"].map((badge) => (
+          {["HIPAA Compliant", "AES-256 Encrypted", "GDPR Ready", "BAA Included", "End-to-End Encrypted", "99.9% Uptime SLA"].map((badge) => (
             <div
               key={badge}
               className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 text-xs text-slate-500 font-semibold shadow-sm hover:shadow-md hover:border-green-200 hover:text-green-700 transition-all"

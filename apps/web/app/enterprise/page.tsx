@@ -3,7 +3,7 @@ import {
   Building2, Shield, Users, Zap, Globe, Lock, BarChart3,
   CheckCircle2, ArrowRight, Brain, Network, ChevronRight,
   Star, Award, Settings, Database, Code, Layers, Sparkles,
-  Phone, Mail, Calendar, FileText, CreditCard, Activity
+  Mail, Calendar, FileText, CreditCard, Activity
 } from "lucide-react";
 
 const ENTERPRISE_FEATURES = [
@@ -29,7 +29,7 @@ const ENTERPRISE_FEATURES = [
     icon: Database,
     title: "HIPAA Business Associate Agreement",
     description: "Signed BAA included with all plans. Full HIPAA compliance documentation, audit logs, and compliance reporting.",
-    details: ["BAA included", "SOC 2 Type II certified", "GDPR compliant (EU practices)", "Full audit trail"],
+    details: ["BAA included on all plans", "AES-256 encryption at rest", "GDPR compliant (EU practices)", "Full PHI audit trail"],
   },
   {
     icon: Brain,
@@ -113,13 +113,13 @@ export default function EnterprisePage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { value: "500+", label: "Practices Deployed" },
-                { value: "12,000+", label: "Therapists Active" },
-                { value: "87%", label: "Avg Documentation Reduction" },
-                { value: "40%", label: "Improved Clinical Capacity" },
+                { value: "REST API", label: "Full API access" },
+                { value: "FHIR R4", label: "EHR compatible" },
+                { value: "White-label", label: "Your brand, your domain" },
+                { value: "Custom SLA", label: "Dedicated support" },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white/10 rounded-2xl p-5 text-center border border-white/20">
-                  <div className="text-3xl font-bold text-[#2EC4B6] mb-1">{stat.value}</div>
+                  <div className="text-2xl font-bold text-[#2EC4B6] mb-1">{stat.value}</div>
                   <div className="text-sm text-white/70">{stat.label}</div>
                 </div>
               ))}
@@ -216,6 +216,96 @@ export default function EnterprisePage() {
         </div>
       </section>
 
+      {/* API Integration Section */}
+      <section className="py-20 bg-[#0A2342] text-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 text-sm mb-6">
+              <Code className="w-4 h-4 text-[#2EC4B6]" />
+              What Enterprise Integration Looks Like
+            </div>
+            <h2 className="text-4xl font-bold mb-4">Embed 24Therapy Into Your Existing Systems</h2>
+            <p className="text-white/70 max-w-2xl mx-auto text-lg">
+              Four concrete ways enterprise clients integrate our platform — from session webhooks to full EHR write-back.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 mb-12">
+            {[
+              {
+                icon: Zap,
+                title: "Session Management API",
+                description: "Full REST API for session lifecycle. Trigger sessions, receive webhook events, pull transcripts and AI notes programmatically.",
+                events: ["session.completed", "note.generated", "crisis.detected", "patient.matched"],
+                badge: "REST + Webhooks",
+              },
+              {
+                icon: CreditCard,
+                title: "Billing Data Export",
+                description: "Real-time webhook delivery of all billing events. Export session charges for financial reconciliation with your own billing system.",
+                events: ["GET /api/v1/billing/export?format=csv", "session.charge.created", "payout.processed", "invoice.sent"],
+                badge: "Financial Reconciliation",
+              },
+              {
+                icon: Globe,
+                title: "White-Label Video Embed",
+                description: "Embed HIPAA-secure video sessions directly in your existing platform. Iframe with custom domain, your branding, and therapist roster management.",
+                events: ["Custom domain iframe", "Patient join by link (no account)", "Your logo + colors", "Session events forwarded"],
+                badge: "White-Label Embed",
+              },
+              {
+                icon: Database,
+                title: "FHIR R4 + EHR Write-Back",
+                description: "Push AI-generated notes and session data directly into your EHR as FHIR-compliant resources. Patient, Encounter, and Observation resources supported.",
+                events: ["Patient resource", "Encounter with note", "Observation (PHQ-9/GAD-7)", "HL7 push to SimplePractice / Epic"],
+                badge: "FHIR R4 Compliant",
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className="bg-white/5 border border-white/15 rounded-2xl p-6 hover:bg-white/10 transition-all">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-[#2EC4B6]/20 rounded-xl flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-[#2EC4B6]" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white">{item.title}</h3>
+                      <span className="text-xs bg-[#2EC4B6]/20 text-[#2EC4B6] px-2 py-0.5 rounded-full font-medium">{item.badge}</span>
+                    </div>
+                  </div>
+                  <p className="text-white/70 text-sm mb-4">{item.description}</p>
+                  <div className="bg-black/30 rounded-xl p-3 font-mono text-xs space-y-1">
+                    {item.events.map((e) => (
+                      <div key={e} className="text-[#2EC4B6]">{e}</div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* JSON payload sample */}
+          <div className="bg-black/40 border border-white/10 rounded-2xl p-6 max-w-2xl mx-auto">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-3 h-3 rounded-full bg-red-400" />
+              <div className="w-3 h-3 rounded-full bg-amber-400" />
+              <div className="w-3 h-3 rounded-full bg-green-400" />
+              <span className="text-white/40 text-xs ml-2">webhook payload — session.completed</span>
+            </div>
+            <pre className="text-[#2EC4B6] text-sm leading-relaxed font-mono">{`{
+  "event": "session.ended",
+  "session_id": "sess_abc123",
+  "therapist_id": "th_xyz789",
+  "note_status": "generated",
+  "crisis_flags": [],
+  "duration_minutes": 50,
+  "timestamp": "2026-06-15T14:30:00Z"
+}`}</pre>
+          </div>
+          <p className="text-center text-white/40 text-sm mt-6">Custom integration built with your team · Talk to our integration engineers</p>
+        </div>
+      </section>
+
       {/* Integrations */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6">
@@ -265,13 +355,13 @@ export default function EnterprisePage() {
               href="mailto:enterprise@24therapy.ai"
               className="flex items-center justify-center gap-2 px-8 py-4 bg-[#2EC4B6] text-white font-bold rounded-2xl hover:bg-[#25a99d] transition-colors text-lg"
             >
-              <Mail className="h-5 w-5" /> Contact Enterprise Sales
+              <Mail className="h-5 w-5" /> Talk to Our Integration Team
             </Link>
             <Link
-              href="tel:+18005551234"
+              href="/contact?type=enterprise"
               className="flex items-center justify-center gap-2 px-8 py-4 border border-white/30 text-white font-semibold rounded-2xl hover:bg-white/10 transition-colors"
             >
-              <Phone className="h-5 w-5" /> +1 (800) 555-1234
+              <Calendar className="h-5 w-5" /> Book Enterprise Demo
             </Link>
           </div>
         </div>

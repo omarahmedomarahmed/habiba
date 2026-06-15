@@ -31,9 +31,9 @@ const FEATURE_CATEGORIES = [
         title: "Clinical Copilot",
         badge: "AI",
         description: "Real-time session guidance. The AI surfaces relevant clinical insights, intervention suggestions, and questions to explore as you work.",
-        href: "/ai-scribe#copilot",
+        href: "/features/ai-copilot",
         highlights: ["Live session guidance", "Intervention technique suggestions", "Evidence-based recommendations", "Risk flag surfacing"],
-        stat: "94% therapist adoption rate",
+        stat: "GPT-4o powered, < 2s suggestion latency",
       },
       {
         icon: Network,
@@ -46,12 +46,12 @@ const FEATURE_CATEGORIES = [
       },
       {
         icon: AlertTriangle,
-        title: "Risk Detection",
+        title: "Crisis Detection",
         badge: "Safety",
-        description: "Real-time AI monitoring detects risk language, self-harm indicators, and crisis signals during sessions with immediate alerts.",
-        href: "/ai-scribe#risk",
-        highlights: ["C-SSRS aligned scoring", "12 risk alert types", "Immediate therapist notifications", "Safety plan generation"],
-        stat: "Zero missed critical alerts",
+        description: "Real-time AI monitoring detects risk language, self-harm indicators, and crisis signals during sessions — with instant therapist alerts and C-SSRS protocol guidance.",
+        href: "/features/crisis-detection",
+        highlights: ["C-SSRS aligned severity scoring", "< 2 second detection latency", "Immediate in-session alert", "988 Lifeline surfaced on every flag"],
+        stat: "Included on every plan, every session",
       },
     ],
   },
@@ -112,7 +112,7 @@ const FEATURE_CATEGORIES = [
         description: "Intelligent scheduling with availability management, patient self-booking, automated reminders, and no-show tracking.",
         href: "/for-therapists",
         highlights: ["Patient self-scheduling", "Automated reminders", "No-show tracking", "Recurring appointment setup"],
-        stat: "40% reduction in no-shows",
+        stat: "Automated reminders reduce no-shows",
       },
       {
         icon: CreditCard,
@@ -121,7 +121,7 @@ const FEATURE_CATEGORIES = [
         description: "Complete billing management with insurance claims, ERA processing, patient invoicing, Stripe payments, and revenue reporting.",
         href: "/for-therapists",
         highlights: ["Insurance claim submission", "ERA/EOB processing", "Stripe patient payments", "Revenue dashboards"],
-        stat: "97% first-pass claim acceptance",
+        stat: "Stripe + insurance billing in one place",
       },
       {
         icon: BarChart3,
@@ -156,7 +156,7 @@ const FEATURE_CATEGORIES = [
         description: "End-to-end HIPAA compliance: BAA included, PHI encryption, audit trails, access controls, minimum necessary standard.",
         href: "/security",
         highlights: ["BAA included in all plans", "AES-256 encryption at rest", "TLS 1.3 in transit", "Full audit trails"],
-        stat: "SOC 2 Type II in progress",
+        stat: "BAA included on all plans",
       },
       {
         icon: Globe,
@@ -190,12 +190,12 @@ const FEATURE_CATEGORIES = [
 ];
 
 const STATS = [
-  { value: "3 hrs", label: "Saved per therapist/week" },
-  { value: "60 sec", label: "Note generation time" },
-  { value: "40%", label: "No-show reduction" },
-  { value: "97%", label: "Insurance claim acceptance" },
-  { value: "94%", label: "Therapist satisfaction" },
-  { value: "0", label: "Missed critical risk alerts" },
+  { value: "< 60s", label: "Note generation" },
+  { value: "GPT-4o", label: "AI engine" },
+  { value: "C-SSRS", label: "Crisis protocol" },
+  { value: "HIPAA", label: "Compliant" },
+  { value: "40+", label: "Languages supported" },
+  { value: "All plans", label: "Crisis detection included" },
 ];
 
 export default function FeaturesPage() {
@@ -411,7 +411,7 @@ export default function FeaturesPage() {
           <Heart className="w-10 h-10 text-[#2EC4B6] mx-auto mb-6" />
           <h2 className="text-3xl font-bold mb-4">Built for therapists. Designed for outcomes.</h2>
           <p className="text-white/70 mb-8 text-lg">
-            Join thousands of therapists who've reclaimed 3+ hours per week with 24Therapy's AI platform.
+            Spend more time with patients, less on paperwork. AI generates your notes, monitors safety, and surfaces clinical context — so you can focus on therapy.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link

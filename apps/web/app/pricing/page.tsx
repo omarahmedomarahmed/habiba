@@ -17,16 +17,16 @@ function getPlanKey(plan: SubscriptionPlan): string {
   if (name.includes('payg') || name.includes('pay_as_you_go') || name.includes('pay as') || name.includes('pay per') || plan.plan_key === 'pay_per_session') return 'payg';
   if (name.includes('starter')) return 'starter';
   if (name.includes('unlimited') || plan.plan_key === 'pro') return 'unlimited';
-  if (name.includes('practice') || name.includes('enterprise')) return 'practice';
+  if (plan.plan_key === 'enterprise' || name.includes('enterprise')) return 'enterprise';
   return 'starter';
 }
 
 // ─── Per-plan hero metrics ────────────────────────────────────────────────────
 const PLAN_HERO_METRICS: Record<string, { headline: string; sub: string }> = {
   payg:      { headline: "$6/session", sub: "first one free" },
-  starter:   { headline: "$59/mo", sub: "20 sessions (~$3 each)" },
+  starter:   { headline: "$59/mo", sub: "~$3/session (up to 20)" },
   unlimited: { headline: "$99/mo", sub: "unlimited sessions" },
-  practice:  { headline: "$189/2 seats", sub: "from $94.50/seat" },
+  enterprise: { headline: "Custom", sub: "volume discount for teams" },
 };
 
 // ─── Included / excluded feature lists ───────────────────────────────────────
@@ -86,15 +86,18 @@ const PLAN_FEATURES_MAP: Record<string, { included: string[]; excluded: string[]
       "Multi-location support",
     ],
   },
-  practice: {
+  enterprise: {
     included: [
       "Everything in Unlimited",
-      "2 therapist seats included",
-      "Team management",
+      "Volume discount (3+ therapists)",
+      "Multi-therapist team management",
       "White-label branding",
-      "EHR integrations",
-      "Multi-location support",
-      "Consolidated billing",
+      "REST API + webhook events",
+      "EHR connector (custom build)",
+      "FHIR R4 data export",
+      "SSO / SAML",
+      "Dedicated account manager",
+      "Custom SLA & contracts",
     ],
     excluded: [],
   },
@@ -160,16 +163,16 @@ const CORE_FEATURES = [
 
 // ─── Enterprise section features (static) ────────────────────────────────────
 const ENTERPRISE_FEATURES = [
-  "Unlimited therapists",
-  "Unlimited patients",
-  "White-label branding",
-  "Custom AI model configuration",
+  "Volume discount for 3+ therapists",
+  "Multi-therapist team management",
+  "White-label branding & custom domain",
+  "REST API + 14 webhook event types",
+  "FHIR R4 patient data export",
+  "EHR write-back connector (custom)",
+  "SSO / SAML authentication",
   "Dedicated account manager",
-  "SSO / SAML",
-  "Custom SLA & contracts",
-  "API & EHR integration",
-  "On-premise deployment option",
-  "Full audit trail & compliance",
+  "Custom SLA & BAA contracts",
+  "Full audit trail & HIPAA compliance",
 ];
 
 // ─── Plan Card ────────────────────────────────────────────────────────────────
@@ -337,8 +340,10 @@ function PlanCard({ plan, showSavingsStrip }: { plan: SubscriptionPlan; showSavi
 export default async function PricingPage() {
   const { plans, error, source } = await fetchPublicPlans();
 
-  // Filter out enterprise from main cards (shown separately)
-  const mainPlans = plans.filter((p) => p.plan_key !== "enterprise" && p.is_active);
+  // Filter out enterprise and practice from main cards (enterprise shown separately)
+  const mainPlans = plans.filter(
+    (p) => p.plan_key !== "enterprise" && p.plan_key !== "practice" && p.is_active
+  );
   const enterprisePlan = plans.find((p) => p.plan_key === "enterprise");
 
   // Collect all add-ons across plans (deduplicated by name)

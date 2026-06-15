@@ -285,7 +285,7 @@ export default function FindTherapistPage() {
                 </div>
                 <div className="flex gap-3">
                   <Link
-                    href={`/signup?role=patient&therapist=${t.id}`}
+                    href={t.public_slug ? `/t/${t.public_slug}` : `/find-therapist`}
                     className="flex-1 py-3 bg-white text-[#0A2342] rounded-xl font-semibold hover:bg-white/90 text-sm text-center"
                   >
                     Book Session

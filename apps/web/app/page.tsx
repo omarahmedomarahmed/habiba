@@ -5,8 +5,6 @@ import { HowItWorksSection } from "@/components/sections/how-it-works";
 import { RadarSection } from "@/components/sections/radar";
 import { PricingSection } from "@/components/sections/pricing";
 import { TestimonialsSection } from "@/components/sections/testimonials";
-import { CTASection } from "@/components/sections/cta";
-
 export default function HomePage() {
   return (
     <div className="min-h-screen">
@@ -17,7 +15,6 @@ export default function HomePage() {
       <RadarSection />
       <PricingSection />
       <TestimonialsSection />
-      <CTASection />
     </div>
   );
 }

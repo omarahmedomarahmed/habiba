@@ -1,11 +1,10 @@
-"use client";
-
 import Link from "next/link";
 import {
   Brain, Database, Network, Clock, TrendingUp, Shield, Zap,
   CheckCircle, ArrowRight, Star, Activity, FileText, Heart,
   Target, BarChart3, RefreshCw, Layers, Eye, Sparkles, Globe
 } from "lucide-react";
+import { FeaturePagePricingCTA } from "@/components/sections/FeaturePagePricingCTA";
 
 const MEMORY_NODE_TYPES = [
   { name: "Symptom", color: "bg-red-100 text-red-700 border-red-200", icon: Activity },
@@ -33,7 +32,7 @@ const CAPABILITIES = [
     icon: Network,
     title: "Knowledge Graph Construction",
     description: "Memory nodes are connected in a semantic knowledge graph that reflects real clinical relationships. A new anxiety trigger is automatically linked to existing trauma elements, coping strategies, and session history.",
-    stats: "3.4M+ memory connections mapped across platform",
+    stats: "Connections auto-built between every memory node",
   },
   {
     icon: Clock,
@@ -45,7 +44,7 @@ const CAPABILITIES = [
     icon: Eye,
     title: "Session Preparation",
     description: "Before each session, 24Therapy.ai surfaces the most relevant memory context: what changed since last session, active risk factors, current goals, and suggested topics based on patient trajectory.",
-    stats: "87% of therapists say prep time cut in half",
+    stats: "Session context surfaced before you even start",
   },
   {
     icon: Sparkles,
@@ -226,19 +225,10 @@ export default function MemoryLayerPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-[#0A2342] to-[#1a3a6a] text-white">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <Brain className="w-14 h-14 text-[#2EC4B6] mx-auto mb-5" />
-          <h2 className="text-3xl font-bold mb-4">See the Memory Layer in Action</h2>
-          <p className="text-white/80 mb-8">
-            Watch how the Memory Layer transforms a routine session into a clinically intelligent encounter — and how it builds knowledge over months of treatment.
-          </p>
-          <Link href="/contact?type=demo" className="bg-[#2EC4B6] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#26b0a2] transition inline-flex items-center gap-2">
-            Request Live Demo <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
+      <FeaturePagePricingCTA
+        headline="Patient Memory Layer — Included on Every Plan"
+        subheadline="Longitudinal clinical intelligence runs automatically on every session, at no extra cost."
+      />
     </div>
   );
 }

@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AssessmentsController } from './assessments.controller';
 import { AssessmentsService } from './assessments.service';
+import { PublicAssessmentsController } from './public-assessments.controller';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
-  controllers: [AssessmentsController],
+  imports: [MailModule],
+  controllers: [AssessmentsController, PublicAssessmentsController],
   providers: [AssessmentsService],
   exports: [AssessmentsService],
 })
