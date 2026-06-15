@@ -1380,11 +1380,14 @@ export class BillingService {
   // ============================================================
 
   async handleWebhook(payload: Buffer, signature: string) {
-    const webhookSecret = this.config.get("stripe.webhookSecret");
+    const webhookSecret = this.config.get<string>("stripe.webhookSecret");
+    if (!webhookSecret) {
+      throw new BadRequestException("Stripe webhook secret not configured — set STRIPE_WEBHOOK_SECRET");
+    }
 
     let event: Stripe.Event;
     try {
-      event = this.stripe.webhooks.constructEvent(payload, signature, webhookSecret || "");
+      event = this.stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     } catch {
       throw new BadRequestException("Invalid webhook signature");
     }

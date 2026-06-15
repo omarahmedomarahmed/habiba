@@ -49,8 +49,14 @@ export class MailService {
 
   async send(opts: SendEmailOptions): Promise<boolean> {
     if (!this.apiKey) {
-      this.logger.log(`[DEV EMAIL] To: ${opts.to} | Subject: ${opts.subject}`);
-      this.logger.log(`[DEV EMAIL] Body: ${opts.text || opts.html.replace(/<[^>]+>/g, ' ')}`);
+      const isProd = this.config.get<string>('nodeEnv') === 'production';
+      if (isProd) {
+        // In production without RESEND_API_KEY: log metadata only — never log body as it may contain tokens or PHI
+        this.logger.warn(`[EMAIL SUPPRESSED] RESEND_API_KEY not set — email NOT sent. To: ${opts.to} | Subject: ${opts.subject}`);
+      } else {
+        this.logger.log(`[DEV EMAIL] To: ${opts.to} | Subject: ${opts.subject}`);
+        this.logger.log(`[DEV EMAIL] Body: ${opts.text || opts.html.replace(/<[^>]+>/g, ' ')}`);
+      }
       return true;
     }
 

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -6,7 +7,10 @@ import { v4 as uuidv4 } from 'uuid';
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly config: ConfigService,
+  ) {}
 
   // ─── Platform Dashboard ──────────────────────────────────────────────────
 
@@ -62,12 +66,48 @@ export class AdminService {
   }
 
   private async getSystemHealth() {
-    const dbCheck = await this.db.query('SELECT 1 as ok', []).then(() => 'healthy').catch(() => 'error');
-    return {
-      database: dbCheck,
-      api: 'healthy',
-      timestamp: new Date().toISOString(),
-    };
+    return this.getSystemHealthDetailed();
+  }
+
+  async getSystemHealthDetailed() {
+    const apiStart = Date.now();
+
+    // Database: live ping
+    const dbStart = Date.now();
+    const dbStatus = await this.db.query('SELECT 1 as ok', [])
+      .then(() => ({ status: 'operational', latency: `${Date.now() - dbStart}ms` }))
+      .catch(() => ({ status: 'down', latency: '–' }));
+
+    // AI Service: key presence check
+    const aiKey = this.config.get<string>('openai.apiKey');
+    const aiStatus = aiKey ? 'operational' : 'degraded';
+
+    // Video Service: Daily.co key presence
+    const dailyKey = this.config.get<string>('video.dailyApiKey');
+    const videoStatus = dailyKey ? 'operational' : 'degraded';
+
+    // Billing: Stripe key presence and non-placeholder
+    const stripeKey = this.config.get<string>('stripe.secretKey');
+    const billingStatus = (stripeKey && stripeKey !== 'sk_test_placeholder') ? 'operational' : 'degraded';
+
+    // Notifications: Resend key presence
+    const resendKey = this.config.get<string>('resend.apiKey') || process.env.RESEND_API_KEY;
+    const notifStatus = resendKey ? 'operational' : 'degraded';
+
+    const services = [
+      { name: 'API Gateway', status: 'operational', latency: `${Date.now() - apiStart}ms` },
+      { name: 'Database', status: dbStatus.status, latency: dbStatus.latency },
+      { name: 'AI Service', status: aiStatus, latency: '–' },
+      { name: 'Video Service', status: videoStatus, latency: '–' },
+      { name: 'Billing Service', status: billingStatus, latency: '–' },
+      { name: 'Notifications', status: notifStatus, latency: '–' },
+    ];
+
+    const overallDown = services.some(s => s.status === 'down');
+    const overallDegraded = services.some(s => s.status === 'degraded');
+    const overall = overallDown ? 'down' : overallDegraded ? 'degraded' : 'operational';
+
+    return { services, overall, timestamp: new Date().toISOString() };
   }
 
   // ─── Organization Management ─────────────────────────────────────────────

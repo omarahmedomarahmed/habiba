@@ -51,20 +51,21 @@ export class CrisisService {
 
     const riskId = uuidv4();
 
-    // 1. Persist keyword-sourced risk assessment immediately (does not depend on GPT)
+    // 1. Persist keyword-sourced risk assessment with pending status first so the sweeper
+    //    can recover delivery if the notification step below fails.
     try {
       await this.db.execute(
         `INSERT INTO risk_assessments
            (id, patient_id, therapist_id, session_id, organization_id,
             risk_type, risk_level, indicators, ai_detected, ai_confidence,
-            source, alert_status, alert_delivered_at)
-         VALUES ($1,$2,$3,$4,$5,'general','elevated',$6,false,NULL,'keyword','delivered',NOW())`,
+            source, alert_status)
+         VALUES ($1,$2,$3,$4,$5,'general','elevated',$6,false,NULL,'keyword','pending')`,
         [riskId, session.patient_id, session.therapist_id, sessionId, orgId,
          JSON.stringify(matchedKeywords)],
       );
     } catch (err) {
       this.logger.error(`[CRISIS] Failed to persist keyword risk assessment: ${(err as Error).message}`);
-      // Do not return — still attempt to alert
+      // Do not return — still attempt to alert even if persist failed
     }
 
     // 2. Create/get crisis-priority conversation
@@ -91,8 +92,17 @@ export class CrisisService {
       this.logger.error(`[CRISIS] Failed to create crisis conversation: ${(err as Error).message}`);
     }
 
-    // 3. Notify therapist + admins (each wrapped — one failure does not block others)
+    // 3. Notify therapist + admins, then mark alert delivered so sweeper won't re-fire
     await this.notifyParticipants(orgId, session, 'elevated', matchedKeywords, conversationId);
+    try {
+      await this.db.execute(
+        `UPDATE risk_assessments SET alert_status = 'delivered', alert_delivered_at = NOW() WHERE id = $1`,
+        [riskId],
+      );
+    } catch (err) {
+      this.logger.error(`[CRISIS] Failed to mark alert delivered: ${(err as Error).message}`);
+      // Sweeper will re-deliver within 2 minutes
+    }
 
     // 4. Emit crisis_alert WebSocket event to gateway
     this.eventEmitter.emit('ai.risk_detected', {

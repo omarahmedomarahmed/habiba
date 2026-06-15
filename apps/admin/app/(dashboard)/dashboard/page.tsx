@@ -71,9 +71,12 @@ function MetricCard({
 
 function StatusDot({ status }: { status: string }) {
   const map: Record<string, string> = {
-    operational: 'bg-green-500', degraded: 'bg-amber-500', down: 'bg-red-500',
+    operational: 'bg-green-500 animate-pulse',
+    degraded: 'bg-amber-500 animate-pulse',
+    down: 'bg-red-500 animate-ping',
+    checking: 'bg-gray-600 animate-pulse',
   };
-  return <span className={`inline-block w-2 h-2 rounded-full ${map[status] || 'bg-gray-500'} animate-pulse`} />;
+  return <span className={`inline-block w-2 h-2 rounded-full ${map[status] || 'bg-gray-500'}`} />;
 }
 
 function LoadingSkeleton() {
@@ -91,6 +94,7 @@ export default function AdminDashboardPage() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [crisisEvents, setCrisisEvents] = useState<CrisisEvent[]>([]);
+  const [healthServices, setHealthServices] = useState<Array<{ name: string; status: string; latency: string }> | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,9 +104,10 @@ export default function AdminDashboardPage() {
     try {
       setError(null);
       // Parallel fetch of dashboard data
-      const [analyticsData, orgsData] = await Promise.allSettled([
+      const [analyticsData, orgsData, healthData] = await Promise.allSettled([
         adminAPI.analyticsOverview('today'),
         adminAPI.organizations({ limit: 5, sort: 'created_at', order: 'desc' }),
+        adminAPI.systemHealth(),
       ]);
 
       if (analyticsData.status === 'fulfilled') {
@@ -111,6 +116,9 @@ export default function AdminDashboardPage() {
       if (orgsData.status === 'fulfilled') {
         const orgList = (orgsData.value as any)?.data || orgsData.value;
         setOrgs(Array.isArray(orgList) ? orgList.slice(0, 4) : []);
+      }
+      if (healthData.status === 'fulfilled' && healthData.value?.services) {
+        setHealthServices(healthData.value.services);
       }
     } catch (err: any) {
       setError('Unable to load live data. Showing cached values.');
@@ -323,20 +331,22 @@ export default function AdminDashboardPage() {
             <span className="text-xs text-green-400 font-medium">{s.system_uptime || 100}% uptime</span>
           </div>
           <div className="divide-y divide-gray-800">
-            {[
-              { name: 'API Gateway', status: 'operational', latency: '–' },
-              { name: 'AI Service', status: 'operational', latency: '–' },
-              { name: 'Database', status: 'operational', latency: '–' },
-              { name: 'Video Service', status: 'operational', latency: '–' },
-              { name: 'Notifications', status: 'operational', latency: '–' },
-              { name: 'Billing Service', status: 'operational', latency: '–' },
-            ].map((svc) => (
+            {(healthServices ?? [
+              { name: 'API Gateway', status: 'checking', latency: '–' },
+              { name: 'AI Service', status: 'checking', latency: '–' },
+              { name: 'Database', status: 'checking', latency: '–' },
+              { name: 'Video Service', status: 'checking', latency: '–' },
+              { name: 'Notifications', status: 'checking', latency: '–' },
+              { name: 'Billing Service', status: 'checking', latency: '–' },
+            ]).map((svc) => (
               <div key={svc.name} className="flex items-center justify-between px-5 py-3">
                 <div className="flex items-center gap-2.5">
                   <StatusDot status={svc.status} />
                   <div className="text-xs font-medium text-white">{svc.name}</div>
                 </div>
-                <div className="text-xs text-gray-400 font-mono">{svc.latency}</div>
+                <div className={`text-xs font-mono ${svc.status === 'degraded' ? 'text-amber-400' : svc.status === 'down' ? 'text-red-400' : 'text-gray-400'}`}>
+                  {svc.latency}
+                </div>
               </div>
             ))}
           </div>

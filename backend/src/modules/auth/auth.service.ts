@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   BadRequestException,
   ConflictException,
@@ -17,6 +18,8 @@ import { AuthTokens, User } from '@24therapy/types';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly db: DatabaseService,
     private readonly jwtService: JwtService,
@@ -97,7 +100,7 @@ export class AuthService {
       // Send welcome email (fire-and-forget)
       this.mailService
         .sendWelcome(dto.email, dto.first_name, dto.role || 'therapist')
-        .catch((err) => console.error('[auth] Welcome email failed:', err?.message));
+        .catch((err) => this.logger.error(`Welcome email failed: ${err?.message}`));
 
       return { user: this.sanitizeUser(user), tokens, organization: org };
     });
@@ -256,7 +259,7 @@ export class AuthService {
     // Send password reset email (fire-and-forget — don't block response)
     this.mailService.sendPasswordReset(email, token, role).catch((err) => {
       // Log error but don't throw — user flow must not break if email fails
-      console.error('[auth] Failed to send password reset email:', err?.message);
+      this.logger.error(`Failed to send password reset email: ${err?.message}`);
     });
   }
 

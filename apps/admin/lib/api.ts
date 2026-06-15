@@ -247,6 +247,13 @@ export const adminAPI = {
   analyticsRevenue: (period?: string) =>
     apiFetch<any>('/analytics/revenue', { params: { period } } as any),
 
+  // System health — real per-service status from backend
+  systemHealth: () => apiFetch<{
+    services: Array<{ name: string; status: string; latency: string }>;
+    overall: string;
+    timestamp: string;
+  }>('/admin/health'),
+
   // Billing
   invoices: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: any[]; total: number }>('/billing/invoices', { params } as any),

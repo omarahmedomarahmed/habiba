@@ -23,7 +23,7 @@ export class AdminController {
 
   @Get('health')
   async getSystemHealth() {
-    return { status: 'healthy', timestamp: new Date().toISOString() };
+    return this.adminService.getSystemHealthDetailed();
   }
 
   // ─── Organizations ────────────────────────────────────────────────────────
