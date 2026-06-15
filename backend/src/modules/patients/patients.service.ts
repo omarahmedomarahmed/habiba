@@ -176,13 +176,15 @@ export class PatientsService {
         [uuidv4(), patientId, dto.occupation || null, dto.relationship_status || null],
       );
 
-      // Create therapist-patient assignment
-      await client.query(
-        `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
-        [uuidv4(), therapistId, patientId, orgId, therapistId],
-      );
+      // Create therapist-patient assignment (skip if therapistId is not available)
+      if (therapistId) {
+        await client.query(
+          `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
+          [uuidv4(), therapistId, patientId, orgId, therapistId],
+        );
+      }
 
       // Log timeline event
       await client.query(

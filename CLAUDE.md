@@ -96,6 +96,8 @@ docs/              → HIPAA_CHECKLIST.md
 | Admin portal (all 17 pages) | ✅ REAL | All buttons wired, all mock arrays removed, dark gray-900 theme unified, /marketplace+/ai-costs deleted |
 | Marketing therapist cards | ✅ REAL | HeroTherapistPreview returns null on empty DB; /for-patients shows empty state; no STATIC_THERAPISTS |
 | Therapist portal mock data | ✅ REAL | analytics/calendar/CRM/memory/audit-logs: all fake patient names removed; initialize to []; real API or empty state |
+| Booking management page | ✅ REAL | `/booking` page consolidates slug, weekly availability, and session offerings in one mobile-first dark UI |
+| Admin users list | ✅ REAL | `GET /users` now supports search/role/status/pagination; returns flat `{ data, total }` shape |
 
 ---
 
@@ -198,6 +200,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 | `apps/therapist` | Vercel | `apps/therapist/vercel.json` |
 | `apps/patient` | Vercel | `apps/patient/vercel.json` |
 | `apps/admin` | Vercel | `apps/admin/vercel.json` |
+
+---
+
+## Commit History (Session 29 — Part 2)
+
+| Hash | Message |
+|------|---------|
+| `8c2af51` | fix(prod): fix POST /sessions and POST /patients 500s + add booking page |
+
+### Session 29 Part 2 changes
+- sessions/new/page.tsx: session_type `'individual'` → `'standard'` (violated DB CHECK constraint — PRIMARY cause of POST /sessions 500)
+- sessions.service.ts `findAll()`: try-catch fallback for base schema when migration-030 columns absent
+- sessions.service.ts `findOne()`: try-catch fallback for base schema when migration-030 columns absent
+- sessions.service.ts `create()`: normalize session_type; try-catch fallback INSERT using only migration-006 base columns when newer columns (join_token/patient_email/auto_generate_note/session_price_cents/patient_payment_status) don't exist in production DB yet
+- patients.service.ts `create()`: skip therapist_patient_assignments INSERT when therapistId is null
+- users.service.ts + users.controller.ts: admin users list now supports search/role/status/pagination; returns flat `{ data, total }` shape
+- apps/therapist/app/(dashboard)/booking/page.tsx: NEW unified booking management page — slug, weekly availability, session offerings in one mobile-first dark-theme page
+- sidebar.tsx + BottomNav.tsx: Booking nav link added
 
 ---
 
