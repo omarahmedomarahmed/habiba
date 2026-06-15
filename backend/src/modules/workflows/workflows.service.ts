@@ -191,7 +191,7 @@ export class WorkflowsService {
        LEFT JOIN therapists t ON t.id = w.therapist_id
        WHERE w.id=$1 AND w.organization_id=$2`,
       [workflowId, orgId],
-    ).catch(() => null);
+    );
 
     if (!workflow) throw new NotFoundException('Workflow not found');
 
@@ -253,7 +253,7 @@ export class WorkflowsService {
         ) VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,NOW())`,
         [taskId, workflowId, orgId, step.order, step.name, step.type,
          step.required, JSON.stringify({ template_code: step.template_code })],
-      ).catch(() => null);
+      ).catch((err) => this.logger.error(`createWorkflowTasks INSERT failed for step ${step.name}: ${err.message}`));
     }
   }
 
@@ -264,7 +264,7 @@ export class WorkflowsService {
            completed_at = CASE WHEN $2 IN ('completed','cancelled') THEN NOW() ELSE completed_at END
        WHERE id=$1 AND organization_id=$3 RETURNING *`,
       [workflowId, status, orgId],
-    ).catch(() => null);
+    );
   }
 
   async completeWorkflowTask(taskId: string, workflowId: string, orgId: string, result?: any) {
@@ -272,7 +272,7 @@ export class WorkflowsService {
       `UPDATE workflow_tasks SET status='completed', completed_at=NOW(), result=$3
        WHERE id=$1 AND workflow_id=$2`,
       [taskId, workflowId, JSON.stringify(result || {})],
-    ).catch(() => null);
+    );
 
     // Check if all required tasks are complete
     const allTasks = await this.db.query(
@@ -471,7 +471,7 @@ export class WorkflowsService {
     return this.db.queryOne<any>(
       `UPDATE treatment_plans SET ${fields.join(',')} WHERE id=$1 AND organization_id=$2 RETURNING *`,
       params,
-    ).catch(() => null);
+    );
   }
 
   // ─── Homework (patient-visible tasks) ─────────────────────────────────────
@@ -567,7 +567,7 @@ export class WorkflowsService {
       `UPDATE workflow_tasks SET status='in_progress', started_at=NOW()
        WHERE id=$1 AND organization_id=$2`,
       [taskId, orgId],
-    ).catch(() => null);
+    );
     return { task_id: taskId, status: 'in_progress' };
   }
 
