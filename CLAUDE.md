@@ -14,7 +14,7 @@
 | **Dev Branch** | `claude/magical-cori-9vbw6k` |
 | **Stack** | Next.js 15 · NestJS 10 · PostgreSQL + pgvector · Redis · TypeScript |
 | **Monorepo** | Turborepo + pnpm 9.15.4 workspaces |
-| **Last Updated** | 2026-06-14 (session 23 — build fix, booking flow completion, website MVP scope, availability UI) |
+| **Last Updated** | 2026-06-15 (session 24 — admin approval, lock overlay UX, bank details, public profiles, Add-to-Calendar, patient join status WS) |
 
 ---
 
@@ -391,6 +391,20 @@ This is a GitHub account billing problem — **not a code or workflow issue**. T
 - [ ] Redis Bull queue for email + notifications (replace fire-and-forget)
 - [ ] nestjs-pino structured logging + log drain (Logtail/Axiom)
 - [ ] Session recording S3/R2 archive (migration 026, 7-year HIPAA retention)
+
+### Session 24 additions (complete)
+- [x] P0: backend therapist approval/reject/submit-review endpoints (PATCH :id/verify admin-guarded, PATCH me/submit-review, PATCH me/bank-details); sendTherapistApproved/Rejected emails via Resend
+- [x] P0: admin api.ts fixed 'verified' → 'approved'; store.ts adds 'under_review' to verificationStatus union type
+- [x] P1: admin therapists page — approved status badges, rejection modal with textarea, verification_status filter dropdown
+- [x] P2: layout.tsx removes RESTRICTED_PATHS redirect; LockedPageOverlay.tsx created; applied to 7 restricted pages; dashboard application status card + submit-for-review; onboarding submit CTA
+- [x] P3: settings profile tab — display_name, bio, specialty, languages, location, years_experience all editable; tag inputs for specializations/languages; slug auto-loads; save payload includes all fields
+- [x] P4 + P10: migration 032 (bank_details JSONB + payout_method on therapists; method/notes/processed_at/processed_by on payout_requests); admin payouts page; GET/PATCH /billing/admin/payout-requests endpoints; admin sidebar link
+- [x] R1: Settings wallet tab — ACH/Wire/SWIFT bank details form; save via therapistsAPI.updateBankDetails(); payout modal shows saved bank name + masked account
+- [x] R2: find-therapist page — 3-col grid (lg:grid-cols-3), language filter, mock THERAPISTS data removed, real empty state, View Profile → /therapists/[id]
+- [x] R2: /therapists/[id] — new Facebook-style public profile page (bio, specialties, languages, credentials, price, Book a Session CTA)
+- [x] R2: GET /marketplace/therapist/:id — new public endpoint in marketplace.controller + marketplace.service
+- [x] R3: booking confirmed page — Add to Google Calendar button with pre-filled event (date/time/join link)
+- [x] R4: sessions.service.ts joinByToken() emits session.patient_joined via EventEmitter2; events.gateway.ts @OnEvent forwards as patient_join_status to therapist user socket; room page shows real-time status badge
 
 ### Session 23 additions (complete)
 - [x] fix(build): wrap useSearchParams in Suspense in join/[token]/page.tsx, t/[slug]/confirmed/page.tsx, settings/page.tsx — resolves Vercel "build worker exited with code 1"
