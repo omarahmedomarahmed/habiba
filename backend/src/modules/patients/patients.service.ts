@@ -38,7 +38,7 @@ export class PatientsService {
         p.*,
         t.display_name as primary_therapist_name,
         (SELECT COUNT(*) FROM sessions s WHERE s.patient_id = p.id AND s.status = 'completed') as completed_sessions,
-        (SELECT MAX(score) FROM patient_mood_entries m WHERE m.patient_id = p.id ORDER BY recorded_at DESC LIMIT 1) as latest_mood
+        (SELECT score FROM patient_mood_entries m WHERE m.patient_id = p.id ORDER BY m.recorded_at DESC LIMIT 1) as latest_mood
       FROM patients p
       LEFT JOIN therapists t ON t.id = p.primary_therapist_id
       WHERE ${whereClauses.join(' AND ')}

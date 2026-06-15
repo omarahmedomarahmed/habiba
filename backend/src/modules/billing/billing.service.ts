@@ -1667,8 +1667,8 @@ export class BillingService {
               CONCAT(u.first_name, ' ', u.last_name) AS patient_name
        FROM session_charges sc
        JOIN sessions s ON s.id = sc.session_id
-       JOIN patients p ON p.id = s.patient_id
-       JOIN users u ON u.id = p.user_id
+       LEFT JOIN patients p ON p.id = s.patient_id
+       LEFT JOIN users u ON u.id = p.user_id
        WHERE sc.organization_id = $1
        ORDER BY sc.created_at DESC
        LIMIT 50`,

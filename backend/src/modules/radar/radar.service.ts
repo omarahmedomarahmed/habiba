@@ -63,19 +63,19 @@ export class RadarService {
     // Create the radar request
     const request = await this.db.queryOne<Record<string, unknown>>(
       `INSERT INTO radar_requests (
-        id, patient_id, organization_id, specialization, presenting_issues,
-        preferred_language, urgency_level, session_type, budget_min, budget_max,
-        therapist_gender_preference, timezone, notes, status, expires_at
+        id, patient_id, organization_id, presenting_issues,
+        preferred_language, urgency, preferred_session_type, budget_per_session,
+        preferred_gender, timezone, notes, status, expires_at
        ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active', $14
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12
        ) RETURNING *`,
       [
         this.db.generateId(), patientId, organizationId,
-        dto.specialization, dto.presenting_issues || [],
+        dto.presenting_issues || [],
         dto.preferred_language || "en",
         dto.urgency_level || "today",
         dto.session_type || "video",
-        dto.budget_min, dto.budget_max,
+        dto.budget_max ?? dto.budget_min ?? null,
         dto.therapist_gender_preference,
         dto.timezone || "UTC",
         dto.notes,
@@ -127,9 +127,9 @@ export class RadarService {
        JOIN radar_therapist_settings rts ON rts.therapist_id = t.id
        WHERE t.organization_id = $2
          AND t.deleted_at IS NULL
-         AND t.status = 'active'
-         AND rts.is_available_now = TRUE
-         AND rts.accepts_radar = TRUE
+         AND t.verification_status = 'approved'
+         AND rts.radar_available_now = TRUE
+         AND rts.radar_enabled = TRUE
          AND calculate_radar_match_score(t.id, $1) > 50
        ORDER BY match_score DESC
        LIMIT 5`,
@@ -140,10 +140,10 @@ export class RadarService {
     if (matches.length > 0) {
       for (const match of matches) {
         await this.db.execute(
-          `INSERT INTO radar_broadcasts (id, request_id, therapist_id, match_score, status)
-           VALUES ($1, $2, $3, $4, 'sent')
+          `INSERT INTO radar_broadcasts (id, request_id, therapist_id)
+           VALUES ($1, $2, $3)
            ON CONFLICT DO NOTHING`,
-          [this.db.generateId(), requestId, match.therapist_id, match.match_score]
+          [this.db.generateId(), requestId, match.therapist_id]
         );
 
         // Emit real-time event to therapist
@@ -173,23 +173,20 @@ export class RadarService {
       `SELECT
          rb.id AS broadcast_id,
          rr.id AS request_id,
-         rr.specialization,
          rr.presenting_issues,
          rr.preferred_language,
-         rr.urgency_level,
-         rr.session_type,
-         rr.budget_min,
-         rr.budget_max,
+         rr.urgency,
+         rr.preferred_session_type,
+         rr.budget_per_session,
          rr.expires_at,
-         rb.match_score,
          EXTRACT(EPOCH FROM (rr.expires_at - NOW())) AS seconds_remaining
        FROM radar_broadcasts rb
        JOIN radar_requests rr ON rr.id = rb.request_id
        WHERE rb.therapist_id = $1
-         AND rb.status = 'sent'
+         AND rb.responded_at IS NULL
          AND rr.status IN ('active', 'matching')
          AND rr.expires_at > NOW()
-       ORDER BY rb.match_score DESC, rr.urgency_level ASC`,
+       ORDER BY rr.urgency ASC`,
       [therapistId]
     );
   }
@@ -205,7 +202,7 @@ export class RadarService {
   ) {
     // Verify the broadcast exists for this therapist
     const broadcast = await this.db.queryOne<{ id: string }>(
-      `SELECT id FROM radar_broadcasts WHERE therapist_id = $1 AND request_id = $2 AND status = 'sent'`,
+      `SELECT id FROM radar_broadcasts WHERE therapist_id = $1 AND request_id = $2 AND responded_at IS NULL`,
       [therapistId, requestId]
     );
 
@@ -236,13 +233,13 @@ export class RadarService {
          ) VALUES ($1, $2, $3, $4, NOW() + INTERVAL '5 minutes', 'waiting', $5, $6, TRUE)`,
         [
           sessionId, organizationId, therapistId, request.patient_id,
-          request.session_type || "video", roomName,
+          request.preferred_session_type || "video", roomName,
         ]
       );
 
       // Update broadcast
       await client.query(
-        `UPDATE radar_broadcasts SET status = 'accepted', responded_at = NOW() WHERE id = $1`,
+        `UPDATE radar_broadcasts SET response = 'accepted', responded_at = NOW() WHERE id = $1`,
         [broadcast.id]
       );
 
@@ -255,8 +252,8 @@ export class RadarService {
 
       // Mark other broadcasts for this request as declined
       await client.query(
-        `UPDATE radar_broadcasts SET status = 'expired'
-         WHERE request_id = $1 AND therapist_id != $2 AND status = 'sent'`,
+        `UPDATE radar_broadcasts SET response = 'expired', responded_at = NOW()
+         WHERE request_id = $1 AND therapist_id != $2 AND responded_at IS NULL`,
         [requestId, therapistId]
       );
 
@@ -293,7 +290,7 @@ export class RadarService {
 
   async declineRequest(therapistId: string, requestId: string, reason?: string) {
     await this.db.execute(
-      `UPDATE radar_broadcasts SET status = 'declined', responded_at = NOW(), decline_reason = $3
+      `UPDATE radar_broadcasts SET response = 'declined', responded_at = NOW(), decline_reason = $3
        WHERE therapist_id = $1 AND request_id = $2`,
       [therapistId, requestId, reason || null]
     );

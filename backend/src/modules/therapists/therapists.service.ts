@@ -141,8 +141,8 @@ export class TherapistsService {
 
     const exceptions = await this.db.query(
       `SELECT * FROM therapist_availability_exceptions
-       WHERE therapist_id = $1 AND date >= CURRENT_DATE
-       ORDER BY date ASC`,
+       WHERE therapist_id = $1 AND exception_date >= CURRENT_DATE
+       ORDER BY exception_date ASC`,
       [therapistId]
     );
 
@@ -166,8 +166,8 @@ export class TherapistsService {
       // Insert new slots
       for (const slot of slots) {
         await client.query(
-          `INSERT INTO therapist_availability (therapist_id, day_of_week, start_time, end_time, is_available)
-           VALUES ($1, $2, $3, $4, $5)`,
+          `INSERT INTO therapist_availability (therapist_id, day_of_week, start_time, end_time, timezone, is_active)
+           VALUES ($1, $2, $3, $4, 'UTC', $5)`,
           [therapistId, slot.day_of_week, slot.start_time, slot.end_time, slot.is_available]
         );
       }
@@ -205,7 +205,7 @@ export class TherapistsService {
       this.db.queryOne<{ count: string }>(
         `SELECT COUNT(DISTINCT p.id) as count FROM patients p
          JOIN therapist_patient_assignments tpa ON tpa.patient_id = p.id
-         WHERE tpa.therapist_id = $1 AND tpa.deleted_at IS NULL AND tpa.is_primary = TRUE AND p.deleted_at IS NULL`,
+         WHERE tpa.therapist_id = $1 AND tpa.ended_at IS NULL AND p.deleted_at IS NULL`,
         [therapist.id]
       ),
       this.db.queryOne<{ count: string }>(
@@ -225,7 +225,7 @@ export class TherapistsService {
 
     // Revenue this month
     const revenue = await this.db.queryOne<{ total: string }>(
-      `SELECT COALESCE(SUM(sf.amount), 0) as total FROM session_fees sf
+      `SELECT COALESCE(SUM(sf.gross_amount), 0) as total FROM session_fees sf
        JOIN sessions s ON s.id = sf.session_id
        WHERE s.therapist_id = $1 AND sf.created_at >= $2 AND sf.status = 'paid'`,
       [therapist.id, monthStart]
@@ -277,7 +277,7 @@ export class TherapistsService {
     queryParams.push(limit, offset);
     const data = await this.db.query(
       `SELECT t.*, u.first_name, u.last_name, u.email, u.avatar_url,
-              (SELECT COUNT(*) FROM therapist_patient_assignments tpa WHERE tpa.therapist_id = t.id AND tpa.deleted_at IS NULL) AS patient_count,
+              (SELECT COUNT(*) FROM therapist_patient_assignments tpa WHERE tpa.therapist_id = t.id AND tpa.ended_at IS NULL) AS patient_count,
               (SELECT COUNT(*) FROM sessions s WHERE s.therapist_id = t.id AND s.status = 'completed') AS session_count
        FROM therapists t
        JOIN users u ON u.id = t.user_id

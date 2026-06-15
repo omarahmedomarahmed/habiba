@@ -28,11 +28,14 @@ export default function DashboardLayout({
   const verificationStatus = useUIStore((s) => s.verificationStatus);
   const setVerificationStatus = useUIStore((s) => s.setVerificationStatus);
   const pathname = usePathname();
+  const [hasHydrated, setHasHydrated] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [countdown, setCountdown] = useState(300);
   const idleRef = useRef<NodeJS.Timeout | null>(null);
   const warnRef = useRef<NodeJS.Timeout | null>(null);
   const absRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => { setHasHydrated(true); }, []);
 
   const handleLogout = useCallback(async () => {
     try { await authAPI.logout(); } catch { /* empty */ }
@@ -53,11 +56,16 @@ export default function DashboardLayout({
   }, [handleLogout]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
     if (!isAuthenticated) { router.push("/login"); return; }
 
     // Refresh token if near expiry
     if (expiresAt && Date.now() > expiresAt - 60000) {
-      authAPI.refresh().catch(() => { clearAuth(); router.push("/login"); });
+      authAPI.refresh().catch((err: any) => {
+        if (err?.response?.status === 401 || err?.status === 401) {
+          clearAuth(); router.push("/login");
+        }
+      });
     }
 
     const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
@@ -71,7 +79,7 @@ export default function DashboardLayout({
       if (warnRef.current) clearTimeout(warnRef.current);
       if (absRef.current) clearTimeout(absRef.current);
     };
-  }, [isAuthenticated, expiresAt, resetIdleTimer, handleLogout, clearAuth, router]);
+  }, [hasHydrated, isAuthenticated, expiresAt, resetIdleTimer, handleLogout, clearAuth, router]);
 
   useEffect(() => {
     if (!showWarning) return;
@@ -95,7 +103,7 @@ export default function DashboardLayout({
   void RESTRICTED_PATHS;
   void pathname;
 
-  if (!isAuthenticated) return null;
+  if (!hasHydrated || !isAuthenticated) return null;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
