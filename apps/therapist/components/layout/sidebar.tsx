@@ -126,7 +126,7 @@ export function Sidebar() {
                 { href: "/analytics",      icon: Activity, label: "Analytics" },
                 { href: "/radar",          icon: Zap,      label: "Radar", badge: "LIVE" },
                 { href: "/ai-workspace",   icon: Brain,    label: "AI Workspace" },
-                { href: "/settings?tab=profile", icon: Link2, label: "Booking Link" },
+                { href: "/booking", icon: Link2, label: "Booking" },
               ].map(({ href, icon: Icon, label, badge }) => (
                 <li key={href}>
                   <Link

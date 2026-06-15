@@ -88,7 +88,7 @@ export default function NewSessionPage() {
       const res = await sessionsAPI.create({
         title: title || "Therapy Session",
         scheduled_at: scheduledAt,
-        session_type: "individual",
+        session_type: "standard",
         modality: "video",
         scribe_enabled: true,
         ...(priceCents ? { session_price_cents: priceCents } : {}),
@@ -129,7 +129,7 @@ export default function NewSessionPage() {
       const res = await sessionsAPI.create({
         title: title || "In-Person Session",
         scheduled_at: scheduledAt,
-        session_type: "individual",
+        session_type: "standard",
         modality: "in_person",
         scribe_enabled: true,
         patient_name: patientName.trim(),

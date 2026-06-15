@@ -26,7 +26,7 @@ const MORE_ITEMS = [
   { label: "Assessments", icon: ClipboardList, href: "/assessments" },
   { label: "Workflows", icon: Briefcase, href: "/workflow" },
   { label: "Settings", icon: Settings, href: "/settings" },
-  { label: "Booking Link", icon: Link2, href: "/settings?tab=profile" },
+  { label: "Booking", icon: Link2, href: "/booking" },
 ];
 
 export function TherapistBottomNav() {
