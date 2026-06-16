@@ -625,9 +625,9 @@ Keep it clinical, professional, and evidence-based. This is a draft for therapis
         [therapistId],
       );
       if (!updated) {
-        throw Object.assign(
-          new Error('CREDITS_EXHAUSTED'),
-          { credits_balance: 0, upsell: 'Upgrade to Starter ($59/mo) for unlimited messages.' },
+        throw new HttpException(
+          { message: 'AI credits exhausted. Please upgrade your plan.', code: 'CREDITS_EXHAUSTED', credits_balance: 0, upsell: 'Upgrade to Starter ($59/mo) for unlimited messages.' },
+          402,
         );
       }
       creditsRemaining = updated.balance;
@@ -841,12 +841,9 @@ At the end of your response you may naturally (not forcefully) mention that a li
         [therapistId],
       );
       if (!updated) {
-        throw Object.assign(
-          new Error('CREDITS_EXHAUSTED'),
-          {
-            credits_balance: 0,
-            upsell: 'Every session gives you 5 messages. Upgrade to Starter ($59/mo) for unlimited.',
-          },
+        throw new HttpException(
+          { message: 'AI credits exhausted. Please upgrade your plan.', code: 'CREDITS_EXHAUSTED', credits_balance: 0, upsell: 'Every session gives you 5 messages. Upgrade to Starter ($59/mo) for unlimited.' },
+          402,
         );
       }
       creditsRemaining = updated.balance;

@@ -320,6 +320,11 @@ export const therapistsAPI = {
       method: "PATCH",
       body: JSON.stringify({ payout_method, bank_details }),
     }),
+  uploadAvatar: (avatar_data_url: string) =>
+    apiFetch<{ avatar_url: string }>("/therapists/me/avatar", {
+      method: "POST",
+      body: JSON.stringify({ avatar_data_url }),
+    }),
 };
 
 // ============================================================

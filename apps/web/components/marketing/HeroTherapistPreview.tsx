@@ -2,20 +2,25 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Star, CheckCircle2, Calendar } from "lucide-react";
+import { Star } from "lucide-react";
 import { getApiUrl } from "@/lib/env";
 
 interface Therapist {
-  id: string;
-  first_name: string;
-  last_name: string;
+  therapist_id?: string;
+  id?: string;
+  display_name?: string;
+  first_name?: string;
+  last_name?: string;
   title?: string;
   specializations?: string[];
-  verification_status?: string;
+  overall_rating?: number;
   average_rating?: number;
   availability?: string;
   public_slug?: string;
+  profile_photo_url?: string;
 }
+
+const FILTER_TABS = ['All', 'Anxiety', 'Trauma', 'Depression', 'Relationships'];
 
 const AVAIL_BADGE: Record<string, { label: string; cls: string }> = {
   today:     { label: "Available today",     cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
@@ -23,8 +28,10 @@ const AVAIL_BADGE: Record<string, { label: string; cls: string }> = {
   next_week: { label: "Next week",           cls: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
 };
 
-function getInitials(first: string, last: string) {
-  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
+function getInitials(displayName: string | undefined): string {
+  if (!displayName) return '?';
+  const parts = displayName.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
 }
 
 function getAvatarGradient(name: string) {
@@ -61,51 +68,95 @@ function SkeletonCard() {
 export function HeroTherapistPreview() {
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('All');
 
   useEffect(() => {
+    setLoading(true);
     const apiUrl = getApiUrl();
-    fetch(`${apiUrl}/marketplace/search?limit=3`, { cache: "no-store" })
+    const params = new URLSearchParams({ limit: '3' });
+    if (activeFilter !== 'All') params.set('specializations', activeFilter);
+
+    fetch(`${apiUrl}/marketplace/search?${params}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        const list: Therapist[] = Array.isArray(data)
+        const list: Therapist[] = Array.isArray(data?.results)
+          ? data.results
+          : Array.isArray(data)
           ? data
           : data?.data ?? data?.therapists ?? [];
         setTherapists(list.slice(0, 3));
       })
       .catch(() => setTherapists([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeFilter]);
 
-  if (!loading && therapists.length === 0) return null;
+  if (!loading && therapists.length === 0 && activeFilter === 'All') return null;
 
   return (
     <div className="mt-8">
       <p className="text-xs text-white/40 font-medium uppercase tracking-widest mb-3 text-center">
         Featured Therapists
       </p>
+
+      {/* Filter tabs */}
+      <div className="flex gap-2 justify-center mb-3 flex-wrap">
+        {FILTER_TABS.map((f) => (
+          <button
+            key={f}
+            onClick={() => setActiveFilter(f)}
+            className={`text-[11px] px-3 py-1 rounded-full border transition-colors ${
+              activeFilter === f
+                ? 'bg-[#2EC4B6]/20 text-[#2EC4B6] border-[#2EC4B6]/40'
+                : 'text-white/40 border-white/15 hover:text-white/60'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {loading
           ? [0, 1, 2].map((i) => <SkeletonCard key={i} />)
+          : therapists.length === 0
+          ? (
+            <div className="col-span-3 text-center py-6 text-white/30 text-sm">
+              No therapists found for this specialty
+            </div>
+          )
           : therapists.map((t, i) => {
-              const name = `${t.first_name} ${t.last_name}`;
+              const name = t.display_name
+                ?? (((t.first_name ?? '') + ' ' + (t.last_name ?? '')).trim() || 'Therapist');
+              const id = t.therapist_id ?? t.id;
               const grad = getAvatarGradient(name);
-              const avail = t.availability ? (AVAIL_BADGE[t.availability] ?? AVAIL_BADGE.this_week) : AVAIL_BADGE.this_week;
-              const href = t.public_slug ? `/t/${t.public_slug}` : `/therapists/${t.id}`;
+              const avail = t.availability
+                ? (AVAIL_BADGE[t.availability] ?? AVAIL_BADGE.this_week)
+                : AVAIL_BADGE.this_week;
+              const href = t.public_slug ? `/t/${t.public_slug}` : `/therapists/${id}`;
               const specs = (t.specializations ?? []).slice(0, 2);
+              const rating = t.overall_rating ?? t.average_rating;
 
               return (
                 <Link
-                  key={t.id}
+                  key={id ?? i}
                   href={href}
                   className="group bg-white/8 hover:bg-white/12 border border-white/12 hover:border-white/25 rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200"
                   style={{ animationDelay: `${i * 80}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`w-11 h-11 rounded-xl bg-gradient-to-br ${grad} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg`}
-                    >
-                      {getInitials(t.first_name, t.last_name)}
-                    </div>
+                    {t.profile_photo_url ? (
+                      <img
+                        src={t.profile_photo_url}
+                        alt={name}
+                        className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className={`w-11 h-11 rounded-xl bg-gradient-to-br ${grad} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg`}
+                      >
+                        {getInitials(name)}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="font-semibold text-white text-sm leading-tight truncate group-hover:text-[#2EC4B6] transition-colors">
                         {name}
@@ -131,12 +182,10 @@ export function HeroTherapistPreview() {
                     <div className="flex items-center gap-1">
                       <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                       <span className="text-xs text-white/60">
-                        {t.average_rating?.toFixed(1) ?? "5.0"}
+                        {rating?.toFixed(1) ?? "5.0"}
                       </span>
                     </div>
-                    <span
-                      className={`text-[10px] border px-2 py-0.5 rounded-full ${avail.cls}`}
-                    >
+                    <span className={`text-[10px] border px-2 py-0.5 rounded-full ${avail.cls}`}>
                       {avail.label}
                     </span>
                   </div>
@@ -144,6 +193,7 @@ export function HeroTherapistPreview() {
               );
             })}
       </div>
+
       <div className="text-center mt-4">
         <Link
           href="/find-therapist"

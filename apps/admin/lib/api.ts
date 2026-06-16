@@ -234,6 +234,10 @@ export const adminAPI = {
     apiFetch<any>(`/therapists/${id}/verify`, { method: 'PATCH', body: JSON.stringify({ verification_status: 'approved' }) }),
   rejectTherapist: (id: string, reason: string) =>
     apiFetch<any>(`/therapists/${id}/verify`, { method: 'PATCH', body: JSON.stringify({ verification_status: 'rejected', rejection_reason: reason }) }),
+  getTherapistProfile: (id: string) =>
+    apiFetch<any>(`/admin/therapists/${id}/profile`),
+  updateTherapistProfile: (id: string, data: any) =>
+    apiFetch<any>(`/admin/therapists/${id}/profile`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   // Payouts
   payoutRequests: (status?: string) =>

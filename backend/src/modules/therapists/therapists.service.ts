@@ -153,7 +153,8 @@ export class TherapistsService {
     day_of_week: number;
     start_time: string;
     end_time: string;
-    is_available: boolean;
+    is_active?: boolean;
+    is_available?: boolean;  // kept for backwards compat
     session_types?: string[];
   }>) {
     await this.db.transaction(async (client) => {
@@ -168,7 +169,7 @@ export class TherapistsService {
         await client.query(
           `INSERT INTO therapist_availability (therapist_id, day_of_week, start_time, end_time, timezone, is_active)
            VALUES ($1, $2, $3, $4, 'UTC', $5)`,
-          [therapistId, slot.day_of_week, slot.start_time, slot.end_time, slot.is_available]
+          [therapistId, slot.day_of_week, slot.start_time, slot.end_time, slot.is_active ?? slot.is_available ?? true]
         );
       }
     });
@@ -400,6 +401,18 @@ export class TherapistsService {
       `UPDATE therapists SET payout_method = $2, bank_details = $3, updated_at = NOW() WHERE id = $1`,
       [therapistId, payoutMethod, JSON.stringify(bankDetails ?? {})],
     );
+  }
+
+  // ============================================================
+  // AVATAR
+  // ============================================================
+
+  async updateAvatar(userId: string, avatarDataUrl: string): Promise<{ avatar_url: string }> {
+    await this.db.execute(
+      `UPDATE users SET avatar_url = $1, updated_at = NOW() WHERE id = $2`,
+      [avatarDataUrl, userId],
+    );
+    return { avatar_url: avatarDataUrl };
   }
 }
 

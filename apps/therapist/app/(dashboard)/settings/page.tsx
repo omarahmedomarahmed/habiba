@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   User, Settings, Bell, Shield, CreditCard, Brain, Building2,
@@ -258,6 +258,32 @@ function TherapistSettingsInner() {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   // Profile state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('Please select an image file.'); return; }
+    if (file.size > 1.5 * 1024 * 1024) { alert('Image must be under 1.5 MB.'); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      setAvatarPreview(dataUrl);
+      setAvatarUploading(true);
+      try {
+        await therapistsAPI.uploadAvatar(dataUrl);
+      } catch {
+        alert('Avatar upload failed. Please try again.');
+        setAvatarPreview(null);
+      } finally {
+        setAvatarUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const [profile, setProfile] = useState({
     first_name: "", last_name: "", email: "",
     phone: "", title: "", credentials: "",
@@ -271,6 +297,7 @@ function TherapistSettingsInner() {
     timezone: "America/New_York",
     session_fee: "",
     sliding_scale: false,
+    avatar_url: "",
   });
   const [specialtyInput, setSpecialtyInput] = useState("");
   const [languageInput, setLanguageInput] = useState("");
@@ -334,6 +361,7 @@ function TherapistSettingsInner() {
             ? data.specializations
             : (Array.isArray(data.specialties) ? data.specialties : prev.specializations),
           languages: Array.isArray(data.languages) && data.languages.length ? data.languages : prev.languages,
+          avatar_url: data.avatar_url || prev.avatar_url,
         }));
         if (data.public_slug || data.booking_slug) setSlug(data.public_slug || data.booking_slug);
       }
@@ -434,12 +462,33 @@ function TherapistSettingsInner() {
                 <SectionCard title="Profile Photo & Identity">
                   <div className="flex items-start gap-6 mb-6">
                     <div className="relative flex-shrink-0">
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0A2342] to-[#2EC4B6] flex items-center justify-center">
-                        <span className="text-white font-bold text-xl">
-                          {`${(profile.first_name || "").charAt(0)}${(profile.last_name || "").charAt(0)}`.toUpperCase() || "?"}
-                        </span>
-                      </div>
-                      <button className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:border-[#2EC4B6]">
+                      {(avatarPreview || profile.avatar_url) ? (
+                        <img
+                          src={avatarPreview || profile.avatar_url}
+                          alt="Profile photo"
+                          className="w-20 h-20 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0A2342] to-[#2EC4B6] flex items-center justify-center">
+                          <span className="text-white font-bold text-xl">
+                            {`${(profile.first_name || "").charAt(0)}${(profile.last_name || "").charAt(0)}`.toUpperCase() || "?"}
+                          </span>
+                        </div>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleAvatarChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading}
+                        className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:border-[#2EC4B6] disabled:opacity-50"
+                        title={avatarUploading ? 'Uploading…' : 'Change photo'}
+                      >
                         <Camera className="w-3.5 h-3.5 text-gray-600" />
                       </button>
                     </div>

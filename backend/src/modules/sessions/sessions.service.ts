@@ -643,7 +643,7 @@ export class SessionsService {
     const session = await this.db.queryOne<any>(
       `SELECT s.id, s.therapist_id, s.session_price_cents, s.patient_payment_status, s.join_token
        FROM sessions s
-       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting')`,
+       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting', 'in_progress')`,
       [joinToken],
     );
     if (!session) throw new NotFoundException('Session not found');
@@ -689,7 +689,7 @@ export class SessionsService {
       `SELECT s.*, t.display_name AS therapist_name, t.user_id AS therapist_user_id
        FROM sessions s
        JOIN therapists t ON t.id = s.therapist_id
-       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting')`,
+       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting', 'in_progress')`,
       [joinToken],
     );
     if (!session) throw new NotFoundException('Session not found or no longer accepting guests');
