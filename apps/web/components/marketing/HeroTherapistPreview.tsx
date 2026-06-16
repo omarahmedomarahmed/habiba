@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { getApiUrl } from "@/lib/env";
+import { getApiUrl, getTherapistAppUrl } from "@/lib/env";
 
 interface Therapist {
   therapist_id?: string;
@@ -132,7 +132,9 @@ export function HeroTherapistPreview() {
               const avail = t.availability
                 ? (AVAIL_BADGE[t.availability] ?? AVAIL_BADGE.this_week)
                 : AVAIL_BADGE.this_week;
-              const href = t.public_slug ? `/t/${t.public_slug}` : `/therapists/${id}`;
+              const href = t.public_slug
+                ? `${getTherapistAppUrl()}/t/${t.public_slug}`
+                : `${getTherapistAppUrl()}/therapists/${id}`;
               const specs = (t.specializations ?? []).slice(0, 2);
               const rating = t.overall_rating ?? t.average_rating;
 

@@ -7,9 +7,10 @@ import {
   ArrowRight, ClipboardList, ChevronRight
 } from "lucide-react";
 import { PublicAssessmentTaker } from "@/components/marketing/PublicAssessmentTaker";
-import { getApiUrl } from "@/lib/env";
+import { getApiUrl, getTherapistAppUrl } from "@/lib/env";
 
 const API_URL = getApiUrl();
+const THERAPIST_APP_URL = getTherapistAppUrl();
 
 interface Therapist {
   id: string;
@@ -175,7 +176,7 @@ export default function ForPatientsPage() {
                 </div>
 
                 <Link
-                  href={t.public_slug ? `/t/${t.public_slug}` : `/therapists/${t.id}`}
+                  href={t.public_slug ? `${THERAPIST_APP_URL}/t/${t.public_slug}` : `${THERAPIST_APP_URL}/therapists/${t.id}`}
                   className="block w-full py-2.5 bg-[#0A2342] text-white text-center text-sm font-semibold rounded-xl hover:bg-[#123A63] transition-colors"
                 >
                   Book Session

@@ -769,7 +769,7 @@ At the end of your response you may naturally (not forcefully) mention that a li
     if (!session) throw new NotFoundException('Session not found');
 
     try {
-      const text = await this.modelGateway.transcribe(file.buffer);
+      const text = await this.modelGateway.transcribe(file.buffer, file.mimetype);
 
       if (!text || !text.trim()) return { text: '', timestamp: new Date().toISOString() };
 

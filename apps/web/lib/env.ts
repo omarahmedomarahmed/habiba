@@ -10,4 +10,8 @@ export function getBaseUrl(): string {
   return getApiUrl().replace(/\/api\/v1\/?$/, '');
 }
 
+export function getTherapistAppUrl(): string {
+  return process.env.NEXT_PUBLIC_THERAPIST_APP_URL || 'https://therapist.24therapy.ai';
+}
+
 // Reviewed: 2026-06-13 — 24Therapy audit

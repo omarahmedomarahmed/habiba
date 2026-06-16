@@ -30,9 +30,9 @@
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20+
 - pnpm 9.15.4 (`npm install -g pnpm@9.15.4`)
-- PostgreSQL (or Neon connection string)
+- PostgreSQL 16 (or Neon connection string)
 
 ### Setup
 ```bash
@@ -74,22 +74,34 @@ CORS_ORIGINS=          # Comma-separated allowed origins
 ```
 RESEND_API_KEY=        # Email (Resend)
 STRIPE_SECRET_KEY=     # Payments
-STRIPE_WEBHOOK_SECRET= # Stripe webhook signature verification
+STRIPE_WEBHOOK_SECRET= # Stripe webhook signature verification — required for production payments
 DAILY_API_KEY=         # Video rooms (Daily.co)
 MESSAGE_ENCRYPTION_KEY=# 32-byte hex key for AES-256-GCM message encryption
 REDIS_URL=             # Optional — not required for core functionality
 SENTRY_DSN=            # Error monitoring
 ```
 
+### Frontend (apps/web)
+```
+NEXT_PUBLIC_API_URL=           # Backend API base URL (e.g. https://habiba-production.up.railway.app/api/v1)
+NEXT_PUBLIC_THERAPIST_APP_URL= # Therapist portal URL (e.g. https://therapist.24therapy.ai)
+```
+
+### Frontend (apps/therapist, apps/patient, apps/admin)
+```
+NEXT_PUBLIC_API_URL=           # Backend API base URL
+```
+
 ## Database
 
-Migrations are in `migrations/` (numbered 001–033). Run them in order:
+Migrations are in `migrations/` (numbered 001–034). Run them in order:
 
 ```bash
 node scripts/migrate.js
 ```
 
-All 16 consolidated migrations (001–016) plus numbered patches (029–033) must be applied in order.
+All 16 consolidated migrations (001–016) plus numbered patches (029–034) must be applied in order.
+Migration 034 drops NOT NULL on `ai_session_notes.patient_id` (offline session support), adds `radar_requests.matched_at/matched_therapist_id`, and creates the `crm_leads` table.
 
 ## Architecture
 
@@ -106,6 +118,7 @@ backend/src/
     radar/        # Real-time therapist matching
     crisis/       # Life-safety pipeline (HIPAA-compliant, no PHI in events)
     admin/        # Platform-wide admin dashboard
+    crm/          # CRM leads pipeline (admin sales)
     ...
   database/       # DatabaseService (query/queryOne/transaction helpers)
   gateways/       # Socket.io WebSocket gateways
@@ -120,6 +133,7 @@ backend/src/
 - **Session types**: Valid values are `standard|radar|group|phone|in_person|intake|follow_up` (NOT `individual`).
 - **Migration columns**: Sessions table has optional columns from migrations 029-031. Backend uses try-catch fallback to base schema for production DBs that may not have run these migrations.
 - **therapist_patient_assignments**: Uses `ended_at` (not `deleted_at`), has no `is_primary` column.
+- **Audio transcription**: MediaRecorder MIME type is detected at runtime (`audio/webm;codecs=opus` → `audio/webm` → `audio/ogg` → `audio/mp4`) so Android Chrome mp4 audio is transcribed correctly.
 - **Crisis safety**: Patient WebSocket events are ONLY `crisis_support` — never `crisis_alert`, never risk level.
 
 ## CI / Deployment
