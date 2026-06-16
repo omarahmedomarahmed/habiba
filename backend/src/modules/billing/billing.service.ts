@@ -1382,7 +1382,8 @@ export class BillingService {
   async handleWebhook(payload: Buffer, signature: string) {
     const webhookSecret = this.config.get<string>("stripe.webhookSecret");
     if (!webhookSecret) {
-      throw new BadRequestException("Stripe webhook secret not configured — set STRIPE_WEBHOOK_SECRET");
+      this.logger.error('STRIPE_WEBHOOK_SECRET not set — Stripe payment confirmations will not process. Set this env var in Railway.');
+      throw new BadRequestException("Stripe webhook not configured on this server");
     }
 
     let event: Stripe.Event;

@@ -239,12 +239,16 @@ export default function SessionRoomPage() {
     // Start browser audio capture for live transcription
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', 'audio/mp4']
+        .find(t => MediaRecorder.isTypeSupported(t)) || '';
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const actualMime = recorder.mimeType || mimeType || 'audio/webm';
+      const ext = actualMime.split('/')[1]?.split(';')[0] || 'webm';
       recorder.ondataavailable = async (e) => {
         if (e.data.size < 500 || isMuted || isAiPausedRef.current || !accessToken) return;
         try {
           const form = new FormData();
-          form.append('audio', e.data, 'chunk.webm');
+          form.append('audio', e.data, `chunk.${ext}`);
           await fetch(
             `${getApiUrl()}/ai/sessions/${id}/transcribe`,
             { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }

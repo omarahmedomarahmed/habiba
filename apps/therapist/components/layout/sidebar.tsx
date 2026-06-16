@@ -59,7 +59,8 @@ export function Sidebar() {
     if (key === "starter") return { label: "Starter", color: "bg-blue-100 text-blue-700" };
     if (key === "pro")     return { label: "Unlimited", color: "bg-purple-100 text-purple-700" };
     if (key === "practice") return { label: "Practice", color: "bg-teal-100 text-teal-700" };
-    return { label: "Enterprise", color: "bg-slate-100 text-slate-600" };
+    if (key === "enterprise") return { label: "Enterprise", color: "bg-slate-100 text-slate-600" };
+    return null;  // unknown or null plan — show nothing instead of "Enterprise"
   };
 
   const badge = planBadge();

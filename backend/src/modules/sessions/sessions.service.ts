@@ -331,20 +331,31 @@ export class SessionsService {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(' ') || null;
 
+    // Validate that therapistId is actually in the therapists table (not a bare user UUID)
+    const validTherapist = therapistId
+      ? await this.db.queryOne(
+          `SELECT id FROM therapists WHERE id = $1 AND deleted_at IS NULL`,
+          [therapistId],
+        )
+      : null;
+    const safeTherapistId = validTherapist ? therapistId : null;
+
     await this.db.execute(
       `INSERT INTO patients (id, organization_id, primary_therapist_id, first_name, last_name, email, source, status)
        VALUES ($1, $2, $3, $4, $5, $6, 'offline_session', 'active')`,
-      [patientId, orgId, therapistId, firstName, lastName, email?.toLowerCase() || null],
+      [patientId, orgId, safeTherapistId, firstName, lastName, email?.toLowerCase() || null],
     );
     await this.db.execute(
       `INSERT INTO patient_profiles (id, patient_id) VALUES ($1, $2)`,
       [uuidv4(), patientId],
     );
-    await this.db.execute(
-      `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
-       VALUES ($1, $2, $3, $4, $5) ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
-      [uuidv4(), therapistId, patientId, orgId, therapistId],
-    );
+    if (safeTherapistId) {
+      await this.db.execute(
+        `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
+         VALUES ($1, $2, $3, $4, $5) ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
+        [uuidv4(), safeTherapistId, patientId, orgId, safeTherapistId],
+      );
+    }
 
     return patientId;
   }
@@ -390,7 +401,7 @@ export class SessionsService {
 
     const validTransitions: Record<string, string[]> = {
       scheduled: ['waiting', 'in_progress', 'cancelled', 'no_show'],
-      waiting: ['in_progress', 'cancelled'],
+      waiting: ['in_progress', 'cancelled', 'completed'],
       in_progress: ['completed', 'cancelled'],
       completed: ['archived'],
       cancelled: [],

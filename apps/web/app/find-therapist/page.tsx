@@ -76,9 +76,10 @@ function MatchScore({ score }: { score: number }) {
   );
 }
 
-import { getApiUrl } from '@/lib/env';
+import { getApiUrl, getTherapistAppUrl } from '@/lib/env';
 
 const API_URL = getApiUrl();
+const THERAPIST_APP_URL = getTherapistAppUrl();
 
 function computeMatchScore(t: any, query: string, specs: string[]): number {
   let score = 50;
@@ -240,7 +241,7 @@ export default function FindTherapistPage() {
                 </div>
                 <div className="flex gap-3">
                   <Link
-                    href={t.public_slug ? `/t/${t.public_slug}` : `/find-therapist`}
+                    href={t.public_slug ? `${THERAPIST_APP_URL}/t/${t.public_slug}` : `${THERAPIST_APP_URL}/therapists/${t.id}`}
                     className="flex-1 py-3 bg-white text-[#0A2342] rounded-xl font-semibold hover:bg-white/90 text-sm text-center"
                   >
                     Book Session
@@ -424,13 +425,13 @@ export default function FindTherapistPage() {
 
               <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
                 <Link
-                  href={`/therapists/${t.id}`}
+                  href={`${THERAPIST_APP_URL}/therapists/${t.id}`}
                   className="flex-1 py-2.5 border border-[#0A2342] text-[#0A2342] rounded-xl text-sm font-medium hover:bg-slate-50 text-center"
                 >
                   View Profile
                 </Link>
                 <Link
-                  href={t.public_slug ? `/t/${t.public_slug}` : `/signup`}
+                  href={t.public_slug ? `${THERAPIST_APP_URL}/t/${t.public_slug}` : `${THERAPIST_APP_URL}/therapists/${t.id}`}
                   className="flex-1 py-2.5 bg-[#0A2342] text-white rounded-xl text-sm font-semibold hover:bg-[#123A63] text-center"
                 >
                   Book Now

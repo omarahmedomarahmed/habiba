@@ -163,14 +163,16 @@ export class ModelGatewayService {
     return response.data[0].embedding;
   }
 
-  async transcribe(audioBuffer: Buffer, language?: string): Promise<string> {
+  async transcribe(audioBuffer: Buffer, mimeType?: string, language?: string): Promise<string> {
     if (!this.openai) {
       return '[Transcription requires OpenAI API key]';
     }
 
     // Use OpenAI's toFile() helper — works with Node.js Buffer (unlike browser File constructor)
     const { toFile } = await import('openai');
-    const audioFile = await toFile(audioBuffer, 'audio.webm', { type: 'audio/webm' });
+    const mime = mimeType || 'audio/webm';
+    const ext = mime.split('/')[1]?.split(';')[0] || 'webm';
+    const audioFile = await toFile(audioBuffer, `audio.${ext}`, { type: mime });
 
     const response = await this.openai.audio.transcriptions.create({
       model: 'whisper-1',
