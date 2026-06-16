@@ -36,8 +36,9 @@ export class MarketplaceService {
   // ============================================================
 
   /**
-   * Primary marketplace search using PostgreSQL search_marketplace() function
-   * Supports full-text, filters, sorting, and pagination
+   * Marketplace search — queries therapists table directly.
+   * Replaces broken search_marketplace() stored-function call (wrong arg count).
+   * Approved therapists appear immediately without needing marketplace_listings rows.
    */
   async search(options: SearchOptions) {
     const {
@@ -46,10 +47,6 @@ export class MarketplaceService {
       languages = [],
       minPrice,
       maxPrice,
-      minRating,
-      acceptsInsurance,
-      availableNow,
-      sessionFormats = [],
       sortBy = 'relevance',
       page = 1,
       limit = 20,
@@ -58,37 +55,76 @@ export class MarketplaceService {
     } = options;
 
     const offset = (page - 1) * limit;
+    const params: any[] = [];
 
-    // Use the DB search_marketplace function for semantic + filter search
+    let whereClause = `t.verification_status = 'approved' AND t.deleted_at IS NULL`;
+
+    // Full-text filter
+    if (query) {
+      params.push(`%${query}%`);
+      const idx = params.length;
+      whereClause += ` AND (
+        COALESCE(t.display_name, u.first_name || ' ' || u.last_name) ILIKE $${idx}
+        OR t.bio ILIKE $${idx}
+        OR u.first_name ILIKE $${idx}
+        OR u.last_name ILIKE $${idx}
+      )`;
+    }
+
+    if (specializations.length > 0) {
+      params.push(specializations);
+      whereClause += ` AND t.specializations && $${params.length}::text[]`;
+    }
+
+    if (languages.length > 0) {
+      params.push(languages);
+      whereClause += ` AND t.languages && $${params.length}::text[]`;
+    }
+
+    if (minPrice !== undefined) {
+      params.push(minPrice);
+      whereClause += ` AND (t.session_fee_min IS NULL OR t.session_fee_min >= $${params.length})`;
+    }
+
+    if (maxPrice !== undefined) {
+      params.push(maxPrice);
+      whereClause += ` AND (t.session_fee_max IS NULL OR t.session_fee_max <= $${params.length})`;
+    }
+
+    const orderBy = sortBy === 'price_asc' ? 't.session_fee_min ASC NULLS LAST'
+      : sortBy === 'price_desc' ? 't.session_fee_max DESC NULLS LAST'
+      : sortBy === 'rating' ? 't.rating DESC NULLS LAST'
+      : 't.rating DESC NULLS LAST, t.created_at DESC'; // relevance default
+
+    const countRow = await this.db.queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM therapists t JOIN users u ON u.id = t.user_id WHERE ${whereClause}`,
+      params,
+    );
+    const total = parseInt(countRow?.count || '0', 10);
+
+    params.push(limit, offset);
     const results = await this.db.query(
-      `SELECT * FROM search_marketplace(
-        $1::text,
-        $2::text[],
-        $3::text[],
-        $4::numeric,
-        $5::numeric,
-        $6::numeric,
-        $7::boolean,
-        $8::boolean,
-        $9::text[],
-        $10::text,
-        $11::integer,
-        $12::integer
-      )`,
-      [
-        query || null,
-        specializations.length > 0 ? specializations : null,
-        languages.length > 0 ? languages : null,
-        minPrice ?? null,
-        maxPrice ?? null,
-        minRating ?? null,
-        acceptsInsurance ?? null,
-        availableNow ?? null,
-        sessionFormats.length > 0 ? sessionFormats : null,
-        sortBy,
-        limit,
-        offset,
-      ],
+      `SELECT
+         t.id AS therapist_id,
+         t.id AS listing_id,
+         COALESCE(t.display_name, u.first_name || ' ' || u.last_name) AS display_name,
+         t.bio AS about,
+         t.specializations,
+         t.languages,
+         t.years_experience,
+         t.session_fee_min AS session_rate_min,
+         t.session_fee_max AS session_rate_max,
+         t.rating AS overall_rating,
+         t.review_count AS total_reviews,
+         t.accepting_new_patients AS accepting_patients,
+         t.public_slug,
+         u.avatar_url AS profile_photo_url
+       FROM therapists t
+       JOIN users u ON u.id = t.user_id
+       WHERE ${whereClause}
+       ORDER BY ${orderBy}
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
     );
 
     // Track search analytics
@@ -96,35 +132,7 @@ export class MarketplaceService {
       this.trackSearch(searcherId, organizationId, query, options, results.length).catch(() => {});
     }
 
-    const totalRow = results[0];
-    const total = totalRow ? parseInt((totalRow as any).total_count || '0', 10) : 0;
-
-    // Augment results with therapists.public_slug for booking page links
-    let slugMap: Record<string, string> = {};
-    if (results.length > 0) {
-      const therapistIds = results.map((r: any) => r.therapist_id).filter(Boolean);
-      if (therapistIds.length > 0) {
-        const slugRows = await this.db.query(
-          `SELECT id, public_slug FROM therapists WHERE id = ANY($1::uuid[]) AND public_slug IS NOT NULL`,
-          [therapistIds],
-        );
-        for (const row of slugRows as any[]) {
-          slugMap[row.id] = row.public_slug;
-        }
-      }
-    }
-    const augmentedResults = results.map((r: any) => ({
-      ...r,
-      public_slug: slugMap[r.therapist_id] ?? null,
-    }));
-
-    return {
-      results: augmentedResults,
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
-    };
+    return { results, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
   private async trackSearch(

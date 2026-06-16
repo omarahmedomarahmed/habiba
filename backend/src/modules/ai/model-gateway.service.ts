@@ -168,9 +168,13 @@ export class ModelGatewayService {
       return '[Transcription requires OpenAI API key]';
     }
 
+    // Use OpenAI's toFile() helper — works with Node.js Buffer (unlike browser File constructor)
+    const { toFile } = await import('openai');
+    const audioFile = await toFile(audioBuffer, 'audio.webm', { type: 'audio/webm' });
+
     const response = await this.openai.audio.transcriptions.create({
       model: 'whisper-1',
-      file: new File([audioBuffer as unknown as BlobPart], 'audio.webm', { type: 'audio/webm' }),
+      file: audioFile,
       language,
     });
 

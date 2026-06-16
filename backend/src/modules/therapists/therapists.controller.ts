@@ -64,10 +64,13 @@ export class TherapistsController {
   @Get()
   @ApiOperation({ summary: "List therapists in organization" })
   findAll(
-    @Request() req: { user: { organizationId: string } },
+    @Request() req: { user: { organizationId: string; role: string } },
     @Query() query: { search?: string; status?: string; limit?: string; offset?: string }
   ) {
-    return this.therapistsService.findAll(req.user.organizationId, {
+    // Super admins and admins see ALL therapists across all orgs
+    const isSuperAdmin = ['super_admin', 'admin'].includes(req.user.role);
+    const orgId = isSuperAdmin ? undefined : req.user.organizationId;
+    return this.therapistsService.findAll(orgId, {
       ...query,
       limit: query.limit ? parseInt(query.limit) : undefined,
       offset: query.offset ? parseInt(query.offset) : undefined,

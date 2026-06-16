@@ -246,13 +246,16 @@ export class TherapistsService {
   // ============================================================
 
   async findAll(
-    organizationId: string,
+    organizationId: string | undefined,
     params: { search?: string; status?: string; limit?: number; offset?: number }
   ) {
     const { search, status, limit = 20, offset = 0 } = params;
 
-    let whereClause = `WHERE t.organization_id = $1 AND t.deleted_at IS NULL`;
-    const queryParams: unknown[] = [organizationId];
+    // Omit org filter when organizationId is undefined (super_admin / admin — sees all orgs)
+    let whereClause = organizationId
+      ? `WHERE t.organization_id = $1 AND t.deleted_at IS NULL`
+      : `WHERE t.deleted_at IS NULL`;
+    const queryParams: unknown[] = organizationId ? [organizationId] : [];
 
     if (status) {
       const verificationStatuses = ['pending', 'under_review', 'approved', 'rejected', 'suspended'];

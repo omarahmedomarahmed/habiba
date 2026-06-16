@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger, forwardRef, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, BadRequestException, HttpException, forwardRef, Inject } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { DatabaseService } from '../../database/database.service';
 import { ModelGatewayService } from './model-gateway.service';
@@ -760,7 +760,7 @@ At the end of your response you may naturally (not forcefully) mention that a li
   }
 
   async transcribeAudio(sessionId: string, orgId: string, file: Express.Multer.File) {
-    if (!file) throw new Error('No audio file provided');
+    if (!file?.buffer?.length) throw new BadRequestException('No audio data received');
 
     const session = await this.db.queryOne<any>(
       'SELECT * FROM sessions WHERE id = $1 AND organization_id = $2',
@@ -768,18 +768,23 @@ At the end of your response you may naturally (not forcefully) mention that a li
     );
     if (!session) throw new NotFoundException('Session not found');
 
-    const text = await this.modelGateway.transcribe(file.buffer);
+    try {
+      const text = await this.modelGateway.transcribe(file.buffer);
 
-    if (!text || !text.trim()) return { text: '', timestamp: new Date().toISOString() };
+      if (!text || !text.trim()) return { text: '', timestamp: new Date().toISOString() };
 
-    // Add to session transcript
-    await this.addTranscriptSegment(sessionId, orgId, {
-      text: text.trim(),
-      speaker: 'patient',
-      timestamp: new Date().toISOString(),
-    });
+      // Add to session transcript
+      await this.addTranscriptSegment(sessionId, orgId, {
+        text: text.trim(),
+        speaker: 'patient',
+        timestamp: new Date().toISOString(),
+      });
 
-    return { text: text.trim(), timestamp: new Date().toISOString() };
+      return { text: text.trim(), timestamp: new Date().toISOString() };
+    } catch (err: any) {
+      this.logger.error(`Transcription failed for session (no PHI): ${err?.message}`);
+      throw new HttpException('Transcription failed', 500);
+    }
   }
 
   private async addTranscriptSegment(sessionId: string, orgId: string, dto: any) {

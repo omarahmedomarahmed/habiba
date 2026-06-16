@@ -1,14 +1,12 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthGuard } from '@nestjs/passport';
 import { SessionsService } from './sessions.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('sessions')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('sessions')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
