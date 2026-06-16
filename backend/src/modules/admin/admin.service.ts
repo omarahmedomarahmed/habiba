@@ -34,7 +34,7 @@ export class AdminService {
         (SELECT COUNT(*) FROM users WHERE role='therapist') as total_therapists,
         (SELECT COUNT(*) FROM users WHERE role='patient') as total_patients,
         (SELECT COUNT(*) FROM sessions WHERE status='completed') as total_sessions,
-        (SELECT COALESCE(SUM(amount),0) FROM billing_transactions WHERE status='completed') as total_revenue,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM session_charges WHERE status='paid') as total_revenue,
         (SELECT COUNT(*) FROM ai_usage_log) as total_ai_calls,
         (SELECT COALESCE(SUM(cost_usd),0) FROM ai_usage_log) as total_ai_cost`,
       [],
@@ -55,7 +55,8 @@ export class AdminService {
 
   private async getRecentUsers() {
     return this.db.query(
-      `SELECT u.id, u.full_name, u.email, u.role, u.created_at, u.last_login_at,
+      `SELECT u.id, COALESCE(u.first_name || ' ' || u.last_name, u.email) AS full_name,
+        u.email, u.role, u.created_at, u.last_login_at,
         o.name as organization_name
        FROM users u
        LEFT JOIN organizations o ON o.id = u.organization_id
@@ -129,7 +130,7 @@ export class AdminService {
         (SELECT COUNT(*) FROM users WHERE organization_id=o.id AND role='therapist' AND deleted_at IS NULL) as therapist_count,
         (SELECT COUNT(*) FROM users WHERE organization_id=o.id AND role='patient' AND deleted_at IS NULL) as patient_count,
         (SELECT COUNT(*) FROM sessions WHERE organization_id=o.id AND status='completed') as total_sessions,
-        (SELECT COALESCE(SUM(amount),0) FROM billing_transactions WHERE organization_id=o.id AND status='completed') as total_revenue
+        (SELECT COALESCE(SUM(amount_usd),0) FROM session_charges WHERE organization_id=o.id AND status='paid') as total_revenue
        FROM organizations o
        WHERE ${where.join(' AND ')}
        ORDER BY created_at DESC
@@ -151,9 +152,9 @@ export class AdminService {
         (SELECT COUNT(*) FROM users WHERE organization_id=o.id AND role='patient') as patient_count,
         (SELECT COUNT(*) FROM sessions WHERE organization_id=o.id) as total_sessions,
         (SELECT COUNT(*) FROM sessions WHERE organization_id=o.id AND status='completed') as completed_sessions,
-        (SELECT COALESCE(SUM(amount),0) FROM billing_transactions WHERE organization_id=o.id AND status='completed') as total_revenue,
-        (SELECT COUNT(*) FROM ai_usage_log WHERE organization_id=o.id) as ai_calls,
-        (SELECT COALESCE(SUM(cost_usd),0) FROM ai_usage_log WHERE organization_id=o.id) as ai_cost
+        (SELECT COALESCE(SUM(amount_usd),0) FROM session_charges WHERE organization_id=o.id AND status='paid') as total_revenue,
+        (SELECT COUNT(*) FROM ai_request_logs WHERE organization_id=o.id) as ai_calls,
+        (SELECT COALESCE(SUM(cost_usd),0) FROM ai_request_logs WHERE organization_id=o.id) as ai_cost
        FROM organizations o WHERE o.id=$1 AND o.deleted_at IS NULL`,
       [orgId],
     );
@@ -226,17 +227,21 @@ export class AdminService {
     const params: any[] = [];
     const where: string[] = ['u.deleted_at IS NULL'];
 
-    if (search) { params.push(`%${search}%`); where.push(`(u.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`); }
+    if (search) { params.push(`%${search}%`); where.push(`(u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`); }
     if (role) { params.push(role); where.push(`u.role = $${params.length}`); }
     if (org_id) { params.push(org_id); where.push(`u.organization_id = $${params.length}`); }
-    if (status) { params.push(status === 'verified'); where.push(`u.email_verified = $${params.length}`); }
+    if (status) { params.push(status === 'verified' ? true : status); where.push(`u.email_verified_at IS ${status === 'verified' ? 'NOT ' : ''}NULL`); }
     if (cursor) { params.push(cursor); where.push(`u.created_at < (SELECT created_at FROM users WHERE id = $${params.length})`); }
 
     params.push(Math.min(Number(limit), 100));
 
     const users = await this.db.query(
-      `SELECT u.id, u.full_name, u.email, u.role, u.email_verified, u.last_login_at,
-        u.created_at, u.is_active, o.name as organization_name, o.id as organization_id
+      `SELECT u.id,
+         COALESCE(u.first_name || ' ' || u.last_name, u.email) AS full_name,
+         u.first_name, u.last_name, u.email, u.role, u.status,
+         u.email_verified_at IS NOT NULL AS email_verified,
+         u.last_login_at, u.created_at, u.organization_id,
+         o.name as organization_name
        FROM users u
        LEFT JOIN organizations o ON o.id = u.organization_id
        WHERE ${where.join(' AND ')}
@@ -315,7 +320,7 @@ export class AdminService {
 
     const entries = await this.db.query(
       `SELECT al.*,
-        u.full_name as actor_name, u.email as actor_email, u.role as actor_role,
+        COALESCE(u.first_name || ' ' || u.last_name, u.email) as actor_name, u.email as actor_email, u.role as actor_role,
         o.name as organization_name
        FROM audit_log al
        LEFT JOIN users u ON u.id = al.actor_id
@@ -457,7 +462,7 @@ export class AdminService {
     params.push(Math.min(Number(limit), 100));
 
     return this.db.query(
-      `SELECT m.*, u.full_name as creator_name, o.name as creator_org
+      `SELECT m.*, COALESCE(u.first_name || ' ' || u.last_name, u.email) as creator_name, o.name as creator_org
        FROM marketplace_tools m
        LEFT JOIN users u ON u.id = m.creator_id
        LEFT JOIN organizations o ON o.id = m.organization_id
@@ -529,12 +534,12 @@ export class AdminService {
   async getBillingOverview() {
     const result = await this.db.queryOne<any>(
       `SELECT
-        COALESCE(SUM(CASE WHEN status='completed' THEN amount END), 0) as total_revenue,
-        COALESCE(SUM(CASE WHEN status='completed' AND created_at > NOW() - INTERVAL '30 days' THEN amount END), 0) as monthly_revenue,
+        COALESCE(SUM(CASE WHEN status='paid' THEN amount_usd END), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN status='paid' AND charged_at > NOW() - INTERVAL '30 days' THEN amount_usd END), 0) as monthly_revenue,
         COUNT(CASE WHEN status='pending' THEN 1 END) as pending_transactions,
         COUNT(CASE WHEN status='failed' THEN 1 END) as failed_transactions,
         COUNT(DISTINCT organization_id) as billing_orgs
-       FROM billing_transactions`,
+       FROM session_charges`,
       [],
     ).catch(() => ({}));
     return result;
@@ -661,6 +666,98 @@ export class AdminService {
        LIMIT $1`,
       [Math.min(Number(limit), 200)],
     ).catch(() => []);
+  }
+
+  // ─── User Impersonation ───────────────────────────────────────────────────
+
+  async impersonateUser(targetUserId: string, adminId: string) {
+    const user = await this.db.queryOne<any>(
+      `SELECT u.id, u.email, u.role, u.organization_id,
+         u.first_name, u.last_name, u.status,
+         t.id AS therapist_id, p.id AS patient_id
+       FROM users u
+       LEFT JOIN therapists t ON t.user_id = u.id AND t.deleted_at IS NULL
+       LEFT JOIN patients p ON p.user_id = u.id AND p.deleted_at IS NULL
+       WHERE u.id = $1 AND u.deleted_at IS NULL`,
+      [targetUserId],
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.db.execute(
+      `INSERT INTO phi_access_log (user_id, action, resource_type, resource_id, created_at)
+       VALUES ($1, 'admin_impersonate', 'user', $2, NOW())`,
+      [adminId, targetUserId],
+    ).catch(() => null);
+
+    const jwtSecret = this.config.get<string>('jwt.secret') ?? this.config.get<string>('JWT_SECRET') ?? '';
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        org: user.organization_id,
+        role: user.role,
+        impersonated_by: adminId,
+      },
+      jwtSecret,
+      { expiresIn: '1h' },
+    );
+
+    return {
+      impersonation_token: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim(),
+      },
+      expires_in: 3600,
+    };
+  }
+
+  // ─── Admin Therapist Profile ──────────────────────────────────────────────
+
+  async getTherapistProfile(therapistId: string) {
+    const profile = await this.db.queryOne<any>(
+      `SELECT t.*, u.email, u.first_name, u.last_name, u.avatar_url,
+              u.status AS user_status, u.last_login_at
+       FROM therapists t
+       JOIN users u ON u.id = t.user_id
+       WHERE t.id = $1 AND t.deleted_at IS NULL`,
+      [therapistId],
+    );
+    if (!profile) throw new NotFoundException('Therapist not found');
+    return profile;
+  }
+
+  async updateTherapistProfile(therapistId: string, dto: any) {
+    const allowed = [
+      'display_name', 'bio', 'specialty', 'specializations', 'languages',
+      'years_experience', 'location', 'verification_status', 'accepting_new_patients',
+    ];
+    const sets: string[] = [];
+    const values: any[] = [therapistId];
+
+    for (const key of allowed) {
+      if (dto[key] !== undefined) {
+        values.push(dto[key]);
+        sets.push(`${key} = $${values.length}`);
+      }
+    }
+
+    if (!sets.length) return this.getTherapistProfile(therapistId);
+
+    values.push(new Date().toISOString());
+    sets.push(`updated_at = $${values.length}`);
+
+    const updated = await this.db.queryOne(
+      `UPDATE therapists SET ${sets.join(', ')}
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING *`,
+      values,
+    );
+    if (!updated) throw new NotFoundException('Therapist not found');
+    return updated;
   }
 }
 

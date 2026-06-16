@@ -118,11 +118,10 @@ export default function AIGovernancePage() {
             enabled: true,
             fallback_model: null,
           })));
-        } else {
-          setLiveModels(MODEL_PERFORMANCE);
         }
+        // If no data, leave liveModels as [] — empty state rendered below
       })
-      .catch(() => { setLiveModels(MODEL_PERFORMANCE); })
+      .catch(() => { /* leave liveModels as [] */ })
       .finally(() => setModelLoading(false));
   }, []);
 
@@ -198,6 +197,13 @@ export default function AIGovernancePage() {
       {/* Models Tab */}
       {activeTab === 'models' && (
         <div className="space-y-3">
+          {!modelLoading && liveModels.length === 0 && (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-16 text-center">
+              <Brain className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No AI usage data yet</p>
+              <p className="text-xs text-gray-600 mt-1">Model performance metrics will appear here once the platform processes AI requests.</p>
+            </div>
+          )}
           {liveModels.map((model) => (
             <div key={model.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-all">
               <div className="flex items-start justify-between mb-4">

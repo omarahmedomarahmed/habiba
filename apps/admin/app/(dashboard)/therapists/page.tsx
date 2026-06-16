@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   User, Search, CheckCircle, XCircle, Clock, Star,
   Eye, Mail, AlertTriangle, MoreHorizontal, Download, RefreshCw,
-  ChevronRight, Shield
+  ChevronRight, Shield, X, Save, Loader2
 } from 'lucide-react';
 import { adminAPI, APIError } from '@/lib/api';
 import { exportCSV } from '@/lib/csv';
@@ -53,6 +53,50 @@ export default function TherapistsPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [page, setPage] = useState(1);
   const LIMIT = 20;
+
+  // Inline profile edit panel state
+  const [profilePanelId, setProfilePanelId] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const openProfilePanel = async (id: string) => {
+    setProfilePanelId(id);
+    setProfileData(null);
+    setProfileLoading(true);
+    setProfileSaved(false);
+    try {
+      const data = await adminAPI.getTherapistProfile(id);
+      setProfileData(data);
+    } catch {
+      setProfileData({ error: 'Failed to load profile' });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!profilePanelId || !profileData) return;
+    setProfileSaving(true);
+    try {
+      const updated = await adminAPI.updateTherapistProfile(profilePanelId, {
+        bio: profileData.bio,
+        display_name: profileData.display_name,
+        years_experience: profileData.years_experience,
+        location: profileData.location,
+        accepting_new_patients: profileData.accepting_new_patients,
+        verification_status: profileData.verification_status,
+      });
+      setProfileData((p: any) => ({ ...p, ...updated }));
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    } catch {
+      alert('Failed to save profile changes');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const handleExportCSV = () => {
     exportCSV(
@@ -379,10 +423,10 @@ export default function TherapistsPage() {
                           </>
                         )}
                         <button
-                          onClick={() => therapist.public_slug ? window.open(`/t/${therapist.public_slug}`, '_blank') : window.open(`/therapists/${therapist.id}`, '_blank')}
-                          className="w-full flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-xs transition-all">
+                          onClick={() => openProfilePanel(therapist.id)}
+                          className="w-full flex items-center gap-2 px-3 py-2 bg-blue-900/40 border border-blue-700/40 text-blue-300 hover:text-blue-200 rounded-lg text-xs transition-all">
                           <Eye className="w-3.5 h-3.5" />
-                          View Full Profile
+                          Edit Profile
                         </button>
                         <button
                           onClick={() => therapist.email && window.open(`mailto:${therapist.email}`, '_blank')}
@@ -427,6 +471,126 @@ export default function TherapistsPage() {
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Therapist Profile Edit Panel */}
+      {profilePanelId && (
+        <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/50" onClick={() => setProfilePanelId(null)}>
+          <div
+            className="w-full max-w-md h-full bg-gray-950 border-l border-gray-800 flex flex-col overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 sticky top-0 bg-gray-950 z-10">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-semibold text-white">Edit Therapist Profile</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={saveProfile}
+                  disabled={profileSaving || profileLoading || !profileData || !!profileData?.error}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium disabled:opacity-40 transition-all"
+                >
+                  {profileSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : profileSaved ? <CheckCircle className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                  {profileSaved ? 'Saved!' : 'Save Changes'}
+                </button>
+                <button onClick={() => setProfilePanelId(null)} className="p-1.5 hover:bg-gray-800 rounded text-gray-500 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Panel body */}
+            <div className="flex-1 p-5">
+              {profileLoading && (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                </div>
+              )}
+              {!profileLoading && profileData?.error && (
+                <p className="text-sm text-red-400 py-10 text-center">{profileData.error}</p>
+              )}
+              {!profileLoading && profileData && !profileData.error && (
+                <div className="space-y-4">
+                  <div className="bg-gray-900 rounded-xl p-4 text-xs text-gray-400 space-y-1">
+                    <p><span className="text-gray-500">Email:</span> {profileData.email}</p>
+                    <p><span className="text-gray-500">Status:</span> {profileData.user_status ?? '—'}</p>
+                    <p><span className="text-gray-500">Last login:</span> {profileData.last_login_at ? new Date(profileData.last_login_at).toLocaleString() : 'Never'}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Display Name</label>
+                    <input
+                      value={profileData.display_name ?? `${profileData.first_name ?? ''} ${profileData.last_name ?? ''}`.trim()}
+                      onChange={(e) => setProfileData((p: any) => ({ ...p, display_name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Bio</label>
+                    <textarea
+                      rows={4}
+                      value={profileData.bio ?? ''}
+                      onChange={(e) => setProfileData((p: any) => ({ ...p, bio: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Years Experience</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={profileData.years_experience ?? ''}
+                        onChange={(e) => setProfileData((p: any) => ({ ...p, years_experience: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Location</label>
+                      <input
+                        value={profileData.location ?? ''}
+                        onChange={(e) => setProfileData((p: any) => ({ ...p, location: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Verification Status</label>
+                      <select
+                        value={profileData.verification_status ?? 'pending'}
+                        onChange={(e) => setProfileData((p: any) => ({ ...p, verification_status: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="under_review">Under Review</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </div>
+                    <div className="flex items-end pb-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={profileData.accepting_new_patients ?? true}
+                          onChange={(e) => setProfileData((p: any) => ({ ...p, accepting_new_patients: e.target.checked }))}
+                          className="w-4 h-4 accent-blue-500"
+                        />
+                        <span className="text-xs text-gray-400">Accepting new patients</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

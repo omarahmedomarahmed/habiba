@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Patch, Put, Body, Query, Param, UseGuards, Request
+  Controller, Get, Post, Patch, Put, Body, Query, Param, UseGuards, Request, BadRequestException
 } from "@nestjs/common";
 import { TherapistsService } from "./therapists.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -109,6 +109,21 @@ export class TherapistsController {
   ): Promise<{ success: boolean }> {
     await this.therapistsService.updateBankDetails(req.user.therapistId, body.payout_method, body.bank_details);
     return { success: true };
+  }
+
+  @Post("me/avatar")
+  @ApiOperation({ summary: "Upload avatar as base64 data URL" })
+  async uploadAvatar(
+    @Request() req: { user: { userId: string } },
+    @Body('avatar_data_url') avatarDataUrl: string,
+  ) {
+    if (!avatarDataUrl?.startsWith('data:image/')) {
+      throw new BadRequestException('Invalid image data URL');
+    }
+    if (avatarDataUrl.length > 2_000_000) {
+      throw new BadRequestException('Image too large (max ~1.5MB)');
+    }
+    return this.therapistsService.updateAvatar(req.user.userId, avatarDataUrl);
   }
 
   @Patch(":id/verify")

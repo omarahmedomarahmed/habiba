@@ -33,6 +33,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { DataLifecycleModule } from './modules/data-lifecycle/data-lifecycle.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { GatewaysModule } from './gateways/gateways.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
@@ -101,6 +102,7 @@ import appConfig from './config/app.config';
     ContactModule,
     DataLifecycleModule,
     BookingModule,
+    CrmModule,
 
     // ─── WebSocket Gateways ───────────────────────────────────────────────────
     GatewaysModule,

@@ -1663,14 +1663,14 @@ export class BillingService {
   async getBillingSummary(organizationId: string) {
     const charges = await this.db.query(
       `SELECT sc.id, sc.session_id, sc.amount_usd, sc.status, sc.stripe_checkout_url,
-              sc.created_at, s.scheduled_at AS session_date,
+              sc.charged_at AS created_at, s.scheduled_at AS session_date,
               CONCAT(u.first_name, ' ', u.last_name) AS patient_name
        FROM session_charges sc
        JOIN sessions s ON s.id = sc.session_id
        LEFT JOIN patients p ON p.id = s.patient_id
        LEFT JOIN users u ON u.id = p.user_id
        WHERE sc.organization_id = $1
-       ORDER BY sc.created_at DESC
+       ORDER BY sc.charged_at DESC
        LIMIT 50`,
       [organizationId],
     );

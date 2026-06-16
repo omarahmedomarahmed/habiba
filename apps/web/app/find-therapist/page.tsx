@@ -39,64 +39,7 @@ interface Therapist {
   public_slug?: string;
 }
 
-const THERAPISTS: Therapist[] = [
-  {
-    id: "t1", name: "Dr. Alexandra Smith", title: "Licensed Clinical Psychologist", license: "NY-PSY-28471",
-    photo_initials: "AS", gradient: "from-rose-500 to-pink-600",
-    specializations: ["Anxiety", "Depression", "Trauma", "Work Stress"],
-    approaches: ["CBT", "Psychodynamic", "Mindfulness"],
-    languages: ["English", "Spanish"],
-    rating: 4.9, reviews: 127, sessions: 450, years_experience: 12,
-    availability: "today", video: true, messaging: true, phone: true,
-    rate_per_session: 180, accepting_new: true, verified: true, premium: true,
-    location: "New York, NY (Telehealth)",
-    bio: "I specialize in helping high-achieving professionals overcome anxiety and perfectionism. My approach combines evidence-based CBT with deeper psychodynamic exploration.",
-    match_score: 97,
-    next_available: "Today, 3:00 PM"
-  },
-  {
-    id: "t2", name: "Marcus Williams, LCSW", title: "Licensed Clinical Social Worker", license: "CA-LCSW-89234",
-    photo_initials: "MW", gradient: "from-blue-500 to-indigo-600",
-    specializations: ["PTSD", "Men's Mental Health", "Grief", "Life Transitions"],
-    approaches: ["EMDR", "Trauma-Focused CBT", "Narrative Therapy"],
-    languages: ["English"],
-    rating: 4.8, reviews: 89, sessions: 320, years_experience: 8,
-    availability: "this_week", video: true, messaging: true, phone: false,
-    rate_per_session: 150, accepting_new: true, verified: true, premium: false,
-    location: "Los Angeles, CA (Telehealth)",
-    bio: "Trauma-informed therapist specializing in PTSD, grief, and major life transitions. I provide a safe, non-judgmental space for healing.",
-    match_score: 91,
-    next_available: "Tomorrow, 10:00 AM"
-  },
-  {
-    id: "t3", name: "Dr. Priya Nair", title: "Psychiatrist & Therapist", license: "TX-MD-47821",
-    photo_initials: "PN", gradient: "from-emerald-500 to-teal-600",
-    specializations: ["Bipolar Disorder", "ADHD", "OCD", "Medication Management"],
-    approaches: ["CBT", "DBT", "Medication Management"],
-    languages: ["English", "Hindi", "Tamil"],
-    rating: 5.0, reviews: 203, sessions: 780, years_experience: 15,
-    availability: "this_week", video: true, messaging: false, phone: true,
-    rate_per_session: 250, accepting_new: true, verified: true, premium: true,
-    location: "Austin, TX (Telehealth)",
-    bio: "Board-certified psychiatrist combining psychotherapy and medication management. Particular expertise in complex mood and anxiety disorders.",
-    match_score: 88,
-    next_available: "Wednesday, 2:00 PM"
-  },
-  {
-    id: "t4", name: "Sofia Martinez, LMFT", title: "Marriage & Family Therapist", license: "FL-LMFT-18923",
-    photo_initials: "SM", gradient: "from-amber-500 to-orange-600",
-    specializations: ["Relationships", "Family Dynamics", "Postpartum", "Cultural Identity"],
-    approaches: ["EFT", "Family Systems", "Culturally Responsive"],
-    languages: ["English", "Spanish"],
-    rating: 4.7, reviews: 64, sessions: 215, years_experience: 6,
-    availability: "today", video: true, messaging: true, phone: true,
-    rate_per_session: 130, accepting_new: true, verified: true, premium: false,
-    location: "Miami, FL (Telehealth)",
-    bio: "I help individuals and couples navigate relationship challenges, family dynamics, and cultural identity. Bilingual in English and Spanish.",
-    match_score: 85,
-    next_available: "Today, 5:30 PM"
-  },
-];
+// Static array removed — replaced with real API data
 
 const SPECIALIZATIONS = [
   "Anxiety", "Depression", "Trauma / PTSD", "OCD", "Bipolar Disorder",
@@ -137,6 +80,16 @@ import { getApiUrl } from '@/lib/env';
 
 const API_URL = getApiUrl();
 
+function computeMatchScore(t: any, query: string, specs: string[]): number {
+  let score = 50;
+  if (t.overall_rating) score += Math.min((Number(t.overall_rating) / 5) * 25, 25);
+  if (t.accepting_patients !== false) score += 10;
+  if (t.years_experience) score += Math.min(Number(t.years_experience), 10);
+  if (specs.length && t.specializations?.some((s: string) => specs.includes(s))) score += 15;
+  if (query && t.display_name?.toLowerCase().includes(query.toLowerCase())) score += 5;
+  return Math.min(Math.round(score), 99);
+}
+
 const LANGUAGES = ["English", "Spanish", "French", "Arabic", "Mandarin", "Portuguese", "German", "Hindi", "Tagalog", "Korean"];
 
 export default function FindTherapistPage() {
@@ -163,35 +116,37 @@ export default function FindTherapistPage() {
         const res = await fetch(`${API_URL}/marketplace/search?${params}`);
         if (!res.ok) throw new Error('API error');
         const json = await res.json();
-        const data: Record<string, unknown>[] = json.data?.listings || json.data || [];
-        setLiveTherapists(data.map(t => ({
-          id: t.id as string,
-          name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || (t.display_name as string) || 'Therapist',
-          license: (t.license_type as string) || '',
-          title: (t.title as string) || (t.specialization as string) || 'Licensed Therapist',
-          photo_initials: (`${t.first_name || t.display_name || 'T'}`).charAt(0).toUpperCase(),
+        const raw: any[] = json?.results ?? json?.data?.listings ?? json?.data ?? (Array.isArray(json) ? json : []);
+        const mapped = raw.map((t: any) => ({
+          id: t.therapist_id ?? t.id,
+          name: t.display_name ?? (`${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Therapist'),
+          license: t.license_type || '',
+          title: t.title || t.specialization || 'Licensed Therapist',
+          photo_initials: (t.display_name || t.first_name || 'T').charAt(0).toUpperCase(),
           gradient: 'from-blue-500 to-violet-600',
-          location: (t.location as string) || 'Online',
-          specializations: (t.specializations as string[]) || [],
-          languages: (t.languages as string[]) || ['English'],
-          rating: (t.rating as number) || 4.8,
-          reviews: (t.review_count as number) || 0,
+          location: t.location || 'Online',
+          specializations: t.specializations || [],
+          languages: t.languages || ['English'],
+          rating: t.overall_rating ?? t.rating ?? 4.8,
+          reviews: t.total_reviews ?? t.review_count ?? 0,
           sessions: 0,
-          years_experience: (t.years_experience as number) || 0,
-          availability: 'this_week' as const,
+          years_experience: t.years_experience ?? 0,
+          availability: (t.availability || 'this_week') as 'today' | 'this_week' | 'next_week',
           video: true,
           messaging: true,
           phone: false,
-          rate_per_session: (t.session_price_cents as number) ? Math.round((t.session_price_cents as number) / 100) : (t.session_price as number) || 0,
-          accepting_new: (t.accepting_new_patients as boolean) ?? true,
-          verified: (t.verification_status as string) === 'approved',
+          rate_per_session: t.session_price_cents ? Math.round(t.session_price_cents / 100) : (t.session_price ?? 0),
+          accepting_new: t.accepting_patients ?? t.accepting_new_patients ?? true,
+          verified: t.verification_status === 'approved',
           premium: false,
-          bio: (t.bio as string) || '',
-          match_score: 90,
+          bio: t.bio || '',
+          match_score: computeMatchScore(t, searchQuery, selectedSpecs),
           next_available: 'This week',
-          approaches: [],
-          public_slug: (t.public_slug as string) || (t.booking_slug as string) || undefined,
-        })));
+          approaches: t.therapeutic_approaches || [],
+          public_slug: t.public_slug || t.booking_slug || undefined,
+        }));
+        mapped.sort((a: any, b: any) => b.match_score - a.match_score);
+        setLiveTherapists(mapped);
       } catch {
         setFetchError(true);
         setLiveTherapists([]);

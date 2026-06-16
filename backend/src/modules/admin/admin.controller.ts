@@ -87,6 +87,26 @@ export class AdminController {
     return this.adminService.deactivateUser(id, reason, user.id);
   }
 
+  @Post('users/:id/impersonate')
+  async impersonateUser(
+    @Param('id') id: string,
+    @CurrentUser() actor: any,
+  ) {
+    return this.adminService.impersonateUser(id, actor.id);
+  }
+
+  // ─── Therapist Profile (Admin) ────────────────────────────────────────────
+
+  @Get('therapists/:id/profile')
+  async getTherapistProfile(@Param('id') id: string) {
+    return this.adminService.getTherapistProfile(id);
+  }
+
+  @Patch('therapists/:id/profile')
+  async updateTherapistProfile(@Param('id') id: string, @Body() dto: any) {
+    return this.adminService.updateTherapistProfile(id, dto);
+  }
+
   // ─── Compliance & Audit ───────────────────────────────────────────────────
 
   @Get('audit-log')
