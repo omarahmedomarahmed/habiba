@@ -108,9 +108,9 @@ export class NotesService {
 
     const baseFrom = `
       FROM ai_session_notes n
-      JOIN patients p ON p.id = n.patient_id
-      JOIN sessions s ON s.id = n.session_id
-      JOIN therapists t ON t.id = n.therapist_id
+      LEFT JOIN patients p ON p.id = n.patient_id
+      LEFT JOIN sessions s ON s.id = n.session_id
+      LEFT JOIN therapists t ON t.id = n.therapist_id
       WHERE ${where.join(' AND ')}`;
 
     const countRow = await this.db.queryOne<{ total: string }>(
@@ -141,9 +141,9 @@ export class NotesService {
               s.scheduled_at AS session_date,
               s.session_number
        FROM ai_session_notes n
-       JOIN patients p ON p.id = n.patient_id
-       JOIN sessions s ON s.id = n.session_id
-       JOIN therapists t ON t.id = n.therapist_id
+       LEFT JOIN patients p ON p.id = n.patient_id
+       LEFT JOIN sessions s ON s.id = n.session_id
+       LEFT JOIN therapists t ON t.id = n.therapist_id
        WHERE n.id = $1 AND n.organization_id = $2`,
       [id, orgId],
     );

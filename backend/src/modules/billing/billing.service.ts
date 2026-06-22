@@ -580,8 +580,8 @@ export class BillingService {
           quantity: 1,
         },
       ],
-      success_url: `${therapistAppUrl}/settings?tab=billing&paid=1`,
-      cancel_url: `${therapistAppUrl}/sessions/new`,
+      success_url: `${therapistAppUrl}/billing?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${therapistAppUrl}/billing`,
       metadata: { session_charge_id: chargeId, therapist_id: therapistId },
     });
 
@@ -1379,6 +1379,38 @@ export class BillingService {
   // STRIPE WEBHOOKS
   // ============================================================
 
+  /**
+   * Apply a checkout outcome synchronously when Stripe redirects the user back,
+   * instead of waiting for the (often undelivered in dev/sandbox) webhook. Safe to
+   * run alongside the webhook — the underlying updates are idempotent.
+   */
+  async confirmCheckoutSession(
+    stripeSessionId: string,
+    orgId: string,
+  ): Promise<{ applied: boolean; plan_key?: string; status?: string }> {
+    if (!this.stripeConfigured || !stripeSessionId) return { applied: false };
+
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await this.stripe.checkout.sessions.retrieve(stripeSessionId);
+    } catch (e: any) {
+      this.logger.warn(`confirmCheckoutSession: retrieve failed for ${stripeSessionId}: ${e?.message}`);
+      return { applied: false };
+    }
+
+    const paid = session.payment_status === 'paid' || session.status === 'complete';
+    if (!paid) return { applied: false, status: session.payment_status || undefined };
+
+    // For subscriptions, only the owning org may confirm.
+    if (session.mode === 'subscription' && session.metadata?.organization_id
+        && session.metadata.organization_id !== orgId) {
+      return { applied: false };
+    }
+
+    await this.handleCheckoutCompleted(session);
+    return { applied: true, plan_key: session.metadata?.plan_key || undefined, status: 'paid' };
+  }
+
   async handleWebhook(payload: Buffer, signature: string) {
     const webhookSecret = this.config.get<string>("stripe.webhookSecret");
     if (!webhookSecret) {
@@ -1529,6 +1561,17 @@ export class BillingService {
           `UPDATE therapists SET current_plan_key = $1 WHERE id = $2`,
           [planKey, therapistId],
         );
+      }
+
+      // Absorb any outstanding pay-per-session bill into the new plan: Starter
+      // counts the already-completed session toward its included quota, Unlimited+
+      // fully covers it. Either way the therapist no longer owes the PAYG charge.
+      if (planKey !== 'pay_per_session' && planKey !== 'free_trial') {
+        await this.db.execute(
+          `UPDATE session_charges SET status = 'paid', paid_at = NOW(), updated_at = NOW()
+           WHERE therapist_id = $1 AND status = 'pending'`,
+          [therapistId],
+        ).catch((e) => this.logger.warn(`Could not absorb outstanding charges on upgrade: ${e?.message}`));
       }
     }
 
