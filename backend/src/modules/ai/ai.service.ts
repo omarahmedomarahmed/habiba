@@ -763,7 +763,10 @@ At the end of your response you may naturally (not forcefully) mention that a li
     if (!file?.buffer?.length) throw new BadRequestException('No audio data received');
 
     const session = await this.db.queryOne<any>(
-      'SELECT * FROM sessions WHERE id = $1 AND organization_id = $2',
+      `SELECT s.*, t.user_id AS therapist_user_id
+       FROM sessions s
+       JOIN therapists t ON t.id = s.therapist_id
+       WHERE s.id = $1 AND s.organization_id = $2`,
       [sessionId, orgId],
     );
     if (!session) throw new NotFoundException('Session not found');
@@ -773,38 +776,75 @@ At the end of your response you may naturally (not forcefully) mention that a li
 
       if (!text || !text.trim()) return { text: '', timestamp: new Date().toISOString() };
 
-      // Add to session transcript
-      await this.addTranscriptSegment(sessionId, orgId, {
+      const segmentData = await this.addTranscriptSegment(sessionId, orgId, {
         text: text.trim(),
-        speaker: 'patient',
+        speaker: 'therapist',
         timestamp: new Date().toISOString(),
       });
 
-      return { text: text.trim(), timestamp: new Date().toISOString() };
+      // Every 5 segments: trigger emotional context (patient-facing) and copilot suggestions
+      if (segmentData && segmentData.seq % 5 === 0) {
+        if (session.patient_id) {
+          this.detectEmotionalContext(sessionId, orgId, text.trim(), session.patient_id)
+            .catch((e) => this.logger.warn('Emotional context failed:', e?.message));
+        }
+        this.triggerCopilotBatch(sessionId, orgId, session.therapist_id, session.therapist_user_id)
+          .catch((e) => this.logger.warn('Copilot batch failed:', e?.message));
+      }
+
+      return { text: text.trim(), timestamp: new Date().toISOString(), segment_id: segmentData?.id };
     } catch (err: any) {
       this.logger.error(`Transcription failed for session (no PHI): ${err?.message}`);
       throw new HttpException('Transcription failed', 500);
     }
   }
 
-  private async addTranscriptSegment(sessionId: string, orgId: string, dto: any) {
+  private async addTranscriptSegment(sessionId: string, orgId: string, dto: any): Promise<{ id: string; seq: number } | null> {
     const transcript = await this.db.queryOne<any>(
       'SELECT id FROM transcripts WHERE session_id = $1',
       [sessionId],
     );
-    if (!transcript) return;
+    if (!transcript) return null;
 
     const lastSeq = await this.db.queryOne<any>(
       'SELECT COALESCE(MAX(sequence_number),0) as max_seq FROM transcript_segments WHERE transcript_id = $1',
       [transcript.id],
     );
     const seq = (lastSeq?.max_seq || 0) + 1;
+    const segmentId = uuidv4();
 
     await this.db.execute(
       `INSERT INTO transcript_segments (id, transcript_id, speaker, text, timestamp, sequence_number)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [uuidv4(), transcript.id, dto.speaker || 'patient', dto.text, dto.timestamp, seq],
+      [segmentId, transcript.id, dto.speaker || 'therapist', dto.text, dto.timestamp, seq],
     );
+
+    // Broadcast to session room via event bus so EventsGateway can push over WebSocket
+    this.eventEmitter.emit('transcript.new_segment', {
+      sessionId,
+      segmentId,
+      speaker: dto.speaker || 'therapist',
+      text: dto.text,
+      timestamp: dto.timestamp,
+      seq,
+    });
+
+    return { id: segmentId, seq };
+  }
+
+  private async triggerCopilotBatch(sessionId: string, orgId: string, therapistId: string, therapistUserId: string) {
+    try {
+      const { suggestions } = await this.getCopilotSuggestions(sessionId, orgId, therapistId);
+      if (suggestions?.length > 0) {
+        this.eventEmitter.emit('ai.copilot_batch', {
+          sessionId,
+          therapistUserId,
+          suggestions,
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn('Copilot batch generation failed:', err?.message);
+    }
   }
 
   // ─── Therapist AI Assistant ────────────────────────────────────────────────

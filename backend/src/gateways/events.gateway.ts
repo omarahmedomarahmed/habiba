@@ -11,6 +11,7 @@ import { Server, Socket } from "socket.io";
 import { JwtService } from "@nestjs/jwt";
 import { OnEvent } from "@nestjs/event-emitter";
 import { Logger } from "@nestjs/common";
+import { v4 as uuidv4 } from "uuid";
 import { DatabaseService } from "../database/database.service";
 import { buildCorsOriginFn } from "../config/cors";
 
@@ -413,6 +414,54 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       patient_name: payload.patientName,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  // ============================================================
+  // LIVE TRANSCRIPTION BROADCAST
+  // ============================================================
+
+  @OnEvent("transcript.new_segment")
+  handleNewTranscriptSegment(payload: {
+    sessionId: string;
+    segmentId: string;
+    speaker: string;
+    text: string;
+    timestamp: string;
+    seq: number;
+  }) {
+    this.server.to(`session:${payload.sessionId}`).emit("transcript_update", {
+      session_id: payload.sessionId,
+      segment: {
+        id: payload.segmentId,
+        speaker: payload.speaker,
+        text: payload.text,
+        seq: payload.seq,
+        timestamp: payload.timestamp,
+      },
+    });
+  }
+
+  // ============================================================
+  // LIVE COPILOT SUGGESTIONS BROADCAST
+  // ============================================================
+
+  @OnEvent("ai.copilot_batch")
+  handleCopilotBatch(payload: {
+    sessionId: string;
+    therapistUserId: string;
+    suggestions: Array<{ type: string; content: string; priority?: string }>;
+  }) {
+    for (const suggestion of payload.suggestions) {
+      this.server.to(`user:${payload.therapistUserId}`).emit("copilot_suggestion", {
+        session_id: payload.sessionId,
+        suggestion: {
+          id: uuidv4(),
+          type: suggestion.type || "observation",
+          content: suggestion.content,
+          priority: (suggestion as any).priority || "medium",
+        },
+      });
+    }
   }
 
   // ============================================================
