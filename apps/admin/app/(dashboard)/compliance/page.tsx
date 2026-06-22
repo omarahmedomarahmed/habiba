@@ -37,10 +37,23 @@ const OUTCOME_COLORS: Record<string, string> = {
 
 export default function CompliancePage() {
   const [activeTab, setActiveTab] = useState<'audit' | 'frameworks' | 'consents' | 'incidents'>('audit');
+
+  const handleTabChange = (tab: 'audit' | 'frameworks' | 'consents' | 'incidents') => {
+    setActiveTab(tab);
+    if (tab === 'incidents' && incidents.length === 0 && !incidentsLoading) {
+      setIncidentsLoading(true);
+      adminAPI.securityIncidents({ limit: 50 })
+        .then((res: any) => setIncidents(res.incidents || []))
+        .catch(() => setIncidents([]))
+        .finally(() => setIncidentsLoading(false));
+    }
+  };
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [liveAuditLogs, setLiveAuditLogs] = useState<any[]>([]);
   const [consentRecords, setConsentRecords] = useState<any[]>([]);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(false);
 
   const handleExportReport = () => {
     const report = {
@@ -137,7 +150,7 @@ export default function CompliancePage() {
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id as any)}
+            onClick={() => handleTabChange(id as any)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === id
                 ? 'bg-gray-800 text-white'
@@ -302,13 +315,63 @@ export default function CompliancePage() {
 
       {/* Incidents Tab */}
       {activeTab === 'incidents' && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
-          <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-white mb-1">No Open Incidents</h3>
-          <p className="text-sm text-gray-500">All security and compliance incidents have been resolved.</p>
-          <button className="mt-4 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
-            View Incident History
-          </button>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          {incidentsLoading ? (
+            <div className="py-16 text-center text-gray-500 text-sm">Loading incidents...</div>
+          ) : incidents.length === 0 ? (
+            <div className="py-16 text-center">
+              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-white mb-1">No Open Incidents</h3>
+              <p className="text-sm text-gray-500">All security and compliance incidents have been resolved.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
+                  <th className="text-left px-5 py-3 font-medium">Title</th>
+                  <th className="text-left px-4 py-3 font-medium">Severity</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Reported</th>
+                  <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Resolved</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {incidents.map((inc: any) => (
+                  <tr key={inc.id} className="hover:bg-gray-800/40 transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="text-sm text-white font-medium">{inc.title || inc.type || 'Incident'}</div>
+                      {inc.description && <div className="text-xs text-gray-500 mt-0.5 truncate max-w-xs">{inc.description}</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        inc.severity === 'critical' ? 'text-red-300 bg-red-400/20' :
+                        inc.severity === 'high' ? 'text-orange-300 bg-orange-400/20' :
+                        inc.severity === 'medium' ? 'text-amber-300 bg-amber-400/20' :
+                        'text-green-300 bg-green-400/20'
+                      }`}>
+                        {inc.severity || 'low'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        inc.status === 'open' ? 'text-red-300 bg-red-400/20' :
+                        inc.status === 'investigating' ? 'text-amber-300 bg-amber-400/20' :
+                        'text-green-300 bg-green-400/20'
+                      }`}>
+                        {inc.status || 'open'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 hidden md:table-cell">
+                      {inc.created_at ? new Date(inc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 hidden lg:table-cell">
+                      {inc.resolved_at ? new Date(inc.resolved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

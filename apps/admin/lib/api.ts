@@ -273,6 +273,51 @@ export const adminAPI = {
   // PHI access log (HIPAA)
   phiAuditLog: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: any[]; total: number }>('/admin/audit-log', { params } as any),
+
+  // Sessions (Cross-Org God Mode)
+  sessions: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ sessions: any[]; stats: any; has_more: boolean }>('/admin/sessions', { params } as any),
+  getSession: (id: string) => apiFetch<any>(`/admin/sessions/${id}`),
+  updateSessionStatus: (id: string, status: string, reason?: string) =>
+    apiFetch<any>(`/admin/sessions/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, reason }) }),
+  updateSessionBilling: (id: string, data: { billing_status?: string; session_price_cents?: number }) =>
+    apiFetch<any>(`/admin/sessions/${id}/billing`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Patients (Cross-Org)
+  patients: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ patients: any[]; stats: any; has_more: boolean }>('/admin/patients', { params } as any),
+  getPatient: (id: string) => apiFetch<any>(`/admin/patients/${id}`),
+  getPatientConsents: (id: string) => apiFetch<any[]>(`/admin/patients/${id}/consents`),
+
+  // Subscriptions
+  adminSubscriptions: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ subscriptions: any[]; stats: any; has_more: boolean }>('/admin/subscriptions', { params } as any),
+  updateAdminSubscription: (id: string, data: any) =>
+    apiFetch<any>(`/admin/subscriptions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // API / Request Logs
+  requestLogs: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ logs: any[]; stats: any; has_more: boolean }>('/admin/request-logs', { params } as any),
+
+  // Security Incidents
+  securityIncidents: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ incidents: any[]; has_more: boolean }>('/admin/security-incidents', { params } as any),
+  updateSecurityIncident: (id: string, data: any) =>
+    apiFetch<any>(`/admin/security-incidents/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // BAA Records
+  baaRecords: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ records: any[]; has_more: boolean }>('/admin/baa-records', { params } as any),
+  createBaaRecord: (data: any) =>
+    apiFetch<any>('/admin/baa-records', { method: 'POST', body: JSON.stringify(data) }),
+  updateBaaRecord: (id: string, data: any) =>
+    apiFetch<any>(`/admin/baa-records/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Therapist Credentials
+  therapistCredentials: (params?: Record<string, string | number | undefined>) =>
+    apiFetch<{ credentials: any[]; stats: any; has_more: boolean }>('/admin/therapist-credentials', { params } as any),
+  updateTherapistCredential: (id: string, data: { status: string; rejection_reason?: string }) =>
+    apiFetch<any>(`/admin/therapist-credentials/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 // ============================================================

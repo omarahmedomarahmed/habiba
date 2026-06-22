@@ -759,6 +759,476 @@ export class AdminService {
     if (!updated) throw new NotFoundException('Therapist not found');
     return updated;
   }
+
+  // ─── Sessions (Cross-Org Admin) ──────────────────────────────────────────
+
+  async listAllSessions(query: any = {}) {
+    const { search, status, org_id, therapist_id, date_from, date_to, limit = 25, offset = 0 } = query;
+    const params: any[] = [];
+    const where: string[] = [];
+
+    if (search) {
+      params.push(`%${search}%`);
+      where.push(`(p.first_name ILIKE $${params.length} OR p.last_name ILIKE $${params.length} OR t.display_name ILIKE $${params.length})`);
+    }
+    if (status) { params.push(status); where.push(`s.status = $${params.length}`); }
+    if (org_id) { params.push(org_id); where.push(`s.organization_id = $${params.length}`); }
+    if (therapist_id) { params.push(therapist_id); where.push(`s.therapist_id = $${params.length}`); }
+    if (date_from) { params.push(date_from); where.push(`s.scheduled_at >= $${params.length}`); }
+    if (date_to) { params.push(date_to); where.push(`s.scheduled_at <= $${params.length}`); }
+
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+    params.push(Math.min(Number(limit), 100));
+    params.push(Math.max(Number(offset), 0));
+
+    const sessions = await this.db.query(
+      `SELECT s.id, s.status, s.modality, s.scheduled_at, s.started_at, s.ended_at,
+        s.duration_minutes, s.billing_status, s.session_price_cents,
+        s.auto_generate_note, s.organization_id,
+        COALESCE(p.first_name || ' ' || p.last_name, s.patient_name_guest, 'Guest') as patient_name,
+        p.id as patient_id,
+        COALESCE(t.display_name, u.first_name || ' ' || u.last_name) as therapist_name,
+        t.id as therapist_id,
+        o.name as organization_name,
+        (SELECT COUNT(*) FROM transcript_segments ts WHERE ts.session_id = s.id) as transcript_count
+       FROM sessions s
+       LEFT JOIN patients p ON p.id = s.patient_id
+       JOIN therapists t ON t.id = s.therapist_id
+       JOIN users u ON u.id = t.user_id
+       JOIN organizations o ON o.id = s.organization_id
+       ${whereClause}
+       ORDER BY s.scheduled_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+
+    const stats = await this.db.queryOne<any>(
+      `SELECT
+        COUNT(*) FILTER (WHERE s.scheduled_at::date = CURRENT_DATE) as today,
+        COUNT(*) FILTER (WHERE s.status = 'completed') as completed,
+        COUNT(*) FILTER (WHERE s.status = 'in_progress') as in_progress,
+        COUNT(*) FILTER (WHERE s.status = 'cancelled') as cancelled
+       FROM sessions s
+       ${whereClause}`,
+      params.slice(0, params.length - 2),
+    ).catch(() => ({ today: 0, completed: 0, in_progress: 0, cancelled: 0 }));
+
+    return {
+      sessions,
+      stats,
+      has_more: sessions.length === Number(limit),
+    };
+  }
+
+  async getSessionDetail(sessionId: string) {
+    const session = await this.db.queryOne<any>(
+      `SELECT s.*,
+        COALESCE(p.first_name || ' ' || p.last_name, s.patient_name_guest, 'Guest') as patient_name,
+        p.id as patient_id, p.organization_id as patient_org_id,
+        COALESCE(t.display_name, u.first_name || ' ' || u.last_name) as therapist_name,
+        t.id as therapist_id, u.email as therapist_email,
+        o.name as organization_name,
+        (SELECT COUNT(*) FROM transcript_segments ts WHERE ts.session_id = s.id) as transcript_segments,
+        (SELECT COUNT(*) FROM ai_session_notes n WHERE n.session_id = s.id) as notes_count
+       FROM sessions s
+       LEFT JOIN patients p ON p.id = s.patient_id
+       JOIN therapists t ON t.id = s.therapist_id
+       JOIN users u ON u.id = t.user_id
+       JOIN organizations o ON o.id = s.organization_id
+       WHERE s.id = $1`,
+      [sessionId],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+    return session;
+  }
+
+  async updateSessionStatus(sessionId: string, status: string, reason: string, adminId: string) {
+    const allowed = ['cancelled', 'completed', 'no_show', 'scheduled', 'in_progress'];
+    if (!allowed.includes(status)) throw new ForbiddenException('Invalid status');
+    await this.db.query(
+      `UPDATE sessions SET status = $2, updated_at = NOW() WHERE id = $1`,
+      [sessionId, status],
+    );
+    await this.createAuditEntry({
+      action: 'session_status_overridden',
+      resource_type: 'session',
+      resource_id: sessionId,
+      actor_id: adminId,
+      details: { new_status: status, reason },
+    });
+    return { success: true };
+  }
+
+  async updateSessionBilling(sessionId: string, dto: { billing_status?: string; session_price_cents?: number }, adminId: string) {
+    const sets: string[] = ['updated_at = NOW()'];
+    const params: any[] = [sessionId];
+    if (dto.billing_status !== undefined) { params.push(dto.billing_status); sets.push(`billing_status = $${params.length}`); }
+    if (dto.session_price_cents !== undefined) { params.push(dto.session_price_cents); sets.push(`session_price_cents = $${params.length}`); }
+    await this.db.query(`UPDATE sessions SET ${sets.join(', ')} WHERE id = $1`, params).catch(() => null);
+    await this.createAuditEntry({
+      action: 'session_billing_updated',
+      resource_type: 'session',
+      resource_id: sessionId,
+      actor_id: adminId,
+      details: dto,
+    });
+    return { success: true };
+  }
+
+  // ─── Patients (Cross-Org Admin) ──────────────────────────────────────────
+
+  async listAllPatients(query: any = {}) {
+    const { search, status, org_id, therapist_id, limit = 25, offset = 0 } = query;
+    const params: any[] = [];
+    const where: string[] = ['p.deleted_at IS NULL'];
+
+    if (search) {
+      params.push(`%${search}%`);
+      where.push(`(p.first_name ILIKE $${params.length} OR p.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`);
+    }
+    if (status) { params.push(status); where.push(`p.status = $${params.length}`); }
+    if (org_id) { params.push(org_id); where.push(`p.organization_id = $${params.length}`); }
+    if (therapist_id) {
+      params.push(therapist_id);
+      where.push(`EXISTS (SELECT 1 FROM therapist_patient_assignments tpa WHERE tpa.patient_id = p.id AND tpa.therapist_id = $${params.length} AND tpa.ended_at IS NULL)`);
+    }
+
+    params.push(Math.min(Number(limit), 100));
+    params.push(Math.max(Number(offset), 0));
+
+    const patients = await this.db.query(
+      `SELECT p.id, p.first_name, p.last_name, p.status, p.created_at,
+        p.first_name || ' ' || p.last_name as full_name,
+        p.organization_id,
+        u.email, u.last_login_at,
+        o.name as organization_name,
+        COALESCE(t.display_name, tu.first_name || ' ' || tu.last_name) as therapist_name,
+        (SELECT COUNT(*) FROM sessions s WHERE s.patient_id = p.id AND s.status = 'completed') as session_count,
+        (SELECT score FROM patient_mood_entries me WHERE me.patient_id = p.id ORDER BY me.recorded_at DESC LIMIT 1) as latest_mood
+       FROM patients p
+       LEFT JOIN users u ON u.id = p.user_id
+       JOIN organizations o ON o.id = p.organization_id
+       LEFT JOIN therapist_patient_assignments tpa ON tpa.patient_id = p.id AND tpa.ended_at IS NULL AND tpa.is_primary = true
+       LEFT JOIN therapists t ON t.id = tpa.therapist_id
+       LEFT JOIN users tu ON tu.id = t.user_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY p.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+
+    const statsParams = params.slice(0, params.length - 2);
+    const whereForStats = where.join(' AND ');
+    const stats = await this.db.queryOne<any>(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE p.status = 'active') as active,
+        COUNT(*) FILTER (WHERE p.status != 'active') as inactive,
+        COUNT(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM therapist_patient_assignments tpa WHERE tpa.patient_id = p.id AND tpa.ended_at IS NULL)) as no_therapist
+       FROM patients p
+       LEFT JOIN users u ON u.id = p.user_id
+       WHERE ${whereForStats}`,
+      statsParams,
+    ).catch(() => ({ total: 0, active: 0, inactive: 0, no_therapist: 0 }));
+
+    return { patients, stats, has_more: patients.length === Number(limit) };
+  }
+
+  async getPatientDetail(patientId: string, adminId: string) {
+    const patient = await this.db.queryOne<any>(
+      `SELECT p.*,
+        u.email, u.last_login_at, u.created_at as user_created_at,
+        o.name as organization_name,
+        COALESCE(t.display_name, tu.first_name || ' ' || tu.last_name) as therapist_name,
+        (SELECT COUNT(*) FROM sessions s WHERE s.patient_id = p.id AND s.status = 'completed') as completed_sessions,
+        (SELECT COUNT(*) FROM sessions s WHERE s.patient_id = p.id) as total_sessions,
+        (SELECT COUNT(*) FROM patient_consents pc WHERE pc.patient_id = p.id) as consent_count
+       FROM patients p
+       LEFT JOIN users u ON u.id = p.user_id
+       JOIN organizations o ON o.id = p.organization_id
+       LEFT JOIN therapist_patient_assignments tpa ON tpa.patient_id = p.id AND tpa.ended_at IS NULL AND tpa.is_primary = true
+       LEFT JOIN therapists t ON t.id = tpa.therapist_id
+       LEFT JOIN users tu ON tu.id = t.user_id
+       WHERE p.id = $1 AND p.deleted_at IS NULL`,
+      [patientId],
+    );
+    if (!patient) throw new NotFoundException('Patient not found');
+    // HIPAA: log every admin access to patient PHI
+    await this.db.query(
+      `INSERT INTO phi_access_log (user_id, action, resource_type, resource_id, created_at) VALUES ($1, 'admin_patient_view', 'patient', $2, NOW())`,
+      [adminId, patientId],
+    ).catch(() => null);
+    return patient;
+  }
+
+  async getPatientConsents(patientId: string) {
+    return this.db.query(
+      `SELECT * FROM patient_consents WHERE patient_id = $1 ORDER BY created_at DESC`,
+      [patientId],
+    ).catch(() => []);
+  }
+
+  // ─── Subscriptions (Cross-Org Admin) ────────────────────────────────────
+
+  async listAllSubscriptions(query: any = {}) {
+    const { search, status, plan_id, limit = 25, offset = 0 } = query;
+    const params: any[] = [];
+    const where: string[] = [];
+
+    if (search) { params.push(`%${search}%`); where.push(`o.name ILIKE $${params.length}`); }
+    if (status) { params.push(status); where.push(`o.subscription_status = $${params.length}`); }
+    if (plan_id) { params.push(plan_id); where.push(`o.subscription_tier = $${params.length}`); }
+
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+    params.push(Math.min(Number(limit), 100));
+    params.push(Math.max(Number(offset), 0));
+
+    const subs = await this.db.query(
+      `SELECT o.id, o.name, o.subscription_tier as plan, o.subscription_status as status,
+        o.trial_ends_at, o.created_at,
+        o.max_therapists as seats,
+        (SELECT COUNT(*) FROM users WHERE organization_id = o.id AND role = 'therapist' AND deleted_at IS NULL) as used_seats,
+        (SELECT stripe_subscription_id FROM organizations WHERE id = o.id) as stripe_subscription_id,
+        (SELECT COALESCE(SUM(amount_usd),0) FROM session_charges WHERE organization_id = o.id AND status = 'paid') as total_paid
+       FROM organizations o
+       ${whereClause}
+       ORDER BY o.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+
+    const statsParams = params.slice(0, params.length - 2);
+    const stats = await this.db.queryOne<any>(
+      `SELECT
+        COUNT(*) FILTER (WHERE o.subscription_status = 'active') as active,
+        COUNT(*) FILTER (WHERE o.subscription_status = 'trialing') as trialing,
+        COUNT(*) FILTER (WHERE o.subscription_status = 'past_due') as past_due,
+        COUNT(*) FILTER (WHERE o.subscription_status IN ('cancelled','suspended')) as cancelled
+       FROM organizations o
+       ${whereClause}`,
+      statsParams,
+    ).catch(() => ({ active: 0, trialing: 0, past_due: 0, cancelled: 0 }));
+
+    return { subscriptions: subs, stats, has_more: subs.length === Number(limit) };
+  }
+
+  async updateSubscription(orgId: string, dto: { status?: string; plan?: string; trial_ends_at?: string; max_therapists?: number }, adminId: string) {
+    const sets: string[] = ['updated_at = NOW()'];
+    const params: any[] = [orgId];
+    if (dto.status) { params.push(dto.status); sets.push(`subscription_status = $${params.length}`); }
+    if (dto.plan) { params.push(dto.plan); sets.push(`subscription_tier = $${params.length}`); }
+    if (dto.trial_ends_at) { params.push(dto.trial_ends_at); sets.push(`trial_ends_at = $${params.length}`); }
+    if (dto.max_therapists !== undefined) { params.push(dto.max_therapists); sets.push(`max_therapists = $${params.length}`); }
+    await this.db.query(`UPDATE organizations SET ${sets.join(', ')} WHERE id = $1`, params);
+    await this.createAuditEntry({
+      action: 'subscription_updated',
+      resource_type: 'organization',
+      resource_id: orgId,
+      actor_id: adminId,
+      details: dto,
+    });
+    return { success: true };
+  }
+
+  // ─── API / Request Logs (ai_request_logs) ──────────────────────────────
+
+  async listRequestLogs(query: any = {}) {
+    const { org_id, model_id, request_type, status, date_from, date_to, limit = 50, offset = 0 } = query;
+    const params: any[] = [];
+    const where: string[] = [];
+
+    if (org_id) { params.push(org_id); where.push(`rl.organization_id = $${params.length}`); }
+    if (model_id) { params.push(model_id); where.push(`rl.model_id = $${params.length}`); }
+    if (request_type) { params.push(request_type); where.push(`rl.request_type = $${params.length}`); }
+    if (status) { params.push(status); where.push(`rl.status = $${params.length}`); }
+    if (date_from) { params.push(date_from); where.push(`rl.created_at >= $${params.length}`); }
+    if (date_to) { params.push(date_to); where.push(`rl.created_at <= $${params.length}`); }
+
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+    params.push(Math.min(Number(limit), 200));
+    params.push(Math.max(Number(offset), 0));
+
+    const logs = await this.db.query(
+      `SELECT rl.id, rl.model_id, rl.request_type, rl.status, rl.error_message,
+        rl.prompt_tokens, rl.completion_tokens, rl.total_tokens,
+        rl.cost_usd, rl.latency_ms, rl.created_at, rl.organization_id,
+        o.name as organization_name,
+        u.email as user_email
+       FROM ai_request_logs rl
+       LEFT JOIN organizations o ON o.id = rl.organization_id
+       LEFT JOIN users u ON u.id = rl.user_id
+       ${whereClause}
+       ORDER BY rl.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+
+    const statsParams = params.slice(0, params.length - 2);
+    const stats = await this.db.queryOne<any>(
+      `SELECT
+        COUNT(*) FILTER (WHERE rl.created_at::date = CURRENT_DATE) as today,
+        ROUND(AVG(rl.latency_ms)) as avg_latency,
+        ROUND(COUNT(*) FILTER (WHERE rl.status = 'error')::numeric / NULLIF(COUNT(*), 0) * 100, 1) as error_rate,
+        COALESCE(SUM(rl.cost_usd) FILTER (WHERE rl.created_at::date = CURRENT_DATE), 0) as cost_today
+       FROM ai_request_logs rl
+       ${whereClause}`,
+      statsParams,
+    ).catch(() => ({ today: 0, avg_latency: 0, error_rate: 0, cost_today: 0 }));
+
+    return { logs, stats, has_more: logs.length === Number(limit) };
+  }
+
+  // ─── Security Incidents ──────────────────────────────────────────────────
+
+  async listSecurityIncidents(query: any = {}) {
+    const { severity, status, org_id, limit = 25, offset = 0 } = query;
+    const params: any[] = [];
+    const where: string[] = [];
+
+    if (severity) { params.push(severity); where.push(`si.severity = $${params.length}`); }
+    if (status) { params.push(status); where.push(`si.status = $${params.length}`); }
+    if (org_id) { params.push(org_id); where.push(`si.organization_id = $${params.length}`); }
+
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+    params.push(Math.min(Number(limit), 100));
+    params.push(Math.max(Number(offset), 0));
+
+    const incidents = await this.db.query(
+      `SELECT si.*, o.name as organization_name
+       FROM security_incidents si
+       LEFT JOIN organizations o ON o.id = si.organization_id
+       ${whereClause}
+       ORDER BY si.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+
+    return { incidents, has_more: incidents.length === Number(limit) };
+  }
+
+  async updateSecurityIncident(incidentId: string, dto: { status?: string; resolution?: string }, adminId: string) {
+    const sets: string[] = ['updated_at = NOW()'];
+    const params: any[] = [incidentId];
+    if (dto.status) { params.push(dto.status); sets.push(`status = $${params.length}`); }
+    if (dto.resolution) { params.push(dto.resolution); sets.push(`resolution = $${params.length}`); }
+    if (dto.status === 'resolved') { sets.push(`resolved_at = NOW()`); }
+    await this.db.query(`UPDATE security_incidents SET ${sets.join(', ')} WHERE id = $1`, params).catch(() => null);
+    await this.createAuditEntry({
+      action: 'security_incident_updated',
+      resource_type: 'security_incident',
+      resource_id: incidentId,
+      actor_id: adminId,
+      details: dto,
+    });
+    return { success: true };
+  }
+
+  // ─── BAA Records ─────────────────────────────────────────────────────────
+
+  async listBaaRecords(query: any = {}) {
+    const { org_id, status, limit = 25, offset = 0 } = query;
+    const params: any[] = [];
+    const where: string[] = [];
+
+    if (org_id) { params.push(org_id); where.push(`br.organization_id = $${params.length}`); }
+    if (status) { params.push(status); where.push(`br.status = $${params.length}`); }
+
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+    params.push(Math.min(Number(limit), 100));
+    params.push(Math.max(Number(offset), 0));
+
+    const records = await this.db.query(
+      `SELECT br.*, o.name as organization_name
+       FROM baa_records br
+       LEFT JOIN organizations o ON o.id = br.organization_id
+       ${whereClause}
+       ORDER BY br.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+
+    return { records, has_more: records.length === Number(limit) };
+  }
+
+  async createBaaRecord(dto: { organization_id: string; vendor_name: string; status?: string; signed_at?: string; expires_at?: string; document_url?: string }, adminId: string) {
+    const id = uuidv4();
+    await this.db.query(
+      `INSERT INTO baa_records (id, organization_id, vendor_name, status, signed_at, expires_at, document_url, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())`,
+      [id, dto.organization_id, dto.vendor_name, dto.status || 'pending', dto.signed_at || null, dto.expires_at || null, dto.document_url || null],
+    );
+    await this.createAuditEntry({ action: 'baa_record_created', resource_type: 'baa_record', resource_id: id, actor_id: adminId, details: dto });
+    return { id, success: true };
+  }
+
+  async updateBaaRecord(recordId: string, dto: any, adminId: string) {
+    const allowed = ['status', 'vendor_name', 'signed_at', 'expires_at', 'document_url'];
+    const sets: string[] = ['updated_at = NOW()'];
+    const params: any[] = [recordId];
+    for (const key of allowed) {
+      if (dto[key] !== undefined) { params.push(dto[key]); sets.push(`${key} = $${params.length}`); }
+    }
+    await this.db.query(`UPDATE baa_records SET ${sets.join(', ')} WHERE id = $1`, params).catch(() => null);
+    await this.createAuditEntry({ action: 'baa_record_updated', resource_type: 'baa_record', resource_id: recordId, actor_id: adminId, details: dto });
+    return { success: true };
+  }
+
+  // ─── Therapist Credentials ───────────────────────────────────────────────
+
+  async listTherapistCredentials(query: any = {}) {
+    const { status, therapist_id, doc_type, limit = 25, offset = 0 } = query;
+    const params: any[] = [];
+    const where: string[] = [];
+
+    if (status) { params.push(status); where.push(`tc.status = $${params.length}`); }
+    if (therapist_id) { params.push(therapist_id); where.push(`tc.therapist_id = $${params.length}`); }
+    if (doc_type) { params.push(doc_type); where.push(`tc.document_type = $${params.length}`); }
+
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+    params.push(Math.min(Number(limit), 100));
+    params.push(Math.max(Number(offset), 0));
+
+    const creds = await this.db.query(
+      `SELECT tc.*, t.display_name as therapist_name, u.email as therapist_email,
+        o.name as organization_name
+       FROM therapist_credentials tc
+       JOIN therapists t ON t.id = tc.therapist_id
+       JOIN users u ON u.id = t.user_id
+       JOIN organizations o ON o.id = t.organization_id
+       ${whereClause}
+       ORDER BY tc.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    ).catch(() => []);
+
+    const statsParams = params.slice(0, params.length - 2);
+    const stats = await this.db.queryOne<any>(
+      `SELECT
+        COUNT(*) FILTER (WHERE tc.status = 'pending') as pending,
+        COUNT(*) FILTER (WHERE tc.status = 'verified') as verified,
+        COUNT(*) FILTER (WHERE tc.status = 'rejected') as rejected
+       FROM therapist_credentials tc
+       ${whereClause}`,
+      statsParams,
+    ).catch(() => ({ pending: 0, verified: 0, rejected: 0 }));
+
+    return { credentials: creds, stats, has_more: creds.length === Number(limit) };
+  }
+
+  async updateTherapistCredential(credentialId: string, dto: { status: string; rejection_reason?: string }, adminId: string) {
+    const sets: string[] = ['updated_at = NOW()', `status = '${dto.status}'`, `verified_by = '${adminId}'`, `verified_at = NOW()`];
+    const params: any[] = [credentialId];
+    if (dto.rejection_reason) { params.push(dto.rejection_reason); sets.push(`rejection_reason = $${params.length}`); }
+    await this.db.query(`UPDATE therapist_credentials SET ${sets.join(', ')} WHERE id = $1`, params).catch(() => null);
+    await this.createAuditEntry({
+      action: `credential_${dto.status}`,
+      resource_type: 'therapist_credential',
+      resource_id: credentialId,
+      actor_id: adminId,
+      details: dto,
+    });
+    return { success: true };
+  }
 }
 
 // Reviewed: 2026-06-13 — 24Therapy audit

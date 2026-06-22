@@ -31,33 +31,6 @@ interface FeatureFlag {
   rollout_notes?: string;
 }
 
-// Kept only for allTags computation — not used as initial state
-const FLAGS: FeatureFlag[] = [
-  {
-    id: "f1", key: "ai_copilot_live", name: "AI Copilot Live Mode", description: "Real-time AI session copilot with live suggestion overlay during video sessions.", type: "boolean", scope: "global", enabled_globally: true, tags: ["ai", "core", "beta"], created_at: "2026-04-15", updated_at: "2026-06-01", created_by: "Platform Team", rollout_notes: "Rolled out to all Professional+ plans after Q1 beta.",
-  },
-  {
-    id: "f2", key: "memory_graph_viz", name: "Memory Graph Visualization", description: "Interactive knowledge graph visualization of patient memory nodes. Currently in beta.", type: "percentage", scope: "org", enabled_globally: false, enabled_pct: 35, tags: ["memory", "beta", "ui"], created_at: "2026-05-01", updated_at: "2026-06-03", created_by: "AI Team",
-  },
-  {
-    id: "f3", key: "workflow_marketplace", name: "Workflow Template Marketplace", description: "Allow orgs to share and import workflow templates from a community marketplace.", type: "boolean", scope: "plan", enabled_globally: false, enabled_plans: ["enterprise"], tags: ["workflows", "enterprise"], created_at: "2026-05-15", updated_at: "2026-06-04", created_by: "Product Team",
-  },
-  {
-    id: "f4", key: "ehr_epic_integration", name: "Epic EHR Integration", description: "Bidirectional FHIR R4 sync with Epic. Patient demographics, notes, diagnoses.", type: "boolean", scope: "org", enabled_globally: false, enabled_orgs: ["Pacific Mental Health", "RegionHealth System"], tags: ["ehr", "enterprise", "fhir"], created_at: "2026-03-01", updated_at: "2026-05-20", created_by: "Integrations Team",
-  },
-  {
-    id: "f5", key: "group_sessions", name: "Group Session Support", description: "Multi-patient group therapy sessions with shared notes and group billing.", type: "percentage", scope: "global", enabled_globally: false, enabled_pct: 10, tags: ["sessions", "alpha"], created_at: "2026-06-01", updated_at: "2026-06-04", created_by: "Clinical Team", rollout_notes: "Alpha rollout — monitoring for performance issues.",
-  },
-  {
-    id: "f6", key: "patient_app_v2", name: "Patient Portal v2", description: "Redesigned patient portal with AI companion, homework tracking, and profile page.", type: "boolean", scope: "global", enabled_globally: true, tags: ["patient", "ui", "core"], created_at: "2026-05-28", updated_at: "2026-06-04", created_by: "Design Team",
-  },
-  {
-    id: "f7", key: "ai_risk_auto_escalation", name: "AI Risk Auto-Escalation", description: "Automatically escalate to supervisor when AI detects PHQ-9 >= 15 or C-SSRS positive.", type: "boolean", scope: "org", enabled_globally: false, tags: ["ai", "risk", "safety"], created_at: "2026-04-01", updated_at: "2026-05-15", created_by: "Safety Team",
-  },
-  {
-    id: "f8", key: "billing_auto_claim", name: "Automatic Claim Submission", description: "Auto-submit insurance claims when note is signed. Requires Availity or Office Ally integration.", type: "boolean", scope: "org", enabled_globally: false, tags: ["billing", "automation"], created_at: "2026-05-10", updated_at: "2026-06-02", created_by: "Billing Team",
-  },
-];
 
 interface FlagRowProps {
   flag: FeatureFlag;
@@ -322,8 +295,7 @@ export default function FeatureFlagsPage() {
     fetchFlags();
   }, []);
 
-  // Keep allTags from static list so the tag filter never disappears
-  const allTags = Array.from(new Set(FLAGS.flatMap(f => f.tags)));
+  const allTags = Array.from(new Set(flags.flatMap(f => f.tags)));
 
   const filtered = flags.filter(f => {
     const matchSearch = !search || f.key.includes(search) || f.name.toLowerCase().includes(search.toLowerCase());

@@ -5,18 +5,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Building2, Shield, LayoutGrid,
-  X, BarChart3, Settings, AlertTriangle
+  X, BarChart3, Settings, AlertTriangle, Video, Heart
 } from "lucide-react";
 
 const PRIMARY_TABS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Users", icon: Users, href: "/users" },
+  { label: "Sessions", icon: Video, href: "/sessions" },
+  { label: "Patients", icon: Heart, href: "/patients" },
   { label: "Orgs", icon: Building2, href: "/organizations" },
-  { label: "Safety", icon: Shield, href: "/compliance" },
   { label: "More", icon: LayoutGrid, href: null },
 ];
 
 const MORE_ITEMS = [
+  { label: "Users", icon: Users, href: "/users" },
   { label: "Analytics", icon: BarChart3, href: "/analytics" },
   { label: "Crisis Alerts", icon: AlertTriangle, href: "/crisis" },
   { label: "Audit Logs", icon: Shield, href: "/audit-logs" },

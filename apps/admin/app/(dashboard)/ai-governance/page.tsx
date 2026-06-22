@@ -9,74 +9,6 @@ import {
   Database, Server, Cpu, GitBranch, Play, Pause, Plus
 } from 'lucide-react';
 
-const MODEL_PERFORMANCE = [
-  {
-    id: '1', model: 'GPT-4o', provider: 'OpenAI', version: 'gpt-4o-2024-11-20',
-    status: 'active', use_cases: ['Session summaries', 'SOAP notes', 'Treatment plans'],
-    requests_today: 8420, requests_month: 248900,
-    tokens_today: 2840000, tokens_month: 84200000,
-    cost_today: 228.40, cost_month: 6750.00,
-    avg_latency_ms: 1840, p99_latency_ms: 4200,
-    success_rate: 99.2, error_rate: 0.8,
-    avg_quality_score: 4.7, safety_incidents: 0,
-    enabled: true, fallback_model: 'GPT-4o-mini',
-  },
-  {
-    id: '2', model: 'Claude 3.5 Sonnet', provider: 'Anthropic', version: 'claude-3-5-sonnet-20241022',
-    status: 'active', use_cases: ['DAP notes', 'Clinical reasoning', 'Copilot suggestions'],
-    requests_today: 2180, requests_month: 64800,
-    tokens_today: 980000, tokens_month: 29100000,
-    cost_today: 78.40, cost_month: 2332.00,
-    avg_latency_ms: 2100, p99_latency_ms: 5100,
-    success_rate: 99.5, error_rate: 0.5,
-    avg_quality_score: 4.8, safety_incidents: 0,
-    enabled: true, fallback_model: 'GPT-4o',
-  },
-  {
-    id: '3', model: 'Whisper Large v3', provider: 'OpenAI', version: 'whisper-large-v3',
-    status: 'active', use_cases: ['Live transcription', 'Session audio processing'],
-    requests_today: 1283, requests_month: 38200,
-    tokens_today: 0, tokens_month: 0,
-    cost_today: 25.66, cost_month: 764.00,
-    avg_latency_ms: 340, p99_latency_ms: 820,
-    success_rate: 98.9, error_rate: 1.1,
-    avg_quality_score: 4.6, safety_incidents: 0,
-    enabled: true, fallback_model: null,
-  },
-  {
-    id: '4', model: 'GPT-4o-mini', provider: 'OpenAI', version: 'gpt-4o-mini-2024-07-18',
-    status: 'active', use_cases: ['Quick suggestions', 'Memory tagging', 'Radar matching'],
-    requests_today: 940, requests_month: 28100,
-    tokens_today: 460000, tokens_month: 13700000,
-    cost_today: 9.20, cost_month: 274.00,
-    avg_latency_ms: 420, p99_latency_ms: 980,
-    success_rate: 99.7, error_rate: 0.3,
-    avg_quality_score: 4.3, safety_incidents: 0,
-    enabled: true, fallback_model: null,
-  },
-  {
-    id: '5', model: 'text-embedding-3-large', provider: 'OpenAI', version: 'text-embedding-3-large',
-    status: 'active', use_cases: ['Memory semantic search', 'Patient matching', 'Knowledge graph'],
-    requests_today: 12400, requests_month: 368000,
-    tokens_today: 1840000, tokens_month: 54600000,
-    cost_today: 0.74, cost_month: 22.00,
-    avg_latency_ms: 45, p99_latency_ms: 120,
-    success_rate: 99.99, error_rate: 0.01,
-    avg_quality_score: 4.9, safety_incidents: 0,
-    enabled: true, fallback_model: null,
-  },
-];
-
-const AI_SAFETY_RULES = [
-  { id: '1', rule: 'PHI Redaction in Logs', category: 'Privacy', status: 'active', enforcement: 'block' },
-  { id: '2', rule: 'Crisis Content Detection', category: 'Safety', status: 'active', enforcement: 'alert' },
-  { id: '3', rule: 'Therapist Context Scope', category: 'Access Control', status: 'active', enforcement: 'block' },
-  { id: '4', rule: 'Organization Boundary Enforcement', category: 'Tenant Isolation', status: 'active', enforcement: 'block' },
-  { id: '5', rule: 'AI Hallucination Monitoring', category: 'Quality', status: 'active', enforcement: 'flag' },
-  { id: '6', rule: 'Prompt Injection Detection', category: 'Security', status: 'active', enforcement: 'block' },
-  { id: '7', rule: 'Sensitive Topic Escalation', category: 'Clinical Safety', status: 'active', enforcement: 'alert' },
-  { id: '8', rule: 'Model Output PII Scan', category: 'Privacy', status: 'active', enforcement: 'sanitize' },
-];
 
 const ENFORCEMENT_COLORS: Record<string, string> = {
   block: 'bg-red-400/20 text-red-300',
@@ -316,20 +248,29 @@ export default function AIGovernancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {AI_SAFETY_RULES.map((rule) => (
-                <tr key={rule.id} className="hover:bg-gray-800/50 transition-colors">
+              {[
+                { rule: 'PHI Redaction in Logs', category: 'Privacy', enforcement: 'block', color: ENFORCEMENT_COLORS.block },
+                { rule: 'Crisis Content Detection', category: 'Safety', enforcement: 'alert', color: ENFORCEMENT_COLORS.alert },
+                { rule: 'Therapist Context Scope', category: 'Access Control', enforcement: 'block', color: ENFORCEMENT_COLORS.block },
+                { rule: 'Organization Boundary Enforcement', category: 'Tenant Isolation', enforcement: 'block', color: ENFORCEMENT_COLORS.block },
+                { rule: 'AI Hallucination Monitoring', category: 'Quality', enforcement: 'flag', color: ENFORCEMENT_COLORS.flag },
+                { rule: 'Prompt Injection Detection', category: 'Security', enforcement: 'block', color: ENFORCEMENT_COLORS.block },
+                { rule: 'Sensitive Topic Escalation', category: 'Clinical Safety', enforcement: 'alert', color: ENFORCEMENT_COLORS.alert },
+                { rule: 'Model Output PII Scan', category: 'Privacy', enforcement: 'sanitize', color: ENFORCEMENT_COLORS.sanitize },
+              ].map(({ rule, category, enforcement, color }) => (
+                <tr key={rule} className="hover:bg-gray-800/50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
                       <Shield className="w-3.5 h-3.5 text-gray-500" />
-                      <span className="text-sm text-white">{rule.rule}</span>
+                      <span className="text-sm text-white">{rule}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs text-gray-400">{rule.category}</span>
+                    <span className="text-xs text-gray-400">{category}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${ENFORCEMENT_COLORS[rule.enforcement]}`}>
-                      {rule.enforcement}
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${color}`}>
+                      {enforcement}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -348,28 +289,17 @@ export default function AIGovernancePage() {
       {/* Cost Analysis Tab */}
       {activeTab === 'costs' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { label: 'Total AI Cost This Month', value: `$${totalCostMonth.toLocaleString()}`, change: -8.2, note: 'vs $11,230 last month' },
-              { label: 'Cost Per Session', value: '$0.26', change: -12.4, note: 'Improving efficiency' },
-              { label: 'Cost Per Patient Per Month', value: '$0.42', change: -5.1, note: 'Very efficient' },
-            ].map(({ label, value, change, note }) => (
-              <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-                <div className="text-xs text-gray-500 mb-2">{label}</div>
-                <div className="text-2xl font-bold text-white">{value}</div>
-                <div className="flex items-center gap-1 mt-1">
-                  {change < 0 ? (
-                    <ArrowDown className="w-3 h-3 text-green-400" />
-                  ) : (
-                    <ArrowUp className="w-3 h-3 text-red-400" />
-                  )}
-                  <span className={`text-xs font-medium ${change < 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {Math.abs(change)}%
-                  </span>
-                  <span className="text-xs text-gray-500">{note}</span>
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+              <div className="text-xs text-gray-500 mb-2">Total AI Cost (period)</div>
+              <div className="text-2xl font-bold text-white">${totalCostMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-gray-600 mt-1">Aggregated across all models</div>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+              <div className="text-xs text-gray-500 mb-2">Total Requests (period)</div>
+              <div className="text-2xl font-bold text-white">{totalRequestsToday.toLocaleString()}</div>
+              <div className="text-xs text-gray-600 mt-1">All models combined</div>
+            </div>
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
@@ -402,17 +332,17 @@ export default function AIGovernancePage() {
         <div className="space-y-4">
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: 'Total Memory Nodes', value: '1.84M', icon: Database, color: 'text-purple-400' },
-              { label: 'Memories Created Today', value: '12,840', icon: Activity, color: 'text-blue-400' },
-              { label: 'Cross-Patient Access Blocks', value: '0', icon: Shield, color: 'text-green-400' },
-              { label: 'Memory Storage', value: '42.8 GB', icon: Server, color: 'text-amber-400' },
-            ].map(({ label, value, icon: Icon, color }) => (
+              { label: 'Total Memory Nodes', icon: Database, color: 'text-purple-400' },
+              { label: 'Memories Created Today', icon: Activity, color: 'text-blue-400' },
+              { label: 'Cross-Patient Access Blocks', icon: Shield, color: 'text-green-400' },
+              { label: 'Memory Storage', icon: Server, color: 'text-amber-400' },
+            ].map(({ label, icon: Icon, color }) => (
               <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className={`w-4 h-4 ${color}`} />
                   <span className="text-xs text-gray-400">{label}</span>
                 </div>
-                <div className="text-2xl font-bold text-white">{value}</div>
+                <div className="text-2xl font-bold text-gray-600">—</div>
               </div>
             ))}
           </div>
