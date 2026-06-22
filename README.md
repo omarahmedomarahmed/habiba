@@ -1,5 +1,6 @@
 # 24Therapy Mental Health OS
 
+
 > AI-powered mental health practice management platform — HIPAA-compliant, full-stack, production-ready.
 
 ## Stack
