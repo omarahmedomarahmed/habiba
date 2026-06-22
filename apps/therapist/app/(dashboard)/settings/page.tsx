@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { therapistsAPI, billingAPI, bookingAPI } from "@/lib/api";
+import { SPECIALTIES, LANGUAGES } from "@/lib/specialties";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -646,6 +647,32 @@ function TherapistSettingsInner() {
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>
                   </div>
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-gray-400 mb-2">Quick add from common specialties</p>
+                    <div className="flex flex-wrap gap-2">
+                      {SPECIALTIES.map((s) => {
+                        const active = profile.specializations.includes(s);
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setProfile({
+                              ...profile,
+                              specializations: active
+                                ? profile.specializations.filter((x) => x !== s)
+                                : [...profile.specializations, s],
+                            })}
+                            className={cn(
+                              "px-3 py-1.5 rounded-xl border text-sm transition-all",
+                              active ? "bg-[#0A2342] text-white border-[#0A2342]" : "border-gray-200 text-gray-700 hover:border-gray-300"
+                            )}
+                          >
+                            {s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </SectionCard>
 
                 <SectionCard title="Languages Spoken" description="Shown on your public profile and booking page">
@@ -674,6 +701,32 @@ function TherapistSettingsInner() {
                     >
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-gray-400 mb-2">Quick add common languages</p>
+                    <div className="flex flex-wrap gap-2">
+                      {LANGUAGES.map((l) => {
+                        const active = profile.languages.includes(l);
+                        return (
+                          <button
+                            key={l}
+                            type="button"
+                            onClick={() => setProfile({
+                              ...profile,
+                              languages: active
+                                ? profile.languages.filter((x) => x !== l)
+                                : [...profile.languages, l],
+                            })}
+                            className={cn(
+                              "px-3 py-1.5 rounded-xl border text-sm transition-all",
+                              active ? "bg-[#2EC4B6] text-white border-[#2EC4B6]" : "border-gray-200 text-gray-700 hover:border-gray-300"
+                            )}
+                          >
+                            {l}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </SectionCard>
 

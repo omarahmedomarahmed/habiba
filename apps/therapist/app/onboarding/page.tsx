@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { therapistsAPI } from "@/lib/api";
 import { useUIStore } from "@/lib/store";
+import { SPECIALTIES, MODALITIES, POPULATIONS, INSURANCE_PANELS } from "@/lib/specialties";
 import {
   Brain, CheckCircle2, ChevronRight, ChevronLeft, User, Building2,
   Stethoscope, Shield, CreditCard, Users, Calendar, Sparkles,
@@ -79,34 +80,6 @@ const STEPS: Array<{
   { id: "complete", label: "Complete", description: "Ready to start", icon: CheckCircle2 },
 ];
 
-const SPECIALTIES = [
-  "Depression", "Anxiety", "PTSD / Trauma", "OCD", "Bipolar Disorder",
-  "Eating Disorders", "Substance Use / Addiction", "ADHD", "Personality Disorders",
-  "Grief & Loss", "Relationship Issues", "Family Therapy", "Couples Therapy",
-  "Child & Adolescent", "Geriatric Mental Health", "LGBTQ+", "Cultural Issues",
-  "Chronic Pain & Illness", "Sleep Disorders", "Work & Career",
-];
-
-const MODALITIES = [
-  "Cognitive Behavioral Therapy (CBT)", "Dialectical Behavior Therapy (DBT)",
-  "EMDR", "Psychodynamic", "Acceptance & Commitment Therapy (ACT)",
-  "Mindfulness-Based (MBSR/MBCT)", "Schema Therapy", "Motivational Interviewing",
-  "Internal Family Systems (IFS)", "Somatic Therapy", "Narrative Therapy",
-  "Solution-Focused Brief Therapy", "Play Therapy", "Art Therapy",
-];
-
-const POPULATIONS = [
-  "Adults", "Adolescents (13-17)", "Children (5-12)", "Seniors (65+)",
-  "Couples", "Families", "Groups", "LGBTQ+ Individuals", "First Responders",
-  "Military / Veterans", "Healthcare Workers",
-];
-
-const INSURANCE_PANELS = [
-  "Aetna", "Blue Cross Blue Shield", "Cigna", "United Healthcare",
-  "Humana", "Medicare", "Medicaid", "Optum", "Magellan", "Beacon Health",
-  "Tricare", "Kaiser Permanente",
-];
-
 const initialData: OnboardingData = {
   first_name: "", last_name: "", pronouns: "", credentials: "",
   license_type: "", license_number: "", license_state: "", license_expiry: "",
@@ -145,39 +118,71 @@ export default function OnboardingPage() {
   const stepIndex = STEPS.findIndex(s => s.id === currentStep);
   const progressPercent = (stepIndex / (STEPS.length - 1)) * 100;
 
+  // Persist a single step's data to the backend so progress is saved as the
+  // therapist goes — nothing is lost if they drop off or the session expires.
+  const saveStep = async (step: OnboardingStep) => {
+    if (step === "profile") {
+      await therapistsAPI.updateProfile({
+        first_name: data.first_name,
+        last_name: data.last_name,
+        title: data.credentials,
+        display_name: `${data.credentials ? data.credentials + " " : ""}${data.first_name} ${data.last_name}`.trim(),
+        bio: data.bio,
+        years_experience: data.years_experience,
+      });
+    } else if (step === "practice") {
+      if (data.phone) await therapistsAPI.updateProfile({ phone: data.phone });
+    } else if (step === "credentials") {
+      await therapistsAPI.saveCredentials({
+        license_type: data.license_type || undefined,
+        license_number: data.license_number || undefined,
+        license_state: data.license_state || undefined,
+        license_expiry: data.license_expiry || undefined,
+        npi_number: data.npi_number || undefined,
+      });
+    } else if (step === "specialties") {
+      await therapistsAPI.updateProfile({
+        specializations: data.specialties,
+        therapy_modalities: data.modalities,
+        languages: data.languages,
+      });
+    } else if (step === "billing_setup") {
+      await therapistsAPI.updateProfile({
+        accepts_insurance: data.accepts_insurance,
+        insurance_providers: data.insurance_panels,
+        ...(data.session_fee ? { session_fee_min: data.session_fee, session_fee_max: data.session_fee } : {}),
+      });
+    }
+  };
+
+  const SAVED_STEPS: OnboardingStep[] = ["profile", "practice", "credentials", "specialties", "billing_setup"];
+
   const goToNext = async () => {
-    setCompletedSteps(prev => new Set([...prev, currentStep]));
+    const stepToSave = currentStep;
+    setCompletedSteps(prev => new Set([...prev, stepToSave]));
     const nextStep = STEPS[stepIndex + 1];
 
-    // On the last data-entry step (ai_preferences → complete), save everything to the API
-    if (currentStep === 'ai_preferences' && nextStep?.id === 'complete') {
+    // Save this step before advancing. Non-blocking on failure so a transient
+    // error never traps the therapist mid-wizard.
+    if (SAVED_STEPS.includes(stepToSave)) {
       setSaving(true);
       try {
-        await therapistsAPI.updateProfile({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          display_name: `${data.credentials ? data.credentials + ' ' : ''}${data.first_name} ${data.last_name}`.trim(),
-          bio: data.bio,
-          license_number: data.license_number,
-          license_state: data.license_state,
-          npi_number: data.npi_number,
-          years_experience: data.years_experience,
-          specializations: data.specialties,
-          languages: data.languages,
-          weekly_capacity: data.weekly_capacity,
-          telehealth_enabled: data.telehealth,
-          in_person_enabled: data.in_person,
-          ai_scribe_enabled: data.ai_scribe,
-          ai_copilot_enabled: data.ai_copilot,
-        });
-      } catch {
-        // Non-blocking — profile can be updated from settings; don't block onboarding
+        await saveStep(stepToSave);
+      } catch (e) {
+        console.error(`Onboarding step "${stepToSave}" save failed:`, e);
       } finally {
         setSaving(false);
       }
     }
 
     if (nextStep) setCurrentStep(nextStep.id);
+  };
+
+  const allSelected = (key: "specialties" | "modalities" | "populations", list: string[]) =>
+    list.length > 0 && list.every((item) => (data[key] as string[]).includes(item));
+
+  const toggleSelectAll = (key: "specialties" | "modalities" | "populations", list: string[]) => {
+    setData({ ...data, [key]: allSelected(key, list) ? [] : [...list] });
   };
 
   const goToPrev = () => {
@@ -676,9 +681,18 @@ export default function OnboardingPage() {
               <div className="space-y-6">
                 {/* Specialties */}
                 <div>
-                  <label className="text-base font-semibold text-gray-900 mb-3 block">
-                    Specialties <span className="text-sm font-normal text-gray-500">({data.specialties.length} selected)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-base font-semibold text-gray-900">
+                      Specialties <span className="text-sm font-normal text-gray-500">({data.specialties.length} selected)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectAll("specialties", SPECIALTIES)}
+                      className="text-xs font-semibold text-[#0A2342] hover:underline"
+                    >
+                      {allSelected("specialties", SPECIALTIES) ? "Clear all" : "Select all"}
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {SPECIALTIES.map(s => (
                       <button
@@ -699,9 +713,18 @@ export default function OnboardingPage() {
 
                 {/* Modalities */}
                 <div>
-                  <label className="text-base font-semibold text-gray-900 mb-3 block">
-                    Treatment Modalities <span className="text-sm font-normal text-gray-500">({data.modalities.length} selected)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-base font-semibold text-gray-900">
+                      Treatment Modalities <span className="text-sm font-normal text-gray-500">({data.modalities.length} selected)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectAll("modalities", MODALITIES)}
+                      className="text-xs font-semibold text-[#0A2342] hover:underline"
+                    >
+                      {allSelected("modalities", MODALITIES) ? "Clear all" : "Select all"}
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {MODALITIES.map(m => (
                       <button
@@ -722,9 +745,18 @@ export default function OnboardingPage() {
 
                 {/* Populations */}
                 <div>
-                  <label className="text-base font-semibold text-gray-900 mb-3 block">
-                    Patient Populations <span className="text-sm font-normal text-gray-500">({data.populations.length} selected)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-base font-semibold text-gray-900">
+                      Patient Populations <span className="text-sm font-normal text-gray-500">({data.populations.length} selected)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectAll("populations", POPULATIONS)}
+                      className="text-xs font-semibold text-[#0A2342] hover:underline"
+                    >
+                      {allSelected("populations", POPULATIONS) ? "Clear all" : "Select all"}
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {POPULATIONS.map(p => (
                       <button

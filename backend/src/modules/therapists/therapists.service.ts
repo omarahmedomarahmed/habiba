@@ -66,37 +66,90 @@ export class TherapistsService {
 
     if (!therapist) throw new NotFoundException("Therapist profile not found");
 
-    // Update therapist fields
+    // Whitelist of real `therapists` columns, each coerced so free-form onboarding
+    // values (e.g. years_experience = "3-5 years") never hit a typed column raw and
+    // abort the whole UPDATE. Unknown keys (npi_number, ai_*_enabled, weekly_capacity,
+    // telehealth_enabled, …) have no column and are silently ignored.
     const therapistFields: Record<string, unknown> = {};
+    const setText = (key: string, v: unknown) => {
+      if (v !== undefined) therapistFields[key] = v === null ? null : String(v);
+    };
+
+    if ("display_name" in data) setText("display_name", data.display_name);
+    if ("title" in data) setText("title", data.title);
+    if ("bio" in data) setText("bio", data.bio);
+    if ("license_number" in data) setText("license_number", data.license_number);
+    if ("license_state" in data) setText("license_state", data.license_state);
+    if ("license_type" in data) setText("license_type", data.license_type);
+
+    if ("years_experience" in data) {
+      // Accept numbers or strings like "3-5 years" / "20+ years" — take the leading integer.
+      const match = String(data.years_experience ?? "").match(/\d+/);
+      therapistFields.years_experience = match ? parseInt(match[0], 10) : null;
+    }
+    if ("accepting_new_patients" in data) {
+      therapistFields.accepting_new_patients = Boolean(data.accepting_new_patients);
+    }
+    if (Array.isArray(data.languages)) {
+      therapistFields.languages = data.languages.map((l) => String(l));
+    }
+    if (Array.isArray(data.specializations)) {
+      therapistFields.specializations = data.specializations.map((s) => String(s));
+    }
+    if (Array.isArray(data.therapy_modalities)) {
+      therapistFields.therapy_modalities = data.therapy_modalities.map((m) => String(m));
+    }
+    if (Array.isArray(data.insurance_providers)) {
+      therapistFields.insurance_providers = data.insurance_providers.map((p) => String(p));
+    }
+    if ("accepts_insurance" in data) {
+      therapistFields.accepts_insurance = Boolean(data.accepts_insurance);
+    }
+    for (const feeKey of ["session_fee_min", "session_fee_max"] as const) {
+      if (feeKey in data && data[feeKey] !== undefined && data[feeKey] !== "") {
+        const n = Number(data[feeKey]);
+        if (Number.isFinite(n)) therapistFields[feeKey] = n;
+      }
+    }
+
     const userFields: Record<string, unknown> = {};
-
-    const therapistKeys = ["bio", "specializations_text", "years_experience", "license_number", "license_state", "title", "accepting_new_patients"];
-    const userKeys = ["first_name", "last_name", "phone", "avatar_url"];
-
-    for (const [key, value] of Object.entries(data)) {
-      if (therapistKeys.includes(key)) therapistFields[key] = value;
-      if (userKeys.includes(key)) userFields[key] = value;
+    for (const key of ["first_name", "last_name", "phone", "avatar_url"]) {
+      if (key in data) userFields[key] = data[key];
     }
 
-    if (Object.keys(therapistFields).length > 0) {
-      const setClauses = Object.keys(therapistFields)
-        .map((key, i) => `${key} = $${i + 2}`)
-        .join(", ");
-      await this.db.execute(
-        `UPDATE therapists SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
-        [therapist.id, ...Object.values(therapistFields)]
-      );
-    }
+    await this.db.transaction(async (client) => {
+      if (Object.keys(therapistFields).length > 0) {
+        const keys = Object.keys(therapistFields);
+        const setClauses = keys.map((key, i) => `${key} = $${i + 2}`).join(", ");
+        await client.query(
+          `UPDATE therapists SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
+          [therapist.id, ...keys.map((k) => therapistFields[k])]
+        );
+      }
 
-    if (Object.keys(userFields).length > 0) {
-      const setClauses = Object.keys(userFields)
-        .map((key, i) => `${key} = $${i + 2}`)
-        .join(", ");
-      await this.db.execute(
-        `UPDATE users SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
-        [userId, ...Object.values(userFields)]
-      );
-    }
+      if (Object.keys(userFields).length > 0) {
+        const keys = Object.keys(userFields);
+        const setClauses = keys.map((key, i) => `${key} = $${i + 2}`).join(", ");
+        await client.query(
+          `UPDATE users SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
+          [userId, ...keys.map((k) => userFields[k])]
+        );
+      }
+
+      // Keep the therapist_specializations junction (read back by getMyProfile) in
+      // sync with the array column so selected specialties actually surface in the UI.
+      if (Array.isArray(data.specializations)) {
+        await client.query(`DELETE FROM therapist_specializations WHERE therapist_id = $1`, [therapist.id]);
+        const specs = data.specializations.map((s) => String(s).trim()).filter(Boolean);
+        for (const spec of specs) {
+          await client.query(
+            `INSERT INTO therapist_specializations (therapist_id, specialization)
+             VALUES ($1, $2) ON CONFLICT (therapist_id, specialization) DO NOTHING`,
+            [therapist.id, spec]
+          );
+        }
+      }
+    });
 
     return this.getMyProfile(userId, organizationId);
   }
@@ -372,6 +425,72 @@ export class TherapistsService {
       [therapistId],
     );
     if (t) await this.mail.sendTherapistRejected(t.email, t.display_name, reason);
+  }
+
+  // ============================================================
+  // CREDENTIALS (license / NPI) — saved to therapist + admin review queue
+  // ============================================================
+
+  async saveCredentials(
+    userId: string,
+    organizationId: string,
+    dto: {
+      license_type?: string;
+      license_number?: string;
+      license_state?: string;
+      license_expiry?: string;
+      npi_number?: string;
+    },
+  ): Promise<{ success: boolean }> {
+    const therapist = await this.db.queryOne<{ id: string }>(
+      `SELECT id FROM therapists WHERE user_id = $1 AND organization_id = $2 AND deleted_at IS NULL`,
+      [userId, organizationId],
+    );
+    if (!therapist) throw new NotFoundException('Therapist profile not found');
+
+    await this.db.transaction(async (client) => {
+      // Persist structured license fields on the therapist row.
+      await client.query(
+        `UPDATE therapists SET
+           license_number = COALESCE($2, license_number),
+           license_state  = COALESCE($3, license_state),
+           license_type   = COALESCE($4, license_type),
+           updated_at = NOW()
+         WHERE id = $1`,
+        [therapist.id, dto.license_number || null, dto.license_state || null, dto.license_type || null],
+      );
+
+      // Replace prior onboarding-entered (url-less, pending) rows so re-saving
+      // the step doesn't accumulate duplicates, then record license + NPI as
+      // documents the admin must review in the credentials queue.
+      await client.query(
+        `DELETE FROM therapist_credentials
+         WHERE therapist_id = $1 AND status = 'pending' AND COALESCE(document_url, '') = ''
+           AND document_type IN ('license','other')`,
+        [therapist.id],
+      );
+
+      if (dto.license_number) {
+        await client.query(
+          `INSERT INTO therapist_credentials (therapist_id, document_type, document_name, document_url, expiration_date, status)
+           VALUES ($1, 'license', $2, '', $3, 'pending')`,
+          [
+            therapist.id,
+            `License ${dto.license_number}${dto.license_state ? ` (${dto.license_state})` : ''}`,
+            dto.license_expiry || null,
+          ],
+        );
+      }
+      if (dto.npi_number) {
+        await client.query(
+          `INSERT INTO therapist_credentials (therapist_id, document_type, document_name, document_url, status)
+           VALUES ($1, 'other', $2, '', 'pending')`,
+          [therapist.id, `NPI: ${dto.npi_number}`],
+        );
+      }
+    });
+
+    return { success: true };
   }
 
   async submitForReview(therapistId: string): Promise<void> {

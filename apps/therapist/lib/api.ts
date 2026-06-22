@@ -153,7 +153,10 @@ export const patientsAPI = {
   list: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: Record<string, unknown>[]; total: number; cursor?: string }>("/patients", { params }),
 
-  get: (id: string) => apiFetch<Record<string, unknown>>(`/patients/${id}`),
+  get: (id: string) =>
+    apiFetch<Record<string, unknown>>(`/patients/${id}`).then(
+      (r) => ((r as any)?.patient ?? r) as Record<string, unknown>,
+    ),
 
   create: (data: Record<string, unknown>) =>
     apiFetch<Record<string, unknown>>("/patients", { method: "POST", body: JSON.stringify(data) }),
@@ -202,6 +205,9 @@ export const sessionsAPI = {
       method: "PATCH",
       body: JSON.stringify({ status, ...data }),
     }),
+
+  ensureRoom: (id: string) =>
+    apiFetch<{ video_room_url: string | null; configured: boolean }>(`/sessions/${id}/ensure-room`, { method: "POST" }),
 
   transcript: (id: string) =>
     apiFetch<{ data: Record<string, unknown>[] }>(`/sessions/${id}/transcript`),
@@ -315,6 +321,8 @@ export const therapistsAPI = {
     apiFetch("/therapists/me/public-slug", { method: "PATCH", body: JSON.stringify({ slug }) }),
   submitForReview: () =>
     apiFetch<{ success: boolean }>("/therapists/me/submit-review", { method: "PATCH" }),
+  saveCredentials: (data: { license_type?: string; license_number?: string; license_state?: string; license_expiry?: string; npi_number?: string }) =>
+    apiFetch<{ success: boolean }>("/therapists/me/credentials", { method: "PATCH", body: JSON.stringify(data) }),
   updateBankDetails: (payout_method: "ach" | "wire" | "swift", bank_details: Record<string, unknown>) =>
     apiFetch<{ success: boolean }>("/therapists/me/bank-details", {
       method: "PATCH",

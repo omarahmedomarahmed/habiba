@@ -9,6 +9,8 @@ import { Header } from "@/components/layout/header";
 import { TherapistBottomNav } from "@/components/BottomNav";
 import { useUIStore } from "@/lib/store";
 import { PendingApprovalBanner } from "@/components/layout/PendingApprovalBanner";
+import { UpgradePrompt } from "@/components/PlanGate";
+import { planKeyToTier, hasTier, FEATURE_MIN_TIER } from "@/lib/tiers";
 import { cn } from "@/lib/utils";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min
@@ -27,6 +29,8 @@ export default function DashboardLayout({
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const verificationStatus = useUIStore((s) => s.verificationStatus);
   const setVerificationStatus = useUIStore((s) => s.setVerificationStatus);
+  const setSubscriptionTier = useUIStore((s) => s.setSubscriptionTier);
+  const subscriptionTier = useUIStore((s) => s.subscriptionTier);
   const pathname = usePathname();
   const [hasHydrated, setHasHydrated] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
@@ -95,13 +99,23 @@ export default function DashboardLayout({
       const profile = data?.data?.therapist ?? data?.data ?? data;
       const status = profile?.verification_status ?? null;
       setVerificationStatus(status as any);
+      setSubscriptionTier(planKeyToTier(profile?.current_plan_key));
     }).catch(() => {});
-  }, [isAuthenticated, setVerificationStatus]);
+  }, [isAuthenticated, setVerificationStatus, setSubscriptionTier]);
 
   // Note: restricted pages now show a LockedPageOverlay instead of redirecting.
   // RESTRICTED_PATHS is kept for reference / future use by the overlay logic.
   void RESTRICTED_PATHS;
-  void pathname;
+
+  // Plan-tier gate: if the current top-level route maps to a feature the
+  // therapist's plan doesn't include, swap the page body for an upgrade wall.
+  // Optimistic while the tier is still loading (subscriptionTier === null).
+  const topSegment = pathname.split("/").filter(Boolean)[0] ?? "";
+  const requiredTier = FEATURE_MIN_TIER[topSegment];
+  const lockedFeature =
+    requiredTier && subscriptionTier !== null && !hasTier(subscriptionTier, requiredTier)
+      ? topSegment
+      : null;
 
   if (!hasHydrated || !isAuthenticated) return null;
 
@@ -119,7 +133,11 @@ export default function DashboardLayout({
         <Header />
         {verificationStatus && verificationStatus !== 'approved' && <PendingApprovalBanner />}
         <main className="flex-1 overflow-auto pb-20 md:pb-0">
-          {children}
+          {lockedFeature && requiredTier ? (
+            <UpgradePrompt feature={lockedFeature} required={requiredTier} />
+          ) : (
+            children
+          )}
         </main>
       </div>
 
