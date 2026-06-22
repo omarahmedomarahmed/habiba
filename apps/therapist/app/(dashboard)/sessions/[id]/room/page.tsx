@@ -78,6 +78,7 @@ export default function SessionRoomPage() {
   const [isLive, setIsLive] = useState(false);
   const [isAiPaused, setIsAiPaused] = useState(false);
   const [joinLinkCopied, setJoinLinkCopied] = useState(false);
+  const sessionDurationRef = useRef(0);
   const [activeRightTab, setActiveRightTab] = useState<"copilot" | "notes" | "risk">("copilot");
   const [activeLeftTab, setActiveLeftTab] = useState<"context" | "transcript">("transcript");
   const [note, setNote] = useState("");
@@ -116,15 +117,39 @@ export default function SessionRoomPage() {
 
   useEffect(() => {
     if (!id) return;
-    sessionsAPI.get(id).then((s: any) => {
+    roomStore.resetRoom();
+
+    sessionsAPI.get(id).then(async (s: any) => {
       setLiveSession(s);
-      // Resume the correct phase from persisted status (e.g. rejoining a live
-      // session after a refresh, or opening an already-completed session).
       if (s?.status === 'in_progress') {
         setSessionPhase('live');
         setIsLive(true);
+        // Load existing transcript on reconnect so panel isn't blank
+        sessionsAPI.transcript(id).then((txRes: any) => {
+          const segs: any[] = txRes?.data || [];
+          segs.forEach((seg: any, idx: number) => {
+            roomStore.addTranscriptSegment({
+              id: seg.id,
+              speaker: seg.speaker === 'therapist' ? 'therapist' : 'patient',
+              text: seg.text,
+              timestamp: idx * 5, // approximate seconds-elapsed for display
+              confidence: 1,
+            });
+          });
+        }).catch(() => {});
       } else if (s?.status === 'completed' || s?.status === 'archived') {
         setSessionPhase('ended');
+        // Load existing AI note so notes tab shows previous output
+        sessionsAPI.aiNote(id).then((noteRes: any) => {
+          if (noteRes) {
+            const content = noteRes.raw_content || noteRes.content || noteRes.note_content || '';
+            if (content) {
+              setGeneratedNote(content);
+              if (noteRes.id) setGeneratedNoteId(noteRes.id as string);
+              setNoteApproved(noteRes.status === 'approved');
+            }
+          }
+        }).catch(() => {});
       }
       if (s?.patient_id) {
         Promise.all([
@@ -196,6 +221,46 @@ export default function SessionRoomPage() {
     return () => { socket.off('patient_join_status', handlePatientJoin); };
   }, [accessToken, id]);
 
+  // Join session room for real-time transcript and copilot events
+  useEffect(() => {
+    if (!accessToken || !id) return;
+    const socket = getSocket(accessToken);
+
+    socket.emit('join_session', { session_id: id });
+
+    const handleTranscriptUpdate = (data: { session_id: string; segment: any }) => {
+      if (data.session_id !== id) return;
+      const seg = data.segment;
+      roomStore.addTranscriptSegment({
+        id: seg.id || String(Date.now()),
+        speaker: seg.speaker === 'therapist' ? 'therapist' : 'patient',
+        text: seg.text,
+        timestamp: sessionDurationRef.current,
+        confidence: seg.confidence || 1,
+      });
+    };
+
+    const handleCopilotSuggestion = (data: { session_id: string; suggestion: any }) => {
+      if (data.session_id !== id) return;
+      const s = data.suggestion;
+      roomStore.addCopilotSuggestion({
+        id: s.id || String(Date.now()),
+        type: s.type || 'observation',
+        content: s.content,
+        priority: s.priority || 'medium',
+      });
+    };
+
+    socket.on('transcript_update', handleTranscriptUpdate);
+    socket.on('copilot_suggestion', handleCopilotSuggestion);
+
+    return () => {
+      socket.emit('leave_session', { session_id: id });
+      socket.off('transcript_update', handleTranscriptUpdate);
+      socket.off('copilot_suggestion', handleCopilotSuggestion);
+    };
+  }, [accessToken, id]);
+
   // Disconnect socket when session ends or component unmounts
   useEffect(() => {
     return () => {
@@ -206,16 +271,21 @@ export default function SessionRoomPage() {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isLive) {
-      interval = setInterval(() => setSessionDuration((d) => d + 1), 1000);
+      interval = setInterval(() => setSessionDuration((d) => {
+        const next = d + 1;
+        sessionDurationRef.current = next;
+        return next;
+      }), 1000);
     }
     return () => clearInterval(interval);
   }, [isLive]);
 
+  // Auto-scroll transcript to bottom when new segments arrive
   useEffect(() => {
     if (transcriptRef.current) {
       transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
     }
-  }, []);
+  }, [roomStore.transcript]);
 
   const startSession = async () => {
     if (!id) return;
@@ -1067,12 +1137,34 @@ export default function SessionRoomPage() {
           {/* COPILOT TAB */}
           {activeRightTab === "copilot" && (
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   <Brain className="w-3.5 h-3.5 text-secondary" />
                   <span>AI Copilot</span>
                   <span className="bg-secondary/10 text-secondary text-[10px] px-1.5 py-0.5 rounded font-semibold">LIVE</span>
                 </div>
+                {isLive && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res: any = await aiAPI.copilotSuggestions(id);
+                        const suggestions: any[] = res?.suggestions || [];
+                        suggestions.forEach((s: any) => {
+                          roomStore.addCopilotSuggestion({
+                            id: String(Date.now()) + Math.random(),
+                            type: s.type || 'observation',
+                            content: s.content,
+                            priority: s.priority || 'medium',
+                          });
+                        });
+                      } catch { /* non-fatal */ }
+                    }}
+                    className="text-[10px] text-slate-400 hover:text-secondary border border-slate-200 rounded px-1.5 py-0.5 transition-colors"
+                    title="Refresh copilot suggestions"
+                  >
+                    Refresh
+                  </button>
+                )}
               </div>
 
               {/* Emotional Context Card — updates every 5 transcript segments */}
