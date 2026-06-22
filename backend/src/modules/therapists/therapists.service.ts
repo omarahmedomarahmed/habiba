@@ -96,6 +96,15 @@ export class TherapistsService {
     if (Array.isArray(data.specializations)) {
       therapistFields.specializations = data.specializations.map((s) => String(s));
     }
+    if (Array.isArray(data.therapy_modalities)) {
+      therapistFields.therapy_modalities = data.therapy_modalities.map((m) => String(m));
+    }
+    if (Array.isArray(data.insurance_providers)) {
+      therapistFields.insurance_providers = data.insurance_providers.map((p) => String(p));
+    }
+    if ("accepts_insurance" in data) {
+      therapistFields.accepts_insurance = Boolean(data.accepts_insurance);
+    }
     for (const feeKey of ["session_fee_min", "session_fee_max"] as const) {
       if (feeKey in data && data[feeKey] !== undefined && data[feeKey] !== "") {
         const n = Number(data[feeKey]);
@@ -416,6 +425,72 @@ export class TherapistsService {
       [therapistId],
     );
     if (t) await this.mail.sendTherapistRejected(t.email, t.display_name, reason);
+  }
+
+  // ============================================================
+  // CREDENTIALS (license / NPI) — saved to therapist + admin review queue
+  // ============================================================
+
+  async saveCredentials(
+    userId: string,
+    organizationId: string,
+    dto: {
+      license_type?: string;
+      license_number?: string;
+      license_state?: string;
+      license_expiry?: string;
+      npi_number?: string;
+    },
+  ): Promise<{ success: boolean }> {
+    const therapist = await this.db.queryOne<{ id: string }>(
+      `SELECT id FROM therapists WHERE user_id = $1 AND organization_id = $2 AND deleted_at IS NULL`,
+      [userId, organizationId],
+    );
+    if (!therapist) throw new NotFoundException('Therapist profile not found');
+
+    await this.db.transaction(async (client) => {
+      // Persist structured license fields on the therapist row.
+      await client.query(
+        `UPDATE therapists SET
+           license_number = COALESCE($2, license_number),
+           license_state  = COALESCE($3, license_state),
+           license_type   = COALESCE($4, license_type),
+           updated_at = NOW()
+         WHERE id = $1`,
+        [therapist.id, dto.license_number || null, dto.license_state || null, dto.license_type || null],
+      );
+
+      // Replace prior onboarding-entered (url-less, pending) rows so re-saving
+      // the step doesn't accumulate duplicates, then record license + NPI as
+      // documents the admin must review in the credentials queue.
+      await client.query(
+        `DELETE FROM therapist_credentials
+         WHERE therapist_id = $1 AND status = 'pending' AND COALESCE(document_url, '') = ''
+           AND document_type IN ('license','other')`,
+        [therapist.id],
+      );
+
+      if (dto.license_number) {
+        await client.query(
+          `INSERT INTO therapist_credentials (therapist_id, document_type, document_name, document_url, expiration_date, status)
+           VALUES ($1, 'license', $2, '', $3, 'pending')`,
+          [
+            therapist.id,
+            `License ${dto.license_number}${dto.license_state ? ` (${dto.license_state})` : ''}`,
+            dto.license_expiry || null,
+          ],
+        );
+      }
+      if (dto.npi_number) {
+        await client.query(
+          `INSERT INTO therapist_credentials (therapist_id, document_type, document_name, document_url, status)
+           VALUES ($1, 'other', $2, '', 'pending')`,
+          [therapist.id, `NPI: ${dto.npi_number}`],
+        );
+      }
+    });
+
+    return { success: true };
   }
 
   async submitForReview(therapistId: string): Promise<void> {

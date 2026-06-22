@@ -101,6 +101,21 @@ export class TherapistsController {
     return { success: true };
   }
 
+  @Patch("me/credentials")
+  @ApiOperation({ summary: "Save license / NPI credentials and queue for admin review" })
+  async saveCredentials(
+    @Request() req: { user: { userId: string; organizationId: string } },
+    @Body() body: {
+      license_type?: string;
+      license_number?: string;
+      license_state?: string;
+      license_expiry?: string;
+      npi_number?: string;
+    },
+  ): Promise<{ success: boolean }> {
+    return this.therapistsService.saveCredentials(req.user.userId, req.user.organizationId, body);
+  }
+
   @Patch("me/bank-details")
   @ApiOperation({ summary: "Update my payout bank details" })
   async updateBankDetails(

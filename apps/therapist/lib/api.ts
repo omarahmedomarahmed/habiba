@@ -318,6 +318,8 @@ export const therapistsAPI = {
     apiFetch("/therapists/me/public-slug", { method: "PATCH", body: JSON.stringify({ slug }) }),
   submitForReview: () =>
     apiFetch<{ success: boolean }>("/therapists/me/submit-review", { method: "PATCH" }),
+  saveCredentials: (data: { license_type?: string; license_number?: string; license_state?: string; license_expiry?: string; npi_number?: string }) =>
+    apiFetch<{ success: boolean }>("/therapists/me/credentials", { method: "PATCH", body: JSON.stringify(data) }),
   updateBankDetails: (payout_method: "ach" | "wire" | "swift", bank_details: Record<string, unknown>) =>
     apiFetch<{ success: boolean }>("/therapists/me/bank-details", {
       method: "PATCH",
