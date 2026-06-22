@@ -6,12 +6,13 @@ import { useEffect, useState } from "react";
 import {
   Brain, LayoutDashboard, Users, FileText,
   Settings, CreditCard, MessageSquare, Bell, Calendar,
-  ChevronLeft, ChevronRight, Activity, ArrowRight, Zap, Link2
+  ChevronLeft, ChevronRight, Activity, ArrowRight, Zap, Link2, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
 import { getInitials } from "@/lib/utils";
 import { sessionsAPI } from "@/lib/api";
+import { hasTier, FEATURE_MIN_TIER, type Tier } from "@/lib/tiers";
 
 interface SessionUsage {
   plan_key: string;
@@ -37,8 +38,16 @@ const BOTTOM_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar, notificationCount } = useUIStore();
+  const subscriptionTier = useUIStore((s) => s.subscriptionTier);
   const user = useAuthStore((s) => s.user);
   const [usage, setUsage] = useState<SessionUsage | null>(null);
+
+  // Locked until proven otherwise once the tier is known; null (loading) = unlocked.
+  const isLocked = (feature: string) => {
+    const required = FEATURE_MIN_TIER[feature];
+    if (!required || subscriptionTier === null) return false;
+    return !hasTier(subscriptionTier as Tier, required);
+  };
 
   useEffect(() => {
     sessionsAPI.usage().then(setUsage).catch(() => {});
@@ -124,26 +133,32 @@ export function Sidebar() {
             <div className="text-[10px] font-semibold text-slate-400 px-2 mb-1 tracking-wider">ADVANCED</div>
             <ul className="space-y-0.5">
               {[
-                { href: "/analytics",      icon: Activity, label: "Analytics" },
-                { href: "/radar",          icon: Zap,      label: "Radar", badge: "LIVE" },
-                { href: "/ai-workspace",   icon: Brain,    label: "AI Workspace" },
-                { href: "/booking", icon: Link2, label: "Booking" },
-              ].map(({ href, icon: Icon, label, badge }) => (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    className={cn("sidebar-item", isActive(href) && "active")}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{label}</span>
-                    {badge && (
-                      <span className="ml-auto text-[10px] bg-accent text-white px-1.5 py-0.5 rounded font-bold">
-                        {badge}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
+                { href: "/analytics",      icon: Activity, label: "Analytics",    feature: "analytics" },
+                { href: "/radar",          icon: Zap,      label: "Radar", badge: "LIVE", feature: "radar" },
+                { href: "/ai-workspace",   icon: Brain,    label: "AI Workspace", feature: "ai-workspace" },
+                { href: "/booking",        icon: Link2,    label: "Booking",      feature: "booking" },
+              ].map(({ href, icon: Icon, label, badge, feature }) => {
+                const locked = isLocked(feature);
+                return (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className={cn("sidebar-item", isActive(href) && "active", locked && "opacity-60")}
+                      title={locked ? `${label} — upgrade to unlock` : undefined}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span>{label}</span>
+                      {locked ? (
+                        <Lock className="ml-auto w-3.5 h-3.5 text-slate-400" />
+                      ) : badge ? (
+                        <span className="ml-auto text-[10px] bg-accent text-white px-1.5 py-0.5 rounded font-bold">
+                          {badge}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

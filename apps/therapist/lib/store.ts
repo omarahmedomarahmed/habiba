@@ -3,6 +3,7 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Tier } from "./tiers";
 
 // ============================================================
 // AUTH STORE
@@ -76,12 +77,15 @@ interface UIState {
   activeSessionId: string | null;
   notificationCount: number;
   verificationStatus: 'pending' | 'under_review' | 'approved' | 'rejected' | 'suspended' | null;
+  // null = not yet loaded; gates render optimistically (show content) until known.
+  subscriptionTier: Tier | null;
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
   setActivePatient: (id: string | null) => void;
   setActiveSession: (id: string | null) => void;
   setNotificationCount: (count: number) => void;
   setVerificationStatus: (status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'suspended' | null) => void;
+  setSubscriptionTier: (tier: Tier | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -90,12 +94,14 @@ export const useUIStore = create<UIState>((set) => ({
   activeSessionId: null,
   notificationCount: 0,
   verificationStatus: null,
+  subscriptionTier: null,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
   setActivePatient: (id) => set({ activePatientId: id }),
   setActiveSession: (id) => set({ activeSessionId: id }),
   setNotificationCount: (count) => set({ notificationCount: count }),
   setVerificationStatus: (status) => set({ verificationStatus: status }),
+  setSubscriptionTier: (tier) => set({ subscriptionTier: tier }),
 }));
 
 // ============================================================
