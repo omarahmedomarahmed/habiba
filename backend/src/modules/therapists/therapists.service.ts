@@ -66,37 +66,81 @@ export class TherapistsService {
 
     if (!therapist) throw new NotFoundException("Therapist profile not found");
 
-    // Update therapist fields
+    // Whitelist of real `therapists` columns, each coerced so free-form onboarding
+    // values (e.g. years_experience = "3-5 years") never hit a typed column raw and
+    // abort the whole UPDATE. Unknown keys (npi_number, ai_*_enabled, weekly_capacity,
+    // telehealth_enabled, …) have no column and are silently ignored.
     const therapistFields: Record<string, unknown> = {};
+    const setText = (key: string, v: unknown) => {
+      if (v !== undefined) therapistFields[key] = v === null ? null : String(v);
+    };
+
+    if ("display_name" in data) setText("display_name", data.display_name);
+    if ("title" in data) setText("title", data.title);
+    if ("bio" in data) setText("bio", data.bio);
+    if ("license_number" in data) setText("license_number", data.license_number);
+    if ("license_state" in data) setText("license_state", data.license_state);
+    if ("license_type" in data) setText("license_type", data.license_type);
+
+    if ("years_experience" in data) {
+      // Accept numbers or strings like "3-5 years" / "20+ years" — take the leading integer.
+      const match = String(data.years_experience ?? "").match(/\d+/);
+      therapistFields.years_experience = match ? parseInt(match[0], 10) : null;
+    }
+    if ("accepting_new_patients" in data) {
+      therapistFields.accepting_new_patients = Boolean(data.accepting_new_patients);
+    }
+    if (Array.isArray(data.languages)) {
+      therapistFields.languages = data.languages.map((l) => String(l));
+    }
+    if (Array.isArray(data.specializations)) {
+      therapistFields.specializations = data.specializations.map((s) => String(s));
+    }
+    for (const feeKey of ["session_fee_min", "session_fee_max"] as const) {
+      if (feeKey in data && data[feeKey] !== undefined && data[feeKey] !== "") {
+        const n = Number(data[feeKey]);
+        if (Number.isFinite(n)) therapistFields[feeKey] = n;
+      }
+    }
+
     const userFields: Record<string, unknown> = {};
-
-    const therapistKeys = ["bio", "specializations_text", "years_experience", "license_number", "license_state", "title", "accepting_new_patients"];
-    const userKeys = ["first_name", "last_name", "phone", "avatar_url"];
-
-    for (const [key, value] of Object.entries(data)) {
-      if (therapistKeys.includes(key)) therapistFields[key] = value;
-      if (userKeys.includes(key)) userFields[key] = value;
+    for (const key of ["first_name", "last_name", "phone", "avatar_url"]) {
+      if (key in data) userFields[key] = data[key];
     }
 
-    if (Object.keys(therapistFields).length > 0) {
-      const setClauses = Object.keys(therapistFields)
-        .map((key, i) => `${key} = $${i + 2}`)
-        .join(", ");
-      await this.db.execute(
-        `UPDATE therapists SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
-        [therapist.id, ...Object.values(therapistFields)]
-      );
-    }
+    await this.db.transaction(async (client) => {
+      if (Object.keys(therapistFields).length > 0) {
+        const keys = Object.keys(therapistFields);
+        const setClauses = keys.map((key, i) => `${key} = $${i + 2}`).join(", ");
+        await client.query(
+          `UPDATE therapists SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
+          [therapist.id, ...keys.map((k) => therapistFields[k])]
+        );
+      }
 
-    if (Object.keys(userFields).length > 0) {
-      const setClauses = Object.keys(userFields)
-        .map((key, i) => `${key} = $${i + 2}`)
-        .join(", ");
-      await this.db.execute(
-        `UPDATE users SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
-        [userId, ...Object.values(userFields)]
-      );
-    }
+      if (Object.keys(userFields).length > 0) {
+        const keys = Object.keys(userFields);
+        const setClauses = keys.map((key, i) => `${key} = $${i + 2}`).join(", ");
+        await client.query(
+          `UPDATE users SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
+          [userId, ...keys.map((k) => userFields[k])]
+        );
+      }
+
+      // Keep the therapist_specializations junction (read back by getMyProfile) in
+      // sync with the array column so selected specialties actually surface in the UI.
+      if (Array.isArray(data.specializations)) {
+        await client.query(`DELETE FROM therapist_specializations WHERE therapist_id = $1`, [therapist.id]);
+        const specs = data.specializations.map((s) => String(s).trim()).filter(Boolean);
+        for (const spec of specs) {
+          await client.query(
+            `INSERT INTO therapist_specializations (therapist_id, specialization)
+             VALUES ($1, $2) ON CONFLICT (therapist_id, specialization) DO NOTHING`,
+            [therapist.id, spec]
+          );
+        }
+      }
+    });
 
     return this.getMyProfile(userId, organizationId);
   }
