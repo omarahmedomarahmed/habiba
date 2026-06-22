@@ -20,17 +20,6 @@ interface CrisisEvent {
 }
 
 // ============================================================
-// FALLBACK DATA (shown when API is unavailable)
-// ============================================================
-const FALLBACK_STATS = {
-  mrr: 0, arr: 0, mrr_growth: 0,
-  active_organizations: 0, active_therapists: 0, active_patients: 0,
-  sessions_today: 0, ai_notes_today: 0, ai_cost_today: 0,
-  radar_requests_today: 0, radar_conversion: 0, compliance_issues: 0,
-  system_uptime: 100, nps_score: 0,
-};
-
-// ============================================================
 // Components
 // ============================================================
 function MetricCard({
@@ -157,7 +146,7 @@ export default function AdminDashboardPage() {
     fetchData();
   };
 
-  const s = stats || FALLBACK_STATS;
+  const s = stats || {};
 
   const fmtMoney = (n: number) =>
     n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M`

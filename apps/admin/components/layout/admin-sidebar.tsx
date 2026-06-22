@@ -5,13 +5,22 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, Shield, Brain, CreditCard,
   Settings, LogOut, Activity, AlertTriangle, ChevronRight,
-  Zap, BarChart2, UserCheck, Target, Layers,
-  Wrench, ToggleLeft, DollarSign, FileSearch, Banknote
+  Zap, BarChart2, UserCheck, Layers,
+  Wrench, ToggleLeft, DollarSign, FileSearch, Banknote,
+  Video, Heart, FileBadge, Server
 } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 const NAV = [
+  {
+    section: 'CLINICAL',
+    items: [
+      { href: '/sessions', label: 'Sessions', icon: Video },
+      { href: '/patients', label: 'Patients', icon: Heart },
+      { href: '/credentials', label: 'Credentials', icon: FileBadge },
+    ],
+  },
   {
     section: 'PLATFORM',
     items: [
@@ -20,6 +29,8 @@ const NAV = [
       { href: '/practice-management', label: 'Practice Mgmt', icon: Layers },
       { href: '/users', label: 'All Users', icon: Users },
       { href: '/therapists', label: 'Therapists', icon: UserCheck },
+      { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
+      { href: '/api-logs', label: 'API Logs', icon: Server },
     ],
   },
   {
@@ -37,7 +48,6 @@ const NAV = [
       { href: '/payouts', label: 'Therapist Payouts', icon: Banknote },
       { href: '/pricing', label: 'Pricing Management', icon: DollarSign },
       { href: '/analytics', label: 'Analytics', icon: BarChart2 },
-      { href: '/crm', label: 'CRM & Sales', icon: Target },
     ],
   },
   {
