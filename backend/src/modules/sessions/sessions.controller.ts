@@ -150,6 +150,13 @@ export class SessionsController {
     }
   }
 
+  @Post(':id/ensure-room')
+  @ApiOperation({ summary: 'Lazily create the Daily.co video room if missing' })
+  async ensureRoom(@Request() req: any, @Param('id') id: string) {
+    const result = await this.sessionsService.ensureVideoRoom(id, req.user.organization_id);
+    return this.response(result);
+  }
+
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update session status (start, end, cancel)' })
   async updateStatus(@Request() req: any, @Param('id') id: string, @Body() body: any) {

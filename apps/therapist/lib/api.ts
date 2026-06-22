@@ -203,6 +203,9 @@ export const sessionsAPI = {
       body: JSON.stringify({ status, ...data }),
     }),
 
+  ensureRoom: (id: string) =>
+    apiFetch<{ video_room_url: string | null; configured: boolean }>(`/sessions/${id}/ensure-room`, { method: "POST" }),
+
   transcript: (id: string) =>
     apiFetch<{ data: Record<string, unknown>[] }>(`/sessions/${id}/transcript`),
 

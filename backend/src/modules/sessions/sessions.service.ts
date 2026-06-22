@@ -331,31 +331,40 @@ export class SessionsService {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(' ') || null;
 
-    // Validate that therapistId is actually in the therapists table (not a bare user UUID)
+    // Validate that therapistId is actually in the therapists table (not a bare
+    // user UUID) and grab its user_id — therapist_patient_assignments.assigned_by
+    // is a FK to users(id), NOT therapists(id), so passing the therapist id here
+    // raises a 23503 foreign-key violation (the in-person session 500).
     const validTherapist = therapistId
-      ? await this.db.queryOne(
-          `SELECT id FROM therapists WHERE id = $1 AND deleted_at IS NULL`,
+      ? await this.db.queryOne<{ id: string; user_id: string }>(
+          `SELECT id, user_id FROM therapists WHERE id = $1 AND deleted_at IS NULL`,
           [therapistId],
         )
       : null;
     const safeTherapistId = validTherapist ? therapistId : null;
+    const assignedByUserId = validTherapist?.user_id ?? null;
 
-    await this.db.execute(
-      `INSERT INTO patients (id, organization_id, primary_therapist_id, first_name, last_name, email, source, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'offline_session', 'active')`,
-      [patientId, orgId, safeTherapistId, firstName, lastName, email?.toLowerCase() || null],
-    );
-    await this.db.execute(
-      `INSERT INTO patient_profiles (id, patient_id) VALUES ($1, $2)`,
-      [uuidv4(), patientId],
-    );
-    if (safeTherapistId) {
-      await this.db.execute(
-        `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
-         VALUES ($1, $2, $3, $4, $5) ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
-        [uuidv4(), safeTherapistId, patientId, orgId, safeTherapistId],
+    // Create patient + profile + assignment atomically so a mid-way failure
+    // can't leave an orphaned guest patient behind.
+    await this.db.transaction(async (client) => {
+      await client.query(
+        `INSERT INTO patients (id, organization_id, primary_therapist_id, first_name, last_name, email, source, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'offline_session', 'active')`,
+        [patientId, orgId, safeTherapistId, firstName, lastName, email?.toLowerCase() || null],
       );
-    }
+      await client.query(
+        `INSERT INTO patient_profiles (id, patient_id) VALUES ($1, $2)
+         ON CONFLICT (patient_id) DO NOTHING`,
+        [uuidv4(), patientId],
+      );
+      if (safeTherapistId) {
+        await client.query(
+          `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
+           VALUES ($1, $2, $3, $4, $5) ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
+          [uuidv4(), safeTherapistId, patientId, orgId, assignedByUserId],
+        );
+      }
+    });
 
     return patientId;
   }
@@ -744,6 +753,36 @@ export class SessionsService {
     if (!session) throw new NotFoundException('Session not found');
     const joinUrl = `${therapistAppUrl}/join/${session.join_token}`;
     return { join_url: joinUrl, invited: emails.length };
+  }
+
+  /**
+   * Lazily create a Daily.co room for a session that doesn't have one yet
+   * (e.g. the API key was added after creation, or room creation failed at
+   * create time). Returns null url for in-person sessions or when video isn't
+   * configured — callers fall back to an honest "no video" state.
+   */
+  async ensureVideoRoom(sessionId: string, orgId: string): Promise<{ video_room_url: string | null; configured: boolean }> {
+    const session = await this.db.queryOne<any>(
+      `SELECT id, video_room_url, modality FROM sessions WHERE id = $1 AND organization_id = $2`,
+      [sessionId, orgId],
+    );
+    if (!session) throw new NotFoundException('Session not found');
+
+    const configured = !!this.config.get('video.dailyApiKey');
+    if (session.video_room_url) return { video_room_url: session.video_room_url, configured };
+    if (session.modality === 'in_person' || !configured) return { video_room_url: null, configured };
+
+    try {
+      const room = await this.createDailyRoom(sessionId);
+      await this.db.execute(
+        `UPDATE sessions SET video_room_id = $1, video_room_url = $2, updated_at = NOW() WHERE id = $3`,
+        [room.name, room.url, sessionId],
+      );
+      return { video_room_url: room.url, configured };
+    } catch (e: any) {
+      this.logger.warn(`ensureVideoRoom failed for ${sessionId}: ${e?.message}`);
+      return { video_room_url: null, configured };
+    }
   }
 
   private async createDailyRoom(sessionId: string) {

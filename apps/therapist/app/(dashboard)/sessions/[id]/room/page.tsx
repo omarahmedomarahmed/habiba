@@ -6,11 +6,10 @@ import Link from "next/link";
 import { getSocket, disconnectSocket } from "@/lib/socket";
 import { useAuthStore } from "@/lib/store";
 import {
-  Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Settings2,
-  Brain, FileText, Flag, Bookmark, Plus, ChevronRight, ChevronDown,
-  AlertTriangle, MessageSquare, Clock, Users, Maximize2, Minimize2,
-  Zap, Target, Pill, Activity, TrendingDown, Send, X, CheckCircle2,
-  MoreHorizontal, Volume2, Share2, Edit3, Eye, CreditCard, Loader2
+  Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff,
+  Brain, FileText, Flag, Zap,
+  AlertTriangle, MessageSquare, Send, X, CheckCircle2,
+  Share2, Edit3, CreditCard, Loader2
 } from "lucide-react";
 import { cn, formatSessionTime, getInitials } from "@/lib/utils";
 import { useSessionRoomStore } from "@/lib/store";
@@ -106,6 +105,7 @@ export default function SessionRoomPage() {
     trajectory: string; clinical_note: string; intervention_suggestion: string;
   } | null>(null);
   const [patientJoinStatus, setPatientJoinStatus] = useState<"none" | "paid" | "joining" | "joined">("none");
+  const [videoConfigured, setVideoConfigured] = useState<boolean | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const isAiPausedRef = useRef(false);
@@ -306,6 +306,15 @@ export default function SessionRoomPage() {
     }
     setSessionPhase("live");
     setIsLive(true);
+    // Ensure a Daily.co room exists (lazily create if it wasn't made at session
+    // creation). For video sessions this populates the iframe; in-person stays null.
+    try {
+      const room = await sessionsAPI.ensureRoom(id);
+      setVideoConfigured(room.configured);
+      if (room.video_room_url) {
+        setLiveSession((prev) => (prev ? { ...prev, video_room_url: room.video_room_url } : prev));
+      }
+    } catch { /* fall back to honest no-video state */ }
     // Start browser audio capture for live transcription
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -341,6 +350,14 @@ export default function SessionRoomPage() {
       recorderRef.current.stop();
       recorderRef.current.stream?.getTracks().forEach(t => t.stop());
     }
+  };
+
+  const copyJoinLink = async () => {
+    const token = (liveSession as any)?.join_token;
+    if (!token) return;
+    await navigator.clipboard.writeText(`${window.location.origin}/join/${token}`);
+    setJoinLinkCopied(true);
+    setTimeout(() => setJoinLinkCopied(false), 2000);
   };
 
   // The billing hook on the backend is fire-and-forget, so the charge row can
@@ -781,22 +798,13 @@ export default function SessionRoomPage() {
             <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full">Waiting to start</span>
           )}
 
-          <button className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors">
-            <Settings2 className="w-4 h-4" />
-          </button>
           <button
-            onClick={async () => {
-              const token = (liveSession as any)?.join_token;
-              if (token) {
-                await navigator.clipboard.writeText(`${window.location.origin}/join/${token}`);
-                setJoinLinkCopied(true);
-                setTimeout(() => setJoinLinkCopied(false), 2000);
-              }
-            }}
-            title="Copy join link"
-            className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+            onClick={copyJoinLink}
+            title="Copy patient join link"
+            className="flex items-center gap-1.5 h-7 px-2.5 text-slate-400 hover:text-white border border-slate-700 rounded text-xs transition-colors"
           >
-            {joinLinkCopied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
+            {joinLinkCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <Share2 className="w-3.5 h-3.5" />}
+            {joinLinkCopied ? "Copied" : "Invite"}
           </button>
           <Link href="/sessions" className="flex items-center gap-1.5 h-7 px-2.5 text-slate-400 hover:text-white border border-slate-700 rounded text-xs transition-colors">
             <X className="w-3 h-3" /> Exit
@@ -875,16 +883,6 @@ export default function SessionRoomPage() {
                 )}
               </div>
 
-              {/* Tag quick-add toolbar */}
-              <div className="p-2 border-t border-slate-700">
-                <div className="flex flex-wrap gap-1">
-                  {["risk", "goal", "medication", "trigger"].map((tag) => (
-                    <button key={tag} className="text-[10px] px-2 py-1 border border-slate-600 text-slate-400 hover:border-slate-400 hover:text-white rounded transition-colors">
-                      + {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -1012,17 +1010,26 @@ export default function SessionRoomPage() {
                 title="Video Session"
               />
             ) : (
-              /* Live session - no video room URL, show avatar placeholder */
-              <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                  {getInitials(session.patient.name)}
-                </div>
-                {/* Self view */}
-                <div className="absolute bottom-4 right-4 w-32 h-20 bg-slate-700 rounded-lg flex items-center justify-center border-2 border-slate-600">
-                  <div className="w-10 h-10 bg-primary/60 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                    DR
-                  </div>
-                </div>
+              /* Live session, no Daily room — honest state + the real join link */
+              <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex flex-col items-center justify-center text-center p-6">
+                <VideoOff className="w-12 h-12 text-slate-500 mb-4" />
+                <p className="text-white text-lg font-semibold mb-1">
+                  {videoConfigured === false ? "Video calling isn't set up yet" : "Preparing video room…"}
+                </p>
+                <p className="text-slate-400 text-sm mb-5 max-w-sm">
+                  {videoConfigured === false
+                    ? "This session is still being recorded and transcribed. Share the join link so your patient can connect."
+                    : "Hang tight — if this persists, share the join link below so your patient can connect."}
+                </p>
+                {(liveSession as any)?.join_token && (
+                  <button
+                    onClick={copyJoinLink}
+                    className="flex items-center gap-2 h-9 px-4 bg-secondary text-white rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors"
+                  >
+                    {joinLinkCopied ? <CheckCircle2 className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                    {joinLinkCopied ? "Link copied" : "Copy patient join link"}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1049,24 +1056,9 @@ export default function SessionRoomPage() {
               {isVideoOff ? <VideoOff className="w-4 h-4" /> : <VideoIcon className="w-4 h-4" />}
             </button>
 
-            <button className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors">
-              <Volume2 className="w-4 h-4" />
-            </button>
-
-            <button className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors">
-              <MessageSquare className="w-4 h-4" />
-            </button>
-
             <button
-              onClick={async () => {
-                const token = (liveSession as any)?.join_token;
-                if (token) {
-                  await navigator.clipboard.writeText(`${window.location.origin}/join/${token}`);
-                  setJoinLinkCopied(true);
-                  setTimeout(() => setJoinLinkCopied(false), 2000);
-                }
-              }}
-              title="Copy join link"
+              onClick={copyJoinLink}
+              title="Copy patient join link"
               className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors"
             >
               {joinLinkCopied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
@@ -1084,14 +1076,6 @@ export default function SessionRoomPage() {
                 <Brain className="w-4 h-4" />
               </button>
             )}
-
-            <button className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors">
-              <Flag className="w-4 h-4" />
-            </button>
-
-            <button className="w-10 h-10 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-colors">
-              <Bookmark className="w-4 h-4" />
-            </button>
 
             {isLive && (
               <button
