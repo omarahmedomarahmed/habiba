@@ -19,7 +19,9 @@ export class SessionsController {
   @ApiOperation({ summary: 'Get therapist dashboard statistics' })
   async getDashboard(@Request() req: any) {
     const stats = await this.sessionsService.getDashboardStats(req.user.organization_id, req.user.therapistId || req.user.id);
-    return this.response({ stats });
+    // Dual shape: fields at top level (apiFetch unwraps the {data} envelope) + a
+    // `stats` key for any caller that reads response.stats.
+    return this.response({ ...stats, stats });
   }
 
   @Get()
@@ -28,14 +30,15 @@ export class SessionsController {
     // Patients may only see their own sessions
     const patientFilter = req.user.role === 'patient' ? { patient_id: req.user.patientId } : {};
     const sessions = await this.sessionsService.findAll(req.user.organization_id, { ...query, ...patientFilter });
-    return this.response({ sessions });
+    // Dual shape: `data`/`total` (what the web clients read) + `sessions` (legacy).
+    return this.response({ data: sessions, sessions, total: Array.isArray(sessions) ? sessions.length : 0 });
   }
 
   @Get('usage')
   @ApiOperation({ summary: 'Get current therapist session usage and plan limits' })
   async getUsage(@Request() req: any) {
     const usage = await this.sessionsService.getTherapistUsage(req.user.therapistId || req.user.id);
-    return this.response({ usage });
+    return this.response({ ...usage, usage });
   }
 
   @Get('my-reports')
@@ -113,7 +116,7 @@ export class SessionsController {
   @ApiOperation({ summary: 'Get session by ID' })
   async findOne(@Request() req: any, @Param('id') id: string) {
     const session = await this.sessionsService.findOne(id, req.user.organization_id);
-    return this.response({ session });
+    return this.response({ ...session, session });
   }
 
   @Post()
@@ -122,7 +125,7 @@ export class SessionsController {
     if (!dto.therapist_id) dto.therapist_id = req.user.therapistId || req.user.id;
     try {
       const session = await this.sessionsService.create(req.user.organization_id, dto);
-      return this.response({ session });
+      return this.response({ ...session, session });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.startsWith('UPGRADE_REQUIRED') || msg.startsWith('SESSION_LIMIT_REACHED')) {

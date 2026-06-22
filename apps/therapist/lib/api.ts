@@ -153,7 +153,10 @@ export const patientsAPI = {
   list: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: Record<string, unknown>[]; total: number; cursor?: string }>("/patients", { params }),
 
-  get: (id: string) => apiFetch<Record<string, unknown>>(`/patients/${id}`),
+  get: (id: string) =>
+    apiFetch<Record<string, unknown>>(`/patients/${id}`).then(
+      (r) => ((r as any)?.patient ?? r) as Record<string, unknown>,
+    ),
 
   create: (data: Record<string, unknown>) =>
     apiFetch<Record<string, unknown>>("/patients", { method: "POST", body: JSON.stringify(data) }),
