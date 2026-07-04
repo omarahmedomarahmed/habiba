@@ -14,7 +14,9 @@ import {
 import { cn } from "@/lib/utils";
 import { therapistsAPI, billingAPI, bookingAPI } from "@/lib/api";
 import { SPECIALTIES, LANGUAGES } from "@/lib/specialties";
-import { useSearchParams } from "next/navigation";
+import { useUIStore } from "@/lib/store";
+import { hasTier } from "@/lib/tiers";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 
 type SettingsTab =
@@ -36,8 +38,6 @@ const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "ai", label: "AI & Scribe", icon: Brain },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
-  { id: "billing", label: "Billing", icon: CreditCard },
-  { id: "usage", label: "Usage", icon: BarChart3 },
 ];
 
 function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -54,6 +54,28 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: (v: b
         enabled ? "translate-x-5" : "translate-x-0.5"
       )} />
     </button>
+  );
+}
+
+function UpgradeNotice({ feature }: { feature: string }) {
+  return (
+    <div className="bg-gradient-to-br from-[#0A2342] to-[#1F5EFF] rounded-2xl p-6 text-white">
+      <div className="flex items-center gap-2 mb-2">
+        <Zap className="w-5 h-5 text-yellow-300" />
+        <h3 className="font-bold text-lg">A paid plan is required</h3>
+      </div>
+      <p className="text-sm text-white/80 mb-4 max-w-md">
+        {feature} is available once you upgrade. Pay-as-you-go therapists can run
+        sessions and take notes; incoming bookings, availability, session offerings
+        and payouts unlock on Starter and above.
+      </p>
+      <Link
+        href="/billing"
+        className="inline-flex items-center gap-1.5 h-9 px-4 bg-white text-[#0A2342] text-sm font-semibold rounded-xl hover:bg-white/90 transition-colors"
+      >
+        View plans <ArrowRight className="w-4 h-4" />
+      </Link>
+    </div>
   );
 }
 
@@ -75,8 +97,19 @@ function SectionCard({ title, description, children }: {
 
 function TherapistSettingsInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tabParam = searchParams.get("tab") as SettingsTab | null;
-  const [activeTab, setActiveTab] = useState<SettingsTab>(tabParam || "profile");
+  // Billing lives on its own /billing page now — never inside settings.
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    tabParam && tabParam !== "billing" && tabParam !== "usage" ? tabParam : "profile",
+  );
+  const subscriptionTier = useUIStore((s) => s.subscriptionTier);
+  // null = not yet loaded → don't flash a gate; treat as allowed until known.
+  const isPaid = subscriptionTier !== null && hasTier(subscriptionTier, "starter");
+
+  useEffect(() => {
+    if (tabParam === "billing" || tabParam === "usage") router.replace("/billing");
+  }, [tabParam, router]);
   const [billingUsage, setBillingUsage] = useState<any>(null);
   const [billingLoading, setBillingLoading] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
@@ -365,6 +398,9 @@ function TherapistSettingsInner() {
           avatar_url: data.avatar_url || prev.avatar_url,
         }));
         if (data.public_slug || data.booking_slug) setSlug(data.public_slug || data.booking_slug);
+        if (data.ai_preferences && typeof data.ai_preferences === "object") {
+          setAiPrefs((prev) => ({ ...prev, ...data.ai_preferences }));
+        }
       }
     }).catch(() => {});
   }, []);
@@ -382,6 +418,7 @@ function TherapistSettingsInner() {
         specializations: profile.specializations,
         languages: profile.languages,
         accepting_new_patients: true,
+        ai_preferences: aiPrefs,
       });
     } catch {
       // non-critical
@@ -730,7 +767,8 @@ function TherapistSettingsInner() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Booking Link" description="Share with patients to let them self-schedule and pay online">
+                {isPaid && (
+                <SectionCard title="Booking Link" description="Share with patients to let them self-schedule and pay online. Manage offerings and availability on the Booking page.">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-sm text-slate-500 shrink-0 whitespace-nowrap">
                       {typeof window !== "undefined" ? window.location.origin : "https://app.24therapy.ai"}/t/
@@ -772,6 +810,7 @@ function TherapistSettingsInner() {
                     )}
                   </div>
                 </SectionCard>
+                )}
               </>
             )}
 
@@ -977,33 +1016,9 @@ function TherapistSettingsInner() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="AI Usage This Month">
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { label: "Notes Generated", value: "47", icon: FileText },
-                      { label: "Time Saved", value: "~9.4 hrs", icon: Clock },
-                      { label: "Copilot Suggestions", value: "312", icon: Brain },
-                    ].map((stat) => {
-                      const Icon = stat.icon;
-                      return (
-                        <div key={stat.label} className="bg-gray-50 rounded-xl p-3 text-center">
-                          <Icon className="w-5 h-5 text-[#2EC4B6] mx-auto mb-1" />
-                          <div className="font-bold text-[#0A2342]">{stat.value}</div>
-                          <div className="text-xs text-gray-400">{stat.label}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-gray-600">Notes included in plan</span>
-                      <span className="font-medium">47 / 200</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#2EC4B6] rounded-full" style={{ width: "24%" }} />
-                    </div>
-                  </div>
-                </SectionCard>
+                <p className="text-xs text-gray-400 px-1">
+                  Changes here are saved with the <span className="font-medium">Save Changes</span> button above.
+                </p>
               </>
             )}
 
@@ -1199,6 +1214,7 @@ function TherapistSettingsInner() {
 
             {/* ─── AVAILABILITY TAB ─── */}
             {activeTab === "availability" && (
+              !isPaid ? <UpgradeNotice feature="Availability scheduling" /> : (
               <>
                 <SectionCard
                   title="Weekly Schedule"
@@ -1273,6 +1289,7 @@ function TherapistSettingsInner() {
                   <p className="text-xs text-slate-400 mt-2">Timezone is saved as part of your profile.</p>
                 </SectionCard>
               </>
+              )
             )}
 
             {/* ─── BILLING TAB ─── */}

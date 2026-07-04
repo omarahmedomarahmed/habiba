@@ -136,6 +136,15 @@ export class TherapistsService {
         );
       }
 
+      // AI / scribe preferences (JSONB). Cast explicitly and tolerate the column
+      // not existing yet (before migration 035 runs) so profile saves never 500.
+      if (data.ai_preferences && typeof data.ai_preferences === "object") {
+        await client.query(
+          `UPDATE therapists SET ai_preferences = $2::jsonb, updated_at = NOW() WHERE id = $1`,
+          [therapist.id, JSON.stringify(data.ai_preferences)],
+        ).catch((e: any) => { if (e?.code !== "42703") throw e; });
+      }
+
       // Keep the therapist_specializations junction (read back by getMyProfile) in
       // sync with the array column so selected specialties actually surface in the UI.
       if (Array.isArray(data.specializations)) {
