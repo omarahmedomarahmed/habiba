@@ -591,6 +591,21 @@ export const bookingAPI = {
     apiFetch<Record<string, unknown>[]>("/booking/me/upcoming"),
 };
 
+export const usersAPI = {
+  changePassword: (current_password: string, new_password: string) =>
+    apiFetch<{ success: boolean }>("/users/me/password", {
+      method: "PATCH",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+  getNotificationPreferences: () =>
+    apiFetch<Record<string, unknown>>("/users/me/notification-preferences"),
+  updateNotificationPreferences: (prefs: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/users/me/notification-preferences", {
+      method: "PATCH",
+      body: JSON.stringify(prefs),
+    }),
+};
+
 export { APIError };
 export default apiFetch;
 

@@ -12,7 +12,7 @@ import {
   Users, Calendar, BarChart3, ExternalLink, Copy, Check, ArrowRight, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { therapistsAPI, billingAPI, bookingAPI } from "@/lib/api";
+import { therapistsAPI, billingAPI, bookingAPI, usersAPI } from "@/lib/api";
 import { SPECIALTIES, LANGUAGES } from "@/lib/specialties";
 import { useUIStore } from "@/lib/store";
 import { hasTier } from "@/lib/tiers";
@@ -373,6 +373,26 @@ function TherapistSettingsInner() {
   // Security state
   const [mfaEnabled, setMfaEnabled] = useState(true);
   const [sessionTimeout, setSessionTimeout] = useState("60");
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const handleChangePassword = async () => {
+    setPwMsg(null);
+    if (pwNew.length < 8) { setPwMsg({ type: "err", text: "New password must be at least 8 characters." }); return; }
+    setPwLoading(true);
+    try {
+      await usersAPI.changePassword(pwCurrent, pwNew);
+      setPwCurrent(""); setPwNew("");
+      setPwMsg({ type: "ok", text: "Password updated." });
+    } catch (e: any) {
+      setPwMsg({ type: "err", text: e?.message || "Could not change password." });
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
 
   // Load real profile on mount
   useEffect(() => {
@@ -403,6 +423,23 @@ function TherapistSettingsInner() {
         }
       }
     }).catch(() => {});
+
+    usersAPI.getNotificationPreferences().then((p: any) => {
+      if (!p) return;
+      setNotifPrefs((prev) => ({
+        ...prev,
+        email_reminders: p.email_enabled ?? prev.email_reminders,
+        sms_reminders: p.sms_enabled ?? prev.sms_reminders,
+        push_enabled: p.push_enabled ?? prev.push_enabled,
+        session_reminders: p.email_session_reminders ?? prev.session_reminders,
+        risk_alerts: p.email_risk_alerts ?? prev.risk_alerts,
+        billing_events: p.email_payment_events ?? prev.billing_events,
+        messages: p.push_messages ?? prev.messages,
+        quiet_hours: p.quiet_hours_enabled ?? prev.quiet_hours,
+        quiet_start: p.quiet_start ? String(p.quiet_start).slice(0, 5) : prev.quiet_start,
+        quiet_end: p.quiet_end ? String(p.quiet_end).slice(0, 5) : prev.quiet_end,
+      }));
+    }).catch(() => {});
   }, []);
 
   const handleSave = async () => {
@@ -420,6 +457,18 @@ function TherapistSettingsInner() {
         accepting_new_patients: true,
         ai_preferences: aiPrefs,
       });
+      await usersAPI.updateNotificationPreferences({
+        email_enabled: notifPrefs.email_reminders,
+        sms_enabled: notifPrefs.sms_reminders,
+        push_enabled: notifPrefs.push_enabled,
+        email_session_reminders: notifPrefs.session_reminders,
+        email_risk_alerts: notifPrefs.risk_alerts,
+        email_payment_events: notifPrefs.billing_events,
+        push_messages: notifPrefs.messages,
+        quiet_hours_enabled: notifPrefs.quiet_hours,
+        quiet_start: notifPrefs.quiet_hours ? notifPrefs.quiet_start : null,
+        quiet_end: notifPrefs.quiet_hours ? notifPrefs.quiet_end : null,
+      }).catch(() => { /* notif prefs are best-effort */ });
     } catch {
       // non-critical
     } finally {
@@ -1107,31 +1156,49 @@ function TherapistSettingsInner() {
             {/* ─── SECURITY TAB ─── */}
             {activeTab === "security" && (
               <>
-                <SectionCard title="Password">
-                  <div className="space-y-3">
-                    {[
-                      { label: "Current Password", key: "current", show: showOldPassword, toggle: () => setShowOldPassword(!showOldPassword) },
-                      { label: "New Password", key: "new", show: showNewPassword, toggle: () => setShowNewPassword(!showNewPassword) },
-                    ].map((field) => (
-                      <div key={field.key}>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
-                        <div className="relative">
-                          <input
-                            type={field.show ? "text" : "password"}
-                            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={field.toggle}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                          >
-                            {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
+                <SectionCard title="Password" description="Choose a strong password you don't use elsewhere">
+                  <div className="space-y-3 max-w-md">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Current Password</label>
+                      <div className="relative">
+                        <input
+                          type={showOldPassword ? "text" : "password"}
+                          value={pwCurrent}
+                          onChange={(e) => setPwCurrent(e.target.value)}
+                          autoComplete="current-password"
+                          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] pr-10"
+                        />
+                        <button type="button" onClick={() => setShowOldPassword(!showOldPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
                       </div>
-                    ))}
-                    <button className="bg-[#0A2342] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#0d2d56]">
-                      Update Password
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          value={pwNew}
+                          onChange={(e) => setPwNew(e.target.value)}
+                          autoComplete="new-password"
+                          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] pr-10"
+                        />
+                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">At least 8 characters.</p>
+                    </div>
+                    {pwMsg && (
+                      <p className={cn("text-xs", pwMsg.type === "ok" ? "text-emerald-600" : "text-red-500")}>{pwMsg.text}</p>
+                    )}
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={pwLoading || !pwCurrent || !pwNew}
+                      className="bg-[#0A2342] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#0d2d56] disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {pwLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
+                      {pwLoading ? "Updating…" : "Update Password"}
                     </button>
                   </div>
                 </SectionCard>
@@ -1184,31 +1251,6 @@ function TherapistSettingsInner() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Active Sessions">
-                  <div className="space-y-3">
-                    {[
-                      { device: "MacBook Pro — Chrome", location: "San Francisco, CA", time: "Active now", current: true },
-                      { device: "iPhone 15 — Safari", location: "San Francisco, CA", time: "2 hours ago", current: false },
-                      { device: "iPad — Safari", location: "Oakland, CA", time: "Yesterday", current: false },
-                    ].map((session) => (
-                      <div key={session.device} className="flex items-center justify-between border border-gray-100 rounded-xl p-3">
-                        <div>
-                          <div className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                            {session.device}
-                            {session.current && <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Current</span>}
-                          </div>
-                          <div className="text-xs text-gray-400">{session.location} · {session.time}</div>
-                        </div>
-                        {!session.current && (
-                          <button className="text-xs text-red-500 hover:text-red-700 font-medium">Revoke</button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button className="mt-3 text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1">
-                    <LogOut className="w-4 h-4" /> Sign out all other sessions
-                  </button>
-                </SectionCard>
               </>
             )}
 
