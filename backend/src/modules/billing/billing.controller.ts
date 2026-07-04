@@ -192,6 +192,17 @@ export class BillingController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @Post("confirm-checkout")
+  @ApiOperation({ summary: "Apply a checkout outcome on redirect (sandbox-safe, no webhook needed)" })
+  confirmCheckout(
+    @Request() req: { user: { organizationId: string } },
+    @Body() body: { session_id: string },
+  ) {
+    return this.billingService.confirmCheckoutSession(body.session_id, req.user.organizationId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post("cancel")
   @ApiOperation({ summary: "Cancel subscription" })
   cancelSubscription(@Request() req: { user: { organizationId: string } }) {

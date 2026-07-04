@@ -12,9 +12,11 @@ import {
   Users, Calendar, BarChart3, ExternalLink, Copy, Check, ArrowRight, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { therapistsAPI, billingAPI, bookingAPI } from "@/lib/api";
+import { therapistsAPI, billingAPI, bookingAPI, usersAPI } from "@/lib/api";
 import { SPECIALTIES, LANGUAGES } from "@/lib/specialties";
-import { useSearchParams } from "next/navigation";
+import { useUIStore } from "@/lib/store";
+import { hasTier } from "@/lib/tiers";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 
 type SettingsTab =
@@ -36,8 +38,6 @@ const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "ai", label: "AI & Scribe", icon: Brain },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
-  { id: "billing", label: "Billing", icon: CreditCard },
-  { id: "usage", label: "Usage", icon: BarChart3 },
 ];
 
 function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
@@ -54,6 +54,28 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: (v: b
         enabled ? "translate-x-5" : "translate-x-0.5"
       )} />
     </button>
+  );
+}
+
+function UpgradeNotice({ feature }: { feature: string }) {
+  return (
+    <div className="bg-gradient-to-br from-[#0A2342] to-[#1F5EFF] rounded-2xl p-6 text-white">
+      <div className="flex items-center gap-2 mb-2">
+        <Zap className="w-5 h-5 text-yellow-300" />
+        <h3 className="font-bold text-lg">A paid plan is required</h3>
+      </div>
+      <p className="text-sm text-white/80 mb-4 max-w-md">
+        {feature} is available once you upgrade. Pay-as-you-go therapists can run
+        sessions and take notes; incoming bookings, availability, session offerings
+        and payouts unlock on Starter and above.
+      </p>
+      <Link
+        href="/billing"
+        className="inline-flex items-center gap-1.5 h-9 px-4 bg-white text-[#0A2342] text-sm font-semibold rounded-xl hover:bg-white/90 transition-colors"
+      >
+        View plans <ArrowRight className="w-4 h-4" />
+      </Link>
+    </div>
   );
 }
 
@@ -75,8 +97,19 @@ function SectionCard({ title, description, children }: {
 
 function TherapistSettingsInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tabParam = searchParams.get("tab") as SettingsTab | null;
-  const [activeTab, setActiveTab] = useState<SettingsTab>(tabParam || "profile");
+  // Billing lives on its own /billing page now — never inside settings.
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    tabParam && tabParam !== "billing" && tabParam !== "usage" ? tabParam : "profile",
+  );
+  const subscriptionTier = useUIStore((s) => s.subscriptionTier);
+  // null = not yet loaded → don't flash a gate; treat as allowed until known.
+  const isPaid = subscriptionTier !== null && hasTier(subscriptionTier, "starter");
+
+  useEffect(() => {
+    if (tabParam === "billing" || tabParam === "usage") router.replace("/billing");
+  }, [tabParam, router]);
   const [billingUsage, setBillingUsage] = useState<any>(null);
   const [billingLoading, setBillingLoading] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
@@ -298,6 +331,7 @@ function TherapistSettingsInner() {
     timezone: "America/New_York",
     session_fee: "",
     sliding_scale: false,
+    accepting_new_patients: true,
     avatar_url: "",
   });
   const [specialtyInput, setSpecialtyInput] = useState("");
@@ -340,6 +374,26 @@ function TherapistSettingsInner() {
   // Security state
   const [mfaEnabled, setMfaEnabled] = useState(true);
   const [sessionTimeout, setSessionTimeout] = useState("60");
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const handleChangePassword = async () => {
+    setPwMsg(null);
+    if (pwNew.length < 8) { setPwMsg({ type: "err", text: "New password must be at least 8 characters." }); return; }
+    setPwLoading(true);
+    try {
+      await usersAPI.changePassword(pwCurrent, pwNew);
+      setPwCurrent(""); setPwNew("");
+      setPwMsg({ type: "ok", text: "Password updated." });
+    } catch (e: any) {
+      setPwMsg({ type: "err", text: e?.message || "Could not change password." });
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
 
   // Load real profile on mount
   useEffect(() => {
@@ -362,10 +416,32 @@ function TherapistSettingsInner() {
             ? data.specializations
             : (Array.isArray(data.specialties) ? data.specialties : prev.specializations),
           languages: Array.isArray(data.languages) && data.languages.length ? data.languages : prev.languages,
+          session_fee: data.session_fee_min != null ? String(data.session_fee_min) : prev.session_fee,
+          accepting_new_patients: data.accepting_new_patients != null ? Boolean(data.accepting_new_patients) : prev.accepting_new_patients,
           avatar_url: data.avatar_url || prev.avatar_url,
         }));
         if (data.public_slug || data.booking_slug) setSlug(data.public_slug || data.booking_slug);
+        if (data.ai_preferences && typeof data.ai_preferences === "object") {
+          setAiPrefs((prev) => ({ ...prev, ...data.ai_preferences }));
+        }
       }
+    }).catch(() => {});
+
+    usersAPI.getNotificationPreferences().then((p: any) => {
+      if (!p) return;
+      setNotifPrefs((prev) => ({
+        ...prev,
+        email_reminders: p.email_enabled ?? prev.email_reminders,
+        sms_reminders: p.sms_enabled ?? prev.sms_reminders,
+        push_enabled: p.push_enabled ?? prev.push_enabled,
+        session_reminders: p.email_session_reminders ?? prev.session_reminders,
+        risk_alerts: p.email_risk_alerts ?? prev.risk_alerts,
+        billing_events: p.email_payment_events ?? prev.billing_events,
+        messages: p.push_messages ?? prev.messages,
+        quiet_hours: p.quiet_hours_enabled ?? prev.quiet_hours,
+        quiet_start: p.quiet_start ? String(p.quiet_start).slice(0, 5) : prev.quiet_start,
+        quiet_end: p.quiet_end ? String(p.quiet_end).slice(0, 5) : prev.quiet_end,
+      }));
     }).catch(() => {});
   }, []);
 
@@ -381,8 +457,24 @@ function TherapistSettingsInner() {
         location: profile.location,
         specializations: profile.specializations,
         languages: profile.languages,
-        accepting_new_patients: true,
+        accepting_new_patients: profile.accepting_new_patients,
+        ...(profile.session_fee !== "" && Number.isFinite(Number(profile.session_fee))
+          ? { session_fee_min: Number(profile.session_fee), session_fee_max: Number(profile.session_fee) }
+          : {}),
+        ai_preferences: aiPrefs,
       });
+      await usersAPI.updateNotificationPreferences({
+        email_enabled: notifPrefs.email_reminders,
+        sms_enabled: notifPrefs.sms_reminders,
+        push_enabled: notifPrefs.push_enabled,
+        email_session_reminders: notifPrefs.session_reminders,
+        email_risk_alerts: notifPrefs.risk_alerts,
+        email_payment_events: notifPrefs.billing_events,
+        push_messages: notifPrefs.messages,
+        quiet_hours_enabled: notifPrefs.quiet_hours,
+        quiet_start: notifPrefs.quiet_hours ? notifPrefs.quiet_start : null,
+        quiet_end: notifPrefs.quiet_hours ? notifPrefs.quiet_end : null,
+      }).catch(() => { /* notif prefs are best-effort */ });
     } catch {
       // non-critical
     } finally {
@@ -730,7 +822,8 @@ function TherapistSettingsInner() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Booking Link" description="Share with patients to let them self-schedule and pay online">
+                {isPaid && (
+                <SectionCard title="Booking Link" description="Share with patients to let them self-schedule and pay online. Manage offerings and availability on the Booking page.">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-sm text-slate-500 shrink-0 whitespace-nowrap">
                       {typeof window !== "undefined" ? window.location.origin : "https://app.24therapy.ai"}/t/
@@ -772,117 +865,42 @@ function TherapistSettingsInner() {
                     )}
                   </div>
                 </SectionCard>
+                )}
               </>
             )}
 
             {/* ─── PRACTICE TAB ─── */}
             {activeTab === "practice" && (
               <>
-                <SectionCard title="Session Settings" description="Default configuration for new sessions">
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { label: "Default Session Duration", options: ["30 min","45 min","50 min","60 min","90 min"], value: "50 min" },
-                      { label: "Session Type", options: ["Video (default)","Phone","In-Person"], value: "Video (default)" },
-                      { label: "Reminder Lead Time", options: ["15 min","30 min","1 hour","2 hours","24 hours"], value: "1 hour" },
-                      { label: "Buffer Between Sessions", options: ["None","5 min","10 min","15 min","30 min"], value: "10 min" },
-                    ].map((field) => (
-                      <div key={field.label}>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
-                        <select
-                          defaultValue={field.value}
-                          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] bg-white"
-                        >
-                          {field.options.map((o) => <option key={o}>{o}</option>)}
-                        </select>
-                      </div>
-                    ))}
+                <SectionCard title="Session Rate" description="Your standard fee — shown on your public profile and pre-fills new sessions">
+                  <div className="max-w-xs">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Standard Session Fee (USD)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={profile.session_fee}
+                        onChange={(e) => setProfile({ ...profile, session_fee: e.target.value })}
+                        placeholder="0"
+                        className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Saved with the Save Changes button above.</p>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Billing & Rates" description="Your session fees and payment preferences">
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                <SectionCard title="Marketplace Visibility" description="How you appear to patients searching for a therapist">
+                  <div className="flex items-center justify-between py-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Standard Session Fee (USD)</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                        <input
-                          type="number"
-                          value={profile.session_fee}
-                          onChange={(e) => setProfile({ ...profile, session_fee: e.target.value })}
-                          className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
-                      <select className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] bg-white">
-                        <option>USD — US Dollar</option>
-                        <option>CAD — Canadian Dollar</option>
-                        <option>EUR — Euro</option>
-                        <option>GBP — British Pound</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-t border-gray-100">
-                    <div>
-                      <div className="text-sm font-medium text-gray-700">Sliding Scale Available</div>
-                      <div className="text-xs text-gray-400">Shown on your marketplace profile</div>
+                      <div className="text-sm font-medium text-gray-700">Accepting new patients</div>
+                      <div className="text-xs text-gray-400">Shown as accepting new patients on your public profile</div>
                     </div>
                     <ToggleSwitch
-                      enabled={profile.sliding_scale}
-                      onChange={(v) => setProfile({ ...profile, sliding_scale: v })}
+                      enabled={profile.accepting_new_patients}
+                      onChange={(v) => setProfile({ ...profile, accepting_new_patients: v })}
                     />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-t border-gray-100">
-                    <div>
-                      <div className="text-sm font-medium text-gray-700">Late Cancellation Fee</div>
-                      <div className="text-xs text-gray-400">Charge for cancellations under 24 hours</div>
-                    </div>
-                    <ToggleSwitch enabled={true} onChange={() => {}} />
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Marketplace & Radar" description="Control your public profile and matching visibility">
-                  {[
-                    { label: "Listed on 24Therapy Marketplace", desc: "Patients can find and book you", value: true },
-                    { label: "Accept Radar Requests", desc: "Receive urgent patient matching requests", value: true },
-                    { label: "Show Availability in Directory", desc: "Display next available slot publicly", value: true },
-                    { label: "Accept New Patients", desc: "Show as accepting new patients on profile", value: true },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                      <div>
-                        <div className="text-sm font-medium text-gray-700">{item.label}</div>
-                        <div className="text-xs text-gray-400">{item.desc}</div>
-                      </div>
-                      <ToggleSwitch enabled={item.value} onChange={() => {}} />
-                    </div>
-                  ))}
-                </SectionCard>
-
-                <SectionCard title="EHR Integrations" description="Connect to your existing EHR or practice management system">
-                  <div className="space-y-3">
-                    {[
-                      { name: "SimplePractice", status: "not_connected", icon: "SP" },
-                      { name: "TherapyNotes", status: "not_connected", icon: "TN" },
-                      { name: "Epic (FHIR)", status: "enterprise_only", icon: "EP" },
-                      { name: "Cerner (FHIR)", status: "enterprise_only", icon: "CN" },
-                    ].map((ehr) => (
-                      <div key={ehr.name} className="flex items-center justify-between border border-gray-200 rounded-xl p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
-                            {ehr.icon}
-                          </div>
-                          <span className="text-sm font-medium text-gray-700">{ehr.name}</span>
-                        </div>
-                        {ehr.status === "enterprise_only" ? (
-                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-lg">Enterprise only</span>
-                        ) : (
-                          <button className="text-xs text-[#2EC4B6] border border-[#2EC4B6] px-3 py-1 rounded-lg hover:bg-[#2EC4B6]/5">
-                            Connect
-                          </button>
-                        )}
-                      </div>
-                    ))}
                   </div>
                 </SectionCard>
               </>
@@ -977,33 +995,9 @@ function TherapistSettingsInner() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="AI Usage This Month">
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { label: "Notes Generated", value: "47", icon: FileText },
-                      { label: "Time Saved", value: "~9.4 hrs", icon: Clock },
-                      { label: "Copilot Suggestions", value: "312", icon: Brain },
-                    ].map((stat) => {
-                      const Icon = stat.icon;
-                      return (
-                        <div key={stat.label} className="bg-gray-50 rounded-xl p-3 text-center">
-                          <Icon className="w-5 h-5 text-[#2EC4B6] mx-auto mb-1" />
-                          <div className="font-bold text-[#0A2342]">{stat.value}</div>
-                          <div className="text-xs text-gray-400">{stat.label}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-gray-600">Notes included in plan</span>
-                      <span className="font-medium">47 / 200</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#2EC4B6] rounded-full" style={{ width: "24%" }} />
-                    </div>
-                  </div>
-                </SectionCard>
+                <p className="text-xs text-gray-400 px-1">
+                  Changes here are saved with the <span className="font-medium">Save Changes</span> button above.
+                </p>
               </>
             )}
 
@@ -1092,31 +1086,49 @@ function TherapistSettingsInner() {
             {/* ─── SECURITY TAB ─── */}
             {activeTab === "security" && (
               <>
-                <SectionCard title="Password">
-                  <div className="space-y-3">
-                    {[
-                      { label: "Current Password", key: "current", show: showOldPassword, toggle: () => setShowOldPassword(!showOldPassword) },
-                      { label: "New Password", key: "new", show: showNewPassword, toggle: () => setShowNewPassword(!showNewPassword) },
-                    ].map((field) => (
-                      <div key={field.key}>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
-                        <div className="relative">
-                          <input
-                            type={field.show ? "text" : "password"}
-                            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={field.toggle}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                          >
-                            {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
+                <SectionCard title="Password" description="Choose a strong password you don't use elsewhere">
+                  <div className="space-y-3 max-w-md">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Current Password</label>
+                      <div className="relative">
+                        <input
+                          type={showOldPassword ? "text" : "password"}
+                          value={pwCurrent}
+                          onChange={(e) => setPwCurrent(e.target.value)}
+                          autoComplete="current-password"
+                          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] pr-10"
+                        />
+                        <button type="button" onClick={() => setShowOldPassword(!showOldPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
                       </div>
-                    ))}
-                    <button className="bg-[#0A2342] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#0d2d56]">
-                      Update Password
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          value={pwNew}
+                          onChange={(e) => setPwNew(e.target.value)}
+                          autoComplete="new-password"
+                          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] pr-10"
+                        />
+                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">At least 8 characters.</p>
+                    </div>
+                    {pwMsg && (
+                      <p className={cn("text-xs", pwMsg.type === "ok" ? "text-emerald-600" : "text-red-500")}>{pwMsg.text}</p>
+                    )}
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={pwLoading || !pwCurrent || !pwNew}
+                      className="bg-[#0A2342] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#0d2d56] disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {pwLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
+                      {pwLoading ? "Updating…" : "Update Password"}
                     </button>
                   </div>
                 </SectionCard>
@@ -1169,36 +1181,12 @@ function TherapistSettingsInner() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Active Sessions">
-                  <div className="space-y-3">
-                    {[
-                      { device: "MacBook Pro — Chrome", location: "San Francisco, CA", time: "Active now", current: true },
-                      { device: "iPhone 15 — Safari", location: "San Francisco, CA", time: "2 hours ago", current: false },
-                      { device: "iPad — Safari", location: "Oakland, CA", time: "Yesterday", current: false },
-                    ].map((session) => (
-                      <div key={session.device} className="flex items-center justify-between border border-gray-100 rounded-xl p-3">
-                        <div>
-                          <div className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                            {session.device}
-                            {session.current && <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Current</span>}
-                          </div>
-                          <div className="text-xs text-gray-400">{session.location} · {session.time}</div>
-                        </div>
-                        {!session.current && (
-                          <button className="text-xs text-red-500 hover:text-red-700 font-medium">Revoke</button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button className="mt-3 text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1">
-                    <LogOut className="w-4 h-4" /> Sign out all other sessions
-                  </button>
-                </SectionCard>
               </>
             )}
 
             {/* ─── AVAILABILITY TAB ─── */}
             {activeTab === "availability" && (
+              !isPaid ? <UpgradeNotice feature="Availability scheduling" /> : (
               <>
                 <SectionCard
                   title="Weekly Schedule"
@@ -1273,6 +1261,7 @@ function TherapistSettingsInner() {
                   <p className="text-xs text-slate-400 mt-2">Timezone is saved as part of your profile.</p>
                 </SectionCard>
               </>
+              )
             )}
 
             {/* ─── BILLING TAB ─── */}

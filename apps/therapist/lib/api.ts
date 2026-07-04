@@ -376,6 +376,8 @@ export const billingAPI = {
   }>("/billing/usage/me"),
   subscribe: (body: { plan_key: string; seats?: number; interval?: 'monthly' | 'annual'; success_url: string; cancel_url: string }) =>
     apiFetch<{ checkout_url: string | null; session_id?: string; message?: string }>("/billing/subscribe", { method: "POST", body: JSON.stringify(body) }),
+  confirmCheckout: (sessionId: string) =>
+    apiFetch<{ applied: boolean; plan_key?: string; status?: string }>("/billing/confirm-checkout", { method: "POST", body: JSON.stringify({ session_id: sessionId }) }),
   refreshChargeCheckout: (chargeId: string) =>
     apiFetch<{ charge_id: string; checkout_url: string | null }>(`/billing/charges/${chargeId}/checkout`, { method: "POST" }),
   cancel: () => apiFetch<Record<string, unknown>>("/billing/cancel", { method: "POST" }),
@@ -587,6 +589,21 @@ export const bookingAPI = {
     apiFetch("/booking/me/offerings", { method: "PUT", body: JSON.stringify(body) }),
   upcoming: () =>
     apiFetch<Record<string, unknown>[]>("/booking/me/upcoming"),
+};
+
+export const usersAPI = {
+  changePassword: (current_password: string, new_password: string) =>
+    apiFetch<{ success: boolean }>("/users/me/password", {
+      method: "PATCH",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+  getNotificationPreferences: () =>
+    apiFetch<Record<string, unknown>>("/users/me/notification-preferences"),
+  updateNotificationPreferences: (prefs: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/users/me/notification-preferences", {
+      method: "PATCH",
+      body: JSON.stringify(prefs),
+    }),
 };
 
 export { APIError };

@@ -169,10 +169,19 @@ export class PatientsService {
 
       const patient = result.rows[0];
 
+      // assigned_by / created_by are FKs to users(id), NOT therapists(id) — passing
+      // the therapist id raises a 23503 violation (the "create patient" 500). Resolve
+      // the therapist's user_id and use that for audit columns (null-safe).
+      const tRow = therapistId
+        ? await client.query(`SELECT user_id FROM therapists WHERE id = $1`, [therapistId])
+        : null;
+      const actingUserId = tRow?.rows?.[0]?.user_id ?? null;
+
       // Create patient profile
       await client.query(
         `INSERT INTO patient_profiles (id, patient_id, occupation, relationship_status)
-         VALUES ($1, $2, $3, $4)`,
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (patient_id) DO NOTHING`,
         [uuidv4(), patientId, dto.occupation || null, dto.relationship_status || null],
       );
 
@@ -182,7 +191,7 @@ export class PatientsService {
           `INSERT INTO therapist_patient_assignments (id, therapist_id, patient_id, organization_id, assigned_by)
            VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (therapist_id, patient_id) DO NOTHING`,
-          [uuidv4(), therapistId, patientId, orgId, therapistId],
+          [uuidv4(), therapistId, patientId, orgId, actingUserId],
         );
       }
 
@@ -190,7 +199,7 @@ export class PatientsService {
       await client.query(
         `INSERT INTO patient_timeline_events (id, patient_id, organization_id, event_type, title, created_by)
          VALUES ($1, $2, $3, 'patient_created', 'Patient profile created', $4)`,
-        [uuidv4(), patientId, orgId, therapistId],
+        [uuidv4(), patientId, orgId, actingUserId],
       );
 
       return patient;

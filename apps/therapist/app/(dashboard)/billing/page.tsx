@@ -255,7 +255,26 @@ export default function BillingPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    // On return from Stripe, apply the checkout outcome synchronously (sandbox-safe)
+    // before loading data, so the new plan / paid bill reflects immediately.
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get("session_id");
+    if (sid) {
+      setConfirming(true);
+      billingAPI.confirmCheckout(sid)
+        .catch(() => {})
+        .finally(() => {
+          window.history.replaceState({}, "", "/billing");
+          setConfirming(false);
+          fetchData();
+        });
+    } else {
+      fetchData();
+    }
+  }, [fetchData]);
 
   const handleSubscribe = async (planKey: string) => {
     setUpgrading(planKey);
@@ -263,7 +282,9 @@ export default function BillingPage() {
       const res = await billingAPI.subscribe({
         plan_key: planKey,
         interval: "monthly",
-        success_url: `${window.location.origin}/billing?upgraded=1`,
+        // Stripe substitutes the real id into {CHECKOUT_SESSION_ID}; we confirm it
+        // on return so the plan applies even if the webhook never reaches us.
+        success_url: `${window.location.origin}/billing?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${window.location.origin}/billing`,
       }) as any;
       if (res?.checkout_url) {
@@ -304,6 +325,13 @@ export default function BillingPage() {
         <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
+        </div>
+      )}
+
+      {confirming && (
+        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm">
+          <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
+          Confirming your payment…
         </div>
       )}
 

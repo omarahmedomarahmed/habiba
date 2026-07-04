@@ -714,18 +714,26 @@ export class SessionsService {
     );
     if (!session) throw new NotFoundException('Session not found or no longer accepting guests');
 
-    // If no patient yet, store the join name
+    // Mark the patient as joined. Only move a 'scheduled' session to 'waiting' —
+    // never bounce an already 'in_progress' session backward (that would disrupt
+    // a live session the therapist already started).
     if (!session.patient_id) {
       await this.db.execute(
-        `UPDATE sessions SET join_name = $1, started_by_patient_at = NOW(), status = 'waiting', updated_at = NOW()
+        `UPDATE sessions
+         SET join_name = $1, started_by_patient_at = NOW(),
+             status = CASE WHEN status = 'scheduled' THEN 'waiting' ELSE status END,
+             updated_at = NOW()
          WHERE join_token = $2::uuid`,
         [dto.name, joinToken],
       );
     } else {
       await this.db.execute(
-        `UPDATE sessions SET started_by_patient_at = COALESCE(started_by_patient_at, NOW()), status = 'waiting', updated_at = NOW()
-         WHERE join_token = $2::uuid`,
-        [dto.name, joinToken],
+        `UPDATE sessions
+         SET started_by_patient_at = COALESCE(started_by_patient_at, NOW()),
+             status = CASE WHEN status = 'scheduled' THEN 'waiting' ELSE status END,
+             updated_at = NOW()
+         WHERE join_token = $1::uuid`,
+        [joinToken],
       );
     }
 

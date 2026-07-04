@@ -176,23 +176,21 @@ function SessionsPageInner() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const LIMIT = 20;
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      // Fetch across statuses so the Upcoming/Past counts and lists are both
+      // correct regardless of which tab is active (was filtering by the active
+      // tab's status, so the inactive tab always showed 0).
       const result = await sessionsAPI.list({
-        page,
-        limit: LIMIT,
-        status: view === "upcoming" ? "scheduled" : "completed",
+        limit: 100,
         search: search || undefined,
       });
-      const data = Array.isArray(result) ? result : (result as any).data ?? [];
-      const tot = Array.isArray(result) ? result.length : (result as any).total ?? 0;
+      const data = Array.isArray(result) ? result : (result as any).data ?? (result as any).sessions ?? [];
       setSessions(data);
-      setTotal(tot);
+      setTotal(Array.isArray(data) ? data.length : 0);
     } catch (err) {
       if (err instanceof APIError && err.status === 401) return;
       setError(err instanceof Error ? err.message : "Failed to load sessions");
@@ -200,7 +198,7 @@ function SessionsPageInner() {
     } finally {
       setLoading(false);
     }
-  }, [view, page, search]);
+  }, [search]);
 
   useEffect(() => {
     const t = setTimeout(fetchSessions, search ? 400 : 0);
@@ -227,8 +225,6 @@ function SessionsPageInner() {
         return name.includes(search.toLowerCase());
       })
     : displaySessions;
-
-  const totalPages = Math.ceil(total / LIMIT);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -272,7 +268,7 @@ function SessionsPageInner() {
           ].map(({ id, label }) => (
             <button
               key={id}
-              onClick={() => { setView(id as any); setPage(1); }}
+              onClick={() => setView(id as any)}
               className={cn(
                 "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
                 view === id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -287,7 +283,7 @@ function SessionsPageInner() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Search patients..."
             className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary/30"
           />
@@ -313,28 +309,6 @@ function SessionsPageInner() {
         )}
       </div>
 
-      {/* Pagination */}
-      {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
-          <span className="text-xs text-slate-500">Page {page} of {totalPages} · {total} total</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="h-8 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="h-8 px-3 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
