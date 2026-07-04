@@ -331,6 +331,7 @@ function TherapistSettingsInner() {
     timezone: "America/New_York",
     session_fee: "",
     sliding_scale: false,
+    accepting_new_patients: true,
     avatar_url: "",
   });
   const [specialtyInput, setSpecialtyInput] = useState("");
@@ -415,6 +416,8 @@ function TherapistSettingsInner() {
             ? data.specializations
             : (Array.isArray(data.specialties) ? data.specialties : prev.specializations),
           languages: Array.isArray(data.languages) && data.languages.length ? data.languages : prev.languages,
+          session_fee: data.session_fee_min != null ? String(data.session_fee_min) : prev.session_fee,
+          accepting_new_patients: data.accepting_new_patients != null ? Boolean(data.accepting_new_patients) : prev.accepting_new_patients,
           avatar_url: data.avatar_url || prev.avatar_url,
         }));
         if (data.public_slug || data.booking_slug) setSlug(data.public_slug || data.booking_slug);
@@ -454,7 +457,10 @@ function TherapistSettingsInner() {
         location: profile.location,
         specializations: profile.specializations,
         languages: profile.languages,
-        accepting_new_patients: true,
+        accepting_new_patients: profile.accepting_new_patients,
+        ...(profile.session_fee !== "" && Number.isFinite(Number(profile.session_fee))
+          ? { session_fee_min: Number(profile.session_fee), session_fee_max: Number(profile.session_fee) }
+          : {}),
         ai_preferences: aiPrefs,
       });
       await usersAPI.updateNotificationPreferences({
@@ -866,111 +872,35 @@ function TherapistSettingsInner() {
             {/* ─── PRACTICE TAB ─── */}
             {activeTab === "practice" && (
               <>
-                <SectionCard title="Session Settings" description="Default configuration for new sessions">
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { label: "Default Session Duration", options: ["30 min","45 min","50 min","60 min","90 min"], value: "50 min" },
-                      { label: "Session Type", options: ["Video (default)","Phone","In-Person"], value: "Video (default)" },
-                      { label: "Reminder Lead Time", options: ["15 min","30 min","1 hour","2 hours","24 hours"], value: "1 hour" },
-                      { label: "Buffer Between Sessions", options: ["None","5 min","10 min","15 min","30 min"], value: "10 min" },
-                    ].map((field) => (
-                      <div key={field.label}>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
-                        <select
-                          defaultValue={field.value}
-                          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] bg-white"
-                        >
-                          {field.options.map((o) => <option key={o}>{o}</option>)}
-                        </select>
-                      </div>
-                    ))}
+                <SectionCard title="Session Rate" description="Your standard fee — shown on your public profile and pre-fills new sessions">
+                  <div className="max-w-xs">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Standard Session Fee (USD)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={profile.session_fee}
+                        onChange={(e) => setProfile({ ...profile, session_fee: e.target.value })}
+                        placeholder="0"
+                        className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Saved with the Save Changes button above.</p>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Billing & Rates" description="Your session fees and payment preferences">
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                <SectionCard title="Marketplace Visibility" description="How you appear to patients searching for a therapist">
+                  <div className="flex items-center justify-between py-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Standard Session Fee (USD)</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                        <input
-                          type="number"
-                          value={profile.session_fee}
-                          onChange={(e) => setProfile({ ...profile, session_fee: e.target.value })}
-                          className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6]"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
-                      <select className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#2EC4B6] bg-white">
-                        <option>USD — US Dollar</option>
-                        <option>CAD — Canadian Dollar</option>
-                        <option>EUR — Euro</option>
-                        <option>GBP — British Pound</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-t border-gray-100">
-                    <div>
-                      <div className="text-sm font-medium text-gray-700">Sliding Scale Available</div>
-                      <div className="text-xs text-gray-400">Shown on your marketplace profile</div>
+                      <div className="text-sm font-medium text-gray-700">Accepting new patients</div>
+                      <div className="text-xs text-gray-400">Shown as accepting new patients on your public profile</div>
                     </div>
                     <ToggleSwitch
-                      enabled={profile.sliding_scale}
-                      onChange={(v) => setProfile({ ...profile, sliding_scale: v })}
+                      enabled={profile.accepting_new_patients}
+                      onChange={(v) => setProfile({ ...profile, accepting_new_patients: v })}
                     />
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-t border-gray-100">
-                    <div>
-                      <div className="text-sm font-medium text-gray-700">Late Cancellation Fee</div>
-                      <div className="text-xs text-gray-400">Charge for cancellations under 24 hours</div>
-                    </div>
-                    <ToggleSwitch enabled={true} onChange={() => {}} />
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Marketplace & Radar" description="Control your public profile and matching visibility">
-                  {[
-                    { label: "Listed on 24Therapy Marketplace", desc: "Patients can find and book you", value: true },
-                    { label: "Accept Radar Requests", desc: "Receive urgent patient matching requests", value: true },
-                    { label: "Show Availability in Directory", desc: "Display next available slot publicly", value: true },
-                    { label: "Accept New Patients", desc: "Show as accepting new patients on profile", value: true },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                      <div>
-                        <div className="text-sm font-medium text-gray-700">{item.label}</div>
-                        <div className="text-xs text-gray-400">{item.desc}</div>
-                      </div>
-                      <ToggleSwitch enabled={item.value} onChange={() => {}} />
-                    </div>
-                  ))}
-                </SectionCard>
-
-                <SectionCard title="EHR Integrations" description="Connect to your existing EHR or practice management system">
-                  <div className="space-y-3">
-                    {[
-                      { name: "SimplePractice", status: "not_connected", icon: "SP" },
-                      { name: "TherapyNotes", status: "not_connected", icon: "TN" },
-                      { name: "Epic (FHIR)", status: "enterprise_only", icon: "EP" },
-                      { name: "Cerner (FHIR)", status: "enterprise_only", icon: "CN" },
-                    ].map((ehr) => (
-                      <div key={ehr.name} className="flex items-center justify-between border border-gray-200 rounded-xl p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
-                            {ehr.icon}
-                          </div>
-                          <span className="text-sm font-medium text-gray-700">{ehr.name}</span>
-                        </div>
-                        {ehr.status === "enterprise_only" ? (
-                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-lg">Enterprise only</span>
-                        ) : (
-                          <button className="text-xs text-[#2EC4B6] border border-[#2EC4B6] px-3 py-1 rounded-lg hover:bg-[#2EC4B6]/5">
-                            Connect
-                          </button>
-                        )}
-                      </div>
-                    ))}
                   </div>
                 </SectionCard>
               </>
