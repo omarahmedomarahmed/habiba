@@ -1,4 +1,10 @@
 -- ============================================================
+-- 24Therapy MVP schema — therapists, credentials, availability
+-- Generated fresh for the MVP database reset (docs/PRODUCT_MVP.md).
+-- Runs in order via scripts/migrate.js on every backend deploy.
+-- ============================================================
+
+-- ============================================================
 -- 003_therapists.sql
 -- 24Therapy.ai — Therapists, Credentials, Availability
 -- ============================================================
@@ -47,6 +53,7 @@ CREATE TABLE IF NOT EXISTS therapists (
   timezone                VARCHAR(100) NOT NULL DEFAULT 'UTC',
   trial_session_used      BOOLEAN      NOT NULL DEFAULT FALSE,
   current_plan_key        VARCHAR(50)  NOT NULL DEFAULT 'pay_per_session',
+  ai_preferences          JSONB        NOT NULL DEFAULT '{}',
   accepting_new_patients  BOOLEAN      NOT NULL DEFAULT TRUE,
   created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
@@ -64,19 +71,30 @@ CREATE TABLE IF NOT EXISTS therapists (
   )
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_therapists_organization_id     ON therapists (organization_id);
+
 CREATE INDEX IF NOT EXISTS idx_therapists_user_id             ON therapists (user_id);
+
 CREATE INDEX IF NOT EXISTS idx_therapists_public_slug         ON therapists (public_slug);
+
 CREATE INDEX IF NOT EXISTS idx_therapists_verification_status ON therapists (verification_status);
+
 CREATE INDEX IF NOT EXISTS idx_therapists_marketplace_enabled ON therapists (id) WHERE marketplace_enabled = TRUE;
+
 CREATE INDEX IF NOT EXISTS idx_therapists_radar_availability  ON therapists (availability_status, radar_active);
+
 CREATE INDEX IF NOT EXISTS idx_therapists_languages_gin       ON therapists USING GIN (languages);
+
 CREATE INDEX IF NOT EXISTS idx_therapists_specializations_gin ON therapists USING GIN (specializations);
+
 CREATE INDEX IF NOT EXISTS idx_therapists_not_deleted         ON therapists (id) WHERE deleted_at IS NULL;
+
 
 CREATE OR REPLACE TRIGGER trg_therapists_updated_at
   BEFORE UPDATE ON therapists
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 -- ------------------------------------------------------------
 -- therapist_credentials
@@ -102,11 +120,14 @@ CREATE TABLE IF NOT EXISTS therapist_credentials (
   )
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_therapist_credentials_therapist_id ON therapist_credentials (therapist_id);
+
 
 CREATE OR REPLACE TRIGGER trg_therapist_credentials_updated_at
   BEFORE UPDATE ON therapist_credentials
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 -- ------------------------------------------------------------
 -- specialization_taxonomy
@@ -122,6 +143,7 @@ CREATE TABLE IF NOT EXISTS specialization_taxonomy (
   sort_order  INTEGER      NOT NULL DEFAULT 0,
   CONSTRAINT specialization_taxonomy_code_key UNIQUE (code)
 );
+
 
 -- ------------------------------------------------------------
 -- therapist_availability
@@ -139,8 +161,11 @@ CREATE TABLE IF NOT EXISTS therapist_availability (
   CONSTRAINT therapist_availability_time_check CHECK (start_time < end_time)
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_therapist_availability_therapist_id ON therapist_availability (therapist_id);
+
 CREATE INDEX IF NOT EXISTS idx_therapist_availability_day_active   ON therapist_availability (day_of_week, is_active);
+
 
 -- ------------------------------------------------------------
 -- therapist_availability_exceptions
@@ -156,24 +181,10 @@ CREATE TABLE IF NOT EXISTS therapist_availability_exceptions (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_therapist_avail_exceptions_therapist_date
   ON therapist_availability_exceptions (therapist_id, exception_date);
 
--- ------------------------------------------------------------
--- therapist_invitations
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS therapist_invitations (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  organization_id UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  invited_by      UUID         NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  email           VARCHAR(255) NOT NULL,
-  token_hash      VARCHAR(255) NOT NULL,
-  status          VARCHAR(50)  NOT NULL DEFAULT 'pending',
-  expires_at      TIMESTAMPTZ  NOT NULL,
-  accepted_at     TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  CONSTRAINT therapist_invitations_token_key UNIQUE (token_hash)
-);
 
 -- ------------------------------------------------------------
 -- therapist_specializations
@@ -186,5 +197,6 @@ CREATE TABLE IF NOT EXISTS therapist_specializations (
   created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   CONSTRAINT therapist_specializations_unique UNIQUE (therapist_id, specialization)
 );
+
 
 CREATE INDEX IF NOT EXISTS idx_therapist_specializations_therapist_id ON therapist_specializations (therapist_id);

@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Brain, LayoutDashboard, Users, FileText,
-  Settings, CreditCard, MessageSquare, Bell, Calendar,
-  ChevronLeft, ChevronRight, Activity, ArrowRight, Zap, Link2, Lock
+  Settings, CreditCard, Bell, Calendar,
+  ChevronLeft, ChevronRight, Activity, ArrowRight, Zap, Lock, Target, ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore, useUIStore } from "@/lib/store";
@@ -21,12 +21,20 @@ interface SessionUsage {
   trial_session_used: boolean;
 }
 
+// MVP navigation — everything here maps 1:1 to docs/PRODUCT_MVP.md
 const NAV_ITEMS = [
-  { href: "/dashboard",  icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/sessions",   icon: Calendar,         label: "Sessions" },
-  { href: "/patients",   icon: Users,            label: "Patients" },
-  { href: "/notes",      icon: FileText,         label: "Notes" },
-  { href: "/messages",   icon: MessageSquare,    label: "Messages" },
+  { href: "/dashboard",       icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/sessions",        icon: Calendar,        label: "Sessions" },
+  { href: "/patients",        icon: Users,           label: "Patients" },
+  { href: "/notes",           icon: FileText,        label: "Notes" },
+  { href: "/treatment-plans", icon: Target,          label: "Treatment Plans" },
+];
+
+const ADVANCED_ITEMS = [
+  { href: "/ai-workspace", icon: Brain,       label: "AI Workspace" },
+  { href: "/analytics",    icon: Activity,    label: "Analytics" },
+  { href: "/radar",        icon: Zap,         label: "Radar", badge: "LIVE", feature: "radar" },
+  { href: "/risk-monitor", icon: ShieldAlert, label: "Risk Monitor" },
 ];
 
 const BOTTOM_ITEMS = [
@@ -43,7 +51,8 @@ export function Sidebar() {
   const [usage, setUsage] = useState<SessionUsage | null>(null);
 
   // Locked until proven otherwise once the tier is known; null (loading) = unlocked.
-  const isLocked = (feature: string) => {
+  const isLocked = (feature?: string) => {
+    if (!feature) return false;
     const required = FEATURE_MIN_TIER[feature];
     if (!required || subscriptionTier === null) return false;
     return !hasTier(subscriptionTier as Tier, required);
@@ -69,7 +78,7 @@ export function Sidebar() {
     if (key === "pro")     return { label: "Unlimited", color: "bg-purple-100 text-purple-700" };
     if (key === "practice") return { label: "Practice", color: "bg-teal-100 text-teal-700" };
     if (key === "enterprise") return { label: "Enterprise", color: "bg-slate-100 text-slate-600" };
-    return null;  // unknown or null plan — show nothing instead of "Enterprise"
+    return null;
   };
 
   const badge = planBadge();
@@ -127,17 +136,11 @@ export function Sidebar() {
           ))}
         </ul>
 
-        {/* More section — collapsed into an expandable if needed */}
         {!sidebarCollapsed && (
           <div className="mt-6">
-            <div className="text-[10px] font-semibold text-slate-400 px-2 mb-1 tracking-wider">ADVANCED</div>
+            <div className="text-[10px] font-semibold text-slate-400 px-2 mb-1 tracking-wider">INSIGHTS</div>
             <ul className="space-y-0.5">
-              {[
-                { href: "/analytics",      icon: Activity, label: "Analytics",    feature: "analytics" },
-                { href: "/radar",          icon: Zap,      label: "Radar", badge: "LIVE", feature: "radar" },
-                { href: "/ai-workspace",   icon: Brain,    label: "AI Workspace", feature: "ai-workspace" },
-                { href: "/booking",        icon: Link2,    label: "Booking",      feature: "booking" },
-              ].map(({ href, icon: Icon, label, badge, feature }) => {
+              {ADVANCED_ITEMS.map(({ href, icon: Icon, label, badge: itemBadge, feature }) => {
                 const locked = isLocked(feature);
                 return (
                   <li key={href}>
@@ -150,9 +153,9 @@ export function Sidebar() {
                       <span>{label}</span>
                       {locked ? (
                         <Lock className="ml-auto w-3.5 h-3.5 text-slate-400" />
-                      ) : badge ? (
+                      ) : itemBadge ? (
                         <span className="ml-auto text-[10px] bg-accent text-white px-1.5 py-0.5 rounded font-bold">
-                          {badge}
+                          {itemBadge}
                         </span>
                       ) : null}
                     </Link>

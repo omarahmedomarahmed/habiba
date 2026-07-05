@@ -28,7 +28,6 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     if (!config['CORS_ORIGINS']) missing.push('CORS_ORIGINS');
 
     // Security-critical: message encryption and Stripe webhook must be set in production
-    if (!config['MESSAGE_ENCRYPTION_KEY']) missing.push('MESSAGE_ENCRYPTION_KEY (required — patient messages will be stored in plaintext without this)');
     if (!config['STRIPE_WEBHOOK_SECRET']) missing.push('STRIPE_WEBHOOK_SECRET (required — Stripe webhooks cannot be verified without this)');
 
     if (missing.length > 0) {

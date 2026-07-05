@@ -68,32 +68,8 @@ export class CrisisService {
       // Do not return — still attempt to alert even if persist failed
     }
 
-    // 2. Create/get crisis-priority conversation
-    let conversationId: string | null = null;
-    try {
-      const conv = await this.db.queryOne<{ id: string }>(
-        `INSERT INTO conversations
-           (id, organization_id, type, patient_id, therapist_id, status, priority)
-         VALUES ($1,$2,'patient_therapist',$3,$4,'active','urgent')
-         ON CONFLICT (organization_id, patient_id, therapist_id)
-           WHERE type = 'patient_therapist' AND status = 'active'
-         DO UPDATE SET priority = 'urgent'
-         RETURNING id`,
-        [uuidv4(), orgId, session.patient_id, session.therapist_id],
-      );
-      conversationId = conv?.id ?? null;
-      if (riskId && conversationId) {
-        await this.db.execute(
-          `UPDATE risk_assessments SET conversation_id = $1 WHERE id = $2`,
-          [conversationId, riskId],
-        );
-      }
-    } catch (err) {
-      this.logger.error(`[CRISIS] Failed to create crisis conversation: ${(err as Error).message}`);
-    }
-
     // 3. Notify therapist + admins, then mark alert delivered so sweeper won't re-fire
-    await this.notifyParticipants(orgId, session, 'elevated', matchedKeywords, conversationId);
+    await this.notifyParticipants(orgId, session, 'elevated', matchedKeywords, null);
     try {
       await this.db.execute(
         `UPDATE risk_assessments SET alert_status = 'delivered', alert_delivered_at = NOW() WHERE id = $1`,
@@ -118,14 +94,14 @@ export class CrisisService {
       recommendedAction: 'Review session transcript immediately. Keywords detected: ' + matchedKeywords.join(', '),
       timestamp: new Date().toISOString(),
       risk_assessment_id: riskId,
-      conversation_id: conversationId,
+      conversation_id: null,
     });
 
     // 5. Emit crisis_support to patient (no risk details — just supportive handoff)
     if (session.patient_user_id) {
       this.eventEmitter.emit('crisis.support', {
         patientUserId: session.patient_user_id,
-        conversationId,
+        conversationId: null,
         message: 'Your therapist has been notified. If you need immediate help, call 988.',
       });
     }

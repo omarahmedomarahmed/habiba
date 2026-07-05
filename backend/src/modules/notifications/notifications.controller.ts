@@ -209,64 +209,6 @@ export class NotificationsController {
     return this.r({ removed: true });
   }
 
-  // ─── Get conversations (in-app messaging) ────────────────────────────────
-
-  @Get('conversations/list')
-  @ApiOperation({ summary: 'Get user conversations' })
-  async getConversations(
-    @CurrentUser() user: CurrentUserData,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
-  ) {
-    const result = await this.service.getConversations(
-      user.userId,
-      user.organizationId,
-      { page: Number(page), limit: Number(limit) },
-    );
-    return this.r(result);
-  }
-
-  // ─── Get conversation messages ────────────────────────────────────────────
-
-  @Get('conversations/:id/messages')
-  @ApiOperation({ summary: 'Get messages in a conversation' })
-  async getConversationMessages(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id', ParseUUIDPipe) conversationId: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 50,
-    @Query('before') before?: string,
-  ) {
-    const messages = await this.service.getConversationMessages(
-      conversationId,
-      user.userId,
-      { page: Number(page), limit: Number(limit), before },
-    );
-    return this.r(messages);
-  }
-
-  // ─── Send message ─────────────────────────────────────────────────────────
-
-  @Post('conversations/:id/messages')
-  @ApiOperation({ summary: 'Send a message in a conversation' })
-  async sendMessage(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id', ParseUUIDPipe) conversationId: string,
-    @Body()
-    body: {
-      content: string;
-      message_type?: 'text' | 'attachment' | 'system';
-      metadata?: Record<string, unknown>;
-    },
-  ) {
-    const message = await this.service.sendMessage(
-      conversationId,
-      user.userId,
-      body,
-    );
-    return this.r(message);
-  }
-
   // ─── Admin: Send notification ─────────────────────────────────────────────
 
   @Post('admin/send')

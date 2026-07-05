@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
 import { DatabaseService } from "../../database/database.service";
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import { getPlanFeatures } from "../billing/plan-features";
 
 export interface CreateRadarRequestDto {
   specialization?: string;
@@ -22,6 +23,26 @@ export class RadarService {
     private readonly db: DatabaseService,
     private readonly eventEmitter: EventEmitter2
   ) {}
+
+  /**
+   * Plan gate — Radar Matching is included on Starter and above
+   * (docs/PRODUCT_MVP.md feature matrix). PAYG therapists get a 403
+   * with an upgrade hint the frontend can render.
+   */
+  async assertRadarAccess(therapistId: string): Promise<void> {
+    const therapist = await this.db.queryOne<{ current_plan_key: string }>(
+      `SELECT current_plan_key FROM therapists WHERE id = $1`,
+      [therapistId],
+    );
+    if (!getPlanFeatures(therapist?.current_plan_key).radar) {
+      throw new ForbiddenException({
+        message: "Radar Matching is included on Starter and above. Upgrade your plan to receive new patient requests.",
+        code: "UPGRADE_REQUIRED",
+        feature: "radar",
+        min_plan: "starter",
+      });
+    }
+  }
 
   // ============================================================
   // CREATE REQUEST (Patient initiates)

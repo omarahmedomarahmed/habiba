@@ -111,6 +111,9 @@ export class AnalyticsController {
     @Query('period') period: string = '90d',
     @CurrentUser() user: any,
   ) {
+    if (user.role === 'therapist') {
+      await this.analyticsService.assertFullAnalytics(user.therapistId || user.id);
+    }
     return this.analyticsService.getOutcomeMetrics(user.organization_id, period);
   }
 }

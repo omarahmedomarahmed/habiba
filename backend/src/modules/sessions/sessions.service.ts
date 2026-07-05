@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DatabaseService } from '../../database/database.service';
 import { AIService } from '../ai/ai.service';
 import { BillingService } from '../billing/billing.service';
+import { getPlanFeatures } from '../billing/plan-features';
 import { CrisisService } from '../crisis/crisis.service';
 import { MailService } from '../mail/mail.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -47,110 +48,55 @@ export class SessionsService {
 
     params.push(Math.min(Number(limit), 100));
 
-    let sessions: any[];
-    try {
-      sessions = await this.db.query(
-        `SELECT s.*,
-          COALESCE(
-            NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
-            s.patient_name_guest,
-            s.patient_email,
-            'Guest Patient'
-          ) as patient_name,
-          COALESCE(p.email, s.patient_email) as patient_email,
-          t.display_name as therapist_name,
-          (SELECT COUNT(*) FROM transcript_segments ts JOIN transcripts tr ON tr.id = ts.transcript_id WHERE tr.session_id = s.id) as transcript_segment_count,
-          n.id as has_ai_note,
-          n.id as note_id,
-          CASE WHEN n.status = 'approved' THEN 'finalized' ELSE n.status END as note_status
-         FROM sessions s
-         LEFT JOIN LATERAL (
-           SELECT id, status FROM ai_session_notes
-           WHERE session_id = s.id AND status <> 'archived'
-           ORDER BY created_at DESC LIMIT 1
-         ) n ON true
-         LEFT JOIN patients p ON p.id = s.patient_id
-         JOIN therapists t ON t.id = s.therapist_id
-         WHERE ${whereClauses.join(' AND ')}
-         ORDER BY s.scheduled_at DESC
-         LIMIT $${params.length}`,
-        params,
-      );
-    } catch (err: any) {
-      if (err?.code !== '42703') throw err;
-      // Fall back to base schema (migration 006) — no patient_name_guest or patient_email columns
-      sessions = await this.db.query(
-        `SELECT s.*,
-          COALESCE(
-            NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
-            'Guest Patient'
-          ) as patient_name,
-          p.email as patient_email,
-          t.display_name as therapist_name,
-          n.id as has_ai_note,
-          n.id as note_id,
-          CASE WHEN n.status = 'approved' THEN 'finalized' ELSE n.status END as note_status
-         FROM sessions s
-         LEFT JOIN LATERAL (
-           SELECT id, status FROM ai_session_notes
-           WHERE session_id = s.id AND status <> 'archived'
-           ORDER BY created_at DESC LIMIT 1
-         ) n ON true
-         LEFT JOIN patients p ON p.id = s.patient_id
-         JOIN therapists t ON t.id = s.therapist_id
-         WHERE ${whereClauses.join(' AND ')}
-         ORDER BY s.scheduled_at DESC
-         LIMIT $${params.length}`,
-        params,
-      );
-    }
+    const sessions: any[] = await this.db.query(
+      `SELECT s.*,
+        COALESCE(
+          NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
+          s.patient_name_guest,
+          s.patient_email,
+          'Guest Patient'
+        ) as patient_name,
+        COALESCE(p.email, s.patient_email) as patient_email,
+        t.display_name as therapist_name,
+        (SELECT COUNT(*) FROM transcript_segments ts JOIN transcripts tr ON tr.id = ts.transcript_id WHERE tr.session_id = s.id) as transcript_segment_count,
+        n.id as has_ai_note,
+        n.id as note_id,
+        CASE WHEN n.status = 'approved' THEN 'finalized' ELSE n.status END as note_status
+       FROM sessions s
+       LEFT JOIN LATERAL (
+         SELECT id, status FROM ai_session_notes
+         WHERE session_id = s.id AND status <> 'archived'
+         ORDER BY created_at DESC LIMIT 1
+       ) n ON true
+       LEFT JOIN patients p ON p.id = s.patient_id
+       JOIN therapists t ON t.id = s.therapist_id
+       WHERE ${whereClauses.join(' AND ')}
+       ORDER BY s.scheduled_at DESC
+       LIMIT $${params.length}`,
+      params,
+    );
 
     return sessions;
   }
 
   async findOne(id: string, orgId: string) {
-    // Try with migration-030 columns (patient_name_guest, patient_email); fall back to base schema if columns absent
-    let session: any = null;
-    try {
-      session = await this.db.queryOne(
-        `SELECT s.*,
-          COALESCE(
-            NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
-            s.patient_name_guest,
-            s.patient_email,
-            'Guest Patient'
-          ) as patient_name,
-          COALESCE(p.email, s.patient_email) as patient_email,
-          t.display_name as therapist_name,
-          t.user_id as therapist_user_id
-         FROM sessions s
-         LEFT JOIN patients p ON p.id = s.patient_id
-         JOIN therapists t ON t.id = s.therapist_id
-         WHERE s.id = $1 AND s.organization_id = $2`,
-        [id, orgId],
-      );
-    } catch (err: any) {
-      if (err?.code === '42703') {
-        // Migration 030 columns don't exist yet — use base schema
-        session = await this.db.queryOne(
-          `SELECT s.*,
-            COALESCE(
-              NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
-              'Guest Patient'
-            ) as patient_name,
-            p.email as patient_email,
-            t.display_name as therapist_name,
-            t.user_id as therapist_user_id
-           FROM sessions s
-           LEFT JOIN patients p ON p.id = s.patient_id
-           JOIN therapists t ON t.id = s.therapist_id
-           WHERE s.id = $1 AND s.organization_id = $2`,
-          [id, orgId],
-        );
-      } else {
-        throw err;
-      }
-    }
+    const session: any = await this.db.queryOne(
+      `SELECT s.*,
+        COALESCE(
+          NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
+          s.patient_name_guest,
+          s.patient_email,
+          'Guest Patient'
+        ) as patient_name,
+        COALESCE(p.email, s.patient_email) as patient_email,
+        t.display_name as therapist_name,
+        t.user_id as therapist_user_id
+       FROM sessions s
+       LEFT JOIN patients p ON p.id = s.patient_id
+       JOIN therapists t ON t.id = s.therapist_id
+       WHERE s.id = $1 AND s.organization_id = $2`,
+      [id, orgId],
+    );
 
     if (!session) throw new NotFoundException('Session not found');
     return session;
@@ -245,59 +191,39 @@ export class SessionsService {
       }
     }
 
-    const priceCents = dto.session_price_cents ? parseInt(String(dto.session_price_cents)) : null;
-    const paymentStatus = priceCents && priceCents > 0 ? 'pending' : 'not_required';
-
     // Normalize session_type — 'individual' is not in the CHECK constraint; map it to 'standard'
     const sessionType = (['standard','radar','group','phone','in_person','intake','follow_up'] as const)
       .includes(dto.session_type as any) ? dto.session_type : 'standard';
 
-    // Try full INSERT (with columns added in migrations 029-031).
-    // Fall back to base schema INSERT if those columns don't exist yet in this environment.
-    let result: any[];
-    try {
-      result = await this.db.query(
-        `INSERT INTO sessions (
-          id, organization_id, therapist_id, patient_id,
-          session_type, modality, status, scheduled_at,
-          session_number, title, recording_enabled, scribe_enabled,
-          video_room_id, video_room_url, pre_session_notes, join_token,
-          patient_email, auto_generate_note,
-          session_price_cents, patient_payment_status
-        ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14,gen_random_uuid(),$15,$16,$17,$18)
-        RETURNING *`,
-        [
-          sessionId, orgId, dto.therapist_id, dto.patient_id || null,
-          sessionType, dto.modality || 'video',
-          dto.scheduled_at || new Date().toISOString(), sessionNumber,
-          dto.title || (isOffline ? 'In-Person Session' : `Session ${sessionNumber}`),
-          dto.recording_enabled || false, dto.scribe_enabled !== false,
-          videoRoomId, videoRoomUrl, dto.pre_session_notes || null,
-          dto.patient_email || null, dto.auto_generate_note !== false,
-          priceCents, paymentStatus,
-        ],
+    // Plan gate: session recordings are included on Starter and above only
+    let recordingEnabled = !!dto.recording_enabled;
+    if (recordingEnabled && dto.therapist_id) {
+      const therapist = await this.db.queryOne<{ current_plan_key: string }>(
+        `SELECT current_plan_key FROM therapists WHERE id = $1`,
+        [dto.therapist_id],
       );
-    } catch (err: any) {
-      if (err?.code !== '42703') throw err; // re-throw anything except "column does not exist"
-      // Fallback: base schema only (migration 006 columns)
-      result = await this.db.query(
-        `INSERT INTO sessions (
-          id, organization_id, therapist_id, patient_id,
-          session_type, modality, status, scheduled_at,
-          session_number, title, recording_enabled, scribe_enabled,
-          video_room_id, video_room_url, pre_session_notes
-        ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14)
-        RETURNING *`,
-        [
-          sessionId, orgId, dto.therapist_id, dto.patient_id || null,
-          sessionType, dto.modality || 'video',
-          dto.scheduled_at || new Date().toISOString(), sessionNumber,
-          dto.title || (isOffline ? 'In-Person Session' : `Session ${sessionNumber}`),
-          dto.recording_enabled || false, dto.scribe_enabled !== false,
-          videoRoomId, videoRoomUrl, dto.pre_session_notes || null,
-        ],
-      );
+      if (!getPlanFeatures(therapist?.current_plan_key).recordings) recordingEnabled = false;
     }
+
+    const result: any[] = await this.db.query(
+      `INSERT INTO sessions (
+        id, organization_id, therapist_id, patient_id,
+        session_type, modality, status, scheduled_at,
+        session_number, title, recording_enabled, scribe_enabled,
+        video_room_id, video_room_url, pre_session_notes, join_token,
+        patient_email, auto_generate_note
+      ) VALUES ($1,$2,$3,$4,$5,$6,'scheduled',$7,$8,$9,$10,$11,$12,$13,$14,gen_random_uuid(),$15,$16)
+      RETURNING *`,
+      [
+        sessionId, orgId, dto.therapist_id, dto.patient_id || null,
+        sessionType, dto.modality || 'video',
+        dto.scheduled_at || new Date().toISOString(), sessionNumber,
+        dto.title || (isOffline ? 'In-Person Session' : `Session ${sessionNumber}`),
+        recordingEnabled, dto.scribe_enabled !== false,
+        videoRoomId, videoRoomUrl, dto.pre_session_notes || null,
+        dto.patient_email || null, dto.auto_generate_note !== false,
+      ],
+    );
 
     // Log timeline event only when a patient is linked
     if (dto.patient_id) {
@@ -574,24 +500,6 @@ export class SessionsService {
     );
   }
 
-  async getMyReports(patientId: string, orgId: string) {
-    return this.db.query(
-      `SELECT sr.id, sr.report_type, sr.status, sr.created_at, sr.signed_at,
-              s.scheduled_at AS session_date,
-              t.display_name AS therapist_name,
-              sr.content->>'summary' AS summary
-       FROM session_reports sr
-       JOIN sessions s ON s.id = sr.session_id
-       JOIN therapists t ON t.id = sr.therapist_id
-       WHERE sr.patient_id = $1
-         AND sr.organization_id = $2
-         AND sr.status = 'signed'
-       ORDER BY sr.created_at DESC
-       LIMIT 50`,
-      [patientId, orgId],
-    ).catch(() => []);
-  }
-
   async getDashboardStats(orgId: string, therapistId: string) {
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
@@ -635,7 +543,6 @@ export class SessionsService {
   async getJoinInfo(joinToken: string) {
     const session = await this.db.queryOne<any>(
       `SELECT s.id, s.status, s.scheduled_at, s.video_room_url, s.join_token,
-              s.session_price_cents, s.patient_payment_status,
               t.display_name AS therapist_name,
               u.avatar_url AS therapist_avatar_url
        FROM sessions s
@@ -653,55 +560,7 @@ export class SessionsService {
       scheduled_at: session.scheduled_at,
       status: session.status,
       video_room_url: session.video_room_url,
-      requires_payment: !!(session.session_price_cents && session.patient_payment_status !== 'paid'),
-      session_price_cents: session.session_price_cents,
-      patient_payment_status: session.patient_payment_status,
     };
-  }
-
-  async initiatePatientPayment(joinToken: string, dto: { email: string; name?: string }) {
-    const session = await this.db.queryOne<any>(
-      `SELECT s.id, s.therapist_id, s.session_price_cents, s.patient_payment_status, s.join_token
-       FROM sessions s
-       WHERE s.join_token = $1::uuid AND s.status IN ('scheduled', 'waiting', 'in_progress')`,
-      [joinToken],
-    );
-    if (!session) throw new NotFoundException('Session not found');
-    if (!session.session_price_cents || session.session_price_cents <= 0) {
-      throw new BadRequestException('Session does not require payment');
-    }
-    if (session.patient_payment_status === 'paid') {
-      throw new BadRequestException('Session already paid');
-    }
-    const checkoutUrl = await this.billingService.createPatientSessionCheckout(
-      session.id, session.therapist_id, dto.email, joinToken,
-    );
-    return { checkout_url: checkoutUrl };
-  }
-
-  async sendOfflineBill(sessionId: string, orgId: string, dto: { patient_email: string; amount_cents: number }) {
-    const session = await this.db.queryOne<any>(
-      `SELECT id, therapist_id, organization_id FROM sessions WHERE id = $1 AND organization_id = $2`,
-      [sessionId, orgId],
-    );
-    if (!session) throw new NotFoundException('Session not found');
-    const checkoutUrl = await this.billingService.createOfflineBillCheckout(
-      sessionId, session.therapist_id, dto.patient_email, dto.amount_cents,
-    );
-    await this.mail.sendOfflinePaymentLink(
-      dto.patient_email, '', '', dto.amount_cents, checkoutUrl || '', new Date(),
-    ).catch(() => {});
-    return { checkout_url: checkoutUrl };
-  }
-
-  async markOfflineCashPaid(sessionId: string, orgId: string, dto: { amount_cents: number }) {
-    const session = await this.db.queryOne<any>(
-      `SELECT id, therapist_id FROM sessions WHERE id = $1 AND organization_id = $2`,
-      [sessionId, orgId],
-    );
-    if (!session) throw new NotFoundException('Session not found');
-    await this.billingService.markOfflineSessionPaid(sessionId, session.therapist_id, dto.amount_cents);
-    return { success: true };
   }
 
   async joinByToken(joinToken: string, dto: { name: string; email?: string }) {

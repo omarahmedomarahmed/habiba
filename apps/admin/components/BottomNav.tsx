@@ -5,20 +5,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Building2, Shield, LayoutGrid,
-  X, BarChart3, Settings, AlertTriangle, Video, Heart
+  X, Settings, AlertTriangle, UserCheck, CreditCard, DollarSign, FileBadge
 } from "lucide-react";
 
 const PRIMARY_TABS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Sessions", icon: Video, href: "/sessions" },
-  { label: "Patients", icon: Heart, href: "/patients" },
+  { label: "Therapists", icon: UserCheck, href: "/therapists" },
+  { label: "Users", icon: Users, href: "/users" },
   { label: "Orgs", icon: Building2, href: "/organizations" },
   { label: "More", icon: LayoutGrid, href: null },
 ];
 
 const MORE_ITEMS = [
-  { label: "Users", icon: Users, href: "/users" },
-  { label: "Analytics", icon: BarChart3, href: "/analytics" },
+  { label: "Credentials", icon: FileBadge, href: "/credentials" },
+  { label: "Subscriptions", icon: CreditCard, href: "/subscriptions" },
+  { label: "Billing", icon: DollarSign, href: "/billing" },
+  { label: "Pricing", icon: DollarSign, href: "/pricing" },
   { label: "Crisis Alerts", icon: AlertTriangle, href: "/crisis" },
   { label: "Audit Logs", icon: Shield, href: "/audit-logs" },
   { label: "Settings", icon: Settings, href: "/settings" },

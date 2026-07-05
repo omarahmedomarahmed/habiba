@@ -39,6 +39,7 @@ export class RadarController {
   @ApiOperation({ summary: "Get pending radar requests for therapist" })
   async getTherapistRequests(@Request() req: { user: { userId: string; organizationId: string; therapistId?: string } }) {
     const therapistId = req.user.therapistId || req.user.userId;
+    await this.radarService.assertRadarAccess(therapistId);
     return this.radarService.getTherapistRequests(therapistId);
   }
 
@@ -50,6 +51,7 @@ export class RadarController {
     @Param("id") id: string
   ) {
     const therapistId = req.user.therapistId || req.user.userId;
+    await this.radarService.assertRadarAccess(therapistId);
     return this.radarService.acceptRequest(therapistId, id, req.user.organizationId);
   }
 
@@ -61,7 +63,9 @@ export class RadarController {
     @Param("id") id: string,
     @Body() body: { reason?: string }
   ) {
-    return this.radarService.declineRequest(req.user.therapistId || req.user.userId, id, body.reason);
+    const therapistId = req.user.therapistId || req.user.userId;
+    await this.radarService.assertRadarAccess(therapistId);
+    return this.radarService.declineRequest(therapistId, id, body.reason);
   }
 
   // Analytics

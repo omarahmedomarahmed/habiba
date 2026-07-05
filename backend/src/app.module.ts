@@ -18,22 +18,13 @@ import { AIModule } from './modules/ai/ai.module';
 import { RadarModule } from './modules/radar/radar.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
-import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminModule } from './modules/admin/admin.module';
-import { AssessmentsModule } from './modules/assessments/assessments.module';
-import { MemoryModule } from './modules/memory/memory.module';
-import { WorkflowsModule } from './modules/workflows/workflows.module';
-import { MessagesModule } from './modules/messages/messages.module';
 import { CrisisModule } from './modules/crisis/crisis.module';
 import { NotesModule } from './modules/notes/notes.module';
 import { TreatmentPlansModule } from './modules/treatment-plans/treatment-plans.module';
-import { ReferralsModule } from './modules/referrals/referrals.module';
-import { ReportsModule } from './modules/reports/reports.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { DataLifecycleModule } from './modules/data-lifecycle/data-lifecycle.module';
-import { BookingModule } from './modules/booking/booking.module';
-import { CrmModule } from './modules/crm/crm.module';
 import { GatewaysModule } from './gateways/gateways.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
@@ -87,22 +78,13 @@ import appConfig from './config/app.config';
     RadarModule,
     BillingModule,
     NotificationsModule,
-    MarketplaceModule,
     AnalyticsModule,
     AdminModule,
-    AssessmentsModule,
-    MemoryModule,
-    WorkflowsModule,
-    MessagesModule,
     CrisisModule,
     NotesModule,
     TreatmentPlansModule,
-    ReferralsModule,
-    ReportsModule,
     ContactModule,
     DataLifecycleModule,
-    BookingModule,
-    CrmModule,
 
     // ─── WebSocket Gateways ───────────────────────────────────────────────────
     GatewaysModule,

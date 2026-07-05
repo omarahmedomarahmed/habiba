@@ -167,30 +167,6 @@ export class TherapistsService {
   // BOOKING SLUG
   // ============================================================
 
-  async updatePublicSlug(userId: string, organizationId: string, slug: string): Promise<void> {
-    if (!/^[a-z0-9-]{3,50}$/.test(slug)) {
-      throw new BadRequestException('Slug must be 3-50 characters: lowercase letters, numbers, and hyphens only');
-    }
-
-    const therapist = await this.db.queryOne<{ id: string }>(
-      `SELECT id FROM therapists WHERE user_id = $1 AND organization_id = $2 AND deleted_at IS NULL`,
-      [userId, organizationId],
-    );
-    if (!therapist) throw new NotFoundException('Therapist profile not found');
-
-    try {
-      await this.db.execute(
-        `UPDATE therapists SET public_slug = $1, updated_at = NOW() WHERE id = $2`,
-        [slug, therapist.id],
-      );
-    } catch (err: any) {
-      if (err?.code === '23505') {
-        throw new ConflictException('This booking URL is already taken');
-      }
-      throw err;
-    }
-  }
-
   // ============================================================
   // AVAILABILITY
   // ============================================================
@@ -286,13 +262,7 @@ export class TherapistsService {
       ),
     ]);
 
-    // Revenue this month
-    const revenue = await this.db.queryOne<{ total: string }>(
-      `SELECT COALESCE(SUM(sf.gross_amount), 0) as total FROM session_fees sf
-       JOIN sessions s ON s.id = sf.session_id
-       WHERE s.therapist_id = $1 AND sf.created_at >= $2 AND sf.status = 'paid'`,
-      [therapist.id, monthStart]
-    );
+    const revenue = { total: '0' }; // no marketplace revenue in MVP
 
     return {
       sessions_today: parseInt(sessionsToday?.count || "0"),
@@ -515,21 +485,6 @@ export class TherapistsService {
   // ============================================================
   // BANK DETAILS / PAYOUTS
   // ============================================================
-
-  async updateBankDetails(
-    therapistId: string,
-    payoutMethod: 'ach' | 'wire' | 'swift',
-    bankDetails: Record<string, unknown>,
-  ): Promise<void> {
-    if (!therapistId) throw new NotFoundException("Therapist profile not found");
-    if (!['ach', 'wire', 'swift'].includes(payoutMethod)) {
-      throw new BadRequestException("Invalid payout method");
-    }
-    await this.db.execute(
-      `UPDATE therapists SET payout_method = $2, bank_details = $3, updated_at = NOW() WHERE id = $1`,
-      [therapistId, payoutMethod, JSON.stringify(bankDetails ?? {})],
-    );
-  }
 
   // ============================================================
   // AVATAR
