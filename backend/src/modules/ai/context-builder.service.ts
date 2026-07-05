@@ -28,6 +28,11 @@ export class ContextBuilderService {
     orgId: string,
     queryText?: string,
   ): Promise<SessionContext> {
+    // Each context query is isolated: a single failure (missing patient, schema
+    // drift, etc.) must never 500 note/summary/copilot generation — it just
+    // contributes an empty section. The transcript is the part that matters most.
+    const safe = <T>(p: Promise<T>, fallback: T): Promise<T> => p.catch(() => fallback);
+
     const [
       patient,
       recentSessions,
@@ -38,17 +43,17 @@ export class ContextBuilderService {
       memories,
       transcript,
     ] = await Promise.all([
-      this.getPatientSummary(patientId, orgId),
-      this.getRecentSessionSummaries(patientId, orgId, 3),
-      this.getActiveGoals(patientId, orgId),
-      this.getLatestAssessments(patientId, orgId),
-      this.getActiveMedications(patientId, orgId),
-      this.getActiveRiskFlags(patientId, orgId),
-      this.getRelevantMemories(patientId, orgId, queryText),
-      this.getCurrentTranscript(sessionId),
+      safe(this.getPatientSummary(patientId, orgId), 'No patient data available.'),
+      safe(this.getRecentSessionSummaries(patientId, orgId, 3), 'No previous session summaries available.'),
+      safe(this.getActiveGoals(patientId, orgId), 'No active treatment goals documented.'),
+      safe(this.getLatestAssessments(patientId, orgId), 'No assessments completed.'),
+      safe(this.getActiveMedications(patientId, orgId), 'No active medications on record.'),
+      safe(this.getActiveRiskFlags(patientId, orgId), 'No active risk flags.'),
+      safe(this.getRelevantMemories(patientId, orgId, queryText), 'No patient memories extracted yet.'),
+      safe(this.getCurrentTranscript(sessionId), '[No transcript yet]'),
     ]);
 
-    const therapistPrefs = await this.getTherapistPreferences(therapistId);
+    const therapistPrefs = await safe(this.getTherapistPreferences(therapistId), 'CBT framework preferred.');
 
     return {
       patient_summary: patient,
@@ -124,7 +129,7 @@ Active diagnoses: ${patient.diagnoses || 'None documented'}`;
 
   private async getLatestAssessments(patientId: string, orgId: string): Promise<string> {
     const assessments = await this.db.query<any>(
-      `SELECT at.name, at.code, ar.total_score, ar.severity_label, ar.completed_at
+      `SELECT at.name, at.type_key, ar.total_score, ar.severity_band, ar.completed_at
        FROM assessment_results ar
        JOIN assessment_templates at ON at.id = ar.template_id
        WHERE ar.patient_id = $1 AND ar.organization_id = $2 AND ar.status = 'completed'
@@ -135,7 +140,7 @@ Active diagnoses: ${patient.diagnoses || 'None documented'}`;
     if (!assessments.length) return 'No assessments completed.';
 
     return assessments
-      .map((a) => `${a.name}: ${a.total_score} (${a.severity_label || 'Scored'}) — ${new Date(a.completed_at).toLocaleDateString()}`)
+      .map((a) => `${a.name}: ${a.total_score} (${a.severity_band || 'Scored'}) — ${new Date(a.completed_at).toLocaleDateString()}`)
       .join('\n');
   }
 
@@ -146,7 +151,7 @@ Active diagnoses: ${patient.diagnoses || 'None documented'}`;
        JOIN medications m ON m.id = pm.medication_id
        WHERE pm.patient_id = $1 AND pm.status = 'active'
        ORDER BY pm.start_date DESC`,
-      [patientId, orgId],
+      [patientId],
     );
 
     if (!meds.length) return 'No active medications on record.';
