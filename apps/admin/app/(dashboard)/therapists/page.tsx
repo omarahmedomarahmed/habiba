@@ -60,19 +60,40 @@ export default function TherapistsPage() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [overview, setOverview] = useState<any>(null);
 
   const openProfilePanel = async (id: string) => {
     setProfilePanelId(id);
     setProfileData(null);
+    setOverview(null);
     setProfileLoading(true);
     setProfileSaved(false);
     try {
-      const data = await adminAPI.getTherapistProfile(id);
-      setProfileData(data);
+      const [prof, ov] = await Promise.all([
+        adminAPI.getTherapistProfile(id),
+        adminAPI.therapistOverview(id).catch(() => null),
+      ]);
+      setProfileData(prof);
+      setOverview((ov as any)?.data ?? ov);
     } catch {
       setProfileData({ error: 'Failed to load profile' });
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const impersonate = async (id: string) => {
+    try {
+      const res: any = await adminAPI.impersonateUser((overview?.profile?.user_id) || id);
+      const token = res?.data?.impersonation_token ?? res?.impersonation_token;
+      if (token) {
+        const base = (process.env.NEXT_PUBLIC_THERAPIST_APP_URL || 'https://app.24therapy.ai').replace(/\/$/, '');
+        window.open(`${base}/login?impersonation_token=${encodeURIComponent(token)}`, '_blank');
+      } else {
+        alert('Impersonation token not returned.');
+      }
+    } catch {
+      alert('Could not start impersonation.');
     }
   };
 
@@ -586,6 +607,68 @@ export default function TherapistsPage() {
                         />
                         <span className="text-xs text-gray-400">Accepting new patients</span>
                       </label>
+                    </div>
+                  </div>
+
+                  {/* Impersonate */}
+                  <button
+                    onClick={() => impersonate(profilePanelId!)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-600/20 border border-amber-600/40 text-amber-300 rounded-lg text-xs font-medium hover:bg-amber-600/30"
+                  >
+                    <User className="w-3.5 h-3.5" /> Log in as this therapist (impersonate)
+                  </button>
+
+                  {/* Plan & subscription */}
+                  <div className="bg-gray-900 rounded-xl p-4">
+                    <div className="text-xs font-semibold text-white mb-2">Plan &amp; Billing</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-gray-500">Plan:</span> <span className="text-gray-200">{overview?.plan?.name || overview?.profile?.current_plan_key || '—'}</span></div>
+                      <div><span className="text-gray-500">Subscription:</span> <span className="text-gray-200">{overview?.subscription?.status || 'none'}</span></div>
+                      <div><span className="text-gray-500">Paid:</span> <span className="text-green-400">${Number(overview?.charge_totals?.total_paid || 0).toFixed(2)}</span></div>
+                      <div><span className="text-gray-500">Outstanding:</span> <span className={Number(overview?.charge_totals?.total_outstanding) > 0 ? 'text-amber-400' : 'text-gray-200'}>${Number(overview?.charge_totals?.total_outstanding || 0).toFixed(2)}</span></div>
+                    </div>
+                    {overview?.subscription?.current_period_end && (
+                      <div className="text-xs text-gray-500 mt-2">Renews {new Date(overview.subscription.current_period_end).toLocaleDateString()}</div>
+                    )}
+                  </div>
+
+                  {/* AI usage */}
+                  <div className="bg-gray-900 rounded-xl p-4">
+                    <div className="text-xs font-semibold text-white mb-2">AI Usage</div>
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div><div className="text-lg font-bold text-white">{Number(overview?.ai_usage?.calls || 0)}</div><div className="text-gray-500">calls</div></div>
+                      <div><div className="text-lg font-bold text-white">{Number(overview?.ai_usage?.tokens || 0).toLocaleString()}</div><div className="text-gray-500">tokens</div></div>
+                      <div><div className="text-lg font-bold text-green-400">${Number(overview?.ai_usage?.cost_usd || 0).toFixed(3)}</div><div className="text-gray-500">cost</div></div>
+                    </div>
+                  </div>
+
+                  {/* Sessions */}
+                  <div className="bg-gray-900 rounded-xl p-4">
+                    <div className="text-xs font-semibold text-white mb-2">Sessions ({overview?.sessions?.length || 0})</div>
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {(overview?.sessions || []).slice(0, 20).map((s: any) => (
+                        <div key={s.id} className="flex items-center justify-between text-xs py-1 border-b border-gray-800 last:border-0">
+                          <span className="text-gray-300 truncate flex-1">{s.patient_name} · {s.modality}</span>
+                          <span className="text-gray-500 ml-2">{s.status}</span>
+                          <span className="text-gray-600 ml-2">{s.scheduled_at ? new Date(s.scheduled_at).toLocaleDateString() : ''}</span>
+                        </div>
+                      ))}
+                      {(!overview?.sessions || overview.sessions.length === 0) && <div className="text-xs text-gray-600 py-2">No sessions yet.</div>}
+                    </div>
+                  </div>
+
+                  {/* Bills */}
+                  <div className="bg-gray-900 rounded-xl p-4">
+                    <div className="text-xs font-semibold text-white mb-2">Session charges ({overview?.charges?.length || 0})</div>
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {(overview?.charges || []).slice(0, 20).map((c: any) => (
+                        <div key={c.id} className="flex items-center justify-between text-xs py-1 border-b border-gray-800 last:border-0">
+                          <span className="text-gray-400 truncate flex-1">{c.description || c.plan_key}</span>
+                          <span className={`ml-2 ${c.status === 'pending' ? 'text-amber-400' : c.status === 'paid' ? 'text-green-400' : 'text-gray-500'}`}>{c.status}</span>
+                          <span className="text-gray-300 ml-2 font-mono">${Number(c.amount_due_usd || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {(!overview?.charges || overview.charges.length === 0) && <div className="text-xs text-gray-600 py-2">No charges yet.</div>}
                     </div>
                   </div>
                 </div>

@@ -102,6 +102,16 @@ export class AdminController {
     return this.adminService.getTherapistProfile(id);
   }
 
+  @Get('therapists/:id/overview')
+  async getTherapistOverview(@Param('id') id: string) {
+    return this.adminService.getTherapistOverview(id);
+  }
+
+  @Get('ai-usage')
+  async getAIUsage(@Query() query: any) {
+    return this.adminService.getAIUsage(query);
+  }
+
   @Patch('therapists/:id/profile')
   async updateTherapistProfile(@Param('id') id: string, @Body() dto: any) {
     return this.adminService.updateTherapistProfile(id, dto);
