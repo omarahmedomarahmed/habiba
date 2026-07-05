@@ -93,14 +93,31 @@ export default function AdminDashboardPage() {
     try {
       setError(null);
       // Parallel fetch of dashboard data
-      const [analyticsData, orgsData, healthData] = await Promise.allSettled([
-        adminAPI.analyticsOverview('today'),
+      const [overviewData, orgsData, healthData] = await Promise.allSettled([
+        adminAPI.platformStats(),
         adminAPI.organizations({ limit: 5, sort: 'created_at', order: 'desc' }),
         adminAPI.systemHealth(),
       ]);
 
-      if (analyticsData.status === 'fulfilled') {
-        setStats(analyticsData.value);
+      if (overviewData.status === 'fulfilled') {
+        // Flatten the real /admin/dashboard summary into the flat shape the cards read.
+        const v: any = (overviewData.value as any)?.data ?? overviewData.value;
+        const sum = v?.summary ?? {};
+        setStats({
+          active_organizations: Number(sum.active_orgs || sum.total_orgs || 0),
+          active_therapists: Number(sum.active_therapists || sum.total_therapists || 0),
+          active_patients: Number(sum.total_patients || 0),
+          sessions_today: Number(sum.sessions_today || 0),
+          total_sessions: Number(sum.total_sessions || 0),
+          ai_notes_today: Number(sum.ai_notes_today || 0),
+          ai_cost_today: Number(sum.ai_cost_today || 0),
+          total_ai_cost: Number(sum.total_ai_cost || 0),
+          total_ai_calls: Number(sum.total_ai_calls || 0),
+          radar_requests_today: Number(sum.radar_requests_today || 0),
+          total_revenue: Number(sum.total_revenue || 0),
+          outstanding_revenue: Number(sum.outstanding_revenue || 0),
+          open_crisis_alerts: Number(sum.open_crisis_alerts || 0),
+        });
       }
       if (orgsData.status === 'fulfilled') {
         const orgList = (orgsData.value as any)?.data || orgsData.value;
@@ -186,39 +203,33 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Revenue Banner */}
+      {/* Revenue Banner — real numbers from session_charges + ai_request_logs */}
       <div className="bg-gradient-to-r from-red-900/40 via-orange-900/30 to-purple-900/30 border border-red-700/30 rounded-xl p-6">
         <div className="grid grid-cols-3 divide-x divide-gray-700">
           <div className="pr-6">
-            <div className="text-xs text-gray-400 mb-1">Monthly Recurring Revenue</div>
+            <div className="text-xs text-gray-400 mb-1">Total Revenue Collected</div>
             {loading ? <LoadingSkeleton /> : (
               <>
-                <div className="text-3xl font-bold text-white">{fmtMoney(s.mrr || 0)}</div>
-                {s.mrr_growth !== undefined && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <ArrowUp className="w-3 h-3 text-green-400" />
-                    <span className="text-sm text-green-400 font-semibold">{s.mrr_growth}%</span>
-                    <span className="text-xs text-gray-500">vs last month</span>
-                  </div>
-                )}
+                <div className="text-3xl font-bold text-white">{fmtMoney(s.total_revenue || 0)}</div>
+                <div className="text-xs text-gray-500 mt-1">Paid session charges + subscriptions</div>
               </>
             )}
           </div>
           <div className="px-6">
-            <div className="text-xs text-gray-400 mb-1">Annual Recurring Revenue</div>
+            <div className="text-xs text-gray-400 mb-1">Outstanding</div>
             {loading ? <LoadingSkeleton /> : (
               <>
-                <div className="text-3xl font-bold text-white">{fmtMoney(s.arr || s.mrr * 12 || 0)}</div>
-                <div className="text-xs text-gray-500 mt-1">Projected ARR</div>
+                <div className="text-3xl font-bold text-white">{fmtMoney(s.outstanding_revenue || 0)}</div>
+                <div className="text-xs text-gray-500 mt-1">Unpaid pending bills</div>
               </>
             )}
           </div>
           <div className="pl-6">
-            <div className="text-xs text-gray-400 mb-1">NPS Score</div>
+            <div className="text-xs text-gray-400 mb-1">Total AI Cost</div>
             {loading ? <LoadingSkeleton /> : (
               <>
-                <div className="text-3xl font-bold text-white">{s.nps_score || '–'}</div>
-                <div className="text-xs text-gray-500 mt-1">Industry avg: 32</div>
+                <div className="text-3xl font-bold text-white">${(s.total_ai_cost || 0).toFixed(2)}</div>
+                <div className="text-xs text-gray-500 mt-1">{(s.total_ai_calls || 0).toLocaleString()} model calls</div>
               </>
             )}
           </div>
@@ -239,14 +250,14 @@ export default function AdminDashboardPage() {
           ))
         ) : (
           <>
-            <MetricCard icon={Building2} label="Active Organizations" value={(s.active_organizations || 0).toLocaleString()} change={s.org_growth} sub="vs last month" color="blue" />
-            <MetricCard icon={Users} label="Active Therapists" value={(s.active_therapists || 0).toLocaleString()} change={s.therapist_growth} sub="vs last month" color="green" />
-            <MetricCard icon={Activity} label="Active Patients" value={(s.active_patients || 0).toLocaleString()} change={s.patient_growth} sub="vs last month" color="purple" />
-            <MetricCard icon={Clock} label="Sessions Today" value={(s.sessions_today || 0).toLocaleString()} change={s.session_growth} sub="vs yesterday" color="cyan" />
-            <MetricCard icon={Brain} label="AI Notes Generated" value={(s.ai_notes_today || 0).toLocaleString()} sub="Today" color="orange" />
-            <MetricCard icon={DollarSign} label="AI Cost Today" value={`$${(s.ai_cost_today || 0).toFixed(2)}`} sub="AI usage" color="amber" />
-            <MetricCard icon={Zap} label="Radar Requests" value={s.radar_requests_today || 0} sub={s.radar_conversion ? `${s.radar_conversion}% conversion` : 'matching'} color="red" />
-            <MetricCard icon={Shield} label="Compliance Issues" value={s.compliance_issues || 0} sub={s.compliance_issues > 0 ? 'Requires attention' : 'All clear'} color={s.compliance_issues > 0 ? 'red' : 'green'} />
+            <MetricCard icon={Building2} label="Organizations" value={(s.active_organizations || 0).toLocaleString()} sub="Active" color="blue" />
+            <MetricCard icon={Users} label="Verified Therapists" value={(s.active_therapists || 0).toLocaleString()} sub="Approved" color="green" />
+            <MetricCard icon={Activity} label="Patients" value={(s.active_patients || 0).toLocaleString()} sub="Total" color="purple" />
+            <MetricCard icon={Clock} label="Sessions Today" value={(s.sessions_today || 0).toLocaleString()} sub={`${(s.total_sessions || 0).toLocaleString()} all time`} color="cyan" />
+            <MetricCard icon={Brain} label="AI Notes Today" value={(s.ai_notes_today || 0).toLocaleString()} sub="Generated today" color="orange" />
+            <MetricCard icon={DollarSign} label="AI Cost Today" value={`$${(s.ai_cost_today || 0).toFixed(2)}`} sub="Model usage" color="amber" />
+            <MetricCard icon={Zap} label="Radar Requests" value={s.radar_requests_today || 0} sub="Today" color="red" />
+            <MetricCard icon={Shield} label="Open Crisis Alerts" value={s.open_crisis_alerts || 0} sub={s.open_crisis_alerts > 0 ? 'Requires attention' : 'All clear'} color={s.open_crisis_alerts > 0 ? 'red' : 'green'} />
           </>
         )}
       </div>
