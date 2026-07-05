@@ -31,12 +31,19 @@ export class AdminService {
         (SELECT COUNT(*) FROM organizations WHERE subscription_status='active') as active_orgs,
         (SELECT COUNT(*) FROM organizations WHERE subscription_status='trialing') as trialing_orgs,
         (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL) as total_users,
-        (SELECT COUNT(*) FROM users WHERE role='therapist') as total_therapists,
-        (SELECT COUNT(*) FROM users WHERE role='patient') as total_patients,
+        (SELECT COUNT(*) FROM users WHERE role='therapist' AND deleted_at IS NULL) as total_therapists,
+        (SELECT COUNT(*) FROM therapists WHERE verification_status='approved' AND deleted_at IS NULL) as active_therapists,
+        (SELECT COUNT(*) FROM patients WHERE deleted_at IS NULL) as total_patients,
         (SELECT COUNT(*) FROM sessions WHERE status='completed') as total_sessions,
-        (SELECT COALESCE(SUM(amount_usd),0) FROM session_charges WHERE status='paid') as total_revenue,
+        (SELECT COUNT(*) FROM sessions WHERE created_at >= date_trunc('day', NOW())) as sessions_today,
+        (SELECT COALESCE(SUM(amount_due_usd),0) FROM session_charges WHERE status='paid') as total_revenue,
+        (SELECT COALESCE(SUM(amount_due_usd),0) FROM session_charges WHERE status='pending') as outstanding_revenue,
+        (SELECT COUNT(*) FROM ai_session_notes WHERE created_at >= date_trunc('day', NOW())) as ai_notes_today,
         (SELECT COUNT(*) FROM ai_request_logs) as total_ai_calls,
-        (SELECT COALESCE(SUM(cost_usd),0) FROM ai_request_logs) as total_ai_cost`,
+        (SELECT COALESCE(SUM(cost_usd),0) FROM ai_request_logs) as total_ai_cost,
+        (SELECT COALESCE(SUM(cost_usd),0) FROM ai_request_logs WHERE created_at >= date_trunc('day', NOW())) as ai_cost_today,
+        (SELECT COUNT(*) FROM radar_requests WHERE created_at >= date_trunc('day', NOW())) as radar_requests_today,
+        (SELECT COUNT(*) FROM risk_assessments WHERE alert_status='pending') as open_crisis_alerts`,
       [],
     ).catch(() => ({}));
   }
@@ -511,10 +518,143 @@ export class AdminService {
     return profile;
   }
 
+  /**
+   * Full admin view of one therapist: profile, plan, current subscription,
+   * their sessions, every session charge/bill, and an AI-usage summary. This is
+   * the "see and control everything" panel.
+   */
+  async getTherapistOverview(therapistId: string) {
+    const profile = await this.getTherapistProfile(therapistId);
+
+    const plan = await this.db.queryOne<any>(
+      `SELECT sp.plan_key, sp.name, sp.monthly_price_usd, sp.price_per_session_usd, sp.max_sessions_month
+       FROM subscription_plans sp WHERE sp.plan_key = $1`,
+      [profile.current_plan_key || 'pay_per_session'],
+    );
+
+    const subscription = await this.db.queryOne<any>(
+      `SELECT s.status, s.current_period_start, s.current_period_end,
+              s.stripe_subscription_id, sp.name AS plan_name, sp.plan_key
+       FROM subscriptions s
+       LEFT JOIN subscription_plans sp ON sp.id = s.plan_id
+       WHERE s.organization_id = $1 AND s.status IN ('active','trialing','past_due')
+       ORDER BY s.created_at DESC LIMIT 1`,
+      [profile.organization_id],
+    );
+
+    const sessions = await this.db.query<any>(
+      `SELECT s.id, s.title, s.modality, s.status, s.scheduled_at, s.ended_at, s.duration_minutes,
+              COALESCE(NULLIF(TRIM(COALESCE(p.first_name,'')||' '||COALESCE(p.last_name,'')),''),
+                       s.patient_name_guest, s.join_name, 'Guest') AS patient_name,
+              (SELECT COUNT(*) FROM ai_session_notes n WHERE n.session_id = s.id) AS notes_count
+       FROM sessions s LEFT JOIN patients p ON p.id = s.patient_id
+       WHERE s.therapist_id = $1
+       ORDER BY s.scheduled_at DESC LIMIT 100`,
+      [therapistId],
+    );
+
+    const charges = await this.db.query<any>(
+      `SELECT id, session_id, amount_usd, discount_usd, amount_due_usd, status,
+              description, plan_key, charged_at, paid_at
+       FROM session_charges WHERE therapist_id = $1
+       ORDER BY charged_at DESC LIMIT 100`,
+      [therapistId],
+    );
+
+    const chargeTotals = await this.db.queryOne<any>(
+      `SELECT
+         COALESCE(SUM(amount_due_usd) FILTER (WHERE status = 'paid'), 0) AS total_paid,
+         COALESCE(SUM(amount_due_usd) FILTER (WHERE status = 'pending'), 0) AS total_outstanding,
+         COUNT(*) FILTER (WHERE status = 'pending') AS pending_count
+       FROM session_charges WHERE therapist_id = $1`,
+      [therapistId],
+    );
+
+    const aiUsage = await this.db.queryOne<any>(
+      `SELECT COUNT(*) AS calls,
+              COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens,
+              COALESCE(SUM(cost_usd), 0) AS cost_usd
+       FROM ai_request_logs WHERE user_id = $1`,
+      [profile.user_id],
+    );
+
+    const aiByType = await this.db.query<any>(
+      `SELECT request_type, COUNT(*) AS calls, COALESCE(SUM(cost_usd),0) AS cost_usd
+       FROM ai_request_logs WHERE user_id = $1
+       GROUP BY request_type ORDER BY calls DESC`,
+      [profile.user_id],
+    );
+
+    return {
+      profile,
+      plan,
+      subscription,
+      sessions,
+      charges,
+      charge_totals: chargeTotals,
+      ai_usage: { ...aiUsage, by_type: aiByType },
+    };
+  }
+
+  /**
+   * Platform-wide AI usage (transcription, notes, chat, copilot, etc.) for the
+   * admin AI-usage dashboard: totals + breakdowns by type, model, and therapist.
+   */
+  async getAIUsage(query: any = {}) {
+    const days = Math.min(Number(query.days) || 30, 365);
+    const since = `NOW() - INTERVAL '${days} days'`;
+
+    const totals = await this.db.queryOne<any>(
+      `SELECT COUNT(*) AS calls,
+              COUNT(*) FILTER (WHERE status = 'failure') AS failures,
+              COALESCE(SUM(input_tokens + output_tokens),0) AS tokens,
+              COALESCE(SUM(cost_usd),0) AS cost_usd
+       FROM ai_request_logs WHERE created_at >= ${since}`,
+    );
+
+    const byType = await this.db.query<any>(
+      `SELECT request_type, COUNT(*) AS calls,
+              COUNT(*) FILTER (WHERE status='failure') AS failures,
+              COALESCE(SUM(input_tokens + output_tokens),0) AS tokens,
+              COALESCE(SUM(cost_usd),0) AS cost_usd
+       FROM ai_request_logs WHERE created_at >= ${since}
+       GROUP BY request_type ORDER BY calls DESC`,
+    );
+
+    const byModel = await this.db.query<any>(
+      `SELECT model_id, COUNT(*) AS calls, COALESCE(SUM(cost_usd),0) AS cost_usd
+       FROM ai_request_logs WHERE created_at >= ${since}
+       GROUP BY model_id ORDER BY calls DESC`,
+    );
+
+    const byTherapist = await this.db.query<any>(
+      `SELECT COALESCE(u.first_name || ' ' || u.last_name, u.email) AS therapist_name,
+              u.email, COUNT(*) AS calls, COALESCE(SUM(l.cost_usd),0) AS cost_usd
+       FROM ai_request_logs l
+       LEFT JOIN users u ON u.id = l.user_id
+       WHERE l.created_at >= ${since} AND l.user_id IS NOT NULL
+       GROUP BY u.first_name, u.last_name, u.email
+       ORDER BY calls DESC LIMIT 50`,
+    );
+
+    const recent = await this.db.query<any>(
+      `SELECT l.id, l.request_type, l.model_id, l.status, l.error_message,
+              l.input_tokens, l.output_tokens, l.cost_usd, l.latency_ms, l.created_at,
+              l.session_id, COALESCE(u.first_name || ' ' || u.last_name, u.email) AS therapist_name
+       FROM ai_request_logs l
+       LEFT JOIN users u ON u.id = l.user_id
+       WHERE l.created_at >= ${since}
+       ORDER BY l.created_at DESC LIMIT 100`,
+    );
+
+    return { totals, by_type: byType, by_model: byModel, by_therapist: byTherapist, recent, period_days: days };
+  }
+
   async updateTherapistProfile(therapistId: string, dto: any) {
     const allowed = [
-      'display_name', 'bio', 'specialty', 'specializations', 'languages',
-      'years_experience', 'location', 'verification_status', 'accepting_new_patients',
+      'display_name', 'bio', 'title', 'specializations', 'languages',
+      'years_experience', 'verification_status', 'accepting_new_patients',
+      'license_number', 'license_state', 'license_type', 'current_plan_key',
     ];
     const sets: string[] = [];
     const values: any[] = [therapistId];

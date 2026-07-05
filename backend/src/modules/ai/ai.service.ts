@@ -800,11 +800,32 @@ At the end of your response you may naturally (not forcefully) mention that a li
   }
 
   private async addTranscriptSegment(sessionId: string, orgId: string, dto: any): Promise<{ id: string; seq: number } | null> {
-    const transcript = await this.db.queryOne<any>(
+    let transcript = await this.db.queryOne<any>(
       'SELECT id FROM transcripts WHERE session_id = $1',
       [sessionId],
     );
-    if (!transcript) return null;
+    // Create the transcript row on demand — it's normally made when the session
+    // transitions to in_progress, but transcription must not depend on that write
+    // having succeeded (e.g. a flaky status PATCH). Without this, segments were
+    // silently discarded and the live transcript panel stayed empty.
+    if (!transcript) {
+      const s = await this.db.queryOne<any>(
+        'SELECT therapist_id, patient_id FROM sessions WHERE id = $1 AND organization_id = $2',
+        [sessionId, orgId],
+      );
+      if (!s) return null;
+      await this.db.execute(
+        `INSERT INTO transcripts (id, session_id, patient_id, therapist_id, organization_id, status, language)
+         VALUES ($1, $2, $3, $4, $5, 'processing', 'en')
+         ON CONFLICT (session_id) DO NOTHING`,
+        [uuidv4(), sessionId, s.patient_id || null, s.therapist_id, orgId],
+      );
+      transcript = await this.db.queryOne<any>(
+        'SELECT id FROM transcripts WHERE session_id = $1',
+        [sessionId],
+      );
+      if (!transcript) return null;
+    }
 
     const lastSeq = await this.db.queryOne<any>(
       'SELECT COALESCE(MAX(sequence_number),0) as max_seq FROM transcript_segments WHERE transcript_id = $1',
@@ -813,10 +834,21 @@ At the end of your response you may naturally (not forcefully) mention that a li
     const seq = (lastSeq?.max_seq || 0) + 1;
     const segmentId = uuidv4();
 
+    // session_id + organization_id must be populated: getCurrentTranscript and the
+    // copilot query read segments by session_id, and the transcript panel joins on it.
+    const seg = await this.db.queryOne<any>(
+      'SELECT s.organization_id FROM sessions s WHERE s.id = $1',
+      [sessionId],
+    );
+    // Chunks arrive ~every 5s; approximate timing from the sequence number so the
+    // NOT NULL start/end columns are satisfied and the panel can order segments.
+    const startMs = (seq - 1) * 5000;
+    const endMs = seq * 5000;
     await this.db.execute(
-      `INSERT INTO transcript_segments (id, transcript_id, speaker, text, timestamp, sequence_number)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [segmentId, transcript.id, dto.speaker || 'therapist', dto.text, dto.timestamp, seq],
+      `INSERT INTO transcript_segments
+         (id, transcript_id, session_id, organization_id, speaker, text, sequence_number, start_time_ms, end_time_ms)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [segmentId, transcript.id, sessionId, seg?.organization_id || orgId, dto.speaker || 'therapist', dto.text, seq, startMs, endMs],
     );
 
     // Broadcast to session room via event bus so EventsGateway can push over WebSocket
@@ -894,9 +926,9 @@ At the end of your response you may naturally (not forcefully) mention that a li
     const sessions = await this.db.query<any>(
       `SELECT s.id, s.scheduled_at, s.ended_at, s.status,
               p.first_name AS patient_first_name,
-              COALESCE(ais.brief, '') AS summary,
+              COALESCE(ais.content, '') AS summary,
               COALESCE(
-                (SELECT json_build_object('key_themes', si.key_themes, 'risk_level', si.risk_level)
+                (SELECT json_build_object('key_themes', si.themes_detected, 'risk_level', si.risk_indicators)
                  FROM session_intelligence si WHERE si.session_id = s.id LIMIT 1),
                 '{}'::json
               ) AS intelligence,

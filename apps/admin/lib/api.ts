@@ -198,9 +198,13 @@ export const authAPI = {
 // ADMIN API
 // ============================================================
 export const adminAPI = {
-  // Dashboard stats
-  platformStats: () => apiFetch<any>('/analytics/admin/overview'),
-  recentActivity: () => apiFetch<any>('/analytics/admin/activity'),
+  // Dashboard stats (real platform overview)
+  platformStats: () => apiFetch<any>('/admin/dashboard'),
+  recentActivity: () => apiFetch<any>('/admin/audit-log', { params: { limit: 20 } } as any),
+
+  // Full therapist control panel + platform AI usage
+  therapistOverview: (id: string) => apiFetch<any>(`/admin/therapists/${id}/overview`),
+  aiUsage: (days = 30) => apiFetch<any>('/admin/ai-usage', { params: { days } } as any),
 
   // Organizations
   organizations: (params?: Record<string, string | number | undefined>) =>

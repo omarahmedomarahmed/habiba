@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, Shield, CreditCard,
   Settings, LogOut, Activity, AlertTriangle, ChevronRight,
-  Zap, BarChart2, UserCheck, DollarSign, FileSearch, FileBadge
+  Zap, BarChart2, UserCheck, DollarSign, FileSearch, FileBadge, Brain
 } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -30,8 +30,9 @@ const NAV = [
     ],
   },
   {
-    section: 'SAFETY & COMPLIANCE',
+    section: 'AI & SAFETY',
     items: [
+      { href: '/ai-usage', label: 'AI Usage', icon: Brain },
       { href: '/crisis', label: 'Crisis Alerts', icon: AlertTriangle },
       { href: '/audit-logs', label: 'Audit Logs', icon: FileSearch },
     ],

@@ -130,9 +130,6 @@ export function Header() {
                   <p className="text-sm font-medium text-slate-900">{user?.first_name} {user?.last_name}</p>
                   <p className="text-xs text-slate-400 truncate">{user?.email}</p>
                 </div>
-                <Link href="/settings/profile" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                  <User className="w-4 h-4 text-slate-400" />Profile
-                </Link>
                 <Link href="/settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                   <Settings className="w-4 h-4 text-slate-400" />Settings
                 </Link>
