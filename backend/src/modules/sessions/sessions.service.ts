@@ -590,14 +590,35 @@ export class SessionsService {
     // never bounce an already 'in_progress' session backward (that would disrupt
     // a live session the therapist already started).
     if (!session.patient_id) {
+      // The patient typed their name to join a link-based session — persist them
+      // as a real patient record and link it, so they show up under Patients and
+      // carry forward across sessions (matched by name/email within the org).
+      let linkedPatientId: string | null = null;
+      try {
+        linkedPatientId = await this.findOrCreateGuestPatient(
+          session.organization_id, session.therapist_id, dto.name, dto.email || null,
+        );
+      } catch (err: any) {
+        this.logger.warn(`Could not link guest patient on join: ${err?.message}`);
+      }
       await this.db.execute(
         `UPDATE sessions
-         SET join_name = $1, started_by_patient_at = NOW(),
+         SET join_name = $1, patient_id = COALESCE($3, patient_id),
+             patient_email = COALESCE($4, patient_email),
+             started_by_patient_at = NOW(),
              status = CASE WHEN status = 'scheduled' THEN 'waiting' ELSE status END,
              updated_at = NOW()
          WHERE join_token = $2::uuid`,
-        [dto.name, joinToken],
+        [dto.name, joinToken, linkedPatientId, dto.email || null],
       );
+      // Backfill the transcript/notes rows (if the session already started) with
+      // the now-known patient so AI output attaches to the right chart.
+      if (linkedPatientId) {
+        await this.db.execute(
+          `UPDATE transcripts SET patient_id = $1 WHERE session_id = $2 AND patient_id IS NULL`,
+          [linkedPatientId, session.id],
+        ).catch(() => {});
+      }
     } else {
       await this.db.execute(
         `UPDATE sessions

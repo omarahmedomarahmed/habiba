@@ -291,6 +291,9 @@ export default function BillingPage() {
         window.location.href = res.checkout_url;
       } else if (res?.url) {
         window.location.href = res.url;
+      } else {
+        // No checkout URL — Stripe isn't fully configured yet on the backend.
+        setError(res?.message || "Checkout isn't available yet. Please try again later.");
       }
     } catch (err: any) {
       setError(err?.message || "Could not start upgrade. Please try again.");
@@ -419,15 +422,28 @@ export default function BillingPage() {
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(plans.length > 0 ? plans : PLANS.map(p => ({ plan_key: p.key, name: p.name, monthly_price_usd: p.price, tagline: p.tagline, badge_text: p.badge, features: { bullets: p.bullets } }))).map((plan: any) => (
-              <PlanCard
-                key={plan.plan_key}
-                plan={plan}
-                isCurrent={planKey === plan.plan_key}
-                onSubscribe={handleSubscribe}
-                loading={upgrading === plan.plan_key}
-              />
-            ))}
+            {/* Always render from the fixed MVP plan list so the full feature
+               list is shown immediately — no flicker from a second data source
+               that lacks the bullets. Live price from the API overrides if present. */}
+            {PLANS.map((p) => {
+              const live = plans.find((pl: any) => pl.plan_key === p.key);
+              return (
+                <PlanCard
+                  key={p.key}
+                  plan={{
+                    plan_key: p.key,
+                    name: p.name,
+                    monthly_price_usd: live?.monthly_price_usd ?? p.price,
+                    tagline: p.tagline,
+                    badge_text: p.badge,
+                    features: { bullets: p.bullets },
+                  }}
+                  isCurrent={planKey === p.key}
+                  onSubscribe={handleSubscribe}
+                  loading={upgrading === p.key}
+                />
+              );
+            })}
           </div>
           <p className="text-xs text-center text-slate-400 mt-3">
             All plans include a HIPAA BAA. Cancel anytime. Annual billing saves 2 months.

@@ -480,48 +480,57 @@ export class BillingService {
     );
     if (!org) throw new NotFoundException('Organization not found');
 
-    let customerId = org.stripe_customer_id;
-    if (!customerId) {
-      const customer = await this.stripe.customers.create({
-        metadata: { organization_id: orgId, therapist_id: therapistId },
+    // Any Stripe failure (bad key, restricted key, API error) must surface as a
+    // clean, actionable message — not a raw 500 that reads as "internal error".
+    try {
+      let customerId = org.stripe_customer_id;
+      if (!customerId) {
+        const customer = await this.stripe.customers.create({
+          metadata: { organization_id: orgId, therapist_id: therapistId },
+        });
+        customerId = customer.id;
+        await this.db.execute(
+          `UPDATE organizations SET stripe_customer_id = $1 WHERE id = $2`,
+          [customerId, orgId],
+        );
+      }
+
+      const session = await this.stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `24Therapy ${plan.name}${planKey === 'practice' ? ` (${seats} seats)` : ''}`,
+              },
+              unit_amount: Math.round(totalPrice * 100),
+              recurring: { interval: interval === 'annual' ? 'year' : 'month' },
+            },
+            quantity: 1,
+          },
+        ],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: {
+          organization_id: orgId,
+          therapist_id: therapistId,
+          plan_key: planKey,
+          plan_id: plan.id,
+          seats: String(seats),
+          interval,
+        },
       });
-      customerId = customer.id;
-      await this.db.execute(
-        `UPDATE organizations SET stripe_customer_id = $1 WHERE id = $2`,
-        [customerId, orgId],
+
+      return { checkout_url: session.url, session_id: session.id };
+    } catch (err: any) {
+      this.logger.error(`Stripe checkout failed for plan ${planKey}: ${err?.message}`);
+      throw new BadRequestException(
+        'Could not start checkout. Payments are not fully configured yet — please try again later or contact support.',
       );
     }
-
-    const session = await this.stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `24Therapy ${plan.name}${planKey === 'practice' ? ` (${seats} seats)` : ''}`,
-            },
-            unit_amount: Math.round(totalPrice * 100),
-            recurring: { interval: interval === 'annual' ? 'year' : 'month' },
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: {
-        organization_id: orgId,
-        therapist_id: therapistId,
-        plan_key: planKey,
-        plan_id: plan.id,
-        seats: String(seats),
-        interval,
-      },
-    });
-
-    return { checkout_url: session.url, session_id: session.id };
   }
 
   /**
