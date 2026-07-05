@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { therapistsAPI } from "@/lib/api";
 import { useUIStore } from "@/lib/store";
@@ -100,7 +100,30 @@ export default function OnboardingPage() {
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStep>>(new Set());
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const setVerificationStatus = useUIStore((s) => s.setVerificationStatus);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert("Please choose an image under 5MB."); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      setAvatarPreview(dataUrl);
+      setAvatarUploading(true);
+      try {
+        await therapistsAPI.uploadAvatar(dataUrl);
+      } catch {
+        alert("Could not upload photo. You can add it later from Settings.");
+      } finally {
+        setAvatarUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmitForReview = async () => {
     setSubmitting(true);
@@ -335,10 +358,31 @@ export default function OnboardingPage() {
 
               {/* Avatar upload */}
               <div className="flex items-center gap-5 mb-8 p-5 bg-white rounded-2xl border border-gray-200">
-                <div className="w-20 h-20 bg-gray-100 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300 cursor-pointer hover:border-[#0A2342] transition-colors">
-                  <Camera className="h-6 w-6 text-gray-400 mb-1" />
-                  <span className="text-[10px] text-gray-400">Upload photo</span>
-                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="w-20 h-20 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300 cursor-pointer hover:border-[#0A2342] transition-colors overflow-hidden bg-gray-100 relative"
+                >
+                  {avatarPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <Camera className="h-6 w-6 text-gray-400 mb-1" />
+                      <span className="text-[10px] text-gray-400">Upload photo</span>
+                    </>
+                  )}
+                  {avatarUploading && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-[10px]">Uploading…</div>
+                  )}
+                </button>
                 <div>
                   <p className="font-medium text-gray-900 mb-0.5">Profile Photo</p>
                   <p className="text-sm text-gray-500">Patients see your photo when booking. JPG or PNG, at least 400×400px.</p>

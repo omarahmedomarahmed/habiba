@@ -131,6 +131,22 @@ export class PatientsController {
     return this.response({ memories });
   }
 
+  @Get(':id/goals')
+  @Roles('therapist', 'org_admin', 'super_admin')
+  @ApiOperation({ summary: 'Get patient goals' })
+  async getGoals(@Request() req: any, @Param('id') id: string) {
+    const goals = await this.patientsService.getGoals(id, req.user.organization_id);
+    return this.response({ goals });
+  }
+
+  @Get(':id/medications')
+  @Roles('therapist', 'org_admin', 'super_admin')
+  @ApiOperation({ summary: 'Get patient medications' })
+  async getMedications(@Request() req: any, @Param('id') id: string) {
+    const medications = await this.patientsService.getMedications(id, req.user.organization_id);
+    return this.response({ medications });
+  }
+
   // ─── HIPAA Right of Access (§164.524) ────────────────────────────────────
 
   @Get('me/export')

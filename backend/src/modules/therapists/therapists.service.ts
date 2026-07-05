@@ -30,11 +30,13 @@ export class TherapistsService {
       [therapist.id]
     );
 
-    // Fetch specializations from junction table (back-filled from TEXT[] in migration 016)
-    const specializations = await this.db.query(
+    // Fetch specializations from junction table. Return a flat string[] — the
+    // frontend renders these directly as chips, so objects would crash React.
+    const specializationRows = await this.db.query<{ specialization: string }>(
       `SELECT specialization FROM therapist_specializations WHERE therapist_id = $1 ORDER BY specialization`,
       [therapist.id]
     );
+    const specializations = specializationRows.map((r) => r.specialization);
 
     // Stats
     const stats = await this.db.queryOne<Record<string, unknown>>(
