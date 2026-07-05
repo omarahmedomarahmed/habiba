@@ -543,6 +543,7 @@ export class SessionsService {
   async getJoinInfo(joinToken: string) {
     const session = await this.db.queryOne<any>(
       `SELECT s.id, s.status, s.scheduled_at, s.video_room_url, s.join_token,
+              s.modality, s.organization_id, s.therapist_id,
               t.display_name AS therapist_name,
               u.avatar_url AS therapist_avatar_url
        FROM sessions s
@@ -552,6 +553,18 @@ export class SessionsService {
       [joinToken],
     );
     if (!session) throw new NotFoundException('Session not found or has ended');
+
+    // Eagerly create the Daily.co room the moment the patient opens the link, so
+    // whoever arrives first (patient or therapist) spawns it — the video no longer
+    // waits on the therapist clicking "Start".
+    let videoRoomUrl = session.video_room_url;
+    if (!videoRoomUrl && session.modality === 'video') {
+      try {
+        const room = await this.ensureVideoRoom(session.id, session.organization_id);
+        videoRoomUrl = room.video_room_url;
+      } catch { /* fall back to waiting room */ }
+    }
+
     return {
       session_id: session.id,
       therapist_id: session.therapist_id,
@@ -559,7 +572,7 @@ export class SessionsService {
       therapist_avatar_url: session.therapist_avatar_url,
       scheduled_at: session.scheduled_at,
       status: session.status,
-      video_room_url: session.video_room_url,
+      video_room_url: videoRoomUrl,
     };
   }
 
@@ -596,6 +609,16 @@ export class SessionsService {
       );
     }
 
+    // Ensure the Daily.co room exists so the patient enters the call directly
+    // instead of being parked in a waiting room.
+    let videoRoomUrl = session.video_room_url;
+    if (!videoRoomUrl && session.modality === 'video') {
+      try {
+        const room = await this.ensureVideoRoom(session.id, session.organization_id);
+        videoRoomUrl = room.video_room_url;
+      } catch { /* fall back to waiting room */ }
+    }
+
     // Notify therapist in real-time that patient joined
     try {
       this.eventEmitter.emit('session.patient_joined', {
@@ -607,7 +630,7 @@ export class SessionsService {
 
     return {
       session_id: session.id,
-      video_room_url: session.video_room_url,
+      video_room_url: videoRoomUrl,
       therapist_name: session.therapist_name,
     };
   }

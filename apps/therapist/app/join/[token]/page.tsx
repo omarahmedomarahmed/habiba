@@ -73,6 +73,23 @@ function JoinSessionInner() {
 
   useEffect(() => { loadSession(); }, [loadSession]);
 
+  // While parked in the waiting room, poll for the video room to appear (the
+  // therapist opening the room, or the backend, creates it) and auto-enter.
+  useEffect(() => {
+    if (phase !== "waiting") return;
+    const interval = setInterval(async () => {
+      try {
+        const data = await apiFetch(`/sessions/join/${token}`);
+        const session: SessionInfo = data?.data?.session ?? data?.data ?? data;
+        if (session.video_room_url) {
+          setVideoUrl(session.video_room_url);
+          setPhase("session");
+        }
+      } catch { /* keep waiting */ }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [phase, token]);
+
   const handlePay = async () => {
     if (!email.trim() || !sessionInfo) return;
     setPaymentLoading(true);

@@ -302,13 +302,15 @@ export default function SessionRoomPage() {
       await sessionsAPI.updateStatus(id, "in_progress");
     } catch (err: any) {
       const msg = String(err?.message || "");
-      // Already in progress (e.g. rejoining the room) — proceed.
-      if (!msg.includes("'in_progress' to 'in_progress'")) {
-        setStartError(msg.includes("Cannot transition")
-          ? `This session can't be started (${msg.replace(/.*Cannot transition/i, "cannot transition")}). It may already be completed or cancelled.`
-          : "Could not start the session. Check your connection and try again.");
+      // A genuine state conflict (session already completed/cancelled) is the only
+      // reason to abort. Transient network/auth errors must NOT block the video
+      // call or transcription — the status is reconciled server-side, and rejoining
+      // an already in-progress session is fine.
+      if (msg.includes("Cannot transition") && !msg.includes("'in_progress' to 'in_progress'")) {
+        setStartError("This session can't be started — it may already be completed or cancelled.");
         return;
       }
+      // else: soft-fail, continue going live below.
     }
     setSessionPhase("live");
     setIsLive(true);
@@ -855,7 +857,47 @@ export default function SessionRoomPage() {
         <div className="flex-1 flex flex-col bg-black relative overflow-hidden">
           {/* Video Area */}
           <div className="flex-1 flex items-center justify-center relative">
-            {sessionPhase === "waiting" ? (
+            {sessionPhase === "ended" ? (
+              <div className="text-center">
+                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <p className="text-white text-xl font-semibold mb-2">Session Complete</p>
+                <p className="text-slate-400 text-sm mb-6">Duration: {formatSessionTime(sessionDuration)}</p>
+                <button
+                  onClick={generateNote}
+                  className="flex items-center gap-2 h-10 px-6 bg-secondary text-white rounded-xl font-medium hover:bg-secondary/90 transition-colors mx-auto"
+                >
+                  <Brain className="w-4 h-4" />
+                  {isGeneratingNote ? "Generating SOAP Note..." : "Generate AI Note"}
+                </button>
+              </div>
+            ) : session.video_room_url ? (
+              /* Daily.co video room — shown the moment it exists, so the therapist
+                 sees the patient without waiting on the Start click. */
+              <>
+                <iframe
+                  src={session.video_room_url}
+                  allow="camera; microphone; fullscreen; display-capture; autoplay"
+                  className="w-full h-full border-0"
+                  title="Video Session"
+                />
+                {sessionPhase === "waiting" && (
+                  <div className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-2">
+                    <button
+                      onClick={startSession}
+                      className="flex items-center gap-2 h-11 px-6 bg-green-500 text-white rounded-xl font-semibold shadow-lg hover:bg-green-600 transition-colors"
+                    >
+                      <VideoIcon className="w-4 h-4" />
+                      Start Session &amp; Recording
+                    </button>
+                    {startError && (
+                      <div className="max-w-sm bg-red-500/10 border border-red-500/40 rounded-lg px-4 py-2 text-red-300 text-xs">
+                        {startError}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : sessionPhase === "waiting" ? (
               <div className="text-center">
                 <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                   <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center text-white text-2xl font-bold">
@@ -877,27 +919,6 @@ export default function SessionRoomPage() {
                   </div>
                 )}
               </div>
-            ) : sessionPhase === "ended" ? (
-              <div className="text-center">
-                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <p className="text-white text-xl font-semibold mb-2">Session Complete</p>
-                <p className="text-slate-400 text-sm mb-6">Duration: {formatSessionTime(sessionDuration)}</p>
-                <button
-                  onClick={generateNote}
-                  className="flex items-center gap-2 h-10 px-6 bg-secondary text-white rounded-xl font-medium hover:bg-secondary/90 transition-colors mx-auto"
-                >
-                  <Brain className="w-4 h-4" />
-                  {isGeneratingNote ? "Generating SOAP Note..." : "Generate AI Note"}
-                </button>
-              </div>
-            ) : session.video_room_url ? (
-              /* Live session — Daily.co video room */
-              <iframe
-                src={session.video_room_url}
-                allow="camera; microphone; fullscreen; display-capture; autoplay"
-                className="w-full h-full border-0"
-                title="Video Session"
-              />
             ) : (
               /* Live session, no Daily room — honest state + the real join link */
               <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex flex-col items-center justify-center text-center p-6">
