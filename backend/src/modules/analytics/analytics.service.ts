@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
+import { getPlanFeatures } from '../billing/plan-features';
 import { DatabaseService } from '../../database/database.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -154,7 +155,7 @@ export class AnalyticsService {
         COALESCE(SUM(CASE WHEN t.status = 'completed' THEN t.amount END), 0) as revenue_total,
         COALESCE(AVG(CASE WHEN t.created_at >= $1 AND t.status = 'completed' THEN t.amount END), 0) as avg_transaction,
         COUNT(DISTINCT CASE WHEN t.created_at >= $1 THEN t.id END) as transactions_period
-      FROM billing_transactions t`,
+      FROM session_charges t`,
       [since],
     ).catch(() => ({ revenue_period: 0, revenue_total: 0, avg_transaction: 0, transactions_period: 0 }));
     return result;
@@ -167,11 +168,11 @@ export class AnalyticsService {
         COALESCE(SUM(al.total_tokens), 0) as total_tokens,
         COALESCE(SUM(al.cost_usd), 0) as total_ai_cost,
         COALESCE(AVG(al.latency_ms), 0) as avg_latency_ms,
-        COUNT(DISTINCT CASE WHEN al.task_type = 'soap_note' THEN al.id END) as soap_notes_generated,
-        COUNT(DISTINCT CASE WHEN al.task_type = 'risk_assessment' THEN al.id END) as risk_assessments,
-        COUNT(DISTINCT CASE WHEN al.task_type = 'memory_extraction' THEN al.id END) as memory_extractions,
+        COUNT(DISTINCT CASE WHEN al.request_type = 'soap_note' THEN al.id END) as soap_notes_generated,
+        COUNT(DISTINCT CASE WHEN al.request_type = 'risk_assessment' THEN al.id END) as risk_assessments,
+        COUNT(DISTINCT CASE WHEN al.request_type = 'memory_extraction' THEN al.id END) as memory_extractions,
         COUNT(DISTINCT CASE WHEN al.status = 'error' THEN al.id END) as ai_errors
-      FROM ai_usage_log al WHERE al.created_at >= $1`,
+      FROM ai_request_logs al WHERE al.created_at >= $1`,
       [since],
     ).catch(() => ({ total_ai_calls: 0, total_tokens: 0, total_ai_cost: 0, avg_latency_ms: 0, soap_notes_generated: 0, risk_assessments: 0, memory_extractions: 0, ai_errors: 0 }));
     return result;
@@ -237,7 +238,7 @@ export class AnalyticsService {
         (SELECT COUNT(*) FROM patients WHERE organization_id=$1 AND status='active') as active_patients,
         (SELECT COUNT(*) FROM therapists WHERE organization_id=$1 AND is_active=true) as active_therapists,
         (SELECT COUNT(*) FROM sessions WHERE organization_id=$1 AND status='no_show' AND created_at>=$2) as no_shows,
-        (SELECT COALESCE(SUM(amount),0) FROM billing_transactions WHERE organization_id=$1 AND status='completed' AND created_at>=$2) as revenue,
+        (SELECT COALESCE(SUM(amount_due_usd),0) FROM session_charges WHERE organization_id=$1 AND status='paid' AND charged_at>=$2) as revenue,
         (SELECT COALESCE(AVG(duration_minutes),0) FROM sessions WHERE organization_id=$1 AND status='completed' AND created_at>=$2) as avg_session_duration
       FROM organizations WHERE id=$1`,
       [orgId, since],
@@ -274,7 +275,7 @@ export class AnalyticsService {
       FROM therapists t
       LEFT JOIN sessions s ON s.therapist_id = t.id AND s.created_at >= $2
       LEFT JOIN ai_session_notes an ON an.therapist_id = t.id AND an.created_at >= $2
-      LEFT JOIN billing_transactions bt ON bt.therapist_id = t.id AND bt.status='completed' AND bt.created_at >= $2
+      LEFT JOIN session_charges bt ON bt.therapist_id = t.id AND bt.status='paid' AND bt.charged_at >= $2
       WHERE t.organization_id = $1 AND t.is_active = true
       GROUP BY t.id, t.display_name
       ORDER BY completed_sessions DESC`,
@@ -289,7 +290,7 @@ export class AnalyticsService {
         AVG(CASE WHEN at.code = 'PHQ9' THEN pa.total_score END) as avg_phq9,
         AVG(CASE WHEN at.code = 'GAD7' THEN pa.total_score END) as avg_gad7,
         COUNT(DISTINCT pa.patient_id) as patients_assessed
-      FROM patient_assessments pa
+      FROM assessment_results pa
       JOIN assessment_templates at ON at.id = pa.template_id
       WHERE pa.organization_id = $1 AND pa.administered_at >= $2
       GROUP BY DATE_TRUNC('week', pa.administered_at)
@@ -305,12 +306,12 @@ export class AnalyticsService {
         COALESCE(SUM(total_tokens), 0) as total_tokens,
         COALESCE(SUM(cost_usd), 0) as total_cost,
         COALESCE(AVG(latency_ms), 0) as avg_latency,
-        COUNT(CASE WHEN task_type='soap_note' THEN 1 END) as soap_notes,
-        COUNT(CASE WHEN task_type='dap_note' THEN 1 END) as dap_notes,
-        COUNT(CASE WHEN task_type='risk_assessment' THEN 1 END) as risk_assessments,
-        COUNT(CASE WHEN task_type='memory_extraction' THEN 1 END) as memory_extractions,
+        COUNT(CASE WHEN request_type='soap_note' THEN 1 END) as soap_notes,
+        COUNT(CASE WHEN request_type='dap_note' THEN 1 END) as dap_notes,
+        COUNT(CASE WHEN request_type='risk_assessment' THEN 1 END) as risk_assessments,
+        COUNT(CASE WHEN request_type='memory_extraction' THEN 1 END) as memory_extractions,
         COUNT(CASE WHEN status='error' THEN 1 END) as errors
-      FROM ai_usage_log
+      FROM ai_request_logs
       WHERE organization_id=$1 AND created_at>=$2`,
       [orgId, since],
     ).catch(() => ({}));
@@ -323,7 +324,7 @@ export class AnalyticsService {
         SUM(amount) as revenue,
         COUNT(*) as transactions,
         AVG(amount) as avg_amount
-      FROM billing_transactions
+      FROM session_charges
       WHERE organization_id=$1 AND status='completed' AND created_at>=$2
       GROUP BY DATE_TRUNC('week', created_at)
       ORDER BY week`,
@@ -391,7 +392,7 @@ export class AnalyticsService {
         (SELECT COUNT(*) FROM ai_session_notes WHERE therapist_id=$1 AND status='finalized' AND created_at>=$2) as notes_completed,
         (SELECT COUNT(*) FROM ai_session_notes WHERE therapist_id=$1 AND status='draft' AND created_at>=$2) as notes_pending,
         (SELECT COALESCE(AVG(duration_minutes),0) FROM sessions WHERE therapist_id=$1 AND status='completed' AND created_at>=$2) as avg_session_duration,
-        (SELECT COUNT(*) FROM patient_radar_requests WHERE primary_therapist_id=$1 AND status='pending') as radar_requests,
+        (SELECT COUNT(*) FROM radar_broadcasts WHERE therapist_id=$1 AND responded_at IS NULL) as radar_requests,
         (SELECT COUNT(*) FROM sessions WHERE therapist_id=$1 AND scheduled_at > NOW() AND status='scheduled') as upcoming_sessions
       FROM therapists WHERE id=$1`,
       [therapistId, since],
@@ -445,12 +446,12 @@ export class AnalyticsService {
         COUNT(*) as total_ai_calls,
         COALESCE(SUM(total_tokens), 0) as total_tokens,
         COALESCE(SUM(cost_usd), 0) as total_cost,
-        COUNT(CASE WHEN task_type='soap_note' THEN 1 END) as soap_notes,
-        COUNT(CASE WHEN task_type='dap_note' THEN 1 END) as dap_notes,
-        COUNT(CASE WHEN task_type='session_summary' THEN 1 END) as summaries,
-        COUNT(CASE WHEN task_type='risk_assessment' THEN 1 END) as risk_assessments,
-        COUNT(CASE WHEN task_type='treatment_recommendation' THEN 1 END) as treatment_recommendations
-      FROM ai_usage_log
+        COUNT(CASE WHEN request_type='soap_note' THEN 1 END) as soap_notes,
+        COUNT(CASE WHEN request_type='dap_note' THEN 1 END) as dap_notes,
+        COUNT(CASE WHEN request_type='session_summary' THEN 1 END) as summaries,
+        COUNT(CASE WHEN request_type='risk_assessment' THEN 1 END) as risk_assessments,
+        COUNT(CASE WHEN request_type='treatment_recommendation' THEN 1 END) as treatment_recommendations
+      FROM ai_request_logs
       WHERE user_id=$1 AND created_at>=$2`,
       [therapistId, since],
     ).catch(() => ({}));
@@ -477,7 +478,7 @@ export class AnalyticsService {
         AVG(CASE WHEN at.code = 'PHQ9' THEN pa.total_score END) as avg_phq9,
         AVG(CASE WHEN at.code = 'GAD7' THEN pa.total_score END) as avg_gad7,
         COUNT(DISTINCT pa.patient_id) as patients_assessed
-      FROM patient_assessments pa
+      FROM assessment_results pa
       JOIN assessment_templates at ON at.id = pa.template_id
       WHERE pa.therapist_id = $1 AND pa.administered_at >= $2
       GROUP BY DATE_TRUNC('week', pa.administered_at)
@@ -514,7 +515,7 @@ export class AnalyticsService {
   private async getAICostByTask(orgId: string, since: string) {
     return this.db.query(
       `SELECT
-        task_type,
+        request_type,
         COUNT(*) as calls,
         SUM(total_tokens) as total_tokens,
         SUM(input_tokens) as input_tokens,
@@ -522,9 +523,9 @@ export class AnalyticsService {
         SUM(cost_usd) as total_cost,
         AVG(cost_usd) as avg_cost,
         AVG(latency_ms) as avg_latency
-      FROM ai_usage_log
+      FROM ai_request_logs
       WHERE organization_id=$1 AND created_at>=$2
-      GROUP BY task_type
+      GROUP BY request_type
       ORDER BY total_cost DESC`,
       [orgId, since],
     ).catch(() => []);
@@ -533,15 +534,15 @@ export class AnalyticsService {
   private async getAICostByModel(orgId: string, since: string) {
     return this.db.query(
       `SELECT
-        model_name,
+        model_id,
         COUNT(*) as calls,
         SUM(total_tokens) as total_tokens,
         SUM(cost_usd) as total_cost,
         AVG(latency_ms) as avg_latency,
         COUNT(CASE WHEN status='error' THEN 1 END) as errors
-      FROM ai_usage_log
+      FROM ai_request_logs
       WHERE organization_id=$1 AND created_at>=$2
-      GROUP BY model_name
+      GROUP BY model_id
       ORDER BY total_cost DESC`,
       [orgId, since],
     ).catch(() => []);
@@ -554,7 +555,7 @@ export class AnalyticsService {
         SUM(cost_usd) as daily_cost,
         SUM(total_tokens) as daily_tokens,
         COUNT(*) as daily_calls
-      FROM ai_usage_log
+      FROM ai_request_logs
       WHERE organization_id=$1 AND created_at>=$2
       GROUP BY DATE(created_at)
       ORDER BY date`,
@@ -571,7 +572,7 @@ export class AnalyticsService {
         COUNT(al.id) as calls,
         SUM(al.cost_usd) as total_cost,
         SUM(al.total_tokens) as total_tokens
-      FROM ai_usage_log al
+      FROM ai_request_logs al
       JOIN users u ON u.id = al.user_id
       WHERE al.organization_id=$1 AND al.created_at>=$2
       GROUP BY u.id, u.full_name, u.role
@@ -592,7 +593,7 @@ export class AnalyticsService {
           ELSE 0
         END as budget_pct_used
       FROM organizations o
-      LEFT JOIN ai_usage_log al ON al.organization_id = o.id AND al.created_at >= $2
+      LEFT JOIN ai_request_logs al ON al.organization_id = o.id AND al.created_at >= $2
       WHERE o.id = $1
       GROUP BY o.ai_monthly_budget_usd`,
       [orgId, since],
@@ -623,6 +624,25 @@ export class AnalyticsService {
   }
 
   // ─── Outcome Metrics ──────────────────────────────────────────────────────
+
+  /**
+   * Plan gate — Full analytics (outcome metrics) is included on Unlimited
+   * and above (docs/PRODUCT_MVP.md). Basic dashboard stats stay open to all.
+   */
+  async assertFullAnalytics(therapistId: string): Promise<void> {
+    const therapist = await this.db.queryOne<{ current_plan_key: string }>(
+      `SELECT current_plan_key FROM therapists WHERE id = $1`,
+      [therapistId],
+    );
+    if (getPlanFeatures(therapist?.current_plan_key).analytics !== 'full') {
+      throw new ForbiddenException({
+        message: 'Full analytics is included on Unlimited and above. Upgrade to see outcome metrics.',
+        code: 'UPGRADE_REQUIRED',
+        feature: 'analytics_full',
+        min_plan: 'pro',
+      });
+    }
+  }
 
   async getOutcomeMetrics(orgId: string, period: string = '90d') {
     const days = this.parsePeriodToDays(period);
@@ -655,7 +675,7 @@ export class AnalyticsService {
         COUNT(CASE WHEN pa.total_score BETWEEN 10 AND 14 THEN 1 END) as moderate,
         COUNT(CASE WHEN pa.total_score BETWEEN 15 AND 19 THEN 1 END) as moderately_severe,
         COUNT(CASE WHEN pa.total_score >= 20 THEN 1 END) as severe
-      FROM patient_assessments pa
+      FROM assessment_results pa
       JOIN assessment_templates at ON at.id = pa.template_id AND at.code = 'PHQ9'
       WHERE pa.organization_id=$1 AND pa.administered_at>=$2
       GROUP BY DATE_TRUNC('week', pa.administered_at)
@@ -670,7 +690,7 @@ export class AnalyticsService {
         DATE_TRUNC('week', pa.administered_at) as week,
         AVG(pa.total_score) as avg_score,
         COUNT(pa.id) as assessments
-      FROM patient_assessments pa
+      FROM assessment_results pa
       JOIN assessment_templates at ON at.id = pa.template_id AND at.code = 'GAD7'
       WHERE pa.organization_id=$1 AND pa.administered_at>=$2
       GROUP BY DATE_TRUNC('week', pa.administered_at)
@@ -706,12 +726,12 @@ export class AnalyticsService {
         END) as declined
       FROM patients p
       JOIN LATERAL (
-        SELECT total_score as score FROM patient_assessments pa2
+        SELECT total_score as score FROM assessment_results pa2
         JOIN assessment_templates at ON at.id = pa2.template_id AND at.code = 'PHQ9'
         WHERE pa2.patient_id = p.id ORDER BY administered_at ASC LIMIT 1
       ) first_score ON true
       JOIN LATERAL (
-        SELECT total_score as score FROM patient_assessments pa3
+        SELECT total_score as score FROM assessment_results pa3
         JOIN assessment_templates at ON at.id = pa3.template_id AND at.code = 'PHQ9'
         WHERE pa3.patient_id = p.id ORDER BY administered_at DESC LIMIT 1
       ) last_score ON true
@@ -728,7 +748,7 @@ export class AnalyticsService {
 
     const modelStats = await this.db.query<any>(
       `SELECT
-        model_name,
+        model_id,
         COUNT(*) as requests,
         SUM(total_tokens) as total_tokens,
         COALESCE(SUM(cost_usd), 0) as total_cost,
@@ -737,17 +757,17 @@ export class AnalyticsService {
         COUNT(CASE WHEN status = 'success' THEN 1 END) as success_count,
         COUNT(CASE WHEN status = 'error' THEN 1 END) as error_count,
         ROUND(100.0 * COUNT(CASE WHEN status = 'success' THEN 1 END) / NULLIF(COUNT(*), 0), 2) as success_rate
-      FROM ai_usage_log
+      FROM ai_request_logs
       WHERE created_at >= $1
-      GROUP BY model_name
+      GROUP BY model_id
       ORDER BY total_cost DESC`,
       [since],
     ).catch(() => []);
 
     const taskBreakdown = await this.db.query<any>(
-      `SELECT task_type, COUNT(*) as calls, SUM(cost_usd) as cost
-       FROM ai_usage_log WHERE created_at >= $1
-       GROUP BY task_type ORDER BY calls DESC`,
+      `SELECT request_type, COUNT(*) as calls, SUM(cost_usd) as cost
+       FROM ai_request_logs WHERE created_at >= $1
+       GROUP BY request_type ORDER BY calls DESC`,
       [since],
     ).catch(() => []);
 

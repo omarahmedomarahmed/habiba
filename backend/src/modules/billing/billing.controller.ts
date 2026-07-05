@@ -232,14 +232,6 @@ export class BillingController {
     return this.billingService.getBillingSummary(req.user.organizationId);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Get("payouts")
-  @ApiOperation({ summary: "Get payout history" })
-  getPayouts(@Request() req: { user: { userId: string } }) {
-    return this.billingService.getPayouts(req.user.userId);
-  }
-
   // ============================================================
   // THERAPIST — Session Charges & Usage
   // ============================================================
@@ -252,6 +244,16 @@ export class BillingController {
   getUsageMe(@Request() req: { user: { therapistId?: string; userId: string; role: string } }) {
     const therapistId = req.user.therapistId || req.user.userId;
     return this.billingService.getTherapistUsageSummary(therapistId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("therapist", "org_admin")
+  @Get("my-features")
+  @ApiOperation({ summary: "Get the feature matrix unlocked by my current plan" })
+  getMyFeatures(@Request() req: { user: { therapistId?: string; userId: string } }) {
+    const therapistId = req.user.therapistId || req.user.userId;
+    return this.billingService.getMyFeatures(therapistId);
   }
 
   @ApiBearerAuth()
@@ -307,87 +309,6 @@ export class BillingController {
   @ApiParam({ name: "id", description: "Charge UUID" })
   adminMarkPaid(@Param("id") id: string) {
     return this.billingService.adminMarkChargePaid(id);
-  }
-
-  // ============================================================
-  // PUBLIC — Patient session checkout (called from join page)
-  // ============================================================
-
-  @Public()
-  @Throttle({ short: { ttl: 60000, limit: 5 }, long: { ttl: 3600000, limit: 20 } })
-  @Post("patient-session/checkout")
-  @ApiOperation({ summary: "Create Stripe checkout for patient to pay for a priced session" })
-  createPatientSessionCheckout(
-    @Body() body: { session_id: string; join_token: string; patient_email: string; therapist_id: string }
-  ) {
-    // price_cents is intentionally NOT accepted from client — fetched from DB in service to prevent price manipulation
-    return this.billingService.createPatientSessionCheckout(
-      body.session_id, body.therapist_id, body.patient_email, body.join_token,
-    ).then(url => ({ checkout_url: url }));
-  }
-
-  // ============================================================
-  // THERAPIST — Wallet
-  // ============================================================
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("therapist", "org_admin")
-  @Get("wallet")
-  @ApiOperation({ summary: "Get therapist wallet balance and transaction history" })
-  getWallet(@Request() req: { user: { therapistId?: string; userId: string } }) {
-    const therapistId = req.user.therapistId || req.user.userId;
-    return this.billingService.getWalletSummary(therapistId);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("therapist", "org_admin")
-  @Post("wallet/payout-request")
-  @ApiOperation({ summary: "Request a manual payout from wallet balance" })
-  requestPayout(
-    @Request() req: { user: { therapistId?: string; userId: string } },
-    @Body() body: { amount_cents: number; bank_details: Record<string, string>; method?: string },
-  ) {
-    const therapistId = req.user.therapistId || req.user.userId;
-    return this.billingService.requestPayout(therapistId, body.amount_cents, body.bank_details, body.method);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("super_admin", "admin")
-  @Get("admin/payout-requests")
-  @ApiOperation({ summary: "List all therapist payout requests (admin)" })
-  getPayoutRequests(@Query("status") status?: string) {
-    return this.billingService.getPayoutRequests(status);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("super_admin", "admin")
-  @Patch("admin/payout-requests/:id/process")
-  @ApiOperation({ summary: "Mark a payout request as processed (admin)" })
-  processPayoutRequest(
-    @Param("id") id: string,
-    @Request() req: { user: { userId: string } },
-    @Body() body: { note?: string },
-  ) {
-    return this.billingService.processPayoutRequest(id, req.user.userId, body?.note);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("therapist", "org_admin")
-  @Post("wallet/pay-subscription")
-  @ApiOperation({ summary: "Use wallet balance to pay for a subscription" })
-  paySubscriptionFromWallet(
-    @Request() req: { user: { therapistId?: string; userId: string; organizationId: string } },
-    @Body() body: { plan_key: string; amount_cents: number },
-  ) {
-    const therapistId = req.user.therapistId || req.user.userId;
-    return this.billingService.useWalletForSubscription(
-      therapistId, req.user.organizationId, body.plan_key, body.amount_cents,
-    );
   }
 
   // Stripe webhook — no auth guard, uses signature verification

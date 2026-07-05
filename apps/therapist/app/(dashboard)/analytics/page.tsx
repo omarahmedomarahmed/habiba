@@ -9,13 +9,14 @@ import {
   Brain, Activity, Target, AlertTriangle, DollarSign,
   Clock, CheckCircle2, ArrowUp, ArrowDown, Minus, Sparkles,
   Filter, Download, ChevronRight, Star, Heart, Shield,
-  Layers, PieChart, BarChart2, LineChart, Eye, Zap
-} from "lucide-react";
+  Layers, PieChart, BarChart2, LineChart, Eye, Zap, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { hasTier, FEATURE_MIN_TIER } from "@/lib/tiers";
+import { UpgradePrompt } from "@/components/PlanGate";
 import { analyticsAPI } from "@/lib/api";
 
 type Period = "30d" | "90d" | "6m" | "12m" | "ytd";
-type AnalyticsTab = "overview" | "patients" | "outcomes" | "sessions" | "financial";
+type AnalyticsTab = "overview" | "patients" | "outcomes" | "sessions";
 
 // ─── MOCK DATA ─────────────────────────────────────────────────────────────────
 
@@ -188,6 +189,9 @@ const TREND_CONFIG = {
 function AnalyticsPageInner() {
   const [period, setPeriod] = useState<Period>("30d");
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
+  const subscriptionTier = useUIStore((st) => st.subscriptionTier);
+  // Full analytics (outcomes, per-patient insights) is Unlimited+ per the MVP matrix.
+  const hasFullAnalytics = subscriptionTier === null || hasTier(subscriptionTier, FEATURE_MIN_TIER["analytics-full"]);
   const [liveMetrics, setLiveMetrics] = useState<any>(null);
   const [patientOutcomes, setPatientOutcomes] = useState<any[]>([]);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
@@ -253,11 +257,10 @@ function AnalyticsPageInner() {
       <div className="flex gap-1 bg-gray-100 rounded-2xl p-1.5">
         {[
           { id: "overview", label: "Overview", icon: BarChart3 },
-          { id: "patients", label: "Patients", icon: Users },
-          { id: "outcomes", label: "Clinical Outcomes", icon: TrendingUp },
+          { id: "patients", label: "Patients", icon: Users, locked: !hasFullAnalytics },
+          { id: "outcomes", label: "Clinical Outcomes", icon: TrendingUp, locked: !hasFullAnalytics },
           { id: "sessions", label: "Sessions", icon: Calendar },
-          { id: "financial", label: "Financial", icon: DollarSign },
-        ].map(({ id, label, icon: Icon }) => (
+        ].map(({ id, label, icon: Icon, locked }: { id: string; label: string; icon: any; locked?: boolean }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id as AnalyticsTab)}
@@ -467,7 +470,10 @@ function AnalyticsPageInner() {
       )}
 
       {/* CLINICAL OUTCOMES TAB */}
-      {activeTab === "outcomes" && (
+      {activeTab === "outcomes" && !hasFullAnalytics && (
+        <UpgradePrompt feature="analytics-full" required="professional" />
+      )}
+      {activeTab === "outcomes" && hasFullAnalytics && (
         <div className="space-y-6">
           {/* Summary stats */}
           <div className="grid grid-cols-4 gap-4">
@@ -641,55 +647,12 @@ function AnalyticsPageInner() {
         </div>
       )}
 
-      {/* FINANCIAL TAB */}
-      {activeTab === "financial" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { label: "This Month", value: "$18,600", change: "+9.4%", positive: true },
-              { label: "YTD Revenue", value: "$187,200", change: "+18.2% YoY", positive: true },
-              { label: "Avg Revenue/Session", value: "$150", change: "+$5 vs Q3", positive: true },
-              { label: "Outstanding Invoices", value: "$2,340", change: "12 invoices", positive: false },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 p-4">
-                <div className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</div>
-                <div className="text-xs text-gray-500 mb-2">{stat.label}</div>
-                <div className={cn("text-xs font-semibold", stat.positive ? "text-emerald-600" : "text-amber-600")}>
-                  {stat.change}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Revenue Breakdown</h3>
-            <div className="space-y-4">
-              {[
-                { label: "Out-of-pocket / Self-pay", amount: 9300, pct: 50, color: "#0A2342" },
-                { label: "Blue Cross Blue Shield", amount: 5580, pct: 30, color: "#2EC4B6" },
-                { label: "Aetna", amount: 2790, pct: 15, color: "#6366f1" },
-                { label: "Medicare", amount: 930, pct: 5, color: "#f59e0b" },
-              ].map((source) => (
-                <div key={source.label}>
-                  <div className="flex items-center justify-between mb-1.5 text-sm">
-                    <span className="text-gray-700">{source.label}</span>
-                    <span className="font-semibold text-gray-900">${source.amount.toLocaleString()} ({source.pct}%)</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${source.pct}%`, backgroundColor: source.color }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* PATIENTS TAB */}
-      {activeTab === "patients" && (
+      {activeTab === "patients" && !hasFullAnalytics && (
+        <UpgradePrompt feature="analytics-full" required="professional" />
+      )}
+      {activeTab === "patients" && hasFullAnalytics && (
         <div className="space-y-6">
           <div className="grid grid-cols-5 gap-4">
             {[

@@ -6,33 +6,17 @@ import { useUIStore } from "@/lib/store";
 import { hasTier, TIER_LABEL, type Tier } from "@/lib/tiers";
 
 const FEATURE_BLURB: Record<string, { title: string; desc: string }> = {
-  analytics: {
-    title: "Practice Analytics",
-    desc: "Track outcomes, session trends, and revenue across your whole caseload.",
-  },
   radar: {
     title: "Radar Matching",
-    desc: "Get matched with new patients actively looking for a therapist like you.",
+    desc: "Get matched with new patients actively looking for a therapist like you. Included with Starter and above.",
   },
-  "ai-workspace": {
-    title: "AI Workspace",
-    desc: "A dedicated assistant for drafting notes, summaries, and clinical prep.",
+  "analytics-full": {
+    title: "Full Analytics",
+    desc: "Outcome metrics, revenue trends, and AI insights across your whole caseload. Included with Unlimited and above.",
   },
-  booking: {
-    title: "Public Booking Page",
-    desc: "Share a personal booking link and let patients self-schedule and pay.",
-  },
-  crm: {
-    title: "Referral CRM",
-    desc: "Manage referral sources and your intake pipeline in one place.",
-  },
-  memory: {
-    title: "Patient Memory Graph",
-    desc: "A longitudinal knowledge graph that compounds insight across sessions.",
-  },
-  "treatment-plans": {
-    title: "Treatment Plans",
-    desc: "Structured, goal-based treatment plans with progress tracking.",
+  recordings: {
+    title: "Session Recordings",
+    desc: "Keep audio recordings of your sessions alongside the transcript. Included with Starter and above.",
   },
 };
 

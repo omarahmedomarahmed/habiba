@@ -1,28 +1,9 @@
 -- ============================================================
--- 002_core.sql
--- 24Therapy.ai — Core: Plans, Organizations, Users, Auth
+-- 24Therapy MVP schema — organizations, users, auth
+-- Generated fresh for the MVP database reset (docs/PRODUCT_MVP.md).
+-- Runs in order via scripts/migrate.js on every backend deploy.
 -- ============================================================
 
--- ------------------------------------------------------------
--- plans (legacy org plan reference)
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS plans (
-  id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name                     VARCHAR(100) NOT NULL,
-  code                     VARCHAR(50)  NOT NULL,
-  description              TEXT,
-  price_monthly            NUMERIC(10,2),
-  price_yearly             NUMERIC(10,2),
-  currency                 VARCHAR(3)   NOT NULL DEFAULT 'USD',
-  max_therapists           INTEGER,
-  max_patients             INTEGER,
-  max_sessions_per_month   INTEGER,
-  features                 JSONB        NOT NULL DEFAULT '{}',
-  is_active                BOOLEAN      NOT NULL DEFAULT TRUE,
-  created_at               TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at               TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  CONSTRAINT plans_code_key UNIQUE (code)
-);
 
 -- ------------------------------------------------------------
 -- organizations
@@ -32,8 +13,9 @@ CREATE TABLE IF NOT EXISTS organizations (
   name              VARCHAR(255) NOT NULL,
   slug              VARCHAR(100) NOT NULL,
   organization_type VARCHAR(50)  NOT NULL DEFAULT 'solo',
-  plan_id           UUID REFERENCES plans(id) ON DELETE SET NULL,
   status            VARCHAR(50)  NOT NULL DEFAULT 'trial',
+  subscription_tier   VARCHAR(50) NOT NULL DEFAULT 'payg',
+  subscription_status VARCHAR(50) NOT NULL DEFAULT 'active',
   country           VARCHAR(2),
   timezone          VARCHAR(100) NOT NULL DEFAULT 'UTC',
   currency          VARCHAR(3)   NOT NULL DEFAULT 'USD',
@@ -54,14 +36,19 @@ CREATE TABLE IF NOT EXISTS organizations (
   )
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_organizations_slug        ON organizations (slug);
+
 CREATE INDEX IF NOT EXISTS idx_organizations_status      ON organizations (status);
-CREATE INDEX IF NOT EXISTS idx_organizations_plan_id     ON organizations (plan_id);
+
+
 CREATE INDEX IF NOT EXISTS idx_organizations_not_deleted ON organizations (id) WHERE deleted_at IS NULL;
+
 
 CREATE OR REPLACE TRIGGER trg_organizations_updated_at
   BEFORE UPDATE ON organizations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 -- ------------------------------------------------------------
 -- organization_settings
@@ -80,9 +67,11 @@ CREATE TABLE IF NOT EXISTS organization_settings (
   CONSTRAINT org_settings_org_id_key UNIQUE (organization_id)
 );
 
+
 CREATE OR REPLACE TRIGGER trg_organization_settings_updated_at
   BEFORE UPDATE ON organization_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 -- ------------------------------------------------------------
 -- users
@@ -117,34 +106,26 @@ CREATE TABLE IF NOT EXISTS users (
   )
 );
 
+
 -- Unique email per org (only for non-deleted users)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_org_email_unique
   ON users (organization_id, email)
   WHERE deleted_at IS NULL;
 
+
 CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users (organization_id);
+
 CREATE INDEX IF NOT EXISTS idx_users_email           ON users (email);
+
 CREATE INDEX IF NOT EXISTS idx_users_role            ON users (role);
+
 CREATE INDEX IF NOT EXISTS idx_users_status          ON users (status);
+
 
 CREATE OR REPLACE TRIGGER trg_users_updated_at
   BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- ------------------------------------------------------------
--- user_permissions
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS user_permissions (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id        UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  permission_key VARCHAR(100) NOT NULL,
-  granted        BOOLEAN      NOT NULL DEFAULT TRUE,
-  granted_by     UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  CONSTRAINT user_permissions_unique UNIQUE (user_id, permission_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions (user_id);
 
 -- ------------------------------------------------------------
 -- refresh_tokens
@@ -161,23 +142,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   CONSTRAINT refresh_tokens_token_hash_key UNIQUE (token_hash)
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id    ON refresh_tokens (user_id);
+
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens (token_hash);
-
--- ------------------------------------------------------------
--- sso_connections
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS sso_connections (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  organization_id UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  provider        VARCHAR(50)  NOT NULL,
-  provider_name   VARCHAR(100),
-  config          JSONB        NOT NULL DEFAULT '{}',
-  is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-
-CREATE OR REPLACE TRIGGER trg_sso_connections_updated_at
-  BEFORE UPDATE ON sso_connections
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

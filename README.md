@@ -1,144 +1,190 @@
-# 24Therapy Mental Health OS
+# 24Therapy — AI-Powered Mental Health OS (MVP)
 
+An AI platform for licensed therapists: record a session on your phone, walk away with a
+full SOAP note, clinical insights, and a shareable patient report — without writing a word.
 
-> AI-powered mental health practice management platform — HIPAA-compliant, full-stack, production-ready.
+**The product spec is [`docs/PRODUCT_MVP.md`](docs/PRODUCT_MVP.md). This README is the
+operations manual: architecture, environment variables, database setup, and deployment.**
 
-## Stack
+---
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 15.3.8 (App Router), React 19, Tailwind CSS |
-| Backend | NestJS 10, TypeScript |
-| Database | PostgreSQL 16 + pgvector (Neon serverless) |
-| AI | OpenAI GPT-4o (SOAP notes, copilot), Whisper (transcription), text-embedding-3-small (memory) |
-| Real-time | Socket.io (crisis alerts, transcription, messages) |
-| Video | Daily.co (iframe embed) |
-| Email | Resend |
-| Payments | Stripe |
-| Monorepo | Turborepo + pnpm 9.15.4 |
-| Deployment | Railway (API) + Vercel (4 Next.js apps) |
+## MVP Scope — what is deployed
 
-## Apps
+The MVP has **two access levels**:
 
-| App | Port | Description |
-|-----|------|-------------|
-| `apps/web` | 3000 | Marketing site |
-| `apps/therapist` | 3001 | Therapist portal |
-| `apps/patient` | 3002 | Patient portal |
-| `apps/admin` | 3003 | Admin portal |
-| `backend` | 4000 | NestJS REST API |
+| App | Who | Port (dev) | Deploy |
+|-----|-----|------------|--------|
+| `apps/therapist` | Licensed therapists (primary user, phone-first) | 3001 | Vercel |
+| `apps/admin` | Platform super-admins | 3003 | Vercel |
+| `backend` | NestJS REST API + WebSockets | 4000 | Railway |
 
-## Quick Start
+Also in the monorepo but **not part of the MVP deployment**:
 
-### Prerequisites
-- Node.js 20+
-- pnpm 9.15.4 (`npm install -g pnpm@9.15.4`)
-- PostgreSQL 16 (or Neon connection string)
+- `apps/web` — marketing site (optional to deploy; signup funnel works against the same API)
+- `apps/patient` — patient portal (**out of MVP scope** — patients join sessions via email
+  link with no account, per the MVP spec; do not deploy)
 
-### Setup
-```bash
-# Install dependencies
-pnpm install
+### Feature map (therapist portal)
 
-# Copy environment files
-cp backend/.env.example backend/.env
-cp apps/therapist/.env.example apps/therapist/.env.local
-# (repeat for web, patient, admin)
+Dashboard · Sessions (online / in-person / phone, join links, live transcript, AI copilot,
+crisis alerts, OFF RECORD) · Patients (no accounts required) · Notes (SOAP review/approve,
+share report by email) · Treatment Plans · AI Workspace (7 modes, credit-metered on PAYG) ·
+Analytics (Basic / Full) · Radar Matching · Risk Monitor · Billing · Settings
 
-# Run database migrations
-DATABASE_URL=<your-pg-url> node scripts/migrate.js
+### Plan feature matrix (enforced server-side)
 
-# Seed initial super-admin
-SEED_ADMIN_EMAIL=admin@example.com SEED_ADMIN_PASSWORD=yourpassword DATABASE_URL=<url> node scripts/seed.js
+The single source of truth is `backend/src/modules/billing/plan-features.ts`
+(mirrored in `apps/therapist/lib/tiers.ts`; exposed as `GET /billing/my-features`):
 
-# Start all services (development)
-pnpm dev
-```
+| Feature | PAYG | Starter $59/mo | Unlimited $99/mo | Practice $249/mo |
+|---------|------|---------|-----------|----------|
+| Sessions | $6/session (first free) | 20/mo + rollover | Unlimited | Unlimited |
+| AI transcription / SOAP / Copilot | ✓ | ✓ | ✓ | ✓ |
+| AI chat messages | 5/session | Unlimited | Unlimited | Unlimited |
+| Recordings | — | ✓ | ✓ | ✓ |
+| Radar matching | — | ✓ | ✓ | ✓ |
+| HIPAA BAA | — | ✓ | ✓ | ✓ |
+| Analytics | Basic | Basic | Full | Full |
+| Treatment plans | ✓ | ✓ | ✓ | ✓ |
+| Multi-location / white-label / EHR / dedicated support | — | — | — | ✓ |
 
-### Build all apps
-```bash
-pnpm build
-```
+Plan keys in the database: `pay_per_session` · `starter` · `pro` · `practice` (+ legacy `enterprise`).
 
-## Environment Variables
-
-### Backend (required)
-```
-DATABASE_URL=          # PostgreSQL connection string (Neon recommended)
-JWT_SECRET=            # Min 32 chars
-COOKIE_SECRET=         # Min 32 chars
-OPENAI_API_KEY=        # sk-...
-CORS_ORIGINS=          # Comma-separated allowed origins
-```
-
-### Backend (optional)
-```
-RESEND_API_KEY=        # Email (Resend)
-STRIPE_SECRET_KEY=     # Payments
-STRIPE_WEBHOOK_SECRET= # Stripe webhook signature verification — required for production payments
-DAILY_API_KEY=         # Video rooms (Daily.co)
-MESSAGE_ENCRYPTION_KEY=# 32-byte hex key for AES-256-GCM message encryption
-REDIS_URL=             # Optional — not required for core functionality
-SENTRY_DSN=            # Error monitoring
-```
-
-### Frontend (apps/web)
-```
-NEXT_PUBLIC_API_URL=           # Backend API base URL (e.g. https://habiba-production.up.railway.app/api/v1)
-NEXT_PUBLIC_THERAPIST_APP_URL= # Therapist portal URL (e.g. https://therapist.24therapy.ai)
-```
-
-### Frontend (apps/therapist, apps/patient, apps/admin)
-```
-NEXT_PUBLIC_API_URL=           # Backend API base URL
-```
-
-## Database
-
-Migrations are in `migrations/` (numbered 001–034). Run them in order:
-
-```bash
-node scripts/migrate.js
-```
-
-All 16 consolidated migrations (001–016) plus numbered patches (029–034) must be applied in order.
-Migration 034 drops NOT NULL on `ai_session_notes.patient_id` (offline session support), adds `radar_requests.matched_at/matched_therapist_id`, and creates the `crm_leads` table.
+---
 
 ## Architecture
 
 ```
-backend/src/
-  modules/
-    auth/         # JWT auth, refresh tokens, guards, @Public() decorator
-    sessions/     # Session lifecycle, join tokens, transcription trigger
-    ai/           # GPT-4o SOAP notes, Whisper transcription, AI copilot, crisis detection
-    marketplace/  # Therapist search (queries therapists table directly)
-    therapists/   # Therapist profiles, availability, verification
-    patients/     # Patient CRUD, mood, assessments
-    billing/      # Stripe, plans, session fees, wallet
-    radar/        # Real-time therapist matching
-    crisis/       # Life-safety pipeline (HIPAA-compliant, no PHI in events)
-    admin/        # Platform-wide admin dashboard
-    crm/          # CRM leads pipeline (admin sales)
-    ...
-  database/       # DatabaseService (query/queryOne/transaction helpers)
-  gateways/       # Socket.io WebSocket gateways
-  common/         # PHI audit interceptor, guards
-  config/         # env validation (throws on missing required vars)
+apps/therapist     Next.js 15  → therapist portal (mobile-first, bottom-nav on phones)
+apps/admin         Next.js 15  → super-admin portal
+apps/web           Next.js 15  → marketing site (not required for MVP)
+apps/patient       Next.js 15  → OUT OF MVP (kept for future)
+backend            NestJS 10   → REST API /api/v1 + Socket.io gateways
+packages/types     shared TS types      packages/config  shared URL constants
+migrations/        001–012 fresh MVP schema (see below)
+scripts/           migrate.js (runs on every deploy), seed.js (org + super-admin)
 ```
 
-## Key Design Decisions
+Backend modules (MVP-only): auth, users, organizations, therapists, patients, sessions,
+ai, crisis, notes, treatment-plans, radar, billing, analytics, notifications, admin,
+mail, contact, data-lifecycle.
 
-- **@Public() decorator**: All routes protected by global `JwtAuthGuard` (APP_GUARD). Routes like `/sessions/join/:token` and `/marketplace/search` use `@Public()` to bypass auth.
-- **No marketplace_listings required**: Marketplace search queries `therapists` table directly (approved status). Therapists appear automatically upon admin approval.
-- **Session types**: Valid values are `standard|radar|group|phone|in_person|intake|follow_up` (NOT `individual`).
-- **Migration columns**: Sessions table has optional columns from migrations 029-031. Backend uses try-catch fallback to base schema for production DBs that may not have run these migrations.
-- **therapist_patient_assignments**: Uses `ended_at` (not `deleted_at`), has no `is_primary` column.
-- **Audio transcription**: MediaRecorder MIME type is detected at runtime (`audio/webm;codecs=opus` → `audio/webm` → `audio/ogg` → `audio/mp4`) so Android Chrome mp4 audio is transcribed correctly.
-- **Crisis safety**: Patient WebSocket events are ONLY `crisis_support` — never `crisis_alert`, never risk level.
+---
 
-## CI / Deployment
+## Database — fresh setup (Neon)
 
-- **Railway**: Backend auto-deploys from `main`. Pre-deploy command runs `node scripts/migrate.js`.
-- **Vercel**: All 4 Next.js apps deploy from `main`. Preview deployments on every branch push.
-- **CI**: GitHub Actions (currently blocked by account billing issue — not a code problem).
+The schema was rewritten from scratch for the MVP: **12 ordered SQL files** in
+`migrations/` (001_extensions → 012_seed). They create ~55 tables — exactly what the
+backend queries, nothing else — and are verified to apply cleanly on a blank
+PostgreSQL 16 database with the `vector` extension (Neon has pgvector built in).
+
+### Creating the new database
+
+1. Create a new Neon project → copy the **pooled connection string**.
+2. Nothing else to prepare — migration `001_extensions.sql` enables
+   `uuid-ossp`, `pgcrypto`, and `vector` itself.
+
+### Migrations run automatically on deploy
+
+`railway.json` → `"preDeployCommand": "node scripts/migrate.js --auto-baseline"` runs
+before every backend deploy: advisory-locked, checksummed, ordered, idempotent.
+The Vercel apps never touch the database — they only need `NEXT_PUBLIC_API_URL`.
+
+Manual commands (local or one-off):
+
+```bash
+DATABASE_URL=postgres://… node scripts/migrate.js           # apply pending
+DATABASE_URL=postgres://… node scripts/migrate.js --status  # show state
+DATABASE_URL=postgres://… \
+  SEED_ORG_NAME="24Therapy" \
+  SEED_ADMIN_EMAIL="you@example.com" \
+  SEED_ADMIN_PASSWORD="…strong…" node scripts/seed.js        # org + super-admin (idempotent)
+```
+
+---
+
+## Environment variables
+
+### Backend (Railway → Variables)
+
+**Required in production** (boot fails without them — `backend/src/config/env.validation.ts`):
+
+| Var | What / where to get it |
+|-----|------------------------|
+| `DATABASE_URL` | New Neon pooled connection string |
+| `OPENAI_API_KEY` | OpenAI (GPT-4o notes/copilot + Whisper transcription) |
+| `JWT_SECRET` | ≥32 random chars — `openssl rand -hex 32` |
+| `COOKIE_SECRET` | ≥32 random chars — `openssl rand -hex 32` |
+| `CORS_ORIGINS` | Exact origins, comma-separated: `https://app.24therapy.ai,https://admin.24therapy.ai` |
+| `STRIPE_WEBHOOK_SECRET` | Stripe dashboard → Webhooks → signing secret |
+
+**Strongly recommended:**
+
+| Var | What |
+|-----|------|
+| `STRIPE_SECRET_KEY` | Stripe payments (subscriptions + $6 PAYG session bills) |
+| `RESEND_API_KEY` | Transactional email (invites, reports, bills) |
+| `EMAIL_FROM` / `EMAIL_FROM_NAME` | Sender identity |
+| `DAILY_API_KEY` | Daily.co video rooms for online sessions |
+| `SENTRY_DSN` | Error monitoring (PHI is stripped before send) |
+| `THERAPIST_APP_URL` | e.g. `https://app.24therapy.ai` (used in join links + emails) |
+| `NODE_ENV` | `production` |
+
+Optional: `REDIS_URL` (never required), `ANTHROPIC_API_KEY`, `PORT` (default 4000).
+
+### Frontends (Vercel → each project's Environment Variables)
+
+| App | Var | Value |
+|-----|-----|-------|
+| therapist / admin / web | `NEXT_PUBLIC_API_URL` | `https://<railway-backend-domain>/api/v1` |
+
+### Stripe webhook
+
+Point the Stripe webhook to `https://<backend>/api/v1/billing/webhook`
+(events: `checkout.session.completed`, `invoice.payment_succeeded`,
+`invoice.payment_failed`, `customer.subscription.deleted`, `customer.subscription.updated`).
+
+---
+
+## Local development
+
+```bash
+pnpm install
+# database (any Postgres 16 with pgvector)
+DATABASE_URL=postgres://localhost/24therapy node scripts/migrate.js
+DATABASE_URL=… SEED_ADMIN_EMAIL=… SEED_ADMIN_PASSWORD=… node scripts/seed.js
+
+# backend
+cd backend && ../node_modules/.bin/tsc && DATABASE_URL=… JWT_SECRET=… COOKIE_SECRET=… \
+  OPENAI_API_KEY=… CORS_ORIGINS=http://localhost:3001,http://localhost:3003 \
+  node dist/backend/src/main.js
+
+# apps
+NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1 pnpm --filter @24therapy/therapist dev
+NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1 pnpm --filter @24therapy/admin dev
+
+# tests
+cd backend && ../node_modules/.bin/jest --no-coverage
+```
+
+---
+
+## Security invariants (never regress)
+
+1. **No PHI in logs** — no transcript/message content in logger calls.
+2. **Crisis patient copy** — patients only ever receive a supportive `crisis_support`
+   message; never risk level or indicators.
+3. **Production boot guard** — `validateEnv()` refuses to start with missing/weak secrets.
+4. **No CORS wildcard** in production.
+5. **Redis stays optional.**
+6. All PHI route access is written to `phi_access_log` (HIPAA §164.312);
+   break-glass access is recorded; JWT idle timeout 30 min / absolute 4 h.
+
+---
+
+## Mobile
+
+The therapist portal is built phone-first: 5-tab bottom navigation on mobile, all core
+flows (new session → room → note review → share) usable one-handed. The recommended path
+to a native app is to wrap this portal with Capacitor (or rebuild screens in Expo reusing
+`apps/therapist/lib/api.ts`) — the backend needs no changes for mobile.

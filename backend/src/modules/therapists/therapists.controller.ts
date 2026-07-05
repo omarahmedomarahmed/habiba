@@ -29,15 +29,6 @@ export class TherapistsController {
     return this.therapistsService.updateProfile(req.user.userId, req.user.organizationId, body);
   }
 
-  @Patch("me/public-slug")
-  @ApiOperation({ summary: "Update my booking page slug" })
-  updatePublicSlug(
-    @Request() req: { user: { userId: string; organizationId: string } },
-    @Body() body: { slug: string },
-  ) {
-    return this.therapistsService.updatePublicSlug(req.user.userId, req.user.organizationId, body.slug);
-  }
-
   @Get("me/stats")
   @ApiOperation({ summary: "Get my dashboard stats" })
   getDashboardStats(@Request() req: { user: { userId: string; organizationId: string } }) {
@@ -114,16 +105,6 @@ export class TherapistsController {
     },
   ): Promise<{ success: boolean }> {
     return this.therapistsService.saveCredentials(req.user.userId, req.user.organizationId, body);
-  }
-
-  @Patch("me/bank-details")
-  @ApiOperation({ summary: "Update my payout bank details" })
-  async updateBankDetails(
-    @Request() req: { user: { therapistId: string } },
-    @Body() body: { payout_method: "ach" | "wire" | "swift"; bank_details: Record<string, unknown> },
-  ): Promise<{ success: boolean }> {
-    await this.therapistsService.updateBankDetails(req.user.therapistId, body.payout_method, body.bank_details);
-    return { success: true };
   }
 
   @Post("me/avatar")

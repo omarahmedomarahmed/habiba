@@ -1,4 +1,10 @@
 -- ============================================================
+-- 24Therapy MVP schema — patients, assignments, timeline, mood, goals, medications
+-- Generated fresh for the MVP database reset (docs/PRODUCT_MVP.md).
+-- Runs in order via scripts/migrate.js on every backend deploy.
+-- ============================================================
+
+-- ============================================================
 -- 004_patients.sql
 -- 24Therapy.ai — Patients, Profiles, Consents, Goals, Mood, Journal
 -- NOTE: session FKs on patient_files, patient_life_events,
@@ -42,17 +48,26 @@ CREATE TABLE IF NOT EXISTS patients (
   )
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_patients_organization_id      ON patients (organization_id);
+
 CREATE INDEX IF NOT EXISTS idx_patients_primary_therapist_id ON patients (primary_therapist_id);
+
 CREATE INDEX IF NOT EXISTS idx_patients_user_id              ON patients (user_id);
+
 CREATE INDEX IF NOT EXISTS idx_patients_status               ON patients (status);
+
 CREATE INDEX IF NOT EXISTS idx_patients_tags_gin             ON patients USING GIN (tags);
+
 CREATE INDEX IF NOT EXISTS idx_patients_not_deleted          ON patients (id) WHERE deleted_at IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_patients_last_session_at      ON patients (last_session_at);
+
 
 CREATE OR REPLACE TRIGGER trg_patients_updated_at
   BEFORE UPDATE ON patients
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 -- ------------------------------------------------------------
 -- patient_profiles
@@ -80,9 +95,11 @@ CREATE TABLE IF NOT EXISTS patient_profiles (
   CONSTRAINT patient_profiles_patient_id_key UNIQUE (patient_id)
 );
 
+
 CREATE OR REPLACE TRIGGER trg_patient_profiles_updated_at
   BEFORE UPDATE ON patient_profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 -- ------------------------------------------------------------
 -- therapist_patient_assignments
@@ -103,94 +120,11 @@ CREATE TABLE IF NOT EXISTS therapist_patient_assignments (
   )
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_tpa_therapist_id ON therapist_patient_assignments (therapist_id);
+
 CREATE INDEX IF NOT EXISTS idx_tpa_patient_id   ON therapist_patient_assignments (patient_id);
 
--- ------------------------------------------------------------
--- patient_contacts
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS patient_contacts (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id    UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  relationship  VARCHAR(100),
-  name          VARCHAR(200) NOT NULL,
-  phone         VARCHAR(50),
-  email         VARCHAR(255),
-  is_emergency  BOOLEAN      NOT NULL DEFAULT FALSE,
-  is_authorized BOOLEAN      NOT NULL DEFAULT FALSE,
-  notes         TEXT,
-  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_patient_contacts_patient_id ON patient_contacts (patient_id);
-
--- ------------------------------------------------------------
--- consent_versions
--- (defined here so patient_consents FK resolves in this file)
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS consent_versions (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  consent_type   VARCHAR(100) NOT NULL,
-  version        VARCHAR(20)  NOT NULL,
-  title          VARCHAR(255) NOT NULL,
-  content        TEXT         NOT NULL,
-  summary        TEXT,
-  effective_date DATE         NOT NULL,
-  language       VARCHAR(20)  NOT NULL DEFAULT 'en',
-  is_required    BOOLEAN      NOT NULL DEFAULT TRUE,
-  created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  CONSTRAINT consent_versions_unique UNIQUE (consent_type, version, language)
-);
-
--- ------------------------------------------------------------
--- patient_consents
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS patient_consents (
-  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id         UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  organization_id    UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  consent_type       VARCHAR(100) NOT NULL,
-  version            VARCHAR(20)  NOT NULL,
-  granted            BOOLEAN      NOT NULL DEFAULT TRUE,
-  accepted_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  expires_at         TIMESTAMPTZ,
-  withdrawn_at       TIMESTAMPTZ,
-  withdrawn_reason   TEXT,
-  ip_address         VARCHAR(45),
-  user_agent         TEXT,
-  evidence_url       VARCHAR(1000),
-  signature          TEXT,
-  method             VARCHAR(50)  NOT NULL DEFAULT 'click',
-  created_by         UUID REFERENCES users(id) ON DELETE SET NULL,
-  consent_version_id UUID REFERENCES consent_versions(id) ON DELETE SET NULL,
-  created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_patient_consents_patient_id   ON patient_consents (patient_id);
-CREATE INDEX IF NOT EXISTS idx_patient_consents_type_patient ON patient_consents (consent_type, patient_id);
-
--- ------------------------------------------------------------
--- patient_files
--- (session_id FK to sessions is added in 006_sessions.sql)
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS patient_files (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id      UUID          NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  organization_id UUID          NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  session_id      UUID,   -- FK constraint added in 006_sessions.sql
-  file_name       VARCHAR(255)  NOT NULL,
-  file_url        VARCHAR(1000) NOT NULL,
-  file_type       VARCHAR(100),
-  file_size_bytes INTEGER,
-  category        VARCHAR(50),
-  description     TEXT,
-  uploaded_by     UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-  deleted_at      TIMESTAMPTZ
-);
-
-CREATE INDEX IF NOT EXISTS idx_patient_files_patient_id ON patient_files (patient_id);
-CREATE INDEX IF NOT EXISTS idx_patient_files_session_id ON patient_files (session_id);
 
 -- ------------------------------------------------------------
 -- patient_timeline_events
@@ -209,9 +143,13 @@ CREATE TABLE IF NOT EXISTS patient_timeline_events (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_patient_timeline_patient_id     ON patient_timeline_events (patient_id);
+
 CREATE INDEX IF NOT EXISTS idx_patient_timeline_type_patient   ON patient_timeline_events (event_type, patient_id);
+
 CREATE INDEX IF NOT EXISTS idx_patient_timeline_patient_created ON patient_timeline_events (patient_id, created_at DESC);
+
 
 -- ------------------------------------------------------------
 -- patient_goals
@@ -240,27 +178,16 @@ CREATE TABLE IF NOT EXISTS patient_goals (
   )
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_patient_goals_patient_id     ON patient_goals (patient_id);
+
 CREATE INDEX IF NOT EXISTS idx_patient_goals_status_patient ON patient_goals (status, patient_id);
+
 
 CREATE OR REPLACE TRIGGER trg_patient_goals_updated_at
   BEFORE UPDATE ON patient_goals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- ------------------------------------------------------------
--- goal_progress_updates
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS goal_progress_updates (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  goal_id        UUID        NOT NULL REFERENCES patient_goals(id) ON DELETE CASCADE,
-  patient_id     UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  note           TEXT,
-  progress_score INTEGER,
-  created_by     UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_goal_progress_goal_id ON goal_progress_updates (goal_id);
 
 -- ------------------------------------------------------------
 -- patient_mood_entries
@@ -277,78 +204,131 @@ CREATE TABLE IF NOT EXISTS patient_mood_entries (
   CONSTRAINT patient_mood_score_check CHECK (score BETWEEN 1 AND 10)
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_patient_mood_patient_id       ON patient_mood_entries (patient_id);
+
 CREATE INDEX IF NOT EXISTS idx_patient_mood_patient_recorded ON patient_mood_entries (patient_id, recorded_at DESC);
 
+-- ============================================================
+-- 005_medications.sql
+-- 24Therapy.ai — Medications, Patient Medications, Adherence
+-- ============================================================
+
 -- ------------------------------------------------------------
--- patient_life_events
--- (source_session_id FK to sessions is added in 006_sessions.sql)
+-- medications (global reference catalogue)
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS patient_life_events (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id        UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  organization_id   UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  event_type        VARCHAR(100) NOT NULL,
-  title             VARCHAR(255),
-  description       TEXT,
-  event_date        DATE,
-  impact_level      VARCHAR(20)  NOT NULL DEFAULT 'medium',
-  is_positive       BOOLEAN,
-  ai_extracted      BOOLEAN      NOT NULL DEFAULT FALSE,
-  source_session_id UUID,   -- FK constraint added in 006_sessions.sql
-  created_by        UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  CONSTRAINT patient_life_events_impact_check CHECK (
-    impact_level IN ('low','medium','high','critical')
+CREATE TABLE IF NOT EXISTS medications (
+  id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name                 VARCHAR(255) NOT NULL,
+  generic_name         VARCHAR(255),
+  brand_names          TEXT[]       NOT NULL DEFAULT '{}',
+  classification       VARCHAR(100),
+  drug_class           VARCHAR(100),
+  controlled_substance BOOLEAN      NOT NULL DEFAULT FALSE,
+  schedule             VARCHAR(10),
+  description          TEXT,
+  common_uses          TEXT[]       NOT NULL DEFAULT '{}',
+  common_side_effects  TEXT[]       NOT NULL DEFAULT '{}',
+  contraindications    TEXT,
+  max_daily_dose       VARCHAR(100),
+  is_active            BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at           TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+
+CREATE INDEX IF NOT EXISTS idx_medications_name_fts
+  ON medications USING GIN (to_tsvector('english', name));
+
+CREATE INDEX IF NOT EXISTS idx_medications_classification ON medications (classification);
+
+
+CREATE OR REPLACE TRIGGER trg_medications_updated_at
+  BEFORE UPDATE ON medications
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ------------------------------------------------------------
+-- patient_medications
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS patient_medications (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_id          UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  medication_id       UUID REFERENCES medications(id) ON DELETE SET NULL,
+  organization_id     UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  medication_name     VARCHAR(255) NOT NULL,
+  dosage              VARCHAR(100),
+  frequency           VARCHAR(100),
+  route               VARCHAR(50),
+  start_date          DATE,
+  end_date            DATE,
+  status              VARCHAR(50)  NOT NULL DEFAULT 'active',
+  prescribed_by       VARCHAR(200),
+  prescriber_type     VARCHAR(50),
+  reason              TEXT,
+  notes               TEXT,
+  adherence_status    VARCHAR(50)  NOT NULL DEFAULT 'unknown',
+  side_effects_noted  TEXT[]       NOT NULL DEFAULT '{}',
+  effectiveness_notes TEXT,
+  added_by            UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  CONSTRAINT patient_medications_status_check CHECK (
+    status IN ('active','paused','completed','discontinued','unknown')
+  ),
+  CONSTRAINT patient_medications_adherence_check CHECK (
+    adherence_status IN ('consistent','occasional_miss','frequent_miss','not_taking','unknown')
   )
 );
 
-CREATE INDEX IF NOT EXISTS idx_patient_life_events_patient_id ON patient_life_events (patient_id);
-CREATE INDEX IF NOT EXISTS idx_patient_life_events_session_id ON patient_life_events (source_session_id);
 
--- ------------------------------------------------------------
--- patient_relationships
--- (source_session_id FK to sessions is added in 006_sessions.sql)
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS patient_relationships (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id        UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  relationship_type VARCHAR(50)  NOT NULL,
-  person_name       VARCHAR(200),
-  person_age        INTEGER,
-  notes             TEXT,
-  ai_extracted      BOOLEAN      NOT NULL DEFAULT FALSE,
-  source_session_id UUID,   -- FK constraint added in 006_sessions.sql
-  created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
+CREATE INDEX IF NOT EXISTS idx_patient_medications_patient_id     ON patient_medications (patient_id);
 
-CREATE INDEX IF NOT EXISTS idx_patient_relationships_patient_id ON patient_relationships (patient_id);
-CREATE INDEX IF NOT EXISTS idx_patient_relationships_session_id ON patient_relationships (source_session_id);
+CREATE INDEX IF NOT EXISTS idx_patient_medications_status_patient ON patient_medications (status, patient_id);
 
-CREATE OR REPLACE TRIGGER trg_patient_relationships_updated_at
-  BEFORE UPDATE ON patient_relationships
+CREATE INDEX IF NOT EXISTS idx_patient_medications_medication_id  ON patient_medications (medication_id);
+
+
+CREATE OR REPLACE TRIGGER trg_patient_medications_updated_at
+  BEFORE UPDATE ON patient_medications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- ============================================================
+-- 007_clinical.sql
+-- 24Therapy.ai — Clinical: Diagnoses, Risk, Treatment Plans,
+--                Assessments, Templates
+-- ============================================================
+
 -- ------------------------------------------------------------
--- patient_journal_entries
+-- patient_diagnoses
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS patient_journal_entries (
-  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id            UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  title                 VARCHAR(255),
-  content               TEXT        NOT NULL,
-  mood_score            SMALLINT,
-  tags                  TEXT[]      NOT NULL DEFAULT '{}',
-  is_private            BOOLEAN     NOT NULL DEFAULT TRUE,
-  shared_with_therapist BOOLEAN     NOT NULL DEFAULT FALSE,
-  ai_analyzed           BOOLEAN     NOT NULL DEFAULT FALSE,
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS patient_diagnoses (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_id      UUID         NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  therapist_id    UUID         NOT NULL REFERENCES therapists(id) ON DELETE RESTRICT,
+  organization_id UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  diagnosis_code  VARCHAR(20),
+  diagnosis_name  VARCHAR(255) NOT NULL,
+  description     TEXT,
+  severity        VARCHAR(50),
+  status          VARCHAR(50)  NOT NULL DEFAULT 'active',
+  onset_date      DATE,
+  remission_date  DATE,
+  notes           TEXT,
+  is_primary      BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  CONSTRAINT patient_diagnoses_status_check CHECK (
+    status IN ('active','remission','resolved','ruled_out')
+  )
 );
 
-CREATE INDEX IF NOT EXISTS idx_patient_journal_patient_created ON patient_journal_entries (patient_id, created_at DESC);
 
-CREATE OR REPLACE TRIGGER trg_patient_journal_updated_at
-  BEFORE UPDATE ON patient_journal_entries
+CREATE INDEX IF NOT EXISTS idx_patient_diagnoses_patient_id   ON patient_diagnoses (patient_id);
+
+CREATE INDEX IF NOT EXISTS idx_patient_diagnoses_therapist_id ON patient_diagnoses (therapist_id);
+
+
+CREATE OR REPLACE TRIGGER trg_patient_diagnoses_updated_at
+  BEFORE UPDATE ON patient_diagnoses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

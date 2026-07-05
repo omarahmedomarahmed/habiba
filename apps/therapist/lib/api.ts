@@ -236,23 +236,6 @@ export const sessionsAPI = {
       body: JSON.stringify(body),
     }),
 
-  initiatePatientPayment: (token: string, body: { email: string; name?: string }) =>
-    apiFetch<{ checkout_url: string | null }>(`/sessions/join/${token}/pay`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-
-  sendOfflineBill: (id: string, body: { patient_email: string; amount_cents: number }) =>
-    apiFetch<{ checkout_url: string | null }>(`/sessions/${id}/offline-bill/send`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-
-  markOfflineCashPaid: (id: string, body: { amount_cents: number }) =>
-    apiFetch<{ success: boolean }>(`/sessions/${id}/offline-bill/mark-paid`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
 };
 
 // ============================================================
@@ -317,42 +300,14 @@ export const therapistsAPI = {
   availability: () => apiFetch<Record<string, unknown>[]>("/therapists/me/availability"),
   updateAvailability: (data: Record<string, unknown>[]) =>
     apiFetch("/therapists/me/availability", { method: "PUT", body: JSON.stringify(data) }),
-  updateSlug: (slug: string) =>
-    apiFetch("/therapists/me/public-slug", { method: "PATCH", body: JSON.stringify({ slug }) }),
   submitForReview: () =>
     apiFetch<{ success: boolean }>("/therapists/me/submit-review", { method: "PATCH" }),
   saveCredentials: (data: { license_type?: string; license_number?: string; license_state?: string; license_expiry?: string; npi_number?: string }) =>
     apiFetch<{ success: boolean }>("/therapists/me/credentials", { method: "PATCH", body: JSON.stringify(data) }),
-  updateBankDetails: (payout_method: "ach" | "wire" | "swift", bank_details: Record<string, unknown>) =>
-    apiFetch<{ success: boolean }>("/therapists/me/bank-details", {
-      method: "PATCH",
-      body: JSON.stringify({ payout_method, bank_details }),
-    }),
   uploadAvatar: (avatar_data_url: string) =>
     apiFetch<{ avatar_url: string }>("/therapists/me/avatar", {
       method: "POST",
       body: JSON.stringify({ avatar_data_url }),
-    }),
-};
-
-// ============================================================
-// ASSESSMENTS
-// ============================================================
-export const assessmentsAPI = {
-  templates: () => apiFetch<Record<string, unknown>[]>("/assessments/templates"),
-  sendToPatient: (patientId: string, templateId: string, data?: Record<string, unknown>) =>
-    apiFetch(`/assessments/patient/${patientId}`, {
-      method: "POST",
-      body: JSON.stringify({ template_id: templateId, administered_via: "patient_portal", ...data }),
-    }),
-  results: (patientId: string) =>
-    apiFetch<Record<string, unknown>[]>(`/assessments/patient/${patientId}`),
-  listAll: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/assessments", { params }),
-  score: (resultId: string, answers: Record<string, number>[]) =>
-    apiFetch(`/assessments/${resultId}/submit`, {
-      method: "POST",
-      body: JSON.stringify({ answers }),
     }),
 };
 
@@ -381,11 +336,13 @@ export const billingAPI = {
   refreshChargeCheckout: (chargeId: string) =>
     apiFetch<{ charge_id: string; checkout_url: string | null }>(`/billing/charges/${chargeId}/checkout`, { method: "POST" }),
   cancel: () => apiFetch<Record<string, unknown>>("/billing/cancel", { method: "POST" }),
-  wallet: () => apiFetch<Record<string, unknown>>("/billing/wallet"),
-  requestPayout: (body: { amount_cents: number; bank_details: Record<string, string> }) =>
-    apiFetch("/billing/wallet/payout-request", { method: "POST", body: JSON.stringify(body) }),
-  paySubscription: (body: { plan_key: string; amount_cents: number }) =>
-    apiFetch("/billing/wallet/pay-subscription", { method: "POST", body: JSON.stringify(body) }),
+  myFeatures: () => apiFetch<{
+    plan_key: string; display_name: string;
+    sessions: { model: 'payg' | 'quota' | 'unlimited'; price_per_session_usd?: number; included_per_month?: number };
+    ai_chat: 'per_session_credits' | 'unlimited';
+    recordings: boolean; radar: boolean; hipaa_baa: boolean;
+    analytics: 'basic' | 'full'; treatment_plans: boolean;
+  }>("/billing/my-features"),
 };
 
 // ============================================================
@@ -447,25 +404,6 @@ export const treatmentPlansAPI = {
 };
 
 // ============================================================
-// REFERRALS
-// ============================================================
-export const referralsAPI = {
-  list: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/referrals", { params }),
-
-  get: (id: string) => apiFetch<Record<string, unknown>>(`/referrals/${id}`),
-
-  create: (data: Record<string, unknown>) =>
-    apiFetch<Record<string, unknown>>("/referrals", { method: "POST", body: JSON.stringify(data) }),
-
-  update: (id: string, data: Record<string, unknown>) =>
-    apiFetch<Record<string, unknown>>(`/referrals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-
-  send: (id: string) =>
-    apiFetch(`/referrals/${id}/send`, { method: "POST" }),
-};
-
-// ============================================================
 // RADAR (Therapist Matching / New Patient Requests)
 // ============================================================
 export const radarAPI = {
@@ -479,24 +417,6 @@ export const radarAPI = {
     apiFetch(`/radar/requests/${requestId}/decline`, { method: "POST", body: JSON.stringify({ reason }) }),
 
   stats: () => apiFetch<Record<string, unknown>>("/radar/analytics"),
-};
-
-// ============================================================
-// REPORTS
-// ============================================================
-export const reportsAPI = {
-  list: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/reports", { params }),
-
-  generate: (data: Record<string, unknown>) =>
-    apiFetch<Record<string, unknown>>("/reports/generate", { method: "POST", body: JSON.stringify(data) }),
-
-  get: (id: string) => apiFetch<Record<string, unknown>>(`/reports/${id}`),
-
-  sign: (id: string) => apiFetch(`/reports/${id}/sign`, { method: "POST" }),
-
-  send: (id: string, recipient: string) =>
-    apiFetch(`/reports/${id}/send`, { method: "POST", body: JSON.stringify({ recipient }) }),
 };
 
 // ============================================================
@@ -515,81 +435,8 @@ export const analyticsAPI = {
 };
 
 // ============================================================
-// MESSAGES
-// ============================================================
-export const messagesAPI = {
-  conversations: () => apiFetch<{ data: unknown[] }>('/messages/conversations'),
-  createConversation: (participant_id: string) =>
-    apiFetch<{ data: unknown }>('/messages/conversations', {
-      method: 'POST', body: JSON.stringify({ participant_id }),
-    }),
-  messages: (conversationId: string, params?: { limit?: number; before?: string }) =>
-    apiFetch<{ data: unknown[] }>(`/messages/conversations/${conversationId}/messages`, { params } as never),
-  send: (conversationId: string, content: string) =>
-    apiFetch<unknown>(`/messages/conversations/${conversationId}/messages`, {
-      method: 'POST', body: JSON.stringify({ content }),
-    }),
-  markRead: (conversationId: string) =>
-    apiFetch<unknown>(`/messages/conversations/${conversationId}/read`, { method: 'POST' }),
-};
 
 // ============================================================
-// WORKFLOWS
-// ============================================================
-export const workflowsAPI = {
-  list: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<Record<string, unknown>[]>("/workflows", { params }),
-  templates: () => apiFetch<Record<string, unknown>[]>("/workflows/templates"),
-  pending: () => apiFetch<Record<string, unknown>[]>("/workflows/pending"),
-  create: (data: Record<string, unknown>) =>
-    apiFetch<Record<string, unknown>>("/workflows", { method: "POST", body: JSON.stringify(data) }),
-  assignHomework: (data: { patient_id: string; title: string; description?: string; category?: string; tool_slug?: string; due_date?: string }) =>
-    apiFetch<Record<string, unknown>>("/workflows/homework", { method: "POST", body: JSON.stringify(data) }),
-};
-
-// ============================================================
-// MEMORY (graph nodes)
-// ============================================================
-export const memoriesAPI = {
-  addNode: (patientId: string, data: Record<string, unknown>) =>
-    apiFetch<Record<string, unknown>>(`/memory/patient/${patientId}/nodes`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-};
-
-// ============================================================
-// ORGANIZATION (admin)
-// ============================================================
-export const organizationsAPI = {
-  auditLogs: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: Record<string, unknown>[]; total: number }>("/organizations/me/audit-logs", { params }),
-};
-
-// ============================================================
-// BOOKING (public — no auth needed)
-// ============================================================
-export const bookingAPI = {
-  profile: (slug: string) =>
-    apiFetch<Record<string, unknown>>(`/booking/t/${slug}`),
-  slots: (slug: string, date: string, durationMins: number) =>
-    apiFetch<Array<{ starts_at: string; ends_at: string; available: boolean }>>(
-      `/booking/t/${slug}/slots?date=${date}&duration_mins=${durationMins}`,
-    ),
-  checkout: (slug: string, body: Record<string, unknown>) =>
-    apiFetch<{ checkout_url: string | null; booking_id: string }>(
-      `/booking/t/${slug}/checkout`,
-      { method: "POST", body: JSON.stringify(body) },
-    ),
-  confirmation: (bookingId: string) =>
-    apiFetch<Record<string, unknown>>(`/booking/confirmed/${bookingId}`),
-  myOfferings: () =>
-    apiFetch<Array<{ id: string; duration_mins: number; price_cents: number; is_enabled: boolean }>>("/booking/me/offerings"),
-  updateOfferings: (body: Array<{ duration_mins: number; price_cents: number; is_enabled: boolean }>) =>
-    apiFetch("/booking/me/offerings", { method: "PUT", body: JSON.stringify(body) }),
-  upcoming: () =>
-    apiFetch<Record<string, unknown>[]>("/booking/me/upcoming"),
-};
 
 export const usersAPI = {
   changePassword: (current_password: string, new_password: string) =>

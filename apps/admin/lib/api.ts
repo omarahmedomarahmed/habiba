@@ -239,19 +239,11 @@ export const adminAPI = {
   updateTherapistProfile: (id: string, data: any) =>
     apiFetch<any>(`/admin/therapists/${id}/profile`, { method: 'PATCH', body: JSON.stringify(data) }),
 
-  // Payouts
-  payoutRequests: (status?: string) =>
-    apiFetch<any[]>('/billing/admin/payout-requests', { params: status ? { status } : undefined } as any),
-  processPayout: (id: string, note?: string) =>
-    apiFetch<any>(`/billing/admin/payout-requests/${id}/process`, { method: 'PATCH', body: JSON.stringify({ note: note ?? '' }) }),
-
   // Analytics
   analyticsOverview: (period?: string) =>
     apiFetch<any>('/analytics/platform/dashboard', { params: { period } } as any),
   analyticsRevenue: (period?: string) =>
     apiFetch<any>('/analytics/platform/dashboard', { params: { period } } as any),
-  aiModelStats: (period?: string) =>
-    apiFetch<{ period: string; models: any[]; task_breakdown: any[] }>('/analytics/platform/ai-models', { params: { period } } as any),
 
   // System health — real per-service status from backend
   systemHealth: () => apiFetch<{
@@ -274,44 +266,11 @@ export const adminAPI = {
   phiAuditLog: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ data: any[]; total: number }>('/admin/audit-log', { params } as any),
 
-  // Sessions (Cross-Org God Mode)
-  sessions: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ sessions: any[]; stats: any; has_more: boolean }>('/admin/sessions', { params } as any),
-  getSession: (id: string) => apiFetch<any>(`/admin/sessions/${id}`),
-  updateSessionStatus: (id: string, status: string, reason?: string) =>
-    apiFetch<any>(`/admin/sessions/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, reason }) }),
-  updateSessionBilling: (id: string, data: { billing_status?: string; session_price_cents?: number }) =>
-    apiFetch<any>(`/admin/sessions/${id}/billing`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-  // Patients (Cross-Org)
-  patients: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ patients: any[]; stats: any; has_more: boolean }>('/admin/patients', { params } as any),
-  getPatient: (id: string) => apiFetch<any>(`/admin/patients/${id}`),
-  getPatientConsents: (id: string) => apiFetch<any[]>(`/admin/patients/${id}/consents`),
-
   // Subscriptions
   adminSubscriptions: (params?: Record<string, string | number | undefined>) =>
     apiFetch<{ subscriptions: any[]; stats: any; has_more: boolean }>('/admin/subscriptions', { params } as any),
   updateAdminSubscription: (id: string, data: any) =>
     apiFetch<any>(`/admin/subscriptions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-  // API / Request Logs
-  requestLogs: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ logs: any[]; stats: any; has_more: boolean }>('/admin/request-logs', { params } as any),
-
-  // Security Incidents
-  securityIncidents: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ incidents: any[]; has_more: boolean }>('/admin/security-incidents', { params } as any),
-  updateSecurityIncident: (id: string, data: any) =>
-    apiFetch<any>(`/admin/security-incidents/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-  // BAA Records
-  baaRecords: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ records: any[]; has_more: boolean }>('/admin/baa-records', { params } as any),
-  createBaaRecord: (data: any) =>
-    apiFetch<any>('/admin/baa-records', { method: 'POST', body: JSON.stringify(data) }),
-  updateBaaRecord: (id: string, data: any) =>
-    apiFetch<any>(`/admin/baa-records/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   // Therapist Credentials
   therapistCredentials: (params?: Record<string, string | number | undefined>) =>
@@ -329,22 +288,6 @@ export const crisisAPI = {
   acknowledge: (id: string) =>
     apiFetch<{ data: any }>(`/crisis/alerts/${id}/acknowledge`, { method: 'POST' }),
   activeCount: () => apiFetch<{ data: { count: number } }>('/crisis/alerts/active-count'),
-};
-
-// ============================================================
-// CRM / SALES PIPELINE API
-// ============================================================
-export const crmAPI = {
-  leads: (params?: Record<string, string | number | undefined>) =>
-    apiFetch<{ data: any[]; total: number }>('/crm/leads', { params } as any),
-  getLead: (id: string) => apiFetch<any>(`/crm/leads/${id}`),
-  createLead: (data: any) =>
-    apiFetch<any>('/crm/leads', { method: 'POST', body: JSON.stringify(data) }),
-  updateLead: (id: string, data: any) =>
-    apiFetch<any>(`/crm/leads/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  pipelineStats: () => apiFetch<any>('/crm/pipeline/stats'),
-  analytics: (period?: string) =>
-    apiFetch<any>('/crm/analytics', { params: { period } } as any),
 };
 
 export const notificationsAPI = {

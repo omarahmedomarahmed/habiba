@@ -41,17 +41,6 @@ export class SessionsController {
     return this.response({ ...usage, usage });
   }
 
-  @Get('my-reports')
-  @ApiOperation({ summary: 'List signed session reports visible to the current patient' })
-  async getMyReports(@Request() req: any) {
-    const patientId = req.user.patientId;
-    if (!patientId) {
-      return this.response({ reports: [] });
-    }
-    const reports = await this.sessionsService.getMyReports(patientId, req.user.organization_id);
-    return this.response({ data: reports });
-  }
-
   @Get('join/:token')
   @Public()
   @Throttle({ short: { ttl: 60000, limit: 20 }, long: { ttl: 3600000, limit: 100 } })
@@ -67,40 +56,6 @@ export class SessionsController {
   @ApiOperation({ summary: 'Join session by token (public)' })
   async joinByToken(@Param('token') token: string, @Body() dto: { name: string; email?: string }) {
     const result = await this.sessionsService.joinByToken(token, dto);
-    return this.response(result);
-  }
-
-  @Post('join/:token/pay')
-  @Public()
-  @Throttle({ short: { ttl: 60000, limit: 5 }, long: { ttl: 3600000, limit: 20 } })
-  @ApiOperation({ summary: 'Initiate patient payment for a priced session (public)' })
-  async initiatePatientPayment(
-    @Param('token') token: string,
-    @Body() body: { email: string; name?: string },
-  ) {
-    const result = await this.sessionsService.initiatePatientPayment(token, body);
-    return this.response(result);
-  }
-
-  @Post(':id/offline-bill/send')
-  @ApiOperation({ summary: 'Send Stripe payment link to patient for offline session' })
-  async sendOfflineBill(
-    @Request() req: any,
-    @Param('id') id: string,
-    @Body() body: { patient_email: string; amount_cents: number },
-  ) {
-    const result = await this.sessionsService.sendOfflineBill(id, req.user.organization_id, body);
-    return this.response(result);
-  }
-
-  @Post(':id/offline-bill/mark-paid')
-  @ApiOperation({ summary: 'Mark offline session as cash paid' })
-  async markOfflineCashPaid(
-    @Request() req: any,
-    @Param('id') id: string,
-    @Body() body: { amount_cents: number },
-  ) {
-    const result = await this.sessionsService.markOfflineCashPaid(id, req.user.organization_id, body);
     return this.response(result);
   }
 

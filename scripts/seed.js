@@ -49,8 +49,8 @@ async function main() {
     // Upsert organization
     const orgId = crypto.randomUUID();
     const orgResult = await client.query(`
-      INSERT INTO organizations (id, name, slug, status, plan, settings, created_at, updated_at)
-      VALUES ($1, $2, $3, 'active', 'enterprise', '{}', NOW(), NOW())
+      INSERT INTO organizations (id, name, slug, status, organization_type, subscription_tier, created_at, updated_at)
+      VALUES ($1, $2, $3, 'active', 'practice', 'practice', NOW(), NOW())
       ON CONFLICT (slug) DO UPDATE SET updated_at = NOW()
       RETURNING id
     `, [orgId, orgName, orgSlug]);
@@ -63,9 +63,9 @@ async function main() {
     // Upsert admin user
     const userId = crypto.randomUUID();
     const userResult = await client.query(`
-      INSERT INTO users (id, organization_id, email, password_hash, first_name, last_name, role, status, email_verified, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, 'super_admin', 'active', true, NOW(), NOW())
-      ON CONFLICT (email) DO UPDATE SET
+      INSERT INTO users (id, organization_id, email, password_hash, first_name, last_name, role, status, email_verified_at, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, 'super_admin', 'active', NOW(), NOW(), NOW())
+      ON CONFLICT (organization_id, email) WHERE deleted_at IS NULL DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         role = 'super_admin',
         status = 'active',

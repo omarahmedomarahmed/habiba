@@ -3,58 +3,36 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Building2, Users, Shield, Brain, CreditCard,
+  LayoutDashboard, Building2, Users, Shield, CreditCard,
   Settings, LogOut, Activity, AlertTriangle, ChevronRight,
-  Zap, BarChart2, UserCheck, Layers,
-  Wrench, ToggleLeft, DollarSign, FileSearch, Banknote,
-  Video, Heart, FileBadge, Server
+  Zap, BarChart2, UserCheck, DollarSign, FileSearch, FileBadge
 } from 'lucide-react';
 import { useAdminAuth } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 const NAV = [
   {
-    section: 'CLINICAL',
-    items: [
-      { href: '/sessions', label: 'Sessions', icon: Video },
-      { href: '/patients', label: 'Patients', icon: Heart },
-      { href: '/credentials', label: 'Credentials', icon: FileBadge },
-    ],
-  },
-  {
     section: 'PLATFORM',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/organizations', label: 'Organizations', icon: Building2 },
-      { href: '/practice-management', label: 'Practice Mgmt', icon: Layers },
-      { href: '/users', label: 'All Users', icon: Users },
       { href: '/therapists', label: 'Therapists', icon: UserCheck },
-      { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
-      { href: '/api-logs', label: 'API Logs', icon: Server },
-    ],
-  },
-  {
-    section: 'COMPLIANCE & SAFETY',
-    items: [
-      { href: '/crisis', label: 'Crisis Alerts', icon: AlertTriangle },
-      { href: '/compliance', label: 'Compliance & Audit', icon: Shield },
-      { href: '/ai-governance', label: 'AI Governance', icon: Brain },
+      { href: '/credentials', label: 'Credentials', icon: FileBadge },
+      { href: '/users', label: 'All Users', icon: Users },
+      { href: '/organizations', label: 'Organizations', icon: Building2 },
     ],
   },
   {
     section: 'BUSINESS',
     items: [
-      { href: '/billing', label: 'Billing & Revenue', icon: CreditCard },
-      { href: '/payouts', label: 'Therapist Payouts', icon: Banknote },
-      { href: '/pricing', label: 'Pricing Management', icon: DollarSign },
-      { href: '/analytics', label: 'Analytics', icon: BarChart2 },
+      { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
+      { href: '/billing', label: 'Billing & Revenue', icon: DollarSign },
+      { href: '/pricing', label: 'Pricing Management', icon: BarChart2 },
     ],
   },
   {
-    section: 'TOOLS',
+    section: 'SAFETY & COMPLIANCE',
     items: [
-      { href: '/support-tools', label: 'Support Tools', icon: Wrench },
-      { href: '/feature-flags', label: 'Feature Flags', icon: ToggleLeft },
+      { href: '/crisis', label: 'Crisis Alerts', icon: AlertTriangle },
       { href: '/audit-logs', label: 'Audit Logs', icon: FileSearch },
     ],
   },

@@ -1,9 +1,22 @@
 /**
  * 24Therapy Therapist Portal — Subscription tier helpers
  *
- * The backend stores the active plan on `therapists.current_plan_key`
- * (returned by GET /therapists/me). We collapse the raw plan keys into four
- * access tiers and gate premium features against them.
+ * Mirrors docs/PRODUCT_MVP.md → "Plan Feature Matrix" (the backend enforces
+ * the same rules server-side; see backend/src/modules/billing/plan-features.ts
+ * and GET /billing/my-features).
+ *
+ * | Feature            | PAYG      | Starter | Unlimited | Practice |
+ * |--------------------|-----------|---------|-----------|----------|
+ * | Sessions           | $6/sess   | 20/mo   | ∞         | ∞        |
+ * | AI Chat messages   | 5/session | ∞       | ∞         | ∞        |
+ * | Recordings         | —         | ✓       | ✓         | ✓        |
+ * | Radar Matching     | —         | ✓       | ✓         | ✓        |
+ * | Analytics          | Basic     | Basic   | Full      | Full     |
+ * | Treatment Plans    | ✓         | ✓       | ✓         | ✓        |
+ *
+ * Everything else (sessions, patients, notes, AI workspace, treatment plans,
+ * billing, settings) is available on every tier — AI chat is metered by
+ * credits server-side on PAYG rather than locked in the UI.
  */
 
 export type Tier = "payg" | "starter" | "professional" | "enterprise";
@@ -44,17 +57,13 @@ export function hasTier(current: Tier, required: Tier): boolean {
 }
 
 /**
- * Minimum tier required for each gated feature.
- * Anything not listed here (sessions, patients, notes, calendar, messages,
- * billing, notifications, settings) is available on every tier — billing in
- * particular must always be reachable so users can upgrade.
+ * Minimum tier required for each gated feature, per the MVP matrix.
+ * Keys match top-level route segments where a whole page is gated
+ * ("radar") and virtual feature keys where only part of a page is
+ * gated ("analytics-full", "recordings").
  */
 export const FEATURE_MIN_TIER: Record<string, Tier> = {
-  booking: "starter",
-  analytics: "professional",
-  "ai-workspace": "professional",
-  radar: "professional",
-  crm: "enterprise",
-  memory: "enterprise",
-  "treatment-plans": "enterprise",
+  radar: "starter",             // Radar Matching — Starter+
+  recordings: "starter",        // Session recordings — Starter+
+  "analytics-full": "professional", // Outcome metrics & full analytics — Unlimited+
 };

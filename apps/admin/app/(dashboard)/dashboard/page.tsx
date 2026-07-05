@@ -354,7 +354,7 @@ export default function AdminDashboardPage() {
               </span>
             )}
           </div>
-          <a href="/compliance" className="text-xs text-gray-500 hover:text-white transition-colors">
+          <a href="/crisis" className="text-xs text-gray-500 hover:text-white transition-colors">
             View all →
           </a>
         </div>
@@ -378,7 +378,7 @@ export default function AdminDashboardPage() {
                     {new Date(event.created_at).toLocaleString()}
                   </div>
                 </div>
-                <a href="/compliance" className="text-gray-600 hover:text-red-400 transition-colors">
+                <a href="/crisis" className="text-gray-600 hover:text-red-400 transition-colors">
                   <Eye className="w-3.5 h-3.5" />
                 </a>
               </div>

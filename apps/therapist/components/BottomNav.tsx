@@ -4,29 +4,29 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Users, Calendar, MessageCircle, LayoutGrid,
-  FileText, Target, Brain, Wrench, Settings, BarChart3,
-  ClipboardList, Briefcase, X, Link2
+  LayoutDashboard, Users, Calendar, LayoutGrid,
+  FileText, Target, Brain, Settings, BarChart3,
+  CreditCard, Bell, Zap, ShieldAlert, X
 } from "lucide-react";
 
+// MVP mobile nav — the therapist product is phone-first (docs/PRODUCT_MVP.md)
 const PRIMARY_TABS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Patients", icon: Users, href: "/patients" },
   { label: "Sessions", icon: Calendar, href: "/sessions" },
-  { label: "Messages", icon: MessageCircle, href: "/messages" },
+  { label: "Patients", icon: Users, href: "/patients" },
+  { label: "Notes", icon: FileText, href: "/notes" },
   { label: "More", icon: LayoutGrid, href: null },
 ];
 
 const MORE_ITEMS = [
-  { label: "Notes", icon: FileText, href: "/notes" },
   { label: "Treatment Plans", icon: Target, href: "/treatment-plans" },
   { label: "AI Workspace", icon: Brain, href: "/ai-workspace" },
-  { label: "Clinical Tools", icon: Wrench, href: "/clinical-tools" },
   { label: "Analytics", icon: BarChart3, href: "/analytics" },
-  { label: "Assessments", icon: ClipboardList, href: "/assessments" },
-  { label: "Workflows", icon: Briefcase, href: "/workflow" },
+  { label: "Radar", icon: Zap, href: "/radar" },
+  { label: "Risk Monitor", icon: ShieldAlert, href: "/risk-monitor" },
+  { label: "Billing", icon: CreditCard, href: "/billing" },
+  { label: "Notifications", icon: Bell, href: "/notifications" },
   { label: "Settings", icon: Settings, href: "/settings" },
-  { label: "Booking", icon: Link2, href: "/booking" },
 ];
 
 export function TherapistBottomNav() {
@@ -111,5 +111,3 @@ export function TherapistBottomNav() {
     </>
   );
 }
-
-// Reviewed: 2026-06-13 — 24Therapy audit

@@ -167,13 +167,6 @@ export default function PatientProfilePage() {
 
           <div className="flex gap-2 ml-auto">
             <Link
-              href="/messages"
-              className="flex items-center gap-1.5 h-8 px-3 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              Message
-            </Link>
-            <Link
               href={`/sessions/new?patient_id=${patient.id}`}
               className="flex items-center gap-1.5 h-8 px-3 bg-secondary text-white rounded-lg text-sm font-medium hover:bg-secondary/90"
             >

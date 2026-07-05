@@ -114,50 +114,6 @@ export class AdminController {
     return this.adminService.getAuditLog(query);
   }
 
-  @Get('compliance/:orgId')
-  async getComplianceReport(@Param('orgId') orgId: string) {
-    return this.adminService.getComplianceReport(orgId);
-  }
-
-  // ─── Feature Flags ────────────────────────────────────────────────────────
-
-  @Get('feature-flags')
-  async getFeatureFlags() {
-    return this.adminService.getFeatureFlags();
-  }
-
-  @Put('feature-flags/:key')
-  @Patch('feature-flags/:key')
-  async setFeatureFlag(
-    @Param('key') key: string,
-    @Body('enabled') enabled: boolean,
-    @Body('rollout_pct') rolloutPct: number | undefined,
-    @CurrentUser() user: any,
-  ) {
-    return this.adminService.setFeatureFlag(key, enabled, null, user.id);
-  }
-
-  // ─── Marketplace ──────────────────────────────────────────────────────────
-
-  @Get('marketplace')
-  async listMarketplaceItems(@Query() query: any) {
-    return this.adminService.listMarketplaceItems(query);
-  }
-
-  @Post('marketplace/:id/approve')
-  async approveMarketplaceItem(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.adminService.approveMarketplaceItem(id, user.id);
-  }
-
-  @Post('marketplace/:id/reject')
-  async rejectMarketplaceItem(
-    @Param('id') id: string,
-    @Body('reason') reason: string,
-    @CurrentUser() user: any,
-  ) {
-    return this.adminService.rejectMarketplaceItem(id, reason, user.id);
-  }
-
   // ─── Notifications ────────────────────────────────────────────────────────
 
   @Post('notifications/send')
@@ -188,13 +144,6 @@ export class AdminController {
     return this.adminService.getBillingOverview();
   }
 
-  // ─── AI Governance ────────────────────────────────────────────────────────
-
-  @Get('ai/governance')
-  async getAIGovernanceDashboard() {
-    return this.adminService.getAIGovernanceDashboard();
-  }
-
   // ─── Emergency Access (Break-Glass) — HIPAA §164.312(a)(2)(ii) ───────────
 
   @Post('break-glass')
@@ -218,54 +167,6 @@ export class AdminController {
     return this.adminService.listBreakGlassEvents(query);
   }
 
-  // ─── Sessions (Cross-Org) ─────────────────────────────────────────────────
-
-  @Get('sessions')
-  async listAllSessions(@Query() query: any) {
-    return this.adminService.listAllSessions(query);
-  }
-
-  @Get('sessions/:id')
-  async getSession(@Param('id') id: string) {
-    return this.adminService.getSessionDetail(id);
-  }
-
-  @Patch('sessions/:id/status')
-  async updateSessionStatus(
-    @Param('id') id: string,
-    @Body('status') status: string,
-    @Body('reason') reason: string,
-    @CurrentUser() user: any,
-  ) {
-    return this.adminService.updateSessionStatus(id, status, reason, user.id);
-  }
-
-  @Patch('sessions/:id/billing')
-  async updateSessionBilling(
-    @Param('id') id: string,
-    @Body() dto: { billing_status?: string; session_price_cents?: number },
-    @CurrentUser() user: any,
-  ) {
-    return this.adminService.updateSessionBilling(id, dto, user.id);
-  }
-
-  // ─── Patients (Cross-Org) ─────────────────────────────────────────────────
-
-  @Get('patients')
-  async listAllPatients(@Query() query: any) {
-    return this.adminService.listAllPatients(query);
-  }
-
-  @Get('patients/:id')
-  async getPatientDetail(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.adminService.getPatientDetail(id, user.id);
-  }
-
-  @Get('patients/:id/consents')
-  async getPatientConsents(@Param('id') id: string) {
-    return this.adminService.getPatientConsents(id);
-  }
-
   // ─── Subscriptions ────────────────────────────────────────────────────────
 
   @Get('subscriptions')
@@ -280,50 +181,6 @@ export class AdminController {
     @CurrentUser() user: any,
   ) {
     return this.adminService.updateSubscription(id, dto, user.id);
-  }
-
-  // ─── API / Request Logs ───────────────────────────────────────────────────
-
-  @Get('request-logs')
-  async listRequestLogs(@Query() query: any) {
-    return this.adminService.listRequestLogs(query);
-  }
-
-  // ─── Security Incidents ───────────────────────────────────────────────────
-
-  @Get('security-incidents')
-  async listSecurityIncidents(@Query() query: any) {
-    return this.adminService.listSecurityIncidents(query);
-  }
-
-  @Patch('security-incidents/:id')
-  async updateSecurityIncident(
-    @Param('id') id: string,
-    @Body() dto: any,
-    @CurrentUser() user: any,
-  ) {
-    return this.adminService.updateSecurityIncident(id, dto, user.id);
-  }
-
-  // ─── BAA Records ──────────────────────────────────────────────────────────
-
-  @Get('baa-records')
-  async listBaaRecords(@Query() query: any) {
-    return this.adminService.listBaaRecords(query);
-  }
-
-  @Post('baa-records')
-  async createBaaRecord(@Body() dto: any, @CurrentUser() user: any) {
-    return this.adminService.createBaaRecord(dto, user.id);
-  }
-
-  @Patch('baa-records/:id')
-  async updateBaaRecord(
-    @Param('id') id: string,
-    @Body() dto: any,
-    @CurrentUser() user: any,
-  ) {
-    return this.adminService.updateBaaRecord(id, dto, user.id);
   }
 
   // ─── Therapist Credentials ────────────────────────────────────────────────
