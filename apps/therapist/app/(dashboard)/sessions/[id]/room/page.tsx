@@ -117,6 +117,16 @@ export default function SessionRoomPage() {
 
     sessionsAPI.get(id).then(async (s: any) => {
       setLiveSession(s);
+      // For online/video sessions, make sure a Daily.co room exists up front so the
+      // video iframe renders immediately (don't wait for the therapist to hit Start).
+      if (s?.modality === 'video' && !s?.video_room_url) {
+        sessionsAPI.ensureRoom(id).then((room) => {
+          setVideoConfigured(room.configured);
+          if (room.video_room_url) {
+            setLiveSession((prev) => (prev ? { ...prev, video_room_url: room.video_room_url } : prev));
+          }
+        }).catch(() => {});
+      }
       if (s?.status === 'in_progress') {
         setSessionPhase('live');
         setIsLive(true);
@@ -320,13 +330,17 @@ export default function SessionRoomPage() {
       const actualMime = recorder.mimeType || mimeType || 'audio/webm';
       const ext = actualMime.split('/')[1]?.split(';')[0] || 'webm';
       recorder.ondataavailable = async (e) => {
-        if (e.data.size < 500 || isMuted || isAiPausedRef.current || !accessToken) return;
+        if (e.data.size < 500 || isMuted || isAiPausedRef.current) return;
+        // Read the token fresh from localStorage each chunk — the store snapshot
+        // can go stale after a silent token refresh, which 401s the upload.
+        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+        if (!token) return;
         try {
           const form = new FormData();
           form.append('audio', e.data, `chunk.${ext}`);
           await fetch(
             `${getApiUrl()}/ai/sessions/${id}/transcribe`,
-            { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }
+            { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form }
           );
         } catch { /* transcription failure is non-fatal */ }
       };

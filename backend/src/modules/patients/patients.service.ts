@@ -282,7 +282,7 @@ export class PatientsService {
   async getAssessments(patientId: string, orgId: string) {
     await this.findOne(patientId, orgId);
     return this.db.query(
-      `SELECT ar.*, at.name as template_name, at.code as template_code
+      `SELECT ar.*, at.name as template_name, at.type_key as template_code
        FROM assessment_results ar
        JOIN assessment_templates at ON at.id = ar.template_id
        WHERE ar.patient_id = $1 AND ar.organization_id = $2
@@ -298,6 +298,28 @@ export class PatientsService {
        WHERE patient_id = $1 AND organization_id = $2 AND status = 'active'
        ORDER BY created_at DESC LIMIT 50`,
       [patientId, orgId],
+    );
+  }
+
+  async getGoals(patientId: string, orgId: string) {
+    await this.findOne(patientId, orgId);
+    return this.db.query(
+      `SELECT * FROM patient_goals
+       WHERE patient_id = $1
+       ORDER BY status = 'active' DESC, priority DESC, created_at DESC`,
+      [patientId],
+    );
+  }
+
+  async getMedications(patientId: string, orgId: string) {
+    await this.findOne(patientId, orgId);
+    return this.db.query(
+      `SELECT pm.*, m.name AS medication_name, m.drug_class
+       FROM patient_medications pm
+       JOIN medications m ON m.id = pm.medication_id
+       WHERE pm.patient_id = $1
+       ORDER BY pm.status = 'active' DESC, pm.created_at DESC`,
+      [patientId],
     );
   }
 

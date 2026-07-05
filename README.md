@@ -103,6 +103,51 @@ DATABASE_URL=postgres://… \
 
 ---
 
+## Admin accounts (create / change password in Neon)
+
+Admins are just rows in the `users` table with `role = 'super_admin'`. Passwords are
+bcrypt hashes (cost 12) in `password_hash` — never plaintext.
+
+**Create an admin from the Neon SQL Editor** (Neon dashboard → your project → **SQL Editor**),
+paste and Run:
+
+```sql
+INSERT INTO users (
+  id, organization_id, email, password_hash,
+  first_name, last_name, role, status, email_verified_at
+)
+VALUES (
+  uuid_generate_v4(),
+  (SELECT id FROM organizations ORDER BY created_at LIMIT 1),
+  'you@example.com',
+  '$2a$12$replace_with_a_real_bcrypt_hash',      -- see "generating a hash" below
+  'First', 'Last', 'super_admin', 'active', NOW()
+)
+ON CONFLICT (organization_id, email) WHERE deleted_at IS NULL
+DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'super_admin', status = 'active';
+```
+
+Add **more admins** by running the same block again with a different email. The
+`ON CONFLICT … DO UPDATE` makes it safe to re-run: same email → password reset, new email → new admin.
+
+**Change a password** — run the same statement (or just the update) with a fresh hash:
+
+```sql
+UPDATE users SET password_hash = '$2a$12$new_hash_here'
+WHERE email = 'you@example.com';
+```
+
+**Generating a bcrypt hash** (any one):
+- `node -e "console.log(require('bcryptjs').hashSync(process.argv[1],12))" 'YourPassword'`
+  (run from the repo root — `bcryptjs` is already installed)
+- or set `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` and run `node scripts/seed.js` — it hashes
+  for you and upserts the admin.
+
+> Neon has no "users" UI — admin accounts live in the `users` **table**, edited via the SQL Editor.
+> The `organizations` subquery attaches the admin to your first org (the one `seed.js` created).
+
+---
+
 ## Environment variables
 
 ### Backend (Railway → Variables)
@@ -122,15 +167,20 @@ DATABASE_URL=postgres://… \
 
 | Var | What |
 |-----|------|
+| `DAILY_API_KEY` | **Required for online video sessions.** Without it the room shows an honest "video not set up" state — audio transcription still works, but no video call. Get it at dashboard.daily.co → Developers. |
 | `STRIPE_SECRET_KEY` | Stripe payments (subscriptions + $6 PAYG session bills) |
 | `RESEND_API_KEY` | Transactional email (invites, reports, bills) |
 | `EMAIL_FROM` / `EMAIL_FROM_NAME` | Sender identity |
-| `DAILY_API_KEY` | Daily.co video rooms for online sessions |
 | `SENTRY_DSN` | Error monitoring (PHI is stripped before send) |
 | `THERAPIST_APP_URL` | e.g. `https://app.24therapy.ai` (used in join links + emails) |
 | `NODE_ENV` | `production` |
 
-Optional: `REDIS_URL` (never required), `ANTHROPIC_API_KEY`, `PORT` (default 4000).
+Optional: `REDIS_URL` (never required), `ANTHROPIC_API_KEY`, `PORT` (default 4000),
+`JWT_ACCESS_EXPIRY` (default `15m` — access-token lifetime; refresh is automatic).
+
+> **Online sessions need `DAILY_API_KEY`.** The therapist room embeds the Daily.co call in an
+> iframe (its own camera/mic/screen-share controls). If the video area is blank, the key is
+> missing or the room failed to create — check the backend logs for "Failed to create Daily.co room".
 
 ### Frontends (Vercel → each project's Environment Variables)
 
