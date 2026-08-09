@@ -18,6 +18,20 @@ test("crisis scan matches risk language regardless of case and surrounding text"
   assert.ok(scanForCrisisLanguage("I've been self-harming again").length > 0);
 });
 
+test("crisis scan covers the phrasings patients actually use", () => {
+  // Each of these was reported from a real session or is a near neighbour of
+  // one. "harm myself" in particular was missing while "hurt myself" was not.
+  for (const phrase of [
+    "sometimes I want to harm myself",
+    "I have been harming myself",
+    "it is not worth living",
+    "I just want to end it all",
+    "I want it to end",
+  ]) {
+    assert.ok(scanForCrisisLanguage(phrase).length > 0, `should match: "${phrase}"`);
+  }
+});
+
 test("crisis scan does not fire on ordinary clinical talk", () => {
   assert.deepEqual(scanForCrisisLanguage("I've been feeling low but I'm managing"), []);
   assert.deepEqual(scanForCrisisLanguage("Work has been killing my motivation"), []);

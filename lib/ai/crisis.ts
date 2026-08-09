@@ -31,6 +31,12 @@ const CRISIS_PHRASES = [
   "suicide",
   "hurt myself",
   "hurting myself",
+  // "harm myself" was missing from the first version of this list while
+  // "hurt myself" and "self-harm" were present, so a patient using that exact
+  // phrasing raised nothing. Phrasings a patient actually uses matter more here
+  // than a tidy list.
+  "harm myself",
+  "harming myself",
   "cut myself",
   "cutting myself",
   "self harm",
@@ -38,6 +44,10 @@ const CRISIS_PHRASES = [
   "overdose",
   "no reason to live",
   "nothing to live for",
+  "not worth living",
+  "end it all",
+  "want it to end",
+  "kill me",
   "cant go on",
   "can't go on",
   "hopeless",
