@@ -23,6 +23,7 @@ import {
   globalCeiling,
   refund,
   releaseHold,
+  subjectKey,
   takeHold,
 } from "@/lib/rate-limit";
 import { createPrivateRoom } from "@/lib/video";
@@ -38,6 +39,8 @@ import { createPrivateRoom } from "@/lib/video";
 const BOOKINGS_PER_WINDOW = 6;
 const BOOKING_WINDOW_SECONDS = 15 * 60;
 const GLOBAL_BOOKINGS_PER_MINUTE = 60;
+/** Per clinician, from anyone. The one limit an attacker cannot buy around. */
+const CLAIMS_PER_THERAPIST = 3;
 
 export type BookingState = {
   error?: string;
@@ -80,12 +83,17 @@ export async function bookFromRadar(
    * so a few dozen requests could empty the board — for a crisis service, that
    * is the whole product taken down by one loop.
    *
-   * Three layers, in increasing bluntness. The address limit stops the loop;
-   * the hold means one address can only ever tie up one clinician at a time,
-   * whatever the timing; the global ceiling is the backstop for a botnet, where
-   * per-address limits are worth nothing.
+   * Four layers. The network limit stops the naive loop; the hold means one
+   * network can only tie up one clinician at a time; the per-clinician limit
+   * below cannot be multiplied by buying more addresses; and the global ceiling
+   * is the backstop when someone has a real botnet.
    *
-   * All three are checked before we create a session, allocate a video room or
+   * Note "network", not "address" — see `networkOf`. Limiting on the exact IP
+   * is close to useless, which I found by flooding this endpoint and getting no
+   * 429s at all, because the caller's egress rotated across three addresses in
+   * one /24.
+   *
+   * All of it is checked before we create a session, allocate a video room or
    * open a Stripe checkout, because those are the things worth protecting.
    */
   const attemptKey = await callerKey("radar:book");
@@ -115,6 +123,28 @@ export async function bookFromRadar(
     return { error: "Someone just started booking them. Try another clinician." };
   }
 
+  /*
+   * A limit on the clinician, not the caller.
+   *
+   * Everything above is keyed on the caller's network, and a network is
+   * something an attacker can buy more of. This one cannot be multiplied: no
+   * matter how many addresses you come from, a given clinician can only be
+   * claimed a few times in a quarter of an hour. It stops the churn attack —
+   * claim, get released, immediately re-claim — which would otherwise keep
+   * someone permanently out of service from a rotating pool.
+   *
+   * Three is generous for the real flow, which is one claim, or one claim plus
+   * a retry after an abandoned checkout.
+   */
+  const therapistKey = subjectKey("radar:target", therapist.userId);
+  const targeted = await consume(therapistKey, CLAIMS_PER_THERAPIST, BOOKING_WINDOW_SECONDS);
+  if (!targeted.allowed) {
+    log.warn("radar clinician claim-rate exceeded", { therapist: ref(therapist.userId) });
+    return {
+      error: "That clinician has had several booking attempts just now. Try another one.",
+    };
+  }
+
   let session;
   try {
     session = await createRadarSession({
@@ -140,8 +170,9 @@ export async function bookFromRadar(
       .update(sessions)
       .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
       .where(eq(sessions.id, session.id));
-    // Losing a race is not abuse, so it must not count against the caller.
+    // Losing a race is not abuse, so it counts against neither party.
     await refund(attemptKey);
+    await refund(therapistKey);
     return { error: "Someone else booked them a second before you. Try another clinician." };
   }
 

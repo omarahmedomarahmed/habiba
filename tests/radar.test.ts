@@ -6,6 +6,7 @@ import { db } from "../lib/db";
 import { organizations, rateLimits, sessions, therapistRadar, users } from "../lib/db/schema";
 import {
   consume,
+  networkOf,
   refund,
   releaseHold,
   subjectKey,
@@ -272,6 +273,31 @@ test("taking a hold surrenders the previous one", async () => {
 
   await releaseHold(key);
   assert.equal((await takeHold(key, "session-c", 60)).previous, null);
+});
+
+/**
+ * The finding that prompted this: flooding the deployed endpoint produced zero
+ * 429s, because the caller's egress rotated across 160.79.106.128, .129 and
+ * .135. Three addresses, one obvious caller, three separate buckets — and any
+ * cheap proxy pool does the same. Bucketing by network is what makes the limit
+ * mean anything.
+ */
+test("addresses in one network share a bucket", () => {
+  assert.equal(networkOf("160.79.106.128"), networkOf("160.79.106.129"));
+  assert.equal(networkOf("160.79.106.128"), networkOf("160.79.106.135"));
+  assert.notEqual(networkOf("160.79.106.1"), networkOf("160.79.107.1"));
+});
+
+test("an IPv6 allocation cannot be used as a billion buckets", () => {
+  // A single customer /64 — trivially many addresses, one caller.
+  assert.equal(
+    networkOf("2001:db8:85a3:1::8a2e:370:7334"),
+    networkOf("2001:db8:85a3:1::ffff:1:2"),
+  );
+  assert.notEqual(
+    networkOf("2001:db8:85a3:1::1"),
+    networkOf("2001:db8:85a3:2::1"),
+  );
 });
 
 test("subject keys never contain the raw address", () => {

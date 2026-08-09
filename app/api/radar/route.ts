@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { listRadar } from "@/lib/data/radar";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { callerKey, consume, globalCeiling } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,14 @@ export const dynamic = "force-dynamic";
 const READS_PER_MINUTE = 60;
 
 /**
+ * And a ceiling for everyone together, because the per-network limit is only
+ * as good as the attacker's address budget. Set well above real traffic: a
+ * thousand reads a minute is roughly a hundred and twenty people with the page
+ * open, which would be a very good day.
+ */
+const GLOBAL_READS_PER_MINUTE = 1000;
+
+/**
  * Who is available, right now. Public and unauthenticated on purpose — a person
  * in crisis must not have to log in to find out whether anyone is there.
  *
@@ -27,10 +35,13 @@ const READS_PER_MINUTE = 60;
  */
 export async function GET() {
   const verdict = await consume(await callerKey("radar:read"), READS_PER_MINUTE, 60);
-  if (!verdict.allowed) {
+  const ceiling = verdict.allowed ? await globalCeiling("radar:read", GLOBAL_READS_PER_MINUTE) : null;
+
+  if (!verdict.allowed || (ceiling && !ceiling.allowed)) {
+    const retryAfter = Math.max(verdict.retryAfter, ceiling?.retryAfter ?? 0) || 30;
     return NextResponse.json(
       { error: "rate_limited" },
-      { status: 429, headers: { "Retry-After": String(verdict.retryAfter) } },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } },
     );
   }
 

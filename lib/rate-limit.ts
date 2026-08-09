@@ -168,7 +168,32 @@ export async function releaseHold(key: string): Promise<void> {
 /* -------------------------------------------------------------- helpers -- */
 
 /**
- * The caller's address, or a stable stand-in.
+ * Collapse an address to the network it belongs to.
+ *
+ * Limiting on the exact address is close to useless, which I established the
+ * hard way: flooding this app's own endpoint from a sandbox produced no 429s
+ * at all, because the sandbox's egress rotates across 160.79.106.128, .129,
+ * .135 — three buckets for what is obviously one caller. Any cheap proxy pool
+ * does the same, and a single IPv6 allocation hands out /64s containing
+ * billions of addresses.
+ *
+ * So the subject is the /24 for IPv4 and the /64 for IPv6. That is the
+ * smallest unit an attacker cannot trivially multiply, and the cost is that a
+ * large NAT — an office, a university — shares a bucket. The limits below are
+ * set with that in mind.
+ */
+export function networkOf(ip: string): string {
+  if (ip.includes(":")) {
+    // IPv6: first four hextets is the /64 that a single customer is handed.
+    return ip.split(":").slice(0, 4).join(":") + "::/64";
+  }
+  const octets = ip.split(".");
+  if (octets.length !== 4) return ip;
+  return `${octets[0]}.${octets[1]}.${octets[2]}.0/24`;
+}
+
+/**
+ * The caller's network, or a stable stand-in.
  *
  * When there is no forwarded address at all we fall back to one shared bucket
  * rather than to "unlimited". Behind a proxy that strips headers, everyone
@@ -177,7 +202,7 @@ export async function releaseHold(key: string): Promise<void> {
  */
 export async function callerKey(scope: string): Promise<string> {
   const ip = await clientIp();
-  return subjectKey(scope, ip ?? "unknown");
+  return subjectKey(scope, ip ? networkOf(ip) : "unknown");
 }
 
 /** Sweeper for the cron. Rows are self-invalidating; this just stops growth. */
