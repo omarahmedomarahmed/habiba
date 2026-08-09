@@ -656,6 +656,44 @@ export const dataExports = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------- taxonomy ---
+
+export const TAXONOMY_KINDS = ["country", "language", "specialty"] as const;
+export type TaxonomyKind = (typeof TAXONOMY_KINDS)[number];
+
+/**
+ * Admin control over what the radar offers.
+ *
+ * An *override* layer, not the list itself. The built-in lists in `lib/geo.ts`
+ * are the universe of things that can exist; a row here says "this one is
+ * switched off", or renames it, or adds a specialty we did not think of.
+ *
+ * Done the other way round — the table being the only source — the first empty
+ * database is a radar with no languages, and every deployment needs a seed step
+ * before it works. Absence of a row means "on", so the product is correct
+ * before an admin has ever opened the page.
+ */
+export const taxonomyEntries = pgTable(
+  "taxonomy_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").$type<TaxonomyKind>().notNull(),
+    /** ISO code for a country; the label itself for a language or specialty. */
+    code: text("code").notNull(),
+    /** Overrides the built-in display name when set. */
+    label: text("label"),
+    enabled: boolean("enabled").notNull().default(true),
+    /** Lower sorts first; equal values fall back to alphabetical. */
+    sortOrder: integer("sort_order").notNull().default(0),
+    /** True for entries an admin created that have no built-in counterpart. */
+    custom: boolean("custom").notNull().default(false),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("taxonomy_entries_kind_code_unique").on(t.kind, t.code)],
+);
+
 // ------------------------------------------------------------------- radar ---
 
 export const RADAR_STATUSES = ["offline", "online", "pending", "in_session"] as const;

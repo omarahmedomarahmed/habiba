@@ -12,7 +12,7 @@ import {
 } from "@/lib/data/verification";
 import { db } from "@/lib/db";
 import { therapistVerifications } from "@/lib/db/schema";
-import { RADAR_LANGUAGES, RADAR_SPECIALTIES } from "@/lib/geo";
+import { validateSelections } from "@/lib/data/taxonomy";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { deleteDocument, uploadDocument, type UploadKind } from "@/lib/uploads";
 
@@ -46,15 +46,19 @@ export async function saveVerificationDetails(
     return { error: "This is already with us for review — you cannot change it right now." };
   }
 
-  const specialties = formData
-    .getAll("specialties")
-    .map(String)
-    .filter((value) => (RADAR_SPECIALTIES as readonly string[]).includes(value));
+  // What they already picked is always still valid — a list an admin retired
+  // must not silently empty a submission that was already half-written.
+  const specialties = await validateSelections(
+    "specialty",
+    formData.getAll("specialties").map(String),
+    current?.specialties ?? [],
+  );
 
-  const languages = formData
-    .getAll("languages")
-    .map(String)
-    .filter((value) => (RADAR_LANGUAGES as readonly string[]).includes(value));
+  const languages = await validateSelections(
+    "language",
+    formData.getAll("languages").map(String),
+    current?.languages ?? [],
+  );
 
   await db
     .update(therapistVerifications)

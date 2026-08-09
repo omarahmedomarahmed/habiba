@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { FileEdit, LayoutDashboard, Megaphone, ScrollText, ShieldCheck, Users, Vault } from "lucide-react";
+import {
+  FileEdit,
+  Globe2,
+  LayoutDashboard,
+  Megaphone,
+  ScrollText,
+  ShieldCheck,
+  Users,
+  Vault,
+} from "lucide-react";
 
 import { requireRole } from "@/lib/auth/guard";
 import { pendingReviewCount } from "@/lib/data/verification";
@@ -34,6 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             ) : null}
           </AdminLink>
           <AdminLink href="/admin/vault" icon={Vault}>Vault</AdminLink>
+          <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink>
           <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink>
           <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink>
           <AdminLink href="/admin/audit" icon={ScrollText}>Audit log</AdminLink>

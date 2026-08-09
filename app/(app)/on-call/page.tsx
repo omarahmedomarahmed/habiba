@@ -8,7 +8,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { ensureRadarProfile } from "@/lib/data/radar";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { COUNTRY_OPTIONS, RADAR_LANGUAGES, RADAR_SPECIALTIES } from "@/lib/geo";
+import { activeTaxonomy } from "@/lib/data/taxonomy";
 
 export const metadata: Metadata = { title: "Crisis Radar", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function RadarConsolePage() {
   const actor = await requireUser();
 
-  const [profile, [me]] = await Promise.all([
+  const [profile, [me], countryOptions, languageOptions, specialtyOptions] = await Promise.all([
     ensureRadarProfile(actor),
     db
       .select({
@@ -27,6 +27,9 @@ export default async function RadarConsolePage() {
       .from(users)
       .where(eq(users.id, actor.userId))
       .limit(1),
+    activeTaxonomy("country"),
+    activeTaxonomy("language"),
+    activeTaxonomy("specialty"),
   ]);
 
   return (
@@ -46,9 +49,9 @@ export default async function RadarConsolePage() {
           country={profile.country}
           rateCents={me?.rateCents ?? 0}
           chargesEnabled={me?.chargesEnabled ?? false}
-          languageOptions={RADAR_LANGUAGES}
-          specialtyOptions={RADAR_SPECIALTIES}
-          countryOptions={COUNTRY_OPTIONS}
+          languageOptions={languageOptions.map((o) => o.label)}
+          specialtyOptions={specialtyOptions.map((o) => o.label)}
+          countryOptions={countryOptions.map((o) => ({ code: o.code, name: o.label, flag: o.flag }))}
           alertOnView={me?.profile?.alertOnView ?? true}
           alertOnBooking={me?.profile?.alertOnBooking ?? true}
         />

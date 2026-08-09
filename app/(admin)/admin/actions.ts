@@ -12,7 +12,14 @@ import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/da
 import { decideVerification } from "@/lib/data/verification";
 import { safeImageUrl } from "@/lib/content/url";
 import { db } from "@/lib/db";
-import { contentPages, invoices, users, type ContentBlock } from "@/lib/db/schema";
+import {
+  contentPages,
+  invoices,
+  users,
+  TAXONOMY_KINDS,
+  type ContentBlock,
+  type TaxonomyKind,
+} from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 import { sendTherapistMessage } from "@/lib/mail";
 
@@ -552,4 +559,79 @@ export async function emailPatientRecordToPatient(
   });
 
   return { ok: true, sentTo: result.email };
+}
+
+/* ------------------------------------------------------------- taxonomy -- */
+
+/**
+ * Switch a country, language or specialty off the radar.
+ *
+ * Off means "stop offering it", not "delete it". A clinician who already chose
+ * a language that is now off keeps it on their profile and still appears — the
+ * list controls what can be picked and filtered by, and pretending otherwise
+ * would quietly hide working clinicians from patients who need them.
+ */
+export async function setTaxonomyState(
+  kind: TaxonomyKind,
+  code: string,
+  enabled: boolean,
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+  if (!TAXONOMY_KINDS.includes(kind)) return { error: "Unknown list." };
+
+  const { setTaxonomyEnabled } = await import("@/lib/data/taxonomy");
+  await setTaxonomyEnabled(kind, code, enabled, actor.userId);
+
+  await audit({
+    actor,
+    category: "admin",
+    action: enabled ? "taxonomy.enable" : "taxonomy.disable",
+    resourceType: "taxonomy",
+    resourceId: `${kind}:${code}`,
+  });
+
+  revalidatePath("/admin/taxonomy");
+  revalidatePath("/radar");
+  return { ok: true };
+}
+
+export async function addTaxonomy(kind: TaxonomyKind, label: string): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+  if (!TAXONOMY_KINDS.includes(kind)) return { error: "Unknown list." };
+
+  const { addTaxonomyEntry } = await import("@/lib/data/taxonomy");
+  const result = await addTaxonomyEntry(kind, label, actor.userId);
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "taxonomy.add",
+    resourceType: "taxonomy",
+    resourceId: `${kind}:${label.trim()}`,
+  });
+
+  revalidatePath("/admin/taxonomy");
+  revalidatePath("/radar");
+  return { ok: true };
+}
+
+export async function removeTaxonomy(kind: TaxonomyKind, code: string): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+  if (!TAXONOMY_KINDS.includes(kind)) return { error: "Unknown list." };
+
+  const { removeTaxonomyEntry } = await import("@/lib/data/taxonomy");
+  await removeTaxonomyEntry(kind, code);
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "taxonomy.remove",
+    resourceType: "taxonomy",
+    resourceId: `${kind}:${code}`,
+  });
+
+  revalidatePath("/admin/taxonomy");
+  revalidatePath("/radar");
+  return { ok: true };
 }

@@ -10,7 +10,7 @@ import {
   ensureVerification,
   missingFrom,
 } from "@/lib/data/verification";
-import { COUNTRY_OPTIONS, RADAR_LANGUAGES, RADAR_SPECIALTIES } from "@/lib/geo";
+import { activeTaxonomy } from "@/lib/data/taxonomy";
 import { uploadsConfigured } from "@/lib/uploads";
 
 export const metadata: Metadata = { title: "Verify your practice", robots: { index: false } };
@@ -22,7 +22,12 @@ export default async function OnboardingPage() {
   // An operator has no licence to upload and no queue to wait in.
   if (actor.role === "super_admin") redirect("/admin");
 
-  const verification = await ensureVerification(actor);
+  const [verification, countryOptions, languageOptions, specialtyOptions] = await Promise.all([
+    ensureVerification(actor),
+    activeTaxonomy("country"),
+    activeTaxonomy("language"),
+    activeTaxonomy("specialty"),
+  ]);
   const missing = missingFrom(verification);
   const requirements = documentRequirements(verification.country);
 
@@ -95,9 +100,9 @@ export default async function OnboardingPage() {
             ...requirement,
             url: urls[requirement.key] ?? null,
           }))}
-          countryOptions={COUNTRY_OPTIONS}
-          languageOptions={RADAR_LANGUAGES}
-          specialtyOptions={RADAR_SPECIALTIES}
+          countryOptions={countryOptions.map((o) => ({ code: o.code, name: o.label, flag: o.flag }))}
+          languageOptions={languageOptions.map((o) => o.label)}
+          specialtyOptions={specialtyOptions.map((o) => o.label)}
           uploadsEnabled={uploadsConfigured()}
         />
       </div>

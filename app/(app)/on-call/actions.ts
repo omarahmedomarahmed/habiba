@@ -10,13 +10,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import {
+  getRadarProfile,
   heartbeat,
   pendingBooking,
   saveRadarProfile,
   setOnline,
   type RadarAttention,
 } from "@/lib/data/radar";
-import { RADAR_LANGUAGES, RADAR_SPECIALTIES } from "@/lib/geo";
+import { validateSelections } from "@/lib/data/taxonomy";
 
 export type RadarState = { error?: string; ok?: boolean };
 
@@ -26,17 +27,24 @@ export async function saveRadarSetup(
 ): Promise<RadarState> {
   const actor = await requireUser();
 
-  // Allowlists, not free text. These strings are rendered on a public page to
-  // anonymous visitors, so "whatever the form sent" is not an option.
-  const languages = formData
-    .getAll("languages")
-    .map(String)
-    .filter((value) => (RADAR_LANGUAGES as readonly string[]).includes(value));
+  /*
+   * Allowlists, not free text — and the allowlist is now admin-controlled, so
+   * it can shrink. What they already had is passed as `keep` so that a country
+   * or language being retired never quietly strips it from a live profile.
+   */
+  const existing = await getRadarProfile(actor.userId);
 
-  const specialties = formData
-    .getAll("specialties")
-    .map(String)
-    .filter((value) => (RADAR_SPECIALTIES as readonly string[]).includes(value));
+  const languages = await validateSelections(
+    "language",
+    formData.getAll("languages").map(String),
+    existing?.languages ?? [],
+  );
+
+  const specialties = await validateSelections(
+    "specialty",
+    formData.getAll("specialties").map(String),
+    existing?.specialties ?? [],
+  );
 
   const headline = String(formData.get("headline") ?? "").trim().slice(0, 240);
   const country = String(formData.get("country") ?? "").trim().slice(0, 2).toUpperCase();
