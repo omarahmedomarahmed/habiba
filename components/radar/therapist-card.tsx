@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, DoorOpen } from "lucide-react";
 
 import type { RadarEntry } from "@/components/radar/types";
 import { formatUsd } from "@/lib/billing/plans";
@@ -55,8 +55,21 @@ export function TherapistCard({
             .join(" — ") || "Licensed clinician"}
         </span>
 
-        {entry.specialties.length > 0 ? (
-          <span className="mt-1 flex flex-wrap gap-1">
+        {entry.specialties.length > 0 || entry.practice ? (
+          <span className="mt-1 flex flex-wrap items-center gap-1">
+            {/* Walk-ins first: it is the one thing on this card that changes
+                what a patient can physically do next. */}
+            {entry.practice ? (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  dark ? "bg-teal-400/20 text-teal-200" : "bg-teal-100 text-teal-700",
+                )}
+              >
+                <DoorOpen className="h-2.5 w-2.5" aria-hidden />
+                Walk-ins
+              </span>
+            ) : null}
             {entry.specialties.slice(0, 2).map((item) => (
               <span
                 key={item}

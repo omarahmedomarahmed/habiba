@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 
+import { PracticeForm } from "@/components/radar/practice-form";
 import { TherapistConsole } from "@/components/radar/therapist-console";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
@@ -54,6 +55,18 @@ export default async function RadarConsolePage() {
           countryOptions={countryOptions.map((o) => ({ code: o.code, name: o.label, flag: o.flag }))}
           alertOnView={me?.profile?.alertOnView ?? true}
           alertOnBooking={me?.profile?.alertOnBooking ?? true}
+        />
+
+        <PracticeForm
+          practiceName={profile.practiceName}
+          address={profile.practiceAddress}
+          lat={profile.practiceLat}
+          lon={profile.practiceLon}
+          country={profile.country}
+          region={profile.region}
+          city={profile.city}
+          acceptsWalkIns={profile.acceptsWalkIns}
+          confirmed={Boolean(profile.practiceConfirmedAt)}
         />
 
         <p className="text-xs leading-relaxed text-slate-500">

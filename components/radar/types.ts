@@ -15,6 +15,21 @@ export type RadarEntry = {
   languages: string[];
   specialties: string[];
   country: string | null;
+  region: string | null;
+  city: string | null;
+  /**
+   * A door a patient may actually walk through.
+   *
+   * Null unless the clinician both confirmed the pin and switched walk-ins on.
+   * An unconfirmed address is worse than no address — it sends someone in
+   * distress to a building that may not be there.
+   */
+  practice: {
+    name: string | null;
+    address: string;
+    lat: string | null;
+    lon: string | null;
+  } | null;
   rateCents: number;
   status: "online" | "pending" | "in_session";
   /**

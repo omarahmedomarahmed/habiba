@@ -2,10 +2,22 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Clock, CreditCard, Globe2, Languages, ShieldCheck, Sparkles, X } from "lucide-react";
+import {
+  Clock,
+  CreditCard,
+  DoorOpen,
+  Globe2,
+  Languages,
+  Mail,
+  Navigation,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 import {
   bookFromRadar,
+  emailDirections,
   releaseViewing,
   reserveForViewing,
   type BookingState,
@@ -178,9 +190,12 @@ export function BookingSheet({
             {entry.specialties.join(", ") || "Not listed"}
           </Row>
           <Row icon={<Globe2 className="h-3.5 w-3.5" aria-hidden />} label="Based in">
-            {countryName(entry.country) ?? "Not shared"}
+            {[entry.city, entry.region, countryName(entry.country)].filter(Boolean).join(", ") ||
+              "Not shared"}
           </Row>
         </dl>
+
+        {entry.practice ? <WalkIn entry={entry} /> : null}
 
         {bookable ? (
           <form
@@ -309,6 +324,119 @@ function Row({
         {label}
       </dt>
       <dd className="min-w-0 flex-1 text-slate-700">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * "You can also just come in."
+ *
+ * Only rendered for a clinician who confirmed a pin and switched walk-ins on,
+ * so everything here is an address someone deliberately published. The link
+ * opens the patient's own maps app rather than embedding a map: an iframe from
+ * a third-party tile provider on a page someone in crisis is using is a
+ * tracking beacon and a slow load, for a button they already have on their
+ * phone.
+ *
+ * Emailing directions exists because the person reading this may be on a
+ * laptop and travelling on a phone, and because a written address survives a
+ * closed tab.
+ */
+function WalkIn({ entry }: { entry: RadarEntry }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const practice = entry.practice!;
+  const mapsUrl =
+    practice.lat && practice.lon
+      ? `https://www.google.com/maps/dir/?api=1&destination=${practice.lat},${practice.lon}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(practice.address)}`;
+
+  const send = async () => {
+    setError(null);
+    setSending(true);
+    const result = await emailDirections(entry.userId, email);
+    setSending(false);
+    if (result.error) setError(result.error);
+    else setSent(true);
+  };
+
+  return (
+    <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50/60 p-3.5">
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-teal-700 uppercase">
+        <DoorOpen className="h-3 w-3" aria-hidden />
+        Accepts walk-in visits
+      </p>
+      {practice.name ? (
+        <p className="mt-1.5 text-sm font-semibold text-teal-900">{practice.name}</p>
+      ) : null}
+      <p className="mt-0.5 text-sm leading-relaxed text-teal-900">{practice.address}</p>
+
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700"
+        >
+          <Navigation className="h-3.5 w-3.5" aria-hidden />
+          Get directions
+        </a>
+        {!open && !sent ? (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50"
+          >
+            <Mail className="h-3.5 w-3.5" aria-hidden />
+            Email me the address
+          </button>
+        ) : null}
+      </div>
+
+      {sent ? (
+        <p className="mt-2 text-xs text-teal-800">Sent. Check your inbox.</p>
+      ) : open ? (
+        <div className="mt-2.5 space-y-1.5">
+          {error ? (
+            <p role="alert" className="text-xs text-red-600">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <Input
+              aria-label="Where to send the directions"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              placeholder="you@example.com"
+              className="h-10 text-sm"
+            />
+            <button
+              type="button"
+              disabled={sending || !email.includes("@")}
+              onClick={send}
+              className="shrink-0 rounded-xl bg-teal-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
+          <p className="text-[11px] leading-relaxed text-teal-700">
+            We send the address and nothing else, once. It is not stored and you are not signed up
+            to anything.
+          </p>
+        </div>
+      ) : null}
+
+      <p className="mt-2.5 text-[11px] leading-relaxed text-teal-700">
+        Turning up is not an appointment. Booking a session above is the only way to be certain
+        someone is free.
+      </p>
     </div>
   );
 }

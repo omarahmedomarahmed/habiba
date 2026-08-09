@@ -49,6 +49,21 @@ export type RadarTherapist = {
   languages: string[];
   specialties: string[];
   country: string | null;
+  region: string | null;
+  city: string | null;
+  /**
+   * A door a patient may walk through.
+   *
+   * Only ever populated when the clinician turned walk-ins on *and* confirmed
+   * the pin — an unconfirmed address is worse than no address, so it is not
+   * published at all.
+   */
+  practice: {
+    name: string | null;
+    address: string;
+    lat: string | null;
+    lon: string | null;
+  } | null;
   rateCents: number;
   status: "online" | "pending" | "in_session";
   /**
@@ -88,6 +103,14 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
       languages: therapistRadar.languages,
       specialties: therapistRadar.specialties,
       country: therapistRadar.country,
+      region: therapistRadar.region,
+      city: therapistRadar.city,
+      practiceName: therapistRadar.practiceName,
+      practiceAddress: therapistRadar.practiceAddress,
+      practiceLat: therapistRadar.practiceLat,
+      practiceLon: therapistRadar.practiceLon,
+      practiceConfirmedAt: therapistRadar.practiceConfirmedAt,
+      acceptsWalkIns: therapistRadar.acceptsWalkIns,
       status: therapistRadar.status,
       pendingUntil: therapistRadar.pendingUntil,
       pendingSessionId: therapistRadar.pendingSessionId,
@@ -136,6 +159,17 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
       languages: row.languages ?? [],
       specialties: row.specialties ?? [],
       country: row.country,
+      region: row.region,
+      city: row.city,
+      practice:
+        row.acceptsWalkIns && row.practiceConfirmedAt && row.practiceAddress
+          ? {
+              name: row.practiceName,
+              address: row.practiceAddress,
+              lat: row.practiceLat,
+              lon: row.practiceLon,
+            }
+          : null,
       // A clinician who has not finished Stripe onboarding cannot be charged
       // for, so they are shown as free rather than a price nobody can pay.
       rateCents: row.chargesEnabled ? row.rateCents : 0,
@@ -262,6 +296,47 @@ export async function saveRadarProfile(
   await db
     .update(therapistRadar)
     .set({ ...input, updatedAt: new Date() })
+    .where(eq(therapistRadar.userId, actor.userId));
+}
+
+/**
+ * Where the practice is, and whether the door is open.
+ *
+ * Separate from `saveRadarProfile` because the two forms are separate and,
+ * more importantly, because the confirmation timestamp must only ever be set by
+ * the path that actually showed the clinician a pin and asked. Folding this
+ * into the general profile save would make "confirmed" mean "was in the request
+ * body", which is the whole safeguard gone.
+ */
+export async function savePracticeLocation(
+  actor: Actor,
+  input: {
+    practiceName: string | null;
+    practiceAddress: string | null;
+    practiceLat: string | null;
+    practiceLon: string | null;
+    country: string | null;
+    region: string | null;
+    city: string | null;
+    acceptsWalkIns: boolean;
+    confirmed: boolean;
+  },
+): Promise<void> {
+  await ensureRadarProfile(actor);
+
+  const { confirmed, ...rest } = input;
+
+  await db
+    .update(therapistRadar)
+    .set({
+      ...rest,
+      // Clearing the address clears the confirmation with it — an old
+      // timestamp against a new address is how a stale pin gets published.
+      practiceConfirmedAt: confirmed && rest.practiceAddress ? new Date() : null,
+      // And walk-ins cannot be on without somewhere to walk in to.
+      acceptsWalkIns: rest.acceptsWalkIns && confirmed && Boolean(rest.practiceAddress),
+      updatedAt: new Date(),
+    })
     .where(eq(therapistRadar.userId, actor.userId));
 }
 

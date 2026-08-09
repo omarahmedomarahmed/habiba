@@ -730,8 +730,35 @@ export const therapistRadar = pgTable(
     photoUrl: text("photo_url"),
     languages: jsonb("languages").$type<string[]>().default([]).notNull(),
     specialties: jsonb("specialties").$type<string[]>().default([]).notNull(),
-    /** ISO-3166 alpha-2. Country granularity only — never a precise location. */
+    /** ISO-3166 alpha-2. Where they practise, and how the map places them. */
     country: text("country"),
+    /**
+     * State, province, governorate — whatever the country calls its first-level
+     * division. Free text, taken from the geocoder rather than a picker,
+     * because a hand-maintained region list for ninety countries is a promise
+     * nobody keeps. It is used to group and filter, never to route anything.
+     */
+    region: text("region"),
+    city: text("city"),
+
+    /**
+     * A physical practice, and whether people may turn up to it.
+     *
+     * Off by default and separate from `status`: a clinician being available
+     * online this minute says nothing about whether their door is open, and
+     * conflating the two would send someone in distress to a locked building.
+     *
+     * The address is public the moment `acceptsWalkIns` is on — that is the
+     * whole point of it — so it is a business address by definition. The
+     * consent copy on the form says so in those words.
+     */
+    practiceName: text("practice_name"),
+    practiceAddress: text("practice_address"),
+    /** Confirmed by the clinician against a map, not trusted from a geocoder. */
+    practiceLat: text("practice_lat"),
+    practiceLon: text("practice_lon"),
+    practiceConfirmedAt: timestamp("practice_confirmed_at", { withTimezone: true }),
+    acceptsWalkIns: boolean("accepts_walk_ins").notNull().default(false),
 
     /**
      * The claim. Both are set and cleared together, by one statement.
@@ -776,6 +803,7 @@ export const therapistRadar = pgTable(
   (t) => [
     uniqueIndex("therapist_radar_user_unique").on(t.userId),
     index("therapist_radar_status_idx").on(t.status, t.lastSeenAt),
+    index("therapist_radar_place_idx").on(t.country, t.region),
   ],
 );
 

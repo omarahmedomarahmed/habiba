@@ -348,3 +348,46 @@ export async function sendRecordExport(opts: {
 
   return send({ to: opts.to, subject: "Your 24Therapy record", html });
 }
+
+/**
+ * A walk-in address, sent to whoever asked for it on the radar.
+ *
+ * Nothing in here is supplied by the person who asked — only the destination
+ * address is, and it is validated before we get here. That is what keeps an
+ * anonymous, unauthenticated send from being a way to mail arbitrary text
+ * through our domain.
+ */
+export async function sendWalkInDirections(opts: {
+  to: string;
+  therapistName: string;
+  practiceName: string | null;
+  address: string;
+  mapsUrl: string;
+}): Promise<boolean> {
+  const html = layout(
+    "Directions",
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(opts.therapistName)}</p>
+     <p style="margin:0 0 16px;color:#64748b;font-size:14px;">You asked for the address on 24Therapy.</p>
+     <table role="presentation" width="100%" style="margin:0 0 18px;border-collapse:collapse;background:#f0fdfa;border-radius:12px;">
+       <tr><td style="padding:14px 16px;">
+         ${opts.practiceName ? `<p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#0f766e;">${esc(opts.practiceName)}</p>` : ""}
+         <p style="margin:0;font-size:15px;line-height:1.6;color:#134e4a;">${esc(opts.address)}</p>
+       </td></tr>
+     </table>
+     ${
+       opts.mapsUrl
+         ? `<a href="${esc(opts.mapsUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open directions</a>`
+         : ""
+     }
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
+       Turning up is not an appointment — this clinician accepts walk-ins, but they may
+       be with someone. Booking a session on the radar is the only way to be certain.
+     </p>
+     <p style="margin:10px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
+       If you are in immediate danger, call your local emergency number.
+     </p>`,
+    "You asked for this address on 24Therapy's Crisis Radar.<br>We did not store your email and you are not signed up to anything.",
+  );
+
+  return send({ to: opts.to, subject: `Directions to ${opts.therapistName}`, html });
+}

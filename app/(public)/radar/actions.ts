@@ -29,6 +29,7 @@ import {
   subjectKey,
   takeHold,
 } from "@/lib/rate-limit";
+import { fullName } from "@/lib/utils";
 import { createPrivateRoom } from "@/lib/video";
 
 /**
@@ -288,4 +289,52 @@ export async function bookFromRadar(
     });
     return { error: "Could not complete the booking. Please try again." };
   }
+}
+
+/**
+ * Email a walk-in address to whoever asked for it.
+ *
+ * Anonymous and unauthenticated, which makes it a free mail sender if it is
+ * not held down. Three things hold it down: the address is one a clinician
+ * chose to publish, the body is fixed and carries no attacker-supplied text,
+ * and the caller's network is rate limited hard. What is left is "a stranger
+ * can send a public address to an email they typed", which is a leaflet.
+ */
+export async function emailDirections(
+  therapistUserId: string,
+  email: string,
+): Promise<{ error?: string; ok?: boolean }> {
+  const address = email.trim().toLowerCase();
+  if (!address || address.length > 200 || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(address)) {
+    return { error: "That does not look like an email address." };
+  }
+
+  const attempt = await consume(await callerKey("directions"), 5, 600);
+  if (!attempt.allowed) {
+    return { error: "Too many of these from your connection. Use the directions link instead." };
+  }
+
+  const entry = (await listRadar()).find((row) => row.userId === therapistUserId);
+  if (!entry?.practice) {
+    return { error: "That clinician is not offering walk-in visits." };
+  }
+
+  const { sendWalkInDirections } = await import("@/lib/mail");
+  const { directionsUrl } = await import("@/lib/geocode");
+
+  const sent = await sendWalkInDirections({
+    to: address,
+    therapistName: fullName(entry.firstName, entry.lastName),
+    practiceName: entry.practice.name,
+    address: entry.practice.address,
+    mapsUrl:
+      directionsUrl({
+        lat: entry.practice.lat,
+        lon: entry.practice.lon,
+        address: entry.practice.address,
+      }) ?? "",
+  });
+
+  if (!sent) return { error: "Could not send that just now. Use the directions link instead." };
+  return { ok: true };
 }

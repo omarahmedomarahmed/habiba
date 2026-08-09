@@ -133,3 +133,100 @@ export async function saveAlertPreferences(input: {
   revalidatePath("/on-call");
   return { ok: true };
 }
+
+/* -------------------------------------------------------------- practice -- */
+
+export type GeocodeResult = {
+  error?: string;
+  hits?: {
+    lat: string;
+    lon: string;
+    displayName: string;
+    country: string | null;
+    region: string | null;
+    city: string | null;
+  }[];
+};
+
+/**
+ * Look up an address so the clinician can confirm the pin.
+ *
+ * Rate limited per clinician, not per network. This calls a free public service
+ * that asks politely to be used sparingly, and one clinician typing into a
+ * search box should not be able to spend the whole platform's goodwill.
+ */
+export async function findPracticeLocation(query: string): Promise<GeocodeResult> {
+  const actor = await requireUser();
+
+  const { consume, subjectKey } = await import("@/lib/rate-limit");
+  const allowed = await consume(subjectKey("geocode", actor.userId), 30, 300);
+  if (!allowed.allowed) {
+    return { error: "Too many lookups. Wait a minute, or paste coordinates instead." };
+  }
+
+  const { geocode, parseCoordinates } = await import("@/lib/geocode");
+
+  // Coordinates pasted straight out of a maps app skip the lookup entirely.
+  const pasted = parseCoordinates(query);
+  if (pasted) {
+    return {
+      hits: [
+        {
+          ...pasted,
+          displayName: `${pasted.lat}, ${pasted.lon} — the exact point you pasted`,
+          country: null,
+          region: null,
+          city: null,
+        },
+      ],
+    };
+  }
+
+  const hits = await geocode(query);
+  if (hits.length === 0) {
+    return {
+      error:
+        "Nothing found for that. Try a simpler version — building, street, city — or paste coordinates from your maps app.",
+    };
+  }
+  return { hits };
+}
+
+export async function savePractice(input: {
+  practiceName: string;
+  address: string;
+  lat: string;
+  lon: string;
+  country: string;
+  region: string;
+  city: string;
+  acceptsWalkIns: boolean;
+}): Promise<RadarState> {
+  const actor = await requireUser();
+
+  const address = input.address.trim().slice(0, 300);
+  const { parseCoordinates } = await import("@/lib/geocode");
+  const point = parseCoordinates(`${input.lat}, ${input.lon}`);
+
+  if (address && !point) {
+    return { error: "Pick a location from the search results before saving." };
+  }
+
+  const { savePracticeLocation } = await import("@/lib/data/radar");
+  await savePracticeLocation(actor, {
+    practiceName: input.practiceName.trim().slice(0, 120) || null,
+    practiceAddress: address || null,
+    practiceLat: point?.lat ?? null,
+    practiceLon: point?.lon ?? null,
+    country: input.country.trim().slice(0, 2).toUpperCase() || null,
+    region: input.region.trim().slice(0, 120) || null,
+    city: input.city.trim().slice(0, 120) || null,
+    acceptsWalkIns: input.acceptsWalkIns,
+    // Reaching this action at all means they saw the pin and pressed save.
+    confirmed: Boolean(address && point),
+  });
+
+  revalidatePath("/on-call");
+  revalidatePath("/radar");
+  return { ok: true };
+}
