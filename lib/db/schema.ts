@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * 24Therapy schema — 19 tables.
+ * 24Therapy schema — 20 tables.
  *
  * Deliberate invariants (each one is a bug that was paid for once already):
  *  - `sessions.patient_id` is NULLABLE. A session created from a join link has
@@ -485,6 +485,66 @@ export const copilotMessages = pgTable(
   (t) => [index("copilot_messages_thread_idx").on(t.threadId, t.createdAt)],
 );
 
+// ------------------------------------------------------------------- radar ---
+
+export const RADAR_STATUSES = ["offline", "online", "pending", "in_session"] as const;
+export type RadarStatus = (typeof RADAR_STATUSES)[number];
+
+/**
+ * Crisis Radar: which clinicians are available *right now*.
+ *
+ * The whole feature turns on one invariant — two patients must never book the
+ * same therapist. That is enforced by a single conditional UPDATE against
+ * `status` (see `claimTherapist`), not by reading the row and then writing it.
+ * A read-then-write here is a double-booking under any real concurrency, and a
+ * double-booked crisis slot is the worst failure this product could have.
+ *
+ * `pendingUntil` makes the claim self-healing: a patient who closes the Stripe
+ * tab and never comes back releases the clinician automatically, because an
+ * expired pending is treated as claimable by the same UPDATE that claims it.
+ */
+export const therapistRadar = pgTable(
+  "therapist_radar",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    status: text("status").$type<RadarStatus>().notNull().default("offline"),
+
+    /** Public profile. Nothing here is PHI — it is the clinician's own shopfront. */
+    headline: text("headline"),
+    photoUrl: text("photo_url"),
+    languages: jsonb("languages").$type<string[]>().default([]).notNull(),
+    specialties: jsonb("specialties").$type<string[]>().default([]).notNull(),
+    /** ISO-3166 alpha-2. Country granularity only — never a precise location. */
+    country: text("country"),
+
+    /** The claim. Both are set and cleared together, by one statement. */
+    pendingSessionId: uuid("pending_session_id").references(() => sessions.id, {
+      onDelete: "set null",
+    }),
+    pendingUntil: timestamp("pending_until", { withTimezone: true }),
+
+    /**
+     * Heartbeat. A closed laptop must not leave someone advertised as available
+     * to a person in crisis, so "online" expires rather than persisting.
+     */
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("therapist_radar_user_unique").on(t.userId),
+    index("therapist_radar_status_idx").on(t.status, t.lastSeenAt),
+  ],
+);
+
 // ------------------------------------------------------------------- usage ---
 
 /** Metadata only. Never store prompts or completions — they are transcripts. */
@@ -752,7 +812,7 @@ export type ContentBlock =
       body?: string;
       ctaLabel?: string;
       ctaHref?: string;
-      demo?: "session-room" | "note" | "none";
+      demo?: "session-room" | "radar" | "note" | "none";
       icon?: ContentIcon;
       /** Absolute https:// image URL, or empty for the default gradient. */
       backgroundImage?: string;
@@ -823,3 +883,4 @@ export type CopilotThread = typeof copilotThreads.$inferSelect;
 export type CopilotMessage = typeof copilotMessages.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type SessionPayment = typeof sessionPayments.$inferSelect;
+export type TherapistRadar = typeof therapistRadar.$inferSelect;

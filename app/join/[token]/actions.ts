@@ -90,16 +90,28 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
 }
 
 /**
- * Re-enter after paying.
+ * Walk in without filling the form again.
  *
- * The redirect back from Stripe is a fresh page load, so the client has lost
- * everything it knew. The name was stored on the session before the patient
- * left, which is why this needs no input beyond the token they already hold.
+ * Two arrivals land here: back from Stripe after paying, and straight off the
+ * Crisis Radar for a clinician who charges nothing. Both already gave a name,
+ * and both are a fresh page load with no client state, so the name is read back
+ * off the session.
+ *
+ * `joinByToken` is called here and not only from `submitJoin`, which is the fix
+ * for a real hole: a radar booking that went through Stripe never touched the
+ * form, so the patient record was never created — leaving the session with a
+ * null `patient_id`, the note unattached and no copilot thread. It is
+ * idempotent, so calling it on a second page load changes nothing.
  */
 export async function resumeAfterPayment(token: string): Promise<JoinState> {
   const session = await resolveJoinToken(token);
   if (!session) return { error: "This link is no longer valid." };
-  return admit(token, session.guestName ?? "Patient");
+
+  const name = session.guestName?.trim();
+  if (!name) return {};
+
+  await joinByToken(token, name);
+  return admit(token, name);
 }
 
 /** Polled by the waiting room until the clinician starts. */

@@ -109,6 +109,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         ],
       },
       {
+        // The radar is the one part of the product a patient uses directly, so
+        // it gets its own hero rather than a bullet. The component is live: the
+        // dots are clinicians who are genuinely online as the page is read.
+        type: "hero",
+        eyebrow: "Crisis Radar",
+        heading: "Fill a free half hour. Get paid for it.",
+        body: "Go on the radar between appointments and anyone who needs a session right now can see you, pay you and be in the room in under a minute. The money goes to your own Stripe account; we take 10% and nothing else.",
+        ctaLabel: "See who is online",
+        ctaHref: "/radar",
+        demo: "radar",
+        icon: "heart",
+      },
+      {
         type: "cta",
         heading: "Your first session is free",
         body: "No card, no onboarding wizard. Sign up and start a session in under a minute.",
@@ -219,7 +232,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
   {
     slug: "pricing",
     title: "Pricing",
-    description: "Pay $6 a session or $99 a month. Your first session is free.",
+    description:
+      "$6 a session — including 10 copilot questions per patient every month — or $99 a month for everything. Your first session is free.",
     layout: "marketing",
     navLabel: "Pricing",
     navOrder: 2,
@@ -228,7 +242,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "Pricing",
         heading: "Two plans. No seats, no setup fee.",
-        body: "Start metered and switch to flat when it is cheaper. Your first completed session is free either way.",
+        body: "$6 buys the session and ten copilot questions about that patient every month — not the session alone. Switch to flat when it is cheaper. Your first completed session is free either way.",
         ctaLabel: "Start free",
         ctaHref: "/signup",
         demo: "none",
@@ -244,8 +258,20 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             a: "When a session is marked complete. Your first one is free, and the invoice appears on your billing page immediately. You can pay several at once with a single link.",
           },
           {
+            q: "What does the $6 actually include?",
+            a: "The full session — live transcription, the SOAP note, the patient report and crisis alerts — plus ten copilot questions about that patient, resetting every calendar month. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not. On Unlimited there is no cap.",
+          },
+          {
             q: "What if a session was a mistake?",
             a: "Cancel it instead of completing it and nothing is charged.",
+          },
+          {
+            q: "What do you take when a patient pays me?",
+            a: "10% of the session price, and nothing else. The money is a direct charge into your own Stripe account — we never hold it — and Stripe handles the payout to your bank. You see exactly what you keep before you set a price.",
+          },
+          {
+            q: "Can I pay my 24Therapy bill out of my earnings?",
+            a: "Yes. If you take payments from patients, anything you owe us can be settled out of the next one instead of a card. It is never more than what you would have received from that session, and you can turn it off.",
           },
           {
             q: "Can I cancel Unlimited?",

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, ChevronRight, FileText, Plus } from "lucide-react";
+import { AlertTriangle, ChevronRight, FileText, Plus, Radio } from "lucide-react";
 
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { billingSummary } from "@/lib/billing/service";
+import { getRadarProfile } from "@/lib/data/radar";
 import { countOpenDrafts, listSessions } from "@/lib/data/sessions";
 import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const actor = await requireUser();
 
-  const [sessions, drafts, billing, alerts] = await Promise.all([
+  const [sessions, drafts, billing, alerts, radar] = await Promise.all([
     listSessions(actor, { limit: 5 }),
     countOpenDrafts(actor),
     billingSummary(actor.organizationId),
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
       .where(and(eq(notifications.userId, actor.userId), isNull(notifications.readAt)))
       .orderBy(desc(notifications.createdAt))
       .limit(3),
+    getRadarProfile(actor.userId),
   ]);
 
   const crisisAlerts = alerts.filter((a) => a.kind === "crisis");
@@ -57,6 +59,51 @@ export default async function DashboardPage() {
             </span>
             <ChevronRight className="h-4 w-4 text-white/60" aria-hidden />
           </div>
+        </Link>
+
+        {/*
+          The radar lives on the home screen rather than in the tab bar. It is
+          something a clinician turns on when they happen to have a free half
+          hour, which is a decision made from here, not a place they navigate to.
+        */}
+        <Link href="/on-call" className="block">
+          <Card
+            className={
+              radar?.status && radar.status !== "offline"
+                ? "flex items-center gap-3 border-teal-300 bg-teal-50/50 p-4 active:bg-teal-50"
+                : "flex items-center gap-3 p-4 active:bg-slate-50"
+            }
+          >
+            <span
+              className={
+                radar?.status && radar.status !== "offline"
+                  ? "flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500 text-white"
+                  : "flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400"
+              }
+            >
+              <Radio
+                className={radar?.status && radar.status !== "offline" ? "live-dot h-4 w-4" : "h-4 w-4"}
+                aria-hidden
+              />
+            </span>
+            <span className="flex-1">
+              <span className="block text-sm font-semibold text-slate-900">
+                {radar?.status === "online"
+                  ? "You are on the Crisis Radar"
+                  : radar?.status === "pending"
+                    ? "Someone is booking you"
+                    : radar?.status === "in_session"
+                      ? "You are in a radar session"
+                      : "Crisis Radar"}
+              </span>
+              <span className="block text-xs text-slate-500">
+                {radar?.status && radar.status !== "offline"
+                  ? "Patients can start a session with you right now"
+                  : "Go online and get paid for a free half hour"}
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden />
+          </Card>
         </Link>
 
         {crisisAlerts.length > 0 ? (

@@ -164,6 +164,43 @@ export async function createSession(
 }
 
 /**
+ * A session created by a patient off the radar, with no authenticated actor.
+ *
+ * Kept separate from `createSession` because there is no `Actor` here to scope
+ * anything by — the org and therapist come from the radar row, which is the
+ * only reason this is safe. Deliberately does not create a patient record: that
+ * happens when they type their name on the join page, exactly as it does for a
+ * link the therapist sent, so there is one code path that turns a stranger into
+ * a chart.
+ */
+export async function createRadarSession(input: {
+  organizationId: string;
+  therapistId: string;
+  guestName: string;
+  guestEmail: string | null;
+  priceCents: number;
+}) {
+  const [created] = await db
+    .insert(sessions)
+    .values({
+      organizationId: input.organizationId,
+      therapistId: input.therapistId,
+      guestName: input.guestName.trim().slice(0, 80),
+      guestEmail: input.guestEmail?.trim().toLowerCase() || null,
+      modality: "video",
+      status: "scheduled",
+      joinToken: randomBytes(24).toString("base64url"),
+      // Short: this is a session starting now, not an invitation for later.
+      joinTokenExpiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
+      priceCents: input.priceCents,
+      paymentStatus: input.priceCents > 0 ? "pending" : "not_required",
+    })
+    .returning();
+
+  return created!;
+}
+
+/**
  * Status transitions. `waiting` from the old model is gone — a session is
  * scheduled until someone presses Start.
  *

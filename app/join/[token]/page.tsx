@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { JoinFlow } from "@/components/join/join-flow";
 import { confirmCheckout } from "@/lib/billing/stripe";
+import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
 
 export const metadata: Metadata = {
@@ -16,10 +17,10 @@ export default async function JoinPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ checkout?: string }>;
+  searchParams: Promise<{ checkout?: string; booked?: string }>;
 }) {
   const { token } = await params;
-  const { checkout } = await searchParams;
+  const { checkout, booked } = await searchParams;
 
   // Settle on the redirect as well as by webhook. Stripe cannot reach a preview
   // deployment, and a patient who has just paid must not be told to pay again.
@@ -28,6 +29,14 @@ export default async function JoinPage({
   }
 
   const session = await resolveJoinToken(token);
+
+  // Abandoning the checkout puts a radar clinician straight back on the board
+  // rather than holding them for the full claim window. The patient can still
+  // try again from this page; if someone else has taken the slot by then, the
+  // claim they lose is one they had already walked away from.
+  if (checkout === "cancelled" && session) {
+    await releaseClaim(session.id);
+  }
 
   if (!session) {
     return (
@@ -48,10 +57,14 @@ export default async function JoinPage({
         modality={session.modality}
         priceCents={session.priceCents}
         paymentStatus={session.paymentStatus}
-        // Only resume automatically when the patient has both paid and already
-        // given a name — otherwise they get the form, as normal.
+        // Skip the form only for someone who has already been through it —
+        // arriving back from Stripe, or straight off the radar. Anyone opening
+        // a bare link still types their name, and a priced session that has not
+        // settled still gets the paywall.
         resumeAfterPayment={
-          session.paymentStatus === "paid" && Boolean(session.guestName) && Boolean(checkout)
+          Boolean(session.guestName) &&
+          (session.priceCents === 0 || session.paymentStatus === "paid") &&
+          (Boolean(checkout) || booked === "1")
         }
         cancelled={checkout === "cancelled"}
       />

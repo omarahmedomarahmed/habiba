@@ -211,6 +211,25 @@ export function PageEditor({
             </Field>
           ) : null}
 
+          {block.type === "hero" ? (
+            <Field
+              label="Live component"
+              htmlFor={`demo-${index}`}
+              hint="Renders a real part of the product beside the copy. It runs on demo data and cannot reach a patient record."
+            >
+              <select
+                id={`demo-${index}`}
+                className={SELECT_CLASS}
+                value={block.demo ?? "none"}
+                onChange={(e) => patchBlock(index, { demo: e.target.value })}
+              >
+                <option value="none">Nothing</option>
+                <option value="session-room">Live session room</option>
+                <option value="radar">Crisis Radar</option>
+              </select>
+            </Field>
+          ) : null}
+
           {"ctaLabel" in block ? (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Button label" htmlFor={`cta-${index}`}>

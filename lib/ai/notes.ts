@@ -2,6 +2,7 @@ import "server-only";
 
 import { asc, eq } from "drizzle-orm";
 
+import { recordSessionNote } from "@/lib/data/copilot";
 import { db } from "@/lib/db";
 import {
   patients,
@@ -253,6 +254,18 @@ export async function generateAndStoreNote(opts: {
       .update(sessions)
       .set({ noteStatus: "ready", updatedAt: new Date() })
       .where(eq(sessions.id, opts.sessionId));
+
+    // Open (or extend) this patient's copilot thread. A session that produced a
+    // note but no thread would be invisible in the copilot inbox — which is how
+    // a Crisis Radar patient, seen once by a clinician who never created them
+    // by hand, would quietly have no conversation at all.
+    await recordSessionNote({
+      organizationId: opts.organizationId,
+      therapistId: opts.therapistId,
+      patientId: opts.patientId,
+      sessionId: opts.sessionId,
+      summary: content.summary,
+    });
 
     log.info("note generated", { session: ref(opts.sessionId) });
   } catch (error) {

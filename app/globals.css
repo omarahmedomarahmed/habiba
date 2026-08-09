@@ -177,4 +177,36 @@
   .animate-fade-rise {
     animation: fade-rise 0.28s ease-out both;
   }
+
+  /* Crisis Radar. The global reduced-motion rule above already stops both. */
+  @keyframes radar-rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .radar-sweep {
+    animation: radar-rotate 6s linear infinite;
+  }
+
+  @keyframes radar-ping {
+    0% {
+      opacity: 0.55;
+      transform: scale(0.4);
+    }
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(1.35);
+    }
+  }
+
+  .radar-ping {
+    animation: radar-ping 2.4s ease-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
 }

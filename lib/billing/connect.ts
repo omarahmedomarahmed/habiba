@@ -484,6 +484,12 @@ export async function settleSessionPayment(checkout: {
       .update(sessions)
       .set({ paymentStatus: "paid", updatedAt: new Date() })
       .where(eq(sessions.id, row.sessionId));
+
+    // A radar booking becomes real at the moment the money clears, not at the
+    // moment someone pressed Book. Imported lazily to keep the billing layer
+    // from depending on the radar at module scope.
+    const { markInSession } = await import("@/lib/data/radar");
+    await markInSession(row.sessionId);
   }
 }
 

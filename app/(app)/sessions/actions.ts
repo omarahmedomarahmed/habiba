@@ -10,6 +10,7 @@ import { audit, auditPhi } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/guard";
 import { getConnectAccount, priceProblem } from "@/lib/billing/connect";
 import { chargeForSession } from "@/lib/billing/service";
+import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
   completeSession,
@@ -155,6 +156,11 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
     // session that is already documented and closed.
     if (roomName) await deleteRoom(roomName);
 
+    // Back on the radar, if this session came from one. Doing it here rather
+    // than on a timer means the clinician is bookable again the instant they
+    // are actually free.
+    await releaseClaim(sessionId);
+
     await chargeForSession({ organizationId, sessionId });
     await generateAndStoreNote({ sessionId, organizationId, therapistId, patientId });
   });
@@ -167,6 +173,7 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
 export async function abandonSession(sessionId: string): Promise<void> {
   const actor = await requireUser();
   await cancelSession(actor, sessionId);
+  await releaseClaim(sessionId);
   revalidatePath("/sessions");
   redirect("/sessions");
 }

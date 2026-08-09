@@ -4,6 +4,7 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
+import { PAYG_COPILOT_MESSAGES } from "@/lib/billing/plans";
 import { getSubscription } from "@/lib/billing/service";
 import { db } from "@/lib/db";
 import {
@@ -14,8 +15,15 @@ import {
   type Citation,
 } from "@/lib/db/schema";
 
-/** PAYG gets a taste of the copilot; Unlimited gets all of it. */
-export const PAYG_MESSAGES_PER_PATIENT_PER_MONTH = 10;
+/**
+ * PAYG gets a taste of the copilot; Unlimited gets all of it.
+ *
+ * The number itself lives in the plan matrix, because it is advertised on the
+ * pricing page as part of what $6 buys. Two constants would mean the page and
+ * the enforcement could disagree, and the one that loses that argument is the
+ * customer.
+ */
+export const PAYG_MESSAGES_PER_PATIENT_PER_MONTH = PAYG_COPILOT_MESSAGES;
 
 function scope(actor: Actor) {
   return actor.role === "super_admin"
@@ -222,25 +230,7 @@ export async function recordSessionSuggestions(input: {
 }): Promise<void> {
   if (!input.patientId || input.suggestions.length === 0) return;
 
-  const [thread] = await db
-    .select({ id: copilotThreads.id })
-    .from(copilotThreads)
-    .where(eq(copilotThreads.patientId, input.patientId))
-    .limit(1);
-
-  let threadId = thread?.id;
-  if (!threadId) {
-    const [created] = await db
-      .insert(copilotThreads)
-      .values({
-        patientId: input.patientId,
-        organizationId: input.organizationId,
-        therapistId: input.therapistId,
-      })
-      .onConflictDoNothing({ target: copilotThreads.patientId })
-      .returning({ id: copilotThreads.id });
-    threadId = created?.id;
-  }
+  const threadId = await threadIdFor(input);
   if (!threadId) return;
 
   const content = input.suggestions.map((s) => `${s.kind}: ${s.text}`).join("\n");
@@ -250,6 +240,70 @@ export async function recordSessionSuggestions(input: {
     content,
     sessionId: input.sessionId,
   });
+}
+
+/**
+ * Put the finished note into the patient's thread.
+ *
+ * Called at the end of note generation, which is what guarantees every
+ * documented session opens a copilot conversation — including a Crisis Radar
+ * booking, where nobody ever pressed "add patient". Without this the inbox
+ * inner-joins threads and a patient seen once, from the radar, would simply not
+ * be there.
+ */
+export async function recordSessionNote(input: {
+  organizationId: string;
+  therapistId: string;
+  patientId: string | null;
+  sessionId: string;
+  summary: string;
+}): Promise<void> {
+  if (!input.patientId) return;
+
+  const threadId = await threadIdFor(input);
+  if (!threadId) return;
+
+  const summary = input.summary.trim();
+  await appendMessage({
+    threadId,
+    role: "session_note",
+    content: summary || "Session completed. The note is on the session page.",
+    sessionId: input.sessionId,
+  });
+}
+
+async function threadIdFor(input: {
+  organizationId: string;
+  therapistId: string;
+  patientId: string | null;
+}): Promise<string | undefined> {
+  if (!input.patientId) return undefined;
+
+  const [thread] = await db
+    .select({ id: copilotThreads.id })
+    .from(copilotThreads)
+    .where(eq(copilotThreads.patientId, input.patientId))
+    .limit(1);
+  if (thread) return thread.id;
+
+  const [created] = await db
+    .insert(copilotThreads)
+    .values({
+      patientId: input.patientId,
+      organizationId: input.organizationId,
+      therapistId: input.therapistId,
+    })
+    .onConflictDoNothing({ target: copilotThreads.patientId })
+    .returning({ id: copilotThreads.id });
+  if (created) return created.id;
+
+  // Lost the insert race — read the row the winner created.
+  const [existing] = await db
+    .select({ id: copilotThreads.id })
+    .from(copilotThreads)
+    .where(eq(copilotThreads.patientId, input.patientId))
+    .limit(1);
+  return existing?.id;
 }
 
 export async function auditThreadRead(actor: Actor, patientId: string, threadId: string) {

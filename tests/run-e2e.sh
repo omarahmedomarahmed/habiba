@@ -38,14 +38,34 @@ trap cleanup EXIT
 echo "→ building"
 npx next build >/tmp/e2e-build.log 2>&1 || { tail -30 /tmp/e2e-build.log; exit 1; }
 
+# A server left behind by an interrupted run silently steals the port: `next
+# start` exits with EADDRINUSE, the wait loop below succeeds against the *old*
+# build, and every assertion is then made about stale code. That cost an hour
+# once; it does not get to happen twice.
+if curl -sf -o /dev/null "$APP_URL/" 2>/dev/null; then
+  echo "→ killing a server left on :3100"
+  pkill -f "next-server" || true
+  sleep 2
+fi
+
 echo "→ starting app on :3100"
 npx next start -p 3100 >/tmp/e2e-server.log 2>&1 &
 APP_PID=$!
 
 for _ in $(seq 1 60); do
-  if curl -sf -o /dev/null "$APP_URL/"; then break; fi
+  if kill -0 "$APP_PID" 2>/dev/null; then
+    if curl -sf -o /dev/null "$APP_URL/"; then break; fi
+  else
+    echo "the app exited during startup:"
+    tail -20 /tmp/e2e-server.log
+    exit 1
+  fi
   sleep 1
 done
+
+# `next start` forks, so the pid above can be alive while the listener is not
+# ours. Confirm the build under test is the one answering.
+curl -sf -o /dev/null "$APP_URL/" || { echo "the app never came up"; tail -20 /tmp/e2e-server.log; exit 1; }
 
 echo "→ running browser tests"
 node --import tsx --conditions=react-server --test-concurrency=1 --test tests/e2e.test.ts

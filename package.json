@@ -17,6 +17,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:setup": "tsx scripts/migrate.ts && tsx scripts/seed.ts",
     "test": "node --import tsx --conditions=react-server --test tests/safety.test.ts",
+    "test:db": "node --import tsx --conditions=react-server --test tests/radar.test.ts",
     "test:e2e": "bash tests/run-e2e.sh"
   },
   "dependencies": {

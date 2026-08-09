@@ -4,6 +4,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { ComponentShowcase } from "@/components/demo/component-showcase";
 import { SessionDemo } from "@/components/demo/session-demo";
 import { ContentIconMark } from "@/components/public/icons";
+import { RadarHero } from "@/components/radar/radar-hero";
 import { Button } from "@/components/ui";
 import { PLANS, formatUsd } from "@/lib/billing/plans";
 import { safeImageUrl } from "@/lib/content/url";
@@ -48,7 +49,6 @@ function Block({ block, first }: { block: ContentBlock; first: boolean }) {
 }
 
 function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>; first: boolean }) {
-  const showDemo = block.demo === "session-room";
   const image = safeImageUrl(block.backgroundImage);
 
   return (
@@ -124,7 +124,8 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
           ) : null}
         </div>
 
-        {showDemo ? <SessionDemo /> : null}
+        {block.demo === "session-room" ? <SessionDemo /> : null}
+        {block.demo === "radar" ? <RadarHero /> : null}
       </div>
     </section>
   );
@@ -295,6 +296,20 @@ function PricingCards() {
               </span>
             </p>
             <p className="mt-2 text-sm text-slate-600">{plan.tagline}</p>
+
+            {/*
+              What the per-session price actually includes, stated at the price
+              rather than eleven bullets below it. A therapist comparing $6 with
+              a competitor's $6 is comparing the wrong thing if the copilot
+              allowance is invisible here.
+            */}
+            {plan.copilotMessagesPerPatient !== null ? (
+              <p className="mt-3 rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-900">
+                The session <span className="font-semibold">and</span>{" "}
+                {plan.copilotMessagesPerPatient} copilot questions about that patient, every month —
+                each answer citing the session and timestamp it came from.
+              </p>
+            ) : null}
 
             <ul className="mt-6 flex-1 space-y-2.5">
               {plan.features.map((feature) => (

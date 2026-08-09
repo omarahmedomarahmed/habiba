@@ -24,9 +24,27 @@ export default async function PublicLayout({ children }: { children: React.React
                 {item.label}
               </Link>
             ))}
+            {/*
+              Hard-coded rather than a CMS page, because it is a live route and
+              because it is the one link on this header a person in crisis might
+              be looking for. It should not be possible to unpublish it by
+              accident from the content editor.
+            */}
+            <Link
+              href="/radar"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50"
+            >
+              <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" aria-hidden />
+              Talk now
+            </Link>
           </nav>
 
           <div className="flex items-center gap-2">
+            <Link href="/radar" className="sm:hidden">
+              <Button variant="ghost" size="sm" className="text-teal-700">
+                Talk now
+              </Button>
+            </Link>
             <Link href="/login" className="hidden sm:block">
               <Button variant="ghost" size="sm">
                 Sign in

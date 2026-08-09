@@ -19,8 +19,19 @@ export type Plan = {
   monthlyCents: number | null;
   /** First completed session is free, once per organization. */
   firstSessionFree: boolean;
+  /** Copilot messages per patient per calendar month, or null for uncapped. */
+  copilotMessagesPerPatient: number | null;
   features: string[];
 };
+
+/**
+ * Copilot allowance on the metered plan.
+ *
+ * Defined here rather than in the copilot code because it is a *price*, and a
+ * price that lives next to the feature that enforces it drifts from the price
+ * on the marketing page. `lib/data/copilot.ts` reads this value.
+ */
+export const PAYG_COPILOT_MESSAGES = 10;
 
 export const PLANS: Record<PlanKey, Plan> = {
   payg: {
@@ -30,12 +41,18 @@ export const PLANS: Record<PlanKey, Plan> = {
     perSessionCents: 600,
     monthlyCents: null,
     firstSessionFree: true,
+    copilotMessagesPerPatient: PAYG_COPILOT_MESSAGES,
     features: [
       "Live transcription",
       "SOAP note in under a minute",
+      // The copilot allowance is part of what $6 buys, so it belongs in the
+      // price, not in a footnote a therapist discovers when they hit the cap.
+      `${PAYG_COPILOT_MESSAGES} copilot questions per patient, every month`,
+      "Every answer cites the session and timestamp it came from",
       "Patient report by email",
       "Video or in-person sessions",
       "Crisis-language alerts",
+      "Get paid by patients — Crisis Radar and paid session links",
       "HIPAA BAA included",
     ],
   },
@@ -46,9 +63,11 @@ export const PLANS: Record<PlanKey, Plan> = {
     perSessionCents: null,
     monthlyCents: 9900,
     firstSessionFree: false,
+    copilotMessagesPerPatient: null,
     features: [
       "Everything in Pay as you go",
       "Unlimited sessions",
+      "Unlimited copilot questions on every patient",
       "No per-session billing to track",
       "Priority transcription queue",
       "HIPAA BAA included",

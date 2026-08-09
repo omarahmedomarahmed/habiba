@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { CalendarDays, FileText, Home, MessageSquare, Plus, Settings, Users } from "lucide-react";
+import {
+  CalendarDays,
+  FileText,
+  Home,
+  MessageSquare,
+  Plus,
+  Radio,
+  Settings,
+  Users,
+} from "lucide-react";
 
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { requireUser } from "@/lib/auth/guard";
@@ -49,6 +58,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </SidebarLink>
           <SidebarLink href="/copilot" icon={MessageSquare}>
             Copilot
+          </SidebarLink>
+          <SidebarLink href="/on-call" icon={Radio}>
+            Crisis Radar
           </SidebarLink>
           <SidebarLink href="/settings" icon={Settings}>
             Settings

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { chromium, type Browser, type Page } from "playwright";
 
+import { connect } from "../scripts/db";
 import { startMockOpenAi, type MockState } from "./mock-openai";
 
 /**
@@ -199,6 +200,69 @@ test("a patient can join by link with no account", async () => {
 });
 
 /**
+ * Crisis Radar, end to end, in a browser: a stranger with no account finds a
+ * clinician who is online and is in their waiting room a few seconds later.
+ *
+ * The clinician is put on the radar with a direct write because going online is
+ * a button in the authenticated console and this test is about the *patient*
+ * path. Everything after that is the real thing — the public page, the claim,
+ * the session, the join.
+ */
+test("a stranger can book a therapist off the public radar", async () => {
+  const { pool } = connect();
+
+  try {
+    const therapist = await pool.query<{ id: string; organization_id: string }>(
+      "SELECT id, organization_id FROM users WHERE email = $1",
+      [EMAIL],
+    );
+    const row = therapist.rows[0];
+    assert.ok(row, "the therapist signed up earlier in this run");
+
+    // Rate zero keeps Stripe out of it; the paid path is covered above.
+    await pool.query(
+      `INSERT INTO therapist_radar (user_id, organization_id, status, last_seen_at, languages, country)
+       VALUES ($1, $2, 'online', now(), '["English"]'::jsonb, 'GB')
+       ON CONFLICT (user_id) DO UPDATE
+         SET status = 'online', last_seen_at = now(), pending_session_id = NULL, pending_until = NULL`,
+      [row!.id, row!.organization_id],
+    );
+    await pool.query("UPDATE users SET session_rate_cents = 0 WHERE id = $1", [row!.id]);
+  } finally {
+    await pool.end();
+  }
+
+  const anonymous = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const patientPage = await anonymous.newPage();
+  await patientPage.goto(`${BASE_URL}/radar`, { waitUntil: "domcontentloaded" });
+
+  await patientPage.waitForSelector("text=available now", { timeout: 30_000 });
+  await patientPage.getByRole("button", { name: /Robin Ellis/ }).first().click();
+
+  await patientPage.waitForSelector("text=30 minutes, starting now");
+  await patientPage.fill("#radar-name", "Casey");
+  await patientPage.getByRole("button", { name: "Start now" }).click();
+
+  await patientPage.waitForURL(/\/join\//, { timeout: 30_000 });
+  await patientPage.waitForSelector("text=waiting room", { timeout: 30_000 });
+
+  await anonymous.close();
+
+  // Take the test clinician back off the radar. This suite runs against a real
+  // database, and the radar is a *public* page — leaving a fixture online would
+  // advertise a fake therapist to anyone who visited the site.
+  const cleanup = connect();
+  try {
+    await cleanup.pool.query(
+      "UPDATE therapist_radar SET status = 'offline', last_seen_at = NULL, pending_session_id = NULL WHERE user_id IN (SELECT id FROM users WHERE email = $1)",
+      [EMAIL],
+    );
+  } finally {
+    await cleanup.pool.end();
+  }
+});
+
+/**
  * The paywall is a server-side gate, not a disabled button.
  *
  * A priced session is put into the state it would be in after a therapist set a
@@ -217,7 +281,6 @@ test("a session with a price will not admit a patient who has not paid", async (
   const token = joinLink!.split("/join/")[1]!;
 
   // Price the session the way the therapist's own form would.
-  const { connect } = await import("../scripts/db");
   const { pool } = connect();
   try {
     const updated = await pool.query(

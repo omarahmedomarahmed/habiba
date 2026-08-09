@@ -4,6 +4,7 @@ import { lt } from "drizzle-orm";
 import { sweepUndeliveredAlerts } from "@/lib/ai/crisis";
 import { purgeExpiredSessions } from "@/lib/auth/session";
 import { reconcileMissingCharges } from "@/lib/billing/service";
+import { sweepRadar } from "@/lib/data/radar";
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Scheduled work. Three jobs, down from nine.
+ * Scheduled work. Four jobs, down from nine.
  *
  * Authenticated with a shared secret, because a cron endpoint that anyone can
  * hit is a free way to make the platform do work — and `retention` deletes
@@ -35,6 +36,19 @@ const JOBS = {
   async billing() {
     const reconciled = await reconcileMissingCharges();
     return { reconciled };
+  },
+
+  /**
+   * Radar housekeeping: release lapsed booking claims and drop clinicians whose
+   * heartbeat has stopped.
+   *
+   * Explicitly *not* the guard against double-booking — the claiming UPDATE
+   * already treats an expired claim as available, so correctness does not
+   * depend on this running. What it fixes is the public list advertising
+   * someone who closed their laptop twenty minutes ago.
+   */
+  async radar() {
+    return sweepRadar();
   },
 
   /**
