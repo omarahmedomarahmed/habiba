@@ -34,22 +34,25 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Default: no camera/microphone anywhere.
-        source: "/:path((?!sessions|join).*)",
+        source: "/:path*",
         headers: [
           ...baseHeaders,
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), payment=()",
-          },
-        ],
-      },
-      {
-        // The session room and the patient join page need mic + camera, and the
-        // Daily.co call runs in a cross-origin iframe, so `self` is not enough.
-        source: "/:path(sessions|join)/:rest*",
-        headers: [
-          ...baseHeaders,
+          /**
+           * ONE Permissions-Policy for the whole app, and it must permit the
+           * microphone.
+           *
+           * Permissions-Policy is applied to a *document* at load time. The
+           * session room is almost always reached by client-side navigation
+           * (dashboard → new session → room), so no new document is fetched and
+           * no new policy is applied — the room silently inherits whatever
+           * policy the first page was served with. A per-route rule that denies
+           * the microphone everywhere except `/sessions/*` therefore blocks
+           * `getUserMedia` in the room and records nothing at all, while
+           * looking completely correct in `curl -I`.
+           *
+           * This is still a real restriction: naming `self` and Daily means no
+           * other third-party iframe can reach the microphone or camera.
+           */
           {
             key: "Permissions-Policy",
             value:

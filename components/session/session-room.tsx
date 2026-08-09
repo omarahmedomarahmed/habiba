@@ -252,7 +252,7 @@ export function SessionRoom(props: RoomProps) {
         ) : null}
 
         {props.joinUrl && !patientJoined ? (
-          <div className="border-b border-white/10 bg-white/5 px-4 py-3">
+          <div className="border-b border-white/10 bg-white/5 px-4 py-3" data-join-url={props.joinUrl}>
             <p className="text-xs font-medium text-slate-300">Waiting for your patient</p>
             <div className="mt-2 flex gap-2">
               <button

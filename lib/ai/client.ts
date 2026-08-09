@@ -36,7 +36,14 @@ export function openai(): OpenAI {
   if (!env.openaiApiKey) {
     throw new AiUnavailableError("OPENAI_API_KEY is not configured");
   }
-  client ??= new OpenAI({ apiKey: env.openaiApiKey, maxRetries: 2, timeout: 120_000 });
+  client ??= new OpenAI({
+    apiKey: env.openaiApiKey,
+    // Lets the whole pipeline be pointed at a mock for end-to-end testing, or
+    // at an Azure/proxy endpoint later. Unset in normal operation.
+    ...(env.openaiBaseUrl ? { baseURL: env.openaiBaseUrl } : {}),
+    maxRetries: 2,
+    timeout: 120_000,
+  });
   return client;
 }
 

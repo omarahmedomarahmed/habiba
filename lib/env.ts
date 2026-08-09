@@ -139,6 +139,8 @@ export const env = {
   appUrl: (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, ""),
 
   openaiApiKey: process.env.OPENAI_API_KEY || "",
+  /** Override the OpenAI endpoint. Used for end-to-end testing against a mock. */
+  openaiBaseUrl: process.env.OPENAI_BASE_URL || "",
   dailyApiKey: process.env.DAILY_API_KEY || "",
 
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
