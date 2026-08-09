@@ -17,7 +17,9 @@ import {
   claimTherapist,
   listRadar,
   releaseClaim,
+  releaseReservation,
   markInSession,
+  reserveTherapist,
   sweepRadar,
 } from "../lib/data/radar";
 import { createRadarSession } from "../lib/data/sessions";
@@ -91,6 +93,7 @@ async function setStatus(patch: {
   status?: "offline" | "online" | "pending" | "in_session";
   pendingUntil?: Date | null;
   pendingSessionId?: string | null;
+  reservedBy?: string | null;
   lastSeenAt?: Date | null;
 }) {
   await db.update(therapistRadar).set(patch).where(eq(therapistRadar.userId, therapistId));
@@ -309,4 +312,107 @@ test("subject keys never contain the raw address", () => {
     subjectKey("radar:read", "203.0.113.42"),
     "the same address in a different scope is a different bucket",
   );
+});
+
+/* ------------------------------------------------------- viewing holds -- */
+
+/**
+ * The bug: opening a booking sheet marked the clinician `pending`, and the
+ * person *in that sheet* was then told "someone is booking them" and lost the
+ * form. A lock that excludes its own holder is not a lock, it is an outage.
+ */
+test("the holder of a reservation can still book; nobody else can", async () => {
+  await setStatus({
+    status: "online",
+    pendingSessionId: null,
+    pendingUntil: null,
+    reservedBy: null,
+    lastSeenAt: new Date(),
+  });
+
+  const me = `viewer-me-${stamp}`;
+  const someoneElse = `viewer-other-${stamp}`;
+
+  assert.equal(
+    await reserveTherapist({ therapistUserId: therapistId, viewer: me }),
+    true,
+    "opening the sheet holds the clinician",
+  );
+  assert.equal(
+    await reserveTherapist({ therapistUserId: therapistId, viewer: someoneElse }),
+    false,
+    "and holds them against everyone else",
+  );
+
+  // Renewing my own hold must keep working, or the sheet's heartbeat kills it.
+  assert.equal(await reserveTherapist({ therapistUserId: therapistId, viewer: me }), true);
+
+  const theirs = await newSession();
+  assert.equal(
+    await claimTherapist({
+      therapistUserId: therapistId,
+      sessionId: theirs,
+      viewer: someoneElse,
+    }),
+    false,
+    "someone else cannot book over my reservation",
+  );
+
+  const mine = await newSession();
+  assert.equal(
+    await claimTherapist({ therapistUserId: therapistId, sessionId: mine, viewer: me }),
+    true,
+    "I can book the clinician I am holding — this is the regression",
+  );
+
+  const state = await currentStatus();
+  assert.equal(state.pendingSessionId, mine);
+});
+
+test("a real booking cannot be displaced by a reservation", async () => {
+  // A claim is live from the test above.
+  assert.equal(
+    await reserveTherapist({ therapistUserId: therapistId, viewer: `late-${stamp}` }),
+    false,
+    "nobody may reserve over someone already at the checkout",
+  );
+});
+
+test("closing the sheet hands the clinician straight back", async () => {
+  await setStatus({
+    status: "online",
+    pendingSessionId: null,
+    pendingUntil: null,
+    reservedBy: null,
+    lastSeenAt: new Date(),
+  });
+
+  const me = `viewer-close-${stamp}`;
+  await reserveTherapist({ therapistUserId: therapistId, viewer: me });
+  assert.equal((await currentStatus()).status, "pending");
+
+  await releaseReservation({ therapistUserId: therapistId, viewer: me });
+  assert.equal((await currentStatus()).status, "online", "no waiting for the timer");
+});
+
+test("a reservation only tells its own holder that it is theirs", async () => {
+  await setStatus({
+    status: "online",
+    pendingSessionId: null,
+    pendingUntil: null,
+    reservedBy: null,
+    lastSeenAt: new Date(),
+  });
+
+  const me = `viewer-list-${stamp}`;
+  await reserveTherapist({ therapistUserId: therapistId, viewer: me });
+
+  const asMe = (await listRadar(me)).find((row) => row.userId === therapistId);
+  const asOther = (await listRadar(`other-${stamp}`)).find((row) => row.userId === therapistId);
+
+  assert.equal(asMe?.reservedByYou, true, "I see it as mine");
+  assert.equal(asOther?.status, "pending", "everyone else sees busy");
+  assert.equal(asOther?.reservedByYou, false);
+
+  await releaseReservation({ therapistUserId: therapistId, viewer: me });
 });

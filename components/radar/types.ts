@@ -17,4 +17,10 @@ export type RadarEntry = {
   country: string | null;
   rateCents: number;
   status: "online" | "pending" | "in_session";
+  /**
+   * True when the pending state is this visitor's own reservation — the
+   * difference between "someone is booking them" and "you are booking them".
+   * Getting this wrong locked patients out of bookings they had started.
+   */
+  reservedByYou: boolean;
 };

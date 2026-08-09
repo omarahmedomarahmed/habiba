@@ -33,7 +33,7 @@ const GLOBAL_READS_PER_MINUTE = 1000;
  * re-reads availability, throttles the caller and claims the slot in the
  * database, so a scraped user id buys nothing.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const verdict = await consume(await callerKey("radar:read"), READS_PER_MINUTE, 60);
   const ceiling = verdict.allowed ? await globalCeiling("radar:read", GLOBAL_READS_PER_MINUTE) : null;
 
@@ -45,7 +45,13 @@ export async function GET() {
     );
   }
 
-  const therapists = await listRadar();
+  /*
+   * The viewer id tells the list which pending clinician is pending *for this
+   * visitor*. It is a browser-generated tab id, not a credential — see
+   * `lib/viewer.ts`.
+   */
+  const viewer = new URL(request.url).searchParams.get("v");
+  const therapists = await listRadar(viewer);
 
   return NextResponse.json(
     { therapists },

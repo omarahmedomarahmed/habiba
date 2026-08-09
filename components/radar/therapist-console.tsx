@@ -3,9 +3,14 @@
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Radio } from "lucide-react";
+import { BellRing, Radio } from "lucide-react";
 
-import { saveRadarSetup, toggleRadar, type RadarState } from "@/app/(app)/on-call/actions";
+import {
+  saveAlertPreferences,
+  saveRadarSetup,
+  toggleRadar,
+  type RadarState,
+} from "@/app/(app)/on-call/actions";
 import { WorldRadar } from "@/components/radar/world-radar";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
@@ -28,6 +33,8 @@ export type ConsoleProps = {
   languageOptions: readonly string[];
   specialtyOptions: readonly string[];
   countryOptions: { code: string; name: string }[];
+  alertOnView: boolean;
+  alertOnBooking: boolean;
 };
 
 function Save() {
@@ -188,6 +195,12 @@ export function TherapistConsole(props: ConsoleProps) {
         </div>
       </div>
 
+      {/* ---------------------------------------------------------- alerts */}
+      <AlertSettings
+        initialOnView={props.alertOnView}
+        initialOnBooking={props.alertOnBooking}
+      />
+
       {/* --------------------------------------------------------- profile */}
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">Your radar profile</p>
@@ -296,5 +309,112 @@ function CheckGroup({
         ))}
       </div>
     </fieldset>
+  );
+}
+
+/**
+ * Which radar events make a noise.
+ *
+ * Two switches rather than one, because they are different events. Someone
+ * opening your profile is a heads-up that you have gone busy to everyone else;
+ * someone paying means a patient is walking into your room in the next thirty
+ * seconds. A clinician who finds the first twitchy needs to be able to silence
+ * it *without* silencing the second, or they will silence both and miss the one
+ * that mattered.
+ */
+function AlertSettings({
+  initialOnView,
+  initialOnBooking,
+}: {
+  initialOnView: boolean;
+  initialOnBooking: boolean;
+}) {
+  const router = useRouter();
+  const [onView, setOnView] = useState(initialOnView);
+  const [onBooking, setOnBooking] = useState(initialOnBooking);
+  const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+
+  const save = (next: { alertOnView: boolean; alertOnBooking: boolean }) =>
+    startTransition(async () => {
+      setSaved(false);
+      await saveAlertPreferences(next);
+      setSaved(true);
+      router.refresh();
+    });
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <BellRing className="h-4 w-4 text-teal-600" aria-hidden />
+          Alert sounds
+        </p>
+        {pending ? (
+          <span className="text-xs text-slate-400">Saving…</span>
+        ) : saved ? (
+          <span className="text-xs text-emerald-600">Saved</span>
+        ) : null}
+      </div>
+
+      <div className="mt-3 space-y-2">
+        <AlertToggle
+          checked={onView}
+          onChange={(value) => {
+            setOnView(value);
+            save({ alertOnView: value, alertOnBooking: onBooking });
+          }}
+          title="Someone opened my profile"
+          body="A single soft tone. You have just gone busy to everyone else on the radar, and they have sixty seconds to decide."
+        />
+        <AlertToggle
+          checked={onBooking}
+          onChange={(value) => {
+            setOnBooking(value);
+            save({ alertOnView: onView, alertOnBooking: value });
+          }}
+          title="Someone is paying / a session link is live"
+          body="Repeats until you open the room. This is the one that means a patient is arriving — leave it on."
+        />
+      </div>
+
+      <p className="mt-3 text-xs leading-relaxed text-slate-500">
+        Sounds reach you anywhere in 24Therapy, not just this page. Your browser will not play
+        anything until you have clicked something on the page at least once — going on the radar
+        counts.
+      </p>
+    </Card>
+  );
+}
+
+function AlertToggle({
+  checked,
+  onChange,
+  title,
+  body,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  title: string;
+  body: string;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-3 rounded-2xl border p-3",
+        checked ? "border-teal-300 bg-teal-50/50" : "border-slate-200",
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-slate-800">{title}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{body}</span>
+      </span>
+    </label>
   );
 }

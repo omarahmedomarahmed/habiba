@@ -1,16 +1,27 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { CreditCard, Globe2, Languages, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Clock, CreditCard, Globe2, Languages, ShieldCheck, Sparkles, X } from "lucide-react";
 
-import { bookFromRadar, type BookingState } from "@/app/(public)/radar/actions";
+import {
+  bookFromRadar,
+  releaseViewing,
+  reserveForViewing,
+  type BookingState,
+} from "@/app/(public)/radar/actions";
 import { Avatar, StatusPill } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
 import { Field, Input } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { countryName } from "@/lib/geo";
-import { fullName } from "@/lib/utils";
+import { cn, fullName } from "@/lib/utils";
+import { viewerId } from "@/lib/viewer";
+
+/** Must match RESERVATION_SECONDS on the server. */
+const HOLD_SECONDS = 60;
+/** Renew comfortably before expiry, so a slow request cannot drop the hold. */
+const RENEW_MS = 20_000;
 
 const INITIAL: BookingState = {};
 
@@ -47,6 +58,62 @@ export function BookingSheet({
   onClose: () => void;
 }) {
   const [state, action] = useActionState(bookFromRadar, INITIAL);
+  const [viewer] = useState(() => viewerId());
+  const [held, setHeld] = useState<boolean | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(HOLD_SECONDS);
+  const submittedRef = useRef(false);
+
+  const bookable = entry.status === "online" || entry.reservedByYou;
+
+  /*
+   * Take the clinician off the board while this sheet is open, and put them
+   * straight back when it closes.
+   *
+   * The hold is renewed rather than set once, so a sheet that stays open stays
+   * valid — but it is only sixty seconds long, so a tab left open on a bus
+   * cannot keep a clinician out of circulation. The countdown below tells the
+   * visitor that, in those words, because a silent timeout that closes a
+   * booking form would be baffling.
+   */
+  useEffect(() => {
+    if (!bookable || !viewer) return;
+
+    let cancelled = false;
+
+    const hold = async () => {
+      const result = await reserveForViewing(entry.userId, viewer);
+      if (cancelled) return;
+      setHeld(result.held);
+      if (result.held) setSecondsLeft(HOLD_SECONDS);
+    };
+
+    void hold();
+    const renew = setInterval(hold, RENEW_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(renew);
+      // Do not release a hold that has just become a real booking.
+      if (!submittedRef.current) void releaseViewing(entry.userId, viewer);
+    };
+  }, [entry.userId, viewer, bookable]);
+
+  // The visible clock. Closing on zero is the promise the copy makes.
+  useEffect(() => {
+    if (!bookable || held === false) return;
+
+    const tick = setInterval(() => {
+      setSecondsLeft((left) => {
+        if (left <= 1) {
+          if (!submittedRef.current) onClose();
+          return 0;
+        }
+        return left - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(tick);
+  }, [bookable, held, onClose]);
 
   useEffect(() => {
     if (state.payUrl) window.location.href = state.payUrl;
@@ -115,9 +182,61 @@ export function BookingSheet({
           </Row>
         </dl>
 
-        {entry.status === "online" ? (
-          <form action={action} className="mt-5 space-y-4">
+        {bookable ? (
+          <form
+            action={action}
+            onSubmit={() => {
+              // From here the reservation becomes a booking claim; unmounting
+              // must not hand the clinician back.
+              submittedRef.current = true;
+            }}
+            className="mt-5 space-y-4"
+          >
             <input type="hidden" name="therapistId" value={entry.userId} />
+            <input type="hidden" name="viewer" value={viewer} />
+
+            {/*
+              The clock, and why it is running. A booking form that vanishes
+              without explanation is a bug from the visitor's side; a booking
+              form that tells you a clinician is being held for you and someone
+              else may need them is a reason to get on with it.
+            */}
+            {held !== false ? (
+              <div className="rounded-2xl bg-teal-50 px-3.5 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-teal-900">
+                    <Clock className="h-3.5 w-3.5" aria-hidden />
+                    Held for you · {secondsLeft}s
+                  </p>
+                  <p className="text-[11px] text-teal-700">You are the only one who can book them</p>
+                </div>
+                <div
+                  className="mt-2 h-1.5 overflow-hidden rounded-full bg-teal-200"
+                  role="progressbar"
+                  aria-valuenow={secondsLeft}
+                  aria-valuemin={0}
+                  aria-valuemax={HOLD_SECONDS}
+                  aria-label="Time left to complete this booking"
+                >
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-1000 ease-linear",
+                      secondsLeft > 20 ? "bg-teal-500" : "bg-amber-500",
+                    )}
+                    style={{ width: `${(secondsLeft / HOLD_SECONDS) * 100}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-teal-800">
+                  This therapist now shows as busy to everyone else. Finish your booking, or close
+                  this page so someone else can reach them.
+                </p>
+              </div>
+            ) : (
+              <p className="rounded-2xl bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
+                Someone else opened this profile a moment before you. You can still try — if they
+                do not go ahead, this clinician frees up within a minute.
+              </p>
+            )}
 
             {state.error ? (
               <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
@@ -165,8 +284,8 @@ export function BookingSheet({
         ) : (
           <p className="mt-5 rounded-xl bg-slate-100 px-3.5 py-3 text-sm text-slate-600">
             {entry.status === "pending"
-              ? "Someone is booking them right now. If that booking does not go ahead they will be back on the radar within a few minutes."
-              : "They are with someone at the moment. Try another clinician, or check back shortly."}
+              ? "Someone is with them on this page right now. If they do not go ahead, this clinician is back on the radar within a minute — this page updates by itself."
+              : "They are in a session at the moment. They will reappear on the radar as soon as they are free."}
           </p>
         )}
       </div>

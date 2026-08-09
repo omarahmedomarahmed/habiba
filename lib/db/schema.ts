@@ -78,6 +78,16 @@ export type TherapistProfile = {
   /** Copilot read-aloud voice and playback rate. */
   voice?: "british_female" | "american_male" | "american_female" | "british_male";
   voiceSpeed?: number;
+  /**
+   * Which radar events make a noise.
+   *
+   * Separated because they are genuinely different events. Someone opening
+   * your profile is a heads-up; someone paying is an interruption you want. A
+   * clinician who finds the first one twitchy should be able to silence it
+   * without also silencing the one that means a patient is arriving.
+   */
+  alertOnView?: boolean;
+  alertOnBooking?: boolean;
 };
 
 export const users = pgTable(
@@ -524,11 +534,36 @@ export const therapistRadar = pgTable(
     /** ISO-3166 alpha-2. Country granularity only — never a precise location. */
     country: text("country"),
 
-    /** The claim. Both are set and cleared together, by one statement. */
+    /**
+     * The claim. Both are set and cleared together, by one statement.
+     *
+     * `pending` covers two different things, distinguished by whether there is
+     * a session attached:
+     *   - `pendingSessionId IS NULL` — someone has the booking sheet *open*.
+     *     A sixty-second viewing reservation.
+     *   - `pendingSessionId` set — they submitted, and this is a real booking
+     *     working its way through checkout.
+     */
     pendingSessionId: uuid("pending_session_id").references(() => sessions.id, {
       onDelete: "set null",
     }),
     pendingUntil: timestamp("pending_until", { withTimezone: true }),
+    /**
+     * Who holds the reservation — a hash of a random id the visitor's browser
+     * generated.
+     *
+     * This exists because of a real and quite bad bug: the clinician went
+     * `pending` the moment anyone started booking, and the *person doing the
+     * booking* then saw "someone is booking them" and lost the form. The lock
+     * has to know who it belongs to, or it locks out the one person it should
+     * be letting through.
+     *
+     * Not a security token. Anyone who knew someone else's id could use it,
+     * and the consequence is only that they take a reservation they would have
+     * been able to take a minute later anyway — the atomic claim still
+     * serialises the actual booking.
+     */
+    reservedBy: text("reserved_by"),
 
     /**
      * Heartbeat. A closed laptop must not leave someone advertised as available

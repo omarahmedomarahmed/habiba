@@ -15,6 +15,9 @@ import { BottomNav } from "@/components/nav/bottom-nav";
 import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
 import { getRadarProfile } from "@/lib/data/radar";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { initials } from "@/lib/utils";
 
 /**
@@ -27,7 +30,10 @@ import { initials } from "@/lib/utils";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await requireUser();
-  const radar = await getRadarProfile(actor.userId);
+  const [radar, [me]] = await Promise.all([
+    getRadarProfile(actor.userId),
+    db.select({ profile: users.profile }).from(users).where(eq(users.id, actor.userId)).limit(1),
+  ]);
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -98,7 +104,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Presence and the booking alarm follow the clinician around the whole
           portal, not just the radar page — see the comment in the component. */}
-      <RadarPresence initialStatus={radar?.status ?? "offline"} />
+      <RadarPresence
+        initialStatus={radar?.status ?? "offline"}
+        // Both default on: a clinician who has never touched the setting should
+        // hear that someone needs them.
+        alertOnView={me?.profile?.alertOnView ?? true}
+        alertOnBooking={me?.profile?.alertOnBooking ?? true}
+      />
     </div>
   );
 }

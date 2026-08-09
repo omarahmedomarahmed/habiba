@@ -11,6 +11,17 @@ import type { RadarEntry } from "@/components/radar/types";
 import { Card } from "@/components/ui";
 import { countryName } from "@/lib/geo";
 import { cn, fullName } from "@/lib/utils";
+import { viewerId } from "@/lib/viewer";
+
+/**
+ * Availability changes in seconds, not minutes.
+ *
+ * Four seconds is the difference between "this clinician is free" and sending
+ * someone in distress to a profile that is already busy. It is cheap: the
+ * endpoint is one indexed query, and the per-network read limit is set with
+ * this cadence in mind.
+ */
+const REFRESH_MS = 4_000;
 
 export type { RadarEntry };
 
@@ -32,6 +43,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
   const [language, setLanguage] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [viewer] = useState(() => viewerId());
 
   useEffect(() => setEntries(initial), [initial]);
 
@@ -40,7 +52,9 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
       if (document.visibilityState !== "visible") return;
       setRefreshing(true);
       try {
-        const response = await fetch("/api/radar", { cache: "no-store" });
+        const response = await fetch(`/api/radar?v=${encodeURIComponent(viewer)}`, {
+          cache: "no-store",
+        });
         if (response.ok) setEntries((await response.json()).therapists as RadarEntry[]);
       } catch {
         // A failed refresh leaves the last good list on screen.
@@ -48,9 +62,9 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
         setRefreshing(false);
       }
     };
-    const timer = setInterval(tick, 15_000);
+    const timer = setInterval(tick, REFRESH_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [viewer]);
 
   const visible = useMemo(
     () =>

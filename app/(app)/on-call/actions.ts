@@ -5,11 +5,16 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/guard";
 import { safeImageUrl } from "@/lib/content/url";
+import { eq } from "drizzle-orm";
+
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
 import {
   heartbeat,
   pendingBooking,
   saveRadarProfile,
   setOnline,
+  type RadarAttention,
 } from "@/lib/data/radar";
 import { RADAR_LANGUAGES, RADAR_SPECIALTIES } from "@/lib/geo";
 
@@ -78,10 +83,43 @@ export async function toggleRadar(online: boolean): Promise<RadarState> {
  * the booking check fails would leave someone advertised as available and deaf
  * to the alarm.
  */
-export async function radarPing(): Promise<{
-  booking: { sessionId: string; paid: boolean } | null;
-}> {
+export async function radarPing(): Promise<{ attention: RadarAttention | null }> {
   const actor = await requireUser();
   await heartbeat(actor.userId);
-  return { booking: await pendingBooking(actor.userId) };
+  return { attention: await pendingBooking(actor.userId) };
+}
+
+/**
+ * Which radar events ring.
+ *
+ * Stored on the profile jsonb, read-modify-write like every other writer to
+ * that column — two forms writing one document must both merge or one silently
+ * deletes the other's fields.
+ */
+export async function saveAlertPreferences(input: {
+  alertOnView: boolean;
+  alertOnBooking: boolean;
+}): Promise<RadarState> {
+  const actor = await requireUser();
+
+  const [existing] = await db
+    .select({ profile: users.profile })
+    .from(users)
+    .where(eq(users.id, actor.userId))
+    .limit(1);
+
+  await db
+    .update(users)
+    .set({
+      profile: {
+        ...(existing?.profile ?? {}),
+        alertOnView: input.alertOnView,
+        alertOnBooking: input.alertOnBooking,
+      },
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, actor.userId));
+
+  revalidatePath("/on-call");
+  return { ok: true };
 }

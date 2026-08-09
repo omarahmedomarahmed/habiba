@@ -17,7 +17,7 @@ export function TherapistCard({
   onSelect: () => void;
 }) {
   const dark = tone === "dark";
-  const bookable = entry.status === "online";
+  const bookable = entry.status === "online" || entry.reservedByYou;
 
   return (
     <button
@@ -46,7 +46,7 @@ export function TherapistCard({
           >
             {fullName(entry.firstName, entry.lastName, "Clinician")}
           </span>
-          <StatusPill status={entry.status} dark={dark} />
+            <StatusPill status={entry.status} dark={dark} mine={entry.reservedByYou} />
         </span>
 
         <span className={cn("block truncate text-xs", dark ? "text-white/50" : "text-slate-500")}>
@@ -136,9 +136,12 @@ export function Avatar({
 export function StatusPill({
   status,
   dark,
+  mine,
 }: {
   status: RadarEntry["status"];
   dark?: boolean;
+  /** This visitor holds the reservation — a completely different message. */
+  mine?: boolean;
 }) {
   const map = {
     online: { label: "Available", light: "bg-teal-100 text-teal-800", dark: "bg-teal-400/20 text-teal-300" },
@@ -146,7 +149,16 @@ export function StatusPill({
     in_session: { label: "In session", light: "bg-slate-200 text-slate-600", dark: "bg-white/10 text-white/50" },
   } as const;
 
-  const tone = map[status];
+  // "Being booked" shown to the person doing the booking is the bug this whole
+  // reservation model exists to fix. Say what is actually true instead.
+  const tone =
+    mine && status === "pending"
+      ? {
+          label: "Held for you",
+          light: "bg-brand-100 text-brand-800",
+          dark: "bg-brand-400/20 text-brand-200",
+        }
+      : map[status];
 
   return (
     <span
@@ -155,7 +167,7 @@ export function StatusPill({
         dark ? tone.dark : tone.light,
       )}
     >
-      {status === "online" ? <span className="live-dot">●</span> : null} {tone.label}
+      {status === "online" || mine ? <span className="live-dot">●</span> : null} {tone.label}
     </span>
   );
 }

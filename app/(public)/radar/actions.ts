@@ -5,12 +5,15 @@ import { and, eq } from "drizzle-orm";
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import {
   CLAIM_MINUTES,
+  RESERVATION_SECONDS,
   claimTherapist,
   listRadar,
   logRadarClaimFailure,
   markInSession,
   notifyIncomingBooking,
   releaseClaim,
+  releaseReservation,
+  reserveTherapist,
 } from "@/lib/data/radar";
 import { createRadarSession } from "@/lib/data/sessions";
 import { db } from "@/lib/db";
@@ -42,6 +45,35 @@ const GLOBAL_BOOKINGS_PER_MINUTE = 60;
 /** Per clinician, from anyone. The one limit an attacker cannot buy around. */
 const CLAIMS_PER_THERAPIST = 3;
 
+/**
+ * Hold a clinician while the visitor reads their profile.
+ *
+ * Called when the booking sheet opens and renewed while it stays open. The
+ * viewer id is generated in the browser and identifies the tab, nothing more —
+ * its only job is to let the server tell "you are booking them" apart from
+ * "someone else is booking them", which is the distinction that was missing
+ * and cost a real patient their booking.
+ */
+export async function reserveForViewing(
+  therapistUserId: string,
+  viewer: string,
+): Promise<{ held: boolean; secondsLeft: number }> {
+  if (!viewer) return { held: false, secondsLeft: 0 };
+
+  // Cheap, but it is an unauthenticated write, so it gets a ceiling too.
+  const throttle = await consume(await callerKey("radar:view"), 60, 60);
+  if (!throttle.allowed) return { held: false, secondsLeft: 0 };
+
+  const held = await reserveTherapist({ therapistUserId, viewer });
+  return { held, secondsLeft: held ? RESERVATION_SECONDS : 0 };
+}
+
+/** Put them straight back on the board when the sheet closes or times out. */
+export async function releaseViewing(therapistUserId: string, viewer: string): Promise<void> {
+  if (!viewer) return;
+  await releaseReservation({ therapistUserId, viewer });
+}
+
 export type BookingState = {
   error?: string;
   /** Stripe checkout, when the clinician charges for their time. */
@@ -71,6 +103,7 @@ export async function bookFromRadar(
   const therapistUserId = String(formData.get("therapistId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const viewer = String(formData.get("viewer") ?? "").trim() || null;
 
   if (!name) return { error: "Please tell us what to call you." };
   if (name.length > 80) return { error: "That name is a little long." };
@@ -116,10 +149,12 @@ export async function bookFromRadar(
 
   // Re-read availability from the list the public page itself is built from,
   // rather than trusting the id and price that came back in the form.
-  const available = await listRadar();
+  const available = await listRadar(viewer);
   const therapist = available.find((row) => row.userId === therapistUserId);
   if (!therapist) return { error: "That clinician is no longer on the radar." };
-  if (therapist.status !== "online") {
+
+  // `reservedByYou` is the whole point: pending is fine when it is *your* hold.
+  if (therapist.status !== "online" && !therapist.reservedByYou) {
     return { error: "Someone just started booking them. Try another clinician." };
   }
 
@@ -162,6 +197,7 @@ export async function bookFromRadar(
   const claimed = await claimTherapist({
     therapistUserId: therapist.userId,
     sessionId: session.id,
+    viewer,
   });
 
   if (!claimed) {

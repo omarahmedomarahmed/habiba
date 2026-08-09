@@ -19,7 +19,11 @@ export default async function RadarConsolePage() {
   const [profile, [me]] = await Promise.all([
     ensureRadarProfile(actor),
     db
-      .select({ rateCents: users.sessionRateCents, chargesEnabled: users.chargesEnabled })
+      .select({
+        rateCents: users.sessionRateCents,
+        chargesEnabled: users.chargesEnabled,
+        profile: users.profile,
+      })
       .from(users)
       .where(eq(users.id, actor.userId))
       .limit(1),
@@ -45,6 +49,8 @@ export default async function RadarConsolePage() {
           languageOptions={RADAR_LANGUAGES}
           specialtyOptions={RADAR_SPECIALTIES}
           countryOptions={COUNTRY_OPTIONS}
+          alertOnView={me?.profile?.alertOnView ?? true}
+          alertOnBooking={me?.profile?.alertOnBooking ?? true}
         />
 
         <p className="text-xs leading-relaxed text-slate-500">

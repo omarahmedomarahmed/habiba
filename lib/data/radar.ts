@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
@@ -28,6 +29,15 @@ export const HEARTBEAT_STALE_MS = 90_000;
 /** How long a patient has to finish paying before the claim is released. */
 export const CLAIM_MINUTES = 10;
 
+/**
+ * How long an open booking sheet holds a clinician.
+ *
+ * Short on purpose. Someone reading a profile should not be able to take a
+ * clinician out of circulation for ten minutes by leaving a tab open, and the
+ * person in the sheet is told the clock is running and why.
+ */
+export const RESERVATION_SECONDS = 60;
+
 export type RadarTherapist = {
   userId: string;
   organizationId: string;
@@ -41,6 +51,12 @@ export type RadarTherapist = {
   country: string | null;
   rateCents: number;
   status: "online" | "pending" | "in_session";
+  /**
+   * True when the pending state is *this* visitor's own reservation. The
+   * difference between "someone is booking them" and "you are booking them",
+   * which the UI absolutely has to be able to tell apart.
+   */
+  reservedByYou: boolean;
 };
 
 /**
@@ -54,8 +70,9 @@ export type RadarTherapist = {
  * Anonymous callers reach this. It returns nothing that is not the clinician's
  * own published profile — no email, no organisation, no patient anything.
  */
-export async function listRadar(): Promise<RadarTherapist[]> {
+export async function listRadar(viewer?: string | null): Promise<RadarTherapist[]> {
   const fresh = new Date(Date.now() - HEARTBEAT_STALE_MS);
+  const viewerHash = viewer ? hashViewer(viewer) : null;
 
   const rows = await db
     .select({
@@ -73,6 +90,8 @@ export async function listRadar(): Promise<RadarTherapist[]> {
       country: therapistRadar.country,
       status: therapistRadar.status,
       pendingUntil: therapistRadar.pendingUntil,
+      pendingSessionId: therapistRadar.pendingSessionId,
+      reservedBy: therapistRadar.reservedBy,
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
@@ -99,28 +118,112 @@ export async function listRadar(): Promise<RadarTherapist[]> {
 
   const now = Date.now();
 
-  return rows.map((row) => ({
-    userId: row.userId,
-    organizationId: row.organizationId,
-    firstName: row.firstName,
-    lastName: row.lastName,
-    credentials: row.profile?.credentials ?? null,
-    headline: row.headline,
-    photoUrl: row.photoUrl,
-    languages: row.languages ?? [],
-    specialties: row.specialties ?? [],
-    country: row.country,
-    // A clinician who has not finished Stripe onboarding cannot be charged for,
-    // so they are shown as free rather than as a price that cannot be paid.
-    rateCents: row.chargesEnabled ? row.rateCents : 0,
+  return rows.map((row) => {
+    const lapsed = Boolean(row.pendingUntil && row.pendingUntil.getTime() < now);
     // An expired claim reads as available, because that is what the claiming
     // UPDATE will decide a moment later. Showing "booking" for a claim that has
     // already lapsed sends people away from someone who is free.
-    status:
-      row.status === "pending" && row.pendingUntil && row.pendingUntil.getTime() < now
-        ? "online"
-        : (row.status as "online" | "pending" | "in_session"),
-  }));
+    const status = row.status === "pending" && lapsed ? "online" : row.status;
+
+    return {
+      userId: row.userId,
+      organizationId: row.organizationId,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      credentials: row.profile?.credentials ?? null,
+      headline: row.headline,
+      photoUrl: row.photoUrl,
+      languages: row.languages ?? [],
+      specialties: row.specialties ?? [],
+      country: row.country,
+      // A clinician who has not finished Stripe onboarding cannot be charged
+      // for, so they are shown as free rather than a price nobody can pay.
+      rateCents: row.chargesEnabled ? row.rateCents : 0,
+      status: status as "online" | "pending" | "in_session",
+      reservedByYou:
+        Boolean(viewerHash) && !lapsed && row.reservedBy === viewerHash && row.status === "pending",
+    };
+  });
+}
+
+/**
+ * Reservations are keyed on a hash, not the raw id.
+ *
+ * The id is generated in the visitor's browser and never means anything to us
+ * beyond "the same tab as before"; there is no reason to keep the original.
+ */
+export function hashViewer(viewer: string): string {
+  return createHash("sha256").update(`radar-viewer:${viewer}`).digest("base64url").slice(0, 24);
+}
+
+/**
+ * Hold a clinician while their booking sheet is open.
+ *
+ * Same shape as the booking claim, and for the same reason: the WHERE clause is
+ * the precondition, so two visitors opening the sheet at the same instant
+ * cannot both hold it. The extra term is `reserved_by = $viewer`, which lets
+ * the holder renew their own reservation — without it, the heartbeat that keeps
+ * the sheet alive would immediately fail against the reservation it just made.
+ */
+export async function reserveTherapist(opts: {
+  therapistUserId: string;
+  viewer: string;
+}): Promise<boolean> {
+  const now = new Date();
+  const hash = hashViewer(opts.viewer);
+
+  const reserved = await db
+    .update(therapistRadar)
+    .set({
+      status: "pending",
+      reservedBy: hash,
+      // Taking over a lapsed booking must not leave its session id behind, or
+      // the row would look like a live checkout to everything downstream.
+      pendingSessionId: null,
+      pendingUntil: new Date(now.getTime() + RESERVATION_SECONDS * 1000),
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(therapistRadar.userId, opts.therapistUserId),
+        gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
+        or(
+          eq(therapistRadar.status, "online"),
+          // Anything whose clock has run out, booking or reservation alike.
+          and(eq(therapistRadar.status, "pending"), lt(therapistRadar.pendingUntil, now)),
+          // My own reservation, renewed. Never a live booking — a reader must
+          // not be able to displace someone already entering their card.
+          and(
+            eq(therapistRadar.status, "pending"),
+            isNull(therapistRadar.pendingSessionId),
+            eq(therapistRadar.reservedBy, hash),
+          ),
+        ),
+      ),
+    )
+    .returning({ id: therapistRadar.id });
+
+  return reserved.length > 0;
+}
+
+/** Give the clinician straight back when the sheet closes. */
+export async function releaseReservation(opts: {
+  therapistUserId: string;
+  viewer: string;
+}): Promise<void> {
+  await db
+    .update(therapistRadar)
+    .set({ status: "online", reservedBy: null, pendingUntil: null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(therapistRadar.userId, opts.therapistUserId),
+        eq(therapistRadar.status, "pending"),
+        eq(therapistRadar.reservedBy, hashViewer(opts.viewer)),
+        // Only a viewing reservation. Once it has become a real booking the
+        // sheet closing must not cancel it.
+        isNull(therapistRadar.pendingSessionId),
+      ),
+    );
 }
 
 export async function getRadarProfile(userId: string) {
@@ -224,9 +327,39 @@ export async function heartbeat(userId: string): Promise<void> {
 export async function claimTherapist(opts: {
   therapistUserId: string;
   sessionId: string;
+  /** The reservation this booking is upgrading, if the sheet took one. */
+  viewer?: string | null;
 }): Promise<boolean> {
   const now = new Date();
   const until = new Date(now.getTime() + CLAIM_MINUTES * 60_000);
+  const hash = opts.viewer ? hashViewer(opts.viewer) : null;
+
+  /*
+   * Three ways in, and the third one is the bug fix.
+   *
+   * 1. `online` — the obvious case.
+   * 2. Anything pending whose clock has run out. This is what makes an
+   *    abandoned checkout self-healing without waiting for a sweep, and it
+   *    must keep working for lapsed *bookings*, not just lapsed reservations.
+   * 3. **My own live viewing reservation.** Without this term, opening the
+   *    sheet locked the clinician against the only person allowed to book
+   *    them, which is exactly what happened in production. Restricted to
+   *    reservations (`pending_session_id IS NULL`) so that a booking already
+   *    at the checkout cannot be re-claimed even by its own holder.
+   */
+  const expired = and(eq(therapistRadar.status, "pending"), lt(therapistRadar.pendingUntil, now));
+
+  const claimable = hash
+    ? or(
+        eq(therapistRadar.status, "online"),
+        expired,
+        and(
+          eq(therapistRadar.status, "pending"),
+          isNull(therapistRadar.pendingSessionId),
+          eq(therapistRadar.reservedBy, hash),
+        ),
+      )
+    : or(eq(therapistRadar.status, "online"), expired);
 
   const claimed = await db
     .update(therapistRadar)
@@ -234,16 +367,14 @@ export async function claimTherapist(opts: {
       status: "pending",
       pendingSessionId: opts.sessionId,
       pendingUntil: until,
+      reservedBy: hash,
       updatedAt: now,
     })
     .where(
       and(
         eq(therapistRadar.userId, opts.therapistUserId),
         gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
-        or(
-          eq(therapistRadar.status, "online"),
-          and(eq(therapistRadar.status, "pending"), lt(therapistRadar.pendingUntil, now)),
-        ),
+        claimable,
       ),
     )
     .returning({ id: therapistRadar.id });
@@ -261,7 +392,13 @@ export async function claimTherapist(opts: {
 export async function releaseClaim(sessionId: string): Promise<void> {
   await db
     .update(therapistRadar)
-    .set({ status: "online", pendingSessionId: null, pendingUntil: null, updatedAt: new Date() })
+    .set({
+      status: "online",
+      pendingSessionId: null,
+      pendingUntil: null,
+      reservedBy: null,
+      updatedAt: new Date(),
+    })
     .where(
       and(
         eq(therapistRadar.pendingSessionId, sessionId),
@@ -274,7 +411,7 @@ export async function releaseClaim(sessionId: string): Promise<void> {
 export async function markInSession(sessionId: string): Promise<void> {
   await db
     .update(therapistRadar)
-    .set({ status: "in_session", pendingUntil: null, updatedAt: new Date() })
+    .set({ status: "in_session", pendingUntil: null, reservedBy: null, updatedAt: new Date() })
     .where(
       and(eq(therapistRadar.pendingSessionId, sessionId), eq(therapistRadar.status, "pending")),
     );
@@ -284,7 +421,15 @@ export async function markInSession(sessionId: string): Promise<void> {
  * The therapist's own view of an incoming booking. Polled by the console, which
  * is what triggers the alert sound.
  */
-export async function pendingBooking(userId: string) {
+export type RadarAttention =
+  /** Someone has their profile open and is deciding. No session exists yet. */
+  | { kind: "viewing" }
+  /** They submitted the form; a session exists and payment is in flight. */
+  | { kind: "booking"; sessionId: string }
+  /** Paid and on their way in. */
+  | { kind: "confirmed"; sessionId: string };
+
+export async function pendingBooking(userId: string): Promise<RadarAttention | null> {
   const [row] = await db
     .select({
       status: therapistRadar.status,
@@ -295,11 +440,14 @@ export async function pendingBooking(userId: string) {
     .where(eq(therapistRadar.userId, userId))
     .limit(1);
 
-  if (!row?.sessionId) return null;
-  if (row.status !== "pending" && row.status !== "in_session") return null;
-  if (row.status === "pending" && row.pendingUntil && row.pendingUntil < new Date()) return null;
+  if (!row) return null;
+  if (row.status === "in_session") {
+    return row.sessionId ? { kind: "confirmed", sessionId: row.sessionId } : null;
+  }
+  if (row.status !== "pending") return null;
+  if (row.pendingUntil && row.pendingUntil < new Date()) return null;
 
-  return { sessionId: row.sessionId, paid: row.status === "in_session" };
+  return row.sessionId ? { kind: "booking", sessionId: row.sessionId } : { kind: "viewing" };
 }
 
 export async function notifyIncomingBooking(opts: {
@@ -333,7 +481,13 @@ export async function sweepRadar(): Promise<{
 
   const released = await db
     .update(therapistRadar)
-    .set({ status: "online", pendingSessionId: null, pendingUntil: null, updatedAt: now })
+    .set({
+      status: "online",
+      pendingSessionId: null,
+      pendingUntil: null,
+      reservedBy: null,
+      updatedAt: now,
+    })
     .where(and(eq(therapistRadar.status, "pending"), lt(therapistRadar.pendingUntil, now)))
     .returning({ id: therapistRadar.id });
 

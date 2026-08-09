@@ -12,6 +12,10 @@ import type { RadarEntry } from "@/components/radar/types";
 import { formatUsd } from "@/lib/billing/plans";
 import { countryName } from "@/lib/geo";
 import { cn, fullName } from "@/lib/utils";
+import { viewerId } from "@/lib/viewer";
+
+/** See the note on REFRESH_MS in public-radar.tsx. */
+const REFRESH_MS = 4_000;
 
 /**
  * The homepage hero *is* the radar.
@@ -36,6 +40,7 @@ export function RadarHero({
 }) {
   const [entries, setEntries] = useState<RadarEntry[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [viewer] = useState(() => viewerId());
   const [language, setLanguage] = useState("");
   const [specialty, setSpecialty] = useState("");
 
@@ -45,7 +50,9 @@ export function RadarHero({
     const load = async () => {
       if (document.visibilityState !== "visible") return;
       try {
-        const response = await fetch("/api/radar", { cache: "no-store" });
+        const response = await fetch(`/api/radar?v=${encodeURIComponent(viewer)}`, {
+          cache: "no-store",
+        });
         if (!response.ok || cancelled) return;
         setEntries((await response.json()).therapists as RadarEntry[]);
       } catch {
@@ -54,12 +61,12 @@ export function RadarHero({
     };
 
     void load();
-    const timer = setInterval(load, 15_000);
+    const timer = setInterval(load, REFRESH_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [viewer]);
 
   const all = entries ?? [];
 
