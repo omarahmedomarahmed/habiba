@@ -22,11 +22,15 @@ export const MODELS = {
   transcribe: "gpt-4o-mini-transcribe",
   note: "gpt-4o",
   risk: "gpt-4o",
+  // In-session suggestions run many times per session; the small model keeps
+  // that affordable and is more than adequate for a one-line prompt.
+  copilot: "gpt-4o-mini",
 } as const;
 
 /** Rough public rates, in cents, used only for the admin usage dashboard. */
 const RATES = {
   "gpt-4o": { inPerMTok: 250, outPerMTok: 1000 },
+  "gpt-4o-mini": { inPerMTok: 15, outPerMTok: 60 },
   "gpt-4o-mini-transcribe": { perAudioMinute: 0.3 },
 } as const;
 
@@ -58,7 +62,7 @@ type UsageInput = {
   organizationId: string | null;
   userId: string | null;
   sessionId: string | null;
-  kind: "transcribe" | "note" | "risk";
+  kind: "transcribe" | "note" | "risk" | "copilot";
   model: string;
   inputTokens?: number;
   outputTokens?: number;
@@ -96,7 +100,7 @@ function estimateCostCents(input: UsageInput): number {
     const rate = RATES["gpt-4o-mini-transcribe"];
     return Math.round(((input.audioSeconds ?? 0) / 60) * rate.perAudioMinute);
   }
-  const rate = RATES["gpt-4o"];
+  const rate = input.model === "gpt-4o-mini" ? RATES["gpt-4o-mini"] : RATES["gpt-4o"];
   const inCost = ((input.inputTokens ?? 0) / 1_000_000) * rate.inPerMTok;
   const outCost = ((input.outputTokens ?? 0) / 1_000_000) * rate.outPerMTok;
   return Math.round(inCost + outCost);

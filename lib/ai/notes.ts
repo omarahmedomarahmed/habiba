@@ -34,6 +34,7 @@ Rules:
 - Never address the patient. Never include advice written to the patient.
 - Refer to the person as "the patient". Do not use any name, even if one appears in the transcript.
 - If the transcript contains language suggesting risk of harm to self or others, say so plainly in "assessment" and in "impressions".
+- Lines marked "Speaker" come from a single microphone in a shared room and are not attributed. Work out from context who is speaking — the clinician asks, reflects and summarises; the patient discloses and describes their own experience — and attribute correctly in your write-up. Where a line is genuinely ambiguous, do not guess in a way that changes clinical meaning.
 
 Respond with a single JSON object with exactly these keys:
 {

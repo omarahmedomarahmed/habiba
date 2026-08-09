@@ -1,47 +1,64 @@
 /**
  * Browser-side session recorder.
  *
- * Captures microphone audio, downsamples to 16 kHz mono, and emits a complete
+ * Captures an audio source, downsamples to 16 kHz mono, and emits a complete
  * WAV file every `chunkSeconds`. Each file is independently decodable, which is
  * the whole point — see the note in `public/audio-recorder.worklet.js`.
  *
- * Client-only module: it is imported from a `"use client"` component and never
- * evaluated on the server.
+ * It records *one* source. A video session runs two of these — one on the
+ * therapist's microphone, one on the patient's incoming WebRTC track — which is
+ * how each speaker gets labelled with certainty rather than guessed at. A single
+ * mixed stream would need diarisation to separate two voices; two streams need
+ * nothing at all.
+ *
+ * Client-only module: imported from a `"use client"` component, never evaluated
+ * on the server.
  */
 
 const TARGET_SAMPLE_RATE = 16_000;
 
+export type RecordedChunk = { blob: Blob; durationSeconds: number };
+
 export type RecorderOptions = {
   chunkSeconds?: number;
-  onChunk: (chunk: { blob: Blob; durationSeconds: number; sequence: number }) => void;
+  /**
+   * An existing track to record — a remote participant's audio, typically.
+   * When omitted the recorder opens the local microphone itself.
+   */
+  track?: MediaStreamTrack;
+  /**
+   * Sequence numbers are assigned by the caller, not here: a session with two
+   * recorders needs one shared, monotonically increasing sequence so that
+   * `(session_id, sequence)` stays unique and the transcript orders correctly
+   * across both speakers.
+   */
+  onChunk: (chunk: RecordedChunk) => void;
   onError?: (error: Error) => void;
-  onLevel?: (level: number) => void;
 };
 
 export class SessionRecorder {
   private context: AudioContext | null = null;
-  private stream: MediaStream | null = null;
+  private ownedStream: MediaStream | null = null;
   private node: AudioWorkletNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
 
   private buffer: Float32Array[] = [];
   private bufferedFrames = 0;
-  private sequence = 0;
   private muted = false;
 
   private readonly chunkSeconds: number;
+  private readonly track?: MediaStreamTrack;
   private readonly onChunk: RecorderOptions["onChunk"];
   private readonly onError?: RecorderOptions["onError"];
-  private readonly onLevel?: RecorderOptions["onLevel"];
 
   constructor(options: RecorderOptions) {
     // Eight seconds rather than five: fewer round trips, better transcription
-    // accuracy (more context per request), and still well inside any
-    // serverless body limit at roughly 256 KB per chunk.
+    // accuracy (more context per request), and still well inside any serverless
+    // body limit at roughly 256 KB per chunk.
     this.chunkSeconds = options.chunkSeconds ?? 8;
+    this.track = options.track;
     this.onChunk = options.onChunk;
     this.onError = options.onError;
-    this.onLevel = options.onLevel;
   }
 
   get isRecording(): boolean {
@@ -51,14 +68,23 @@ export class SessionRecorder {
   async start(): Promise<void> {
     if (this.context) return;
 
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    let stream: MediaStream;
+    if (this.track) {
+      // A track handed to us (a remote participant). We do not own it, so we
+      // must not stop it on teardown — that would kill the patient's audio in
+      // the actual call.
+      stream = new MediaStream([this.track]);
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      this.ownedStream = stream;
+    }
 
     const context = new AudioContext();
     // Safari starts contexts suspended until a user gesture resumes them.
@@ -66,7 +92,7 @@ export class SessionRecorder {
 
     await context.audioWorklet.addModule("/audio-recorder.worklet.js");
 
-    const source = context.createMediaStreamSource(this.stream);
+    const source = context.createMediaStreamSource(stream);
     const node = new AudioWorkletNode(context, "recorder-processor");
 
     node.port.onmessage = (event: MessageEvent<Float32Array>) => {
@@ -74,7 +100,7 @@ export class SessionRecorder {
     };
 
     source.connect(node);
-    // Not connected to the destination: routing the microphone to the speakers
+    // Not connected to the destination: routing audio back to the speakers
     // would produce feedback in the room.
 
     this.context = context;
@@ -97,29 +123,21 @@ export class SessionRecorder {
     this.node?.port.close();
     this.node?.disconnect();
     this.source?.disconnect();
-    this.stream?.getTracks().forEach((track) => track.stop());
+    // Only tracks we opened ourselves.
+    this.ownedStream?.getTracks().forEach((track) => track.stop());
     if (this.context && this.context.state !== "closed") {
       await this.context.close().catch(() => {});
     }
     this.context = null;
     this.node = null;
     this.source = null;
-    this.stream = null;
+    this.ownedStream = null;
     this.buffer = [];
     this.bufferedFrames = 0;
   }
 
   private push(frames: Float32Array, sampleRate: number): void {
     if (this.muted) return;
-
-    if (this.onLevel) {
-      let peak = 0;
-      for (let i = 0; i < frames.length; i += 16) {
-        const value = Math.abs(frames[i]!);
-        if (value > peak) peak = value;
-      }
-      this.onLevel(peak);
-    }
 
     this.buffer.push(frames);
     this.bufferedFrames += frames.length;
@@ -135,7 +153,7 @@ export class SessionRecorder {
 
     // A fragment shorter than a second is almost always the tail of a pause and
     // transcribes to noise or a stock hallucinated phrase.
-    if (this.bufferedFrames < rate * 1) {
+    if (this.bufferedFrames < rate) {
       this.buffer = [];
       this.bufferedFrames = 0;
       return;
@@ -150,20 +168,31 @@ export class SessionRecorder {
     this.buffer = [];
     this.bufferedFrames = 0;
 
+    // A remote participant who is muted, or simply not speaking, still produces
+    // a stream of near-silent frames. Transcribing those wastes a request per
+    // chunk and reliably returns a stock hallucinated phrase.
+    if (isEffectivelySilent(merged)) return;
+
     const downsampled = downsample(merged, rate, TARGET_SAMPLE_RATE);
     const blob = encodeWav(downsampled, TARGET_SAMPLE_RATE);
 
-    this.sequence += 1;
     try {
-      this.onChunk({
-        blob,
-        durationSeconds: downsampled.length / TARGET_SAMPLE_RATE,
-        sequence: this.sequence,
-      });
+      this.onChunk({ blob, durationSeconds: downsampled.length / TARGET_SAMPLE_RATE });
     } catch (error) {
       this.onError?.(error instanceof Error ? error : new Error("chunk handler failed"));
     }
   }
+}
+
+/** RMS below this is a quiet room, not speech. */
+const SILENCE_RMS = 0.004;
+
+function isEffectivelySilent(samples: Float32Array): boolean {
+  let sum = 0;
+  // Every 8th sample is plenty to estimate loudness and keeps this cheap.
+  for (let i = 0; i < samples.length; i += 8) sum += samples[i]! * samples[i]!;
+  const rms = Math.sqrt(sum / Math.max(1, samples.length / 8));
+  return rms < SILENCE_RMS;
 }
 
 /** Simple averaging decimator. Adequate for speech at 48k → 16k. */

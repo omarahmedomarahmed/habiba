@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 
+import { generateCopilot, shouldRunCopilot } from "@/lib/ai/copilot";
 import { transcribeChunk } from "@/lib/ai/transcribe";
 import { AuthorizationError, assertSameOrigin, requireUserApi } from "@/lib/auth/guard";
 import { db } from "@/lib/db";
@@ -60,6 +61,12 @@ export async function POST(
     const file = form.get("audio");
     const sequenceRaw = Number(form.get("sequence") ?? 0);
     const durationRaw = Number(form.get("duration") ?? 8);
+    const speakerRaw = String(form.get("speaker") ?? "unknown");
+    // On a video call each participant is captured on their own track, so the
+    // client knows exactly who is speaking. In person there is one microphone
+    // in a room and honestly saying "unknown" beats guessing wrong in a chart.
+    const speaker =
+      speakerRaw === "therapist" || speakerRaw === "patient" ? speakerRaw : "unknown";
 
     if (!(file instanceof Blob) || file.size === 0) {
       return NextResponse.json({ error: "no_audio" }, { status: 400 });
@@ -92,23 +99,31 @@ export async function POST(
       therapistId: session.therapistId,
       patientId: session.patientId,
       sequence: sequenceRaw,
-      // No diarisation in v1: a single device microphone in a room cannot
-      // reliably separate two voices, and guessing wrong in a clinical record
-      // is worse than not guessing.
-      speaker: "unknown",
+      speaker,
       text,
       startMs: (sequenceRaw - 1) * 8000,
       endMs: sequenceRaw * 8000,
     });
 
     // The response to the chunk upload is the push channel. The client is
-    // already talking to the server every few seconds, so a crisis flag or a
-    // new segment rides back on a request that was happening anyway — which is
-    // why this app needs no WebSocket at all.
+    // already talking to the server every few seconds, so a crisis flag, a new
+    // segment and any copilot suggestion ride back on a request that was
+    // happening anyway — which is why this app needs no WebSocket at all.
+    const suggestions =
+      result.inserted && shouldRunCopilot(sequenceRaw)
+        ? await generateCopilot({
+            sessionId: session.id,
+            organizationId: session.organizationId,
+            userId: actor.userId,
+          })
+        : [];
+
     return NextResponse.json({
       text,
+      speaker,
       sequence: sequenceRaw,
       crisis: result.crisis,
+      suggestions,
     });
   } catch (error) {
     if (error instanceof AuthorizationError) {

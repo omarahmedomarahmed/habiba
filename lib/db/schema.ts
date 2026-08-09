@@ -384,7 +384,7 @@ export const aiRequestLogs = pgTable(
     }),
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
-    kind: text("kind").$type<"transcribe" | "note" | "risk">().notNull(),
+    kind: text("kind").$type<"transcribe" | "note" | "risk" | "copilot">().notNull(),
     model: text("model").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),

@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { getSession, getTranscript } from "@/lib/data/sessions";
 import { env, features } from "@/lib/env";
 import { fullName } from "@/lib/utils";
-import { createMeetingToken, roomUrlWithToken } from "@/lib/video";
+import { createMeetingToken } from "@/lib/video";
 
 export const metadata: Metadata = { title: "Session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -27,15 +27,17 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
 
   // Private Daily rooms cannot be entered without a per-participant token, and
   // the clinician's is minted server-side and never leaves this render.
+  const therapistName = fullName(actor.firstName, actor.lastName, "Therapist");
   let videoUrl: string | null = null;
+  let videoToken: string | null = null;
   if (row.session.modality === "video" && row.session.videoRoomUrl && row.session.videoRoomName) {
-    const token = await createMeetingToken({
+    videoToken = await createMeetingToken({
       roomName: row.session.videoRoomName,
-      userName: fullName(actor.firstName, actor.lastName, "Therapist"),
+      userName: therapistName,
       isOwner: true,
       minutes: 180,
     });
-    videoUrl = roomUrlWithToken(row.session.videoRoomUrl, token);
+    videoUrl = row.session.videoRoomUrl;
   }
 
   const patientLabel =
@@ -47,9 +49,11 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
     <SessionRoom
       sessionId={row.session.id}
       patientLabel={patientLabel}
+      therapistName={therapistName}
       modality={row.session.modality}
       initialStatus={row.session.status}
       videoRoomUrl={videoUrl}
+      videoToken={videoToken}
       videoConfigured={features.video}
       joinUrl={row.session.joinToken ? `${env.appUrl}/join/${row.session.joinToken}` : null}
       patientAlreadyJoined={Boolean(row.session.patientJoinedAt)}
