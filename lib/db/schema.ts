@@ -611,6 +611,51 @@ export const copilotMessages = pgTable(
   (t) => [index("copilot_messages_thread_idx").on(t.threadId, t.createdAt)],
 );
 
+// ------------------------------------------------------------ data access ---
+
+export const EXPORT_TTL_HOURS = 72;
+
+/**
+ * A patient asking for their own record.
+ *
+ * This is the whole answer to "someone wants their data and it lives on their
+ * therapist's portal". No impersonation, no admin reading a transcript: a
+ * clinician or an admin presses a button, and a link goes *to the patient's
+ * own email*. Whoever pressed it never sees the contents.
+ *
+ * The token is stored hashed for the same reason a session token is — a leaked
+ * database row must not be a leaked medical record. The export itself is not
+ * stored anywhere; it is rendered fresh when the link is opened, so there is no
+ * copy of a chart sitting in a bucket waiting to be found.
+ */
+export const dataExports = pgTable(
+  "data_exports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    /** SHA-256 of the token in the link. Never the token itself. */
+    tokenHash: text("token_hash").notNull(),
+    /** Frozen at request time: the address the link was sent to. */
+    deliveredTo: text("delivered_to").notNull(),
+    requestedBy: uuid("requested_by").references(() => users.id, { onDelete: "set null" }),
+    requestedByRole: text("requested_by_role").$type<Role>(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    firstOpenedAt: timestamp("first_opened_at", { withTimezone: true }),
+    openCount: integer("open_count").default(0).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("data_exports_token_unique").on(t.tokenHash),
+    index("data_exports_patient_idx").on(t.patientId, t.createdAt),
+  ],
+);
+
 // ------------------------------------------------------------------- radar ---
 
 export const RADAR_STATUSES = ["offline", "online", "pending", "in_session"] as const;

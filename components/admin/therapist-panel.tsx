@@ -17,6 +17,7 @@ import {
   applyInvoiceDiscount,
   applyUpcomingDiscount,
   editInvoice,
+  emailPatientRecordToPatient,
   emailTherapist,
   suspendUser,
   verifyUser,
@@ -176,9 +177,13 @@ export function TherapistAdminPanel(props: {
 function Patients({ rows }: { rows: Patient[] }) {
   return (
     <Card>
-      <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-        Caseload — identifiers only
-      </p>
+      <div className="border-b border-slate-100 px-4 py-3">
+        <p className="text-sm font-semibold text-slate-900">Caseload — identifiers only</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          If one of these people asks us for their data, send it to them from here. You will never
+          see it — the link goes to their address and the clinician is told it happened.
+        </p>
+      </div>
       {rows.length === 0 ? (
         <p className="px-4 py-6 text-sm text-slate-500">No patients on this account.</p>
       ) : (
@@ -192,6 +197,7 @@ function Patients({ rows }: { rows: Patient[] }) {
                 <Th className="text-right">Sessions</Th>
                 <Th className="text-right">Copilot</Th>
                 <Th>Last seen</Th>
+                <Th>Data request</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -207,6 +213,9 @@ function Patients({ rows }: { rows: Patient[] }) {
                   <Td className="text-right tabular-nums">{row.sessionCount}</Td>
                   <Td className="text-right tabular-nums">{row.copilotMessages}</Td>
                   <Td className="text-slate-500">{row.lastSessionAt ?? "never"}</Td>
+                  <Td>
+                    <SendRecord patientId={row.id} hasEmail={Boolean(row.email)} />
+                  </Td>
                 </tr>
               ))}
             </tbody>
@@ -214,6 +223,74 @@ function Patients({ rows }: { rows: Patient[] }) {
         </div>
       )}
     </Card>
+  );
+}
+
+/**
+ * Answering "send me my data" without reading anyone's data.
+ *
+ * The reason field is required and goes into the audit trail verbatim, because
+ * the only thing standing between this button and a plausible-looking way to
+ * mail a stranger's therapy notes somewhere is that it can only ever send them
+ * to the address already on the chart — and that someone can see why it was
+ * pressed.
+ */
+function SendRecord({ patientId, hasEmail }: { patientId: string; hasEmail: boolean }) {
+  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (sentTo) return <span className="text-xs text-teal-700">sent to {sentTo}</span>;
+  if (!hasEmail) return <span className="text-xs text-slate-400">no address</span>;
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
+      >
+        Send their record
+      </button>
+    );
+  }
+
+  return (
+    <div className="w-56 space-y-1.5">
+      {error ? (
+        <p role="alert" className="text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
+      <Input
+        aria-label="Why this record is being sent"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Ticket #123 — patient asked"
+        className="h-9 text-xs"
+      />
+      <div className="flex gap-1.5">
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              setError(null);
+              const result = await emailPatientRecordToPatient(patientId, reason);
+              if (result.error) setError(result.error);
+              else setSentTo(result.sentTo ?? null);
+            })
+          }
+        >
+          {pending ? "Sending…" : "Send"}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 

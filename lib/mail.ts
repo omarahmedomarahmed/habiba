@@ -309,3 +309,42 @@ export async function sendSessionInvite(opts: {
     html,
   });
 }
+
+/**
+ * "Here is your record."
+ *
+ * Sent to the patient, never to whoever pressed the button. The body says who
+ * asked and who did not read it, because an unexpected email containing a link
+ * to your therapy notes should account for itself immediately or it reads as a
+ * breach — or as a phish.
+ */
+export async function sendRecordExport(opts: {
+  to: string;
+  patientName: string;
+  clinicianName: string;
+  url: string;
+  expiresInHours: number;
+}): Promise<boolean> {
+  const html = layout(
+    "Your record",
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your record is ready</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">
+       ${esc(opts.patientName)}, this is everything held about you in the chart kept by
+       ${esc(opts.clinicianName)}: your details, every session, every note, and the
+       transcript of anything that was recorded.
+     </p>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#1F5EFF;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open your record</a>
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
+       The link works for ${esc(opts.expiresInHours)} hours and then stops — save or print
+       the page while it is open. It was generated automatically and nobody at
+       24Therapy read it in order to send it to you.
+     </p>
+     <p style="margin:10px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
+       If you did not ask for this, tell ${esc(opts.clinicianName)} — and do not open
+       the link, since it will be replaced the next time a copy is requested.
+     </p>`,
+    "This message was sent by 24Therapy at the request of you or your therapist.<br>It contains a private link — please do not forward it.",
+  );
+
+  return send({ to: opts.to, subject: "Your 24Therapy record", html });
+}

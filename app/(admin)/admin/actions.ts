@@ -500,3 +500,56 @@ export async function applyUpcomingDiscount(
   revalidatePath("/admin/vault");
   return { ok: true };
 }
+
+/**
+ * A patient wrote in asking for their data.
+ *
+ * This is the support path that impersonation was going to be for, and it is
+ * strictly less powerful on purpose: the admin causes the record to be sent and
+ * never sees it. What comes back here is an email address and a confirmation —
+ * enough to close the ticket, nothing that belongs to the patient.
+ *
+ * The clinician is told, in the same breath. A record leaving their chart
+ * without their knowledge is exactly the kind of quiet admin action that makes
+ * clinicians distrust a platform, and they may need to answer for it later.
+ */
+export async function emailPatientRecordToPatient(
+  patientId: string,
+  reason: string,
+): Promise<AdminActionState & { sentTo?: string }> {
+  const actor = await requireRole("super_admin");
+
+  const explanation = reason.trim();
+  if (explanation.length < 8) {
+    return { error: "Say why — this is written into the audit trail and shown to the clinician." };
+  }
+
+  const { requestPatientExport, exportPath } = await import("@/lib/data/export");
+  const result = await requestPatientExport(actor, patientId);
+  if (!result.ok) return { error: result.error };
+
+  const { sendRecordExport } = await import("@/lib/mail");
+  const { env } = await import("@/lib/env");
+  const { EXPORT_TTL_HOURS } = await import("@/lib/db/schema");
+
+  const sent = await sendRecordExport({
+    to: result.email,
+    patientName: result.patientName,
+    clinicianName: "your therapist",
+    url: `${env.appUrl}${exportPath(result.token)}`,
+    expiresInHours: EXPORT_TTL_HOURS,
+  });
+
+  if (!sent) return { error: "The link was created but the email was rejected." };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "patient.export_sent",
+    resourceType: "patient",
+    resourceId: patientId,
+    reason: explanation.slice(0, 200),
+  });
+
+  return { ok: true, sentTo: result.email };
+}
