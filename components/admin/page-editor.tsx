@@ -4,6 +4,20 @@ import { useState, useTransition } from "react";
 
 import { savePage } from "@/app/(admin)/admin/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { ICON_NAMES } from "@/components/public/icons";
+import { CONTENT_DEMOS } from "@/lib/db/schema";
+
+/** The artwork that ships with the app. Any https:// URL also works. */
+const BACKGROUNDS = [
+  { label: "None (gradient only)", value: "" },
+  { label: "Mesh", value: "/backgrounds/mesh.svg" },
+  { label: "Waves", value: "/backgrounds/waves.svg" },
+  { label: "Contours", value: "/backgrounds/contours.svg" },
+  { label: "Grid", value: "/backgrounds/grid.svg" },
+];
+
+const SELECT_CLASS =
+  "h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none";
 import type { ContentBlock } from "@/lib/db/schema";
 
 /**
@@ -140,6 +154,63 @@ export function PageEditor({
             </Field>
           ) : null}
 
+          {"backgroundImage" in block || block.type === "hero" || block.type === "cta" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field
+                label="Background image"
+                htmlFor={`bg-${index}`}
+                hint="Pick built-in artwork, or paste any https:// image URL below."
+              >
+                <select
+                  id={`bg-${index}`}
+                  className={SELECT_CLASS}
+                  value={
+                    BACKGROUNDS.some((b) => b.value === (block.backgroundImage ?? ""))
+                      ? (block.backgroundImage ?? "")
+                      : "custom"
+                  }
+                  onChange={(e) =>
+                    e.target.value !== "custom" &&
+                    patchBlock(index, { backgroundImage: e.target.value })
+                  }
+                >
+                  {BACKGROUNDS.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                  <option value="custom">Custom URL…</option>
+                </select>
+              </Field>
+              <Field label="Custom image URL" htmlFor={`bgurl-${index}`}>
+                <Input
+                  id={`bgurl-${index}`}
+                  value={block.backgroundImage ?? ""}
+                  placeholder="https://…"
+                  onChange={(e) => patchBlock(index, { backgroundImage: e.target.value })}
+                />
+              </Field>
+            </div>
+          ) : null}
+
+          {block.type !== "faq" && block.type !== "cta" ? (
+            <Field label="Icon" htmlFor={`icon-${index}`}>
+              <select
+                id={`icon-${index}`}
+                className={SELECT_CLASS}
+                value={("icon" in block ? block.icon : "") ?? ""}
+                onChange={(e) => patchBlock(index, { icon: e.target.value })}
+              >
+                <option value="">None</option>
+                {ICON_NAMES.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+
           {"ctaLabel" in block ? (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Button label" htmlFor={`cta-${index}`}>
@@ -191,6 +262,37 @@ export function PageEditor({
                       )
                     }
                   />
+                  {!("q" in item) ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <select
+                        aria-label={`Item ${itemIndex + 1} icon`}
+                        className={SELECT_CLASS}
+                        value={item.icon ?? ""}
+                        onChange={(e) => patchItem(index, itemIndex, { icon: e.target.value })}
+                      >
+                        <option value="">No icon</option>
+                        {ICON_NAMES.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                      {block.type === "showcase" ? (
+                        <select
+                          aria-label={`Item ${itemIndex + 1} component`}
+                          className={SELECT_CLASS}
+                          value={item.demo ?? "none"}
+                          onChange={(e) => patchItem(index, itemIndex, { demo: e.target.value })}
+                        >
+                          {CONTENT_DEMOS.map((demo) => (
+                            <option key={demo} value={demo}>
+                              {demo === "none" ? "No component" : `Show ${demo}`}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ))
             : null}

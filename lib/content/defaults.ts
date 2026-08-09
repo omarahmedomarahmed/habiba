@@ -40,6 +40,37 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         ctaLabel: "Start your first session free",
         ctaHref: "/signup",
         demo: "session-room",
+        backgroundImage: "/backgrounds/mesh.svg",
+      },
+      {
+        type: "showcase",
+        heading: "Every claim on this page is a screen you can see",
+        items: [
+          {
+            title: "The transcript writes itself",
+            body: "Audio is captured in short chunks and transcribed as the session runs. On a video call each person is on their own track, so who said what is known rather than guessed. This is the real panel from the session room.",
+            icon: "mic",
+            demo: "transcript",
+          },
+          {
+            title: "The note is ready when you stand up",
+            body: "Ending a session starts generation immediately: a full SOAP note plus summary, talking points, observations, impressions and a follow-up. Everything is a draft with your name on it until you approve it.",
+            icon: "fileText",
+            demo: "note",
+          },
+          {
+            title: "Risk language is never missed",
+            body: "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified — so it survives a failed delivery.",
+            icon: "shield",
+            demo: "risk",
+          },
+          {
+            title: "A quiet second opinion",
+            body: "At most two short prompts at a time, and only when there is something worth saying. It suggests, never instructs, and staying silent is the expected answer.",
+            icon: "brain",
+            demo: "copilot",
+          },
+        ],
       },
       {
         type: "features",
@@ -48,36 +79,32 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             title: "Start",
             body: "Tap New session, type a first name, tap Start. In-person or video — no scheduling, no forms, no setup wizard.",
+            icon: "zap",
           },
           {
             title: "Talk",
-            body: "The transcript builds itself in the panel beside you. Tap Off record whenever the conversation should not be captured.",
+            body: "The transcript builds itself beside you. Tap Off record whenever the conversation should not be captured.",
+            icon: "mic",
           },
           {
             title: "Send",
             body: "End the session and the note is waiting. Read it, edit anything, approve it, and email the patient a plain-language summary.",
-          },
-        ],
-      },
-      {
-        type: "features",
-        heading: "Built for real clinical work",
-        items: [
-          {
-            title: "SOAP notes you would have written",
-            body: "Subjective, objective, assessment and plan, plus a summary, talking points, observations and a follow-up recommendation. Everything is a draft until you approve it.",
-          },
-          {
-            title: "Crisis language never gets missed",
-            body: "Every transcript segment is scanned as it arrives. If risk language appears, you are alerted in the room — and the alert is stored before anyone is notified, so it survives a failed delivery.",
+            icon: "mail",
           },
           {
             title: "Patients need no account",
             body: "Send a link. They type their first name and join. No password, no app, no portal to support.",
+            icon: "users",
           },
           {
             title: "PHI stays where it belongs",
-            body: "Every read of a chart is written to an append-only audit log. No transcript text is ever written to application logs. Sessions expire after 30 minutes idle.",
+            body: "Every read of a chart is written to an append-only audit log. No transcript text ever reaches application logs.",
+            icon: "lock",
+          },
+          {
+            title: "Built for a phone",
+            body: "Therapists work from their phone, so this was designed for one. Desktop is the enhancement, not the other way round.",
+            icon: "clock",
           },
         ],
       },
@@ -87,6 +114,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         body: "No card, no onboarding wizard. Sign up and start a session in under a minute.",
         ctaLabel: "Create your account",
         ctaHref: "/signup",
+        backgroundImage: "/backgrounds/waves.svg",
       },
     ],
   },
@@ -107,44 +135,56 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         ctaLabel: "See pricing",
         ctaHref: "/pricing",
         demo: "session-room",
+        backgroundImage: "/backgrounds/grid.svg",
       },
       {
-        type: "features",
+        type: "showcase",
         heading: "In the room",
         items: [
           {
-            title: "Live transcript",
-            body: "Audio is captured from your device microphone in short chunks and transcribed as the session runs. The panel fills in beside you.",
+            title: "Live transcript, both voices",
+            body: "On video, the therapist and the patient arrive on separate audio tracks, so each line is attributed with certainty. In person, one microphone hears the room and the note works out who was speaking from context.",
+            icon: "mic",
+            demo: "transcript",
           },
           {
-            title: "Off record",
-            body: "One tap stops capture without ending the session. Nothing recorded, nothing transcribed, nothing stored.",
+            title: "Suggestions, not instructions",
+            body: "The copilot reads the last few minutes and offers at most two short prompts. It fires every few segments rather than constantly, because advice that changes every eight seconds is noise.",
+            icon: "brain",
+            demo: "copilot",
           },
           {
-            title: "Risk alerts",
-            body: "Crisis language raises an alert to you and only to you. A patient on a join link never sees a risk level — only a supportive message and a crisis line.",
+            title: "Crisis language raises a flag",
+            body: "Alerts go to you and only to you. A patient on a join link never sees a risk level — only a supportive message and a crisis line.",
+            icon: "alert",
+            demo: "risk",
           },
           {
-            title: "Video when you need it",
-            body: "Video sessions run in a private room with a per-participant token that expires. In-person sessions skip video entirely.",
+            title: "The note you would have written",
+            body: "Subjective, objective, assessment and plan, plus summary, talking points, observations, impressions and follow-up. Editable everywhere, signed only by you.",
+            icon: "fileText",
+            demo: "note",
           },
         ],
       },
       {
         type: "features",
-        heading: "After the session",
+        heading: "And around it",
         items: [
           {
-            title: "The note writes itself",
-            body: "Ending a session starts generation immediately. A full SOAP note plus summary, talking points, observations, impressions, recommendations and follow-up.",
+            title: "Off record",
+            body: "One tap stops capture without ending the session. Nothing recorded, nothing transcribed, nothing stored.",
+            icon: "shield",
           },
           {
-            title: "You are the clinician",
-            body: "Every note is a draft with your name on it. Nothing is filed, sent or shared until you approve it.",
+            title: "Video when you need it",
+            body: "Private rooms with a per-participant token that expires. In-person sessions skip video entirely.",
+            icon: "video",
           },
           {
-            title: "Patient report",
-            body: "Approve a note and optionally email the patient a plain-language summary. Clinical impressions stay in your chart, not in their inbox.",
+            title: "Patient report by email",
+            body: "Approve a note and optionally send a plain-language summary. Clinical impressions stay in your chart.",
+            icon: "mail",
           },
         ],
       },
@@ -157,8 +197,12 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             a: "No. For video sessions you send a link; they type a first name and join. For in-person sessions they do not touch the software at all.",
           },
           {
+            q: "How does it know who is speaking?",
+            a: "On video, each participant is on a separate audio track — no voice recognition or enrolment involved, so two similar voices are never confused. In person there is a single microphone, so the live transcript is unattributed and the note works out roles from context.",
+          },
+          {
             q: "What happens if I lose signal mid-session?",
-            a: "Audio chunks are uploaded independently and retried. A dropped chunk costs you a few seconds of transcript, not the session.",
+            a: "Audio chunks upload independently and retry. A dropped chunk costs a few seconds of transcript, not the session.",
           },
           {
             q: "Can I edit the note?",
@@ -188,6 +232,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         ctaLabel: "Start free",
         ctaHref: "/signup",
         demo: "none",
+        icon: "chart",
+        backgroundImage: "/backgrounds/contours.svg",
       },
       {
         type: "faq",
@@ -195,7 +241,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             q: "When am I charged on pay as you go?",
-            a: "When a session is marked complete. Your first one is free, and you will see the charge on your billing page immediately.",
+            a: "When a session is marked complete. Your first one is free, and the invoice appears on your billing page immediately. You can pay several at once with a single link.",
           },
           {
             q: "What if a session was a mistake?",
@@ -210,6 +256,36 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     ],
   },
   {
+    slug: "contact",
+    title: "Contact",
+    description: "Get in touch with the 24Therapy team.",
+    layout: "marketing",
+    navLabel: "Contact",
+    navOrder: 3,
+    blocks: [
+      {
+        type: "hero",
+        eyebrow: "Contact",
+        heading: "Talk to a human",
+        body: "Questions about the product, a BAA, or moving an existing practice across — write to us and we will answer.",
+        ctaLabel: "Email support@24therapy.ai",
+        ctaHref: "mailto:support@24therapy.ai",
+        demo: "none",
+        icon: "mail",
+        backgroundImage: "/backgrounds/waves.svg",
+      },
+      {
+        type: "features",
+        heading: "What we can help with",
+        items: [
+          { title: "Getting started", body: "Setting up your practice and running your first session.", icon: "zap" },
+          { title: "Compliance", body: "BAAs, subprocessors and how patient data is handled.", icon: "shield" },
+          { title: "Billing", body: "Plans, invoices and anything that looks wrong on your bill.", icon: "chart" },
+        ],
+      },
+    ],
+  },
+  {
     slug: "privacy",
     title: "Privacy Policy",
     description: "How 24Therapy handles personal and health information.",
@@ -217,6 +293,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     navLabel: "Privacy",
     navOrder: 10,
     blocks: [
+      {
+        type: "hero",
+        eyebrow: "Legal",
+        heading: "Privacy Policy",
+        demo: "none",
+        icon: "lock",
+        backgroundImage: "/backgrounds/grid.svg",
+      },
       {
         type: "prose",
         body: "This page is a starting point maintained by your administrator, not legal advice. Review it with counsel before you accept a real patient.",
@@ -252,6 +336,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     navOrder: 11,
     blocks: [
       {
+        type: "hero",
+        eyebrow: "Legal",
+        heading: "Terms of Service",
+        demo: "none",
+        icon: "fileText",
+        backgroundImage: "/backgrounds/grid.svg",
+      },
+      {
         type: "prose",
         body: "This page is a starting point maintained by your administrator, not legal advice. Review it with counsel before you accept a real patient.",
       },
@@ -286,6 +378,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     navOrder: 12,
     blocks: [
       {
+        type: "hero",
+        eyebrow: "Compliance",
+        heading: "HIPAA",
+        demo: "none",
+        icon: "shield",
+        backgroundImage: "/backgrounds/contours.svg",
+      },
+      {
         type: "prose",
         heading: "Business associate agreement",
         body: "We sign a BAA with every customer on every plan. Handling protected health information on your behalf makes us a business associate; that is a legal relationship, not a paid feature.",
@@ -316,6 +416,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     navOrder: 13,
     blocks: [
       {
+        type: "hero",
+        eyebrow: "Compliance",
+        heading: "Security",
+        demo: "none",
+        icon: "lock",
+        backgroundImage: "/backgrounds/contours.svg",
+      },
+      {
         type: "prose",
         heading: "Authentication",
         body: "Sessions are opaque tokens stored as hashes, held in an httpOnly, Secure, SameSite cookie. There is no token in browser storage for a script to read. Signing out, changing a password or resetting a password revokes every existing session immediately.",
@@ -336,26 +444,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         body: "Email security@24therapy.ai. We will acknowledge within two business days.",
       },
     ],
-  },
-  {
-    slug: "contact",
-    title: "Contact",
-    description: "Get in touch with the 24Therapy team.",
-    layout: "marketing",
-    navLabel: "Contact",
-    navOrder: 3,
-    blocks: [
-      {
-        type: "hero",
-        eyebrow: "Contact",
-        heading: "Talk to a human",
-        body: "Questions about the product, a BAA, or moving an existing practice across — write to us and we will answer.",
-        ctaLabel: "Email support@24therapy.ai",
-        ctaHref: "mailto:support@24therapy.ai",
-        demo: "none",
-      },
-    ],
-  },
+  }
+
 ];
 
 export function findDefaultPage(slug: string): DefaultPage | null {

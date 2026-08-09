@@ -7,6 +7,7 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { setUserStatus, setVerification } from "@/lib/data/admin";
+import { safeImageUrl } from "@/lib/content/url";
 import { db } from "@/lib/db";
 import { contentPages, type ContentBlock } from "@/lib/db/schema";
 
@@ -100,10 +101,14 @@ const TEXT_KEYS = new Set([
   "ctaLabel",
   "ctaHref",
   "demo",
+  "icon",
   "title",
   "q",
   "a",
 ]);
+
+/** Image URLs get their own rule — see `safeImageUrl`. */
+const URL_KEYS = new Set(["backgroundImage"]);
 
 function sanitiseBlocks(raw: unknown): ContentBlock[] | null {
   if (!Array.isArray(raw)) return null;
@@ -115,7 +120,14 @@ function sanitiseBlocks(raw: unknown): ContentBlock[] | null {
     const block = entry as Record<string, unknown>;
     const type = block.type;
 
-    if (type !== "hero" && type !== "prose" && type !== "features" && type !== "faq" && type !== "cta") {
+    if (
+      type !== "hero" &&
+      type !== "prose" &&
+      type !== "features" &&
+      type !== "showcase" &&
+      type !== "faq" &&
+      type !== "cta"
+    ) {
       return null;
     }
 
@@ -133,6 +145,11 @@ function sanitiseBlocks(raw: unknown): ContentBlock[] | null {
           }
           return target;
         });
+        continue;
+      }
+      if (URL_KEYS.has(key)) {
+        const safe = safeImageUrl(value);
+        if (safe) output[key] = safe;
         continue;
       }
       if (TEXT_KEYS.has(key) && typeof value === "string") {

@@ -277,7 +277,7 @@ export function SessionRoom(props: RoomProps) {
   /* ---------------------------------------------------------------- view -- */
 
   return (
-    <div className="flex min-h-dvh flex-col bg-navy-600">
+    <div data-surface="room" className="flex min-h-dvh flex-col bg-navy-600">
       <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{props.patientLabel}</p>

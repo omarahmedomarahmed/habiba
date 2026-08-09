@@ -9,7 +9,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireRole("super_admin");
 
   return (
-    <div className="min-h-dvh bg-slate-50">
+    <div className="min-h-dvh">
       <header className="border-b border-slate-200 bg-navy-500">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
           <Link href="/admin" className="text-[15px] font-bold tracking-tight text-white">

@@ -26,6 +26,13 @@ const {
 } = schema;
 
 const DEMO = process.argv.includes("--demo");
+/**
+ * Overwrite CMS pages with the built-in definitions.
+ *
+ * Off by default because a re-run must never silently revert an admin's edits.
+ * Pass it when the shipped content itself has changed and you want it live.
+ */
+const REFRESH_CONTENT = process.argv.includes("--refresh-content");
 
 const ORG_NAME = process.env.SEED_ORG_NAME || "24Therapy";
 const ORG_SLUG = process.env.SEED_ORG_SLUG || "24therapy";
@@ -156,9 +163,27 @@ async function main() {
           publishedAt: new Date(),
         })
         // Re-running the seed must not silently revert an admin's edits.
-        .onConflictDoNothing({ target: contentPages.slug });
+        .onConflictDoUpdate({
+          target: contentPages.slug,
+          set: REFRESH_CONTENT
+            ? {
+                title: page.title,
+                description: page.description,
+                layout: page.layout,
+                navLabel: page.navLabel,
+                navOrder: page.navOrder,
+                blocks: page.blocks,
+                status: "published",
+                publishedAt: new Date(),
+                updatedAt: new Date(),
+              }
+            : // No-op update: leaves an admin's edits exactly as they are.
+              { slug: page.slug },
+        });
     }
-    console.log(`content pages: ${DEFAULT_PAGES.length} ensured`);
+    console.log(
+      `content pages: ${DEFAULT_PAGES.length} ${REFRESH_CONTENT ? "refreshed from defaults" : "ensured (existing edits preserved)"}`,
+    );
 
     if (!DEMO) {
       console.log("\nDone. Re-run with --demo to add a test therapist and patient.");

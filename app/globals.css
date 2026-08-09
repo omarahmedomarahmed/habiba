@@ -71,6 +71,33 @@
     font-family: var(--font-sans);
     /* Respect the notch and the home indicator without a library. */
     padding-bottom: env(safe-area-inset-bottom);
+
+    /*
+     * Page texture.
+     *
+     * A flat white page reads as unfinished, but a clinical product is the
+     * wrong place for decoration that competes with content. This is a dot grid
+     * at 3% opacity plus two very soft brand-tinted washes — enough that the
+     * eye registers a surface, not enough to notice while reading a note.
+     *
+     * Inline SVG in a data URI rather than an image request: no extra round
+     * trip, no asset to host, and nothing for a content-security policy to
+     * argue with.
+     */
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(31, 94, 255, 0.05), transparent 45%),
+      radial-gradient(circle at 85% 100%, rgba(46, 196, 182, 0.05), transparent 45%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='1' cy='1' r='1' fill='%230A2342' fill-opacity='0.05'/%3E%3C/svg%3E");
+    background-attachment: fixed, fixed, scroll;
+  }
+
+  /*
+   * The live session room and the video call are deliberately exempt. Texture
+   * behind a transcript someone is reading mid-session is noise, and the room
+   * paints its own dark surface edge to edge.
+   */
+  body:has([data-surface="room"]) {
+    background-image: none;
   }
 
   /* Inputs below 16px make iOS Safari zoom on focus, which on a phone-first

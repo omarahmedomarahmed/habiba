@@ -563,12 +563,55 @@ export const notifications = pgTable(
   (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
 );
 
+/** Icons an admin may choose. An allowlist, not a free string. */
+export const CONTENT_ICONS = [
+  "sparkles", "mic", "fileText", "shield", "heart", "clock", "users", "video",
+  "lock", "zap", "check", "brain", "phone", "mail", "chart", "alert",
+] as const;
+export type ContentIcon = (typeof CONTENT_ICONS)[number];
+
+/** Which real product component to render beside a value. */
+export const CONTENT_DEMOS = ["transcript", "note", "risk", "copilot", "none"] as const;
+export type ContentDemo = (typeof CONTENT_DEMOS)[number];
+
 export type ContentBlock =
-  | { type: "hero"; eyebrow?: string; heading: string; body?: string; ctaLabel?: string; ctaHref?: string; demo?: "session-room" | "note" | "none" }
-  | { type: "prose"; heading?: string; body: string }
-  | { type: "features"; heading?: string; items: { title: string; body: string }[] }
+  | {
+      type: "hero";
+      eyebrow?: string;
+      heading: string;
+      body?: string;
+      ctaLabel?: string;
+      ctaHref?: string;
+      demo?: "session-room" | "note" | "none";
+      icon?: ContentIcon;
+      /** Absolute https:// image URL, or empty for the default gradient. */
+      backgroundImage?: string;
+    }
+  | { type: "prose"; heading?: string; body: string; icon?: ContentIcon }
+  | {
+      type: "features";
+      heading?: string;
+      items: { title: string; body: string; icon?: ContentIcon }[];
+    }
+  | {
+      /**
+       * One value at a time, each paired with the real product component that
+       * demonstrates it — the transcript panel beside the transcription claim,
+       * the note card beside the note claim.
+       */
+      type: "showcase";
+      heading?: string;
+      items: { title: string; body: string; icon?: ContentIcon; demo?: ContentDemo }[];
+    }
   | { type: "faq"; heading?: string; items: { q: string; a: string }[] }
-  | { type: "cta"; heading: string; body?: string; ctaLabel: string; ctaHref: string };
+  | {
+      type: "cta";
+      heading: string;
+      body?: string;
+      ctaLabel: string;
+      ctaHref: string;
+      backgroundImage?: string;
+    };
 
 /**
  * CMS. Content is structured blocks, never raw HTML — an admin-authored
