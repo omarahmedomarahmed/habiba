@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { eq } from "drizzle-orm";
 import { chromium, type Browser, type Page } from "playwright";
 
-import { connect } from "../scripts/db";
+import { connect, schema } from "../scripts/db";
 import { startMockOpenAi, type MockState } from "./mock-openai";
 
 /**
@@ -68,7 +69,7 @@ test("the public home page renders the live hero from real portal components", a
   await page.waitForSelector("text=Simulated session with invented data");
 });
 
-test("a therapist can sign up and lands directly in a new session", async () => {
+test("a new therapist is sent to verification before they can see a patient", async () => {
   await page.goto(`${BASE_URL}/signup`, { waitUntil: "domcontentloaded" });
 
   await page.fill("#firstName", "Robin");
@@ -77,9 +78,61 @@ test("a therapist can sign up and lands directly in a new session", async () => 
   await page.fill("#password", PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
 
-  // No onboarding wizard, no admin approval — straight to the product.
-  await page.waitForURL(/\/sessions\/new/, { timeout: 30_000 });
-  await page.waitForSelector("text=You are in.");
+  // The gate. Signing up gets you an account, not a caseload.
+  await page.waitForURL(/\/onboarding/, { timeout: 30_000 });
+  await page.waitForSelector("text=Verify your practice");
+
+  /*
+   * And it is a real gate, not a nudge: asking for a page behind it while
+   * unverified comes straight back here. This assertion is the whole reason
+   * the test exists — a redirect that only fires on the happy path is not a
+   * boundary.
+   */
+  await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await page.waitForURL(/\/onboarding/, { timeout: 15_000 });
+});
+
+test("an approved therapist lands directly in a new session", async () => {
+  /*
+   * Approval happens in the database rather than by driving the admin queue.
+   *
+   * Uploading four photographs through Vercel Blob is not what this test is
+   * for, and a blob token is not something a CI run should need. What matters
+   * downstream is the state, so the state is what we set.
+   */
+  const { pool, db } = connect();
+  try {
+    const [user] = await db
+      .select({ id: schema.users.id, organizationId: schema.users.organizationId })
+      .from(schema.users)
+      .where(eq(schema.users.email, EMAIL))
+      .limit(1);
+    assert.ok(user, "the signup should have created a user");
+
+    await db
+      .insert(schema.therapistVerifications)
+      .values({
+        userId: user.id,
+        organizationId: user.organizationId,
+        state: "approved",
+        country: "GB",
+        reviewedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: schema.therapistVerifications.userId,
+        set: { state: "approved", reviewedAt: new Date() },
+      });
+
+    await db
+      .update(schema.users)
+      .set({ verificationStatus: "verified" })
+      .where(eq(schema.users.id, user.id));
+  } finally {
+    await pool.end();
+  }
+
+  await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#guestName", { timeout: 30_000 });
 });
 
 test("starting a session records audio, uploads WAV chunks and shows transcript", async () => {
