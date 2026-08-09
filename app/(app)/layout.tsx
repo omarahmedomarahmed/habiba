@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 
 import { BottomNav } from "@/components/nav/bottom-nav";
+import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
+import { getRadarProfile } from "@/lib/data/radar";
 import { initials } from "@/lib/utils";
 
 /**
@@ -24,6 +26,7 @@ import { initials } from "@/lib/utils";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await requireUser();
+  const radar = await getRadarProfile(actor.userId);
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -88,6 +91,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <BottomNav />
+
+      {/* Presence and the booking alarm follow the clinician around the whole
+          portal, not just the radar page — see the comment in the component. */}
+      <RadarPresence initialStatus={radar?.status ?? "offline"} />
     </div>
   );
 }

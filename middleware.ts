@@ -23,6 +23,8 @@ const PROTECTED_PREFIXES = [
   "/sessions",
   "/patients",
   "/notes",
+  "/copilot",
+  "/on-call",
   "/billing",
   "/settings",
   "/admin",

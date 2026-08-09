@@ -110,6 +110,21 @@ export async function getFooterLinks(): Promise<NavItem[]> {
   }));
 }
 
+/** Every published page, for the sitemap. Falls back to the shipped defaults. */
+export async function publishedSlugs(): Promise<{ slug: string; updatedAt: Date }[]> {
+  try {
+    const rows = await db
+      .select({ slug: contentPages.slug, updatedAt: contentPages.updatedAt })
+      .from(contentPages)
+      .where(eq(contentPages.status, "published"));
+    if (rows.length > 0) return rows;
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+  }
+
+  return DEFAULT_PAGES.map((page) => ({ slug: page.slug, updatedAt: new Date() }));
+}
+
 /** Admin view: every page, drafts included. */
 export async function listAllPages() {
   return db.select().from(contentPages).orderBy(asc(contentPages.navOrder), asc(contentPages.slug));

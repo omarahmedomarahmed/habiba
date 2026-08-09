@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { SessionRoom } from "@/components/session/session-room";
 import { requireUser } from "@/lib/auth/guard";
+import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { getSession, getTranscript } from "@/lib/data/sessions";
 import { env, features } from "@/lib/env";
 import { fullName } from "@/lib/utils";
@@ -24,6 +25,10 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
   }
 
   const transcript = await getTranscript(actor, id);
+
+  // A radar booking sends the clinician straight here; the alarm banner has
+  // been answered, so clear the notification behind it.
+  await markSessionNotificationsRead(actor, id);
 
   // Private Daily rooms cannot be entered without a per-participant token, and
   // the clinician's is minted server-side and never leaves this render.

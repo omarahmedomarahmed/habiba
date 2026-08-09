@@ -4,7 +4,7 @@ import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { notifications, therapistRadar, users } from "@/lib/db/schema";
+import { notifications, sessions, therapistRadar, users } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
 /**
@@ -88,7 +88,13 @@ export async function listRadar(): Promise<RadarTherapist[]> {
         ),
       ),
     )
-    .orderBy(therapistRadar.status, users.firstName)
+    // Bookable first. Ordering by the status column alone sorts alphabetically,
+    // which buries "online" between "in_session" and "pending" — the one group
+    // a visitor can actually do something with, in the middle of the list.
+    .orderBy(
+      sql`CASE ${therapistRadar.status} WHEN 'online' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END`,
+      users.firstName,
+    )
     .limit(100);
 
   const now = Date.now();
@@ -318,7 +324,11 @@ export async function notifyIncomingBooking(opts: {
  * expired pending. This exists so the *public list* stops advertising someone
  * whose claim lapsed, and so a closed laptop eventually reads as offline.
  */
-export async function sweepRadar(): Promise<{ released: number; offline: number }> {
+export async function sweepRadar(): Promise<{
+  released: number;
+  offline: number;
+  abandoned: number;
+}> {
   const now = new Date();
 
   const released = await db
@@ -326,6 +336,27 @@ export async function sweepRadar(): Promise<{ released: number; offline: number 
     .set({ status: "online", pendingSessionId: null, pendingUntil: null, updatedAt: now })
     .where(and(eq(therapistRadar.status, "pending"), lt(therapistRadar.pendingUntil, now)))
     .returning({ id: therapistRadar.id });
+
+  /*
+   * Bin the sessions nobody ever paid for.
+   *
+   * Every abandoned checkout leaves a `scheduled` session with a live join
+   * token behind it. Harmless individually, but they accumulate in the
+   * clinician's session list as bookings that never happened, and each one
+   * carries a token that still works for its full three hours.
+   */
+  const abandoned = await db
+    .update(sessions)
+    .set({ status: "cancelled", joinToken: null, joinTokenExpiresAt: null, updatedAt: now })
+    .where(
+      and(
+        eq(sessions.status, "scheduled"),
+        eq(sessions.paymentStatus, "pending"),
+        isNull(sessions.patientJoinedAt),
+        lt(sessions.createdAt, new Date(now.getTime() - CLAIM_MINUTES * 60_000)),
+      ),
+    )
+    .returning({ id: sessions.id });
 
   const offline = await db
     .update(therapistRadar)
@@ -341,11 +372,19 @@ export async function sweepRadar(): Promise<{ released: number; offline: number 
     )
     .returning({ id: therapistRadar.id });
 
-  if (released.length || offline.length) {
-    log.info("radar swept", { released: released.length, offline: offline.length });
+  if (released.length || offline.length || abandoned.length) {
+    log.info("radar swept", {
+      released: released.length,
+      offline: offline.length,
+      abandoned: abandoned.length,
+    });
   }
 
-  return { released: released.length, offline: offline.length };
+  return {
+    released: released.length,
+    offline: offline.length,
+    abandoned: abandoned.length,
+  };
 }
 
 /** How many clinicians are bookable this second. Used by the public hero. */

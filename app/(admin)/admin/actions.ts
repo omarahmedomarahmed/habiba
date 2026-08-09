@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
+import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { setUserStatus, setVerification } from "@/lib/data/admin";
 import { safeImageUrl } from "@/lib/content/url";
@@ -193,6 +194,43 @@ export async function applyInvoiceDiscount(
     resourceType: "invoice",
     resourceId: invoiceId,
     reason: `${discountCents} cents — ${reason}`,
+  });
+
+  revalidatePath("/admin/vault");
+  return { ok: true };
+}
+
+/**
+ * Refund a patient who paid for a session that did not happen.
+ *
+ * Kept as an admin action rather than something a therapist can do to their own
+ * payments: the money is reversed out of *their* Stripe balance, and "the
+ * person who owes the refund decides whether to issue it" is not a support
+ * policy, it is a dispute waiting to become a chargeback.
+ */
+export async function refundPatient(
+  paymentId: string,
+  reason: string,
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const trimmed = reason.trim();
+  if (!trimmed) return { error: "Say why — this ends up in the audit log." };
+
+  const result = await refundSessionPayment({
+    paymentId,
+    reason: trimmed,
+    adminUserId: actor.userId,
+  });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "payment.refund",
+    resourceType: "session_payment",
+    resourceId: paymentId,
+    reason: trimmed,
   });
 
   revalidatePath("/admin/vault");

@@ -493,6 +493,83 @@ export async function settleSessionPayment(checkout: {
   }
 }
 
+/**
+ * Refund a patient.
+ *
+ * The gap this closes: a clinician goes on the radar, someone in distress pays
+ * six pounds and sixty seconds later nobody has joined the room. Without this
+ * the patient has no remedy inside the product and we have no answer for them.
+ *
+ * `reverse_transfer` claws the money back out of the therapist's balance rather
+ * than ours — they did not do the session, so it is not their money — and
+ * `refund_application_fee` gives back our cut too, because charging a
+ * facilitation fee for a session that did not happen is indefensible.
+ */
+export async function refundSessionPayment(opts: {
+  paymentId: string;
+  reason: string;
+  adminUserId: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const client = getStripe();
+  if (!client) return { error: "Payments are not configured on this deployment." };
+
+  const [payment] = await db
+    .select()
+    .from(sessionPayments)
+    .where(eq(sessionPayments.id, opts.paymentId))
+    .limit(1);
+
+  if (!payment) return { error: "Payment not found." };
+  if (payment.status !== "paid") return { error: "Only a settled payment can be refunded." };
+  if (!payment.stripePaymentIntentId) {
+    return { error: "That payment has no Stripe charge to refund." };
+  }
+
+  try {
+    await client.refunds.create({
+      payment_intent: payment.stripePaymentIntentId,
+      reverse_transfer: true,
+      refund_application_fee: true,
+      metadata: { reason: opts.reason.slice(0, 200), refundedBy: opts.adminUserId },
+    });
+  } catch (error) {
+    log.error("refund failed", {
+      payment: ref(opts.paymentId),
+      reason: safeErrorMessage(error),
+    });
+    return { error: "Stripe declined the refund. Check the payment in the dashboard." };
+  }
+
+  await db
+    .update(sessionPayments)
+    .set({ status: "refunded" })
+    .where(eq(sessionPayments.id, opts.paymentId));
+
+  /*
+   * Anything settled out of that fee has to go back to being owed. The
+   * therapist's 24Therapy bill was paid with money that has now been returned
+   * to the patient; leaving it marked paid would quietly write off real revenue.
+   */
+  if (payment.settledInvoiceCents > 0 && payment.stripeCheckoutSessionId) {
+    await db
+      .update(invoices)
+      .set({ status: "due", paidAt: null, stripeCheckoutSessionId: null })
+      .where(
+        and(
+          eq(invoices.stripeCheckoutSessionId, payment.stripeCheckoutSessionId),
+          eq(invoices.status, "paid"),
+        ),
+      );
+  }
+
+  await db
+    .update(sessions)
+    .set({ paymentStatus: "pending", updatedAt: new Date() })
+    .where(eq(sessions.id, payment.sessionId));
+
+  return { ok: true };
+}
+
 /* ------------------------------------------------------------- earnings -- */
 
 export type Earnings = {

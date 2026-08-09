@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { NoteReview } from "@/components/session/note-review";
 import { Badge, Button, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
+import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
 import { formatDateTime, fullName } from "@/lib/utils";
 
@@ -26,6 +27,9 @@ export default async function SessionDetailPage({
   const [note, transcript] = await Promise.all([
     getNote(actor, id),
     getTranscript(actor, id),
+    // Opening the session is the action the alert was asking for, so the alert
+    // has done its job and stops shouting.
+    markSessionNotificationsRead(actor, id),
   ]);
 
   const patientLabel =

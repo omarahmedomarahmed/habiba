@@ -126,6 +126,30 @@ export async function allInvoices(limit = 300) {
     .limit(limit);
 }
 
+/** Every patient→therapist payment we facilitated, newest first. */
+export async function allSessionPayments(limit = 200) {
+  return db
+    .select({
+      id: sessionPayments.id,
+      sessionId: sessionPayments.sessionId,
+      payerName: sessionPayments.payerName,
+      grossCents: sessionPayments.grossCents,
+      platformFeeCents: sessionPayments.platformFeeCents,
+      settledInvoiceCents: sessionPayments.settledInvoiceCents,
+      therapistNetCents: sessionPayments.therapistNetCents,
+      status: sessionPayments.status,
+      createdAt: sessionPayments.createdAt,
+      paidAt: sessionPayments.paidAt,
+      therapistName: sql<string>`trim(${users.firstName} || ' ' || COALESCE(${users.lastName}, ''))`,
+      organizationName: organizations.name,
+    })
+    .from(sessionPayments)
+    .leftJoin(users, eq(users.id, sessionPayments.therapistId))
+    .leftJoin(organizations, eq(organizations.id, sessionPayments.organizationId))
+    .orderBy(desc(sessionPayments.createdAt))
+    .limit(limit);
+}
+
 /** Money in and model spend, month by month. */
 export async function monthlyLedger(months = 6) {
   const since = new Date();

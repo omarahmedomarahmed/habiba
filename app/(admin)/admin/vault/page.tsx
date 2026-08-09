@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 
 import { VaultInvoiceRow } from "@/components/admin/vault-invoice-row";
+import { VaultPaymentRow } from "@/components/admin/vault-payment-row";
 import { Badge, Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
 import { formatUsd } from "@/lib/billing/plans";
 import {
   allInvoices,
+  allSessionPayments,
   costByKind,
   ledgerSummary,
   monthlyLedger,
@@ -20,13 +22,14 @@ export const dynamic = "force-dynamic";
 export default async function VaultPage() {
   await requireRole("super_admin");
 
-  const [ledger, months, therapists, traction, kinds, invoices] = await Promise.all([
+  const [ledger, months, therapists, traction, kinds, invoices, payments] = await Promise.all([
     ledgerSummary(),
     monthlyLedger(6),
     therapistEconomics(),
     tractionMetrics(),
     costByKind(30),
     allInvoices(200),
+    allSessionPayments(200),
   ]);
 
   const peak = Math.max(1, ...months.map((m) => Math.max(m.collected, m.spent)));
@@ -272,6 +275,40 @@ export default async function VaultPage() {
           ))}
           {invoices.length === 0 ? (
             <li className="px-4 py-6 text-sm text-slate-500">No invoices yet.</li>
+          ) : null}
+        </ul>
+      </Card>
+
+      {/* ------------------------------------------------- patient payments */}
+      <Card>
+        <div className="border-b border-slate-100 px-4 py-3">
+          <p className="text-sm font-semibold text-slate-900">Patient payments</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Money that passed through us to a clinician. Only the fee column is ours — refunding
+            here reverses the transfer out of their balance and returns our cut.
+          </p>
+        </div>
+        <ul className="divide-y divide-slate-100">
+          {payments.map((payment) => (
+            <VaultPaymentRow
+              key={payment.id}
+              id={payment.id}
+              sessionId={payment.sessionId}
+              payerName={payment.payerName}
+              therapistName={payment.therapistName}
+              organizationName={payment.organizationName}
+              grossCents={payment.grossCents}
+              platformFeeCents={payment.platformFeeCents}
+              settledInvoiceCents={payment.settledInvoiceCents}
+              therapistNetCents={payment.therapistNetCents}
+              status={payment.status}
+              when={formatDate(payment.paidAt ?? payment.createdAt)}
+            />
+          ))}
+          {payments.length === 0 ? (
+            <li className="px-4 py-6 text-sm text-slate-500">
+              Nobody has paid a clinician through the platform yet.
+            </li>
           ) : null}
         </ul>
       </Card>

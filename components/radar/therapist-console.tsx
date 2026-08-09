@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { BellRing, Radio, Volume2, VolumeX } from "lucide-react";
+import { Radio } from "lucide-react";
 
-import { radarPing, saveRadarSetup, toggleRadar, type RadarState } from "@/app/(app)/on-call/actions";
+import { saveRadarSetup, toggleRadar, type RadarState } from "@/app/(app)/on-call/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
@@ -44,121 +44,27 @@ export function TherapistConsole(props: ConsoleProps) {
   const [status, setStatus] = useState(props.status);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [booking, setBooking] = useState<{ sessionId: string; paid: boolean } | null>(null);
-  const [muted, setMuted] = useState(false);
-
-  const audioRef = useRef<AudioContext | null>(null);
-  const alarmRef = useRef<number | null>(null);
-  const announcedRef = useRef<string | null>(null);
 
   const online = status !== "offline";
 
-  /**
-   * The alarm.
-   *
-   * A synthesised two-tone beep rather than an audio file: no asset to load, no
-   * request to make, and it cannot fail to arrive at the one moment it matters.
-   * The AudioContext is created inside the click that turns the radar on, which
-   * is the user gesture browsers require before anything is allowed to make
-   * noise — build it on the poll instead and it is silently suspended.
+  /*
+   * The poll, the heartbeat and the booking alarm are NOT here. They live in
+   * <RadarPresence>, mounted once in the app shell, because a clinician who
+   * navigates to their dashboard must stay on the radar and must still hear the
+   * alarm. Duplicating them here would mean two heartbeats and two overlapping
+   * beeps whenever this page happened to be the one open.
    */
-  const beep = useCallback(() => {
-    const context = audioRef.current;
-    if (!context || muted) return;
-    void context.resume();
-
-    const now = context.currentTime;
-    for (const [offset, frequency] of [
-      [0, 880],
-      [0.22, 1174],
-      [0.44, 880],
-    ] as const) {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.0001, now + offset);
-      gain.gain.exponentialRampToValueAtTime(0.32, now + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.19);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(now + offset);
-      oscillator.stop(now + offset + 0.2);
-    }
-  }, [muted]);
-
-  const stopAlarm = useCallback(() => {
-    if (alarmRef.current !== null) {
-      clearInterval(alarmRef.current);
-      alarmRef.current = null;
-    }
-  }, []);
-
-  // Poll while online. This is both the heartbeat that keeps the clinician on
-  // the public radar and the thing that notices an incoming booking.
-  useEffect(() => {
-    if (!online) return;
-
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const result = await radarPing();
-        if (cancelled) return;
-        setBooking(result.booking);
-        if (result.booking) setStatus(result.booking.paid ? "in_session" : "pending");
-      } catch {
-        // A dropped ping is not worth telling anyone about; the next one is
-        // eight seconds away, and the sweep will take them offline if the tab
-        // is genuinely gone.
-      }
-    };
-
-    void tick();
-    const timer = setInterval(tick, PING_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [online]);
-
-  // Ring until acknowledged. A single beep is missable, and someone is waiting.
-  useEffect(() => {
-    if (!booking) {
-      announcedRef.current = null;
-      stopAlarm();
-      return;
-    }
-    if (announcedRef.current === booking.sessionId) return;
-
-    announcedRef.current = booking.sessionId;
-    beep();
-    stopAlarm();
-    alarmRef.current = window.setInterval(beep, 3_000);
-
-    return stopAlarm;
-  }, [booking, beep, stopAlarm]);
-
-  useEffect(() => stopAlarm, [stopAlarm]);
-
   const flip = (next: boolean) =>
     startTransition(async () => {
       setError(null);
-
-      if (next && !audioRef.current) {
-        // Inside the gesture, so the context starts unsuspended.
-        const Ctor = window.AudioContext ?? (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (Ctor) audioRef.current = new Ctor();
-      }
-
       const result = await toggleRadar(next);
       if (result.error) {
         setError(result.error);
         return;
       }
       setStatus(next ? "online" : "offline");
-      if (!next) {
-        setBooking(null);
-        stopAlarm();
-      }
+      // Re-render the shell so presence starts or stops with the switch.
+      router.refresh();
     });
 
   const ready = props.rateCents > 0 ? props.chargesEnabled : true;
@@ -188,18 +94,10 @@ export function TherapistConsole(props: ConsoleProps) {
             </p>
             <p className="mt-0.5 text-sm text-slate-500">
               {online
-                ? "Anyone on the public radar can see you and start a session with you right now."
-                : "Go online when you have a free half hour. You come off the radar the moment you close this tab."}
+                ? "Anyone on the public radar can see you and start a session with you right now. You will hear an alarm anywhere in the app."
+                : "Go online when you have a free half hour. You stay on the radar while 24Therapy is open, and drop off about a minute after you close it."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMuted((value) => !value)}
-            aria-label={muted ? "Unmute the booking alarm" : "Mute the booking alarm"}
-            className="tap-target flex items-center justify-center text-slate-400 hover:text-slate-700"
-          >
-            {muted ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
-          </button>
         </div>
 
         {error ? (
@@ -232,31 +130,6 @@ export function TherapistConsole(props: ConsoleProps) {
             : "No rate set — radar sessions will be free. Set one in Settings."}
         </p>
       </Card>
-
-      {/* ------------------------------------------------- incoming booking */}
-      {booking ? (
-        <div className="animate-fade-rise rounded-3xl bg-navy-500 px-5 py-4 text-white">
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            <BellRing className="live-dot h-4 w-4" aria-hidden />
-            {booking.paid ? "Your patient has paid and is joining" : "Someone is booking you"}
-          </p>
-          <p className="mt-1 text-sm text-white/70">
-            {booking.paid
-              ? "They are on their way into the room. Open it now."
-              : "They are paying. The room is ready — open it and be there when they arrive."}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              stopAlarm();
-              router.push(`/sessions/${booking.sessionId}/room`);
-            }}
-            className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-teal-500 text-sm font-semibold text-white"
-          >
-            Open the room
-          </button>
-        </div>
-      ) : null}
 
       {/* --------------------------------------------------------- profile */}
       <Card className="p-4">

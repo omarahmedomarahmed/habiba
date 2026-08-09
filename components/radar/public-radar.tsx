@@ -62,6 +62,8 @@ export function PublicRadar({
 }) {
   const [entries, setEntries] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [language, setLanguage] = useState("");
+  const [specialty, setSpecialty] = useState("");
   const [state, action] = useActionState(bookFromRadar, INITIAL);
 
   useEffect(() => setEntries(initial), [initial]);
@@ -88,9 +90,33 @@ export function PublicRadar({
     else if (state.joinUrl) window.location.href = state.joinUrl;
   }, [state.payUrl, state.joinUrl]);
 
+  /*
+   * Filter options come from who is actually on the radar, not from the master
+   * allowlist. Offering "Cantonese" when nobody on shift speaks it is a menu of
+   * dead ends, and this is not an audience with patience for dead ends.
+   */
+  const languageOptions = useMemo(
+    () => [...new Set(entries.flatMap((entry) => entry.languages))].sort(),
+    [entries],
+  );
+  const specialtyOptions = useMemo(
+    () => [...new Set(entries.flatMap((entry) => entry.specialties))].sort(),
+    [entries],
+  );
+
+  const visible = useMemo(
+    () =>
+      entries.filter(
+        (entry) =>
+          (!language || entry.languages.includes(language)) &&
+          (!specialty || entry.specialties.includes(specialty)),
+      ),
+    [entries, language, specialty],
+  );
+
   const dots: RadarDot[] = useMemo(
     () =>
-      entries.map((entry) => ({
+      visible.map((entry) => ({
         id: entry.userId,
         country: entry.country,
         status: entry.status,
@@ -98,10 +124,14 @@ export function PublicRadar({
           countryName(entry.country) ?? "Location not shared"
         }`,
       })),
-    [entries],
+    [visible],
   );
 
+  // The headline count is always the unfiltered one. "Nobody available" when
+  // four people are online and you have simply picked a narrow filter is a lie
+  // that sends someone away.
   const onlineCount = entries.filter((entry) => entry.status === "online").length;
+  const filtering = Boolean(language || specialty);
   const selected = entries.find((entry) => entry.userId === selectedId) ?? null;
 
   return (
@@ -141,6 +171,40 @@ export function PublicRadar({
             </p>
           ) : null}
 
+          {entries.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterSelect
+                label="Language"
+                value={language}
+                onChange={setLanguage}
+                options={languageOptions}
+                allLabel="Any language"
+              />
+              <FilterSelect
+                label="Works with"
+                value={specialty}
+                onChange={setSpecialty}
+                options={specialtyOptions}
+                allLabel="Anything"
+              />
+              {filtering ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLanguage("");
+                    setSpecialty("");
+                  }}
+                  className="tap-target text-xs font-medium text-brand-600"
+                >
+                  Clear
+                </button>
+              ) : null}
+              <span className="ml-auto text-xs text-slate-500">
+                {visible.length} of {entries.length}
+              </span>
+            </div>
+          ) : null}
+
           {entries.length === 0 ? (
             <Card className="p-6 text-center">
               <p className="text-sm font-semibold text-slate-900">Nobody is on the radar yet</p>
@@ -149,9 +213,29 @@ export function PublicRadar({
                 or text 988.
               </p>
             </Card>
+          ) : visible.length === 0 ? (
+            <Card className="p-6 text-center">
+              <p className="text-sm font-semibold text-slate-900">
+                Nobody matching that is on shift
+              </p>
+              <p className="mt-1.5 text-sm text-slate-600">
+                {onlineCount} other {onlineCount === 1 ? "clinician is" : "clinicians are"}{" "}
+                available right now.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLanguage("");
+                  setSpecialty("");
+                }}
+                className="mt-3 text-sm font-semibold text-brand-600"
+              >
+                Show everyone
+              </button>
+            </Card>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
-              {entries.map((entry) => (
+              {visible.map((entry) => (
                 <li key={entry.userId}>
                   <button
                     type="button"
@@ -289,6 +373,42 @@ export function PublicRadar({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  allLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  allLabel: string;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-slate-500">
+      <span className="sr-only sm:not-sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={cn(
+          "h-9 rounded-xl border bg-white px-2.5 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none",
+          value ? "border-brand-500 font-medium text-brand-700" : "border-slate-200 text-slate-700",
+        )}
+      >
+        <option value="">{allLabel}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

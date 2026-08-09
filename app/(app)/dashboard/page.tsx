@@ -5,11 +5,9 @@ import { AlertTriangle, ChevronRight, FileText, Plus, Radio } from "lucide-react
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { billingSummary } from "@/lib/billing/service";
+import { unreadNotifications } from "@/lib/data/notifications";
 import { getRadarProfile } from "@/lib/data/radar";
 import { countOpenDrafts, listSessions } from "@/lib/data/sessions";
-import { db } from "@/lib/db";
-import { notifications } from "@/lib/db/schema";
-import { and, desc, eq, isNull } from "drizzle-orm";
 import { formatUsd } from "@/lib/billing/plans";
 import { fullName, relativeDay } from "@/lib/utils";
 
@@ -23,12 +21,7 @@ export default async function DashboardPage() {
     listSessions(actor, { limit: 5 }),
     countOpenDrafts(actor),
     billingSummary(actor.organizationId),
-    db
-      .select()
-      .from(notifications)
-      .where(and(eq(notifications.userId, actor.userId), isNull(notifications.readAt)))
-      .orderBy(desc(notifications.createdAt))
-      .limit(3),
+    unreadNotifications(actor, 3),
     getRadarProfile(actor.userId),
   ]);
 
