@@ -1,17 +1,27 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
-import { RadarFilters } from "@/components/radar/filters";
+import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components/radar/filters";
 import { TherapistCard } from "@/components/radar/therapist-card";
-import { WorldRadar, type RadarDot } from "@/components/radar/world-radar";
+
+/**
+ * Same globe as the radar page, same chunk, loaded after the fold is painted.
+ *
+ * The hero renders and is readable before it arrives — it is the background,
+ * not the content — so a slow connection gets the headline and the booking
+ * board immediately and the world fades in behind them.
+ */
+const Globe = dynamic(() => import("@/components/radar/globe").then((m) => m.Globe), {
+  ssr: false,
+});
 import type { RadarEntry } from "@/components/radar/types";
 import { formatUsd } from "@/lib/billing/plans";
-import { countryName } from "@/lib/geo";
-import { cn, fullName } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 
 /** See the note on REFRESH_MS in public-radar.tsx. */
@@ -41,8 +51,7 @@ export function RadarHero({
   const [entries, setEntries] = useState<RadarEntry[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewer] = useState(() => viewerId());
-  const [language, setLanguage] = useState("");
-  const [specialty, setSpecialty] = useState("");
+  const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,28 +79,7 @@ export function RadarHero({
 
   const all = entries ?? [];
 
-  const visible = useMemo(
-    () =>
-      all.filter(
-        (entry) =>
-          (!language || entry.languages.includes(language)) &&
-          (!specialty || entry.specialties.includes(specialty)),
-      ),
-    [all, language, specialty],
-  );
-
-  const dots: RadarDot[] = useMemo(
-    () =>
-      visible.map((entry) => ({
-        id: entry.userId,
-        country: entry.country,
-        status: entry.status,
-        label: `${fullName(entry.firstName, entry.lastName, "Clinician")} · ${
-          countryName(entry.country) ?? "Location not shared"
-        }`,
-      })),
-    [visible],
-  );
+  const visible = useMemo(() => all.filter((entry) => matches(entry, filter)), [all, filter]);
 
   const online = all.filter((entry) => entry.status === "online");
   const bookable = visible.filter((entry) => entry.status === "online");
@@ -103,11 +91,34 @@ export function RadarHero({
 
   return (
     <section className="relative isolate overflow-hidden bg-navy-600">
-      {/* The map is the hero background, not an illustration beside it. */}
-      <div className="absolute inset-0" aria-hidden>
-        <WorldRadar dots={dots} className="h-full w-full opacity-80" />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy-600 via-navy-600/90 to-navy-600/35" />
-        <div className="absolute inset-0 bg-gradient-to-t from-navy-600 via-transparent to-navy-600/70" />
+      {/* The globe is the hero background, not an illustration beside it. It
+          stays draggable where the copy does not cover it, and the gradients
+          are what keep white text on a rotating planet legible. */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* A darker disc behind the sphere. Without it the globe's own ocean
+            is within a few percent of the hero background and the whole thing
+            reads as a faint smudge rather than a planet. */}
+        <div
+          className="absolute top-1/2 left-1/2 aspect-square w-[150%] -translate-y-1/2 translate-x-[-28%] rounded-full bg-[radial-gradient(circle,#04101f_38%,rgba(4,16,31,0)_66%)] sm:w-[105%] lg:w-[86%]"
+          aria-hidden
+        />
+        <div className="absolute top-1/2 left-1/2 aspect-square w-[130%] -translate-y-1/2 translate-x-[-32%] sm:w-[92%] lg:w-[74%]">
+          <Globe
+            entries={visible}
+            selected={filter.country || null}
+            onSelect={(code) => setFilter((f) => ({ ...f, country: code ?? "", region: "" }))}
+            onPick={(entry) => setSelectedId(entry.userId)}
+            className="h-full w-full"
+          />
+        </div>
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-navy-600 via-navy-600/70 to-transparent"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-navy-600 via-transparent to-navy-600/60"
+          aria-hidden
+        />
       </div>
 
       <div className="relative mx-auto grid max-w-6xl gap-8 px-4 pt-10 pb-12 sm:px-6 sm:pt-16 sm:pb-20 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
@@ -168,14 +179,7 @@ export function RadarHero({
         {/* ------------------------------------------------- the live board */}
         <div className="rounded-3xl border border-white/10 bg-navy-500/70 p-3 backdrop-blur-md lg:sticky lg:top-20 lg:self-start">
           <div className="px-1 pb-2">
-            <RadarFilters
-              entries={all}
-              language={language}
-              specialty={specialty}
-              onLanguage={setLanguage}
-              onSpecialty={setSpecialty}
-              tone="dark"
-            />
+            <RadarFilters entries={all} value={filter} onChange={setFilter} tone="dark" />
           </div>
 
           <div className="max-h-[22rem] space-y-2 overflow-y-auto pr-0.5">
@@ -199,10 +203,7 @@ export function RadarHero({
                 {all.length > 0 ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setLanguage("");
-                      setSpecialty("");
-                    }}
+                    onClick={() => setFilter(NO_FILTER)}
                     className="mt-3 text-sm font-semibold text-teal-300"
                   >
                     Show everyone

@@ -1,17 +1,33 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
-import { RadarFilters } from "@/components/radar/filters";
+import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components/radar/filters";
 import { TherapistCard } from "@/components/radar/therapist-card";
-import { WorldRadar, type RadarDot } from "@/components/radar/world-radar";
 import type { RadarEntry } from "@/components/radar/types";
 import { Card } from "@/components/ui";
-import { countryName } from "@/lib/geo";
-import { cn, fullName } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
+
+/**
+ * The globe is a separate chunk, loaded after the page is interactive.
+ *
+ * Its country outlines are 40 kB gzipped — worth every byte on this page and
+ * not worth one of them anywhere else. `ssr: false` because it measures itself
+ * and animates from the first frame; rendering it on the server would ship a
+ * static hemisphere that immediately gets replaced.
+ */
+const Globe = dynamic(() => import("@/components/radar/globe").then((m) => m.Globe), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center">
+      <Loader2 className="h-5 w-5 animate-spin text-teal-400/60" aria-hidden />
+    </div>
+  ),
+});
 
 /**
  * Availability changes in seconds, not minutes.
@@ -29,19 +45,14 @@ export type { RadarEntry };
  * The full radar board.
  *
  * Everything here is the clinician's own published profile: name, credentials,
- * languages, what they work with, their rate and their country. No patient data
- * touches this component and no authenticated call is made — a person in crisis
- * gets a list and a button, not a signup form.
- *
- * The list refreshes on a timer because availability changes underneath it. A
- * stale radar sends someone to a clinician who is already with another patient,
- * which for this audience is not a minor inconvenience.
+ * languages, what they work with, their rate and where they practise. No
+ * patient data touches this component and no authenticated call is made — a
+ * person in crisis gets a globe, a list and a button, not a signup form.
  */
 export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
   const [entries, setEntries] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [language, setLanguage] = useState("");
-  const [specialty, setSpecialty] = useState("");
+  const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
   const [refreshing, setRefreshing] = useState(false);
   const [viewer] = useState(() => viewerId());
 
@@ -67,26 +78,8 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
   }, [viewer]);
 
   const visible = useMemo(
-    () =>
-      entries.filter(
-        (entry) =>
-          (!language || entry.languages.includes(language)) &&
-          (!specialty || entry.specialties.includes(specialty)),
-      ),
-    [entries, language, specialty],
-  );
-
-  const dots: RadarDot[] = useMemo(
-    () =>
-      visible.map((entry) => ({
-        id: entry.userId,
-        country: entry.country,
-        status: entry.status,
-        label: `${fullName(entry.firstName, entry.lastName, "Clinician")} · ${
-          countryName(entry.country) ?? "Location not shared"
-        }`,
-      })),
-    [visible],
+    () => entries.filter((entry) => matches(entry, filter)),
+    [entries, filter],
   );
 
   // Always the unfiltered count. "Nobody available" when four people are online
@@ -96,12 +89,20 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
 
   return (
     <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-3xl bg-navy-500">
-        <div className="aspect-[2/1] sm:aspect-[5/2]">
-          <WorldRadar dots={dots} selectedId={selectedId} onSelect={setSelectedId} />
+      <div className="relative overflow-hidden rounded-3xl bg-[#04101f]">
+        {/* Square on a phone, wider on a desktop — the globe is centred either
+            way, so the extra width is atmosphere rather than dead space. */}
+        <div className="aspect-square sm:aspect-[16/10]">
+          <Globe
+            entries={visible}
+            selected={filter.country || null}
+            onSelect={(code) => setFilter((f) => ({ ...f, country: code ?? "", region: "" }))}
+            onPick={(entry) => setSelectedId(entry.userId)}
+            className="h-full w-full"
+          />
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-navy-500 to-transparent px-4 py-3">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-[#04101f] via-[#04101f]/70 to-transparent px-4 pt-10 pb-3">
           <p className="flex items-center gap-2 text-sm font-semibold text-white">
             <span
               className={cn(
@@ -115,23 +116,17 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
           </p>
           <p className="hidden items-center gap-1.5 text-xs text-white/50 sm:flex">
             {refreshing ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
-            Tap a dot or a card
+            Drag to spin · tap a country
           </p>
         </div>
       </div>
 
       {entries.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <RadarFilters
-            entries={entries}
-            language={language}
-            specialty={specialty}
-            onLanguage={setLanguage}
-            onSpecialty={setSpecialty}
-          />
-          <span className="ml-auto text-xs text-slate-500">
-            {visible.length} of {entries.length}
-          </span>
+        <div className="space-y-2">
+          <RadarFilters entries={entries} value={filter} onChange={setFilter} />
+          <p className="text-xs text-slate-500">
+            Showing {visible.length} of {entries.length}
+          </p>
         </div>
       ) : null}
 
@@ -152,10 +147,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
           </p>
           <button
             type="button"
-            onClick={() => {
-              setLanguage("");
-              setSpecialty("");
-            }}
+            onClick={() => setFilter(NO_FILTER)}
             className="mt-3 text-sm font-semibold text-brand-600"
           >
             Show everyone
