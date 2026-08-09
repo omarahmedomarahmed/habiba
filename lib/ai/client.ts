@@ -1,0 +1,122 @@
+import "server-only";
+
+import OpenAI from "openai";
+
+import { db } from "@/lib/db";
+import { aiRequestLogs } from "@/lib/db/schema";
+import { env } from "@/lib/env";
+import { log, ref, safeErrorMessage } from "@/lib/logger";
+
+/**
+ * One gateway for every model call.
+ *
+ * Two rules it exists to enforce:
+ *  - Usage is logged as *metadata only*. Prompts and completions are transcript
+ *    text; storing them would duplicate the chart into a usage table.
+ *  - There is no mock fallback. The old gateway returned a fabricated SOAP note
+ *    when no API key was configured, and logged it with `status: 'success'` —
+ *    one missing environment variable away from inventing clinical content.
+ */
+
+export const MODELS = {
+  transcribe: "gpt-4o-mini-transcribe",
+  note: "gpt-4o",
+  risk: "gpt-4o",
+} as const;
+
+/** Rough public rates, in cents, used only for the admin usage dashboard. */
+const RATES = {
+  "gpt-4o": { inPerMTok: 250, outPerMTok: 1000 },
+  "gpt-4o-mini-transcribe": { perAudioMinute: 0.3 },
+} as const;
+
+let client: OpenAI | null = null;
+
+export function openai(): OpenAI {
+  if (!env.openaiApiKey) {
+    throw new AiUnavailableError("OPENAI_API_KEY is not configured");
+  }
+  client ??= new OpenAI({ apiKey: env.openaiApiKey, maxRetries: 2, timeout: 120_000 });
+  return client;
+}
+
+export class AiUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AiUnavailableError";
+  }
+}
+
+type UsageInput = {
+  organizationId: string | null;
+  userId: string | null;
+  sessionId: string | null;
+  kind: "transcribe" | "note" | "risk";
+  model: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  audioSeconds?: number;
+  durationMs: number;
+  status: "success" | "error";
+  errorCode?: string;
+};
+
+export async function logUsage(input: UsageInput): Promise<void> {
+  const cost = estimateCostCents(input);
+  try {
+    await db.insert(aiRequestLogs).values({
+      organizationId: input.organizationId,
+      userId: input.userId,
+      sessionId: input.sessionId,
+      kind: input.kind,
+      model: input.model,
+      inputTokens: input.inputTokens ?? 0,
+      outputTokens: input.outputTokens ?? 0,
+      audioSeconds: input.audioSeconds ?? 0,
+      costCents: cost,
+      durationMs: input.durationMs,
+      status: input.status,
+      errorCode: input.errorCode ?? null,
+    });
+  } catch (error) {
+    // Usage accounting must never take down a clinical request.
+    log.warn("ai usage log failed", { reason: safeErrorMessage(error) });
+  }
+}
+
+function estimateCostCents(input: UsageInput): number {
+  if (input.kind === "transcribe") {
+    const rate = RATES["gpt-4o-mini-transcribe"];
+    return Math.round(((input.audioSeconds ?? 0) / 60) * rate.perAudioMinute);
+  }
+  const rate = RATES["gpt-4o"];
+  const inCost = ((input.inputTokens ?? 0) / 1_000_000) * rate.inPerMTok;
+  const outCost = ((input.outputTokens ?? 0) / 1_000_000) * rate.outPerMTok;
+  return Math.round(inCost + outCost);
+}
+
+/**
+ * Parse a model response that is supposed to be JSON.
+ *
+ * `response_format: json_object` makes this reliable but not guaranteed, and a
+ * model that decides to wrap its answer in a code fence should degrade to a
+ * typed fallback rather than throw inside a clinical path. Every JSON.parse of
+ * model output in the old codebase needed this; several did not have it.
+ */
+export function parseJson<T>(raw: string | null | undefined, fallback: T, context: string): T {
+  if (!raw) return fallback;
+  let text = raw.trim();
+  if (text.startsWith("```")) {
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  }
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed === null || typeof parsed !== "object") return fallback;
+    return parsed as T;
+  } catch {
+    log.warn("model returned unparseable JSON", { context });
+    return fallback;
+  }
+}
+
+export { ref };

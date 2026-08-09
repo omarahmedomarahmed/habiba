@@ -1,240 +1,220 @@
-# 24Therapy — AI-Powered Mental Health OS (MVP)
+# 24Therapy
 
-An AI platform for licensed therapists: record a session on your phone, walk away with a
-full SOAP note, clinical insights, and a shareable patient report — without writing a word.
+AI clinical documentation for therapists. Start a session on your phone, and the SOAP
+note, summary and follow-up are written for you by the time you say goodbye.
 
-**The product spec is [`docs/PRODUCT_MVP.md`](docs/PRODUCT_MVP.md). This README is the
-operations manual: architecture, environment variables, database setup, and deployment.**
-
----
-
-## MVP Scope — what is deployed
-
-The MVP has **two access levels**:
-
-| App | Who | Port (dev) | Deploy |
-|-----|-----|------------|--------|
-| `apps/therapist` | Licensed therapists (primary user, phone-first) | 3001 | Vercel |
-| `apps/admin` | Platform super-admins | 3003 | Vercel |
-| `backend` | NestJS REST API + WebSockets | 4000 | Railway |
-
-Also in the monorepo but **not part of the MVP deployment**:
-
-- `apps/web` — marketing site (optional to deploy; signup funnel works against the same API)
-- `apps/patient` — patient portal (**out of MVP scope** — patients join sessions via email
-  link with no account, per the MVP spec; do not deploy)
-
-### Feature map (therapist portal)
-
-Dashboard · Sessions (online / in-person / phone, join links, live transcript, AI copilot,
-crisis alerts, OFF RECORD) · Patients (no accounts required) · Notes (SOAP review/approve,
-share report by email) · Treatment Plans · AI Workspace (7 modes, credit-metered on PAYG) ·
-Analytics (Basic / Full) · Radar Matching · Risk Monitor · Billing · Settings
-
-### Plan feature matrix (enforced server-side)
-
-The single source of truth is `backend/src/modules/billing/plan-features.ts`
-(mirrored in `apps/therapist/lib/tiers.ts`; exposed as `GET /billing/my-features`):
-
-| Feature | PAYG | Starter $59/mo | Unlimited $99/mo | Practice $249/mo |
-|---------|------|---------|-----------|----------|
-| Sessions | $6/session (first free) | 20/mo + rollover | Unlimited | Unlimited |
-| AI transcription / SOAP / Copilot | ✓ | ✓ | ✓ | ✓ |
-| AI chat messages | 5/session | Unlimited | Unlimited | Unlimited |
-| Recordings | — | ✓ | ✓ | ✓ |
-| Radar matching | — | ✓ | ✓ | ✓ |
-| HIPAA BAA | — | ✓ | ✓ | ✓ |
-| Analytics | Basic | Basic | Full | Full |
-| Treatment plans | ✓ | ✓ | ✓ | ✓ |
-| Multi-location / white-label / EHR / dedicated support | — | — | — | ✓ |
-
-Plan keys in the database: `pay_per_session` · `starter` · `pro` · `practice` (+ legacy `enterprise`).
+**One Next.js application. One deployment. One database.**
 
 ---
 
-## Architecture
+## What this is
 
-```
-apps/therapist     Next.js 15  → therapist portal (mobile-first, bottom-nav on phones)
-apps/admin         Next.js 15  → super-admin portal
-apps/web           Next.js 15  → marketing site (not required for MVP)
-apps/patient       Next.js 15  → OUT OF MVP (kept for future)
-backend            NestJS 10   → REST API /api/v1 + Socket.io gateways
-packages/types     shared TS types      packages/config  shared URL constants
-migrations/        001–012 fresh MVP schema (see below)
-scripts/           migrate.js (runs on every deploy), seed.js (org + super-admin)
-```
+| Surface | Path | Who |
+|---|---|---|
+| Public site | `/`, `/features`, `/pricing`, `/privacy`, … | Anyone. Content is CMS-backed and edited in the admin console. |
+| Clinician portal | `/dashboard`, `/sessions`, `/patients`, `/notes`, `/billing`, `/settings` | Signed-in therapists, phone-first |
+| Live session room | `/sessions/[id]/room` | The clinician, full-screen |
+| Patient join | `/join/[token]` | The patient. No account, no password, no app. |
+| Admin console | `/admin` | Super admins |
 
-Backend modules (MVP-only): auth, users, organizations, therapists, patients, sessions,
-ai, crisis, notes, treatment-plans, radar, billing, analytics, notifications, admin,
-mail, contact, data-lifecycle.
+The core loop is: **New session → type a first name → Start → End → review → Approve & send.**
+Four screens, roughly eight taps, from a brand-new account to a signed note in a
+patient's inbox.
 
 ---
 
-## Database — fresh setup (Neon)
+## Stack
 
-The schema was rewritten from scratch for the MVP: **12 ordered SQL files** in
-`migrations/` (001_extensions → 012_seed). They create ~55 tables — exactly what the
-backend queries, nothing else — and are verified to apply cleanly on a blank
-PostgreSQL 16 database with the `vector` extension (Neon has pgvector built in).
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | Next.js 15 (App Router), React 19 | Server components for reads, server actions for writes |
+| Styling | Tailwind v4 | Tokens defined once in `app/globals.css` |
+| Database | Neon Postgres via Drizzle | Typed schema — the old codebase's single largest bug class was column-name drift against hand-written SQL |
+| Driver | `@neondatabase/serverless` (WebSocket pool) | Real transactions, and Neon's proxy absorbs serverless connection fan-out |
+| Auth | Opaque session tokens in an httpOnly cookie | Revocable on the next request; nothing readable by script |
+| AI | OpenAI — `gpt-4o-mini-transcribe`, `gpt-4o` | One transcription call per chunk, one JSON call per note |
+| Video | Daily.co, private rooms + per-participant tokens | The room URL alone is never a credential |
+| Email | Resend | Password resets, join links, patient summaries |
+| Payments | Stripe | Two plans, idempotent webhooks |
 
-### Creating the new database
-
-1. Create a new Neon project → copy the **pooled connection string**.
-2. Nothing else to prepare — migration `001_extensions.sql` enables
-   `uuid-ossp`, `pgcrypto`, and `vector` itself.
-
-### Migrations run automatically on deploy
-
-`railway.json` → `"preDeployCommand": "node scripts/migrate.js --auto-baseline"` runs
-before every backend deploy: advisory-locked, checksummed, ordered, idempotent.
-The Vercel apps never touch the database — they only need `NEXT_PUBLIC_API_URL`.
-
-Manual commands (local or one-off):
-
-```bash
-DATABASE_URL=postgres://… node scripts/migrate.js           # apply pending
-DATABASE_URL=postgres://… node scripts/migrate.js --status  # show state
-DATABASE_URL=postgres://… \
-  SEED_ORG_NAME="24Therapy" \
-  SEED_ADMIN_EMAIL="you@example.com" \
-  SEED_ADMIN_PASSWORD="…strong…" node scripts/seed.js        # org + super-admin (idempotent)
-```
-
----
-
-## Admin accounts (create / change password in Neon)
-
-Admins are just rows in the `users` table with `role = 'super_admin'`. Passwords are
-bcrypt hashes (cost 12) in `password_hash` — never plaintext.
-
-**Create an admin from the Neon SQL Editor** (Neon dashboard → your project → **SQL Editor**),
-paste and Run:
-
-```sql
-INSERT INTO users (
-  id, organization_id, email, password_hash,
-  first_name, last_name, role, status, email_verified_at
-)
-VALUES (
-  uuid_generate_v4(),
-  (SELECT id FROM organizations ORDER BY created_at LIMIT 1),
-  'you@example.com',
-  '$2a$12$replace_with_a_real_bcrypt_hash',      -- see "generating a hash" below
-  'First', 'Last', 'super_admin', 'active', NOW()
-)
-ON CONFLICT (organization_id, email) WHERE deleted_at IS NULL
-DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'super_admin', status = 'active';
-```
-
-Add **more admins** by running the same block again with a different email. The
-`ON CONFLICT … DO UPDATE` makes it safe to re-run: same email → password reset, new email → new admin.
-
-**Change a password** — run the same statement (or just the update) with a fresh hash:
-
-```sql
-UPDATE users SET password_hash = '$2a$12$new_hash_here'
-WHERE email = 'you@example.com';
-```
-
-**Generating a bcrypt hash** (any one):
-- `node -e "console.log(require('bcryptjs').hashSync(process.argv[1],12))" 'YourPassword'`
-  (run from the repo root — `bcryptjs` is already installed)
-- or set `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` and run `node scripts/seed.js` — it hashes
-  for you and upserts the admin.
-
-> Neon has no "users" UI — admin accounts live in the `users` **table**, edited via the SQL Editor.
-> The `organizations` subquery attaches the admin to your first org (the one `seed.js` created).
+There is **no WebSocket server and no separate API service**. The browser already uploads
+an audio chunk every eight seconds, so the response to that upload carries new transcript
+text and any crisis flag. That is the entire realtime layer.
 
 ---
 
 ## Environment variables
 
-### Backend (Railway → Variables)
+17 in total. Set these in **Vercel → Project → Settings → Environment Variables**.
 
-**Required in production** (boot fails without them — `backend/src/config/env.validation.ts`):
+### Required — the app refuses to boot in production without them
 
-| Var | What / where to get it |
-|-----|------------------------|
-| `DATABASE_URL` | New Neon pooled connection string |
-| `OPENAI_API_KEY` | OpenAI (GPT-4o notes/copilot + Whisper transcription) |
-| `JWT_SECRET` | ≥32 random chars — `openssl rand -hex 32` |
-| `COOKIE_SECRET` | ≥32 random chars — `openssl rand -hex 32` |
-| `CORS_ORIGINS` | Exact origins, comma-separated: `https://app.24therapy.ai,https://admin.24therapy.ai` |
-| `STRIPE_WEBHOOK_SECRET` | Stripe dashboard → Webhooks → signing secret |
+| Var | What it is | Where to get it |
+|---|---|---|
+| `DATABASE_URL` | Neon **pooled** connection string | Neon dashboard → Connection string (the one containing `-pooler`) |
+| `AUTH_SECRET` | Session cookie signing secret, ≥32 chars | `openssl rand -hex 32` |
+| `OPENAI_API_KEY` | Transcription + note generation | platform.openai.com → API keys |
+| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks | Stripe → Developers → Webhooks → signing secret |
+| `APP_URL` | Public origin, no trailing slash | e.g. `https://24therapy.ai` |
 
-**Strongly recommended:**
+### Strongly recommended — the feature degrades without them, the app still runs
 
-| Var | What |
-|-----|------|
-| `DAILY_API_KEY` | **Required for online video sessions.** Without it the room shows an honest "video not set up" state — audio transcription still works, but no video call. Get it at dashboard.daily.co → Developers. |
-| `STRIPE_SECRET_KEY` | Stripe payments (subscriptions + $6 PAYG session bills) |
-| `RESEND_API_KEY` | Transactional email (invites, reports, bills) |
-| `EMAIL_FROM` / `EMAIL_FROM_NAME` | Sender identity |
-| `SENTRY_DSN` | Error monitoring (PHI is stripped before send) |
-| `THERAPIST_APP_URL` | e.g. `https://app.24therapy.ai` (used in join links + emails) |
-| `NODE_ENV` | `production` |
+| Var | What breaks without it |
+|---|---|
+| `DAILY_API_KEY` | Video sessions show an honest "video not configured" state. Audio and notes still work. |
+| `STRIPE_SECRET_KEY` | No checkout. Sessions still record and notes are still written; nothing is charged. |
+| `RESEND_API_KEY` | No emails: no patient summaries, no join links, no password resets. |
+| `EMAIL_FROM` | Sender identity, e.g. `24Therapy <noreply@24therapy.ai>` |
+| `CRON_SECRET` | Scheduled jobs reject every request. Set it to any long random string; Vercel Cron sends it automatically. |
 
-Optional: `REDIS_URL` (never required), `ANTHROPIC_API_KEY`, `PORT` (default 4000),
-`JWT_ACCESS_EXPIRY` (default `15m` — access-token lifetime; refresh is automatic).
+### Optional
 
-> **Online sessions need `DAILY_API_KEY`.** The therapist room embeds the Daily.co call in an
-> iframe (its own camera/mic/screen-share controls). If the video area is blank, the key is
-> missing or the room failed to create — check the backend logs for "Failed to create Daily.co room".
+| Var | Default | Notes |
+|---|---|---|
+| `DATABASE_URL_DIRECT` | falls back to `DATABASE_URL` | Non-pooled connection for maintenance that PgBouncer cannot carry |
+| `DATABASE_SSL` | on in production, off locally | Tri-state. Leave unset unless you are running local Postgres without TLS. |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | — | Error reporting. Disable session replay before enabling on a clinical app. |
 
-### Frontends (Vercel → each project's Environment Variables)
+### Seed-script only (never needed in Vercel)
 
-| App | Var | Value |
-|-----|-----|-------|
-| therapist / admin / web | `NEXT_PUBLIC_API_URL` | `https://<railway-backend-domain>/api/v1` |
+`SEED_ADMIN_EMAIL` · `SEED_ADMIN_PASSWORD` · `SEED_TEST_EMAIL` · `SEED_TEST_PASSWORD` ·
+`SEED_ORG_NAME` · `SEED_ORG_SLUG`
 
-### Stripe webhook
+---
 
-Point the Stripe webhook to `https://<backend>/api/v1/billing/webhook`
-(events: `checkout.session.completed`, `invoice.payment_succeeded`,
-`invoice.payment_failed`, `customer.subscription.deleted`, `customer.subscription.updated`).
+## First deploy
+
+```bash
+# 1. Point DATABASE_URL at the Neon project, then:
+npm ci
+npm run db:migrate        # creates all 16 tables
+npm run db:seed           # organisation + super admin + published public pages
+```
+
+`db:seed` needs `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` set, or it skips admin
+creation and only publishes the public pages. It is idempotent — safe on every deploy —
+and it will **not** overwrite CMS pages an admin has edited.
+
+### Creating the admin account
+
+```bash
+DATABASE_URL='postgres://…' \
+SEED_ADMIN_EMAIL='you@yourdomain.com' \
+SEED_ADMIN_PASSWORD='a-long-password-you-choose' \
+npm run db:seed
+```
+
+Re-running with the same email resets that admin's password. Re-running with a different
+email adds a second admin. Passwords are scrypt hashes; nothing is ever stored in plain
+text.
+
+### Creating the test therapist and test patient
+
+```bash
+DATABASE_URL='postgres://…' npm run db:seed -- --demo
+```
+
+Adds, on top of the above:
+
+| Thing | Value |
+|---|---|
+| Test therapist | `test@24therapy.ai` / `TestTherapist2026!` |
+| Test patient | Test Patient, attached to that therapist |
+| Demo session | One completed session with a 12-segment transcript and an approved SOAP note |
+
+Override with `SEED_TEST_EMAIL` and `SEED_TEST_PASSWORD`. The demo data is behind a flag
+deliberately, so a production deploy running `db:seed` never quietly creates a login whose
+password is written down in this file.
 
 ---
 
 ## Local development
 
 ```bash
-pnpm install
-# database (any Postgres 16 with pgvector)
-DATABASE_URL=postgres://localhost/24therapy node scripts/migrate.js
-DATABASE_URL=… SEED_ADMIN_EMAIL=… SEED_ADMIN_PASSWORD=… node scripts/seed.js
-
-# backend
-cd backend && ../node_modules/.bin/tsc && DATABASE_URL=… JWT_SECRET=… COOKIE_SECRET=… \
-  OPENAI_API_KEY=… CORS_ORIGINS=http://localhost:3001,http://localhost:3003 \
-  node dist/backend/src/main.js
-
-# apps
-NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1 pnpm --filter @24therapy/therapist dev
-NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1 pnpm --filter @24therapy/admin dev
-
-# tests
-cd backend && ../node_modules/.bin/jest --no-coverage
+cp .env.example .env.local   # then fill in DATABASE_URL and AUTH_SECRET
+npm ci
+npm run db:migrate
+npm run db:seed -- --demo
+npm run dev
 ```
 
----
+```bash
+npm run typecheck   # tsc --noEmit
+npm test            # safety + auth + billing invariants
+npm run build       # production build
+```
 
-## Security invariants (never regress)
-
-1. **No PHI in logs** — no transcript/message content in logger calls.
-2. **Crisis patient copy** — patients only ever receive a supportive `crisis_support`
-   message; never risk level or indicators.
-3. **Production boot guard** — `validateEnv()` refuses to start with missing/weak secrets.
-4. **No CORS wildcard** in production.
-5. **Redis stays optional.**
-6. All PHI route access is written to `phi_access_log` (HIPAA §164.312);
-   break-glass access is recorded; JWT idle timeout 30 min / absolute 4 h.
+`npm test` runs with `--conditions=react-server` so that `server-only` modules resolve to
+their no-op build outside a React Server Component context.
 
 ---
 
-## Mobile
+## Scheduled jobs
 
-The therapist portal is built phone-first: 5-tab bottom navigation on mobile, all core
-flows (new session → room → note review → share) usable one-handed. The recommended path
-to a native app is to wrap this portal with Capacitor (or rebuild screens in Expo reusing
-`apps/therapist/lib/api.ts`) — the backend needs no changes for mobile.
+Declared in `vercel.json`, authenticated with `CRON_SECRET`:
+
+| Job | Schedule | What it does |
+|---|---|---|
+| `/api/cron/crisis` | every 5 min | Re-delivers crisis alerts whose notification failed. Alerts are written to the database **before** anyone is notified, so this is what makes them survive a delivery failure. |
+| `/api/cron/billing` | every 30 min | Charges completed sessions that produced no charge row |
+| `/api/cron/retention` | daily 03:00 | Deletes audit records older than six years and expired sessions |
+
+---
+
+## Security invariants
+
+These are enforced in code and covered by `tests/safety.test.ts`. Do not regress them.
+
+1. **No PHI in logs.** `lib/logger.ts` truncates every UUID it sees and takes no free text
+   beyond a fixed message. Crisis alerts log an indicator *count*, never the words.
+2. **Patients never see a risk level.** `patientFacingCrisisMessage()` returns support and
+   a helpline. There is no patient-facing component that accepts a risk level as a prop.
+3. **Boot guard.** `lib/env.ts` refuses to start in production without the required
+   variables, and rejects a short or placeholder `AUTH_SECRET`.
+4. **Roles are an allowlist over a closed union**, never a numeric hierarchy. An
+   unrecognised role is denied.
+5. **Middleware is not the authorisation boundary.** It only redirects. Every page, action
+   and route handler calls `requireUser()` / `requireRole()` itself.
+6. **Every clinical read and write is audited** through `lib/audit.ts`, awaited, and
+   allowed to throw. An audit insert that fails silently is worse than none, because you
+   plan around it.
+7. **Org scoping lives in the data layer** (`lib/data/*`), taken from the authenticated
+   actor and never from a request parameter.
+8. **No CMS field is ever rendered as HTML.** Content is structured blocks; the renderer
+   has no `dangerouslySetInnerHTML`.
+
+## Before your first real patient
+
+- Sign BAAs: Vercel (Pro + HIPAA add-on), Neon (Scale plan), OpenAI, Resend, Daily, and
+  Sentry if enabled.
+- Confirm consent-to-record wording with counsel and put it in `/terms`.
+- Review `/privacy`, `/terms` and `/hipaa` — they ship as honest starting points, not as
+  legal advice.
+- Turn off Sentry session replay. It would record therapy screens.
+
+---
+
+## Layout
+
+```
+app/
+  (public)/      marketing + legal, CMS-backed, statically rendered
+  (auth)/        sign in, sign up, password reset
+  (app)/         clinician portal
+  (room)/        the live session room, full-bleed
+  (admin)/       admin console + CMS editor
+  join/[token]/  the patient surface
+  api/           transcribe, session state, Stripe webhook, cron
+components/
+  clinical/      TranscriptPanel, NoteCard, RiskBanner — pure presentational
+  demo/          the public-site live hero and its synthetic fixtures
+lib/
+  ai/            transcription, note generation, crisis detection
+  data/          the only place clinical data is read or written
+  auth/          sessions, guards, password hashing
+  billing/       plans, charges, Stripe
+```
+
+`components/clinical/*` take props and fetch nothing. That is what lets the marketing site
+render the real transcript panel and the real note card with fixture data — and what makes
+it structurally impossible for a public page to reach a real chart through them.
