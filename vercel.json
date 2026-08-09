@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "framework": null,
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "echo 'Root vercel.json: deploy individual apps via separate Vercel projects with their own Root Directory setting'"
+  "crons": [
+    { "path": "/api/cron/crisis", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/billing", "schedule": "*/30 * * * *" },
+    { "path": "/api/cron/retention", "schedule": "0 3 * * *" }
+  ]
 }

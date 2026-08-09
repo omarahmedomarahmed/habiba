@@ -1,0 +1,171 @@
+import "server-only";
+
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+
+import { audit, auditPhi } from "@/lib/audit";
+import type { Actor } from "@/lib/auth/session";
+import { db } from "@/lib/db";
+import { patients, sessionNotes, sessions, type PatientClinical } from "@/lib/db/schema";
+
+function scope(actor: Actor) {
+  const base = and(
+    eq(patients.organizationId, actor.organizationId),
+    isNull(patients.deletedAt),
+  );
+  // A clinician sees their own caseload. The old app showed every therapist in
+  // an org every patient in that org, which is more access than the job needs.
+  return actor.role === "super_admin"
+    ? base
+    : and(base, eq(patients.therapistId, actor.userId));
+}
+
+export async function listPatients(actor: Actor) {
+  return db
+    .select({
+      id: patients.id,
+      firstName: patients.firstName,
+      lastName: patients.lastName,
+      email: patients.email,
+      lastSessionAt: patients.lastSessionAt,
+      source: patients.source,
+      sessionCount: sql<number>`(
+        SELECT count(*)::int FROM ${sessions}
+        WHERE ${sessions.patientId} = ${patients.id}
+          AND ${sessions.status} = 'completed'
+      )`,
+    })
+    .from(patients)
+    .where(scope(actor))
+    .orderBy(desc(patients.lastSessionAt), desc(patients.createdAt))
+    .limit(200);
+}
+
+export async function getPatient(actor: Actor, patientId: string) {
+  const [patient] = await db
+    .select()
+    .from(patients)
+    .where(and(scope(actor), eq(patients.id, patientId)))
+    .limit(1);
+
+  if (!patient) return null;
+
+  await auditPhi(actor, "patient.read", {
+    resourceType: "patient",
+    resourceId: patientId,
+    patientId,
+  });
+
+  return patient;
+}
+
+export async function getPatientHistory(actor: Actor, patientId: string) {
+  const [owned] = await db
+    .select({ id: patients.id })
+    .from(patients)
+    .where(and(scope(actor), eq(patients.id, patientId)))
+    .limit(1);
+  if (!owned) return [];
+
+  return db
+    .select({
+      id: sessions.id,
+      status: sessions.status,
+      modality: sessions.modality,
+      endedAt: sessions.endedAt,
+      createdAt: sessions.createdAt,
+      durationMinutes: sessions.durationMinutes,
+      noteStatus: sessions.noteStatus,
+      noteSummary: sessionNotes.content,
+    })
+    .from(sessions)
+    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    .where(eq(sessions.patientId, patientId))
+    .orderBy(desc(sessions.createdAt))
+    .limit(50);
+}
+
+export async function createPatient(
+  actor: Actor,
+  input: { firstName: string; lastName?: string; email?: string; phone?: string },
+) {
+  const [created] = await db
+    .insert(patients)
+    .values({
+      organizationId: actor.organizationId,
+      therapistId: actor.userId,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName?.trim() || null,
+      email: input.email?.trim().toLowerCase() || null,
+      phone: input.phone?.trim() || null,
+      source: "therapist",
+    })
+    .returning();
+
+  await auditPhi(actor, "patient.create", {
+    resourceType: "patient",
+    resourceId: created!.id,
+    patientId: created!.id,
+  });
+
+  return created!;
+}
+
+export async function updatePatient(
+  actor: Actor,
+  patientId: string,
+  input: {
+    firstName?: string;
+    lastName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    clinical?: PatientClinical;
+  },
+) {
+  // Explicit allowlist rather than spreading the request body. The old code
+  // wrote whatever it was handed, and once put the string "3-5 years" into an
+  // integer column — which aborted the whole UPDATE, so onboarding and settings
+  // silently saved nothing at all.
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  if (input.firstName !== undefined) patch.firstName = input.firstName.trim();
+  if (input.lastName !== undefined) patch.lastName = input.lastName?.trim() || null;
+  if (input.email !== undefined) patch.email = input.email?.trim().toLowerCase() || null;
+  if (input.phone !== undefined) patch.phone = input.phone?.trim() || null;
+  if (input.clinical !== undefined) patch.clinical = input.clinical;
+
+  await db
+    .update(patients)
+    .set(patch)
+    .where(and(scope(actor), eq(patients.id, patientId)));
+
+  await auditPhi(actor, "patient.update", {
+    resourceType: "patient",
+    resourceId: patientId,
+    patientId,
+  });
+}
+
+/** Soft delete. Sessions are ON DELETE RESTRICT, so the chart is never orphaned. */
+export async function deletePatient(actor: Actor, patientId: string) {
+  await db
+    .update(patients)
+    .set({ deletedAt: new Date() })
+    .where(and(scope(actor), eq(patients.id, patientId)));
+
+  await audit({
+    actor,
+    category: "phi_access",
+    action: "patient.delete",
+    resourceType: "patient",
+    resourceId: patientId,
+    patientId,
+  });
+}
+
+export async function findPatientByEmail(actor: Actor, email: string) {
+  const [row] = await db
+    .select({ id: patients.id, firstName: patients.firstName, lastName: patients.lastName })
+    .from(patients)
+    .where(and(scope(actor), eq(patients.email, email.trim().toLowerCase())))
+    .limit(1);
+  return row ?? null;
+}

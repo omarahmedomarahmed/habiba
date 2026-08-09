@@ -1,40 +1,48 @@
 {
   "name": "24therapy",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "24Therapy.ai — AI-Native Mental Health Operating System",
-  "workspaces": [
-    "apps/*",
-    "backend",
-    "packages/*"
-  ],
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
-    "type-check": "turbo run type-check",
-    "clean": "turbo run clean && rm -rf node_modules",
-    "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed.js",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+  "description": "24Therapy — AI clinical documentation for therapists. Single mobile-first Next.js app.",
+  "engines": {
+    "node": ">=20"
   },
-  "devDependencies": {
-    "@playwright/test": "^1.45.0",
-    "@types/node": "^20.0.0",
-    "prettier": "^3.2.5",
-    "turbo": "^2.0.0",
-    "typescript": "^5.4.0"
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:setup": "tsx scripts/migrate.ts && tsx scripts/seed.ts",
+    "test": "node --import tsx --conditions=react-server --test tests/*.test.ts"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "pg": "^8.13.3"
+    "@neondatabase/serverless": "^1.1.0",
+    "@types/ws": "^8.18.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.38.3",
+    "lucide-react": "^0.469.0",
+    "next": "^15.5.4",
+    "openai": "^4.77.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "resend": "^4.0.1",
+    "server-only": "^0.0.1",
+    "stripe": "^17.5.0",
+    "tailwind-merge": "^2.6.0",
+    "ws": "^8.21.3",
+    "zod": "^3.24.1"
   },
-  "packageManager": "pnpm@9.15.4",
-  "engines": {
-    "node": "20.x",
-    "pnpm": ">=9.x"
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "drizzle-kit": "^0.30.1",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }
