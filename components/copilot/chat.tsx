@@ -7,6 +7,7 @@ import {
   Loader2,
   Mic,
   Pencil,
+  RotateCcw,
   Send,
   Settings2,
   Square,
@@ -14,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 
-import { askCopilot, correctCopilot } from "@/app/(app)/copilot/actions";
+import { askCopilot, correctCopilot, resetCopilot } from "@/app/(app)/copilot/actions";
 import { saveVoicePreference } from "@/app/(app)/settings/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
@@ -450,6 +451,16 @@ export function CopilotChat({
         </Card>
 
         <CorrectionBox patientId={patientId} />
+
+        <ResetBox
+          patientId={patientId}
+          onReset={() =>
+            // Only the chat goes. What the copilot wrote during a session stays
+            // on screen, which is the clearest possible demonstration of the
+            // rule to someone who just pressed the button.
+            setMessages((m) => m.filter((x) => x.role === "session_note"))
+          }
+        />
       </aside>
     </div>
   );
@@ -562,6 +573,112 @@ function MessageBubble({
           </p>
         </div>
       ) : null}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ reset -- */
+
+/**
+ * Clear the chat, keep the record.
+ *
+ * The copy carries the whole policy, because a clinician about to press a
+ * destructive button is the one moment they will actually read it. Two presses,
+ * and the second one names exactly what survives — if someone expected this to
+ * wipe the chart, they find out before it runs, not after.
+ */
+function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => void }) {
+  const [pending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<{ removed: number; kept: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (result) {
+    return (
+      <Card className="p-3">
+        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Fresh start</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+          {result.removed} message{result.removed === 1 ? "" : "s"} cleared. I kept {result.kept}{" "}
+          note{result.kept === 1 ? "" : "s"} I wrote during sessions, and every transcript — ask me
+          anything and I will build it back up from those.
+        </p>
+      </Card>
+    );
+  }
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm text-slate-600 hover:bg-slate-50"
+      >
+        <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        Start this chat over
+      </button>
+    );
+  }
+
+  return (
+    <Card className="space-y-2.5 p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Start over</p>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          aria-label="Close"
+          className="tap-target flex items-center justify-center text-slate-300 hover:text-slate-600"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
+
+      <ul className="space-y-1 text-xs leading-relaxed text-slate-600">
+        <li className="flex gap-1.5">
+          <span aria-hidden className="text-red-500">
+            −
+          </span>
+          Your questions, my answers, and the corrections you gave me
+        </li>
+        <li className="flex gap-1.5">
+          <span aria-hidden className="text-teal-600">
+            +
+          </span>
+          Kept: what I noted <em>during</em> each session, all transcripts, all notes
+        </li>
+      </ul>
+
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        Session notes are clinical record. They are not yours or mine to delete — I rebuild from
+        them.
+      </p>
+
+      {error ? (
+        <p role="alert" className="text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
+
+      <Button
+        size="sm"
+        full
+        variant="danger"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            setError(null);
+            const outcome = await resetCopilot(patientId);
+            if (outcome.error) {
+              setError(outcome.error);
+              return;
+            }
+            onReset();
+            setResult({ removed: outcome.removed ?? 0, kept: outcome.kept ?? 0 });
+          })
+        }
+      >
+        {pending ? "Clearing…" : "Clear the chat"}
+      </Button>
     </Card>
   );
 }

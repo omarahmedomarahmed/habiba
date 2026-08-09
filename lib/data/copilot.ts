@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -312,4 +312,67 @@ export async function auditThreadRead(actor: Actor, patientId: string, threadId:
     resourceId: threadId,
     patientId,
   });
+}
+
+/**
+ * Reset a copilot conversation, keeping what the copilot observed.
+ *
+ * The distinction is the whole feature. Two kinds of message live in a thread:
+ *
+ *  - What the *therapist* and the copilot said to each other — questions,
+ *    answers, corrections. This is a conversation. It goes stale, it fills up
+ *    with a line of enquiry that turned out to be wrong, and a clinician should
+ *    be able to wipe it and start again.
+ *
+ *  - What the copilot noticed *during a session* (`session_note`). This is
+ *    contemporaneous clinical observation, written as the session happened. It
+ *    is part of the record and is not the clinician's to delete, any more than
+ *    the transcript is.
+ *
+ * So a reset removes the first and keeps the second, and the copilot rebuilds
+ * its picture from the transcripts and its own session notes — which is exactly
+ * the memory that should survive.
+ */
+export async function resetCopilotConversation(
+  actor: Actor,
+  patientId: string,
+): Promise<{ removed: number; kept: number } | null> {
+  const found = await getOrCreateThread(actor, patientId);
+  if (!found) return null;
+
+  const removed = await db
+    .delete(copilotMessages)
+    .where(
+      and(
+        eq(copilotMessages.threadId, found.thread.id),
+        inArray(copilotMessages.role, ["therapist", "copilot", "correction"]),
+      ),
+    )
+    .returning({ id: copilotMessages.id });
+
+  const kept = await db
+    .select({ id: copilotMessages.id })
+    .from(copilotMessages)
+    .where(
+      and(
+        eq(copilotMessages.threadId, found.thread.id),
+        eq(copilotMessages.role, "session_note"),
+      ),
+    );
+
+  // Standing corrections go with the conversation they came from. Keeping them
+  // would mean the "fresh start" still carries the instruction that made the
+  // clinician want a fresh start.
+  await db
+    .update(copilotThreads)
+    .set({ guidance: null, lastMessageAt: new Date() })
+    .where(eq(copilotThreads.id, found.thread.id));
+
+  await auditPhi(actor, "copilot.reset", {
+    resourceType: "copilot_thread",
+    resourceId: found.thread.id,
+    patientId,
+  });
+
+  return { removed: removed.length, kept: kept.length };
 }

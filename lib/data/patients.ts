@@ -145,21 +145,16 @@ export async function updatePatient(
 }
 
 /** Soft delete. Sessions are ON DELETE RESTRICT, so the chart is never orphaned. */
-export async function deletePatient(actor: Actor, patientId: string) {
-  await db
-    .update(patients)
-    .set({ deletedAt: new Date() })
-    .where(and(scope(actor), eq(patients.id, patientId)));
-
-  await audit({
-    actor,
-    category: "phi_access",
-    action: "patient.delete",
-    resourceType: "patient",
-    resourceId: patientId,
-    patientId,
-  });
-}
+/*
+ * `deletePatient` used to live here. It is gone, not disabled.
+ *
+ * A therapy record is a legal document with a retention period measured in
+ * years, and a clinician deleting a chart after a complaint has destroyed
+ * evidence whether or not they intended to. An unused soft-delete helper is a
+ * loaded gun in the drawer: the next person to need "remove this row" finds it
+ * and wires it to a button. Erasure requests go through an operator, who can
+ * weigh the retention law that applies.
+ */
 
 export async function findPatientByEmail(actor: Actor, email: string) {
   const [row] = await db

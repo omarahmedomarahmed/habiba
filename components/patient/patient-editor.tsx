@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
 
-import { removePatient, savePatient } from "@/app/(app)/patients/actions";
+import { savePatient } from "@/app/(app)/patients/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 
 type Initial = {
@@ -26,7 +25,6 @@ export function PatientEditor({
   const [form, setForm] = useState(initial);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const set = <K extends keyof Initial>(key: K, value: Initial[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -122,37 +120,23 @@ export function PatientEditor({
         </Button>
       </div>
 
+      {/*
+        No delete button, on purpose.
+        -----------------------------
+        A therapy record is a legal document with a retention period measured in
+        years. A clinician who deletes a chart after a complaint has destroyed
+        evidence whether or not they meant to, so the capability does not exist
+        — not in this component, not in the server action, not in the data
+        layer. Corrections are made by editing above; a patient asking for their
+        data or its erasure goes through us, where the retention question can
+        actually be answered.
+      */}
       <div className="border-t border-slate-100 pt-3">
-        {confirmDelete ? (
-          <div className="space-y-2.5">
-            <p className="text-sm text-slate-600">
-              Delete this patient? Their sessions and notes stay in the record and remain
-              accessible for audit, but the chart is removed from your caseload.
-            </p>
-            <div className="flex gap-2.5">
-              <Button variant="secondary" full onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                full
-                disabled={pending}
-                onClick={() => startTransition(() => removePatient(patientId))}
-              >
-                Delete patient
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="tap-target flex items-center gap-1.5 text-sm text-slate-400 hover:text-red-600"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-            Delete patient
-          </button>
-        )}
+        <p className="text-xs leading-relaxed text-slate-400">
+          Records cannot be deleted. Sessions and notes are kept for the retention period your
+          regulator requires. If a patient asks for their data or asks you to erase it, contact
+          support and we will handle it properly.
+        </p>
       </div>
     </Card>
   );

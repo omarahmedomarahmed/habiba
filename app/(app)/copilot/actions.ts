@@ -9,6 +9,7 @@ import {
   appendMessage,
   checkQuota,
   getOrCreateThread,
+  resetCopilotConversation,
   auditThreadRead,
 } from "@/lib/data/copilot";
 import type { Citation } from "@/lib/db/schema";
@@ -101,4 +102,29 @@ export async function correctCopilot(
   await addGuidance(actor, found.thread.id, trimmed);
   revalidatePath(`/copilot/${patientId}`);
   return { ok: true };
+}
+
+/**
+ * Start the conversation over.
+ *
+ * What goes: the therapist's questions, the copilot's answers to them, and the
+ * standing corrections that came out of that exchange. What stays: everything
+ * the copilot wrote *during* a session, and every transcript — neither is the
+ * clinician's to erase, and both are what the copilot rebuilds from.
+ *
+ * The rebuild needs no work here. The copilot reads the chart on every
+ * question, so the very next message already has the full history behind it;
+ * only the chat that had gone stale is gone.
+ */
+export async function resetCopilot(
+  patientId: string,
+): Promise<{ error?: string; removed?: number; kept?: number }> {
+  const actor = await requireUser();
+
+  const result = await resetCopilotConversation(actor, patientId);
+  if (!result) return { error: "Patient not found." };
+
+  revalidatePath(`/copilot/${patientId}`);
+  revalidatePath("/copilot");
+  return result;
 }
