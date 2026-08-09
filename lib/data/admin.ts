@@ -6,11 +6,14 @@ import { db } from "@/lib/db";
 import {
   aiRequestLogs,
   auditLog,
+  copilotMessages,
+  copilotThreads,
   organizations,
   patients,
   invoices,
   sessions,
   subscriptions,
+  transcriptSegments,
   users,
 } from "@/lib/db/schema";
 
@@ -137,6 +140,190 @@ export async function listAuditLog(opts: { category?: string; limit?: number } =
     return base.where(eq(auditLog.category, opts.category as never));
   }
   return base;
+}
+
+/* ------------------------------------------------- one clinician, in full -- */
+
+/**
+ * The administrator's view of a single clinician.
+ *
+ * Where the PHI line is drawn, and why it is drawn there:
+ *
+ *  - **Shown:** who their patients are (name, email), when sessions happened,
+ *    how long they ran, whether a note exists, how much copilot they use, and
+ *    every penny in both directions. An operator has to be able to answer
+ *    "this therapist says they were charged twice" and "is this account real",
+ *    and cannot do either blind.
+ *
+ *  - **Never shown, by construction:** transcript text, note content, risk
+ *    indicators, copilot messages. Not hidden behind a toggle — the queries
+ *    below do not select those columns, so there is no admin screen from which
+ *    a session can be read. That is the difference between a policy and a
+ *    guarantee.
+ *
+ * Every call site writes a `break_glass` audit entry. Looking at someone's
+ * caseload is a thing that should leave a mark.
+ */
+export async function therapistOverview(userId: string) {
+  const [row] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      role: users.role,
+      status: users.status,
+      verificationStatus: users.verificationStatus,
+      profile: users.profile,
+      createdAt: users.createdAt,
+      lastLoginAt: users.lastLoginAt,
+      organizationId: users.organizationId,
+      organizationName: organizations.name,
+      stripeAccountId: users.stripeAccountId,
+      chargesEnabled: users.chargesEnabled,
+      payoutsEnabled: users.payoutsEnabled,
+      sessionRateCents: users.sessionRateCents,
+      plan: subscriptions.plan,
+      subscriptionStatus: subscriptions.status,
+    })
+    .from(users)
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
+    .leftJoin(subscriptions, eq(subscriptions.organizationId, users.organizationId))
+    .where(and(eq(users.id, userId), isNull(users.deletedAt)))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/** Their caseload. Identifiers only — nothing clinical is selected. */
+export async function therapistPatients(userId: string) {
+  return db
+    .select({
+      id: patients.id,
+      firstName: patients.firstName,
+      lastName: patients.lastName,
+      email: patients.email,
+      phone: patients.phone,
+      source: patients.source,
+      createdAt: patients.createdAt,
+      lastSessionAt: patients.lastSessionAt,
+      sessionCount: sql<number>`(
+        SELECT count(*)::int FROM ${sessions}
+        WHERE ${sessions.patientId} = ${patients.id} AND ${sessions.status} = 'completed'
+      )`,
+      copilotMessages: sql<number>`(
+        SELECT count(*)::int FROM ${copilotMessages} m
+        JOIN ${copilotThreads} t ON t.id = m.thread_id
+        WHERE t.patient_id = ${patients.id} AND m.role = 'therapist'
+      )`,
+    })
+    .from(patients)
+    .where(and(eq(patients.therapistId, userId), isNull(patients.deletedAt)))
+    .orderBy(desc(patients.lastSessionAt), desc(patients.createdAt))
+    .limit(300);
+}
+
+/**
+ * Session history: when, how long, what state.
+ *
+ * `noteStatus` is here and note *content* is not, deliberately — an operator
+ * needs to know a note failed to generate; they do not need to read it.
+ */
+export async function therapistSessions(userId: string, limit = 200) {
+  return db
+    .select({
+      id: sessions.id,
+      status: sessions.status,
+      modality: sessions.modality,
+      noteStatus: sessions.noteStatus,
+      createdAt: sessions.createdAt,
+      startedAt: sessions.startedAt,
+      endedAt: sessions.endedAt,
+      durationMinutes: sessions.durationMinutes,
+      priceCents: sessions.priceCents,
+      paymentStatus: sessions.paymentStatus,
+      reportSentAt: sessions.reportSentAt,
+      patientFirstName: patients.firstName,
+      patientLastName: patients.lastName,
+      guestName: sessions.guestName,
+      segmentCount: sql<number>`(
+        SELECT count(*)::int FROM ${transcriptSegments}
+        WHERE ${transcriptSegments.sessionId} = ${sessions.id}
+      )`,
+    })
+    .from(sessions)
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .where(eq(sessions.therapistId, userId))
+    .orderBy(desc(sessions.createdAt))
+    .limit(limit);
+}
+
+/** Copilot activity: volume and recency, never a single word of content. */
+export async function therapistCopilotUsage(userId: string) {
+  const startOfMonth = new Date();
+  startOfMonth.setUTCDate(1);
+  startOfMonth.setUTCHours(0, 0, 0, 0);
+
+  const threads = await db
+    .select({
+      threadId: copilotThreads.id,
+      patientFirstName: patients.firstName,
+      patientLastName: patients.lastName,
+      lastMessageAt: copilotThreads.lastMessageAt,
+      asked: sql<number>`(
+        SELECT count(*)::int FROM ${copilotMessages}
+        WHERE ${copilotMessages.threadId} = ${copilotThreads.id}
+          AND ${copilotMessages.role} = 'therapist'
+      )`,
+      askedThisMonth: sql<number>`(
+        SELECT count(*)::int FROM ${copilotMessages}
+        WHERE ${copilotMessages.threadId} = ${copilotThreads.id}
+          AND ${copilotMessages.role} = 'therapist'
+          AND ${copilotMessages.createdAt} >= ${startOfMonth.toISOString()}
+      )`,
+      corrections: sql<number>`(
+        SELECT count(*)::int FROM ${copilotMessages}
+        WHERE ${copilotMessages.threadId} = ${copilotThreads.id}
+          AND ${copilotMessages.role} = 'correction'
+      )`,
+    })
+    .from(copilotThreads)
+    .innerJoin(patients, eq(patients.id, copilotThreads.patientId))
+    .where(eq(copilotThreads.therapistId, userId))
+    .orderBy(desc(copilotThreads.lastMessageAt))
+    .limit(200);
+
+  return threads;
+}
+
+/** What their AI usage has actually cost us, by purpose. */
+export async function therapistAiSpend(userId: string) {
+  const rows = await db
+    .select({
+      kind: aiRequestLogs.kind,
+      calls: count(),
+      costCents: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int`,
+      errors: sql<number>`COALESCE(SUM(CASE WHEN ${aiRequestLogs.status} = 'error' THEN 1 ELSE 0 END), 0)::int`,
+    })
+    .from(aiRequestLogs)
+    .where(eq(aiRequestLogs.userId, userId))
+    .groupBy(aiRequestLogs.kind);
+
+  return rows;
+}
+
+/** Every therapist's email, for an announcement. */
+export async function allTherapistRecipients() {
+  return db
+    .select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+    })
+    .from(users)
+    .where(and(isNull(users.deletedAt), eq(users.status, "active"), eq(users.role, "therapist")))
+    .orderBy(users.email);
 }
 
 export async function aiUsageByDay(days = 14) {

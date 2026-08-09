@@ -5,20 +5,8 @@ import Link from "next/link";
 import { ArrowUpRight, Banknote, Wallet } from "lucide-react";
 
 import { openPayoutDashboard, payOutNow, type SettingsState } from "@/app/(app)/settings/actions";
-import { Badge, Button, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
-import { formatDate } from "@/lib/utils";
-
-export type PaymentRow = {
-  id: string;
-  payerName: string | null;
-  grossCents: number;
-  therapistNetCents: number;
-  settledInvoiceCents: number;
-  status: "pending" | "paid" | "refunded" | "failed";
-  createdAt: string;
-  paidAt: string | null;
-};
 
 export type EarningsProps = {
   connected: boolean;
@@ -30,7 +18,6 @@ export type EarningsProps = {
   platformFeesCents: number;
   settledFromEarningsCents: number;
   paidSessionCount: number;
-  payments: PaymentRow[];
 };
 
 /**
@@ -150,51 +137,7 @@ export function EarningsCard(props: EarningsProps) {
         </div>
       </div>
 
-      <Card>
-        <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-          Patient payments
-        </p>
-        {props.payments.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500">
-            No one has paid for a session yet. Set a price when you create a video session and the
-            join link becomes a payment link.
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {props.payments.map((payment) => (
-              <li key={payment.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-slate-900">
-                    {payment.payerName ?? "Patient"}
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    {formatDate(payment.paidAt ?? payment.createdAt)}
-                    {payment.settledInvoiceCents > 0
-                      ? ` · ${formatUsd(payment.settledInvoiceCents)} of your bill settled`
-                      : ""}
-                  </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="block text-sm font-semibold text-slate-900">
-                    {formatUsd(payment.therapistNetCents)}
-                  </span>
-                  <span className="block text-xs text-slate-400">
-                    of {formatUsd(payment.grossCents)}
-                  </span>
-                </span>
-                <PaymentBadge status={payment.status} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
     </div>
   );
 }
 
-function PaymentBadge({ status }: { status: PaymentRow["status"] }) {
-  if (status === "paid") return <Badge tone="green">Paid</Badge>;
-  if (status === "pending") return <Badge tone="amber">Awaiting</Badge>;
-  if (status === "refunded") return <Badge tone="slate">Refunded</Badge>;
-  return <Badge tone="red">Failed</Badge>;
-}

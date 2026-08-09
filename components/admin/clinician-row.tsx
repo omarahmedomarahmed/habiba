@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 import { suspendUser, verifyUser } from "@/app/(admin)/admin/actions";
 import { Badge, Button } from "@/components/ui";
@@ -22,15 +24,19 @@ export function ClinicianRow(props: {
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-slate-900">
+      <Link href={`/admin/therapists/${props.id}`} className="group min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-900 group-hover:text-brand-600">
           {props.name || props.email}
+          <ArrowRight
+            className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-brand-600"
+            aria-hidden
+          />
         </p>
         <p className="truncate text-xs text-slate-500">
           {props.email} · {props.organizationName} · {props.sessionCount} session
           {props.sessionCount === 1 ? "" : "s"}
         </p>
-      </div>
+      </Link>
 
       <div className="flex shrink-0 flex-wrap items-center gap-1.5">
         {props.role === "super_admin" ? <Badge tone="brand">Admin</Badge> : null}

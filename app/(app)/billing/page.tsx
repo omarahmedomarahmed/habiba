@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { EarningsCard } from "@/components/billing/earnings";
-import { InvoiceList, PlanCard } from "@/components/billing/invoice-list";
+import { BillingLedger } from "@/components/billing/ledger";
+import { PlanCard } from "@/components/billing/invoice-list";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import {
@@ -105,19 +106,15 @@ export default async function BillingPage({
           platformFeesCents={earnings.platformFeesCents}
           settledFromEarningsCents={earnings.settledFromEarningsCents}
           paidSessionCount={earnings.paidSessionCount}
-          payments={payments.map((payment) => ({
-            id: payment.id,
-            payerName: payment.payerName,
-            grossCents: payment.grossCents,
-            therapistNetCents: payment.therapistNetCents,
-            settledInvoiceCents: payment.settledInvoiceCents,
-            status: payment.status,
-            createdAt: payment.createdAt.toISOString(),
-            paidAt: payment.paidAt?.toISOString() ?? null,
-          }))}
         />
 
-        <InvoiceList
+        {/*
+          One ledger, both directions. Money out (what you owe us) and money in
+          (what patients paid you) used to be two disconnected lists on this
+          page, so "what happened to my money in March" meant reading both and
+          merging them by hand.
+        */}
+        <BillingLedger
           billingEnabled={features.billing}
           invoices={invoices.map((invoice) => ({
             id: invoice.id,
@@ -127,7 +124,23 @@ export default async function BillingPage({
             discountCents: invoice.discountCents,
             discountReason: invoice.discountReason,
             status: invoice.status,
-            issuedAt: invoice.issuedAt.toISOString(),
+            issuedAt: formatDate(invoice.issuedAt),
+            sortAt: invoice.issuedAt.toISOString(),
+            paidAt: invoice.paidAt ? formatDate(invoice.paidAt) : null,
+            periodStart: invoice.periodStart ? formatDate(invoice.periodStart) : null,
+            periodEnd: invoice.periodEnd ? formatDate(invoice.periodEnd) : null,
+          }))}
+          payments={payments.map((payment) => ({
+            id: payment.id,
+            payerName: payment.payerName,
+            grossCents: payment.grossCents,
+            platformFeeCents: payment.grossCents - payment.therapistNetCents,
+            settledInvoiceCents: payment.settledInvoiceCents,
+            therapistNetCents: payment.therapistNetCents,
+            status: payment.status,
+            createdAt: formatDate(payment.createdAt),
+            sortAt: (payment.paidAt ?? payment.createdAt).toISOString(),
+            paidAt: payment.paidAt ? formatDate(payment.paidAt) : null,
           }))}
         />
       </div>

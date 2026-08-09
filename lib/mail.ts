@@ -31,7 +31,12 @@ function esc(value: unknown): string {
     .replaceAll("'", "&#39;");
 }
 
-function layout(title: string, body: string): string {
+/**
+ * `footer` exists because the default line ("sent by your therapist") is a lie
+ * on a message we send to a therapist ourselves — and a mismatched footer on a
+ * transactional email is exactly what makes a real one look like a phish.
+ */
+function layout(title: string, body: string, footer?: string): string {
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
@@ -41,8 +46,7 @@ function layout(title: string, body: string): string {
       ${body}
     </div>
     <p style="text-align:center;color:#64748b;font-size:12px;line-height:1.6;margin:20px 0 0;">
-      This message was sent by your therapist through 24Therapy.<br>
-      If you were not expecting it, you can safely ignore it.
+      ${footer ?? "This message was sent by your therapist through 24Therapy.<br>If you were not expecting it, you can safely ignore it."}
     </p>
   </div>
 </body></html>`;
@@ -125,6 +129,50 @@ export async function sendSessionReport(opts: {
   );
 
   return send({ to: opts.to, subject: "Your session summary", html });
+}
+
+/**
+ * A message from 24Therapy to a clinician — one person or the whole list.
+ *
+ * The body is written as plain text and escaped into paragraphs here. There is
+ * no rich-text editor and no HTML passthrough on purpose: an admin-authored
+ * `<a href>` in an email we send on our own behalf is a phishing template with
+ * our branding on it, and the first person to abuse it would be whoever
+ * compromises an admin account.
+ */
+export async function sendTherapistMessage(opts: {
+  to: string;
+  firstName: string;
+  subject: string;
+  body: string;
+  /** Shown as a footer note so a broadcast does not read as a personal note. */
+  announcement?: boolean;
+}): Promise<boolean> {
+  const paragraphs = opts.body
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map(
+      (block) =>
+        `<p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.7;">${esc(block).replaceAll("\n", "<br>")}</p>`,
+    )
+    .join("");
+
+  const html = layout(
+    opts.subject,
+    `<p style="margin:0 0 16px;font-size:18px;font-weight:700;letter-spacing:-0.01em;">Hi ${esc(opts.firstName || "there")},</p>
+     ${paragraphs}
+     <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
+       ${
+         opts.announcement
+           ? "This went to everyone using 24Therapy. Reply to this email if you need us — a person reads it."
+           : "Reply to this email if you need us — a person reads it."
+       }
+     </p>`,
+    "Sent by 24Therapy to the address on your clinician account.",
+  );
+
+  return send({ to: opts.to, subject: opts.subject, html });
 }
 
 export async function sendPasswordReset(opts: { to: string; url: string }): Promise<boolean> {
