@@ -75,6 +75,9 @@ export type TherapistProfile = {
   bio?: string;
   phone?: string;
   timezone?: string;
+  /** Copilot read-aloud voice and playback rate. */
+  voice?: "british_female" | "american_male" | "american_female" | "british_male";
+  voiceSpeed?: number;
 };
 
 export const users = pgTable(
@@ -372,6 +375,73 @@ export const riskAssessments = pgTable(
   ],
 );
 
+/**
+ * Per-patient copilot conversation.
+ *
+ * One thread per patient, and that isolation is the point: a thread's context
+ * is built only from that patient's sessions, so asking it about anyone else
+ * produces "I have nothing on that" rather than a leak across a caseload.
+ */
+export const copilotThreads = pgTable(
+  "copilot_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    therapistId: uuid("therapist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /**
+     * Accumulated corrections from the therapist — "she is not the one with the
+     * sister, that is a different patient", "stop suggesting CBT homework".
+     * Prepended to the system prompt so a correction actually changes behaviour
+     * instead of being forgotten at the end of the turn.
+     */
+    guidance: text("guidance"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("copilot_threads_patient_unique").on(t.patientId),
+    index("copilot_threads_therapist_idx").on(t.therapistId, t.lastMessageAt),
+  ],
+);
+
+/** Where a claim came from: a real transcript segment, resolvable to a row. */
+export type Citation = {
+  sessionId: string;
+  sessionDate: string;
+  sequence: number;
+  speaker: "therapist" | "patient" | "unknown";
+  quote: string;
+  atSeconds: number;
+};
+
+export const COPILOT_ROLES = ["therapist", "copilot", "session_note", "correction"] as const;
+export type CopilotRole = (typeof COPILOT_ROLES)[number];
+
+export const copilotMessages = pgTable(
+  "copilot_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => copilotThreads.id, { onDelete: "cascade" }),
+    role: text("role").$type<CopilotRole>().notNull(),
+    content: text("content").notNull(),
+    /** Empty for anything the therapist wrote; required in spirit for answers. */
+    citations: jsonb("citations").$type<Citation[]>().default([]).notNull(),
+    /** Set on messages written automatically from an in-session suggestion. */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("copilot_messages_thread_idx").on(t.threadId, t.createdAt)],
+);
+
 // ------------------------------------------------------------------- usage ---
 
 /** Metadata only. Never store prompts or completions — they are transcripts. */
@@ -649,4 +719,6 @@ export type RiskAssessment = typeof riskAssessments.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;
 export type ContentPage = typeof contentPages.$inferSelect;
+export type CopilotThread = typeof copilotThreads.$inferSelect;
+export type CopilotMessage = typeof copilotMessages.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { patientFacingCrisisMessage, scanForCrisisLanguage } from "../lib/ai/crisis";
+import { resolveCitations } from "../lib/ai/patient-copilot";
 import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";
 import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/password";
@@ -195,4 +196,65 @@ test("log output scrubs any identifier that slips into a message", () => {
   assert.equal(captured.length, 1);
   assert.ok(!captured[0]!.includes("d9832fbd-da84-46cd-a23a-7aab8dfeac4c"));
   assert.ok(captured[0]!.includes("d9832fbd…"));
+});
+
+
+/* ------------------------------------------------------- copilot citations */
+
+/**
+ * The product promise is that every copilot claim traces to a real transcript
+ * line. That only holds if a reference the model invented is discarded rather
+ * than displayed, so this is the test that keeps the promise honest.
+ */
+test("a citation the model invented is dropped, not shown", () => {
+  const index = new Map<string, never>([
+    [
+      "S1:4",
+      {
+        refKey: "S1:4",
+        sessionId: "11111111-1111-1111-1111-111111111111",
+        sessionDate: new Date("2026-01-05T10:00:00Z"),
+        sequence: 4,
+        speaker: "patient",
+        text: "I have not been sleeping.",
+        startMs: 32_000,
+      },
+    ],
+  ] as never);
+
+  const resolved = resolveCitations(
+    [
+      { ref: "S1:4", why: "reported insomnia" },
+      { ref: "S9:99", why: "a session that does not exist" },
+      { ref: "not-a-ref", why: "nonsense" },
+    ],
+    index,
+  );
+
+  assert.equal(resolved.length, 1, "only the resolvable reference survives");
+  assert.equal(resolved[0]!.sequence, 4);
+  assert.equal(resolved[0]!.speaker, "patient");
+  assert.equal(resolved[0]!.quote, "I have not been sleeping.");
+  assert.equal(resolved[0]!.atSeconds, 32);
+});
+
+test("citations are de-duplicated and a non-array is handled", () => {
+  const index = new Map<string, never>([
+    [
+      "S1:1",
+      {
+        refKey: "S1:1",
+        sessionId: "22222222-2222-2222-2222-222222222222",
+        sessionDate: new Date("2026-02-01T10:00:00Z"),
+        sequence: 1,
+        speaker: "therapist",
+        text: "How was the week?",
+        startMs: 0,
+      },
+    ],
+  ] as never);
+
+  assert.equal(resolveCitations([{ ref: "S1:1" }, { ref: "s1:1" }], index).length, 1);
+  assert.deepEqual(resolveCitations(null, index), []);
+  assert.deepEqual(resolveCitations("S1:1", index), []);
 });

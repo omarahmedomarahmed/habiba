@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, FileText, Home, Plus, Users } from "lucide-react";
+import { CalendarDays, Home, MessageSquare, Plus, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const ITEMS = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/sessions", label: "Sessions", icon: CalendarDays },
   { href: "/patients", label: "Patients", icon: Users },
-  { href: "/notes", label: "Notes", icon: FileText },
+  { href: "/copilot", label: "Copilot", icon: MessageSquare },
 ] as const;
 
 export function BottomNav() {

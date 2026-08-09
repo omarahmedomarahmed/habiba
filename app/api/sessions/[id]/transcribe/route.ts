@@ -6,6 +6,7 @@ import { transcribeChunk } from "@/lib/ai/transcribe";
 import { AuthorizationError, assertSameOrigin, requireUserApi } from "@/lib/auth/guard";
 import { db } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
+import { recordSessionSuggestions } from "@/lib/data/copilot";
 import { appendTranscriptSegment } from "@/lib/data/sessions";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
@@ -117,6 +118,19 @@ export async function POST(
             userId: actor.userId,
           })
         : [];
+
+    // Anything surfaced in the room is written into that patient's copilot
+    // thread, so the panel during a session and the chat afterwards are one
+    // continuous conversation rather than two disconnected features.
+    if (suggestions.length > 0) {
+      await recordSessionSuggestions({
+        organizationId: session.organizationId,
+        therapistId: session.therapistId,
+        patientId: session.patientId,
+        sessionId: session.id,
+        suggestions,
+      });
+    }
 
     return NextResponse.json({
       text,
