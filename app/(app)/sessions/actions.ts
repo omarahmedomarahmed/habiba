@@ -281,6 +281,8 @@ export async function shareReport(
     patientName: row.patient?.firstName ?? row.session.guestName ?? "there",
     therapistName: fullName(actor.firstName, actor.lastName, "Your therapist"),
     note: note.content,
+    // The patient gets their report in the language they were spoken to in.
+    language: note.language,
     sessionDate: row.session.endedAt ?? row.session.createdAt,
   });
 

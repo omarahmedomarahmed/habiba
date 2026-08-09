@@ -4,7 +4,7 @@ import { Resend } from "resend";
 
 import { env, features } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
-import type { NoteContent } from "@/lib/db/schema";
+import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 
 let resend: Resend | null = null;
 
@@ -85,50 +85,127 @@ async function send(opts: { to: string; subject: string; html: string }): Promis
  * stay in the chart — they are written for a clinician and can be actively
  * harmful read cold by the person they describe.
  */
+/**
+ * Wording for the patient report, per language.
+ *
+ * A patient whose session was in Arabic gets an Arabic email. The note content
+ * is already in their language — sending it wrapped in English chrome, laid out
+ * left to right, would be a strange and slightly cold thing to receive after a
+ * therapy session.
+ *
+ * Deliberately a small hand-written table rather than a translation call: these
+ * are eight fixed strings that must be right every time, and a model producing
+ * "Before we next meet" slightly differently on each send is worse than a
+ * missing translation. Languages not listed fall back to English.
+ */
+const REPORT_STRINGS: Record<
+  string,
+  {
+    subject: string;
+    greeting: (name: string) => string;
+    intro: (date: string, therapist: string) => string;
+    discussed: string;
+    before: string;
+    next: string;
+    closing: string;
+    footer: string;
+  }
+> = {
+  en: {
+    subject: "Your session summary",
+    greeting: (name) => `Hi ${name},`,
+    intro: (date, therapist) => `A summary of your session on ${date}, shared by ${therapist}.`,
+    discussed: "What we talked about",
+    before: "Before we next meet",
+    next: "Next session",
+    closing:
+      "Questions about anything here? Bring them to your next session — that is exactly what it is for. If you are in crisis and need help now, call or text 988.",
+    footer:
+      "This message was sent by your therapist through 24Therapy.<br>If you were not expecting it, you can safely ignore it.",
+  },
+  ar: {
+    subject: "ملخّص جلستك",
+    greeting: (name) => `مرحبًا ${name}،`,
+    intro: (date, therapist) => `ملخّص جلستك بتاريخ ${date}، أرسله لك ${therapist}.`,
+    discussed: "ما تحدّثنا عنه",
+    before: "قبل لقائنا القادم",
+    next: "الجلسة القادمة",
+    closing:
+      "لديك سؤال عن أي شيء هنا؟ اطرحه في جلستك القادمة — فهي لهذا الغرض تمامًا. إذا كنت تمرّ بأزمة وتحتاج مساعدة الآن، تواصل مع خط المساعدة في بلدك فورًا.",
+    footer: "أرسلت هذه الرسالة من معالجك عبر 24Therapy.",
+  },
+  fr: {
+    subject: "Le résumé de votre séance",
+    greeting: (name) => `Bonjour ${name},`,
+    intro: (date, therapist) => `Un résumé de votre séance du ${date}, partagé par ${therapist}.`,
+    discussed: "Ce dont nous avons parlé",
+    before: "D'ici notre prochaine séance",
+    next: "Prochaine séance",
+    closing:
+      "Des questions sur ce qui précède ? Apportez-les à votre prochaine séance — c'est exactement à cela qu'elle sert. En cas de crise, contactez immédiatement un service d'urgence.",
+    footer: "Ce message vous a été envoyé par votre thérapeute via 24Therapy.",
+  },
+  es: {
+    subject: "El resumen de tu sesión",
+    greeting: (name) => `Hola ${name}:`,
+    intro: (date, therapist) => `Un resumen de tu sesión del ${date}, compartido por ${therapist}.`,
+    discussed: "De lo que hablamos",
+    before: "Antes de la próxima sesión",
+    next: "Próxima sesión",
+    closing:
+      "¿Tienes dudas sobre algo de esto? Llévalas a tu próxima sesión, para eso está. Si estás en crisis y necesitas ayuda ahora, llama a un servicio de emergencia.",
+    footer: "Tu terapeuta te ha enviado este mensaje a través de 24Therapy.",
+  },
+};
+
 export async function sendSessionReport(opts: {
   to: string;
   patientName: string;
   therapistName: string;
   note: NoteContent;
   sessionDate: Date;
+  /** The language the session was held in; the email follows it. */
+  language?: string;
 }): Promise<boolean> {
   const { note } = opts;
+  const lang = opts.language ?? "en";
+  const t = REPORT_STRINGS[lang] ?? REPORT_STRINGS.en!;
+  const rtl = RTL_LANGUAGES.has(lang);
+  const align = rtl ? "right" : "left";
 
-  const points = note.talkingPoints.length
-    ? `<p style="margin:22px 0 8px;font-weight:600;font-size:14px;">What we talked about</p>
-       <ul style="margin:0;padding-left:20px;color:#334155;font-size:14px;line-height:1.7;">
-         ${note.talkingPoints.map((p) => `<li>${esc(p)}</li>`).join("")}
-       </ul>`
-    : "";
+  const padSide = rtl ? "padding-right" : "padding-left";
 
-  const recs = note.recommendations.length
-    ? `<p style="margin:22px 0 8px;font-weight:600;font-size:14px;">Before we next meet</p>
-       <ul style="margin:0;padding-left:20px;color:#334155;font-size:14px;line-height:1.7;">
-         ${note.recommendations.map((r) => `<li>${esc(r)}</li>`).join("")}
-       </ul>`
-    : "";
+  const list = (heading: string, items: string[]) =>
+    items.length
+      ? `<p style="margin:22px 0 8px;font-weight:600;font-size:14px;text-align:${align};">${esc(heading)}</p>
+         <ul style="margin:0;${padSide}:20px;color:#334155;font-size:14px;line-height:1.7;text-align:${align};">
+           ${items.map((item) => `<li>${esc(item)}</li>`).join("")}
+         </ul>`
+      : "";
 
   const followUp = note.followUp
-    ? `<p style="margin:22px 0 0;font-size:14px;color:#334155;"><strong>Next session:</strong> ${esc(note.followUp)}</p>`
+    ? `<p style="margin:22px 0 0;font-size:14px;color:#334155;text-align:${align};"><strong>${esc(t.next)}:</strong> ${esc(note.followUp)}</p>`
     : "";
 
   const html = layout(
-    "Your session summary",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;letter-spacing:-0.02em;">Hi ${esc(opts.patientName)},</p>
-     <p style="margin:0 0 18px;color:#64748b;font-size:14px;">
-       A summary of your session on ${esc(opts.sessionDate.toLocaleDateString(undefined, { dateStyle: "long" }))}, shared by ${esc(opts.therapistName)}.
-     </p>
-     ${note.summary ? `<p style="margin:0;color:#334155;font-size:15px;line-height:1.7;">${esc(note.summary)}</p>` : ""}
-     ${points}
-     ${recs}
-     ${followUp}
-     <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
-       Questions about anything here? Bring them to your next session — that is exactly what it is for.
-       If you are in crisis and need help now, call or text 988.
-     </p>`,
+    t.subject,
+    `<div dir="${rtl ? "rtl" : "ltr"}" style="text-align:${align};">
+       <p style="margin:0 0 4px;font-size:20px;font-weight:700;letter-spacing:-0.02em;">${esc(t.greeting(opts.patientName))}</p>
+       <p style="margin:0 0 18px;color:#64748b;font-size:14px;">
+         ${esc(t.intro(opts.sessionDate.toLocaleDateString(lang, { dateStyle: "long" }), opts.therapistName))}
+       </p>
+       ${note.summary ? `<p style="margin:0;color:#334155;font-size:15px;line-height:1.7;">${esc(note.summary)}</p>` : ""}
+       ${list(t.discussed, note.talkingPoints)}
+       ${list(t.before, note.recommendations)}
+       ${followUp}
+       <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
+         ${esc(t.closing)}
+       </p>
+     </div>`,
+    t.footer,
   );
 
-  return send({ to: opts.to, subject: "Your session summary", html });
+  return send({ to: opts.to, subject: t.subject, html });
 }
 
 /**

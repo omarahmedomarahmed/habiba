@@ -12,11 +12,16 @@ import {
   saveNote,
   shareReport,
 } from "@/app/(app)/sessions/actions";
-import type { NoteContent } from "@/lib/db/schema";
+import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 
 type Props = {
   sessionId: string;
   initialNote: NoteContent | null;
+  /** ISO 639-1 of the language the session was held in. */
+  language: string;
+  languageLabel: string;
+  /** English rendering, when the session was not in English. */
+  contentEn: NoteContent | null;
   initialStatus: "draft" | "approved";
   noteStatus: "none" | "generating" | "ready" | "failed";
   patientLabel: string;
@@ -37,6 +42,17 @@ export function NoteReview(props: Props) {
   const [email, setEmail] = useState(props.patientEmail ?? "");
   const [showShare, setShowShare] = useState(false);
   const [sent, setSent] = useState(props.reportSent);
+  /**
+   * Which copy is on screen. The clinical record is the one in the session's
+   * own language — that is what gets edited, approved and signed. English is a
+   * read-only convenience, so switching to it turns editing off rather than
+   * letting someone sign a translation.
+   */
+  const [showEnglish, setShowEnglish] = useState(false);
+
+  const rtl = RTL_LANGUAGES.has(props.language);
+  const translated = props.contentEn;
+  const viewing: NoteContent | null = showEnglish && translated ? translated : note;
 
   /**
    * While the note is being written, poll for it.
@@ -149,7 +165,34 @@ export function NoteReview(props: Props) {
         </p>
       ) : null}
 
-      {editing ? (
+      {/*
+        The language switch.
+        ---------------------
+        Only shown when there is something to switch to. The clinical record is
+        the note in the session's own language; English is read-only, because a
+        clinician must never be able to sign a translation they did not write.
+      */}
+      {translated ? (
+        <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-1">
+          <LangTab
+            active={!showEnglish}
+            onClick={() => setShowEnglish(false)}
+            label={props.languageLabel}
+            hint="the record"
+          />
+          <LangTab
+            active={showEnglish}
+            onClick={() => {
+              setShowEnglish(true);
+              setEditing(false);
+            }}
+            label="English"
+            hint="translation"
+          />
+        </div>
+      ) : null}
+
+      {editing && !showEnglish ? (
         <Card className="space-y-4 p-4">
           <Field label="Summary" htmlFor="summary">
             <Textarea
@@ -187,15 +230,24 @@ export function NoteReview(props: Props) {
           </div>
         </Card>
       ) : (
-        <NoteCard
-          note={note}
-          status={status}
-          patientLabel={props.patientLabel}
-          dateLabel={props.dateLabel}
-        />
+        <div dir={showEnglish ? "ltr" : rtl ? "rtl" : "ltr"}>
+          <NoteCard
+            note={viewing ?? note}
+            status={status}
+            patientLabel={props.patientLabel}
+            dateLabel={props.dateLabel}
+          />
+        </div>
       )}
 
-      {!editing ? (
+      {showEnglish ? (
+        <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs leading-relaxed text-slate-600">
+          A machine translation of the note above, for a supervisor or an insurer. The record you
+          sign is the {props.languageLabel} one — switch back to edit or approve it.
+        </p>
+      ) : null}
+
+      {!editing && !showEnglish ? (
         <div className="flex flex-col gap-2.5 sm:flex-row">
           <Button variant="secondary" full onClick={() => setEditing(true)}>
             <Pencil className="h-4 w-4" aria-hidden /> Edit
@@ -252,5 +304,33 @@ export function NoteReview(props: Props) {
         </Card>
       ) : null}
     </div>
+  );
+}
+
+function LangTab({
+  active,
+  onClick,
+  label,
+  hint,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={
+        active
+          ? "flex-1 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm"
+          : "flex-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-500"
+      }
+    >
+      {label}
+      <span className="ml-1.5 text-xs font-normal text-slate-400">{hint}</span>
+    </button>
   );
 }

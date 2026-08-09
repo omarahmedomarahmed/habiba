@@ -5,6 +5,7 @@ import { asc, eq } from "drizzle-orm";
 import { recordSessionNote } from "@/lib/data/copilot";
 import { db } from "@/lib/db";
 import {
+  NOTE_LANGUAGES,
   patients,
   sessionNotes,
   sessions,
@@ -37,8 +38,15 @@ Rules:
 - If the transcript contains language suggesting risk of harm to self or others, say so plainly in "assessment" and in "impressions".
 - Lines marked "Speaker" come from a single microphone in a shared room and are not attributed. Work out from context who is speaking — the clinician asks, reflects and summarises; the patient discloses and describes their own experience — and attribute correctly in your write-up. Where a line is genuinely ambiguous, do not guess in a way that changes clinical meaning.
 
+LANGUAGE
+- Write the note in the language the session was conducted in. If the transcript is in Arabic, the note is in Arabic; if it is in Spanish, the note is in Spanish. Do not translate the clinical record into English.
+- Use the clinical register a professional in that language would actually write in, not a literal translation of English phrasing.
+- Report the language you wrote in as a two-letter ISO 639-1 code in "language".
+- If the session mixes languages, use the one the patient mostly spoke in — the record should read naturally to the clinician who was in the room.
+
 Respond with a single JSON object with exactly these keys:
 {
+  "language": string,
   "soap": { "subjective": string, "objective": string, "assessment": string, "plan": string },
   "summary": string,
   "talkingPoints": string[],
@@ -47,6 +55,24 @@ Respond with a single JSON object with exactly these keys:
   "recommendations": string[],
   "followUp": string
 }`;
+
+/**
+ * Translation is a second, separate call rather than asking for two notes at
+ * once.
+ *
+ * Two reasons. A single call producing both drifts — the model starts
+ * summarising differently in each language and you end up with two records that
+ * disagree, which is worse than having one. And the translation is optional: if
+ * it fails, the clinician still has the note they will actually sign.
+ */
+const TRANSLATE_PROMPT = `You translate a clinical psychotherapy note into English.
+
+Rules:
+- Translate faithfully. Do not summarise, expand, soften or add clinical judgement that is not in the source.
+- Keep the professional register: third person, past tense, specific.
+- Keep every field. An empty field in the source stays empty.
+- Clinical terms take their standard English equivalent, not a literal word-for-word rendering.
+- Return only the JSON object, with exactly the keys given to you.`;
 
 /**
  * Build the model context.
@@ -112,7 +138,7 @@ export async function generateNoteContent(opts: {
   sessionId: string;
   organizationId: string;
   userId: string;
-}): Promise<{ content: NoteContent; model: string }> {
+}): Promise<{ content: NoteContent; language: string; contentEn: NoteContent | null; model: string }> {
   const started = Date.now();
   const { context, transcript } = await buildContext(opts.sessionId);
 
@@ -151,7 +177,25 @@ export async function generateNoteContent(opts: {
       "note-generation",
     );
 
-    return { content: normaliseNote(raw), model: MODELS.note };
+    const content = normaliseNote(raw);
+    const language = normaliseLanguage(raw.language);
+
+    // English sessions are already English; asking for a translation would
+    // spend money to produce the same text.
+    const contentEn =
+      language === "en"
+        ? null
+        : await translateNote({ content, from: language, ...opts }).catch((error) => {
+            // The note is the deliverable. A failed translation is a missing
+            // convenience, not a failed session.
+            log.warn("note translation failed", {
+              session: ref(opts.sessionId),
+              reason: safeErrorMessage(error),
+            });
+            return null;
+          });
+
+    return { content, language, contentEn, model: MODELS.note };
   } catch (error) {
     await logUsage({
       organizationId: opts.organizationId,
@@ -169,6 +213,61 @@ export async function generateNoteContent(opts: {
     });
     throw error;
   }
+}
+
+/**
+ * Only a language we can actually render and label. Anything else is English:
+ * a note tagged `xy` would give the viewer no way to pick a direction or a
+ * font, and guessing wrong on right-to-left is very visible.
+ */
+export function normaliseLanguage(raw: unknown): string {
+  const tag = typeof raw === "string" ? raw.trim().toLowerCase().slice(0, 2) : "";
+  return tag in NOTE_LANGUAGES ? tag : "en";
+}
+
+async function translateNote(opts: {
+  content: NoteContent;
+  from: string;
+  sessionId: string;
+  organizationId: string;
+  userId: string;
+}): Promise<NoteContent | null> {
+  const started = Date.now();
+
+  const completion = await openai().chat.completions.create({
+    model: MODELS.note,
+    temperature: 0,
+    response_format: { type: "json_object" },
+    max_tokens: 3000,
+    messages: [
+      { role: "system", content: TRANSLATE_PROMPT },
+      {
+        role: "user",
+        content: `Source language: ${NOTE_LANGUAGES[opts.from] ?? opts.from}\n\nNote:\n${JSON.stringify(opts.content)}`,
+      },
+    ],
+  });
+
+  await logUsage({
+    organizationId: opts.organizationId,
+    userId: opts.userId,
+    sessionId: opts.sessionId,
+    kind: "note",
+    model: MODELS.note,
+    inputTokens: completion.usage?.prompt_tokens ?? 0,
+    outputTokens: completion.usage?.completion_tokens ?? 0,
+    durationMs: Date.now() - started,
+    status: "success",
+  });
+
+  const raw = parseJson<Record<string, unknown>>(
+    completion.choices[0]?.message?.content,
+    {},
+    "note-translation",
+  );
+
+  const translated = normaliseNote(raw);
+  return isNoteEmpty(translated) ? null : translated;
 }
 
 /**
@@ -228,7 +327,7 @@ export async function generateAndStoreNote(opts: {
   patientId: string | null;
 }): Promise<void> {
   try {
-    const { content, model } = await generateNoteContent({
+    const { content, language, contentEn, model } = await generateNoteContent({
       sessionId: opts.sessionId,
       organizationId: opts.organizationId,
       userId: opts.therapistId,
@@ -242,12 +341,14 @@ export async function generateAndStoreNote(opts: {
         therapistId: opts.therapistId,
         patientId: opts.patientId,
         content,
+        language,
+        contentEn,
         status: "draft",
         model,
       })
       .onConflictDoUpdate({
         target: sessionNotes.sessionId,
-        set: { content, model, updatedAt: new Date() },
+        set: { content, language, contentEn, model, updatedAt: new Date() },
       });
 
     await db

@@ -8,6 +8,7 @@ import { Badge, Button, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
+import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Session", robots: { index: false } };
@@ -85,6 +86,9 @@ export default async function SessionDetailPage({
           <NoteReview
             sessionId={id}
             initialNote={note?.content ?? null}
+            language={note?.language ?? "en"}
+            languageLabel={NOTE_LANGUAGES[note?.language ?? "en"] ?? "Original"}
+            contentEn={note?.contentEn ?? null}
             initialStatus={note?.status ?? "draft"}
             noteStatus={row.session.noteStatus}
             patientLabel={patientLabel}

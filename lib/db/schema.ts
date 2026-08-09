@@ -353,6 +353,44 @@ export type NoteContent = {
   followUp: string;
 };
 
+/**
+ * BCP-47-ish language tag for a note, plus the label to show a clinician.
+ *
+ * Only the languages we can reliably both transcribe and write clinical prose
+ * in. An unknown tag falls back to English rather than producing a note in a
+ * language nobody asked for.
+ */
+export const NOTE_LANGUAGES: Record<string, string> = {
+  en: "English",
+  ar: "العربية",
+  fr: "Français",
+  es: "Español",
+  de: "Deutsch",
+  pt: "Português",
+  it: "Italiano",
+  nl: "Nederlands",
+  tr: "Türkçe",
+  ru: "Русский",
+  uk: "Українська",
+  pl: "Polski",
+  hi: "हिन्दी",
+  ur: "اردو",
+  bn: "বাংলা",
+  zh: "中文",
+  ja: "日本語",
+  ko: "한국어",
+  id: "Bahasa Indonesia",
+  vi: "Tiếng Việt",
+  th: "ไทย",
+  he: "עברית",
+  fa: "فارسی",
+  sw: "Kiswahili",
+  tl: "Tagalog",
+};
+
+/** Languages written right to left — the note viewer has to know. */
+export const RTL_LANGUAGES = new Set(["ar", "he", "fa", "ur"]);
+
 export const sessionNotes = pgTable(
   "session_notes",
   {
@@ -369,6 +407,20 @@ export const sessionNotes = pgTable(
     patientId: uuid("patient_id").references(() => patients.id, { onDelete: "restrict" }),
 
     content: jsonb("content").$type<NoteContent>().notNull(),
+    /**
+     * The language the session was actually conducted in.
+     *
+     * `content` is always in this language: a clinician working in Arabic
+     * should be signing an Arabic note, not translating one back in their head.
+     */
+    language: text("language").notNull().default("en"),
+    /**
+     * An English rendering of the same note, when the session was not in
+     * English. Kept alongside rather than instead of, because the clinical
+     * record is the one the clinician signed and a translation is a
+     * convenience — for a supervisor, an insurer, or us.
+     */
+    contentEn: jsonb("content_en").$type<NoteContent | null>(),
     status: text("status").$type<"draft" | "approved">().notNull().default("draft"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
