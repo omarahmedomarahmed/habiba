@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { JoinFlow } from "@/components/join/join-flow";
+import { confirmCheckout } from "@/lib/billing/stripe";
 import { resolveJoinToken } from "@/lib/data/sessions";
 
 export const metadata: Metadata = {
@@ -10,8 +11,22 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-export default async function JoinPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function JoinPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ checkout?: string }>;
+}) {
   const { token } = await params;
+  const { checkout } = await searchParams;
+
+  // Settle on the redirect as well as by webhook. Stripe cannot reach a preview
+  // deployment, and a patient who has just paid must not be told to pay again.
+  if (checkout && checkout !== "cancelled") {
+    await confirmCheckout(checkout);
+  }
+
   const session = await resolveJoinToken(token);
 
   if (!session) {
@@ -28,7 +43,18 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
   return (
     <Shell>
-      <JoinFlow token={token} modality={session.modality} />
+      <JoinFlow
+        token={token}
+        modality={session.modality}
+        priceCents={session.priceCents}
+        paymentStatus={session.paymentStatus}
+        // Only resume automatically when the patient has both paid and already
+        // given a name — otherwise they get the form, as normal.
+        resumeAfterPayment={
+          session.paymentStatus === "paid" && Boolean(session.guestName) && Boolean(checkout)
+        }
+        cancelled={checkout === "cancelled"}
+      />
     </Shell>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { askCopilot, correctCopilot } from "@/app/(app)/copilot/actions";
+import { saveVoicePreference } from "@/app/(app)/settings/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
 import type { Citation } from "@/lib/db/schema";
@@ -383,7 +384,10 @@ export function CopilotChat({
                 <select
                   id="voice"
                   value={voice}
-                  onChange={(e) => setVoice(e.target.value)}
+                  onChange={(e) => {
+                    setVoice(e.target.value);
+                    void saveVoicePreference(e.target.value, speed);
+                  }}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
                 >
                   {VOICES.map((v) => (
@@ -402,6 +406,9 @@ export function CopilotChat({
                   step={0.05}
                   value={speed}
                   onChange={(e) => setSpeed(Number(e.target.value))}
+                  // Saved on release, not on every pixel of the drag.
+                  onPointerUp={() => void saveVoicePreference(voice, speed)}
+                  onKeyUp={() => void saveVoicePreference(voice, speed)}
                   className="w-full accent-brand-500"
                 />
               </Field>

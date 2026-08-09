@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 
+import { EarningsCard } from "@/components/billing/earnings";
 import { InvoiceList, PlanCard } from "@/components/billing/invoice-list";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
+import {
+  accountBalance,
+  earningsSummary,
+  getConnectAccount,
+  recentPayments,
+} from "@/lib/billing/connect";
 import { billingSummary, listInvoices } from "@/lib/billing/service";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { features } from "@/lib/env";
@@ -26,9 +33,13 @@ export default async function BillingPage({
     await confirmCheckout(checkout);
   }
 
-  const [summary, invoices] = await Promise.all([
+  const [summary, invoices, connect, earnings, payments, balance] = await Promise.all([
     billingSummary(actor.organizationId),
     listInvoices(actor.organizationId),
+    getConnectAccount(actor.userId),
+    earningsSummary(actor.userId),
+    recentPayments(actor.userId),
+    accountBalance(actor.userId),
   ]);
 
   return (
@@ -83,6 +94,28 @@ export default async function BillingPage({
             .
           </p>
         ) : null}
+
+        <EarningsCard
+          connected={Boolean(connect.accountId)}
+          payoutsEnabled={connect.payoutsEnabled}
+          availableCents={balance?.availableCents ?? null}
+          pendingCents={balance?.pendingCents ?? null}
+          lifetimeNetCents={earnings.lifetimeNetCents}
+          thisMonthNetCents={earnings.thisMonthNetCents}
+          platformFeesCents={earnings.platformFeesCents}
+          settledFromEarningsCents={earnings.settledFromEarningsCents}
+          paidSessionCount={earnings.paidSessionCount}
+          payments={payments.map((payment) => ({
+            id: payment.id,
+            payerName: payment.payerName,
+            grossCents: payment.grossCents,
+            therapistNetCents: payment.therapistNetCents,
+            settledInvoiceCents: payment.settledInvoiceCents,
+            status: payment.status,
+            createdAt: payment.createdAt.toISOString(),
+            paidAt: payment.paidAt?.toISOString() ?? null,
+          }))}
+        />
 
         <InvoiceList
           billingEnabled={features.billing}

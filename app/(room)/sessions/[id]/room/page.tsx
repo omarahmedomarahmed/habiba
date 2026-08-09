@@ -56,6 +56,8 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
       videoToken={videoToken}
       videoConfigured={features.video}
       joinUrl={row.session.joinToken ? `${env.appUrl}/join/${row.session.joinToken}` : null}
+      priceCents={row.session.priceCents}
+      paymentStatus={row.session.paymentStatus}
       patientAlreadyJoined={Boolean(row.session.patientJoinedAt)}
       initialLines={transcript.map((segment) => ({
         id: segment.id,

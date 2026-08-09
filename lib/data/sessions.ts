@@ -104,7 +104,14 @@ export async function getSession(actor: Actor, sessionId: string) {
 
 export async function createSession(
   actor: Actor,
-  input: { modality: Modality; patientId?: string | null; guestName?: string; guestEmail?: string },
+  input: {
+    modality: Modality;
+    patientId?: string | null;
+    guestName?: string;
+    guestEmail?: string;
+    /** Zero means free to join, which is the default and the common case. */
+    priceCents?: number;
+  },
 ) {
   let patientId = input.patientId ?? null;
 
@@ -126,6 +133,9 @@ export async function createSession(
   }
 
   const needsLink = input.modality === "video";
+  // Belt and braces: a price on an in-person session would be an unreachable
+  // paywall, because there is no link for the patient to pay through.
+  const price = needsLink ? Math.max(0, Math.round(input.priceCents ?? 0)) : 0;
 
   const [created] = await db
     .insert(sessions)
@@ -139,6 +149,8 @@ export async function createSession(
       status: "scheduled",
       joinToken: needsLink ? randomBytes(24).toString("base64url") : null,
       joinTokenExpiresAt: needsLink ? new Date(Date.now() + 12 * 60 * 60 * 1000) : null,
+      priceCents: price,
+      paymentStatus: price > 0 ? "pending" : "not_required",
     })
     .returning();
 
@@ -391,6 +403,11 @@ export async function resolveJoinToken(token: string) {
       organizationId: sessions.organizationId,
       therapistId: sessions.therapistId,
       patientId: sessions.patientId,
+      // The paywall state. Returned because the join page has to render it, and
+      // it is not clinical: a price and whether it has been settled.
+      priceCents: sessions.priceCents,
+      paymentStatus: sessions.paymentStatus,
+      guestName: sessions.guestName,
     })
     .from(sessions)
     .where(and(eq(sessions.joinToken, token), isNull(sessions.endedAt)))

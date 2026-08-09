@@ -25,6 +25,9 @@ type RoomProps = {
   videoToken: string | null;
   videoConfigured: boolean;
   joinUrl: string | null;
+  /** Zero when the session is free to join, which is the default. */
+  priceCents: number;
+  paymentStatus: "not_required" | "pending" | "paid";
   initialLines: TranscriptLine[];
   patientAlreadyJoined: boolean;
 };
@@ -332,7 +335,14 @@ export function SessionRoom(props: RoomProps) {
 
         {props.joinUrl && !patientJoined ? (
           <div className="border-b border-white/10 bg-white/5 px-4 py-3" data-join-url={props.joinUrl}>
-            <p className="text-xs font-medium text-slate-300">Waiting for your patient</p>
+            <p className="text-xs font-medium text-slate-300">
+              Waiting for your patient
+              {props.priceCents > 0
+                ? props.paymentStatus === "paid"
+                  ? " · paid"
+                  : ` · $${(props.priceCents / 100).toFixed(0)} to pay before they can join`
+                : ""}
+            </p>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"

@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { generateAndStoreNote } from "@/lib/ai/notes";
 import { audit, auditPhi } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/guard";
+import { getConnectAccount, priceProblem } from "@/lib/billing/connect";
 import { chargeForSession } from "@/lib/billing/service";
 import {
   cancelSession,
@@ -42,6 +43,20 @@ export async function startNewSession(
     return { error: "Enter a first name so the session has somewhere to go." };
   }
 
+  // Only a video session can be paid for: an in-person session has no link to
+  // put a paywall in front of.
+  const priceDollars = Number(String(formData.get("priceDollars") ?? "0").trim() || "0");
+  const priceCents = modality === "video" ? Math.round(priceDollars * 100) : 0;
+  const problem = priceProblem(priceCents);
+  if (problem) return { error: problem };
+
+  if (priceCents > 0) {
+    const connect = await getConnectAccount(actor.userId);
+    if (!connect.chargesEnabled) {
+      return { error: "Finish setting up payouts in Settings before charging for a session." };
+    }
+  }
+
   let sessionId: string;
   try {
     const session = await createSession(actor, {
@@ -49,6 +64,7 @@ export async function startNewSession(
       patientId,
       guestName: guestName || undefined,
       guestEmail: guestEmail || undefined,
+      priceCents,
     });
     sessionId = session.id;
 
@@ -76,6 +92,7 @@ export async function startNewSession(
               to: guestEmail,
               therapistName: fullName(actor.firstName, actor.lastName, "Your therapist"),
               joinUrl: `${env.appUrl}/join/${fresh.joinToken}`,
+              priceCents,
             }),
           );
         }

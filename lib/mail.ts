@@ -138,17 +138,49 @@ export async function sendPasswordReset(opts: { to: string; url: string }): Prom
   return send({ to: opts.to, subject: "Reset your 24Therapy password", html });
 }
 
+/**
+ * The join link, with or without a price.
+ *
+ * One template rather than two. A paid invitation and a free one differ by a
+ * price row and a verb; splitting them produces two copies of the same layout
+ * that drift apart the first time a footer changes.
+ */
 export async function sendSessionInvite(opts: {
   to: string;
   therapistName: string;
   joinUrl: string;
+  priceCents?: number;
 }): Promise<boolean> {
+  const price = Math.max(0, Math.round(opts.priceCents ?? 0));
+  const paid = price > 0;
+  const amount = `$${(price / 100).toFixed(price % 100 === 0 ? 0 : 2)}`;
+
+  const priceRow = paid
+    ? `<table role="presentation" width="100%" style="margin:0 0 20px;border-collapse:collapse;background:#0A2342;border-radius:12px;">
+         <tr>
+           <td style="padding:14px 16px;color:rgba(255,255,255,0.7);font-size:14px;">This session</td>
+           <td style="padding:14px 16px;text-align:right;color:#ffffff;font-size:22px;font-weight:700;">${esc(amount)}</td>
+         </tr>
+       </table>`
+    : "";
+
   const html = layout(
     "Your session link",
     `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your session is ready</p>
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(opts.therapistName)} has invited you to join. No account or download needed — just tap the button.</p>
-     <a href="${esc(opts.joinUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Join the session</a>
-     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">This link expires in 12 hours.</p>`,
+     ${priceRow}
+     <a href="${esc(opts.joinUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${paid ? `Pay ${esc(amount)} and join` : "Join the session"}</a>
+     ${
+       paid
+         ? `<p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">Payment is handled securely by Stripe and goes to your therapist. You will get a receipt by email.</p>`
+         : ""
+     }
+     <p style="margin:${paid ? "10px" : "20px"} 0 0;color:#64748b;font-size:13px;">This link expires in 12 hours.</p>`,
   );
-  return send({ to: opts.to, subject: "Your therapy session link", html });
+
+  return send({
+    to: opts.to,
+    subject: paid ? `Your therapy session — ${amount}` : "Your therapy session link",
+    html,
+  });
 }

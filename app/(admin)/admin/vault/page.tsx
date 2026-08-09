@@ -56,10 +56,28 @@ export default async function VaultPage() {
           />
           <Money label="Outstanding" cents={ledger.outstandingCents} tone="neutral" />
         </div>
+
+        {/*
+          Marketplace volume is kept visually apart from revenue on purpose. GMV
+          is money that passed through us to a therapist; only the fee is ours,
+          and a dashboard that adds the two produces a number that cannot be
+          defended in a diligence call.
+        */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Money label="Connect fees" cents={ledger.connectFeeCents} tone="positive" />
+          <Money
+            label="Patient payments (GMV)"
+            cents={ledger.gmvCents}
+            tone="neutral"
+            sub={`${ledger.connectPaymentCount} paid sessions`}
+          />
+        </div>
+
         <p className="text-xs text-slate-500">
           {ledger.paidInvoiceCount} invoices paid · {formatUsd(ledger.discountedCents)} discounted ·{" "}
-          {ledger.waivedCount} sessions waived. Model spend is estimated from published rates at
-          the time of each call — reconcile against the provider invoice monthly.
+          {ledger.waivedCount} sessions waived. Collected includes Connect fees but not GMV — that
+          money belongs to the therapist. Model spend is estimated from published rates at the time
+          of each call — reconcile against the provider invoice monthly.
         </p>
       </section>
 

@@ -197,3 +197,55 @@ test("a patient can join by link with no account", async () => {
 
   await anonymous.close();
 });
+
+/**
+ * The paywall is a server-side gate, not a disabled button.
+ *
+ * A priced session is put into the state it would be in after a therapist set a
+ * price, then an anonymous patient is pointed at the link. The assertion that
+ * matters is the negative one: no room, no iframe, no meeting token — the only
+ * way past this point is a completed Stripe charge.
+ */
+test("a session with a price will not admit a patient who has not paid", async () => {
+  await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /Video/ }).click();
+  await page.fill("#guestName", "Robin");
+  await page.getByRole("button", { name: "Start session now" }).click();
+  await page.waitForURL(/\/sessions\/[0-9a-f-]+\/room/, { timeout: 30_000 });
+
+  const joinLink = await page.getAttribute("[data-join-url]", "data-join-url");
+  const token = joinLink!.split("/join/")[1]!;
+
+  // Price the session the way the therapist's own form would.
+  const { connect } = await import("../scripts/db");
+  const { pool } = connect();
+  try {
+    const updated = await pool.query(
+      "UPDATE sessions SET price_cents = 6000, payment_status = 'pending' WHERE join_token = $1",
+      [token],
+    );
+    assert.equal(updated.rowCount, 1, "the join token should resolve to exactly one session");
+  } finally {
+    await pool.end();
+  }
+
+  const anonymous = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const patientPage = await anonymous.newPage();
+  await patientPage.goto(joinLink!, { waitUntil: "domcontentloaded" });
+
+  await patientPage.waitForSelector("text=$60");
+  await patientPage.fill("#name", "Robin");
+  await patientPage.getByRole("button", { name: /Pay \$60 and join/ }).click();
+
+  // Stripe is not configured in this environment, so the attempt fails — and
+  // the point is what does *not* happen next.
+  await patientPage.waitForSelector('[role="alert"]', { timeout: 30_000 });
+  assert.equal(await patientPage.locator("iframe").count(), 0, "no room may be handed over");
+  assert.equal(
+    await patientPage.locator("text=waiting room").count(),
+    0,
+    "an unpaid patient must not reach the waiting room",
+  );
+
+  await anonymous.close();
+});

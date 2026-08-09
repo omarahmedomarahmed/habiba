@@ -2,10 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Link2, User, Users, Video } from "lucide-react";
+import { DollarSign, Link2, User, Users, Video } from "lucide-react";
 
 import { startNewSession, type SessionActionState } from "@/app/(app)/sessions/actions";
 import { Button, Field, Input } from "@/components/ui";
+import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
 type PatientOption = { id: string; name: string; email: string | null };
@@ -32,13 +33,24 @@ function Submit() {
 export function NewSessionForm({
   patients,
   welcome,
+  payments,
 }: {
   patients: PatientOption[];
   welcome?: boolean;
+  /** Absent when the therapist has not finished Stripe onboarding. */
+  payments?: { defaultRateCents: number; feeBps: number };
 }) {
   const [state, action] = useActionState(startNewSession, INITIAL);
   const [modality, setModality] = useState<"in_person" | "video">("in_person");
   const [existing, setExisting] = useState<string>("");
+  const [charge, setCharge] = useState(false);
+  const [price, setPrice] = useState(
+    payments?.defaultRateCents ? String(payments.defaultRateCents / 100) : "",
+  );
+
+  const priceCents = Math.round((Number(price) || 0) * 100);
+  const cut = payments ? Math.floor((priceCents * payments.feeBps) / 10_000) : 0;
+  const chargeable = modality === "video" && charge && Boolean(payments);
 
   return (
     <form action={action} className="space-y-6">
@@ -130,6 +142,65 @@ export function NewSessionForm({
             />
           </Field>
         </>
+      ) : null}
+
+      {/*
+        Zero unless the therapist deliberately turns charging on. A session that
+        silently costs the patient money because a rate was saved in settings
+        weeks ago is the kind of default that loses a licence, not a customer.
+      */}
+      <input type="hidden" name="priceDollars" value={chargeable ? price || "0" : "0"} />
+
+      {modality === "video" && payments ? (
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={charge}
+              onChange={(event) => setCharge(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-slate-800">
+                Ask the patient to pay before joining
+              </span>
+              <span className="mt-0.5 block text-xs text-slate-500">
+                The link becomes a payment link. They cannot enter the room until it clears.
+              </span>
+            </span>
+          </label>
+
+          {charge ? (
+            <div className="mt-3 space-y-3">
+              <Field label="Price for this session" htmlFor="price">
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400">
+                    $
+                  </span>
+                  <Input
+                    id="price"
+                    type="number"
+                    inputMode="decimal"
+                    min={5}
+                    step={1}
+                    value={price}
+                    onChange={(event) => setPrice(event.target.value)}
+                    className="pl-7"
+                    placeholder="60"
+                    required
+                  />
+                </div>
+              </Field>
+
+              {priceCents > 0 ? (
+                <p className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <DollarSign className="h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
+                  You keep {formatUsd(priceCents - cut)} — 24Therapy takes {formatUsd(cut)}.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {modality === "video" ? (

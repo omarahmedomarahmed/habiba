@@ -144,6 +144,16 @@ export async function createInvoiceCheckout(opts: {
 /** Applied by both the webhook and the redirect-confirm path. */
 async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<void> {
   const organizationId = session.metadata?.organizationId;
+  const paymentIntentId =
+    typeof session.payment_intent === "string" ? session.payment_intent : null;
+
+  // A patient paying their therapist. Imported lazily because `connect.ts`
+  // imports `getStripe` from this module, and a static cycle between the two
+  // leaves one of them half-initialised at module scope.
+  if (session.metadata?.kind === "session_payment" && session.payment_status === "paid") {
+    const { settleSessionPayment } = await import("./connect");
+    await settleSessionPayment({ id: session.id, paymentIntentId });
+  }
 
   if (organizationId && session.mode === "subscription" && session.status === "complete") {
     await db
@@ -165,21 +175,20 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
       amountCents: session.amount_total ?? PLANS.unlimited.monthlyCents ?? 0,
       periodStart: new Date(),
       periodEnd: null,
-      stripePaymentIntentId:
-        typeof session.payment_intent === "string" ? session.payment_intent : null,
+      stripePaymentIntentId: paymentIntentId,
     });
   }
 
   // Settle every invoice attached to this checkout, however many there were.
+  //
+  // This covers two cases with one query: a therapist paying a batch of their
+  // own bills, and a patient's session payment whose application fee included
+  // the therapist's outstanding invoices. In both, the invoices carry this
+  // checkout's id, so "who paid" is already decided by the time we get here.
   if (session.payment_status === "paid") {
     await db
       .update(invoices)
-      .set({
-        status: "paid",
-        paidAt: new Date(),
-        stripePaymentIntentId:
-          typeof session.payment_intent === "string" ? session.payment_intent : null,
-      })
+      .set({ status: "paid", paidAt: new Date(), stripePaymentIntentId: paymentIntentId })
       .where(eq(invoices.stripeCheckoutSessionId, session.id));
   }
 }
@@ -284,6 +293,18 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
           });
         }
       }
+      break;
+    }
+
+    /**
+     * Connect capabilities. This is the only trustworthy source for
+     * "can this therapist take money yet" — returning from the onboarding form
+     * proves the form was submitted, not that Stripe accepted the identity
+     * documents, and the gap between the two can be days.
+     */
+    case "account.updated": {
+      const { syncAccountFromStripe } = await import("./connect");
+      await syncAccountFromStripe(event.data.object);
       break;
     }
 

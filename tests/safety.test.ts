@@ -6,6 +6,13 @@ import { resolveCitations } from "../lib/ai/patient-copilot";
 import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";
 import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/password";
+import {
+  MAX_SESSION_PRICE_CENTS,
+  MIN_SESSION_PRICE_CENTS,
+  platformFee,
+  priceProblem,
+  therapistNet,
+} from "../lib/billing/connect";
 import { getPlan, PLANS } from "../lib/billing/plans";
 import { inspectEnv } from "../lib/env";
 import { log, ref } from "../lib/logger";
@@ -172,6 +179,42 @@ test("every plan advertises a HIPAA BAA", () => {
       `${plan.key} must include a BAA`,
     );
   }
+});
+
+/* --------------------------------------------------------- connect payouts */
+
+test("the platform cut is rounded in the therapist's favour and never exceeds the gross", () => {
+  // 10% of $60.05 is 600.5 cents; the therapist must not be short the half cent.
+  assert.equal(platformFee(6005), 600);
+  assert.equal(platformFee(6005) + therapistNet(6005), 6005);
+
+  for (const gross of [0, 1, 499, 500, 6000, 12_345, 100_000]) {
+    const fee = platformFee(gross);
+    assert.ok(fee >= 0 && fee <= gross, `fee out of range for ${gross}`);
+    assert.equal(fee + therapistNet(gross), gross, `fee + net must equal gross for ${gross}`);
+  }
+});
+
+test("a negative or nonsense gross cannot produce a negative fee", () => {
+  assert.equal(platformFee(-5000), 0);
+  assert.equal(therapistNet(-5000), 0);
+});
+
+/**
+ * The price is the one number a patient sees before their card is charged, so
+ * the rules around it are worth pinning down. Zero is allowed — most sessions
+ * are free to join because the money changes hands outside the product.
+ */
+test("session pricing accepts free and refuses amounts Stripe cannot process", () => {
+  assert.equal(priceProblem(0), null);
+  assert.equal(priceProblem(6000), null);
+  assert.equal(priceProblem(MIN_SESSION_PRICE_CENTS), null);
+
+  assert.ok(priceProblem(1));
+  assert.ok(priceProblem(MIN_SESSION_PRICE_CENTS - 1));
+  assert.ok(priceProblem(MAX_SESSION_PRICE_CENTS + 1));
+  assert.ok(priceProblem(12.5));
+  assert.ok(priceProblem(Number.NaN));
 });
 
 /* ------------------------------------------------------------------ logging */

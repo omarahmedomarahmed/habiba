@@ -7,6 +7,7 @@ import {
   aiRequestLogs,
   invoices,
   organizations,
+  sessionPayments,
   sessions,
   subscriptions,
   users,
@@ -35,6 +36,11 @@ export type LedgerSummary = {
   grossMarginCents: number;
   grossMarginPct: number;
   paidInvoiceCount: number;
+  /** Application fees on patient→therapist payments. Our second revenue line. */
+  connectFeeCents: number;
+  /** Gross patient payments processed. Not our money — a volume metric. */
+  gmvCents: number;
+  connectPaymentCount: number;
 };
 
 export async function ledgerSummary(sinceDays?: number): Promise<LedgerSummary> {
@@ -56,7 +62,30 @@ export async function ledgerSummary(sinceDays?: number): Promise<LedgerSummary> 
     .from(aiRequestLogs)
     .where(since ? gte(aiRequestLogs.createdAt, since) : undefined);
 
-  const collectedCents = money?.collected ?? 0;
+  /*
+   * Connect revenue, net of settlement.
+   *
+   * Part of an application fee can be a therapist's own outstanding invoice
+   * riding along inside the charge. That part already becomes a paid invoice
+   * and is therefore already in `collected` — adding the whole fee here would
+   * count it twice, which is the specific way a revenue figure stops matching
+   * Stripe.
+   */
+  const [connect] = await db
+    .select({
+      fees: sql<number>`COALESCE(SUM(${sessionPayments.platformFeeCents} - ${sessionPayments.settledInvoiceCents}), 0)::int`,
+      gmv: sql<number>`COALESCE(SUM(${sessionPayments.grossCents}), 0)::int`,
+      count: sql<number>`COUNT(*)::int`,
+    })
+    .from(sessionPayments)
+    .where(
+      since
+        ? and(eq(sessionPayments.status, "paid"), gte(sessionPayments.paidAt, since))
+        : eq(sessionPayments.status, "paid"),
+    );
+
+  const connectFeeCents = connect?.fees ?? 0;
+  const collectedCents = (money?.collected ?? 0) + connectFeeCents;
   const aiCostCents = cost?.total ?? 0;
   const grossMarginCents = collectedCents - aiCostCents;
 
@@ -69,6 +98,9 @@ export async function ledgerSummary(sinceDays?: number): Promise<LedgerSummary> 
     grossMarginCents,
     grossMarginPct: collectedCents > 0 ? (grossMarginCents / collectedCents) * 100 : 0,
     paidInvoiceCount: money?.paidCount ?? 0,
+    connectFeeCents,
+    gmvCents: connect?.gmv ?? 0,
+    connectPaymentCount: connect?.count ?? 0,
   };
 }
 

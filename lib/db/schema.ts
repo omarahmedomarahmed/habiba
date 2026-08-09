@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * 24Therapy schema — 16 tables.
+ * 24Therapy schema — 19 tables.
  *
  * Deliberate invariants (each one is a bug that was paid for once already):
  *  - `sessions.patient_id` is NULLABLE. A session created from a join link has
@@ -102,6 +102,29 @@ export const users = pgTable(
       .notNull()
       .default("unverified"),
 
+    /**
+     * Stripe Connect Express.
+     *
+     * The therapist's own connected account. We never hold their money: a
+     * patient payment is a destination charge that lands in this account with
+     * our cut taken as an application fee, and Stripe owns the payout rails,
+     * the KYC and the tax forms. Holding a balance ourselves and paying it out
+     * by hand would make us a payment intermediary, which is a licensing
+     * problem long before it is an engineering one.
+     */
+    stripeAccountId: text("stripe_account_id"),
+    /** Mirrored from `account.updated`; never inferred from onboarding returning. */
+    chargesEnabled: boolean("charges_enabled").notNull().default(false),
+    payoutsEnabled: boolean("payouts_enabled").notNull().default(false),
+    /** What the therapist charges a patient for a 30-minute session, in cents. */
+    sessionRateCents: integer("session_rate_cents").notNull().default(0),
+    /**
+     * Settle 24Therapy invoices out of the application fee on the next patient
+     * payment, instead of asking for a card. Opt-out, disclosed at the point of
+     * setting a rate.
+     */
+    autoSettleFromEarnings: boolean("auto_settle_from_earnings").notNull().default(true),
+
     failedLoginCount: integer("failed_login_count").notNull().default(0),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
@@ -117,6 +140,9 @@ export const users = pgTable(
       .where(sql`deleted_at IS NULL`),
     index("users_email_idx").on(t.email),
     index("users_org_idx").on(t.organizationId),
+    // NULLs are distinct in Postgres, so this only constrains real accounts —
+    // one connected account can never be attached to two clinicians.
+    uniqueIndex("users_stripe_account_unique").on(t.stripeAccountId),
   ],
 );
 
@@ -232,6 +258,23 @@ export const sessions = pgTable(
 
     videoRoomUrl: text("video_room_url"),
     videoRoomName: text("video_room_name"),
+
+    /**
+     * What the patient pays the therapist for this session. Zero means the
+     * session is free to join — the overwhelmingly common case for an existing
+     * caseload, where money changes hands outside this product entirely.
+     */
+    priceCents: integer("price_cents").notNull().default(0),
+    /**
+     * `not_required` when the price is zero. A priced session sits at `pending`
+     * until Stripe confirms, and the join link refuses to hand out a meeting
+     * token until it reads `paid` — the gate is here, on the server, not a
+     * disabled button.
+     */
+    paymentStatus: text("payment_status")
+      .$type<"not_required" | "pending" | "paid">()
+      .notNull()
+      .default("not_required"),
 
     patientJoinedAt: timestamp("patient_joined_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),
@@ -560,6 +603,63 @@ export const invoices = pgTable(
   ],
 );
 
+export const PAYMENT_STATUSES = ["pending", "paid", "refunded", "failed"] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/**
+ * Money a *patient* paid a *therapist*, and the cut we took for facilitating it.
+ *
+ * Deliberately a separate table from `invoices`. An invoice is what a therapist
+ * owes 24Therapy; this is what a patient paid a therapist. Merging the two
+ * would make "revenue" a query nobody can write correctly — the gross here is
+ * not ours, only `platform_fee_cents` is.
+ *
+ * Amounts are frozen at charge time rather than recomputed from the fee rate,
+ * so changing the platform rate tomorrow cannot rewrite last month's ledger.
+ */
+export const sessionPayments = pgTable(
+  "session_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    therapistId: uuid("therapist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+
+    /** Who paid — captured before a patient record may exist. */
+    payerName: text("payer_name"),
+    payerEmail: text("payer_email"),
+
+    grossCents: integer("gross_cents").notNull(),
+    /** Our application fee: the platform cut plus anything settled below. */
+    platformFeeCents: integer("platform_fee_cents").notNull(),
+    /** Of the fee, the part that cleared the therapist's own 24Therapy bills. */
+    settledInvoiceCents: integer("settled_invoice_cents").notNull().default(0),
+    /** Gross minus the application fee — what reaches the therapist's account. */
+    therapistNetCents: integer("therapist_net_cents").notNull(),
+
+    status: text("status").$type<PaymentStatus>().notNull().default("pending"),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+  },
+  (t) => [
+    // One live payment attempt per session. A patient double-tapping Pay must
+    // not produce two charges for one seat.
+    uniqueIndex("session_payments_session_unique").on(t.sessionId),
+    index("session_payments_therapist_idx").on(t.therapistId, t.createdAt),
+    index("session_payments_checkout_idx").on(t.stripeCheckoutSessionId),
+    index("session_payments_status_idx").on(t.status, t.paidAt),
+  ],
+);
+
 /** What is actually payable after any admin discount. */
 export function payableCents(invoice: { amountCents: number; discountCents: number }): number {
   return Math.max(0, invoice.amountCents - invoice.discountCents);
@@ -722,3 +822,4 @@ export type ContentPage = typeof contentPages.$inferSelect;
 export type CopilotThread = typeof copilotThreads.$inferSelect;
 export type CopilotMessage = typeof copilotMessages.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type SessionPayment = typeof sessionPayments.$inferSelect;
