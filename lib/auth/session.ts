@@ -11,10 +11,19 @@ import { env } from "@/lib/env";
 
 export const SESSION_COOKIE = "24t_session";
 
-/** Sliding idle window. Touching the app resets it. */
-const IDLE_MS = 30 * 60 * 1000;
+/**
+ * Sliding idle window. Touching the app resets it.
+ *
+ * Two hours, not thirty minutes. Automatic logoff is a HIPAA safeguard against
+ * an unattended workstation, and two hours still satisfies that on a device a
+ * clinician is sitting at — but thirty minutes logged people out *during a
+ * session*, between starting the recording and writing up the note, which is
+ * the one moment the product must not interrupt. A safeguard that makes people
+ * reach for "remember my password" has made things worse, not better.
+ */
+const IDLE_MS = 2 * 60 * 60 * 1000;
 /** Hard ceiling regardless of activity. */
-const ABSOLUTE_MS = 8 * 60 * 60 * 1000;
+const ABSOLUTE_MS = 12 * 60 * 60 * 1000;
 /** Don't write to the database on every single request just to bump lastSeen. */
 const TOUCH_THROTTLE_MS = 60 * 1000;
 

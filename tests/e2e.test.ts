@@ -169,6 +169,45 @@ test("ending the session generates a note the therapist can approve", async () =
   await page.getByRole("button", { name: /Send to patient|Send again/ }).waitFor({ timeout: 15_000 });
 });
 
+/**
+ * The redirect loop that took the portal down.
+ *
+ * A therapist closes the browser and comes back after the idle window. The
+ * cookie outlives the session, so middleware bounces /login → /dashboard,
+ * requireUser() bounces /dashboard → /login, and nothing in the cycle can
+ * delete the cookie because a Server Component render is not allowed to write
+ * one. Every page in the portal was unreachable.
+ *
+ * Simulated by revoking the session server-side while keeping the cookie —
+ * exactly the state an idle-expired session leaves behind.
+ */
+test("an expired session logs the therapist out instead of looping", async () => {
+  const { pool } = connect();
+  try {
+    await pool.query(
+      "UPDATE auth_sessions SET revoked_at = now() WHERE user_id IN (SELECT id FROM users WHERE email = $1)",
+      [EMAIL],
+    );
+  } finally {
+    await pool.end();
+  }
+
+  // The browser still holds the cookie, which is the whole point.
+  await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("text=signed out after a period of inactivity", { timeout: 20_000 });
+  assert.match(page.url(), /\/login/, "must land on login, not ping-pong to /dashboard");
+
+  // And a protected page must send them somewhere useful rather than erroring.
+  await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "domcontentloaded" });
+  await page.waitForURL(/\/login/, { timeout: 20_000 });
+
+  // Sign back in so the tests after this one still have a session.
+  await page.fill("#email", EMAIL);
+  await page.fill("#password", PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(/\/dashboard|\/sessions/, { timeout: 30_000 });
+});
+
 test("the note appears in the notes list as approved", async () => {
   await page.goto(`${BASE_URL}/notes`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(`text=${PATIENT}`);

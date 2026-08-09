@@ -1,10 +1,10 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import type { Role } from "@/lib/db/schema";
-import { getActor, type Actor } from "./session";
+import { getActor, SESSION_COOKIE, type Actor } from "./session";
 import { env } from "@/lib/env";
 
 export class AuthorizationError extends Error {
@@ -25,8 +25,34 @@ export class AuthorizationError extends Error {
  */
 export async function requireUser(): Promise<Actor> {
   const actor = await getActor();
-  if (!actor) redirect("/login");
-  return actor;
+  if (!actor) await bounceToLogin();
+  return actor!;
+}
+
+/**
+ * Send an unauthenticated caller away — via `/session-expired` when they are
+ * still carrying a cookie.
+ *
+ * Redirecting straight to `/login` looks obviously right and is what caused a
+ * production outage: middleware bounces anyone holding a cookie from `/login`
+ * to `/dashboard`, `/dashboard` bounces them back here, and nothing in that
+ * loop is able to delete the cookie, because a Server Component render cannot
+ * write one. `/session-expired` is a route handler, so it can — see the
+ * comment there.
+ *
+ * Someone with no cookie at all has no loop to break, so they go straight to
+ * the login page and keep the `next` parameter that takes them back afterwards.
+ */
+async function bounceToLogin(): Promise<never> {
+  const store = await cookies();
+  const hasCookie = Boolean(store.get(SESSION_COOKIE)?.value);
+
+  const hdrs = await headers();
+  const path = hdrs.get("x-pathname") ?? hdrs.get("x-invoke-path") ?? "";
+  const next = path.startsWith("/") && !path.startsWith("//") ? path : "";
+
+  const query = next ? `?next=${encodeURIComponent(next)}` : "";
+  redirect(hasCookie ? `/session-expired${query}` : `/login${query}`);
 }
 
 /**

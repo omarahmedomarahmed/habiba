@@ -49,6 +49,15 @@ function Block({ block, first }: { block: ContentBlock; first: boolean }) {
 }
 
 function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>; first: boolean }) {
+  /*
+   * The radar hero is not a panel beside some copy — the live map is the
+   * background of the whole fold and the clinicians on it are clickable. So it
+   * owns its own <section> rather than being slotted into this one.
+   */
+  if (block.demo === "radar") {
+    return <RadarHero heading={block.heading} body={block.body} eyebrow={block.eyebrow} />;
+  }
+
   const image = safeImageUrl(block.backgroundImage);
 
   return (
@@ -125,7 +134,6 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
         </div>
 
         {block.demo === "session-room" ? <SessionDemo /> : null}
-        {block.demo === "radar" ? <RadarHero /> : null}
       </div>
     </section>
   );

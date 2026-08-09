@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Radio } from "lucide-react";
 
 import { saveRadarSetup, toggleRadar, type RadarState } from "@/app/(app)/on-call/actions";
+import { WorldRadar } from "@/components/radar/world-radar";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
@@ -71,65 +72,121 @@ export function TherapistConsole(props: ConsoleProps) {
 
   return (
     <div className="space-y-4">
-      {/* ------------------------------------------------------- the switch */}
-      <Card className={cn("p-5", online && "border-teal-300 bg-teal-50/40")}>
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-              online ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-400",
-            )}
-          >
-            <Radio className={cn("h-4 w-4", online && "live-dot")} aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900">
-              {status === "offline"
-                ? "You are off the radar"
-                : status === "online"
-                  ? "You are on the radar"
-                  : status === "pending"
-                    ? "Someone is booking you"
-                    : "You are in a session"}
-            </p>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {online
-                ? "Anyone on the public radar can see you and start a session with you right now. You will hear an alarm anywhere in the app."
-                : "Go online when you have a free half hour. You stay on the radar while 24Therapy is open, and drop off about a minute after you close it."}
-            </p>
-          </div>
+      {/*
+        The switch, on the radar itself.
+        --------------------------------
+        Going on call is the single most consequential button a clinician
+        presses in this product — from here a stranger in distress can be in a
+        room with them inside a minute. It gets the whole scope, live, with
+        their own position on it, rather than a checkbox in a settings list.
+      */}
+      <div className="relative isolate overflow-hidden rounded-3xl bg-navy-600">
+        <div className="absolute inset-0" aria-hidden>
+          <WorldRadar
+            dots={
+              online && props.country
+                ? [
+                    {
+                      id: "me",
+                      country: props.country,
+                      // `online` above already excludes "offline"; narrowing it
+                      // again here keeps the dot type honest.
+                      status: status,
+                      label: "You",
+                    },
+                  ]
+                : []
+            }
+            className={cn("h-full w-full", online ? "opacity-90" : "opacity-30 grayscale")}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-navy-600 via-navy-600/70 to-navy-600/20" />
         </div>
 
-        {error ? (
-          <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
-            {error}
+        <div className="relative px-5 pt-24 pb-5 sm:pt-32">
+          <span
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
+              online
+                ? "border-teal-400/40 bg-teal-400/15 text-teal-300"
+                : "border-white/15 bg-white/5 text-white/60",
+            )}
+          >
+            <Radio className={cn("h-3 w-3", online && "live-dot")} aria-hidden />
+            {status === "offline"
+              ? "Off the radar"
+              : status === "online"
+                ? "Live on the radar"
+                : status === "pending"
+                  ? "Someone is booking you"
+                  : "In a session"}
+          </span>
+
+          <p className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            {online ? "You are visible to the world" : "Fill a free half hour"}
           </p>
-        ) : null}
-
-        {!ready ? (
-          <p className="mt-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-            Finish Stripe onboarding in Settings before charging. Until then you can still go on the
-            radar, but sessions will be free.
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-white/60">
+            {online
+              ? "Anyone on the public radar can see you and start a session with you right now. The alarm will reach you anywhere in the app."
+              : "Go on call between appointments. Someone who needs help now finds you, pays you, and you are in the room in under a minute."}
           </p>
-        ) : null}
 
-        <Button
-          full
-          size="lg"
-          variant={online ? "secondary" : "teal"}
-          className="mt-4"
-          disabled={pending}
-          onClick={() => flip(!online)}
-        >
-          {pending ? "Working…" : online ? "Go offline" : "Go on the radar"}
-        </Button>
+          <dl className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <dt className="text-xs text-white/50">Your rate · 30 min</dt>
+              <dd className="mt-0.5 text-xl font-bold text-white">
+                {props.rateCents > 0 && props.chargesEnabled
+                  ? formatUsd(props.rateCents)
+                  : "Free"}
+              </dd>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+              <dt className="text-xs text-white/50">You keep</dt>
+              <dd className="mt-0.5 text-xl font-bold text-teal-300">
+                {props.rateCents > 0 && props.chargesEnabled
+                  ? formatUsd(props.rateCents - Math.floor((props.rateCents * 1000) / 10_000))
+                  : "—"}
+              </dd>
+            </div>
+          </dl>
 
-        <p className="mt-2 text-center text-xs text-slate-500">
-          {props.rateCents > 0 && props.chargesEnabled
-            ? `${formatUsd(props.rateCents)} for 30 minutes, paid before the patient can enter.`
-            : "No rate set — radar sessions will be free. Set one in Settings."}
-        </p>
-      </Card>
+          {error ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-xl bg-red-500/15 px-3.5 py-2.5 text-sm text-red-200"
+            >
+              {error}
+            </p>
+          ) : null}
+
+          {!ready ? (
+            <p className="mt-4 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-sm text-amber-200">
+              Finish Stripe onboarding in Settings before charging. Until then you can still go on
+              the radar, but sessions will be free.
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => flip(!online)}
+            className={cn(
+              "mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold transition-colors disabled:opacity-50",
+              online
+                ? "border border-white/20 text-white hover:bg-white/10"
+                : "bg-teal-500 text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400",
+            )}
+          >
+            <Radio className="h-4 w-4" aria-hidden />
+            {pending ? "Working…" : online ? "Go offline" : "Go on the radar"}
+          </button>
+
+          {!props.country ? (
+            <p className="mt-2 text-center text-xs text-white/40">
+              Add your country below and you will appear on the map.
+            </p>
+          ) : null}
+        </div>
+      </div>
 
       {/* --------------------------------------------------------- profile */}
       <Card className="p-4">

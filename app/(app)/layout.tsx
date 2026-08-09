@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   CalendarDays,
+  CreditCard,
   FileText,
   Home,
   MessageSquare,
@@ -64,6 +65,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </SidebarLink>
           <SidebarLink href="/on-call" icon={Radio}>
             Crisis Radar
+          </SidebarLink>
+          <SidebarLink href="/billing" icon={CreditCard}>
+            Billing &amp; earnings
           </SidebarLink>
           <SidebarLink href="/settings" icon={Settings}>
             Settings

@@ -33,8 +33,18 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     navOrder: null,
     blocks: [
       {
+        // The fold IS the radar: a live world map, real clinicians on it, and a
+        // booking sheet that opens in place. Everything else on this page is
+        // below it.
         type: "hero",
-        eyebrow: "AI clinical documentation",
+        eyebrow: "Crisis Radar",
+        heading: "Talk to a real therapist in the next sixty seconds",
+        body: "Every dot is a licensed clinician who is online this minute. Filter by language or what you need help with, pick someone, tell them what to call you — and you are in a session. No account, no waiting list, no form about your insurance.",
+        demo: "radar",
+      },
+      {
+        type: "hero",
+        eyebrow: "For therapists",
         heading: "Finish your notes before you leave the room",
         body: "Start a session on your phone. 24Therapy transcribes it live, then writes the SOAP note, the summary and the follow-up while you are still saying goodbye. You review, approve, and send.",
         ctaLabel: "Start your first session free",
@@ -107,19 +117,6 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             icon: "clock",
           },
         ],
-      },
-      {
-        // The radar is the one part of the product a patient uses directly, so
-        // it gets its own hero rather than a bullet. The component is live: the
-        // dots are clinicians who are genuinely online as the page is read.
-        type: "hero",
-        eyebrow: "Crisis Radar",
-        heading: "Fill a free half hour. Get paid for it.",
-        body: "Go on the radar between appointments and anyone who needs a session right now can see you, pay you and be in the room in under a minute. The money goes to your own Stripe account; we take 10% and nothing else.",
-        ctaLabel: "See who is online",
-        ctaHref: "/radar",
-        demo: "radar",
-        icon: "heart",
       },
       {
         type: "cta",

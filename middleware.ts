@@ -43,17 +43,34 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Someone holding a session cookie has no use for the sign-in page. If the
-  // cookie turns out to be stale, `requireUser()` on /dashboard bounces them
-  // straight back — which is the correct place for that decision to be made.
-  if (hasCookie && AUTH_ROUTES.includes(pathname)) {
+  /*
+   * Someone holding a session cookie has no use for the sign-in page — unless
+   * the cookie is a corpse.
+   *
+   * Middleware runs on the edge with no database, so "has a cookie" is not
+   * "is signed in". Bouncing unconditionally is what produced an infinite
+   * /login → /dashboard → /login loop for every therapist who closed their
+   * browser and came back after the idle window: the cookie outlives the
+   * session, and nothing in the cycle could clear it.
+   *
+   * `expired=1` is set by /session-expired *after* it has deleted the cookie,
+   * so this is belt to that braces — if a stale cookie somehow survives, the
+   * marker still lets the login page render and the loop still terminates.
+   */
+  const expired = request.nextUrl.searchParams.get("expired") === "1";
+
+  if (hasCookie && !expired && AUTH_ROUTES.includes(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  // Server Components cannot see the request path. The guard needs it so that
+  // an expired session returns you to the page you were actually on.
+  const forwarded = new Headers(request.headers);
+  forwarded.set("x-pathname", pathname);
+  return NextResponse.next({ request: { headers: forwarded } });
 }
 
 export const config = {
