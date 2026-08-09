@@ -56,19 +56,26 @@ export function JoinFlow({ token, modality }: { token: string; modality: "in_per
 
   if (state.joined) {
     if (state.videoUrl) {
+      /*
+       * The call takes the whole screen.
+       *
+       * A patient in a therapy session is looking at their therapist's face,
+       * not at our page chrome. Constraining that to a small card inside a
+       * centred column — which is what the layout does for the name form —
+       * makes the most important part of the experience the smallest thing on
+       * the page.
+       */
       return (
-        <div className="space-y-3">
-          <div className="overflow-hidden rounded-2xl bg-black">
-            <iframe
-              src={state.videoUrl}
-              title="Your session"
-              allow="camera; microphone; fullscreen; display-capture; autoplay"
-              className="aspect-[3/4] w-full border-0 sm:aspect-video"
-            />
-          </div>
-          <p className="text-center text-xs text-slate-500">
-            If you cannot see or hear anything, check that your browser has permission to use your
-            camera and microphone.
+        <div className="fixed inset-0 z-50 flex flex-col bg-black">
+          <iframe
+            src={state.videoUrl}
+            title="Your session"
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
+            className="min-h-0 w-full flex-1 border-0"
+          />
+          <p className="safe-bottom bg-black px-4 pt-2 text-center text-[11px] text-white/40">
+            Trouble seeing or hearing? Check your browser has permission to use your camera and
+            microphone.
           </p>
         </div>
       );

@@ -104,26 +104,33 @@ function SessionDemoInner({ className }: { className?: string }) {
           lines={lines}
           live
           autoScroll={!reducedMotion}
-          className="h-64 sm:h-72"
+          className="h-56 sm:h-64"
         />
       </div>
 
-      <div className="relative -mt-4 px-3 sm:px-6">
+      {/*
+       * Fixed height, and the note scrolls inside it.
+       *
+       * The demo runs on its own timer above the fold. If this slot grows when
+       * the note arrives, the whole page shifts under the reader mid-sentence —
+       * an unrequested layout jump on content nobody asked to play. The slot is
+       * sized for the tallest state up front and never changes.
+       */}
+      <div className="relative -mt-4 h-52 px-3 sm:h-56 sm:px-6">
         {complete ? (
-          <div className="animate-fade-rise">
+          <div className="no-scrollbar h-full animate-fade-rise overflow-y-auto rounded-2xl shadow-xl shadow-navy-900/10">
             <NoteCard
               note={DEMO_NOTE}
               status="draft"
               patientLabel="demo"
               dateLabel="Generated in 18 seconds"
               compact
-              className="shadow-xl shadow-navy-900/10"
             />
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-xl shadow-navy-900/10">
+          <div className="flex h-full items-center rounded-2xl border border-slate-200 bg-white px-4 shadow-xl shadow-navy-900/10">
             <p className="flex items-center gap-2 text-sm font-medium text-slate-500">
-              <Sparkles className="h-4 w-4 text-brand-500" aria-hidden />
+              <Sparkles className="h-4 w-4 shrink-0 text-brand-500" aria-hidden />
               Your SOAP note appears here the moment the session ends.
             </p>
           </div>
@@ -142,9 +149,9 @@ function StaticFallback({ className }: { className?: string }) {
   return (
     <div className={cn("w-full", className)}>
       <div className="overflow-hidden rounded-3xl border border-slate-800/60 bg-navy-500 shadow-2xl">
-        <TranscriptPanel lines={DEMO_TRANSCRIPT.slice(0, STATIC_LINES)} className="h-64" />
+        <TranscriptPanel lines={DEMO_TRANSCRIPT.slice(0, STATIC_LINES)} className="h-56 sm:h-64" />
       </div>
-      <div className="relative -mt-4 px-3 sm:px-6">
+      <div className="no-scrollbar relative -mt-4 h-52 overflow-y-auto px-3 sm:h-56 sm:px-6">
         <NoteCard note={DEMO_NOTE} status="draft" compact />
       </div>
       <p className="mt-4 text-center text-[11px] text-slate-400">

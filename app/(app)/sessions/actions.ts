@@ -22,7 +22,7 @@ import { patients, sessionNotes, sessions, type NoteContent } from "@/lib/db/sch
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendSessionInvite, sendSessionReport } from "@/lib/mail";
-import { createPrivateRoom } from "@/lib/video";
+import { createPrivateRoom, deleteRoom } from "@/lib/video";
 import { fullName } from "@/lib/utils";
 
 export type SessionActionState = { error?: string; ok?: boolean; message?: string };
@@ -113,6 +113,10 @@ export async function goLive(sessionId: string): Promise<SessionActionState> {
 export async function endSession(sessionId: string): Promise<SessionActionState> {
   const actor = await requireUser();
 
+  // Read the room name before completing, because completing clears the link.
+  const existing = await getSession(actor, sessionId);
+  const roomName = existing?.session.videoRoomName ?? null;
+
   let patientId: string | null = null;
   try {
     const result = await completeSession(actor, sessionId);
@@ -127,6 +131,13 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
   const therapistId = actor.userId;
 
   after(async () => {
+    // Ending the session must end the call for everyone, including a patient
+    // still sitting in the room. Deleting the Daily room ejects every
+    // participant, so the clinician never has to press Leave inside the video
+    // UI as a separate step — and a patient cannot linger in a call for a
+    // session that is already documented and closed.
+    if (roomName) await deleteRoom(roomName);
+
     await chargeForSession({ organizationId, sessionId });
     await generateAndStoreNote({ sessionId, organizationId, therapistId, patientId });
   });
