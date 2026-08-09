@@ -8,7 +8,7 @@ import {
   auditLog,
   organizations,
   patients,
-  sessionCharges,
+  invoices,
   sessions,
   subscriptions,
   users,
@@ -47,11 +47,11 @@ export async function platformStats() {
 
   const [revenue] = await db
     .select({
-      collectedCents: sql<number>`COALESCE(SUM(CASE WHEN ${sessionCharges.status} = 'paid' THEN ${sessionCharges.amountCents} ELSE 0 END), 0)::int`,
-      pendingCents: sql<number>`COALESCE(SUM(CASE WHEN ${sessionCharges.status} = 'pending' THEN ${sessionCharges.amountCents} ELSE 0 END), 0)::int`,
+      collectedCents: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.status} = 'paid' THEN ${invoices.amountCents} ELSE 0 END), 0)::int`,
+      pendingCents: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.status} = 'pending' THEN ${invoices.amountCents} ELSE 0 END), 0)::int`,
     })
-    .from(sessionCharges)
-    .where(gte(sessionCharges.chargedAt, thirtyDaysAgo));
+    .from(invoices)
+    .where(gte(invoices.issuedAt, thirtyDaysAgo));
 
   return {
     organizations: orgs?.value ?? 0,

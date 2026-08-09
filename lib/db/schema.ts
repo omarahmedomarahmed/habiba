@@ -398,6 +398,7 @@ export const aiRequestLogs = pgTable(
   (t) => [
     index("ai_request_logs_org_idx").on(t.organizationId, t.createdAt),
     index("ai_request_logs_session_idx").on(t.sessionId),
+    index("ai_request_logs_kind_idx").on(t.kind, t.createdAt),
   ],
 );
 
@@ -420,40 +421,79 @@ export const subscriptions = pgTable(
     cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
     /** PAYG: the first completed session is free, once, per organization. */
     trialSessionUsed: boolean("trial_session_used").notNull().default(false),
+    /** Admin-granted credit applied to the next subscription invoice. */
+    upcomingDiscountCents: integer("upcoming_discount_cents").notNull().default(0),
+    upcomingDiscountReason: text("upcoming_discount_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("subscriptions_org_unique").on(t.organizationId)],
 );
 
-export const sessionCharges = pgTable(
-  "session_charges",
+export const INVOICE_KINDS = ["session", "subscription"] as const;
+export type InvoiceKind = (typeof INVOICE_KINDS)[number];
+
+export const INVOICE_STATUSES = ["waived", "included", "due", "paid", "failed", "void"] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+/**
+ * Every bill, of every kind, in one table.
+ *
+ * The previous model had `session_charges` for metered sessions and nothing at
+ * all for subscription payments — so a therapist who paid $99 saw no record of
+ * it anywhere. Two tables for "money the customer owes us" is also how the
+ * ledger and the dashboard drift apart, which is exactly what must not happen
+ * to the figure quoted to an investor.
+ */
+export const invoices = pgTable(
+  "invoices",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    sessionId: uuid("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<InvoiceKind>().notNull(),
+    /** Set for metered session bills, null for subscription periods. */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "cascade" }),
+
     amountCents: integer("amount_cents").notNull(),
-    status: text("status")
-      .$type<"waived" | "included" | "pending" | "paid" | "failed">()
-      .notNull(),
+    /** Applied by an admin. Never negative, never more than the amount. */
+    discountCents: integer("discount_cents").notNull().default(0),
+    discountReason: text("discount_reason"),
+    discountedBy: uuid("discounted_by").references(() => users.id, { onDelete: "set null" }),
+
+    status: text("status").$type<InvoiceStatus>().notNull(),
     description: text("description").notNull(),
-    stripeCheckoutUrl: text("stripe_checkout_url"),
+
+    /**
+     * Several invoices can share one checkout when the therapist pays a batch,
+     * so the webhook settles them by looking them up on this column rather than
+     * cramming a list of ids into Stripe metadata.
+     */
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
-    chargedAt: timestamp("charged_at", { withTimezone: true }).defaultNow().notNull(),
+
+    periodStart: timestamp("period_start", { withTimezone: true }),
+    periodEnd: timestamp("period_end", { withTimezone: true }),
+
+    issuedAt: timestamp("issued_at", { withTimezone: true }).defaultNow().notNull(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
   },
   (t) => [
-    // The reconciler cron and a live session completion race each other. With a
-    // unique constraint plus ON CONFLICT DO NOTHING, the race is a no-op instead
-    // of a double charge.
-    uniqueIndex("session_charges_session_unique").on(t.sessionId),
-    index("session_charges_org_idx").on(t.organizationId, t.chargedAt),
+    // One bill per session. The reconciler cron and a live completion race each
+    // other; with this plus ON CONFLICT DO NOTHING the race is a no-op rather
+    // than a double charge.
+    uniqueIndex("invoices_session_unique").on(t.sessionId),
+    index("invoices_org_idx").on(t.organizationId, t.issuedAt),
+    index("invoices_status_idx").on(t.status),
+    index("invoices_checkout_idx").on(t.stripeCheckoutSessionId),
   ],
 );
+
+/** What is actually payable after any admin discount. */
+export function payableCents(invoice: { amountCents: number; discountCents: number }): number {
+  return Math.max(0, invoice.amountCents - invoice.discountCents);
+}
 
 /** Stripe redelivers webhooks. Without this table, so do the side effects. */
 export const stripeEvents = pgTable("stripe_events", {
@@ -564,6 +604,6 @@ export type TranscriptSegment = typeof transcriptSegments.$inferSelect;
 export type SessionNote = typeof sessionNotes.$inferSelect;
 export type RiskAssessment = typeof riskAssessments.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
-export type SessionCharge = typeof sessionCharges.$inferSelect;
+export type Invoice = typeof invoices.$inferSelect;
 export type ContentPage = typeof contentPages.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
+import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { setUserStatus, setVerification } from "@/lib/data/admin";
 import { db } from "@/lib/db";
 import { contentPages, type ContentBlock } from "@/lib/db/schema";
@@ -143,4 +144,63 @@ function sanitiseBlocks(raw: unknown): ContentBlock[] | null {
   }
 
   return clean;
+}
+
+
+/**
+ * Discount an issued invoice.
+ *
+ * The amount is clamped server-side: a discount larger than the bill would make
+ * the payable total negative and the ledger meaningless. A full discount
+ * settles the invoice rather than leaving a zero-value bill sitting as "due".
+ */
+export async function applyInvoiceDiscount(
+  invoiceId: string,
+  discountCents: number,
+  reason: string,
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const result = await discountInvoice({
+    invoiceId,
+    discountCents,
+    reason,
+    adminUserId: actor.userId,
+  });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "invoice.discount",
+    resourceType: "invoice",
+    resourceId: invoiceId,
+    reason: `${discountCents} cents — ${reason}`,
+  });
+
+  revalidatePath("/admin/vault");
+  return { ok: true };
+}
+
+/** Credit applied to a subscriber's next renewal, consumed once. */
+export async function applyUpcomingDiscount(
+  organizationId: string,
+  discountCents: number,
+  reason: string,
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  await setUpcomingDiscount({ organizationId, discountCents, reason });
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "subscription.upcoming_discount",
+    resourceType: "organization",
+    resourceId: organizationId,
+    reason: `${discountCents} cents — ${reason}`,
+  });
+
+  revalidatePath("/admin/vault");
+  return { ok: true };
 }

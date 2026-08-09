@@ -1,10 +1,11 @@
 import "server-only";
 
 import Stripe from "stripe";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { organizations, sessionCharges, stripeEvents, subscriptions } from "@/lib/db/schema";
+import { invoices, organizations, stripeEvents, subscriptions } from "@/lib/db/schema";
+import { recordSubscriptionInvoice, sumPayable } from "./service";
 import { env, features } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
 import { PLANS } from "./plans";
@@ -87,62 +88,64 @@ export async function createSubscriptionCheckout(opts: {
   return checkout.url;
 }
 
-export async function createChargeCheckout(opts: {
+/**
+ * One Stripe checkout for any number of outstanding invoices.
+ *
+ * The therapist selects the bills they want to settle and gets a single link
+ * for the total, rather than paying six sessions one at a time. Each selected
+ * invoice records the checkout session id, so the webhook settles the whole
+ * batch by looking them up on that column — no list of ids crammed into Stripe
+ * metadata, which has a 500-character limit per value.
+ */
+export async function createInvoiceCheckout(opts: {
   organizationId: string;
-  chargeId: string;
+  invoiceIds: string[];
   email: string;
-}): Promise<string | null> {
+}): Promise<{ url?: string; error?: string }> {
   const client = getStripe();
-  if (!client) return null;
+  if (!client) return { error: "Payments are not configured on this deployment." };
 
-  const [charge] = await db
-    .select()
-    .from(sessionCharges)
-    .where(eq(sessionCharges.id, opts.chargeId))
-    .limit(1);
-
-  // The amount is read from our database, never accepted from the client. The
-  // old patient-payment endpoint took `price_cents` from the request body.
-  if (!charge || charge.organizationId !== opts.organizationId) return null;
-  if (charge.status !== "pending" || charge.amountCents <= 0) return null;
+  const { totalCents, rows } = await sumPayable(opts.organizationId, opts.invoiceIds);
+  if (rows.length === 0) return { error: "Those invoices are no longer outstanding." };
+  if (totalCents <= 0) return { error: "There is nothing left to pay on those invoices." };
 
   const customerId = await ensureCustomer(opts.organizationId, opts.email);
-  if (!customerId) return null;
+  if (!customerId) return { error: "Could not prepare a customer record." };
 
   const checkout = await client.checkout.sessions.create({
     mode: "payment",
     customer: customerId,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: charge.amountCents,
-          product_data: { name: "24Therapy session", description: charge.description },
+    line_items: rows.map((row) => ({
+      quantity: 1,
+      price_data: {
+        currency: "usd",
+        unit_amount: Math.max(0, row.amountCents - row.discountCents),
+        product_data: {
+          name: row.description,
+          description: row.issuedAt.toLocaleDateString("en-US", { dateStyle: "medium" }),
         },
       },
-    ],
+    })),
     success_url: `${env.appUrl}/billing?checkout={CHECKOUT_SESSION_ID}`,
     cancel_url: `${env.appUrl}/billing?checkout=cancelled`,
-    metadata: { organizationId: opts.organizationId, chargeId: opts.chargeId },
+    metadata: { organizationId: opts.organizationId, invoiceCount: String(rows.length) },
   });
 
-  if (checkout.url) {
-    await db
-      .update(sessionCharges)
-      .set({ stripeCheckoutUrl: checkout.url })
-      .where(eq(sessionCharges.id, opts.chargeId));
-  }
+  if (!checkout.url) return { error: "Stripe did not return a payment link." };
 
-  return checkout.url;
+  await db
+    .update(invoices)
+    .set({ stripeCheckoutSessionId: checkout.id })
+    .where(inArray(invoices.id, rows.map((r) => r.id)));
+
+  return { url: checkout.url };
 }
 
 /** Applied by both the webhook and the redirect-confirm path. */
 async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<void> {
   const organizationId = session.metadata?.organizationId;
-  if (!organizationId) return;
 
-  if (session.mode === "subscription" && session.status === "complete") {
+  if (organizationId && session.mode === "subscription" && session.status === "complete") {
     await db
       .update(subscriptions)
       .set({
@@ -154,19 +157,30 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
         updatedAt: new Date(),
       })
       .where(eq(subscriptions.organizationId, organizationId));
+
+    // Record the payment as an invoice. Without this the therapist pays and the
+    // product shows them nothing at all.
+    await recordSubscriptionInvoice({
+      organizationId,
+      amountCents: session.amount_total ?? PLANS.unlimited.monthlyCents ?? 0,
+      periodStart: new Date(),
+      periodEnd: null,
+      stripePaymentIntentId:
+        typeof session.payment_intent === "string" ? session.payment_intent : null,
+    });
   }
 
-  const chargeId = session.metadata?.chargeId;
-  if (chargeId && session.payment_status === "paid") {
+  // Settle every invoice attached to this checkout, however many there were.
+  if (session.payment_status === "paid") {
     await db
-      .update(sessionCharges)
+      .update(invoices)
       .set({
         status: "paid",
         paidAt: new Date(),
         stripePaymentIntentId:
           typeof session.payment_intent === "string" ? session.payment_intent : null,
       })
-      .where(eq(sessionCharges.id, chargeId));
+      .where(eq(invoices.stripeCheckoutSessionId, session.id));
   }
 }
 
@@ -240,6 +254,35 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
           .update(subscriptions)
           .set({ plan: "payg", status: "cancelled", stripeSubscriptionId: null, updatedAt: new Date() })
           .where(eq(subscriptions.organizationId, organizationId));
+      }
+      break;
+    }
+
+    case "invoice.payment_succeeded": {
+      const stripeInvoice = event.data.object;
+      const customerId =
+        typeof stripeInvoice.customer === "string" ? stripeInvoice.customer : null;
+      // Only renewals: the first payment already produced an invoice via the
+      // checkout, and billing_reason distinguishes them.
+      if (customerId && stripeInvoice.billing_reason === "subscription_cycle") {
+        const [org] = await db
+          .select({ id: organizations.id })
+          .from(organizations)
+          .where(eq(organizations.stripeCustomerId, customerId))
+          .limit(1);
+        if (org) {
+          await recordSubscriptionInvoice({
+            organizationId: org.id,
+            amountCents: stripeInvoice.amount_paid ?? 0,
+            periodStart: stripeInvoice.period_start
+              ? new Date(stripeInvoice.period_start * 1000)
+              : null,
+            periodEnd: stripeInvoice.period_end
+              ? new Date(stripeInvoice.period_end * 1000)
+              : null,
+            description: "Unlimited — monthly renewal",
+          });
+        }
       }
       break;
     }

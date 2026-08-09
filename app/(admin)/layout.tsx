@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileEdit, LayoutDashboard, ScrollText, Users } from "lucide-react";
+import { FileEdit, LayoutDashboard, ScrollText, Users, Vault } from "lucide-react";
 
 import { requireRole } from "@/lib/auth/guard";
 
@@ -23,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <nav aria-label="Admin" className="no-scrollbar mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2 sm:px-5">
           <AdminLink href="/admin" icon={LayoutDashboard}>Overview</AdminLink>
           <AdminLink href="/admin/therapists" icon={Users}>Clinicians</AdminLink>
+          <AdminLink href="/admin/vault" icon={Vault}>Vault</AdminLink>
           <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink>
           <AdminLink href="/admin/audit" icon={ScrollText}>Audit log</AdminLink>
         </nav>

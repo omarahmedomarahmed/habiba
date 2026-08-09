@@ -8,6 +8,13 @@
       "when": 1786282290532,
       "tag": "0000_abandoned_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786300000000,
+      "tag": "0001_invoices",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import {
   cancelSubscription,
-  createChargeCheckout,
+  createInvoiceCheckout,
   createSubscriptionCheckout,
 } from "@/lib/billing/stripe";
 
@@ -22,15 +22,21 @@ export async function upgradeToUnlimited(): Promise<BillingActionState> {
   redirect(url);
 }
 
-export async function paySessionCharge(chargeId: string): Promise<BillingActionState> {
+/**
+ * Pay one invoice or twenty — the therapist picks, and gets a single Stripe
+ * link for the total.
+ */
+export async function payInvoices(invoiceIds: string[]): Promise<BillingActionState> {
   const actor = await requireUser();
-  const url = await createChargeCheckout({
+  if (invoiceIds.length === 0) return { error: "Select at least one invoice." };
+
+  const result = await createInvoiceCheckout({
     organizationId: actor.organizationId,
-    chargeId,
+    invoiceIds,
     email: actor.email,
   });
-  if (!url) return { error: "That charge could not be prepared for payment." };
-  redirect(url);
+  if (result.error || !result.url) return { error: result.error ?? "Could not create a payment." };
+  redirect(result.url);
 }
 
 export async function downgrade(): Promise<BillingActionState> {
