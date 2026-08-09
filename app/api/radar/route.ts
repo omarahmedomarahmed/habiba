@@ -54,6 +54,14 @@ export async function GET() {
         // Availability that is even ten seconds stale sends someone to a
         // clinician who is already busy.
         "Cache-Control": "no-store",
+        /*
+         * Standard budget headers. A polite client can back off before it is
+         * refused, and — the reason they went in — they make the limiter
+         * observable from outside. A limit you cannot watch working is a limit
+         * you find out about only when it does not.
+         */
+        "X-RateLimit-Limit": String(READS_PER_MINUTE),
+        "X-RateLimit-Remaining": String(Math.max(0, READS_PER_MINUTE - verdict.used)),
       },
     },
   );
