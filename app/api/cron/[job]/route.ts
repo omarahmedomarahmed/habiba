@@ -5,6 +5,7 @@ import { sweepUndeliveredAlerts } from "@/lib/ai/crisis";
 import { purgeExpiredSessions } from "@/lib/auth/session";
 import { reconcileMissingCharges } from "@/lib/billing/service";
 import { sweepRadar } from "@/lib/data/radar";
+import { purgeExpiredLimits } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -67,7 +68,10 @@ const JOBS = {
       .returning({ id: auditLog.id });
 
     const sessionsPurged = await purgeExpiredSessions();
-    return { auditPurged: purged.length, sessionsPurged };
+    // Rate-limit rows self-invalidate on read; this only stops the table
+    // growing without bound.
+    const limitsPurged = await purgeExpiredLimits();
+    return { auditPurged: purged.length, sessionsPurged, limitsPurged };
   },
 } as const;
 

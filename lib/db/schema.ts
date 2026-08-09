@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * 24Therapy schema — 20 tables.
+ * 24Therapy schema — 21 tables.
  *
  * Deliberate invariants (each one is a bug that was paid for once already):
  *  - `sessions.patient_id` is NULLABLE. A session created from a join link has
@@ -725,6 +725,33 @@ export function payableCents(invoice: { amountCents: number; discountCents: numb
   return Math.max(0, invoice.amountCents - invoice.discountCents);
 }
 
+// -------------------------------------------------------------- throttling ---
+
+/**
+ * Rate limits, in Postgres.
+ *
+ * Not in memory: this runs on serverless, so an in-process counter is per
+ * instance and a bucket that resets whenever a lambda is recycled is not a
+ * rate limit, it is a decoration. Not in Redis either — one more service to
+ * run, pay for and have go down, for a table that does one atomic UPSERT.
+ *
+ * `note` carries a small payload for limits that are really *holds* rather than
+ * counters, notably "this address already has a radar booking in flight".
+ */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    /** `scope:subject`, where the subject is hashed — never a raw IP. */
+    key: text("key").primaryKey(),
+    count: integer("count").notNull().default(0),
+    windowStart: timestamp("window_start", { withTimezone: true }).defaultNow().notNull(),
+    note: text("note"),
+    /** Only for the sweeper; expiry is decided by `windowStart` at read time. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("rate_limits_expires_idx").on(t.expiresAt)],
+);
+
 /** Stripe redelivers webhooks. Without this table, so do the side effects. */
 export const stripeEvents = pgTable("stripe_events", {
   id: text("id").primaryKey(),
@@ -884,3 +911,4 @@ export type CopilotMessage = typeof copilotMessages.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type SessionPayment = typeof sessionPayments.$inferSelect;
 export type TherapistRadar = typeof therapistRadar.$inferSelect;
+export type RateLimit = typeof rateLimits.$inferSelect;

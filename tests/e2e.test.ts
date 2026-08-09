@@ -351,3 +351,32 @@ test("a session with a price will not admit a patient who has not paid", async (
 
   await anonymous.close();
 });
+
+/**
+ * Rate limiting, over real HTTP against the running app.
+ *
+ * Runs last on purpose: it deliberately exhausts a bucket, and the buckets are
+ * keyed on the caller's address, which for every test in this file is the same
+ * one. The limiter is proved atomic under concurrency in tests/radar.test.ts;
+ * what this adds is that it is actually *wired in* — a limit that exists in a
+ * library and is never called protects nothing.
+ */
+test("the public radar endpoint refuses a flood", async () => {
+  const codes = await Promise.all(
+    Array.from({ length: 80 }, async () => {
+      const response = await fetch(`${BASE_URL}/api/radar`, { cache: "no-store" });
+      return { status: response.status, retryAfter: response.headers.get("retry-after") };
+    }),
+  );
+
+  const limited = codes.filter((c) => c.status === 429);
+  assert.ok(limited.length > 0, "a flood must start getting 429s");
+  assert.ok(
+    codes.some((c) => c.status === 200),
+    "and legitimate requests before the limit must still succeed",
+  );
+  assert.ok(
+    limited.every((c) => Number(c.retryAfter) > 0),
+    "every 429 must carry a Retry-After the caller can act on",
+  );
+});

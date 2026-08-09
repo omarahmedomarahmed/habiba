@@ -10,6 +10,7 @@ import { authTokens, organizations, subscriptions, users } from "@/lib/db/schema
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendPasswordReset } from "@/lib/mail";
+import { callerKey, consume } from "@/lib/rate-limit";
 import { hashPassword, validatePassword, verifyPassword } from "./password";
 import {
   createSession,
@@ -22,6 +23,10 @@ export type ActionState = { error?: string; ok?: boolean };
 
 const LOCKOUT_THRESHOLD = 5;
 const LOCKOUT_MINUTES = 15;
+
+/** Per-connection, across every account. Covers credential stuffing. */
+const LOGINS_PER_WINDOW = 20;
+const LOGIN_WINDOW_SECONDS = 15 * 60;
 
 function slugify(value: string): string {
   const base = value
@@ -129,6 +134,19 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   const next = String(formData.get("next") ?? "");
 
   if (!email || !password) return { error: "Enter your email and password." };
+
+  /*
+   * Per-address throttling, on top of the per-account lockout below.
+   *
+   * The account lockout stops someone guessing one person's password. It does
+   * nothing against credential stuffing, where an attacker tries one password
+   * against ten thousand addresses and never trips a single account counter.
+   * This is the limit that covers that case.
+   */
+  const attempts = await consume(await callerKey("login"), LOGINS_PER_WINDOW, LOGIN_WINDOW_SECONDS);
+  if (!attempts.allowed) {
+    return { error: "Too many sign-in attempts from this connection. Try again shortly." };
+  }
 
   const [user] = await db
     .select()

@@ -1,9 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import {
+  CLAIM_MINUTES,
   claimTherapist,
   listRadar,
   logRadarClaimFailure,
@@ -16,7 +17,27 @@ import { db } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import {
+  callerKey,
+  consume,
+  globalCeiling,
+  refund,
+  releaseHold,
+  takeHold,
+} from "@/lib/rate-limit";
 import { createPrivateRoom } from "@/lib/video";
+
+/**
+ * Booking limits.
+ *
+ * Set for a person in distress who may fumble a form, not for a tidy user: six
+ * attempts in a quarter of an hour is well beyond a genuine retry loop and far
+ * below what it takes to walk the board. The global ceiling is roughly an order
+ * of magnitude above any plausible real minute.
+ */
+const BOOKINGS_PER_WINDOW = 6;
+const BOOKING_WINDOW_SECONDS = 15 * 60;
+const GLOBAL_BOOKINGS_PER_MINUTE = 60;
 
 export type BookingState = {
   error?: string;
@@ -50,6 +71,40 @@ export async function bookFromRadar(
 
   if (!name) return { error: "Please tell us what to call you." };
   if (name.length > 80) return { error: "That name is a little long." };
+
+  /*
+   * Throttling, before anything expensive happens.
+   *
+   * The attack this closes: a script walks the public radar and books every
+   * clinician on it. Each claim holds someone out of service for ten minutes,
+   * so a few dozen requests could empty the board — for a crisis service, that
+   * is the whole product taken down by one loop.
+   *
+   * Three layers, in increasing bluntness. The address limit stops the loop;
+   * the hold means one address can only ever tie up one clinician at a time,
+   * whatever the timing; the global ceiling is the backstop for a botnet, where
+   * per-address limits are worth nothing.
+   *
+   * All three are checked before we create a session, allocate a video room or
+   * open a Stripe checkout, because those are the things worth protecting.
+   */
+  const attemptKey = await callerKey("radar:book");
+  const attempt = await consume(attemptKey, BOOKINGS_PER_WINDOW, BOOKING_WINDOW_SECONDS);
+  if (!attempt.allowed) {
+    log.warn("radar booking rate limited", { used: attempt.used });
+    return {
+      error: `Too many booking attempts. Try again in ${Math.ceil(attempt.retryAfter / 60)} minute${
+        attempt.retryAfter > 60 ? "s" : ""
+      }, or call 988 if you need help right now.`,
+    };
+  }
+
+  const ceiling = await globalCeiling("radar:book", GLOBAL_BOOKINGS_PER_MINUTE);
+  if (!ceiling.allowed) {
+    return {
+      error: "The radar is unusually busy. Please try again in a minute, or call 988 for help now.",
+    };
+  }
 
   // Re-read availability from the list the public page itself is built from,
   // rather than trusting the id and price that came back in the form.
@@ -85,7 +140,31 @@ export async function bookFromRadar(
       .update(sessions)
       .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
       .where(eq(sessions.id, session.id));
+    // Losing a race is not abuse, so it must not count against the caller.
+    await refund(attemptKey);
     return { error: "Someone else booked them a second before you. Try another clinician." };
+  }
+
+  /*
+   * One clinician held per address at a time.
+   *
+   * Taking the hold hands back whatever this address was holding before, and we
+   * release that immediately — so a patient who abandoned one booking and
+   * picked someone else does not leave the first clinician stranded for ten
+   * minutes, and a script cannot accumulate claims faster than it releases
+   * them however it staggers its requests.
+   */
+  const { previous } = await takeHold(
+    await callerKey("radar:hold"),
+    session.id,
+    CLAIM_MINUTES * 60,
+  );
+  if (previous && previous !== session.id) {
+    await releaseClaim(previous);
+    await db
+      .update(sessions)
+      .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
+      .where(and(eq(sessions.id, previous), eq(sessions.status, "scheduled")));
   }
 
   try {
@@ -125,14 +204,17 @@ export async function bookFromRadar(
     if (checkout.error || !checkout.url) {
       // Never strand a clinician as "pending" because a payment could not be
       // started — that would take them off the radar for ten minutes for
-      // nothing.
+      // nothing. The caller's hold goes back too, so they can immediately try
+      // someone else.
       await releaseClaim(session.id);
+      await releaseHold(await callerKey("radar:hold"));
       return { error: checkout.error ?? "Could not start the payment." };
     }
 
     return { payUrl: checkout.url };
   } catch (error) {
     await releaseClaim(session.id);
+    await releaseHold(await callerKey("radar:hold"));
     log.error("radar booking failed", {
       session: ref(session.id),
       reason: safeErrorMessage(error),

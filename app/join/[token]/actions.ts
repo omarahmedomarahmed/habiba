@@ -2,8 +2,13 @@
 
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { joinByToken, resolveJoinToken } from "@/lib/data/sessions";
+import { callerKey, consume } from "@/lib/rate-limit";
 import { createMeetingToken, roomUrlWithToken } from "@/lib/video";
 import { log } from "@/lib/logger";
+
+/** Generous for a real patient; a hard ceiling on automated abuse. */
+const JOINS_PER_WINDOW = 10;
+const JOIN_WINDOW_SECONDS = 10 * 60;
 
 export type JoinState = {
   error?: string;
@@ -60,6 +65,18 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
 
   if (!name) return { error: "Please enter your first name." };
   if (name.length > 80) return { error: "That name is a little long." };
+
+  /*
+   * Throttled even though the token is 24 random bytes and cannot realistically
+   * be guessed. The limit is not really about brute force — it is about the
+   * side effects: each accepted join can create a patient record and mint a
+   * Daily meeting token, and unbounded side effects on an unauthenticated
+   * endpoint are worth bounding whether or not there is an obvious attack.
+   */
+  const throttle = await consume(await callerKey("join"), JOINS_PER_WINDOW, JOIN_WINDOW_SECONDS);
+  if (!throttle.allowed) {
+    return { error: "Too many attempts. Wait a moment and try again." };
+  }
 
   const sessionId = await joinByToken(token, name);
   if (!sessionId) {

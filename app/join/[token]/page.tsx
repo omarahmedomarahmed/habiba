@@ -4,6 +4,7 @@ import { JoinFlow } from "@/components/join/join-flow";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
+import { callerKey, releaseHold } from "@/lib/rate-limit";
 
 export const metadata: Metadata = {
   title: "Join your session",
@@ -36,6 +37,9 @@ export default async function JoinPage({
   // claim they lose is one they had already walked away from.
   if (checkout === "cancelled" && session) {
     await releaseClaim(session.id);
+    // And give this address its booking slot back, so they can pick someone
+    // else without waiting out the hold they just walked away from.
+    await releaseHold(await callerKey("radar:hold"));
   }
 
   if (!session) {

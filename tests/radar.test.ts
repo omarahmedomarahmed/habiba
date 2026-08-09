@@ -3,7 +3,14 @@ import { after, before, test } from "node:test";
 import { eq, inArray } from "drizzle-orm";
 
 import { db } from "../lib/db";
-import { organizations, sessions, therapistRadar, users } from "../lib/db/schema";
+import { organizations, rateLimits, sessions, therapistRadar, users } from "../lib/db/schema";
+import {
+  consume,
+  refund,
+  releaseHold,
+  subjectKey,
+  takeHold,
+} from "../lib/rate-limit";
 import {
   CLAIM_MINUTES,
   claimTherapist,
@@ -29,6 +36,7 @@ const stamp = Date.now().toString(36);
 let organizationId: string;
 let therapistId: string;
 const sessionIds: string[] = [];
+const limiterKeys: string[] = [];
 
 before(async () => {
   const [org] = await db
@@ -56,6 +64,9 @@ before(async () => {
 });
 
 after(async () => {
+  if (limiterKeys.length > 0) {
+    await db.delete(rateLimits).where(inArray(rateLimits.key, limiterKeys));
+  }
   if (sessionIds.length > 0) {
     await db.delete(sessions).where(inArray(sessions.id, sessionIds));
   }
@@ -189,4 +200,87 @@ test("a clinician whose heartbeat stopped is not bookable and is swept offline",
 
 test("the claim window is long enough to type a card number", () => {
   assert.ok(CLAIM_MINUTES >= 5, "a shorter window would drop patients mid-checkout");
+});
+
+/* ---------------------------------------------------------- rate limiting -- */
+
+/**
+ * The limiter has to hold under concurrency for the same reason the claim does:
+ * the attack is a loop, and a loop does not politely serialise itself. An
+ * in-memory counter passes a sequential test and fails this one on any real
+ * deployment, which is why this runs against Postgres.
+ */
+test("a burst of concurrent requests cannot exceed the limit", async () => {
+  const key = `test:burst:${stamp}`;
+  limiterKeys.push(key);
+
+  const verdicts = await Promise.all(
+    Array.from({ length: 20 }, () => consume(key, 5, 60)),
+  );
+
+  assert.equal(
+    verdicts.filter((v) => v.allowed).length,
+    5,
+    "exactly the limit may pass, however they interleave",
+  );
+  assert.ok(
+    verdicts.filter((v) => !v.allowed).every((v) => v.retryAfter > 0),
+    "a rejection must say when to come back",
+  );
+});
+
+test("the window rolls over and the budget comes back", async () => {
+  const key = `test:window:${stamp}`;
+  limiterKeys.push(key);
+
+  // A one-second window, then wait it out.
+  assert.equal((await consume(key, 1, 1)).allowed, true);
+  assert.equal((await consume(key, 1, 1)).allowed, false);
+
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  assert.equal((await consume(key, 1, 1)).allowed, true, "a new window starts fresh");
+});
+
+test("a refunded attempt does not count against the caller", async () => {
+  const key = `test:refund:${stamp}`;
+  limiterKeys.push(key);
+
+  await consume(key, 2, 60);
+  await consume(key, 2, 60);
+  assert.equal((await consume(key, 2, 60)).allowed, false);
+
+  await refund(key);
+  await refund(key);
+  assert.equal((await consume(key, 2, 60)).allowed, true, "losing a race is not abuse");
+});
+
+/**
+ * The hold is what bounds an attacker to one clinician at a time. Taking a new
+ * one has to hand back the old one, or a script can accumulate claims simply by
+ * asking for them one after another.
+ */
+test("taking a hold surrenders the previous one", async () => {
+  const key = `test:hold:${stamp}`;
+  limiterKeys.push(key);
+
+  assert.equal((await takeHold(key, "session-a", 60)).previous, null);
+  assert.equal(
+    (await takeHold(key, "session-b", 60)).previous,
+    "session-a",
+    "the caller's earlier claim comes back so it can be released",
+  );
+
+  await releaseHold(key);
+  assert.equal((await takeHold(key, "session-c", 60)).previous, null);
+});
+
+test("subject keys never contain the raw address", () => {
+  const key = subjectKey("radar:book", "203.0.113.42");
+  assert.ok(!key.includes("203.0.113.42"), "an IP is personal data and must not be stored");
+  assert.equal(key, subjectKey("radar:book", "203.0.113.42"), "and must be stable");
+  assert.notEqual(
+    key,
+    subjectKey("radar:read", "203.0.113.42"),
+    "the same address in a different scope is a different bucket",
+  );
 });
