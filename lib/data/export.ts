@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -83,6 +83,23 @@ export async function requestPatientExport(
     .limit(1);
 
   if (!patient) return { ok: false, error: "Patient not found." };
+
+  /*
+   * A cap on how often one patient's inbox can be sent their own record.
+   *
+   * Not a security boundary — everyone who can press this button can already
+   * read the chart. It is there so that a stuck button, or a clinician
+   * clicking twice while nothing appears to happen, does not put six copies of
+   * a medical record into somebody's email.
+   */
+  const { consume, subjectKey } = await import("@/lib/rate-limit");
+  const allowed = await consume(subjectKey("patient:export", patient.id), 4, 3600);
+  if (!allowed.allowed) {
+    return {
+      ok: false,
+      error: "That record has already been sent several times in the last hour. Try again later.",
+    };
+  }
 
   const email = (overrideEmail ?? patient.email ?? "").trim().toLowerCase();
   if (!email || !email.includes("@")) {
@@ -242,19 +259,38 @@ async function buildExport(patientId: string, expiresAt: Date) {
     .orderBy(desc(sessions.createdAt))
     .limit(500);
 
+  /*
+   * Every transcript in one query, not one query per session.
+   *
+   * A patient with fifty sessions is fifty round trips otherwise, on a request
+   * that already has to assemble a whole chart while somebody waits on a link
+   * they were emailed.
+   */
   const transcripts = new Map<string, { speaker: string; text: string; startMs: number }[]>();
-  for (const row of rows) {
+  if (rows.length > 0) {
     const segments = await db
       .select({
+        sessionId: transcriptSegments.sessionId,
         speaker: transcriptSegments.speaker,
         text: transcriptSegments.text,
         startMs: transcriptSegments.startMs,
       })
       .from(transcriptSegments)
-      .where(eq(transcriptSegments.sessionId, row.id))
-      .orderBy(asc(transcriptSegments.sequence))
-      .limit(4000);
-    if (segments.length > 0) transcripts.set(row.id, segments);
+      .where(
+        inArray(
+          transcriptSegments.sessionId,
+          rows.map((row) => row.id),
+        ),
+      )
+      .orderBy(asc(transcriptSegments.sessionId), asc(transcriptSegments.sequence))
+      .limit(60_000);
+
+    for (const segment of segments) {
+      const list = transcripts.get(segment.sessionId);
+      const line = { speaker: segment.speaker, text: segment.text, startMs: segment.startMs };
+      if (list) list.push(line);
+      else transcripts.set(segment.sessionId, [line]);
+    }
   }
 
   return {
