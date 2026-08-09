@@ -114,6 +114,33 @@ const COUNTRIES: Record<string, { name: string; lon: number; lat: number }> = {
   AE: { name: "United Arab Emirates", lon: 54, lat: 24 },
   SA: { name: "Saudi Arabia", lon: 45, lat: 24 },
   EG: { name: "Egypt", lon: 30, lat: 27 },
+  JO: { name: "Jordan", lon: 36, lat: 31 },
+  LB: { name: "Lebanon", lon: 36, lat: 34 },
+  QA: { name: "Qatar", lon: 51, lat: 25 },
+  KW: { name: "Kuwait", lon: 47, lat: 29 },
+  BH: { name: "Bahrain", lon: 51, lat: 26 },
+  OM: { name: "Oman", lon: 56, lat: 21 },
+  IQ: { name: "Iraq", lon: 44, lat: 33 },
+  DZ: { name: "Algeria", lon: 3, lat: 28 },
+  TN: { name: "Tunisia", lon: 9, lat: 34 },
+  LY: { name: "Libya", lon: 17, lat: 27 },
+  SD: { name: "Sudan", lon: 30, lat: 15 },
+  ET: { name: "Ethiopia", lon: 40, lat: 9 },
+  GH: { name: "Ghana", lon: -1, lat: 8 },
+  UG: { name: "Uganda", lon: 32, lat: 1 },
+  TZ: { name: "Tanzania", lon: 35, lat: -6 },
+  RO: { name: "Romania", lon: 25, lat: 46 },
+  CZ: { name: "Czechia", lon: 15, lat: 50 },
+  HU: { name: "Hungary", lon: 19, lat: 47 },
+  RS: { name: "Serbia", lon: 21, lat: 44 },
+  BG: { name: "Bulgaria", lon: 25, lat: 43 },
+  PE: { name: "Peru", lon: -75, lat: -10 },
+  EC: { name: "Ecuador", lon: -78, lat: -1 },
+  UY: { name: "Uruguay", lon: -56, lat: -33 },
+  CR: { name: "Costa Rica", lon: -84, lat: 10 },
+  LK: { name: "Sri Lanka", lon: 81, lat: 7 },
+  NP: { name: "Nepal", lon: 84, lat: 28 },
+  KZ: { name: "Kazakhstan", lon: 67, lat: 48 },
   MA: { name: "Morocco", lon: -7, lat: 32 },
   NG: { name: "Nigeria", lon: 8, lat: 10 },
   KE: { name: "Kenya", lon: 38, lat: 0 },
@@ -134,8 +161,26 @@ const COUNTRIES: Record<string, { name: string; lon: number; lat: number }> = {
   NZ: { name: "New Zealand", lon: 172, lat: -41 },
 };
 
+/**
+ * The flag emoji for an ISO-3166 alpha-2 code.
+ *
+ * Computed from regional indicator symbols rather than shipped as a lookup
+ * table or a sprite sheet: no asset, no licence, correct for every code, and it
+ * renders in the user's own font. Windows shows letters instead of a flag,
+ * which is why nothing here depends on the flag alone to convey meaning — the
+ * country name is always beside it.
+ */
+export function countryFlag(code: string | null | undefined): string {
+  if (!code || code.length !== 2) return "🏳️";
+  const upper = code.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(upper)) return "🏳️";
+  return String.fromCodePoint(
+    ...[...upper].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65),
+  );
+}
+
 export const COUNTRY_OPTIONS = Object.entries(COUNTRIES)
-  .map(([code, value]) => ({ code, name: value.name }))
+  .map(([code, value]) => ({ code, name: value.name, flag: countryFlag(code) }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
 export function countryName(code: string | null | undefined): string | null {
@@ -176,6 +221,47 @@ export const RADAR_LANGUAGES = [
   "Indonesian",
   "Swahili",
 ] as const;
+
+/**
+ * A flag for each language, purely as a visual anchor in the picker.
+ *
+ * Fraught by nature — a language is not a country, and Arabic, Spanish and
+ * English each belong to dozens of places. The flag is decoration next to the
+ * name, never a substitute for it, and where no single flag is defensible the
+ * entry is a neutral globe rather than an implied claim about who owns the
+ * language.
+ */
+export const LANGUAGE_FLAGS: Record<string, string> = {
+  English: "🌐",
+  Spanish: "🌐",
+  French: "🇫🇷",
+  German: "🇩🇪",
+  Portuguese: "🇵🇹",
+  Italian: "🇮🇹",
+  Dutch: "🇳🇱",
+  Arabic: "🌐",
+  Hebrew: "🇮🇱",
+  Turkish: "🇹🇷",
+  Russian: "🇷🇺",
+  Ukrainian: "🇺🇦",
+  Polish: "🇵🇱",
+  Hindi: "🇮🇳",
+  Urdu: "🇵🇰",
+  Bengali: "🇧🇩",
+  Mandarin: "🇨🇳",
+  Cantonese: "🇭🇰",
+  Japanese: "🇯🇵",
+  Korean: "🇰🇷",
+  Tagalog: "🇵🇭",
+  Vietnamese: "🇻🇳",
+  Thai: "🇹🇭",
+  Indonesian: "🇮🇩",
+  Swahili: "🌐",
+};
+
+export function languageFlag(language: string): string {
+  return LANGUAGE_FLAGS[language] ?? "🌐";
+}
 
 /** What a clinician says they work with. Also an allowlist. */
 export const RADAR_SPECIALTIES = [

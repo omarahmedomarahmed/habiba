@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { FileEdit, LayoutDashboard, Megaphone, ScrollText, Users, Vault } from "lucide-react";
+import { FileEdit, LayoutDashboard, Megaphone, ScrollText, ShieldCheck, Users, Vault } from "lucide-react";
 
 import { requireRole } from "@/lib/auth/guard";
+import { pendingReviewCount } from "@/lib/data/verification";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Every admin page also calls requireRole itself — this is defence in depth,
   // not the only check.
   await requireRole("super_admin");
+  const waiting = await pendingReviewCount();
 
   return (
     <div className="min-h-dvh">
@@ -23,6 +25,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <nav aria-label="Admin" className="no-scrollbar mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2 sm:px-5">
           <AdminLink href="/admin" icon={LayoutDashboard}>Overview</AdminLink>
           <AdminLink href="/admin/therapists" icon={Users}>Clinicians</AdminLink>
+          <AdminLink href="/admin/verifications" icon={ShieldCheck}>
+            Verifications
+            {waiting > 0 ? (
+              <span className="ml-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-navy-600">
+                {waiting}
+              </span>
+            ) : null}
+          </AdminLink>
           <AdminLink href="/admin/vault" icon={Vault}>Vault</AdminLink>
           <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink>
           <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink>

@@ -69,6 +69,27 @@ export async function requireRole(...allowed: Role[]): Promise<Actor> {
   return actor;
 }
 
+/**
+ * A verified clinician, or bounced to onboarding.
+ *
+ * Call this in the actions that put someone in front of a patient — starting a
+ * session, going on the radar, taking money. Browsing the product unverified is
+ * fine and even useful; practising through it is not.
+ *
+ * The redirect in the shell is UX. This is the boundary, and it is a separate
+ * function rather than a flag on `requireUser` so that adding a new
+ * patient-facing action forces an explicit decision about which one to call.
+ */
+export async function requireVerified(): Promise<Actor> {
+  const actor = await requireUser();
+
+  const { getVerification, isCleared } = await import("@/lib/data/verification");
+  const verification = await getVerification(actor.userId);
+
+  if (!isCleared(actor, verification?.state ?? null)) redirect("/onboarding");
+  return actor;
+}
+
 /** Same checks, but throws instead of redirecting — for route handlers. */
 export async function requireUserApi(): Promise<Actor> {
   const actor = await getActor();

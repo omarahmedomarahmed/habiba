@@ -24,6 +24,7 @@
     "@daily-co/daily-js": "^0.91.0",
     "@neondatabase/serverless": "^1.1.0",
     "@types/ws": "^8.18.1",
+    "@vercel/blob": "^2.7.0",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.38.3",
     "lucide-react": "^0.469.0",

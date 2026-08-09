@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/data/admin";
+import { decideVerification } from "@/lib/data/verification";
 import { safeImageUrl } from "@/lib/content/url";
 import { db } from "@/lib/db";
 import { contentPages, invoices, users, type ContentBlock } from "@/lib/db/schema";
@@ -299,6 +300,71 @@ function messageProblem(subject: string, body: string): string | null {
   if (!body.trim()) return "Write something to send.";
   if (body.length > 10_000) return "That message is too long for an email.";
   return null;
+}
+
+/* ----------------------------------------------------------- verification -- */
+
+/**
+ * Approve or reject a clinician.
+ *
+ * A rejection must carry a reason, because the reason is emailed to them
+ * verbatim. "Rejected" with no explanation produces a support ticket and a
+ * resubmission of the identical documents.
+ */
+export async function decideTherapistVerification(
+  verificationId: string,
+  approve: boolean,
+  note: string,
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const trimmed = note.trim();
+  if (!approve && !trimmed) {
+    return { error: "Say what is wrong — they see this word for word." };
+  }
+
+  const decided = await decideVerification({
+    verificationId,
+    approve,
+    note: trimmed,
+    adminUserId: actor.userId,
+  });
+
+  if (!decided) {
+    return { error: "Somebody already reviewed this one." };
+  }
+
+  await audit({
+    actor,
+    category: "admin",
+    action: approve ? "verification.approve" : "verification.reject",
+    resourceType: "verification",
+    resourceId: verificationId,
+    reason: trimmed || "approved",
+  });
+
+  const [person] = await db
+    .select({ email: users.email, firstName: users.firstName })
+    .from(users)
+    .where(eq(users.id, decided.userId))
+    .limit(1);
+
+  if (person) {
+    after(() =>
+      sendTherapistMessage({
+        to: person.email,
+        firstName: person.firstName,
+        subject: approve ? "You are verified on 24Therapy" : "We need something else from you",
+        body: approve
+          ? `Your practice has been verified. You can start sessions, go on the Crisis Radar and take payments from patients right away.\n\nYour first completed session is on us.`
+          : `We could not verify your practice yet.\n\n${trimmed}\n\nSign in and update your details — it goes straight back to the front of our queue.`,
+      }),
+    );
+  }
+
+  revalidatePath("/admin/verifications");
+  revalidatePath("/admin/therapists");
+  return { ok: true };
 }
 
 /* ---------------------------------------------------------------- invoices -- */

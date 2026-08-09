@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 
 import { generateAndStoreNote } from "@/lib/ai/notes";
 import { audit, auditPhi } from "@/lib/audit";
-import { requireUser } from "@/lib/auth/guard";
+import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { getConnectAccount, priceProblem } from "@/lib/billing/connect";
 import { chargeForSession } from "@/lib/billing/service";
 import { releaseClaim } from "@/lib/data/radar";
@@ -33,7 +33,8 @@ export async function startNewSession(
   _prev: SessionActionState,
   formData: FormData,
 ): Promise<SessionActionState> {
-  const actor = await requireUser();
+  // The one action that puts a real person in front of this clinician.
+  const actor = await requireVerified();
 
   const modality = formData.get("modality") === "video" ? "video" : "in_person";
   const guestName = String(formData.get("guestName") ?? "").trim();

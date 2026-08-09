@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * 24Therapy schema — 21 tables.
+ * 24Therapy schema — 22 tables.
  *
  * Deliberate invariants (each one is a bug that was paid for once already):
  *  - `sessions.patient_id` is NULLABLE. A session created from a join link has
@@ -199,6 +199,70 @@ export const authTokens = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("auth_tokens_hash_unique").on(t.tokenHash)],
+);
+
+// ------------------------------------------------------------ verification ---
+
+export const VERIFICATION_STATES = ["draft", "submitted", "approved", "rejected"] as const;
+export type VerificationState = (typeof VERIFICATION_STATES)[number];
+
+/**
+ * Who a clinician actually is.
+ *
+ * We are asking a stranger on the internet to conduct therapy with vulnerable
+ * people under our name and take money for it. Collecting identity is not
+ * bureaucracy; it is the difference between a marketplace and a liability.
+ *
+ * One row per clinician, resubmittable. Kept in its own table rather than on
+ * `users` because it is a *submission* with a lifecycle — drafted, submitted,
+ * reviewed, possibly rejected and redone — and because it holds document URLs
+ * that must never be selected by a query that is only after a name.
+ */
+export const therapistVerifications = pgTable(
+  "therapist_verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    state: text("state").$type<VerificationState>().notNull().default("draft"),
+
+    /** ISO-3166 alpha-2. Drives which documents we ask for. */
+    country: text("country"),
+    /** Free text: registers differ wildly by country and we must not guess. */
+    licenseBody: text("license_body"),
+    licenseNumber: text("license_number"),
+    licenseExpiry: text("license_expiry"),
+    specialties: jsonb("specialties").$type<string[]>().default([]).notNull(),
+    languages: jsonb("languages").$type<string[]>().default([]).notNull(),
+
+    /**
+     * Document URLs. Unguessable paths on Vercel Blob — the URL *is* the
+     * credential, so these columns are never selected into anything a patient
+     * or another clinician can reach, and never logged.
+     */
+    idFrontUrl: text("id_front_url"),
+    idBackUrl: text("id_back_url"),
+    licenseDocUrl: text("license_doc_url"),
+    headshotUrl: text("headshot_url"),
+
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    /** Shown to the clinician verbatim when rejected — so make it useful. */
+    reviewNote: text("review_note"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("therapist_verifications_user_unique").on(t.userId),
+    index("therapist_verifications_state_idx").on(t.state, t.submittedAt),
+  ],
 );
 
 // ---------------------------------------------------------------- clinical ---
@@ -999,3 +1063,4 @@ export type Notification = typeof notifications.$inferSelect;
 export type SessionPayment = typeof sessionPayments.$inferSelect;
 export type TherapistRadar = typeof therapistRadar.$inferSelect;
 export type RateLimit = typeof rateLimits.$inferSelect;
+export type TherapistVerification = typeof therapistVerifications.$inferSelect;

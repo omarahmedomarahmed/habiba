@@ -14,7 +14,11 @@ import {
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import { getRadarProfile } from "@/lib/data/radar";
+import { getVerification, isCleared } from "@/lib/data/verification";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -28,12 +32,41 @@ import { initials } from "@/lib/utils";
  * re-run for every nested render, so treating it as the only gate is a mistake
  * that is very hard to see in review.
  */
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Pages an unverified clinician may still reach.
+ *
+ * Deliberately short. Settings and billing are here because Stripe onboarding
+ * and reading the terms are things you should be able to do while waiting for
+ * approval; everything else needs a patient, and they do not have one yet.
+ */
+const OPEN_TO_UNVERIFIED = ["/onboarding", "/settings", "/billing"];
+
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const actor = await requireUser();
-  const [radar, [me]] = await Promise.all([
+  const [radar, [me], verification] = await Promise.all([
     getRadarProfile(actor.userId),
     db.select({ profile: users.profile }).from(users).where(eq(users.id, actor.userId)).limit(1),
+    getVerification(actor.userId),
   ]);
+
+  /*
+   * Send an unverified clinician to onboarding rather than letting them find a
+   * dead end. `x-pathname` is set by middleware; if it is somehow missing the
+   * page still renders and the per-action guard still refuses, so this failing
+   * open costs nothing.
+   */
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  if (
+    !isCleared(actor, verification?.state ?? null) &&
+    pathname &&
+    !OPEN_TO_UNVERIFIED.some((prefix) => pathname.startsWith(prefix))
+  ) {
+    redirect("/onboarding");
+  }
 
   return (
     <div className="min-h-dvh bg-slate-50">

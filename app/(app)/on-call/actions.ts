@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
-import { requireUser } from "@/lib/auth/guard";
+import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { safeImageUrl } from "@/lib/content/url";
 import { eq } from "drizzle-orm";
 
@@ -59,7 +59,9 @@ export async function saveRadarSetup(
 }
 
 export async function toggleRadar(online: boolean): Promise<RadarState> {
-  const actor = await requireUser();
+  // Going on the radar advertises you to strangers in crisis. Not before an
+  // administrator has seen a licence.
+  const actor = online ? await requireVerified() : await requireUser();
   const result = await setOnline(actor, online);
   if (result.error) return result;
 
