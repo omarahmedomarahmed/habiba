@@ -94,9 +94,35 @@ export type RadarTherapist = {
  * Anonymous callers reach this. It returns nothing that is not the clinician's
  * own published profile — no email, no organisation, no patient anything.
  */
+/**
+ * Is this clinician's presence real, right now?
+ *
+ * One predicate, used by the listing, the reservation and the claim — because
+ * it was written three times and only one of them knew about demonstration
+ * accounts. The listing exempted them from the heartbeat; reserving and
+ * claiming did not. So a seeded clinician appeared on the radar, and the
+ * moment anyone opened their profile the reservation failed and the sheet
+ * announced that somebody else had got there first. Nobody had. The booking
+ * would have failed the same way a second later.
+ *
+ * A rule that decides whether a person can be reached has to live in exactly
+ * one place, or the copies drift and the product lies about why.
+ */
+function reachable(now: Date) {
+  return and(
+    // A suspended clinician is unbookable even by a direct call to the action,
+    // not merely hidden from the board.
+    or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
+    or(
+      // Nothing is beating for a fixture, and nothing needs to.
+      eq(therapistRadar.demo, true),
+      gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
+    ),
+  );
+}
+
 export async function listRadar(viewer?: string | null): Promise<RadarTherapist[]> {
   const now = new Date();
-  const fresh = new Date(Date.now() - HEARTBEAT_STALE_MS);
   const viewerHash = viewer ? hashViewer(viewer) : null;
 
   const rows = await db
@@ -140,9 +166,7 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
          * would publish a disciplinary fact about a named person to anonymous
          * strangers, which is nobody's business but ours and theirs.
          */
-        or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
-        // Demonstration accounts have no browser holding them online.
-        or(eq(therapistRadar.demo, true), gte(therapistRadar.lastSeenAt, fresh)),
+        reachable(now),
         or(
           eq(therapistRadar.status, "online"),
           eq(therapistRadar.status, "pending"),
@@ -226,6 +250,18 @@ export function hashViewer(viewer: string): string {
  * the holder renew their own reservation — without it, the heartbeat that keeps
  * the sheet alive would immediately fail against the reservation it just made.
  */
+/**
+ * Why a reservation failed, not just that it did.
+ *
+ * The sheet used to render a single message for every failure — "someone else
+ * opened this profile a moment before you" — which was a guess presented as a
+ * fact. Most of the time it was wrong: the clinician was stale, or suspended,
+ * or already in a session, and there was no other visitor at all. Telling
+ * somebody in distress that they lost a race that never happened is worse than
+ * telling them nothing.
+ */
+export type ReservationOutcome = "held" | "taken" | "unavailable";
+
 export async function reserveTherapist(opts: {
   therapistUserId: string;
   viewer: string;
@@ -247,7 +283,7 @@ export async function reserveTherapist(opts: {
     .where(
       and(
         eq(therapistRadar.userId, opts.therapistUserId),
-        gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
+        reachable(now),
         or(
           eq(therapistRadar.status, "online"),
           // Anything whose clock has run out, booking or reservation alike.
@@ -265,6 +301,40 @@ export async function reserveTherapist(opts: {
     .returning({ id: therapistRadar.id });
 
   return reserved.length > 0;
+}
+
+/**
+ * The same reservation, with a reason when it does not happen.
+ *
+ * Costs one extra read, and only on the failure path — the happy path is still
+ * the single atomic UPDATE that makes the whole radar safe.
+ */
+export async function reserveWithReason(opts: {
+  therapistUserId: string;
+  viewer: string;
+}): Promise<ReservationOutcome> {
+  if (await reserveTherapist(opts)) return "held";
+
+  const now = new Date();
+  const [row] = await db
+    .select({
+      status: therapistRadar.status,
+      pendingUntil: therapistRadar.pendingUntil,
+      suspendedUntil: therapistRadar.suspendedUntil,
+      demo: therapistRadar.demo,
+      lastSeenAt: therapistRadar.lastSeenAt,
+    })
+    .from(therapistRadar)
+    .where(eq(therapistRadar.userId, opts.therapistUserId))
+    .limit(1);
+
+  if (!row) return "unavailable";
+
+  const held = row.status === "pending" && row.pendingUntil && row.pendingUntil > now;
+  // Someone genuinely is on this profile, or genuinely is paying for it.
+  if (held) return "taken";
+
+  return "unavailable";
 }
 
 /** Give the clinician straight back when the sheet closes. */
@@ -475,7 +545,7 @@ export async function claimTherapist(opts: {
     .where(
       and(
         eq(therapistRadar.userId, opts.therapistUserId),
-        gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
+        reachable(now),
         claimable,
       ),
     )

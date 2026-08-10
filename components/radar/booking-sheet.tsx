@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useFormStatus } from "react-dom";
 import {
   Clock,
@@ -71,7 +72,10 @@ export function BookingSheet({
 }) {
   const [state, action] = useActionState(bookFromRadar, INITIAL);
   const [viewer] = useState(() => viewerId());
-  const [held, setHeld] = useState<boolean | null>(null);
+  const [outcome, setOutcome] = useState<"held" | "taken" | "unavailable" | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
   const [secondsLeft, setSecondsLeft] = useState(HOLD_SECONDS);
   const submittedRef = useRef(false);
 
@@ -95,8 +99,8 @@ export function BookingSheet({
     const hold = async () => {
       const result = await reserveForViewing(entry.userId, viewer);
       if (cancelled) return;
-      setHeld(result.held);
-      if (result.held) setSecondsLeft(HOLD_SECONDS);
+      setOutcome(result.outcome);
+      if (result.outcome === "held") setSecondsLeft(HOLD_SECONDS);
     };
 
     void hold();
@@ -112,7 +116,7 @@ export function BookingSheet({
 
   // The visible clock. Closing on zero is the promise the copy makes.
   useEffect(() => {
-    if (!bookable || held === false) return;
+    if (!bookable || outcome === "taken" || outcome === "unavailable") return;
 
     const tick = setInterval(() => {
       setSecondsLeft((left) => {
@@ -125,7 +129,7 @@ export function BookingSheet({
     }, 1000);
 
     return () => clearInterval(tick);
-  }, [bookable, held, onClose]);
+  }, [bookable, outcome, onClose]);
 
   useEffect(() => {
     if (state.payUrl) window.location.href = state.payUrl;
@@ -144,16 +148,31 @@ export function BookingSheet({
     };
   }, [onClose]);
 
-  return (
+  /*
+   * Rendered into `document.body`, not where it sits in the tree.
+   *
+   * The homepage hero is `relative isolate`, which creates a stacking context
+   * — so this sheet's z-index was only ever competing with the hero's other
+   * children, never with the site header at z-40 in the root context. The
+   * header painted straight over the top of the profile, cutting off the
+   * clinician's name and photograph. No z-index on this element could have
+   * fixed that; it had to leave the context entirely.
+   *
+   * `mounted` guards the first render, because `document` does not exist on
+   * the server.
+   */
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-navy-600/70 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[100] flex items-end justify-center overflow-y-auto bg-navy-600/70 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`${fullName(entry.firstName, entry.lastName, "Clinician")} profile`}
     >
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0" />
 
-      <div className="animate-fade-rise relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
+      <div className="animate-fade-rise relative my-auto max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
         <button
           type="button"
           onClick={onClose}
@@ -216,7 +235,7 @@ export function BookingSheet({
               form that tells you a clinician is being held for you and someone
               else may need them is a reason to get on with it.
             */}
-            {held !== false ? (
+            {outcome !== "taken" && outcome !== "unavailable" ? (
               <div className="rounded-2xl bg-teal-50 px-3.5 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="flex items-center gap-1.5 text-xs font-semibold text-teal-900">
@@ -247,9 +266,17 @@ export function BookingSheet({
                 </p>
               </div>
             ) : (
-              <p className="rounded-2xl bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
-                Someone else opened this profile a moment before you. You can still try — if they
-                do not go ahead, this clinician frees up within a minute.
+              /*
+                Two different failures, said differently, because they used to
+                share one sentence that was usually a lie: "someone else opened
+                this profile" was printed whether the clinician was taken,
+                stale, suspended or in a session — and most often nobody else
+                was there at all.
+              */
+              <p className="rounded-2xl bg-amber-50 px-3.5 py-3 text-xs leading-relaxed text-amber-800">
+                {outcome === "taken"
+                  ? "Someone else is on this profile right now. You can still try — if they do not go ahead, this clinician frees up within a minute."
+                  : "This clinician has just become unavailable. Close this and pick someone else — the board updates every few seconds."}
               </p>
             )}
 
@@ -304,7 +331,8 @@ export function BookingSheet({
           </p>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

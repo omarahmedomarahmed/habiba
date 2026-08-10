@@ -13,7 +13,8 @@ import {
   notifyIncomingBooking,
   releaseClaim,
   releaseReservation,
-  reserveTherapist,
+  reserveWithReason,
+  type ReservationOutcome,
 } from "@/lib/data/radar";
 import { createRadarSession } from "@/lib/data/sessions";
 import { db } from "@/lib/db";
@@ -58,15 +59,16 @@ const CLAIMS_PER_THERAPIST = 3;
 export async function reserveForViewing(
   therapistUserId: string,
   viewer: string,
-): Promise<{ held: boolean; secondsLeft: number }> {
-  if (!viewer) return { held: false, secondsLeft: 0 };
+): Promise<{ outcome: ReservationOutcome; secondsLeft: number }> {
+  if (!viewer) return { outcome: "unavailable", secondsLeft: 0 };
 
   // Cheap, but it is an unauthenticated write, so it gets a ceiling too.
   const throttle = await consume(await callerKey("radar:view"), 60, 60);
-  if (!throttle.allowed) return { held: false, secondsLeft: 0 };
+  // Being throttled is not the clinician being taken — say the true thing.
+  if (!throttle.allowed) return { outcome: "unavailable", secondsLeft: 0 };
 
-  const held = await reserveTherapist({ therapistUserId, viewer });
-  return { held, secondsLeft: held ? RESERVATION_SECONDS : 0 };
+  const outcome = await reserveWithReason({ therapistUserId, viewer });
+  return { outcome, secondsLeft: outcome === "held" ? RESERVATION_SECONDS : 0 };
 }
 
 /** Put them straight back on the board when the sheet closes or times out. */
