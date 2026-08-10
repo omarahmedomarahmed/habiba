@@ -636,3 +636,163 @@ export async function removeTaxonomy(kind: TaxonomyKind, code: string): Promise<
   revalidatePath("/radar");
   return { ok: true };
 }
+
+/* --------------------------------------------------- radar command deck -- */
+
+/**
+ * Take a clinician off the radar and keep them off.
+ *
+ * Deliberately not the same thing as suspending their account. A clinician can
+ * be unfit to take unscreened crisis calls from strangers this week and still
+ * be perfectly fine seeing their own caseload — suspending the account punishes
+ * their existing patients for something that has nothing to do with them.
+ *
+ * Hours of zero releases them.
+ */
+export async function setRadarSuspension(
+  therapistUserId: string,
+  hours: number,
+  reason: string,
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const { suspendFromRadar, releaseFromRadarBan } = await import("@/lib/data/feedback");
+
+  if (hours <= 0) {
+    await releaseFromRadarBan(therapistUserId);
+    await audit({
+      actor,
+      category: "admin",
+      action: "radar.release",
+      resourceType: "user",
+      resourceId: therapistUserId,
+      reason: reason.trim().slice(0, 200) || "Released",
+    });
+  } else {
+    const note = reason.trim();
+    if (note.length < 4) return { error: "Give a reason — the clinician is shown it." };
+    await suspendFromRadar(therapistUserId, hours, note);
+    await audit({
+      actor,
+      category: "admin",
+      action: "radar.suspend",
+      resourceType: "user",
+      resourceId: therapistUserId,
+      reason: `${hours}h — ${note}`.slice(0, 200),
+    });
+
+    const [therapist] = await db
+      .select({ email: users.email, firstName: users.firstName })
+      .from(users)
+      .where(eq(users.id, therapistUserId))
+      .limit(1);
+
+    if (therapist) {
+      await sendTherapistMessage({
+        to: therapist.email,
+        firstName: therapist.firstName,
+        subject: "You have been taken off the Crisis Radar",
+        body: `You are off the Crisis Radar for ${hours >= 24 * 365 ? "the time being" : `${hours} hours`}.\n\nReason given: ${note}\n\nYour own patients and everything in your portal are unaffected — this only stops new bookings from strangers on the radar. Reply to this email if you think it is wrong.`,
+      });
+    }
+  }
+
+  revalidatePath("/admin/radar");
+  revalidatePath("/radar");
+  return { ok: true };
+}
+
+/** Force someone offline without a ban — the polite version, for a mistake. */
+export async function forceRadarOffline(therapistUserId: string): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const { therapistRadar } = await import("@/lib/db/schema");
+  await db
+    .update(therapistRadar)
+    .set({ status: "offline", pendingSessionId: null, pendingUntil: null, reservedBy: null })
+    .where(eq(therapistRadar.userId, therapistUserId));
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "radar.force_offline",
+    resourceType: "user",
+    resourceId: therapistUserId,
+  });
+
+  revalidatePath("/admin/radar");
+  return { ok: true };
+}
+
+/**
+ * Edit what a clinician is advertising.
+ *
+ * Support work, mostly: a headline with a phone number in it, a specialty
+ * chosen by mistake, a country that is plainly wrong. Audited, and the
+ * clinician can change it straight back — this is a correction, not a lock.
+ */
+export async function editRadarProfile(
+  therapistUserId: string,
+  input: { headline: string; country: string; region: string; city: string },
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const { therapistRadar } = await import("@/lib/db/schema");
+  await db
+    .update(therapistRadar)
+    .set({
+      headline: input.headline.trim().slice(0, 240) || null,
+      country: input.country.trim().slice(0, 2).toUpperCase() || null,
+      region: input.region.trim().slice(0, 120) || null,
+      city: input.city.trim().slice(0, 120) || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(therapistRadar.userId, therapistUserId));
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "radar.edit_profile",
+    resourceType: "user",
+    resourceId: therapistUserId,
+  });
+
+  revalidatePath("/admin/radar");
+  revalidatePath("/radar");
+  return { ok: true };
+}
+
+/** Close a report with a decision that somebody's name is on. */
+export async function resolveReport(
+  reportId: string,
+  outcome: "actioned" | "dismissed",
+  resolution: string,
+): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const note = resolution.trim();
+  if (note.length < 4) return { error: "Say what you decided." };
+
+  const { sessionReports } = await import("@/lib/db/schema");
+  await db
+    .update(sessionReports)
+    .set({
+      status: outcome,
+      resolution: note.slice(0, 1000),
+      resolvedAt: new Date(),
+      resolvedBy: actor.userId,
+    })
+    .where(eq(sessionReports.id, reportId));
+
+  await audit({
+    actor,
+    category: "admin",
+    action: `report.${outcome}`,
+    resourceType: "session_report",
+    resourceId: reportId,
+    reason: note.slice(0, 200),
+  });
+
+  revalidatePath("/admin/radar");
+  return { ok: true };
+}

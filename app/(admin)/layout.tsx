@@ -3,6 +3,7 @@ import {
   FileEdit,
   Globe2,
   LayoutDashboard,
+  Radio,
   Megaphone,
   ScrollText,
   ShieldCheck,
@@ -11,13 +12,14 @@ import {
 } from "lucide-react";
 
 import { requireRole } from "@/lib/auth/guard";
+import { countOpenReports } from "@/lib/data/radar-admin";
 import { pendingReviewCount } from "@/lib/data/verification";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Every admin page also calls requireRole itself — this is defence in depth,
   // not the only check.
   await requireRole("super_admin");
-  const waiting = await pendingReviewCount();
+  const [waiting, reports] = await Promise.all([pendingReviewCount(), countOpenReports()]);
 
   return (
     <div className="min-h-dvh">
@@ -39,6 +41,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             {waiting > 0 ? (
               <span className="ml-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-navy-600">
                 {waiting}
+              </span>
+            ) : null}
+          </AdminLink>
+          <AdminLink href="/admin/radar" icon={Radio}>
+            Radar control
+            {reports > 0 ? (
+              <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                {reports}
               </span>
             ) : null}
           </AdminLink>
