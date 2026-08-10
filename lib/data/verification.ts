@@ -18,50 +18,15 @@ import { organizations, therapistVerifications, users } from "@/lib/db/schema";
  * page that will refuse them. The redirect is UX; the guard is the boundary.
  */
 
-/** Documents differ by country. This is what we ask for, and why. */
-export type DocumentRequirement = {
-  key: "idFront" | "idBack" | "licenseDoc" | "headshot";
-  label: string;
-  hint: string;
-  required: boolean;
-};
-
-export function documentRequirements(country: string | null): DocumentRequirement[] {
-  const idLabel =
-    country === "EG"
-      ? "National ID (البطاقة) — front"
-      : country === "US"
-        ? "Driver's licence or passport — front"
-        : "Government ID — front";
-
-  return [
-    {
-      key: "idFront",
-      label: idLabel,
-      hint: "A clear photo. All four corners visible, no glare over the text.",
-      required: true,
-    },
-    {
-      key: "idBack",
-      label: "Government ID — back",
-      // A passport has no back; demanding one produces a photo of nothing.
-      hint: "Skip this if you uploaded a passport page.",
-      required: false,
-    },
-    {
-      key: "licenseDoc",
-      label: "Practising licence or registration certificate",
-      hint: "Whatever your regulator issues — a syndicate card, a licence, a registration certificate.",
-      required: true,
-    },
-    {
-      key: "headshot",
-      label: "Professional headshot",
-      hint: "This one is public: it appears on your radar profile. Plain background, your face clearly visible.",
-      required: true,
-    },
-  ];
-}
+/*
+ * Document requirements moved to `lib/regulators.ts`.
+ *
+ * They have to run in the browser: the onboarding form relabels the upload
+ * slots the instant a country is chosen, and a server round trip to find out
+ * which ID we want is a step nobody should have to take. Re-exported here so
+ * server callers keep their import.
+ */
+export { documentRequirements, type DocumentRequirement } from "@/lib/regulators";
 
 /**
  * Where a clinician stands, as one answer.

@@ -12,6 +12,7 @@ import {
   type OnboardingState,
 } from "@/app/(app)/onboarding/actions";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
+import { documentRequirements, regulatorsFor } from "@/lib/regulators";
 import { cn } from "@/lib/utils";
 
 const INITIAL: OnboardingState = {};
@@ -74,6 +75,36 @@ export function VerificationForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * Country is client state, not just a form field.
+   *
+   * Choosing it has to relabel the upload slots and offer the right regulators
+   * immediately. Waiting for Save means a clinician photographs the wrong
+   * document, and the labels were server-rendered until now — so this is the
+   * one piece of the form that has to be held in React.
+   */
+  const [country, setCountry] = useState(initial.country);
+  const [licenseBody, setLicenseBody] = useState(initial.licenseBody);
+  const regulators = regulatorsFor(country);
+
+  /*
+   * Prefill the regulator when there is exactly one plausible answer, and only
+   * while the field is still empty. Overwriting something a clinician typed
+   * because they corrected their country would be worse than not helping.
+   */
+  const suggestion = regulators[0] ?? "";
+  const [prefilledFor, setPrefilledFor] = useState(initial.country);
+  if (country !== prefilledFor) {
+    setPrefilledFor(country);
+    if (!licenseBody.trim() && suggestion) setLicenseBody(suggestion);
+  }
+
+  /* Slots keep any URL already uploaded; only the wording follows the country. */
+  const slots: DocSlot[] = documentRequirements(country || null).map((requirement) => ({
+    ...requirement,
+    url: documents.find((doc) => doc.key === requirement.key)?.url ?? null,
+  }));
+
   const locked = state === "submitted" || state === "approved";
 
   if (state === "submitted") {
@@ -127,7 +158,8 @@ export function VerificationForm({
             <select
               id="country"
               name="country"
-              defaultValue={initial.country}
+              value={country}
+              onChange={(event) => setCountry(event.target.value)}
               disabled={locked}
               className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
             >
@@ -149,10 +181,36 @@ export function VerificationForm({
               <Input
                 id="licenseBody"
                 name="licenseBody"
-                defaultValue={initial.licenseBody}
+                value={licenseBody}
+                onChange={(event) => setLicenseBody(event.target.value)}
                 disabled={locked}
-                placeholder="Egyptian Syndicate of Psychologists"
+                placeholder={suggestion || "Whoever issued your licence"}
               />
+              {/*
+                Offered, not imposed. There are many routes to practising in
+                most countries and a dropdown that omits yours reads as "you
+                are not welcome here", so these are one-tap shortcuts beside a
+                field you can type anything into.
+              */}
+              {!locked && regulators.length > 1 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {regulators.map((body) => (
+                    <button
+                      key={body}
+                      type="button"
+                      onClick={() => setLicenseBody(body)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                        licenseBody === body
+                          ? "border-brand-500 bg-brand-50 text-brand-700"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                      )}
+                    >
+                      {body}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </Field>
             <Field label="Licence number" htmlFor="licenseNumber">
               <Input
@@ -201,8 +259,19 @@ export function VerificationForm({
           to our compliance team and is never shown to patients or other clinicians.
         </p>
 
+        {country ? (
+          <p className="mt-2 text-xs font-medium text-brand-700">
+            Showing what {countryOptions.find((c) => c.code === country)?.name ?? "this country"}{" "}
+            needs.
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-amber-700">
+            Choose your country above and these change to the documents it actually issues.
+          </p>
+        )}
+
         <div className="mt-3 space-y-2.5">
-          {documents.map((doc) => (
+          {slots.map((doc) => (
             <DocumentSlot key={doc.key} doc={doc} disabled={locked || !uploadsEnabled} />
           ))}
         </div>

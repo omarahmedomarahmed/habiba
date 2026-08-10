@@ -93,10 +93,34 @@ export async function toggleRadar(online: boolean): Promise<RadarState> {
  * the booking check fails would leave someone advertised as available and deaf
  * to the alarm.
  */
-export async function radarPing(): Promise<{ attention: RadarAttention | null }> {
+/**
+ * One request: stay on the radar, and find out who is knocking.
+ *
+ * It also returns the clinician's own live status, because they should be able
+ * to see what patients see without reloading anything. "Am I actually on?" is
+ * the question the whole feature depends on, and the answer used to require a
+ * page refresh.
+ */
+export async function radarPing(): Promise<{
+  attention: RadarAttention | null;
+  status: "offline" | "online" | "pending" | "in_session";
+  suspendedUntil: string | null;
+  suspendedReason: string | null;
+}> {
   const actor = await requireUser();
   await heartbeat(actor.userId);
-  return { attention: await pendingBooking(actor.userId) };
+
+  const [attention, profile] = await Promise.all([
+    pendingBooking(actor.userId),
+    getRadarProfile(actor.userId),
+  ]);
+
+  return {
+    attention,
+    status: (profile?.status ?? "offline") as "offline" | "online" | "pending" | "in_session",
+    suspendedUntil: profile?.suspendedUntil?.toISOString() ?? null,
+    suspendedReason: profile?.suspendedReason ?? null,
+  };
 }
 
 /**

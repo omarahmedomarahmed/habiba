@@ -129,6 +129,11 @@
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
   }
 
+  /* The radar status pill sits under the notch, not behind it. */
+  .safe-top {
+    padding-top: calc(env(safe-area-inset-top) + 0.25rem);
+  }
+
   .tap-target {
     /* 44px is the documented minimum. The old bottom nav shipped ~40px. */
     min-height: 44px;
