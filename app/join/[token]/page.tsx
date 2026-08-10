@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 
+import { redirect } from "next/navigation";
+
 import { JoinFlow } from "@/components/join/join-flow";
 import { confirmCheckout } from "@/lib/billing/stripe";
+import { feedbackContext } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { callerKey, releaseHold } from "@/lib/rate-limit";
@@ -43,6 +46,17 @@ export default async function JoinPage({
   }
 
   if (!session) {
+    /*
+     * A finished session is not a dead link.
+     *
+     * `resolveJoinToken` returns nothing once a session ends, so a patient who
+     * closed the tab and came back used to be told the link was broken. It is
+     * not broken — it is now the way to their summary, and it is the only
+     * moment we will ever get their rating.
+     */
+    const feedback = await feedbackContext(token);
+    if (feedback) redirect(`/feedback/${token}`);
+
     return (
       <Shell>
         <h1 className="text-xl font-bold text-slate-900">This link is no longer active</h1>

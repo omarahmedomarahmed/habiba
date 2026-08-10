@@ -2,9 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { Send } from "lucide-react";
-
-import { emailPatientTheirRecord, savePatient } from "@/app/(app)/patients/actions";
+import { savePatient } from "@/app/(app)/patients/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 
 type Initial = {
@@ -134,66 +132,13 @@ export function PatientEditor({
         actually be answered.
       */}
       <div className="space-y-3 border-t border-slate-100 pt-3">
-        <RecordExport patientId={patientId} hasEmail={Boolean(form.email.trim())} />
         <p className="text-xs leading-relaxed text-slate-400">
-          Records cannot be deleted. Sessions and notes are kept for the retention period your
-          regulator requires. If a patient asks you to erase their record, contact support — that
-          is a retention-law question, not a button.
+          Records cannot be deleted, and cannot be emailed out of here. Sessions and notes are
+          kept for the retention period your regulator requires. If this patient asks for their
+          data or asks you to erase it, send them to us — we handle both, and you will be told
+          when we do.
         </p>
       </div>
     </Card>
-  );
-}
-
-/**
- * "Send them their record."
- *
- * This is what replaced admin impersonation. A patient asks for their data, the
- * clinician presses this, and a link lands in the patient's inbox. Nobody at
- * 24Therapy — and nobody in the practice who was not already allowed to — reads
- * a word of it in the process.
- */
-function RecordExport({ patientId, hasEmail }: { patientId: string; hasEmail: boolean }) {
-  const [pending, startTransition] = useTransition();
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  if (sentTo) {
-    return (
-      <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
-        Sent to {sentTo}. The link works for 72 hours and then stops.
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {error ? (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      ) : null}
-      <Button
-        variant="secondary"
-        full
-        disabled={pending || !hasEmail}
-        onClick={() =>
-          startTransition(async () => {
-            setError(null);
-            const result = await emailPatientTheirRecord(patientId);
-            if (result.error) setError(result.error);
-            else setSentTo(result.sentTo ?? null);
-          })
-        }
-      >
-        <Send className="h-4 w-4" aria-hidden />
-        {pending ? "Sending…" : "Email them their full record"}
-      </Button>
-      <p className="text-xs leading-relaxed text-slate-400">
-        {hasEmail
-          ? "Everything on file — sessions, notes, transcripts — as one page they can save or print. It goes to their address, not yours."
-          : "Add an email address above first. The record only ever goes to the patient."}
-      </p>
-    </div>
   );
 }

@@ -410,6 +410,17 @@ export type SoapNote = {
 export type NoteContent = {
   soap: SoapNote;
   summary: string;
+  /**
+   * What the patient is allowed to read.
+   *
+   * Written in the same generation pass as the clinical note but addressed to
+   * the patient in plain language: what was talked about, what was agreed, what
+   * to do before next time. The SOAP note is a professional document full of
+   * differential impressions and risk language — sending it to the person it
+   * is about is how a clinician ends up explaining the word "guarded" over the
+   * phone. Nothing else is ever emailed out.
+   */
+  patientBrief: string;
   talkingPoints: string[];
   observations: string;
   impressions: string;
@@ -692,6 +703,122 @@ export const taxonomyEntries = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("taxonomy_entries_kind_code_unique").on(t.kind, t.code)],
+);
+
+// ---------------------------------------------------------------- feedback ---
+
+/** What a patient can say about a session in one tap. */
+export const THERAPIST_TAGS = [
+  "Listened properly",
+  "Felt safe",
+  "Practical advice",
+  "Explained things clearly",
+  "Non-judgemental",
+  "Right amount of challenge",
+  "Rushed",
+  "Distracted",
+  "Talked over me",
+  "Not the right fit",
+] as const;
+
+export const SERVICE_TAGS = [
+  "Easy to find someone",
+  "Connected quickly",
+  "Good audio and video",
+  "Worth the money",
+  "Hard to use",
+  "Connection problems",
+  "Too expensive",
+] as const;
+
+/**
+ * One patient's verdict on one session.
+ *
+ * The report is the incentive, and the design is deliberate: a patient
+ * completes this to receive their brief, so the response rate is close to
+ * total rather than the eight percent a "how did we do?" email gets. It also
+ * means the email address arrives at the moment somebody actually wants to
+ * give it, rather than being demanded before they have had any help.
+ *
+ * Two ratings, kept apart. "The therapist was excellent, the app kept
+ * freezing" is one of the most useful things anyone can tell us and a single
+ * star rating destroys it.
+ */
+export const sessionFeedback = pgTable(
+  "session_feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    therapistId: uuid("therapist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    therapistStars: integer("therapist_stars").notNull(),
+    serviceStars: integer("service_stars").notNull(),
+    therapistTags: jsonb("therapist_tags").$type<string[]>().default([]).notNull(),
+    serviceTags: jsonb("service_tags").$type<string[]>().default([]).notNull(),
+    /** Shown to the clinician without a name attached. */
+    comment: text("comment"),
+
+    /** Where the brief went. Also becomes the patient record's address. */
+    patientEmail: text("patient_email"),
+    briefSentAt: timestamp("brief_sent_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("session_feedback_session_unique").on(t.sessionId),
+    index("session_feedback_therapist_idx").on(t.therapistId, t.createdAt),
+  ],
+);
+
+export const REPORT_KINDS = ["no_show", "abuse", "other"] as const;
+export type ReportKind = (typeof REPORT_KINDS)[number];
+
+/**
+ * A patient telling us something went wrong.
+ *
+ * Separate from feedback because it has a lifecycle: somebody reads it, decides
+ * something, and the decision is recorded. A one-star review is data; "he did
+ * not turn up and I paid" is a refund and a suspension.
+ */
+export const sessionReports = pgTable(
+  "session_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    therapistId: uuid("therapist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    kind: text("kind").$type<ReportKind>().notNull(),
+    detail: text("detail"),
+    patientEmail: text("patient_email"),
+
+    status: text("status")
+      .$type<"open" | "actioned" | "dismissed">()
+      .notNull()
+      .default("open"),
+    resolution: text("resolution"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("session_reports_status_idx").on(t.status, t.createdAt),
+    index("session_reports_therapist_idx").on(t.therapistId),
+  ],
 );
 
 // ------------------------------------------------------------------- radar ---
@@ -1196,3 +1323,5 @@ export type SessionPayment = typeof sessionPayments.$inferSelect;
 export type TherapistRadar = typeof therapistRadar.$inferSelect;
 export type RateLimit = typeof rateLimits.$inferSelect;
 export type TherapistVerification = typeof therapistVerifications.$inferSelect;
+export type SessionFeedback = typeof sessionFeedback.$inferSelect;
+export type SessionReport = typeof sessionReports.$inferSelect;

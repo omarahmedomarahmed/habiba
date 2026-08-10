@@ -91,13 +91,25 @@ export function JoinFlow({
   }, [current.joined, live, token]);
 
   if (ended) {
+    /*
+     * Straight on to the rating, because this is the only moment it will ever
+     * be filled in. Somebody who closes this page and reads a "how did we do?"
+     * email tomorrow is gone — and their summary is behind the form, so the
+     * two things people want at this exact second are the same thing.
+     */
     return (
       <Card className="p-6 text-center">
         <p className="text-base font-semibold text-slate-900">The session has ended</p>
-        <p className="mt-1.5 text-sm text-slate-600">
-          You can close this page. If your therapist is sending you a summary, it will arrive by
-          email.
+        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
+          One minute of feedback and we will email you a plain-language summary of what you talked
+          about and what you agreed.
         </p>
+        <a
+          href={`/feedback/${token}`}
+          className="mt-4 inline-flex h-12 items-center justify-center rounded-2xl bg-teal-500 px-5 text-sm font-semibold text-white hover:bg-teal-600"
+        >
+          Rate the session and get my summary
+        </a>
       </Card>
     );
   }

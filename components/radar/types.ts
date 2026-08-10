@@ -31,6 +31,8 @@ export type RadarEntry = {
     lon: string | null;
   } | null;
   rateCents: number;
+  /** Null until enough sessions have been rated for a number to mean anything. */
+  rating: { average: number; count: number } | null;
   status: "online" | "pending" | "in_session";
   /**
    * True when the pending state is this visitor's own reservation — the

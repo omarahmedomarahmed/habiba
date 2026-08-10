@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, DoorOpen } from "lucide-react";
+import { ChevronRight, DoorOpen, Star } from "lucide-react";
 
 import type { RadarEntry } from "@/components/radar/types";
 import { formatUsd } from "@/lib/billing/plans";
@@ -46,6 +46,18 @@ export function TherapistCard({
           >
             {fullName(entry.firstName, entry.lastName, "Clinician")}
           </span>
+          {entry.rating ? (
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold",
+                dark ? "text-amber-300" : "text-amber-600",
+              )}
+              title={`${entry.rating.average} from ${entry.rating.count} sessions`}
+            >
+              <Star className="h-3 w-3 fill-current" aria-hidden />
+              {entry.rating.average.toFixed(1)}
+            </span>
+          ) : null}
             <StatusPill status={entry.status} dark={dark} mine={entry.reservedByYou} />
         </span>
 

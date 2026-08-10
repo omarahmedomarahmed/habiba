@@ -173,16 +173,6 @@ export async function sendSessionReport(opts: {
   const rtl = RTL_LANGUAGES.has(lang);
   const align = rtl ? "right" : "left";
 
-  const padSide = rtl ? "padding-right" : "padding-left";
-
-  const list = (heading: string, items: string[]) =>
-    items.length
-      ? `<p style="margin:22px 0 8px;font-weight:600;font-size:14px;text-align:${align};">${esc(heading)}</p>
-         <ul style="margin:0;${padSide}:20px;color:#334155;font-size:14px;line-height:1.7;text-align:${align};">
-           ${items.map((item) => `<li>${esc(item)}</li>`).join("")}
-         </ul>`
-      : "";
-
   const followUp = note.followUp
     ? `<p style="margin:22px 0 0;font-size:14px;color:#334155;text-align:${align};"><strong>${esc(t.next)}:</strong> ${esc(note.followUp)}</p>`
     : "";
@@ -194,9 +184,27 @@ export async function sendSessionReport(opts: {
        <p style="margin:0 0 18px;color:#64748b;font-size:14px;">
          ${esc(t.intro(opts.sessionDate.toLocaleDateString(lang, { dateStyle: "long" }), opts.therapistName))}
        </p>
-       ${note.summary ? `<p style="margin:0;color:#334155;font-size:15px;line-height:1.7;">${esc(note.summary)}</p>` : ""}
-       ${list(t.discussed, note.talkingPoints)}
-       ${list(t.before, note.recommendations)}
+       ${
+         /*
+          * The brief, and only the brief.
+          *
+          * `summary`, `talkingPoints` and `recommendations` are written for a
+          * clinician — "presented as guarded", "query comorbid" — and this
+          * email used to carry all three. `patientBrief` is the section the
+          * model writes *to* the patient in plain words, and it is the only
+          * clinical text that ever leaves the practice. The fallback exists
+          * for notes generated before the brief did.
+          */
+         (note.patientBrief || note.summary)
+           ? `<div style="margin:0;color:#334155;font-size:15px;line-height:1.75;">${esc(
+               note.patientBrief || note.summary,
+             )
+               .split("\n")
+               .filter(Boolean)
+               .map((paragraph) => `<p style="margin:0 0 12px;">${paragraph}</p>`)
+               .join("")}</div>`
+           : ""
+       }
        ${followUp}
        <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
          ${esc(t.closing)}

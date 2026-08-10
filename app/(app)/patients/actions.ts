@@ -57,44 +57,19 @@ export async function savePatient(
   return { ok: true };
 }
 
-/**
- * Send a patient their own record.
+/*
+ * A clinician cannot send a patient's record anywhere, and that is the point.
  *
- * The link goes to the address on their chart and nowhere else — not to the
- * clinician who pressed the button, not into a download. That is what makes
- * this safe to expose on a page anyone in the practice can open: the worst a
- * misdirected press can do is email a patient their own notes.
+ * There was a button here that emailed a patient their full chart. It only
+ * ever sent to the address on file, which made it safe enough — but "a
+ * clinician can cause clinical text to leave the practice" is a capability,
+ * and this product now has exactly one of those: an administrator acting on a
+ * patient's own request, from the admin console, audited, with the clinician
+ * notified. See `emailPatientRecordToPatient` in the admin actions.
+ *
+ * What a patient gets automatically is their brief, which they pull themselves
+ * by rating the session. That path can only ever send `patientBrief`.
  */
-export async function emailPatientTheirRecord(
-  patientId: string,
-): Promise<{ error?: string; sentTo?: string }> {
-  const actor = await requireUser();
-
-  const { requestPatientExport, exportPath } = await import("@/lib/data/export");
-  const result = await requestPatientExport(actor, patientId);
-  if (!result.ok) return { error: result.error };
-
-  const { sendRecordExport } = await import("@/lib/mail");
-  const { env } = await import("@/lib/env");
-  const { EXPORT_TTL_HOURS } = await import("@/lib/db/schema");
-
-  const delivered = await sendRecordExport({
-    to: result.email,
-    patientName: result.patientName,
-    clinicianName: `${actor.firstName} ${actor.lastName}`.trim() || "your therapist",
-    url: `${env.appUrl}${exportPath(result.token)}`,
-    expiresInHours: EXPORT_TTL_HOURS,
-  });
-
-  if (!delivered) {
-    return {
-      error:
-        "The link was created but the email did not go out. Try again — if it keeps failing, tell us.",
-    };
-  }
-
-  return { sentTo: result.email };
-}
 
 /*
  * There is deliberately no way for a clinician to delete a patient or a

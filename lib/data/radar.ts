@@ -6,6 +6,7 @@ import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { notifications, sessions, therapistRadar, users } from "@/lib/db/schema";
+import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
 import { log, ref } from "@/lib/logger";
 
 /**
@@ -65,6 +66,14 @@ export type RadarTherapist = {
     lon: string | null;
   } | null;
   rateCents: number;
+  /**
+   * Star rating, or null until enough people have rated them.
+   *
+   * Withheld below the threshold on purpose: one bad night at 1.0 stars would
+   * follow somebody around, and a single five-star rating is not evidence of
+   * anything. A missing number is more honest than a meaningless one.
+   */
+  rating: { average: number; count: number } | null;
   status: "online" | "pending" | "in_session";
   /**
    * True when the pending state is *this* visitor's own reservation. The
@@ -151,6 +160,7 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
     .limit(100);
 
   const nowMs = Date.now();
+  const ratings = await therapistRatings();
 
   return rows.map((row) => {
     const lapsed = Boolean(row.pendingUntil && row.pendingUntil.getTime() < nowMs);
@@ -184,6 +194,12 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
       // A clinician who has not finished Stripe onboarding cannot be charged
       // for, so they are shown as free rather than a price nobody can pay.
       rateCents: row.chargesEnabled ? row.rateCents : 0,
+      rating: (() => {
+        const found = ratings.get(row.userId);
+        return found && found.count >= RATINGS_VISIBLE_AFTER
+          ? { average: Math.round(found.average * 10) / 10, count: found.count }
+          : null;
+      })(),
       status: status as "online" | "pending" | "in_session",
       reservedByYou:
         Boolean(viewerHash) && !lapsed && row.reservedBy === viewerHash && row.status === "pending",

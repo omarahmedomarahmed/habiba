@@ -87,6 +87,8 @@ const DEMO_NOTE = {
     "Reassess sleep pattern after the review date before considering any change in approach",
   ],
   followUp: "One week",
+  patientBrief:
+    "We spent most of today on the nights you have been having, and on how much of the day gets spent bracing for the next bad one. You put it into words really clearly.\n\nWe agreed you will try the wind-down we talked about — screens down an hour before bed, and getting up at the same time even after a rough night. Small and boring on purpose; it is the consistency that does the work.\n\nBefore next week, jot down roughly when you fall asleep and when you wake. Not a diary, just times. Bring it and we will look at it together.",
 };
 
 async function main() {

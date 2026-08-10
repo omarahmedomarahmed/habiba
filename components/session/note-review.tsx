@@ -10,7 +10,6 @@ import {
   approveNote,
   regenerateNote,
   saveNote,
-  shareReport,
 } from "@/app/(app)/sessions/actions";
 import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 
@@ -135,20 +134,8 @@ export function NoteReview(props: Props) {
         setStatus("approved");
         setEditing(false);
         setFeedback("Note approved");
-        // Approving is the natural moment to offer the last step.
+        // Approving is what releases the patient's brief, so say so.
         if (!sent) setShowShare(true);
-      }
-    });
-
-  const handleShare = () =>
-    startTransition(async () => {
-      setError(null);
-      const result = await shareReport(props.sessionId, email.trim() || undefined);
-      if (result.error) setError(result.error);
-      else {
-        setSent(true);
-        setShowShare(false);
-        setFeedback(result.message ?? "Sent");
       }
     });
 
@@ -262,45 +249,34 @@ export function NoteReview(props: Props) {
               )}
               Approve note
             </Button>
-          ) : (
-            <Button
-              variant={sent ? "secondary" : "teal"}
-              full
-              onClick={() => setShowShare((v) => !v)}
-            >
-              <Mail className="h-4 w-4" aria-hidden />
-              {sent ? "Send again" : "Send to patient"}
-            </Button>
-          )}
+          ) : null}
         </div>
       ) : null}
 
-      {showShare ? (
-        <Card className="space-y-3 p-4">
-          <p className="text-sm font-semibold text-slate-900">Email a summary to your patient</p>
-          <p className="text-xs leading-relaxed text-slate-500">
-            They receive the summary, what you discussed and what to work on. Your clinical
-            impressions and the assessment stay in the chart.
+      {/*
+        There is no "send to patient" button any more, and its absence is the
+        feature.
+        ------------------------------------------------------------------
+        A clinician emailing a chart out of the product is the single easiest
+        way for clinical text to end up somewhere nobody can account for, and
+        the button made it one tap. The patient now pulls their own brief: they
+        rate the session on a link they already hold, give an address, and the
+        brief — the plain-language section written for them, never the SOAP
+        note — goes to that address automatically.
+
+        The clinician's job is to sign the note. That is what releases it.
+      */}
+      {status === "approved" ? (
+        <Card className="p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <Mail className="h-4 w-4 text-teal-600" aria-hidden />
+            {sent ? "Their summary has been sent" : "Their summary is ready to release"}
           </p>
-          <Field label="Send to" htmlFor="shareEmail">
-            <Input
-              id="shareEmail"
-              type="email"
-              inputMode="email"
-              autoCapitalize="none"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="alex@example.com"
-            />
-          </Field>
-          <div className="flex gap-2.5">
-            <Button variant="secondary" full onClick={() => setShowShare(false)}>
-              Not now
-            </Button>
-            <Button variant="teal" full onClick={handleShare} disabled={pending || !email.trim()}>
-              {pending ? "Sending…" : "Send summary"}
-            </Button>
-          </div>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            {props.patientEmail
+              ? `Signed. ${props.patientEmail} gets the plain-language brief — not this note — the moment they complete their session rating, or straight away if they already have.`
+              : "Signed. Your patient receives the plain-language brief — not this note — when they rate the session and give us an address. Nothing is sent until they ask for it."}
+          </p>
         </Card>
       ) : null}
     </div>

@@ -23,6 +23,7 @@ const EMPTY_NOTE: NoteContent = {
   impressions: "",
   recommendations: [],
   followUp: "",
+  patientBrief: "",
 };
 
 const SYSTEM_PROMPT = `You are a clinical documentation assistant for a licensed psychotherapist.
@@ -42,6 +43,7 @@ LANGUAGE
 - Write the note in the language the session was conducted in. If the transcript is in Arabic, the note is in Arabic; if it is in Spanish, the note is in Spanish. Do not translate the clinical record into English.
 - Use the clinical register a professional in that language would actually write in, not a literal translation of English phrasing.
 - Report the language you wrote in as a two-letter ISO 639-1 code in "language".
+- "patientBrief" is the only part the patient ever reads, and it is written *to them*. Second person, plain words, no clinical vocabulary, no diagnosis, no impressions, no risk language. Three short paragraphs at most: what you talked about, what you agreed, and what to do before next time. It must be true to the session and it must be something the person could read alone at midnight without feeling labelled. Write it in the same language as the rest of the note.
 - If the session mixes languages, use the one the patient mostly spoke in — the record should read naturally to the clinician who was in the room.
 
 Respond with a single JSON object with exactly these keys:
@@ -53,7 +55,8 @@ Respond with a single JSON object with exactly these keys:
   "observations": string,
   "impressions": string,
   "recommendations": string[],
-  "followUp": string
+  "followUp": string,
+  "patientBrief": string
 }`;
 
 /**
@@ -298,6 +301,7 @@ export function normaliseNote(raw: Record<string, unknown>): NoteContent {
     impressions: asString(raw.impressions),
     recommendations: asArray(raw.recommendations),
     followUp: asString(raw.followUp),
+    patientBrief: asString(raw.patientBrief),
   };
 }
 

@@ -10,6 +10,7 @@ import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { getConnectAccount, priceProblem } from "@/lib/billing/connect";
 import { chargeForSession } from "@/lib/billing/service";
+import { releaseBrief } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
@@ -243,75 +244,38 @@ export async function approveNote(sessionId: string): Promise<SessionActionState
     patientId: row.session.patientId,
   });
 
+  /*
+   * Signing the note is what releases the patient's brief.
+   *
+   * Only if they already asked for it. A patient who rated the session before
+   * the clinician finished writing up has done their part and is waiting; one
+   * who has not rated it yet gets nothing until they do, which is the whole
+   * mechanism. Nothing here can send the clinical note — `releaseBrief` reads
+   * `patientBrief` and only `patientBrief`.
+   */
+  after(async () => {
+    try {
+      await releaseBrief(sessionId);
+    } catch (error) {
+      log.warn("brief release failed", { reason: safeErrorMessage(error) });
+    }
+  });
+
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
-  return { ok: true, message: "Note approved" };
+  return { ok: true, message: "Note approved — their summary is released" };
 }
 
-/**
- * Email the patient their summary.
+/*
+ * There is no `shareReport` any more, and its absence is deliberate.
  *
- * This is the last step of the product's own one-line pitch, and in the
- * previous codebase the endpoint existed with zero callers — no button anywhere
- * in the UI ever invoked it.
+ * It let a clinician email a session summary to any address they typed. That
+ * is the easiest possible route for clinical text to leave the practice and
+ * end up somewhere nobody can account for, and it existed as a single button.
+ *
+ * The patient pulls their own copy instead: they rate the session on the link
+ * they already hold, give an address, and `releaseBrief` sends the
+ * plain-language brief — never the SOAP note — to that address and no other.
+ * A patient wanting their *full* record asks us, and an administrator sends it
+ * to the address on their chart (see `lib/data/export.ts`).
  */
-export async function shareReport(
-  sessionId: string,
-  emailOverride?: string,
-): Promise<SessionActionState> {
-  const actor = await requireUser();
-  const row = await getSession(actor, sessionId);
-  if (!row) return { error: "Session not found." };
-
-  const [note] = await db
-    .select()
-    .from(sessionNotes)
-    .where(eq(sessionNotes.sessionId, sessionId))
-    .limit(1);
-
-  if (!note) return { error: "There is no note to share yet." };
-  if (note.status !== "approved") {
-    return { error: "Approve the note before sharing it." };
-  }
-
-  const to = (emailOverride || row.patient?.email || row.session.guestEmail || "").trim();
-  if (!to) return { error: "Add an email address for this patient first." };
-
-  const sent = await sendSessionReport({
-    to,
-    patientName: row.patient?.firstName ?? row.session.guestName ?? "there",
-    therapistName: fullName(actor.firstName, actor.lastName, "Your therapist"),
-    note: note.content,
-    // The patient gets their report in the language they were spoken to in.
-    language: note.language,
-    sessionDate: row.session.endedAt ?? row.session.createdAt,
-  });
-
-  if (!sent) return { error: "Could not send the email. Check the address and try again." };
-
-  await db
-    .update(sessions)
-    .set({ reportSentAt: new Date() })
-    .where(eq(sessions.id, sessionId));
-
-  // Remember the address so it does not have to be typed twice.
-  if (emailOverride && row.session.patientId) {
-    await db
-      .update(patients)
-      .set({ email: to.toLowerCase() })
-      .where(eq(patients.id, row.session.patientId));
-  }
-
-  await audit({
-    actor,
-    category: "phi_access",
-    action: "report.share",
-    resourceType: "session",
-    resourceId: sessionId,
-    patientId: row.session.patientId,
-  });
-
-  log.info("session report shared", { session: ref(sessionId) });
-  revalidatePath(`/sessions/${sessionId}`);
-  return { ok: true, message: `Sent to ${to}` };
-}
