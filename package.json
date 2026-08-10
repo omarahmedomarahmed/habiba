@@ -2,7 +2,7 @@
   "name": "24therapy",
   "version": "2.0.0",
   "private": true,
-  "description": "24Therapy — AI clinical documentation for therapists. Single mobile-first Next.js app.",
+  "description": "24Therapy \u2014 AI clinical documentation for therapists. Single mobile-first Next.js app.",
   "engines": {
     "node": ">=20"
   },
@@ -18,7 +18,9 @@
     "db:setup": "tsx scripts/migrate.ts && tsx scripts/seed.ts",
     "test": "node --import tsx --conditions=react-server --test tests/safety.test.ts",
     "test:db": "node --import tsx --conditions=react-server --test tests/radar.test.ts",
-    "test:e2e": "bash tests/run-e2e.sh"
+    "test:e2e": "bash tests/run-e2e.sh",
+    "demo:seed": "tsx scripts/demo.ts seed",
+    "demo:purge": "tsx scripts/demo.ts purge"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

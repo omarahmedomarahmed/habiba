@@ -63,6 +63,38 @@ export function documentRequirements(country: string | null): DocumentRequiremen
   ];
 }
 
+/**
+ * Where a clinician stands, as one answer.
+ *
+ * There were two sources of truth and they disagreed: an administrator
+ * pressing "verified" on the clinician list wrote `users.verification_status`,
+ * while the gate read `therapist_verifications.state`. The clinician showed as
+ * verified in admin and stayed locked on the onboarding page forever, which is
+ * exactly the bug you cannot debug from the outside because both screens are
+ * telling the truth about different columns.
+ *
+ * `setVerification` now writes both. This reads both anyway, because a
+ * mismatch left over from before the fix should resolve in the clinician's
+ * favour rather than keep them locked out.
+ */
+export async function practiceState(
+  userId: string,
+): Promise<"draft" | "submitted" | "approved" | "rejected" | null> {
+  const [row] = await db
+    .select({
+      state: therapistVerifications.state,
+      mirror: users.verificationStatus,
+    })
+    .from(users)
+    .leftJoin(therapistVerifications, eq(therapistVerifications.userId, users.id))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!row) return null;
+  if (row.mirror === "verified") return "approved";
+  return row.state ?? null;
+}
+
 export async function getVerification(userId: string) {
   const [row] = await db
     .select()

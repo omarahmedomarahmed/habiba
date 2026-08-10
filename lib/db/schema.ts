@@ -797,6 +797,27 @@ export const therapistRadar = pgTable(
      */
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
 
+    /**
+     * A seeded account for demonstrations.
+     *
+     * Exempt from the heartbeat expiry, because nobody is holding a browser
+     * open for them — and that exemption is the entire reason this column
+     * exists rather than a convention. It is set by `scripts/demo.ts` and by
+     * nothing else; the admin radar counts them separately and says so, so
+     * that "twelve clinicians online" can never quietly mean twelve fixtures.
+     */
+    demo: boolean("demo").notNull().default(false),
+
+    /**
+     * Forced off the radar by an administrator until this moment.
+     *
+     * Separate from `status` because it must survive the clinician toggling
+     * themselves back on — a ban that a tap can clear is not a ban.
+     */
+    suspendedUntil: timestamp("suspended_until", { withTimezone: true }),
+    /** Null when the suspension is indefinite, pending an admin release. */
+    suspendedReason: text("suspended_reason"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

@@ -124,8 +124,19 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
     resourceId: userId,
   });
 
-  // Straight to the thing they came for.
-  redirect("/sessions/new?welcome=1");
+  /*
+   * Straight to verification, because that is what stands between them and
+   * their first session.
+   *
+   * This redirect used to point at `/sessions/new`, and the app shell then
+   * bounced them to `/onboarding`. A redirect thrown inside a *layout* during
+   * a navigation the client router started — which is what a Server Action
+   * redirect is — leaves the router with a URL and no document: the address
+   * bar said /onboarding and the screen was white until you reloaded. The
+   * shell redirect is still there as a backstop for direct hits, but nothing
+   * on the ordinary path relies on it any more.
+   */
+  redirect("/onboarding?welcome=1");
 }
 
 export async function signIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -203,8 +214,19 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     resourceId: user.id,
   });
 
-  const destination = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-  redirect(destination);
+  /*
+   * Decide where they land here, rather than sending everyone to /dashboard
+   * and letting the app shell bounce the unverified ones. See the comment in
+   * `signUp` — a layout redirect during an action navigation renders nothing.
+   */
+  const { practiceState, isCleared } = await import("@/lib/data/verification");
+  const cleared = isCleared(
+    { userId: user.id, organizationId: user.organizationId, role: user.role } as never,
+    await practiceState(user.id),
+  );
+
+  const wanted = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  redirect(cleared ? wanted : "/onboarding");
 }
 
 export async function signOut(): Promise<void> {

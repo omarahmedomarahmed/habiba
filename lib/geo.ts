@@ -169,14 +169,14 @@ export const RADAR_LANGUAGES = [
  * language.
  */
 export const LANGUAGE_FLAGS: Record<string, string> = {
-  English: "🌐",
-  Spanish: "🌐",
+  English: "🇺🇸",
+  Spanish: "🇪🇸",
   French: "🇫🇷",
   German: "🇩🇪",
   Portuguese: "🇵🇹",
   Italian: "🇮🇹",
   Dutch: "🇳🇱",
-  Arabic: "🌐",
+  Arabic: "🇪🇬",
   Hebrew: "🇮🇱",
   Turkish: "🇹🇷",
   Russian: "🇷🇺",
@@ -193,7 +193,7 @@ export const LANGUAGE_FLAGS: Record<string, string> = {
   Vietnamese: "🇻🇳",
   Thai: "🇹🇭",
   Indonesian: "🇮🇩",
-  Swahili: "🌐",
+  Swahili: "🇰🇪",
 };
 
 export function languageFlag(language: string): string {

@@ -13,6 +13,7 @@ import {
   invoices,
   sessions,
   subscriptions,
+  therapistVerifications,
   transcriptSegments,
   users,
 } from "@/lib/db/schema";
@@ -100,14 +101,59 @@ export async function setUserStatus(userId: string, status: "active" | "suspende
   await db.update(users).set({ status, updatedAt: new Date() }).where(eq(users.id, userId));
 }
 
+/**
+ * An administrator's verdict on a clinician, written to both places that store it.
+ *
+ * `users.verification_status` is the badge on the clinician list.
+ * `therapist_verifications.state` is what the onboarding gate reads. Writing
+ * only the first is how a clinician came to be shown as verified in admin
+ * while still locked on the onboarding page — verified everywhere except the
+ * one column that decided whether they could work.
+ *
+ * The row is created if it does not exist. An admin verifying someone who
+ * never submitted documents is a deliberate act — usually because they were
+ * checked another way — and it must not silently fail because there was
+ * nothing to update.
+ */
 export async function setVerification(
   userId: string,
   verificationStatus: "unverified" | "pending" | "verified" | "rejected",
+  reviewedBy?: string,
 ) {
+  const [user] = await db
+    .select({ organizationId: users.organizationId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) return;
+
   await db
     .update(users)
     .set({ verificationStatus, updatedAt: new Date() })
     .where(eq(users.id, userId));
+
+  const state =
+    verificationStatus === "verified"
+      ? "approved"
+      : verificationStatus === "rejected"
+        ? "rejected"
+        : verificationStatus === "pending"
+          ? "submitted"
+          : "draft";
+
+  await db
+    .insert(therapistVerifications)
+    .values({
+      userId,
+      organizationId: user.organizationId,
+      state,
+      reviewedAt: new Date(),
+      reviewedBy: reviewedBy ?? null,
+    })
+    .onConflictDoUpdate({
+      target: therapistVerifications.userId,
+      set: { state, reviewedAt: new Date(), reviewedBy: reviewedBy ?? null, updatedAt: new Date() },
+    });
 }
 
 /**

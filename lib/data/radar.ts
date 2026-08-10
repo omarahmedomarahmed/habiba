@@ -86,6 +86,7 @@ export type RadarTherapist = {
  * own published profile — no email, no organisation, no patient anything.
  */
 export async function listRadar(viewer?: string | null): Promise<RadarTherapist[]> {
+  const now = new Date();
   const fresh = new Date(Date.now() - HEARTBEAT_STALE_MS);
   const viewerHash = viewer ? hashViewer(viewer) : null;
 
@@ -115,6 +116,8 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
       pendingUntil: therapistRadar.pendingUntil,
       pendingSessionId: therapistRadar.pendingSessionId,
       reservedBy: therapistRadar.reservedBy,
+      demo: therapistRadar.demo,
+      suspendedUntil: therapistRadar.suspendedUntil,
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
@@ -122,7 +125,15 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
       and(
         isNull(users.deletedAt),
         eq(users.status, "active"),
-        gte(therapistRadar.lastSeenAt, fresh),
+        /*
+         * A suspended clinician is off the board entirely — not shown busy,
+         * not shown offline, not shown at all. Being visible with a reason
+         * would publish a disciplinary fact about a named person to anonymous
+         * strangers, which is nobody's business but ours and theirs.
+         */
+        or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
+        // Demonstration accounts have no browser holding them online.
+        or(eq(therapistRadar.demo, true), gte(therapistRadar.lastSeenAt, fresh)),
         or(
           eq(therapistRadar.status, "online"),
           eq(therapistRadar.status, "pending"),
@@ -139,10 +150,10 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
     )
     .limit(100);
 
-  const now = Date.now();
+  const nowMs = Date.now();
 
   return rows.map((row) => {
-    const lapsed = Boolean(row.pendingUntil && row.pendingUntil.getTime() < now);
+    const lapsed = Boolean(row.pendingUntil && row.pendingUntil.getTime() < nowMs);
     // An expired claim reads as available, because that is what the claiming
     // UPDATE will decide a moment later. Showing "booking" for a claim that has
     // already lapsed sends people away from someone who is free.
@@ -593,6 +604,8 @@ export async function sweepRadar(): Promise<{
     .where(
       and(
         eq(therapistRadar.status, "online"),
+        // Demonstration accounts never go stale — nothing is beating for them.
+        eq(therapistRadar.demo, false),
         or(
           isNull(therapistRadar.lastSeenAt),
           lt(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),

@@ -44,7 +44,7 @@ export async function verifyUser(
   status: "verified" | "rejected" | "pending",
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
-  await setVerification(userId, status);
+  await setVerification(userId, status, actor.userId);
   await audit({
     actor,
     category: "admin",
@@ -53,6 +53,7 @@ export async function verifyUser(
     resourceId: userId,
   });
   revalidatePath("/admin/therapists");
+  revalidatePath("/admin/verifications");
   return { ok: true };
 }
 

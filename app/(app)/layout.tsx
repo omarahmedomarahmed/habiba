@@ -8,6 +8,7 @@ import {
   Plus,
   Radio,
   Settings,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 
@@ -18,7 +19,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getRadarProfile } from "@/lib/data/radar";
-import { getVerification, isCleared } from "@/lib/data/verification";
+import { isCleared, practiceState } from "@/lib/data/verification";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -47,11 +48,13 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const actor = await requireUser();
-  const [radar, [me], verification] = await Promise.all([
+  const [radar, [me], state] = await Promise.all([
     getRadarProfile(actor.userId),
     db.select({ profile: users.profile }).from(users).where(eq(users.id, actor.userId)).limit(1),
-    getVerification(actor.userId),
+    practiceState(actor.userId),
   ]);
+
+  const cleared = isCleared(actor, state);
 
   /*
    * Send an unverified clinician to onboarding rather than letting them find a
@@ -60,11 +63,7 @@ export default async function AppLayout({
    * open costs nothing.
    */
   const pathname = (await headers()).get("x-pathname") ?? "";
-  if (
-    !isCleared(actor, verification?.state ?? null) &&
-    pathname &&
-    !OPEN_TO_UNVERIFIED.some((prefix) => pathname.startsWith(prefix))
-  ) {
+  if (!cleared && pathname && !OPEN_TO_UNVERIFIED.some((prefix) => pathname.startsWith(prefix))) {
     redirect("/onboarding");
   }
 
@@ -78,15 +77,32 @@ export default async function AppLayout({
           </Link>
         </div>
 
-        <Link
-          href="/sessions/new"
-          className="mx-4 mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          New session
-        </Link>
+        {cleared ? (
+          <Link
+            href="/sessions/new"
+            className="mx-4 mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            New session
+          </Link>
+        ) : null}
 
         <nav aria-label="Primary" className="flex-1 space-y-0.5 px-3">
+          {/*
+            Nothing gated is linked until they are cleared.
+
+            Not decoration: a link into a gated page is a *client-side*
+            navigation, and the shell's redirect for those renders a blank
+            document rather than the onboarding page. Removing the links
+            removes the only way an unverified clinician could trigger it.
+          */}
+          {!cleared ? (
+            <SidebarLink href="/onboarding" icon={ShieldCheck}>
+              Finish verification
+            </SidebarLink>
+          ) : null}
+          {cleared ? (
+          <>
           <SidebarLink href="/dashboard" icon={Home}>
             Home
           </SidebarLink>
@@ -105,6 +121,8 @@ export default async function AppLayout({
           <SidebarLink href="/on-call" icon={Radio}>
             Crisis Radar
           </SidebarLink>
+          </>
+          ) : null}
           <SidebarLink href="/billing" icon={CreditCard}>
             Billing &amp; earnings
           </SidebarLink>
@@ -133,7 +151,7 @@ export default async function AppLayout({
         <div className="pb-24 lg:pb-8">{children}</div>
       </div>
 
-      <BottomNav />
+      {cleared ? <BottomNav /> : null}
 
       {/* Presence and the booking alarm follow the clinician around the whole
           portal, not just the radar page — see the comment in the component. */}
