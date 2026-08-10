@@ -42,22 +42,16 @@ export default async function FeedbackPage({
 
   return (
     <Shell>
-      <div className="mb-5">
-        <p className="text-xs font-bold tracking-wider text-teal-600 uppercase">
-          {context.sessionDate.toLocaleDateString(undefined, { dateStyle: "long" })}
-        </p>
-        <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">
-          {context.done ? "Your session" : "One minute, and your summary is yours"}
-        </h1>
-        {!context.done ? (
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            Rate the session and tell us where to send the summary. It is the only thing we ask,
-            and it is what keeps the good therapists visible to the next person.
-          </p>
-        ) : null}
-      </div>
-
+      {/*
+        The heading lives inside the form, not above it.
+        -----------------------------------------------
+        It was here, rendered on the server from `context.done`, which meant
+        that submitting the form left "One minute, and your summary is yours"
+        sitting directly above the word "Thank you". The state that decides the
+        heading is client state now, so the heading has to be too.
+      */}
       <RatingForm
+        sessionDate={context.sessionDate.toLocaleDateString(undefined, { dateStyle: "long" })}
         token={token}
         therapistFirstName={context.therapistFirstName}
         brief={context.brief}

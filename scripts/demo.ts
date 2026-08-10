@@ -257,8 +257,12 @@ async function purge() {
       LEFT JOIN therapist_radar r ON r.user_id = u.id
       WHERE r.demo = true
          OR u.email LIKE '%@${sql.raw(DOMAIN)}'
-         OR u.email LIKE 'e2e-%@example.com'
-         OR u.email LIKE 'repro-%@example.com'
+         -- example.com is reserved by RFC 2606 and can never receive mail, so
+         -- every address at it is a fixture by definition. Matching the whole
+         -- domain rather than each prefix the tests happen to use today is the
+         -- difference between a purge that works and one that leaves a
+         -- slightly different pile behind every time.
+         OR u.email LIKE '%@example.com'
     `);
 
     const ids = (orgs.rows as { id: string }[]).map((row) => row.id);

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 
+import { FeedbackCard } from "@/components/radar/feedback-card";
 import { PracticeForm } from "@/components/radar/practice-form";
 import { TherapistConsole } from "@/components/radar/therapist-console";
 import { PageHeader } from "@/components/ui";
@@ -9,6 +10,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { ensureRadarProfile } from "@/lib/data/radar";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { feedbackForTherapist } from "@/lib/data/feedback";
 import { activeTaxonomy } from "@/lib/data/taxonomy";
 
 export const metadata: Metadata = { title: "Crisis Radar", robots: { index: false } };
@@ -17,7 +19,8 @@ export const dynamic = "force-dynamic";
 export default async function RadarConsolePage() {
   const actor = await requireUser();
 
-  const [profile, [me], countryOptions, languageOptions, specialtyOptions] = await Promise.all([
+  const [profile, [me], countryOptions, languageOptions, specialtyOptions, feedback] =
+    await Promise.all([
     ensureRadarProfile(actor),
     db
       .select({
@@ -31,6 +34,7 @@ export default async function RadarConsolePage() {
     activeTaxonomy("country"),
     activeTaxonomy("language"),
     activeTaxonomy("specialty"),
+    feedbackForTherapist(actor.userId),
   ]);
 
   return (
@@ -55,6 +59,13 @@ export default async function RadarConsolePage() {
           countryOptions={countryOptions.map((o) => ({ code: o.code, name: o.label, flag: o.flag }))}
           alertOnView={me?.profile?.alertOnView ?? true}
           alertOnBooking={me?.profile?.alertOnBooking ?? true}
+        />
+
+        <FeedbackCard
+          therapistAverage={feedback.therapistAverage}
+          serviceAverage={feedback.serviceAverage}
+          total={feedback.total}
+          recent={feedback.recent}
         />
 
         <PracticeForm

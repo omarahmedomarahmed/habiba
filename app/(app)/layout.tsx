@@ -151,7 +151,7 @@ export default async function AppLayout({
         <div className="pb-24 lg:pb-8">{children}</div>
       </div>
 
-      {cleared ? <BottomNav /> : null}
+      <BottomNav cleared={cleared} />
 
       {/* Presence and the booking alarm follow the clinician around the whole
           portal, not just the radar page — see the comment in the component. */}

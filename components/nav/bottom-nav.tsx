@@ -13,6 +13,7 @@ import {
   Plus,
   Radio,
   Settings,
+  ShieldCheck,
   Users,
   X,
 } from "lucide-react";
@@ -46,7 +47,7 @@ const MORE = [
   { href: "/settings", label: "Settings", icon: Settings, hint: "Profile, payouts, licence" },
 ] as const;
 
-export function BottomNav() {
+export function BottomNav({ cleared = true }: { cleared?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -54,13 +55,51 @@ export function BottomNav() {
   // asked for.
   useEffect(() => setOpen(false), [pathname]);
 
-  // The live room is full-bleed; navigation would be a way to lose a session.
-  if (pathname.endsWith("/room")) return null;
-
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
   const moreActive = MORE.some((item) => isActive(item.href));
+
+  // The live room is full-bleed; navigation would be a way to lose a session.
+  if (pathname.endsWith("/room")) return null;
+
+  /*
+   * An unverified clinician gets a short bar, not no bar.
+   *
+   * Hiding it entirely was the safe-looking choice — every gated link is a
+   * client-side navigation into a page that would bounce them — and it left
+   * somebody on a phone with no way to reach settings, which is where signing
+   * out lives. Three destinations they are actually allowed is the answer.
+   */
+  if (!cleared) {
+    return (
+      <nav
+        aria-label="Primary"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
+      >
+        <div className="mx-auto flex max-w-lg items-center justify-around px-2 pt-1">
+          <NavItem
+            href="/onboarding"
+            label="Verify"
+            icon={ShieldCheck}
+            active={isActive("/onboarding")}
+          />
+          <NavItem
+            href="/billing"
+            label="Billing"
+            icon={CreditCard}
+            active={isActive("/billing")}
+          />
+          <NavItem
+            href="/settings"
+            label="Settings"
+            icon={Settings}
+            active={isActive("/settings")}
+          />
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <>

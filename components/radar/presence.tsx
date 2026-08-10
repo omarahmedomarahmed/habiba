@@ -8,8 +8,20 @@ import { radarPing } from "@/app/(app)/on-call/actions";
 import type { RadarAttention } from "@/lib/data/radar";
 import { cn } from "@/lib/utils";
 
-/** Slow enough not to be chatty, fast enough that the alarm is not late. */
-const PING_MS = 5_000;
+/**
+ * Fast while they are on the board, slow while they are not.
+ *
+ * The loop runs either way, and that is the fix for a bug that has now
+ * happened twice in different clothes: the heartbeat used to start only when
+ * this component mounted with `status !== offline`, so a clinician who
+ * switched themselves on from the console — without navigating — was
+ * advertised on the public radar with nothing beating for them, and dropped
+ * off ninety seconds later while their own toggle still said "on". Polling
+ * unconditionally means the server is the only thing that decides whether
+ * somebody is live.
+ */
+const PING_LIVE_MS = 5_000;
+const PING_IDLE_MS = 20_000;
 
 type Status = "offline" | "online" | "pending" | "in_session";
 
@@ -36,8 +48,8 @@ export function RadarPresence({
   alertOnView: boolean;
   alertOnBooking: boolean;
 }) {
-  const [active, setActive] = useState(initialStatus !== "offline");
   const [status, setStatus] = useState<Status>(initialStatus as Status);
+  const active = status !== "offline";
   const [attention, setAttention] = useState<RadarAttention | null>(null);
   const [suspended, setSuspended] = useState<{ until: string; reason: string | null } | null>(null);
   const [muted, setMuted] = useState(false);
@@ -50,8 +62,6 @@ export function RadarPresence({
   const announcedRef = useRef<string | null>(null);
   const lastBookingRef = useRef<string | null>(null);
 
-  useEffect(() => setActive(initialStatus !== "offline"), [initialStatus]);
-
   /* ------------------------------------------------------------- audio -- */
 
   /*
@@ -61,7 +71,7 @@ export function RadarPresence({
    * in the portal, long before anyone books.
    */
   useEffect(() => {
-    if (!active || audioRef.current) return;
+    if (audioRef.current) return;
 
     const unlock = () => {
       const Ctor =
@@ -76,7 +86,7 @@ export function RadarPresence({
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, [active]);
+  }, []);
 
   /**
    * Three sounds, because they mean three different things.
@@ -192,10 +202,9 @@ export function RadarPresence({
   // Splitting them would allow a state where we keep advertising someone while
   // failing to tell them anybody is knocking.
   useEffect(() => {
-    if (!active) return;
-
     let cancelled = false;
     const tick = async () => {
+      if (document.visibilityState !== "visible") return;
       try {
         const result = await radarPing();
         if (cancelled) return;
@@ -207,13 +216,13 @@ export function RadarPresence({
             : null,
         );
       } catch {
-        // The next ping is five seconds away, and the sweep takes them offline
-        // if the tab is genuinely gone.
+        // The next ping is seconds away, and the sweep takes them offline if
+        // the tab is genuinely gone.
       }
     };
 
     void tick();
-    const timer = setInterval(tick, PING_MS);
+    const timer = setInterval(tick, active ? PING_LIVE_MS : PING_IDLE_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);

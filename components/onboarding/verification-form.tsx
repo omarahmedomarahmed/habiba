@@ -88,15 +88,26 @@ export function VerificationForm({
   const regulators = regulatorsFor(country);
 
   /*
-   * Prefill the regulator when there is exactly one plausible answer, and only
-   * while the field is still empty. Overwriting something a clinician typed
-   * because they corrected their country would be worse than not helping.
+   * Prefill the regulator, and replace our own prefill when the country
+   * changes — but never what a clinician typed.
+   *
+   * The distinction is the whole thing. A first pass only filled an empty
+   * field, which meant picking the UAE and then correcting it to Egypt left
+   * "Department of Health – Abu Dhabi" sitting in the box: our suggestion,
+   * protected as though it were theirs, on its way to a reviewer as an
+   * Egyptian clinician's regulator. `ours` remembers what we last put there,
+   * so we can take it back and nothing else.
    */
   const suggestion = regulators[0] ?? "";
   const [prefilledFor, setPrefilledFor] = useState(initial.country);
+  const [ours, setOurs] = useState("");
   if (country !== prefilledFor) {
     setPrefilledFor(country);
-    if (!licenseBody.trim() && suggestion) setLicenseBody(suggestion);
+    const untouched = !licenseBody.trim() || licenseBody === ours;
+    if (untouched) {
+      setLicenseBody(suggestion);
+      setOurs(suggestion);
+    }
   }
 
   /* Slots keep any URL already uploaded; only the wording follows the country. */
@@ -198,7 +209,12 @@ export function VerificationForm({
                     <button
                       key={body}
                       type="button"
-                      onClick={() => setLicenseBody(body)}
+                      onClick={() => {
+                        setLicenseBody(body);
+                        // Chosen from our list, so it is still ours to replace
+                        // if they change country again.
+                        setOurs(body);
+                      }}
                       className={cn(
                         "rounded-full border px-2.5 py-1 text-[11px] font-medium",
                         licenseBody === body

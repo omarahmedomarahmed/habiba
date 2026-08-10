@@ -265,9 +265,21 @@ export async function completeSession(actor: Actor, sessionId: string) {
       endedAt,
       durationMinutes,
       noteStatus: "generating",
-      // Kill the join link the moment the session ends.
-      joinToken: null,
-      joinTokenExpiresAt: null,
+      /*
+       * The join token survives the session ending, and it must.
+       *
+       * It used to be nulled here — "kill the link the moment the session
+       * ends" — which was belt and braces, because `resolveJoinToken` already
+       * refuses any session with an `ended_at`. The braces were doing the work
+       * and the belt was strangling the patient: every feedback lookup finds
+       * the session by this token, so nulling it meant nobody could ever rate
+       * a session or receive their brief. The whole flow was dead on arrival
+       * and nothing failed loudly, because a missing row just reads as an
+       * expired link.
+       *
+       * Cancelling still clears it. A cancelled session has no brief to
+       * collect and no rating to give.
+       */
       updatedAt: endedAt,
     })
     .where(and(scope(actor), eq(sessions.id, sessionId)));

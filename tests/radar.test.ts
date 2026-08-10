@@ -416,3 +416,50 @@ test("a reservation only tells its own holder that it is theirs", async () => {
 
   await releaseReservation({ therapistUserId: therapistId, viewer: me });
 });
+
+/**
+ * The join token has to outlive the session, or nobody is ever rated.
+ *
+ * `completeSession` used to null it — "kill the link the moment the session ends",
+ * which sounds obviously right. It was also belt over braces, because
+ * `resolveJoinToken` already refuses any session with an `ended_at`, and the
+ * belt strangled the entire feedback flow: every lookup finds the session by
+ * this token, so nulling it meant no patient could ever rate a session or
+ * receive their brief.
+ *
+ * Nothing failed loudly. A missing row reads as an expired link, so the whole
+ * feature was dead on arrival and looked like normal behaviour. This test is
+ * here because that is exactly the kind of bug that comes back.
+ */
+test("a finished session still resolves for feedback, but not for joining", async () => {
+  const sessionId = await newSession();
+
+  const [before] = await db
+    .select({ token: sessions.joinToken })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  const token = before?.token;
+  assert.ok(token, "a radar session is created with a join token");
+
+  const { completeSession, resolveJoinToken } = await import("../lib/data/sessions");
+  const { feedbackContext } = await import("../lib/data/feedback");
+
+  assert.ok(await resolveJoinToken(token), "the link works while the session is live");
+
+  await completeSession(
+    { userId: therapistId, organizationId, role: "therapist" } as never,
+    sessionId,
+  );
+
+  assert.equal(
+    await resolveJoinToken(token),
+    null,
+    "the meeting link is dead the moment the session ends",
+  );
+
+  const feedback = await feedbackContext(token);
+  assert.ok(feedback, "the same token still reaches the feedback page");
+  assert.equal(feedback.sessionId, sessionId);
+});

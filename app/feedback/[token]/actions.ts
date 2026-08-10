@@ -24,7 +24,7 @@ export async function rateSession(input: {
   const attempt = await consume(await callerKey("feedback"), 20, 600);
   if (!attempt.allowed) return { error: "Too many submissions from this connection." };
 
-  const { submitFeedback, feedbackContext, markBriefSent } = await import("@/lib/data/feedback");
+  const { submitFeedback, feedbackContext, releaseBrief } = await import("@/lib/data/feedback");
 
   const saved = await submitFeedback(input);
   if (saved.error) return { error: saved.error };
@@ -33,36 +33,16 @@ export async function rateSession(input: {
   if (!context) return { ok: true };
 
   /*
-   * Send the brief now if the clinician has already signed the note.
+   * One function sends a brief, and this calls it rather than reimplementing
+   * it. There were two copies of "build the email and send it" for a minute,
+   * which is exactly how the two of them end up disagreeing about what a
+   * patient is allowed to read.
    *
-   * If they have not, this returns success anyway and the note-approval path
-   * sends it — the patient has done their part and must not be left staring at
-   * a form waiting for somebody else's paperwork.
+   * If the clinician has not signed the note yet this does nothing and returns
+   * false; the approval path sends it later. Either way the patient has done
+   * their part and is told so.
    */
-  if (context.brief) {
-    const { sendSessionReport } = await import("@/lib/mail");
-    const sent = await sendSessionReport({
-      to: input.email.trim().toLowerCase(),
-      patientName: "there",
-      therapistName: context.therapistName || "Your therapist",
-      note: {
-        soap: { subjective: "", objective: "", assessment: "", plan: "" },
-        summary: "",
-        patientBrief: context.brief,
-        talkingPoints: [],
-        observations: "",
-        impressions: "",
-        recommendations: [],
-        followUp: "",
-      },
-      language: context.briefLanguage,
-      sessionDate: context.sessionDate,
-    });
-    if (sent) await markBriefSent(context.sessionId);
-    return { ok: true, sent };
-  }
-
-  return { ok: true, sent: false };
+  return { ok: true, sent: await releaseBrief(context.sessionId) };
 }
 
 /**

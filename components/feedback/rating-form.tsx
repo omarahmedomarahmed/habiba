@@ -5,7 +5,7 @@ import { AlertTriangle, Check, Mail, Star } from "lucide-react";
 
 import { rateSession, reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
-import { SERVICE_TAGS, THERAPIST_TAGS, RTL_LANGUAGES } from "@/lib/db/schema";
+import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback-options";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
  */
 export function RatingForm({
   token,
+  sessionDate,
   therapistFirstName,
   brief,
   briefLanguage,
@@ -31,6 +32,7 @@ export function RatingForm({
   paid,
 }: {
   token: string;
+  sessionDate: string;
   therapistFirstName: string;
   brief: string | null;
   briefLanguage: string;
@@ -77,9 +79,10 @@ export function RatingForm({
   /* ------------------------------------------------------------- done -- */
 
   if (done) {
-    const rtl = RTL_LANGUAGES.has(briefLanguage);
+    const rtl = RTL_LANGUAGE_CODES.has(briefLanguage);
     return (
       <div className="space-y-4">
+        <Heading date={sessionDate} title="Your session" />
         <Card className="p-5 text-center">
           <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">
             <Check className="h-5 w-5" aria-hidden />
@@ -140,6 +143,12 @@ export function RatingForm({
 
   return (
     <div className="space-y-4">
+      <Heading
+        date={sessionDate}
+        title="One minute, and your summary is yours"
+        blurb="Rate the session and tell us where to send the summary. It is the only thing we ask, and it is what keeps the good therapists visible to the next person."
+      />
+
       <Card className="space-y-5 p-5">
         <div>
           <p className="text-sm font-semibold text-slate-900">
@@ -232,6 +241,16 @@ export function RatingForm({
         reported={reported}
         setReported={setReported}
       />
+    </div>
+  );
+}
+
+function Heading({ date, title, blurb }: { date: string; title: string; blurb?: string }) {
+  return (
+    <div>
+      <p className="text-xs font-bold tracking-wider text-teal-600 uppercase">{date}</p>
+      <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
+      {blurb ? <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{blurb}</p> : null}
     </div>
   );
 }

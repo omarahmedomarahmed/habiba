@@ -707,29 +707,14 @@ export const taxonomyEntries = pgTable(
 
 // ---------------------------------------------------------------- feedback ---
 
-/** What a patient can say about a session in one tap. */
-export const THERAPIST_TAGS = [
-  "Listened properly",
-  "Felt safe",
-  "Practical advice",
-  "Explained things clearly",
-  "Non-judgemental",
-  "Right amount of challenge",
-  "Rushed",
-  "Distracted",
-  "Talked over me",
-  "Not the right fit",
-] as const;
-
-export const SERVICE_TAGS = [
-  "Easy to find someone",
-  "Connected quickly",
-  "Good audio and video",
-  "Worth the money",
-  "Hard to use",
-  "Connection problems",
-  "Too expensive",
-] as const;
+/*
+ * The tag lists live in `lib/feedback-options.ts` and are re-exported here.
+ *
+ * They are read by a client component, and this module imports the ORM — one
+ * `import { THERAPIST_TAGS } from "@/lib/db/schema"` in a form is drizzle in
+ * the browser bundle.
+ */
+export { SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback-options";
 
 /**
  * One patient's verdict on one session.
