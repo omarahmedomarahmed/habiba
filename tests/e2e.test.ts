@@ -219,7 +219,20 @@ test("ending the session generates a note the therapist can approve", async () =
 
   await page.getByRole("button", { name: "Approve note" }).click();
   await page.waitForSelector("text=Note approved", { timeout: 30_000 });
-  await page.getByRole("button", { name: /Send to patient|Send again/ }).waitFor({ timeout: 15_000 });
+
+  /*
+   * There is no "send to patient" button, and its absence is the assertion.
+   *
+   * A clinician emailing a chart to any address they type was one tap. The
+   * patient pulls their own brief instead — by rating the session — so what
+   * signing the note does is *release* it, and the card says so.
+   */
+  await page.waitForSelector("text=Their summary is ready to release", { timeout: 15_000 });
+  assert.equal(
+    await page.getByRole("button", { name: /Send to patient|Send again/ }).count(),
+    0,
+    "a clinician must have no way to email a record out of the product",
+  );
 });
 
 /**
