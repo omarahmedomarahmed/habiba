@@ -21,6 +21,26 @@ export const maxDuration = 300;
  * Authenticated with a shared secret, because a cron endpoint that anyone can
  * hit is a free way to make the platform do work — and `retention` deletes
  * rows.
+ *
+ * ## Why the schedules are what they are
+ *
+ * Every one of these opens a database connection, and the database bills by
+ * the hour it is *awake*, not by the work it does. Neon suspends an idle
+ * compute after five minutes; a job running every five minutes therefore wakes
+ * it forever and it never suspends once. That is exactly what happened: with
+ * nobody using the product at all — the last therapist heartbeat was seventeen
+ * hours earlier — the compute had been billed for twenty-six hours out of the
+ * thirty it had existed, because `crisis` ran every five minutes and reset
+ * the idle timer every time, just before it expired.
+ *
+ * So the interval is not about how often the work is *worth* doing. It is
+ * about how long the database gets to sleep between wakes. At a quarter of
+ * an hour it sleeps for roughly two thirds of every hour; at five minutes it
+ * never slept at all.
+ *
+ * The radar sweep moved *into* `crisis` for the same reason. It was never
+ * scheduled separately, and giving it its own entry would have bought a second
+ * set of wakes for work that costs nothing to do alongside the first.
  */
 const JOBS = {
   /**
@@ -30,7 +50,18 @@ const JOBS = {
    */
   async crisis() {
     const delivered = await sweepUndeliveredAlerts();
-    return { delivered };
+    // Folded in rather than scheduled separately — see the note above. Both
+    // are cheap sweeps and the expensive part is waking the database at all.
+    // Flattened rather than nested: the log field type is a flat map, and a
+    // nested object here is a type error at the call site rather than a
+    // helpfully structured log line.
+    const swept = await sweepRadar();
+    return {
+      delivered,
+      released: swept.released,
+      wentOffline: swept.offline,
+      abandoned: swept.abandoned,
+    };
   },
 
   /** Charge completed sessions that somehow produced no charge row. */
@@ -47,6 +78,14 @@ const JOBS = {
    * already treats an expired claim as available, so correctness does not
    * depend on this running. What it fixes is the public list advertising
    * someone who closed their laptop twenty minutes ago.
+   */
+  /**
+   * The radar sweep, still reachable by hand.
+   *
+   * Not on a schedule of its own — `crisis` runs it. Kept as a named job
+   * because "put everyone's status back where it should be, now" is a thing
+   * you want to be able to do from a terminal at the exact moment something
+   * looks wrong, without waiting a quarter of an hour.
    */
   async radar() {
     return sweepRadar();

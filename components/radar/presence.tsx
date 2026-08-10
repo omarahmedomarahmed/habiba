@@ -21,7 +21,17 @@ import { cn } from "@/lib/utils";
  * somebody is live.
  */
 const PING_LIVE_MS = 5_000;
-const PING_IDLE_MS = 20_000;
+/*
+ * A minute when they are off the board, and nothing at all when the tab is
+ * hidden.
+ *
+ * An offline clinician is not being advertised to anybody, so nothing depends
+ * on this being fast — it exists only to notice that they switched themselves
+ * on somewhere else. It matters because the database bills by the hour it is
+ * awake: one portal tab left open overnight on a twenty-second poll keeps it
+ * awake until morning, for a person who is not even on the radar.
+ */
+const PING_IDLE_MS = 60_000;
 
 type Status = "offline" | "online" | "pending" | "in_session";
 
