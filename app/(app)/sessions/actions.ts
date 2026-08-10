@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { generateAndStoreNote } from "@/lib/ai/notes";
 import { audit, auditPhi } from "@/lib/audit";
@@ -279,3 +279,31 @@ export async function approveNote(sessionId: string): Promise<SessionActionState
  * A patient wanting their *full* record asks us, and an administrator sends it
  * to the address on their chart (see `lib/data/export.ts`).
  */
+
+/**
+ * Tell the server the microphone stopped, so the patient's screen can say so.
+ *
+ * Off-record was a purely client-side state: the recorder stopped uploading
+ * and nothing else knew. The clinician pressed the button so the clinician
+ * knows; the patient — the person whose words are being recorded, and who
+ * agreed to it on that basis — had no way of seeing that it had changed. That
+ * asymmetry is not acceptable in a room where consent is the whole basis of
+ * the recording.
+ */
+export async function setRecordingPaused(
+  sessionId: string,
+  paused: boolean,
+): Promise<{ ok: boolean }> {
+  const actor = await requireUser();
+  await db
+    .update(sessions)
+    .set({ recordingPausedAt: paused ? new Date() : null })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.organizationId, actor.organizationId),
+        eq(sessions.therapistId, actor.userId),
+      ),
+    );
+  return { ok: true };
+}

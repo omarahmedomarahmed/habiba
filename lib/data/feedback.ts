@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, avg, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, avg, count, desc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -142,9 +142,26 @@ export async function submitFeedback(
       comment: input.comment.trim().slice(0, 2000) || null,
       patientEmail: email,
     })
-    // Second submission is a no-op rather than an error. Somebody pressing the
-    // button twice on a slow connection should get their summary, not a scold.
-    .onConflictDoNothing({ target: sessionFeedback.sessionId })
+    /*
+     * Completes the row rather than skipping it.
+     *
+     * A patient who rated us on the way in already has a row, and
+     * `onConflictDoNothing` would have silently discarded everything they said
+     * about the session afterwards — the part that actually matters to the
+     * clinician. `briefSentAt` is deliberately not touched, so a resubmission
+     * cannot cause a second email.
+     */
+    .onConflictDoUpdate({
+      target: sessionFeedback.sessionId,
+      set: {
+        therapistStars: stars(input.therapistStars),
+        serviceStars: stars(input.serviceStars),
+        therapistTags: input.therapistTags.slice(0, 10),
+        serviceTags: input.serviceTags.slice(0, 10),
+        comment: input.comment.trim().slice(0, 2000) || null,
+        patientEmail: email,
+      },
+    })
     .returning({ id: sessionFeedback.id });
 
   /*
@@ -168,6 +185,63 @@ export async function submitFeedback(
     .where(and(eq(sessions.id, row.id), isNull(sessions.guestEmail)));
 
   if (inserted.length === 0) log.info("duplicate feedback ignored");
+  return { ok: true };
+}
+
+/**
+ * The rating a patient gives on the way in.
+ *
+ * Asked while they are sitting in the waiting room, because that is the one
+ * moment they have nothing else to do and the question — "how easy was it to
+ * find someone?" — is about the only part of this they have experienced yet.
+ * Asking it afterwards gets an answer coloured by the session, which is a
+ * different question we ask separately.
+ *
+ * Creates the row the post-session form later completes. Idempotent: coming
+ * back to the waiting room does not overwrite what they already said.
+ */
+export async function recordArrival(input: {
+  token: string;
+  serviceStars: number;
+  email: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const [row] = await db
+    .select({
+      id: sessions.id,
+      organizationId: sessions.organizationId,
+      therapistId: sessions.therapistId,
+    })
+    .from(sessions)
+    .where(eq(sessions.joinToken, input.token))
+    .limit(1);
+
+  if (!row) return { error: "This link is no longer valid." };
+
+  const email = input.email.trim().toLowerCase();
+  const stars = Math.min(5, Math.max(1, Math.round(input.serviceStars)));
+
+  await db
+    .insert(sessionFeedback)
+    .values({
+      sessionId: row.id,
+      organizationId: row.organizationId,
+      therapistId: row.therapistId,
+      serviceStars: stars,
+      patientEmail: email || null,
+      arrivedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: sessionFeedback.sessionId,
+      set: { serviceStars: stars, arrivedAt: new Date() },
+    });
+
+  if (email) {
+    await db
+      .update(sessions)
+      .set({ guestEmail: email })
+      .where(and(eq(sessions.id, row.id), isNull(sessions.guestEmail)));
+  }
+
   return { ok: true };
 }
 
@@ -237,6 +311,9 @@ export async function therapistRatings(): Promise<Map<string, Rating>> {
       total: count(),
     })
     .from(sessionFeedback)
+    // Only completed ratings. An arrival row has no therapist score yet, and
+    // counting it would drag every average toward nothing.
+    .where(isNotNull(sessionFeedback.therapistStars))
     .groupBy(sessionFeedback.therapistId);
 
   return new Map(
@@ -256,18 +333,22 @@ export async function feedbackForTherapist(therapistId: string, limit = 30) {
       total: count(),
     })
     .from(sessionFeedback)
-    .where(eq(sessionFeedback.therapistId, therapistId));
+    .where(
+      and(eq(sessionFeedback.therapistId, therapistId), isNotNull(sessionFeedback.therapistStars)),
+    );
 
   const recent = await db
     .select({
       id: sessionFeedback.id,
-      stars: sessionFeedback.therapistStars,
+      stars: sql<number>`COALESCE(${sessionFeedback.therapistStars}, 0)`,
       tags: sessionFeedback.therapistTags,
       comment: sessionFeedback.comment,
       createdAt: sessionFeedback.createdAt,
     })
     .from(sessionFeedback)
-    .where(eq(sessionFeedback.therapistId, therapistId))
+    .where(
+      and(eq(sessionFeedback.therapistId, therapistId), isNotNull(sessionFeedback.therapistStars)),
+    )
     .orderBy(desc(sessionFeedback.createdAt))
     .limit(limit);
 
@@ -433,4 +514,105 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
       .where(eq(sessions.id, sessionId));
   }
   return sent;
+}
+
+/* ------------------------------------------------------- abandoned rooms -- */
+
+/** How long a patient sits in an empty room before we call it abandonment. */
+export const ABANDON_AFTER_MINUTES = 10;
+
+/**
+ * Find patients who were left sitting in a room, and act on it.
+ *
+ * The reporting path needs the patient to come back and tell us. Most will not
+ * — somebody who reached out at their worst moment and got nobody is not
+ * likely to fill in a form about it. So this catches it without them: a
+ * session where the patient joined, ten minutes passed, and the clinician
+ * never started.
+ *
+ * The escalation is a warning first, then a real suspension, then an
+ * indefinite one, because the first time is usually a laptop that went to
+ * sleep and the third time is a pattern. Every step is emailed, in plain words,
+ * with what happens next — a clinician who finds themselves off the radar
+ * should never have to guess why.
+ */
+export async function sweepAbandonedPatients(): Promise<{ warned: number; suspended: number }> {
+  const cutoff = new Date(Date.now() - ABANDON_AFTER_MINUTES * 60_000);
+
+  const abandoned = await db
+    .select({
+      sessionId: sessions.id,
+      organizationId: sessions.organizationId,
+      therapistId: sessions.therapistId,
+      guestEmail: sessions.guestEmail,
+    })
+    .from(sessions)
+    .leftJoin(sessionReports, eq(sessionReports.sessionId, sessions.id))
+    .where(
+      and(
+        isNotNull(sessions.patientJoinedAt),
+        isNull(sessions.startedAt),
+        lt(sessions.patientJoinedAt, cutoff),
+        eq(sessions.status, "scheduled"),
+        // Not already recorded — the patient may have reported it themselves.
+        isNull(sessionReports.id),
+      ),
+    )
+    .limit(50);
+
+  let warned = 0;
+  let suspended = 0;
+
+  for (const row of abandoned) {
+    const prior = await countNoShows(row.therapistId);
+
+    await db.insert(sessionReports).values({
+      sessionId: row.sessionId,
+      organizationId: row.organizationId,
+      therapistId: row.therapistId,
+      kind: "no_show",
+      detail: `Automatic: the patient joined and waited ${ABANDON_AFTER_MINUTES} minutes; the session was never started.`,
+      patientEmail: row.guestEmail,
+      status: "actioned",
+      resolvedAt: new Date(),
+    });
+
+    /*
+     * The first one is a warning with no suspension.
+     *
+     * A laptop that slept, a browser that lost the tab, a notification that
+     * did not fire — the first time is usually one of those, and taking
+     * somebody's livelihood away over it would be wrong. The second time it is
+     * a pattern, and a patient in crisis paid for it.
+     */
+    const penalty = prior === 0 ? null : suspensionFor(prior - 1);
+    if (penalty) {
+      await suspendFromRadar(row.therapistId, penalty.hours, "A patient was left waiting");
+      suspended += 1;
+    } else {
+      warned += 1;
+    }
+
+    const [therapist] = await db
+      .select({ email: users.email, firstName: users.firstName })
+      .from(users)
+      .where(eq(users.id, row.therapistId))
+      .limit(1);
+
+    if (therapist) {
+      const { sendTherapistMessage } = await import("@/lib/mail");
+      await sendTherapistMessage({
+        to: therapist.email,
+        firstName: therapist.firstName,
+        subject: penalty
+          ? "You have been taken off the Crisis Radar"
+          : "A patient was waiting for you",
+        body: penalty
+          ? `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session.\n\nThis has happened before, so you are off the radar for ${penalty.label}. Your own patients and the rest of your portal are unaffected.\n\nBeing on the radar is a promise that you are there. If you cannot be, switch yourself off — there is no penalty for being unavailable, only for being unavailable while advertised as available.\n\nIf you believe this is wrong, reply to this email.`
+          : `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session, so they left without being seen.\n\nThis is a warning, not a suspension — the first time is usually a laptop that went to sleep or a notification that did not arrive. Please check that notifications and sound are allowed in your browser on the device you keep open.\n\nIf it happens again you will be taken off the radar for 24 hours, and for longer after that. Being on the radar is a promise that you are there; if you cannot be, switch yourself off. There is no penalty for being unavailable.`,
+      });
+    }
+  }
+
+  return { warned, suspended };
 }

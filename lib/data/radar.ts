@@ -597,9 +597,9 @@ export type RadarAttention =
   /** Someone has their profile open and is deciding. No session exists yet. */
   | { kind: "viewing" }
   /** They submitted the form; a session exists and payment is in flight. */
-  | { kind: "booking"; sessionId: string }
+  | { kind: "booking"; sessionId: string; patientName: string | null; waiting: boolean }
   /** Paid and on their way in. */
-  | { kind: "confirmed"; sessionId: string };
+  | { kind: "confirmed"; sessionId: string; patientName: string | null; waiting: boolean };
 
 export async function pendingBooking(userId: string): Promise<RadarAttention | null> {
   const [row] = await db
@@ -607,19 +607,39 @@ export async function pendingBooking(userId: string): Promise<RadarAttention | n
       status: therapistRadar.status,
       sessionId: therapistRadar.pendingSessionId,
       pendingUntil: therapistRadar.pendingUntil,
+      /*
+       * Whether there is a person sitting in the room right now.
+       *
+       * This is the difference between "somebody has booked you" and "somebody
+       * is waiting for you", and the alarm should not sound the same for both.
+       * A patient who has joined and is watching an empty screen is the single
+       * most urgent state this product has.
+       */
+      patientJoinedAt: sessions.patientJoinedAt,
+      startedAt: sessions.startedAt,
+      guestName: sessions.guestName,
     })
     .from(therapistRadar)
+    .leftJoin(sessions, eq(sessions.id, therapistRadar.pendingSessionId))
     .where(eq(therapistRadar.userId, userId))
     .limit(1);
 
   if (!row) return null;
+
+  const waiting = Boolean(row.patientJoinedAt && !row.startedAt);
+  const patientName = row.guestName ?? null;
+
   if (row.status === "in_session") {
-    return row.sessionId ? { kind: "confirmed", sessionId: row.sessionId } : null;
+    return row.sessionId
+      ? { kind: "confirmed", sessionId: row.sessionId, patientName, waiting }
+      : null;
   }
   if (row.status !== "pending") return null;
   if (row.pendingUntil && row.pendingUntil < new Date()) return null;
 
-  return row.sessionId ? { kind: "booking", sessionId: row.sessionId } : { kind: "viewing" };
+  return row.sessionId
+    ? { kind: "booking", sessionId: row.sessionId, patientName, waiting }
+    : { kind: "viewing" };
 }
 
 export async function notifyIncomingBooking(opts: {

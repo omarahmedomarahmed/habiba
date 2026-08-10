@@ -126,11 +126,15 @@ export async function radarCommandView(): Promise<CommandView> {
         JOIN ${sessions} s ON s.id = p.session_id
         WHERE s.therapist_id = ${users.id} AND p.created_at >= ${since}
       )`,
+      // Completed ratings only. An arrival row has no therapist score yet, and
+      // counting it would drag the average toward nothing.
       ratingAverage: sql<number | null>`(
-        SELECT AVG(f.therapist_stars) FROM ${sessionFeedback} f WHERE f.therapist_id = ${users.id}
+        SELECT AVG(f.therapist_stars) FROM ${sessionFeedback} f
+        WHERE f.therapist_id = ${users.id} AND f.therapist_stars IS NOT NULL
       )`,
       ratingCount: sql<number>`(
-        SELECT COUNT(*)::int FROM ${sessionFeedback} f WHERE f.therapist_id = ${users.id}
+        SELECT COUNT(*)::int FROM ${sessionFeedback} f
+        WHERE f.therapist_id = ${users.id} AND f.therapist_stars IS NOT NULL
       )`,
       openReports: sql<number>`(
         SELECT COUNT(*)::int FROM ${sessionReports} r
@@ -336,4 +340,56 @@ export async function liveSince(): Promise<Date | null> {
     .from(therapistRadar)
     .where(gte(therapistRadar.lastSeenAt, new Date(Date.now() - 3600_000)));
   return row?.latest ?? null;
+}
+
+/* ---------------------------------------------------------------- ratings -- */
+
+/**
+ * Every rating, across every clinician, for whoever runs this.
+ *
+ * Two columns that are deliberately never joined to a name: `comment` and the
+ * tags are shown with a date and a clinician, and nothing else. There is no
+ * patient identifier on this screen and no way to reach one from it — the
+ * promise on the rating form is that the person who wrote it stays anonymous,
+ * and a promise that holds for the therapist but not for us is not a promise.
+ */
+export async function allRatings(limit = 200) {
+  const rows = await db
+    .select({
+      id: sessionFeedback.id,
+      therapistStars: sessionFeedback.therapistStars,
+      serviceStars: sessionFeedback.serviceStars,
+      therapistTags: sessionFeedback.therapistTags,
+      serviceTags: sessionFeedback.serviceTags,
+      comment: sessionFeedback.comment,
+      createdAt: sessionFeedback.createdAt,
+      arrivedAt: sessionFeedback.arrivedAt,
+      therapistId: sessionFeedback.therapistId,
+      therapistFirst: users.firstName,
+      therapistLast: users.lastName,
+      country: therapistRadar.country,
+    })
+    .from(sessionFeedback)
+    .innerJoin(users, eq(users.id, sessionFeedback.therapistId))
+    .leftJoin(therapistRadar, eq(therapistRadar.userId, sessionFeedback.therapistId))
+    .orderBy(desc(sessionFeedback.createdAt))
+    .limit(limit);
+
+  const rated = rows.filter((row) => row.therapistStars !== null);
+  const serviceRated = rows.filter((row) => row.serviceStars !== null);
+
+  const mean = (values: number[]) =>
+    values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : 0;
+
+  return {
+    rows,
+    summary: {
+      total: rows.length,
+      completed: rated.length,
+      therapistAverage: mean(rated.map((r) => r.therapistStars!)),
+      serviceAverage: mean(serviceRated.map((r) => r.serviceStars)),
+      /** One to three stars about us is a complaint, and worth counting alone. */
+      unhappyWithUs: serviceRated.filter((r) => r.serviceStars <= 3).length,
+    },
+  };
 }

@@ -351,6 +351,14 @@ export const sessions = pgTable(
       .default("not_required"),
 
     patientJoinedAt: timestamp("patient_joined_at", { withTimezone: true }),
+    /**
+     * Null while the microphone is running; a timestamp while it is paused.
+     *
+     * Off-record used to be client state only, which meant the person who
+     * agreed to be recorded was the one person who could not tell when the
+     * recording stopped. Persisted so the patient's own screen can show it.
+     */
+    recordingPausedAt: timestamp("recording_paused_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
@@ -743,8 +751,17 @@ export const sessionFeedback = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
-    therapistStars: integer("therapist_stars").notNull(),
+    /**
+     * Null until the session is over.
+     *
+     * The row is created the moment the patient walks in and rates *us* —
+     * "how easy was it to find someone" — and completed when they rate the
+     * session afterwards. One row, two moments.
+     */
+    therapistStars: integer("therapist_stars"),
     serviceStars: integer("service_stars").notNull(),
+    /** When they rated us on the way in, if they did. */
+    arrivedAt: timestamp("arrived_at", { withTimezone: true }),
     therapistTags: jsonb("therapist_tags").$type<string[]>().default([]).notNull(),
     serviceTags: jsonb("service_tags").$type<string[]>().default([]).notNull(),
     /** Shown to the clinician without a name attached. */

@@ -1,17 +1,19 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
+import { CreditCard, Loader2, ShieldCheck, Star } from "lucide-react";
 
 import {
   checkJoinState,
+  rateOnArrival,
   resumeAfterPayment as resumeAction,
   submitJoin,
   type JoinState,
 } from "@/app/join/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
+import { cn } from "@/lib/utils";
 
 const INITIAL: JoinState = {};
 
@@ -57,6 +59,7 @@ export function JoinFlow({
   const [state, action] = useActionState(submitJoin, INITIAL);
   const [resumed, setResumed] = useState<JoinState | null>(null);
   const [live, setLive] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [ended, setEnded] = useState(false);
   const resuming = useRef(false);
 
@@ -86,6 +89,25 @@ export function JoinFlow({
       const result = await checkJoinState(token);
       if (result.ended) setEnded(true);
       if (result.live) setLive(true);
+      setRecording(result.recording);
+    }, 5000);
+    return () => clearInterval(poll);
+  }, [current.joined, live, token]);
+
+  /*
+   * Keep polling once the session is live, not only while waiting.
+   *
+   * The old loop stopped the moment the therapist started, which is exactly
+   * when the recording indicator starts mattering — the patient could no
+   * longer be told that the microphone had been paused, or that the session
+   * had ended.
+   */
+  useEffect(() => {
+    if (!current.joined || !live) return;
+    const poll = setInterval(async () => {
+      const result = await checkJoinState(token);
+      if (result.ended) setEnded(true);
+      setRecording(result.recording);
     }, 5000);
     return () => clearInterval(poll);
   }, [current.joined, live, token]);
@@ -137,6 +159,7 @@ export function JoinFlow({
        */
       return (
         <div className="fixed inset-0 z-50 flex flex-col bg-black">
+          <RecordingBar live={live} recording={recording} />
           <iframe
             src={current.videoUrl}
             title="Your session"
@@ -152,15 +175,29 @@ export function JoinFlow({
     }
 
     return (
-      <Card className="p-6 text-center">
-        <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-500" aria-hidden />
-        <p className="mt-3 text-base font-semibold text-slate-900">You are in the waiting room</p>
-        <p className="mt-1.5 text-sm text-slate-600">
-          {live
-            ? "Your therapist has started the session."
-            : "This page will update by itself when your therapist starts."}
-        </p>
-      </Card>
+      <div className="space-y-4">
+        <Card className="p-6 text-center">
+          <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-500" aria-hidden />
+          <p className="mt-3 text-base font-semibold text-slate-900">You are in the waiting room</p>
+          <p className="mt-1.5 text-sm text-slate-600">
+            {live
+              ? "Your therapist has started the session."
+              : "This page will update by itself when your therapist starts."}
+          </p>
+        </Card>
+
+        <RecordingCard live={live} recording={recording} />
+
+        {/*
+          Asked here because here is the only moment it is honest to ask.
+          ---------------------------------------------------------------
+          They are sitting doing nothing, and the question is about the only
+          part of this they have experienced so far — finding somebody. Ask it
+          afterwards and you get an answer about the therapy instead, which is
+          a different question we ask separately and anonymously.
+        */}
+        <ArrivalRating token={token} />
+      </div>
     );
   }
 
@@ -224,5 +261,159 @@ export function JoinFlow({
             : "Your session is private. Your therapist may record it to write their clinical notes."}
       </p>
     </form>
+  );
+}
+
+/**
+ * Whether the microphone is running, on the patient's own screen.
+ *
+ * Red means recording, amber means paused. The person whose words are being
+ * recorded is the last one who should have to ask, and until now they were the
+ * only one who could not tell — the clinician pressed the button, so the
+ * clinician knew, and the patient's screen said nothing either way.
+ *
+ * Over the video call it is a slim strip rather than a badge, because it has
+ * to be legible without competing with a human face.
+ */
+function RecordingBar({ live, recording }: { live: boolean; recording: boolean }) {
+  if (!live) return null;
+  return (
+    <div className="safe-top flex items-center justify-center gap-2 bg-black px-4 py-2 text-[12px] font-medium text-white/80">
+      <span
+        className={cn(
+          "h-2 w-2 shrink-0 rounded-full",
+          recording ? "live-dot bg-red-500" : "bg-amber-400",
+        )}
+      />
+      {recording ? "Recording" : "Recording paused by your therapist"}
+    </div>
+  );
+}
+
+function RecordingCard({ live, recording }: { live: boolean; recording: boolean }) {
+  if (!live) return null;
+  return (
+    <Card className="flex items-center gap-2.5 px-4 py-3">
+      <span
+        className={cn(
+          "h-2.5 w-2.5 shrink-0 rounded-full",
+          recording ? "live-dot bg-red-500" : "bg-amber-400",
+        )}
+      />
+      <p className="text-sm text-slate-700">
+        {recording ? (
+          <>
+            <span className="font-semibold text-slate-900">Recording.</span> The session is being
+            transcribed so your therapist can write their notes.
+          </>
+        ) : (
+          <>
+            <span className="font-semibold text-slate-900">Recording paused.</span> Your therapist
+            has stopped the recording for now.
+          </>
+        )}
+      </p>
+    </Card>
+  );
+}
+
+/**
+ * "How easy was it to find someone?"
+ *
+ * One question about *us*, answered before the session can colour it, plus the
+ * address to send their summary to. The line about rating the therapist
+ * afterwards is deliberately blunt: a patient asked to rate something on the
+ * way in will assume that was their chance to say what they thought, and then
+ * be surprised by a second form. Telling them plainly here is what makes the
+ * second one feel expected rather than nagging — and anonymity is the part
+ * that decides whether they answer it honestly, so it is said in the same
+ * breath.
+ */
+function ArrivalRating({ token }: { token: string }) {
+  const [stars, setStars] = useState(0);
+  const [email, setEmail] = useState("");
+  const [done, setDone] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  if (done) {
+    return (
+      <Card className="p-4">
+        <p className="text-sm font-semibold text-slate-900">Thank you</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          After the session you will be asked to rate the session and your therapist. That one is
+          <strong> completely anonymous</strong> — they never see who wrote it — and it is what
+          releases your written summary.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="space-y-3 p-4">
+      <div>
+        <p className="text-sm font-semibold text-slate-900">While you wait — how did we do?</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          Just about 24Therapy: how easy was it to find someone just now?
+        </p>
+      </div>
+
+      <div className="flex gap-1" role="radiogroup" aria-label="Rate 24Therapy">
+        {[1, 2, 3, 4, 5].map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={stars === value}
+            aria-label={`${value} out of 5`}
+            onClick={() => setStars(value)}
+            className="tap-target flex items-center justify-center"
+          >
+            <Star
+              className={cn(
+                "h-7 w-7 transition-colors",
+                value <= stars ? "fill-amber-400 text-amber-400" : "text-slate-200",
+              )}
+              aria-hidden
+            />
+          </button>
+        ))}
+      </div>
+
+      <div>
+        <label htmlFor="arrival-email" className="text-sm font-medium text-slate-800">
+          Where should we send your session summary?
+        </label>
+        <Input
+          id="arrival-email"
+          type="email"
+          inputMode="email"
+          autoCapitalize="none"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="mt-1.5"
+          placeholder="you@example.com"
+        />
+      </div>
+
+      <p className="rounded-xl bg-brand-50 px-3 py-2.5 text-xs leading-relaxed text-brand-900">
+        <strong>After the session</strong> you will be asked to rate the session and your therapist.
+        That rating is <strong>anonymous</strong> — your therapist sees the words, never who wrote
+        them — and completing it is what sends you your written summary.
+      </p>
+
+      <Button
+        full
+        disabled={pending || stars === 0}
+        onClick={() =>
+          startTransition(async () => {
+            await rateOnArrival(token, stars, email);
+            setDone(true);
+          })
+        }
+      >
+        {pending ? "Saving…" : "Send"}
+      </Button>
+    </Card>
   );
 }

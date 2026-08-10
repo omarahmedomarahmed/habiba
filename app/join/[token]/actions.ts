@@ -132,8 +132,45 @@ export async function resumeAfterPayment(token: string): Promise<JoinState> {
 }
 
 /** Polled by the waiting room until the clinician starts. */
-export async function checkJoinState(token: string): Promise<{ live: boolean; ended: boolean }> {
+export async function checkJoinState(
+  token: string,
+): Promise<{ live: boolean; ended: boolean; recording: boolean }> {
   const session = await resolveJoinToken(token);
-  if (!session) return { live: false, ended: true };
-  return { live: session.status === "in_progress", ended: false };
+  if (!session) return { live: false, ended: true, recording: false };
+
+  /*
+   * Whether the microphone is actually running, not merely whether a session
+   * exists.
+   *
+   * The patient is entitled to know this at a glance and at all times. A
+   * clinician can pause the recording mid-session, and a person who agreed to
+   * be recorded has to be able to see when that changed without asking.
+   */
+  const { db } = await import("@/lib/db");
+  const { sessions } = await import("@/lib/db/schema");
+  const { eq } = await import("drizzle-orm");
+
+  const [row] = await db
+    .select({ recordingPausedAt: sessions.recordingPausedAt })
+    .from(sessions)
+    .where(eq(sessions.id, session.id))
+    .limit(1);
+
+  const live = session.status === "in_progress";
+  return { live, ended: false, recording: live && !row?.recordingPausedAt };
+}
+
+/**
+ * The patient's word on us, given while they wait.
+ *
+ * Unauthenticated like everything else on this page — the join token is the
+ * credential, and it names one session.
+ */
+export async function rateOnArrival(
+  token: string,
+  serviceStars: number,
+  email: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const { recordArrival } = await import("@/lib/data/feedback");
+  return recordArrival({ token, serviceStars, email });
 }

@@ -9,7 +9,7 @@ import { TranscriptPanel, type TranscriptLine } from "@/components/clinical/tran
 import { VideoCall } from "@/components/session/video-call";
 import { Button } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
-import { endSession, goLive } from "@/app/(app)/sessions/actions";
+import { endSession, goLive, setRecordingPaused } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { cn, formatDuration } from "@/lib/utils";
 
@@ -264,6 +264,9 @@ export function SessionRoom(props: RoomProps) {
     setOffRecord(next);
     localRecorder.current?.setMuted(next);
     remoteRecorder.current?.setMuted(next);
+    // Fire and forget: the patient's indicator is allowed to lag a poll behind,
+    // and a failed write must never stop the clinician pausing the microphone.
+    void setRecordingPaused(props.sessionId, next);
   };
 
   const copyJoinLink = async () => {

@@ -4,6 +4,7 @@ import {
   Globe2,
   LayoutDashboard,
   Radio,
+  Star,
   Megaphone,
   ScrollText,
   ShieldCheck,
@@ -52,6 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </span>
             ) : null}
           </AdminLink>
+          <AdminLink href="/admin/ratings" icon={Star}>Ratings</AdminLink>
           <AdminLink href="/admin/vault" icon={Vault}>Vault</AdminLink>
           <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink>
           <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink>

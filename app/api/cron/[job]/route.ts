@@ -56,11 +56,17 @@ const JOBS = {
     // nested object here is a type error at the call site rather than a
     // helpfully structured log line.
     const swept = await sweepRadar();
+    // And the one that matters most: a patient sitting in an empty room
+    // because the clinician who advertised themselves never turned up.
+    const { sweepAbandonedPatients } = await import("@/lib/data/feedback");
+    const left = await sweepAbandonedPatients();
     return {
       delivered,
       released: swept.released,
       wentOffline: swept.offline,
       abandoned: swept.abandoned,
+      warned: left.warned,
+      suspended: left.suspended,
     };
   },
 

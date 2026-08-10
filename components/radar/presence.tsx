@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, BellRing, Eye, VolumeX } from "lucide-react";
+import { Bell, BellRing, Eye, Volume2, VolumeX } from "lucide-react";
 
 import { radarPing } from "@/app/(app)/on-call/actions";
 import type { RadarAttention } from "@/lib/data/radar";
@@ -62,6 +62,13 @@ export function RadarPresence({
   const active = status !== "offline";
   const [attention, setAttention] = useState<RadarAttention | null>(null);
   const [suspended, setSuspended] = useState<{ until: string; reason: string | null } | null>(null);
+  /*
+   * Silence *this* alarm, not all of them.
+   *
+   * Muting used to be permanent for the rest of the page's life, which meant a
+   * clinician who silenced one ring never heard the next patient either. It
+   * resets whenever a new booking arrives.
+   */
   const [muted, setMuted] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported",
@@ -186,7 +193,7 @@ export function RadarPresence({
    * crisis has paid and is waiting.
    */
   const notify = useCallback(
-    (title: string, body: string, sticky: boolean) => {
+    (title: string, body: string, sticky: boolean, href?: string) => {
       if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
       try {
         const notification = new Notification(title, {
@@ -195,8 +202,16 @@ export function RadarPresence({
           requireInteraction: sticky,
           silent: true, // We make our own noise, and it carries more meaning.
         });
+        /*
+         * Clicking the notification goes straight into the room.
+         *
+         * Not to the dashboard, not to the radar page — into the session. A
+         * clinician who has just been told a patient is waiting should be one
+         * tap from the patient, not one tap from a menu.
+         */
         notification.onclick = () => {
           window.focus();
+          if (href) window.location.assign(href);
           notification.close();
         };
       } catch {
@@ -287,17 +302,48 @@ export function RadarPresence({
     }
 
     if (alertOnBooking) {
+      // A new booking un-mutes. Silencing the last one was about the last one.
+      setMuted(false);
       beep("ring");
       notify(
-        attention.kind === "confirmed" ? "Your patient is joining" : "Someone is booking you",
-        attention.kind === "confirmed"
-          ? "They have paid. Open the room now."
-          : "They are paying. Be in the room when they arrive.",
+        attention.waiting
+          ? "Your patient is waiting in the room"
+          : attention.kind === "confirmed"
+            ? "Your patient is joining"
+            : "Someone is booking you",
+        attention.waiting
+          ? `${attention.patientName ?? "They"} has joined and is looking at an empty screen. Tap to go in.`
+          : attention.kind === "confirmed"
+            ? "They have paid and are on their way in. Tap to open the room."
+            : "They are paying now. Be in the room when they arrive.",
         true,
+        `/sessions/${attention.sessionId}/room`,
       );
-      alarmRef.current = window.setInterval(() => beep("ring"), 3_000);
     }
   }, [attention, alertOnView, alertOnBooking, beep, notify, stopAlarm]);
+
+  /*
+   * The ring, and how fast it goes.
+   *
+   * Kept in its own effect keyed on `waiting`, because the cadence has to
+   * change *during* an alarm rather than only when one starts: the moment the
+   * patient actually joins, the same booking becomes twice as urgent and the
+   * ringing has to say so without waiting for a new event.
+   *
+   * It does not stop on a timer. It stops when the clinician opens the room or
+   * silences it, because that is the only evidence that a human has noticed.
+   */
+  const ringing =
+    Boolean(attention) && attention?.kind !== "viewing" && alertOnBooking && !muted;
+  const waiting = attention?.kind !== "viewing" && Boolean(attention?.waiting);
+
+  useEffect(() => {
+    stopAlarm();
+    if (!ringing) return;
+    const every = waiting ? 1_200 : 3_000;
+    alarmRef.current = window.setInterval(() => beep("ring"), every);
+    return () => stopAlarm();
+  }, [ringing, waiting, beep, stopAlarm]);
 
   useEffect(() => stopAlarm, [stopAlarm]);
 
@@ -324,42 +370,71 @@ export function RadarPresence({
       ) : null}
 
       {attention && attention.kind !== "viewing" ? (
-        <div className="safe-bottom fixed inset-x-0 bottom-0 z-50 px-3 pb-3 lg:bottom-4 lg:left-auto lg:w-96 lg:pr-4">
-          <div className="animate-fade-rise rounded-2xl bg-navy-500 px-4 py-3.5 text-white shadow-2xl shadow-black/40">
+        <div className="safe-bottom fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 lg:bottom-4 lg:left-auto lg:w-96 lg:pr-4">
+          <div
+            className={cn(
+              "animate-fade-rise rounded-2xl px-4 py-3.5 text-white shadow-2xl shadow-black/40",
+              attention.waiting ? "bg-red-600" : "bg-navy-500",
+            )}
+          >
             <div className="flex items-start gap-2.5">
               <BellRing className="live-dot mt-0.5 h-4 w-4 shrink-0 text-teal-300" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">
-                  {attention.kind === "confirmed"
-                    ? "Your patient is joining"
-                    : "Someone is booking you"}
+                  {attention.waiting
+                    ? `${attention.patientName ?? "Your patient"} is waiting for you`
+                    : attention.kind === "confirmed"
+                      ? "Your patient is joining"
+                      : "Someone is booking you"}
                 </p>
-                <p className="mt-0.5 text-xs text-white/70">
-                  {attention.kind === "confirmed"
-                    ? "They have paid and are on their way into the room."
-                    : "They are paying now. Open the room and be there when they arrive."}
+                <p className="mt-0.5 text-xs text-white/80">
+                  {attention.waiting
+                    ? "They are in the room now, looking at an empty screen. Go in."
+                    : attention.kind === "confirmed"
+                      ? "They have paid and are on their way into the room."
+                      : "They are paying now. Open the room and be there when they arrive."}
                 </p>
               </div>
+
+              {/*
+                Silence this ring, not every future one.
+                ---------------------------------------
+                It used to mute permanently for the life of the page, so a
+                clinician who quieted one alarm never heard the next patient.
+                The banner stays, because silence must not mean "dismissed" —
+                somebody is still waiting.
+              */}
               <button
                 type="button"
-                onClick={() => {
-                  setMuted(true);
-                  stopAlarm();
-                }}
-                aria-label="Silence the alarm"
-                className="tap-target flex items-center justify-center text-white/50 hover:text-white"
+                onClick={() => setMuted((m) => !m)}
+                aria-label={muted ? "Unmute the alarm" : "Silence this alarm"}
+                aria-pressed={muted}
+                className="tap-target flex shrink-0 items-center justify-center rounded-lg text-white/60 hover:text-white"
               >
-                <VolumeX className="h-4 w-4" aria-hidden />
+                {muted ? (
+                  <Volume2 className="h-4 w-4" aria-hidden />
+                ) : (
+                  <VolumeX className="h-4 w-4" aria-hidden />
+                )}
               </button>
             </div>
 
             <Link
               href={`/sessions/${attention.sessionId}/room`}
               onClick={stopAlarm}
-              className="mt-3 flex h-11 items-center justify-center rounded-xl bg-teal-500 text-sm font-semibold text-white"
+              className={cn(
+                "mt-3 flex h-12 items-center justify-center rounded-xl text-sm font-semibold",
+                attention.waiting ? "bg-white text-red-700" : "bg-teal-500 text-white",
+              )}
             >
-              Open the room
+              {attention.waiting ? "Go in now" : "Open the room"}
             </Link>
+
+            {muted ? (
+              <p className="mt-2 text-center text-[11px] text-white/60">
+                Sound off for this one. The next patient will still ring.
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
