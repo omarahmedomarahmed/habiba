@@ -299,7 +299,9 @@ test("a patient can join by link with no account", async () => {
   await patientPage.waitForSelector("text=Join your session");
   await patientPage.fill("#name", "Sam");
   await patientPage.getByRole("button", { name: "Join session" }).click();
-  await patientPage.waitForSelector("text=waiting room", { timeout: 30_000 });
+  // The room, not a holding card: it names the clinician and says what
+  // happens afterwards, whether or not the call itself has started.
+  await patientPage.waitForSelector("text=Keep this tab open", { timeout: 30_000 });
 
   await anonymous.close();
 });
@@ -349,7 +351,9 @@ test("a stranger can book a therapist off the public radar", async () => {
   await patientPage.getByRole("button", { name: "Start now" }).click();
 
   await patientPage.waitForURL(/\/join\//, { timeout: 30_000 });
-  await patientPage.waitForSelector("text=waiting room", { timeout: 30_000 });
+  // The room, not a holding card: it names the clinician and says what
+  // happens afterwards, whether or not the call itself has started.
+  await patientPage.waitForSelector("text=Keep this tab open", { timeout: 30_000 });
 
   await anonymous.close();
 
@@ -410,9 +414,9 @@ test("a session with a price will not admit a patient who has not paid", async (
   await patientPage.waitForSelector('[role="alert"]', { timeout: 30_000 });
   assert.equal(await patientPage.locator("iframe").count(), 0, "no room may be handed over");
   assert.equal(
-    await patientPage.locator("text=waiting room").count(),
+    await patientPage.locator("text=Keep this tab open").count(),
     0,
-    "an unpaid patient must not reach the waiting room",
+    "an unpaid patient must not reach the session room",
   );
 
   await anonymous.close();

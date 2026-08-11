@@ -759,6 +759,9 @@ export const sessionFeedback = pgTable(
      * session afterwards. One row, two moments.
      */
     therapistStars: integer("therapist_stars"),
+    /** Was the half hour any use — separate from whether the person was right. */
+    sessionStars: integer("session_stars"),
+    /** The app itself. Asked on arrival, before the session can colour it. */
     serviceStars: integer("service_stars").notNull(),
     /** When they rated us on the way in, if they did. */
     arrivedAt: timestamp("arrived_at", { withTimezone: true }),

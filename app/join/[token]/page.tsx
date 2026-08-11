@@ -7,6 +7,9 @@ import { confirmCheckout } from "@/lib/billing/stripe";
 import { feedbackContext } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
+import { db } from "@/lib/db";
+import { therapistRadar, users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { callerKey, releaseHold } from "@/lib/rate-limit";
 
 export const metadata: Metadata = {
@@ -68,9 +71,35 @@ export default async function JoinPage({
     );
   }
 
+  /*
+   * Who the patient is about to talk to.
+   *
+   * The room used to be a bare video frame with no indication of whose face
+   * was about to appear. A person in crisis who booked ninety seconds ago
+   * deserves to see the name and the credentials of the clinician they picked,
+   * on the screen, while they wait.
+   */
+  const [clinician] = await db
+    .select({
+      firstName: users.firstName,
+      lastName: users.lastName,
+      profile: users.profile,
+      languages: therapistRadar.languages,
+    })
+    .from(users)
+    .leftJoin(therapistRadar, eq(therapistRadar.userId, users.id))
+    .where(eq(users.id, session.therapistId))
+    .limit(1);
+
   return (
     <Shell>
       <JoinFlow
+        therapist={{
+          name: [clinician?.firstName, clinician?.lastName].filter(Boolean).join(" ") || "Your therapist",
+          firstName: clinician?.firstName ?? "your therapist",
+          credentials: clinician?.profile?.credentials ?? null,
+          languages: clinician?.languages ?? [],
+        }}
         token={token}
         modality={session.modality}
         priceCents={session.priceCents}

@@ -134,9 +134,9 @@ export async function resumeAfterPayment(token: string): Promise<JoinState> {
 /** Polled by the waiting room until the clinician starts. */
 export async function checkJoinState(
   token: string,
-): Promise<{ live: boolean; ended: boolean; recording: boolean }> {
+): Promise<{ live: boolean; ended: boolean; recording: boolean; startedAt: string | null }> {
   const session = await resolveJoinToken(token);
-  if (!session) return { live: false, ended: true, recording: false };
+  if (!session) return { live: false, ended: true, recording: false, startedAt: null };
 
   /*
    * Whether the microphone is actually running, not merely whether a session
@@ -151,13 +151,21 @@ export async function checkJoinState(
   const { eq } = await import("drizzle-orm");
 
   const [row] = await db
-    .select({ recordingPausedAt: sessions.recordingPausedAt })
+    .select({
+      recordingPausedAt: sessions.recordingPausedAt,
+      startedAt: sessions.startedAt,
+    })
     .from(sessions)
     .where(eq(sessions.id, session.id))
     .limit(1);
 
   const live = session.status === "in_progress";
-  return { live, ended: false, recording: live && !row?.recordingPausedAt };
+  return {
+    live,
+    ended: false,
+    recording: live && !row?.recordingPausedAt,
+    startedAt: row?.startedAt?.toISOString() ?? null,
+  };
 }
 
 /**

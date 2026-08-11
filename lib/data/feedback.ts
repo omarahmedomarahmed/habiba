@@ -43,6 +43,8 @@ export type FeedbackContext = {
   /** Null while the clinician has not finished writing it up. */
   notePending: boolean;
   paidCents: number;
+  /** True when they already rated the app on the way in — do not ask twice. */
+  ratedApp: boolean;
 };
 
 export async function feedbackContext(token: string): Promise<FeedbackContext | null> {
@@ -62,6 +64,8 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
       noteLanguage: sessionNotes.language,
       noteStatus: sessionNotes.status,
       feedbackId: sessionFeedback.id,
+      arrivedAt: sessionFeedback.arrivedAt,
+      therapistStars: sessionFeedback.therapistStars,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.therapistId))
@@ -89,7 +93,10 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     therapistFirstName: row.therapistFirst,
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
     sessionDate: ended,
-    done: Boolean(row.feedbackId),
+    // "Done" means the session was rated, not that a row exists — an arrival
+    // rating creates the row long before the session is over.
+    done: row.therapistStars !== null,
+    ratedApp: Boolean(row.arrivedAt),
     brief: signed ? (row.noteContent?.patientBrief ?? row.noteContent?.summary ?? null) : null,
     briefLanguage: row.noteLanguage ?? "en",
     notePending: !signed,
@@ -100,6 +107,8 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
 export type FeedbackInput = {
   token: string;
   therapistStars: number;
+  sessionStars: number;
+  /** Zero when they already rated the app on arrival and were not asked again. */
   serviceStars: number;
   therapistTags: string[];
   serviceTags: string[];
@@ -136,7 +145,8 @@ export async function submitFeedback(
       organizationId: row.organizationId,
       therapistId: row.therapistId,
       therapistStars: stars(input.therapistStars),
-      serviceStars: stars(input.serviceStars),
+      sessionStars: stars(input.sessionStars),
+      serviceStars: stars(input.serviceStars || input.sessionStars),
       therapistTags: input.therapistTags.slice(0, 10),
       serviceTags: input.serviceTags.slice(0, 10),
       comment: input.comment.trim().slice(0, 2000) || null,
@@ -155,7 +165,16 @@ export async function submitFeedback(
       target: sessionFeedback.sessionId,
       set: {
         therapistStars: stars(input.therapistStars),
-        serviceStars: stars(input.serviceStars),
+        sessionStars: stars(input.sessionStars),
+        /*
+         * The arrival rating wins if there is one.
+         *
+         * They answered "how easy was it to find someone" before the session,
+         * which is the only honest moment for that question. Overwriting it
+         * with an answer given after the therapy would be measuring something
+         * else entirely and calling it the same number.
+         */
+        ...(input.serviceStars > 0 ? { serviceStars: stars(input.serviceStars) } : {}),
         therapistTags: input.therapistTags.slice(0, 10),
         serviceTags: input.serviceTags.slice(0, 10),
         comment: input.comment.trim().slice(0, 2000) || null,

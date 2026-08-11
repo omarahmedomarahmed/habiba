@@ -59,6 +59,7 @@ export default async function FeedbackPage({
         notePending={context.notePending}
         alreadyDone={context.done}
         paid={context.paidCents > 0}
+        ratedApp={context.ratedApp}
       />
 
       <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">

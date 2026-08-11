@@ -30,6 +30,7 @@ export function RatingForm({
   notePending,
   alreadyDone,
   paid,
+  ratedApp,
 }: {
   token: string;
   sessionDate: string;
@@ -39,9 +40,12 @@ export function RatingForm({
   notePending: boolean;
   alreadyDone: boolean;
   paid: boolean;
+  /** They rated the app when the session began; do not ask a second time. */
+  ratedApp: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [therapistStars, setTherapistStars] = useState(0);
+  const [sessionStars, setSessionStars] = useState(0);
   const [serviceStars, setServiceStars] = useState(0);
   const [therapistTags, setTherapistTags] = useState<string[]>([]);
   const [serviceTags, setServiceTags] = useState<string[]>([]);
@@ -63,6 +67,7 @@ export function RatingForm({
       const result = await rateSession({
         token,
         therapistStars,
+        sessionStars,
         serviceStars,
         therapistTags,
         serviceTags,
@@ -139,7 +144,8 @@ export function RatingForm({
 
   /* ------------------------------------------------------------- form -- */
 
-  const ready = therapistStars > 0 && serviceStars > 0 && email.includes("@");
+  const ready =
+    therapistStars > 0 && sessionStars > 0 && (ratedApp || serviceStars > 0) && email.includes("@");
 
   return (
     <div className="space-y-4">
@@ -163,15 +169,35 @@ export function RatingForm({
         </div>
 
         <div className="border-t border-slate-100 pt-4">
-          <p className="text-sm font-semibold text-slate-900">And how was 24Therapy itself?</p>
-          <p className="text-xs text-slate-500">Finding someone, connecting, the app.</p>
-          <Stars value={serviceStars} onChange={setServiceStars} label="Rate the service" />
-          <TagRow
-            options={SERVICE_TAGS}
-            selected={serviceTags}
-            onToggle={(value) => toggle(serviceTags, setServiceTags, value)}
-          />
+          <p className="text-sm font-semibold text-slate-900">And the session itself?</p>
+          <p className="text-xs text-slate-500">
+            Whether this half hour was any use to you — a different question from whether
+            {" "}
+            {therapistFirstName} was the right person.
+          </p>
+          <Stars value={sessionStars} onChange={setSessionStars} label="Rate the session" />
         </div>
+
+        {/*
+          The app question only if it was not already answered.
+          -----------------------------------------------------
+          It is asked when the session starts, because "how easy was it to find
+          somebody" is about the part they have experienced and the therapy has
+          not yet coloured. Asking again here would collect a different feeling
+          under the same name.
+        */}
+        {!ratedApp ? (
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-sm font-semibold text-slate-900">And 24Therapy itself?</p>
+            <p className="text-xs text-slate-500">Finding someone, connecting, the app.</p>
+            <Stars value={serviceStars} onChange={setServiceStars} label="Rate the service" />
+            <TagRow
+              options={SERVICE_TAGS}
+              selected={serviceTags}
+              onToggle={(value) => toggle(serviceTags, setServiceTags, value)}
+            />
+          </div>
+        ) : null}
 
         <div className="border-t border-slate-100 pt-4">
           <label
@@ -226,7 +252,7 @@ export function RatingForm({
         </Button>
         {!ready ? (
           <p className="text-center text-xs text-slate-400">
-            Both ratings and an email address, and it is yours.
+            The ratings and an email address, and it is yours.
           </p>
         ) : null}
       </Card>

@@ -14,6 +14,8 @@ export type FeedbackState = { error?: string; ok?: boolean; sent?: boolean };
 export async function rateSession(input: {
   token: string;
   therapistStars: number;
+  sessionStars: number;
+  /** Zero when the app was already rated on arrival. */
   serviceStars: number;
   therapistTags: string[];
   serviceTags: string[];
