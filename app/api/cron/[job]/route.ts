@@ -26,21 +26,56 @@ export const maxDuration = 300;
  *
  * Every one of these opens a database connection, and the database bills by
  * the hour it is *awake*, not by the work it does. Neon suspends an idle
- * compute after five minutes; a job running every five minutes therefore wakes
- * it forever and it never suspends once. That is exactly what happened: with
- * nobody using the product at all — the last therapist heartbeat was seventeen
- * hours earlier — the compute had been billed for twenty-six hours out of the
- * thirty it had existed, because `crisis` ran every five minutes and reset
- * the idle timer every time, just before it expired.
+ * compute a set time after the last query — so the real cost of a cron is not
+ * its runtime, it is the whole idle timeout it resets on the way past.
  *
- * So the interval is not about how often the work is *worth* doing. It is
- * about how long the database gets to sleep between wakes. At a quarter of
- * an hour it sleeps for roughly two thirds of every hour; at five minutes it
- * never slept at all.
+ * The first version of this ran `crisis` every five minutes against a
+ * five-minute idle timeout, which meant the compute never suspended once: it
+ * was billed for twenty-six of the thirty hours it had existed, with nobody
+ * using the product at all.
  *
- * The radar sweep moved *into* `crisis` for the same reason. It was never
- * scheduled separately, and giving it its own entry would have bought a second
- * set of wakes for work that costs nothing to do alongside the first.
+ * Moving to a quarter of an hour was an improvement and not a fix. Four wakes
+ * an hour, each holding the database up for the full five-minute timeout, is
+ * twenty minutes in every sixty — a third of the clock, in perpetuity, for an
+ * idle product. Vercel's own logs made it plain: twenty-four hits on
+ * /api/cron/crisis in six hours and eleven on everything else combined.
+ *
+ * So the schedule is hourly, and the thing that used to justify running it
+ * often does not live here any more.
+ *
+ * ## What moved, and why that is the actual fix
+ *
+ * Of the three sweeps inside `crisis`, only one was time-critical: a patient
+ * left sitting in an empty room, which is measured in ten minutes. Catching
+ * that with a clock meant waking the database constantly to ask a question
+ * whose answer is almost always "nobody is waiting".
+ *
+ * It is now checked on the patient's own five-second poll instead — see
+ * `markAbandonedIfWaiting`. The event that matters is the patient waiting, and
+ * that patient is already talking to us. Nothing runs when nobody is waiting,
+ * and when somebody is, it fires at ten minutes rather than at whatever point
+ * the next cron happens to land.
+ *
+ * What is left here is a backstop for the one case the poll cannot see: a
+ * patient who closed the tab and walked away. An hour late is fine for that —
+ * it decides when a clinician's warning email is sent, not whether anyone gets
+ * help.
+ *
+ * The other two never needed the frequency. `sweepUndeliveredAlerts` retries
+ * notifications that have already been persisted, and `sweepRadar` is
+ * cosmetic: the reachability predicate excludes a stale clinician at query
+ * time, so the board is correct whether or not the sweep has run.
+ *
+ * The radar sweep lives *inside* `crisis` for the same billing reason. Giving
+ * it its own entry would buy a second set of wakes for work that costs nothing
+ * to do alongside the first.
+ *
+ * ## The other half of this, which is not in this file
+ *
+ * The idle timeout itself. At Neon's default of five minutes, one hourly cron
+ * still holds the compute up for five minutes an hour; at sixty seconds it is
+ * one. That is a project setting ("Scale to zero after"), not code, and it is
+ * worth strictly more than any schedule written here.
  */
 const JOBS = {
   /**

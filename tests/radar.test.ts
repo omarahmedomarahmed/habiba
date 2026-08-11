@@ -3,7 +3,14 @@ import { after, before, test } from "node:test";
 import { eq, inArray } from "drizzle-orm";
 
 import { db } from "../lib/db";
-import { organizations, rateLimits, sessions, therapistRadar, users } from "../lib/db/schema";
+import {
+  organizations,
+  rateLimits,
+  sessionReports,
+  sessions,
+  therapistRadar,
+  users,
+} from "../lib/db/schema";
 import {
   consume,
   networkOf,
@@ -462,4 +469,79 @@ test("a finished session still resolves for feedback, but not for joining", asyn
   const feedback = await feedbackContext(token);
   assert.ok(feedback, "the same token still reaches the feedback page");
   assert.equal(feedback.sessionId, sessionId);
+});
+
+/**
+ * The abandonment check, now that it hangs off the patient's poll.
+ *
+ * This moved out of the cron sweep to stop the database being woken four times
+ * an hour to ask a question whose answer is almost always "nobody is waiting".
+ * The move is only safe if the check is exact at the boundary and harmless
+ * when repeated — the poll runs every five seconds, so a version that filed a
+ * report each time would send a clinician several hundred warning emails while
+ * a patient sat there.
+ */
+test("a waiting patient is not called abandoned before the deadline", async () => {
+  const sessionId = await newSession();
+  const { markAbandonedIfWaiting, ABANDON_AFTER_MINUTES } = await import("../lib/data/feedback");
+
+  const justNow = new Date(Date.now() - (ABANDON_AFTER_MINUTES - 1) * 60_000);
+  await db.update(sessions).set({ patientJoinedAt: justNow }).where(eq(sessions.id, sessionId));
+
+  assert.equal(
+    await markAbandonedIfWaiting(sessionId, justNow, null),
+    false,
+    "nine minutes is a therapist who is nearly there, not a no-show",
+  );
+
+  const [report] = await db
+    .select({ id: sessionReports.id })
+    .from(sessionReports)
+    .where(eq(sessionReports.sessionId, sessionId))
+    .limit(1);
+  assert.equal(report, undefined);
+});
+
+test("past the deadline it is filed once, and the next poll does nothing", async () => {
+  const sessionId = await newSession();
+  const { markAbandonedIfWaiting, ABANDON_AFTER_MINUTES } = await import("../lib/data/feedback");
+
+  const waited = new Date(Date.now() - (ABANDON_AFTER_MINUTES + 1) * 60_000);
+  await db.update(sessions).set({ patientJoinedAt: waited }).where(eq(sessions.id, sessionId));
+
+  assert.equal(await markAbandonedIfWaiting(sessionId, waited, null), true);
+
+  const filed = await db
+    .select({ id: sessionReports.id, kind: sessionReports.kind })
+    .from(sessionReports)
+    .where(eq(sessionReports.sessionId, sessionId));
+  assert.equal(filed.length, 1);
+  assert.equal(filed[0]?.kind, "no_show");
+
+  // The poll fires again five seconds later. And again, and again.
+  assert.equal(await markAbandonedIfWaiting(sessionId, waited, null), false);
+  assert.equal(await markAbandonedIfWaiting(sessionId, waited, null), false);
+
+  const still = await db
+    .select({ id: sessionReports.id })
+    .from(sessionReports)
+    .where(eq(sessionReports.sessionId, sessionId));
+  assert.equal(still.length, 1, "one abandonment is one report, however often we are asked");
+});
+
+test("a session the clinician actually started is never abandoned", async () => {
+  const sessionId = await newSession();
+  const { markAbandonedIfWaiting, ABANDON_AFTER_MINUTES } = await import("../lib/data/feedback");
+
+  const waited = new Date(Date.now() - (ABANDON_AFTER_MINUTES + 30) * 60_000);
+  await db
+    .update(sessions)
+    .set({ patientJoinedAt: waited, startedAt: new Date(), status: "in_progress" })
+    .where(eq(sessions.id, sessionId));
+
+  assert.equal(
+    await markAbandonedIfWaiting(sessionId, waited, new Date()),
+    false,
+    "a long session is not an abandoned one",
+  );
 });

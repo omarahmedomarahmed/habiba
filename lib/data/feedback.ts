@@ -555,7 +555,15 @@ export const ABANDON_AFTER_MINUTES = 10;
  * with what happens next — a clinician who finds themselves off the radar
  * should never have to guess why.
  */
-export async function sweepAbandonedPatients(): Promise<{ warned: number; suspended: number }> {
+export async function sweepAbandonedPatients(
+  /**
+   * Narrow it to one session.
+   *
+   * Passed by `checkJoinState` — see `markAbandonedIfWaiting` below for why
+   * the patient's own poll is a better trigger for this than a clock is.
+   */
+  onlySessionId?: string,
+): Promise<{ warned: number; suspended: number }> {
   const cutoff = new Date(Date.now() - ABANDON_AFTER_MINUTES * 60_000);
 
   const abandoned = await db
@@ -573,8 +581,11 @@ export async function sweepAbandonedPatients(): Promise<{ warned: number; suspen
         isNull(sessions.startedAt),
         lt(sessions.patientJoinedAt, cutoff),
         eq(sessions.status, "scheduled"),
-        // Not already recorded — the patient may have reported it themselves.
+        // Not already recorded — the patient may have reported it themselves,
+        // and it is also what stops the patient's five-second poll filing the
+        // same report over and over.
         isNull(sessionReports.id),
+        ...(onlySessionId ? [eq(sessions.id, onlySessionId)] : []),
       ),
     )
     .limit(50);
@@ -634,4 +645,36 @@ export async function sweepAbandonedPatients(): Promise<{ warned: number; suspen
   }
 
   return { warned, suspended };
+}
+
+/**
+ * Notice the abandonment where it is already being watched.
+ *
+ * This used to be reached only by a cron sweep, and that is what forced the
+ * cron to run often: the clock had to catch a ten-minute deadline, so it woke
+ * the database four times an hour forever — whether or not a single patient
+ * was waiting anywhere in the world. The database bills by the hour it is
+ * awake, so we were paying continuously for the *ability* to notice something
+ * that almost never happens.
+ *
+ * The patient sitting in the empty room is already polling us every five
+ * seconds to ask whether their therapist has started. That poll is the event.
+ * Hanging the check on it inverts the economics — nothing at all runs when
+ * nobody is waiting — and it is also *faster*, because it fires at the ten
+ * minute mark rather than at whatever point the next cron happens to land.
+ *
+ * Cheap by construction: it returns without touching the database until the
+ * deadline has actually passed, and the `sessionReports` guard inside the
+ * sweep means the second poll after that does nothing either.
+ */
+export async function markAbandonedIfWaiting(
+  sessionId: string,
+  patientJoinedAt: Date | null,
+  startedAt: Date | null,
+): Promise<boolean> {
+  if (!patientJoinedAt || startedAt) return false;
+  if (Date.now() - patientJoinedAt.getTime() < ABANDON_AFTER_MINUTES * 60_000) return false;
+
+  const result = await sweepAbandonedPatients(sessionId);
+  return result.warned + result.suspended > 0;
 }

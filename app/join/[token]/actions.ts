@@ -154,12 +154,37 @@ export async function checkJoinState(
     .select({
       recordingPausedAt: sessions.recordingPausedAt,
       startedAt: sessions.startedAt,
+      patientJoinedAt: sessions.patientJoinedAt,
     })
     .from(sessions)
     .where(eq(sessions.id, session.id))
     .limit(1);
 
   const live = session.status === "in_progress";
+
+  /*
+   * The abandonment check rides on this poll rather than on a clock.
+   *
+   * A patient waiting in an empty room is the only circumstance in which
+   * anybody needs to ask "has this been abandoned?", and that patient is
+   * already asking us something every five seconds. Doing it here means the
+   * question is asked exactly when it is meaningful and never otherwise —
+   * which is what let the cron drop from four times an hour to once, and with
+   * it the database's bill. See `markAbandonedIfWaiting`.
+   *
+   * Deliberately not awaited into the response: whether the clinician gets
+   * their warning email this second or the next is not something the patient
+   * should wait on, and a failure here must not break the poll that tells them
+   * their session has started.
+   */
+  if (!live && row?.patientJoinedAt) {
+    const { after } = await import("next/server");
+    after(async () => {
+      const { markAbandonedIfWaiting } = await import("@/lib/data/feedback");
+      await markAbandonedIfWaiting(session.id, row.patientJoinedAt, row.startedAt);
+    });
+  }
+
   return {
     live,
     ended: false,
