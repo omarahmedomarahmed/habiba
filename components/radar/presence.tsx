@@ -1,10 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Bell, BellRing, Eye, Volume2, VolumeX } from "lucide-react";
 
 import { radarPing } from "@/app/(app)/on-call/actions";
+import {
+  alarmRemembered,
+  alarmServerSnapshot,
+  alarmSnapshot,
+  armAlarmAndAlerts,
+  flashTitle,
+  nudgeAlarm,
+  playTone,
+  startRinging,
+  stopFlashingTitle,
+  stopRinging,
+  subscribeAlarm,
+  type AlarmState,
+} from "@/lib/alarm";
 import type { RadarAttention } from "@/lib/data/radar";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +48,11 @@ const PING_LIVE_MS = 5_000;
  */
 const PING_IDLE_MS = 60_000;
 
+/** Nearly continuous once somebody is sitting in an empty room. */
+const RING_EVERY_WAITING_MS = 1_400;
+/** A telephone cadence while they are still paying. */
+const RING_EVERY_MS = 2_600;
+
 type Status = "offline" | "online" | "pending" | "in_session";
 
 /**
@@ -53,10 +73,13 @@ export function RadarPresence({
   initialStatus,
   alertOnView,
   alertOnBooking,
+  clinician,
 }: {
   initialStatus: string;
   alertOnView: boolean;
   alertOnBooking: boolean;
+  /** Only clinicians get asked to arm an alarm; nothing ever rings for an admin. */
+  clinician: boolean;
 }) {
   const [status, setStatus] = useState<Status>(initialStatus as Status);
   const active = status !== "offline";
@@ -74,90 +97,54 @@ export function RadarPresence({
     "unsupported",
   );
 
-  const audioRef = useRef<AudioContext | null>(null);
-  const alarmRef = useRef<number | null>(null);
   const announcedRef = useRef<string | null>(null);
   const lastBookingRef = useRef<string | null>(null);
 
   /* ------------------------------------------------------------- audio -- */
 
   /*
-   * Browsers refuse to make noise until the user has interacted with the page,
-   * and a suspended AudioContext fails silently — which for an alarm is the
-   * worst possible failure. So it is built on the first pointer event anywhere
-   * in the portal, long before anyone books.
+   * One AudioContext for the whole tab, owned by `lib/alarm`, and this is
+   * simply a view of it. See that file for why the previous inline version
+   * never made a sound.
+   */
+  const sound = useSyncExternalStore(subscribeAlarm, alarmSnapshot, alarmServerSnapshot);
+
+  /*
+   * Bring the alarm back without asking, for somebody who already armed it.
+   *
+   * A hard reload is the case that makes this necessary. Client-side
+   * navigation keeps the AudioContext — it lives in a module, not in a
+   * component — but a full document load throws it away, and Chrome will not
+   * resume a new one until this document has seen a gesture of its own. So we
+   * try immediately (which succeeds once the browser trusts the origin), and
+   * otherwise take the first interaction of any kind as the gesture. Nothing
+   * is asked and nothing is shown; the clinician already answered this
+   * question and should not be made to answer it again every reload.
+   *
+   * `visibilitychange` is here for the other half of it: a background tab has
+   * its context suspended by the browser, and the tab in the background is
+   * precisely the clinician who needs the alarm.
    */
   useEffect(() => {
-    if (audioRef.current) return;
+    if (!clinician) return;
+    void nudgeAlarm();
 
-    const unlock = () => {
-      const Ctor =
-        window.AudioContext ??
-        (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (Ctor && !audioRef.current) audioRef.current = new Ctor();
+    const wake = () => {
+      if (document.visibilityState === "visible") void nudgeAlarm();
     };
+    const onGesture = () => void nudgeAlarm();
 
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-  }, []);
-
-  /**
-   * Three sounds, because they mean three different things.
-   *
-   * A soft single tone when someone opens your profile — a heads-up, easy to
-   * ignore. A ringing two-tone pattern, repeated, when they have paid and are
-   * walking in: it is meant to sound like a phone, because that is what it is.
-   * A falling pair when a booking evaporates, so a clinician who stood up to
-   * take a session knows to sit back down.
-   */
-  const beep = useCallback(
-    (tone: "soft" | "ring" | "cancel") => {
-      const context = audioRef.current;
-      if (!context || muted) return;
-      void context.resume();
-
-      const pattern =
-        tone === "soft"
-          ? ([[0, 660, 0.14]] as const)
-          : tone === "cancel"
-            ? ([
-                [0, 520, 0.16],
-                [0.18, 392, 0.16],
-              ] as const)
-            : ([
-                [0, 880, 0.34],
-                [0.16, 1174, 0.34],
-                [0.5, 880, 0.34],
-                [0.66, 1174, 0.34],
-              ] as const);
-
-      const now = context.currentTime;
-      for (const [offset, frequency, volume] of pattern) {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.0001, now + offset);
-        gain.gain.exponentialRampToValueAtTime(volume, now + offset + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.15);
-        oscillator.connect(gain).connect(context.destination);
-        oscillator.start(now + offset);
-        oscillator.stop(now + offset + 0.16);
-      }
-    },
-    [muted],
-  );
-
-  const stopAlarm = useCallback(() => {
-    if (alarmRef.current !== null) {
-      clearInterval(alarmRef.current);
-      alarmRef.current = null;
+    document.addEventListener("visibilitychange", wake);
+    for (const event of ["pointerdown", "keydown", "touchstart"] as const) {
+      window.addEventListener(event, onGesture);
     }
-  }, []);
+    return () => {
+      document.removeEventListener("visibilitychange", wake);
+      for (const event of ["pointerdown", "keydown", "touchstart"] as const) {
+        window.removeEventListener(event, onGesture);
+      }
+    };
+  }, [clinician]);
 
   /* ------------------------------------------------------ notifications -- */
 
@@ -167,13 +154,22 @@ export function RadarPresence({
   }, []);
 
   /**
-   * Ask once, when they go on the radar.
+   * Sound and notifications together, from one click.
    *
-   * Not on page load: a permission prompt on arrival is the thing everyone
-   * dismisses reflexively, and once dismissed it cannot be asked again. At the
-   * moment somebody switches themselves on to take crisis calls, "can we tell
-   * you when one arrives" is a question with an obvious answer.
+   * They used to be two separate asks in two separate places — a button on the
+   * status pill for notifications and nothing at all for sound. A clinician
+   * cannot be expected to know that a browser treats "may we make a noise" and
+   * "may we show you a box" as different questions; from here it is one
+   * decision, "can we reach you", and it is answered once.
    */
+  const enableSound = useCallback(async () => {
+    const result = await armAlarmAndAlerts();
+    setPermission(result.notifications);
+    if (result.sound === "ready") playTone("ring");
+    return result.sound;
+  }, []);
+
+  /** Kept for the pill's notifications-only button when sound is already on. */
   const askPermission = useCallback(async () => {
     if (typeof Notification === "undefined") return;
     try {
@@ -276,11 +272,10 @@ export function RadarPresence({
        */
       if (lastBookingRef.current) {
         lastBookingRef.current = null;
-        beep("cancel");
+        playTone("cancel");
         notify("Booking cancelled", "They did not go through with it. You are back on the radar.", false);
       }
       announcedRef.current = null;
-      stopAlarm();
       return;
     }
 
@@ -291,11 +286,9 @@ export function RadarPresence({
     if (announcedRef.current === signature) return;
     announcedRef.current = signature;
 
-    stopAlarm();
-
     if (attention.kind === "viewing") {
       if (alertOnView) {
-        beep("soft");
+        playTone("soft");
         notify("Someone is looking at your profile", "You are showing as busy to everyone else.", false);
       }
       return;
@@ -304,7 +297,6 @@ export function RadarPresence({
     if (alertOnBooking) {
       // A new booking un-mutes. Silencing the last one was about the last one.
       setMuted(false);
-      beep("ring");
       notify(
         attention.waiting
           ? "Your patient is waiting in the room"
@@ -320,7 +312,7 @@ export function RadarPresence({
         `/sessions/${attention.sessionId}/room`,
       );
     }
-  }, [attention, alertOnView, alertOnBooking, beep, notify, stopAlarm]);
+  }, [attention, alertOnView, alertOnBooking, notify]);
 
   /*
    * The ring, and how fast it goes.
@@ -330,115 +322,296 @@ export function RadarPresence({
    * patient actually joins, the same booking becomes twice as urgent and the
    * ringing has to say so without waiting for a new event.
    *
+   * `sound` is in the dependency list on purpose. A clinician who arms the
+   * alarm while it is already trying to ring — which is precisely what the
+   * prompt below is for — must start hearing it immediately, not at the next
+   * booking.
+   *
    * It does not stop on a timer. It stops when the clinician opens the room or
    * silences it, because that is the only evidence that a human has noticed.
    */
-  const ringing =
-    Boolean(attention) && attention?.kind !== "viewing" && alertOnBooking && !muted;
+  const booking = Boolean(attention) && attention?.kind !== "viewing";
   const waiting = attention?.kind !== "viewing" && Boolean(attention?.waiting);
+  const ringing = booking && alertOnBooking && !muted;
 
   useEffect(() => {
-    stopAlarm();
-    if (!ringing) return;
-    const every = waiting ? 1_200 : 3_000;
-    alarmRef.current = window.setInterval(() => beep("ring"), every);
-    return () => stopAlarm();
-  }, [ringing, waiting, beep, stopAlarm]);
+    if (!ringing || sound !== "ready") {
+      stopRinging();
+      return;
+    }
+    startRinging(waiting ? "urgent" : "ring", waiting ? RING_EVERY_WAITING_MS : RING_EVERY_MS);
+    return () => stopRinging();
+  }, [ringing, waiting, sound]);
 
-  useEffect(() => stopAlarm, [stopAlarm]);
+  /*
+   * The tab title flashes for as long as somebody is waiting, muted or not.
+   *
+   * It is the one channel that cannot be blocked, denied or muted, and it
+   * costs nothing. A clinician who silenced the ring has silenced the ring —
+   * they have not stopped having a patient.
+   */
+  useEffect(() => {
+    if (!booking) {
+      stopFlashingTitle();
+      return;
+    }
+    flashTitle(waiting ? "🔴 PATIENT WAITING FOR YOU" : "🔔 Patient joining — open the room");
+    return () => stopFlashingTitle();
+  }, [booking, waiting]);
+
+  useEffect(
+    () => () => {
+      stopRinging();
+      stopFlashingTitle();
+    },
+    [],
+  );
 
   /* ------------------------------------------------------------ render -- */
 
-  if (!active) return null;
-
   return (
     <>
-      <StatusPill
-        status={status}
-        suspended={suspended}
-        permission={permission}
-        onAskPermission={askPermission}
-      />
-
-      {attention?.kind === "viewing" ? (
-        <div className="safe-bottom pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-3 lg:bottom-4 lg:justify-end lg:pr-4">
-          <p className="animate-fade-rise flex items-center gap-2 rounded-full bg-navy-500/95 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur">
-            <Eye className="h-3.5 w-3.5 text-teal-300" aria-hidden />
-            Someone is looking at your profile — you are showing as busy to others
-          </p>
-        </div>
+      {clinician ? (
+        <SoundPrompt
+          sound={sound}
+          onEnable={enableSound}
+          /* An unarmed alarm during an actual booking is not a suggestion. */
+          forced={ringing}
+          online={active}
+        />
       ) : null}
 
-      {attention && attention.kind !== "viewing" ? (
-        <div className="safe-bottom fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 lg:bottom-4 lg:left-auto lg:w-96 lg:pr-4">
-          <div
-            className={cn(
-              "animate-fade-rise rounded-2xl px-4 py-3.5 text-white shadow-2xl shadow-black/40",
-              attention.waiting ? "bg-red-600" : "bg-navy-500",
-            )}
-          >
-            <div className="flex items-start gap-2.5">
-              <BellRing className="live-dot mt-0.5 h-4 w-4 shrink-0 text-teal-300" aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">
-                  {attention.waiting
-                    ? `${attention.patientName ?? "Your patient"} is waiting for you`
-                    : attention.kind === "confirmed"
-                      ? "Your patient is joining"
-                      : "Someone is booking you"}
-                </p>
-                <p className="mt-0.5 text-xs text-white/80">
-                  {attention.waiting
-                    ? "They are in the room now, looking at an empty screen. Go in."
-                    : attention.kind === "confirmed"
-                      ? "They have paid and are on their way into the room."
-                      : "They are paying now. Open the room and be there when they arrive."}
-                </p>
-              </div>
+      {!active ? null : (
+        <>
+          <StatusPill
+            status={status}
+            suspended={suspended}
+            permission={permission}
+            sound={sound}
+            onAskPermission={askPermission}
+            onEnableSound={enableSound}
+          />
 
-              {/*
-                Silence this ring, not every future one.
-                ---------------------------------------
-                It used to mute permanently for the life of the page, so a
-                clinician who quieted one alarm never heard the next patient.
-                The banner stays, because silence must not mean "dismissed" —
-                somebody is still waiting.
-              */}
-              <button
-                type="button"
-                onClick={() => setMuted((m) => !m)}
-                aria-label={muted ? "Unmute the alarm" : "Silence this alarm"}
-                aria-pressed={muted}
-                className="tap-target flex shrink-0 items-center justify-center rounded-lg text-white/60 hover:text-white"
-              >
-                {muted ? (
-                  <Volume2 className="h-4 w-4" aria-hidden />
-                ) : (
-                  <VolumeX className="h-4 w-4" aria-hidden />
-                )}
-              </button>
-            </div>
-
-            <Link
-              href={`/sessions/${attention.sessionId}/room`}
-              onClick={stopAlarm}
-              className={cn(
-                "mt-3 flex h-12 items-center justify-center rounded-xl text-sm font-semibold",
-                attention.waiting ? "bg-white text-red-700" : "bg-teal-500 text-white",
-              )}
-            >
-              {attention.waiting ? "Go in now" : "Open the room"}
-            </Link>
-
-            {muted ? (
-              <p className="mt-2 text-center text-[11px] text-white/60">
-                Sound off for this one. The next patient will still ring.
+          {attention?.kind === "viewing" ? (
+            <div className="safe-bottom pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-3 lg:bottom-4 lg:justify-end lg:pr-4">
+              <p className="animate-fade-rise flex items-center gap-2 rounded-full bg-navy-500/95 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur">
+                <Eye className="h-3.5 w-3.5 text-teal-300" aria-hidden />
+                Someone is looking at your profile — you are showing as busy to others
               </p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+            </div>
+          ) : null}
+
+          {attention && attention.kind !== "viewing" ? (
+            <div className="safe-bottom fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 lg:bottom-4 lg:left-auto lg:w-96 lg:pr-4">
+              <div
+                className={cn(
+                  "animate-fade-rise rounded-2xl px-4 py-3.5 text-white shadow-2xl shadow-black/40",
+                  attention.waiting ? "bg-red-600" : "bg-navy-500",
+                )}
+              >
+                <div className="flex items-start gap-2.5">
+                  <BellRing className="live-dot mt-0.5 h-4 w-4 shrink-0 text-teal-300" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">
+                      {attention.waiting
+                        ? `${attention.patientName ?? "Your patient"} is waiting for you`
+                        : attention.kind === "confirmed"
+                          ? "Your patient is joining"
+                          : "Someone is booking you"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-white/80">
+                      {attention.waiting
+                        ? "They are in the room now, looking at an empty screen. Go in."
+                        : attention.kind === "confirmed"
+                          ? "They have paid and are on their way into the room."
+                          : "They are paying now. Open the room and be there when they arrive."}
+                    </p>
+                  </div>
+
+                  {/*
+                    Silence this ring, not every future one.
+                    ---------------------------------------
+                    It used to mute permanently for the life of the page, so a
+                    clinician who quieted one alarm never heard the next patient.
+                    The banner stays, because silence must not mean "dismissed" —
+                    somebody is still waiting.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => setMuted((m) => !m)}
+                    aria-label={muted ? "Unmute the alarm" : "Silence this alarm"}
+                    aria-pressed={muted}
+                    className="tap-target flex shrink-0 items-center justify-center rounded-lg text-white/60 hover:text-white"
+                  >
+                    {muted ? (
+                      <Volume2 className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <VolumeX className="h-4 w-4" aria-hidden />
+                    )}
+                  </button>
+                </div>
+
+                <Link
+                  href={`/sessions/${attention.sessionId}/room`}
+                  onClick={() => {
+                    stopRinging();
+                    stopFlashingTitle();
+                  }}
+                  className={cn(
+                    "mt-3 flex h-12 items-center justify-center rounded-xl text-sm font-semibold",
+                    attention.waiting ? "bg-white text-red-700" : "bg-teal-500 text-white",
+                  )}
+                >
+                  {attention.waiting ? "Go in now" : "Open the room"}
+                </Link>
+
+                {muted ? (
+                  <p className="mt-2 text-center text-[11px] text-white/60">
+                    Sound off for this one. The next patient will still ring.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </>
+      )}
     </>
+  );
+}
+
+/* --------------------------------------------------------------- the ask -- */
+
+/** Asked once per browser session, then never again unless it actually matters. */
+const ASKED_KEY = "24t.alarm.asked";
+
+/**
+ * "Turn your alarm on."
+ *
+ * A browser will not make a sound until the person has clicked something, and
+ * it will not tell you whether it intends to. The old code responded to that
+ * by hoping — building the AudioContext on whatever click happened to come
+ * along — and the result was a product that showed a banner saying a patient
+ * was waiting while making no noise whatsoever. That is worse than having no
+ * alarm, because the clinician believes they have one.
+ *
+ * So we ask, plainly, with a button whose click *is* the gesture the browser
+ * wants, and we play the alarm back immediately so the answer to "did that
+ * work" is something they heard rather than something we claimed.
+ *
+ * It portals to the body: the pages this can appear over set `isolate` on
+ * their heroes, and no z-index wins against a stacking context.
+ */
+function SoundPrompt({
+  sound,
+  onEnable,
+  forced,
+  online,
+}: {
+  sound: AlarmState;
+  onEnable: () => Promise<AlarmState>;
+  forced: boolean;
+  online: boolean;
+}) {
+  const [mounted, setMounted] = useState(false);
+  const [dismissed, setDismissed] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    try {
+      /*
+       * Two reasons not to ask, and they are different.
+       *
+       * `ASKED_KEY` is "you said not now, this session". `alarmRemembered()`
+       * is "you already said yes, on this machine" — and after a hard reload
+       * that clinician has a suspended context through no fault of their own,
+       * which the effect above fixes on their first click. Putting a modal in
+       * front of them for the two seconds in between would be asking a
+       * question they have already answered, on every single page load.
+       */
+      setDismissed(window.sessionStorage.getItem(ASKED_KEY) === "1" || alarmRemembered());
+    } catch {
+      setDismissed(false);
+    }
+  }, []);
+
+  const close = () => {
+    setDismissed(true);
+    try {
+      window.sessionStorage.setItem(ASKED_KEY, "1");
+    } catch {
+      /* Private mode — they get asked again on the next page. */
+    }
+  };
+
+  if (!mounted || sound === "ready") return null;
+  if (dismissed && !forced) return null;
+
+  const blocked = sound === "blocked";
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:items-center">
+      <div className="animate-fade-rise w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50">
+          <BellRing className="h-5 w-5 text-teal-600" aria-hidden />
+        </span>
+
+        <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">
+          {blocked ? "Your browser is blocking the alarm" : "Turn on your alarm"}
+        </p>
+
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+          {blocked ? (
+            <>
+              Sound is switched off for this site. Open the padlock in the address bar, set{" "}
+              <strong>Sound</strong> to <em>Allow</em>, and reload — otherwise a patient can be
+              waiting in your room with nothing to tell you.
+            </>
+          ) : (
+            <>
+              Browsers stay silent until you say otherwise. One tap and 24Therapy can ring you
+              anywhere in the portal — including when this tab is in the background.
+            </>
+          )}
+        </p>
+
+        {forced ? (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+            Someone is booking you right now and you cannot hear it.
+          </p>
+        ) : null}
+
+        {!blocked ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const next = await onEnable();
+              setBusy(false);
+              if (next === "ready") close();
+            }}
+            className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
+          >
+            <Volume2 className="h-4 w-4" aria-hidden />
+            {busy ? "Turning it on…" : "Turn the alarm on"}
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={close}
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-500 hover:bg-slate-50"
+        >
+          {blocked ? "I will fix it in my browser" : online ? "Not now" : "Later"}
+        </button>
+
+        <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-400">
+          You will hear a short ring so you know it worked.
+        </p>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -455,12 +628,16 @@ function StatusPill({
   status,
   suspended,
   permission,
+  sound,
   onAskPermission,
+  onEnableSound,
 }: {
   status: Status;
   suspended: { until: string; reason: string | null } | null;
   permission: NotificationPermission | "unsupported";
+  sound: AlarmState;
   onAskPermission: () => void;
+  onEnableSound: () => void;
 }) {
   if (suspended) {
     return (
@@ -500,12 +677,21 @@ function StatusPill({
         {label}
 
         {/*
-          Offered here rather than on a settings page, because this pill is the
-          only thing on screen that is about being reachable — and a clinician
-          who has just read "Live on the radar" is the one person who wants to
-          be asked whether we may tell them when somebody arrives.
+          Sound outranks notifications here, because it is the one that wakes a
+          person who is not looking at the screen — and because it is the one
+          that was silently broken. A clinician showing as live with a muted
+          alarm is being advertised as reachable and is not reachable.
         */}
-        {permission === "default" ? (
+        {sound !== "ready" ? (
+          <button
+            type="button"
+            onClick={onEnableSound}
+            className="ml-1 flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-400"
+          >
+            <VolumeX className="h-3 w-3" aria-hidden />
+            sound off — turn on
+          </button>
+        ) : permission === "default" ? (
           <button
             type="button"
             onClick={onAskPermission}

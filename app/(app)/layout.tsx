@@ -161,6 +161,16 @@ export default async function AppLayout({
         // hear that someone needs them.
         alertOnView={me?.profile?.alertOnView ?? true}
         alertOnBooking={me?.profile?.alertOnBooking ?? true}
+        /*
+          Who gets asked to arm an alarm.
+          -------------------------------
+          A cleared clinician, and nobody else. An administrator never appears
+          on the radar and nothing will ever ring for them, so prompting them
+          for audio permission on login would be asking for a capability we
+          have no intention of using — the fastest way to teach somebody to
+          dismiss our prompts reflexively.
+        */
+        clinician={cleared && actor.role === "therapist"}
       />
     </div>
   );

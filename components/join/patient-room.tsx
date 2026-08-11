@@ -100,9 +100,19 @@ export function PatientRoom({
 
         {/* ------------------------------------------------------- the panel */}
         <aside className="space-y-3">
+          {/*
+            Loudest thing in the panel, and first.
+            --------------------------------------
+            It used to sit fourth, in the same 12px grey as everything else,
+            and it is the only line here that has a cost attached to being
+            missed: a patient who closes the tab loses their rating and their
+            written summary in the same click, and there is no way to get
+            either back to them. Everything else on this panel is information.
+            This is an instruction.
+          */}
+          <StayHere therapist={therapist} />
           <WhoYouAreWith therapist={therapist} live={live} startedAt={startedAt} />
           <SummaryAndRating token={token} live={live} therapist={therapist} />
-          <StayHere />
           <Reassurance />
           <TroubleBox token={token} />
         </aside>
@@ -325,20 +335,34 @@ function SummaryAndRating({
  * side of it. Saying so while they are still in the room is the only time it
  * will be read.
  */
-function StayHere() {
+function StayHere({ therapist }: { therapist: Therapist }) {
   return (
-    <Card className="border-brand-200 bg-brand-50/70 p-4">
-      <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-900">
+    <Card className="border-amber-300 bg-amber-50 p-4">
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest text-amber-700 uppercase">
         <MessageSquareHeart className="h-3.5 w-3.5" aria-hidden />
-        Keep this tab open
+        Before you go
       </p>
-      <p className="mt-1 text-xs leading-relaxed text-brand-900/80">
-        When the session ends, this page turns into a short form: rate the session and your
-        therapist, and your written summary is sent to you.
+
+      <p className="mt-1.5 text-2xl leading-[1.12] font-black tracking-tight text-slate-900">
+        Do not close this tab.
       </p>
-      <p className="mt-2 text-xs leading-relaxed text-brand-900/80">
-        That rating is <strong>anonymous</strong>. Your therapist sees the words and the stars,
-        never who wrote them.
+
+      <p className="mt-2 text-base leading-snug font-semibold text-slate-800">
+        You get to rate {therapist.firstName} and this session as soon as it ends — right here, on
+        this page.
+      </p>
+
+      <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
+        Closing the tab is the one thing we cannot undo: the rating and your written summary both
+        live on the other side of it, and there is no way for us to bring you back.
+      </p>
+
+      <p className="mt-2 flex items-start gap-1.5 border-t border-amber-200 pt-2.5 text-xs leading-relaxed text-slate-600">
+        <Star className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" aria-hidden />
+        <span>
+          Your rating is <strong>anonymous</strong>. {therapist.firstName} sees the stars and the
+          words, never who wrote them.
+        </span>
       </p>
     </Card>
   );

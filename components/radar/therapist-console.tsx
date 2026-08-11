@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState, useSyncExternalStore, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { BellRing, Radio } from "lucide-react";
+import { BellRing, Radio, Volume2, VolumeX } from "lucide-react";
 
 import {
   saveAlertPreferences,
@@ -13,6 +13,14 @@ import {
 } from "@/app/(app)/on-call/actions";
 import { WorldRadar } from "@/components/radar/world-radar";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import {
+  alarmServerSnapshot,
+  alarmSnapshot,
+  armAlarmAndAlerts,
+  playTone,
+  subscribeAlarm,
+  type AlarmState,
+} from "@/lib/alarm";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +63,9 @@ export function TherapistConsole(props: ConsoleProps) {
 
   const online = status !== "offline";
 
+  const sound = useSyncExternalStore(subscribeAlarm, alarmSnapshot, alarmServerSnapshot);
+  const [asking, setAsking] = useState(false);
+
   /*
    * The poll, the heartbeat and the booking alarm are NOT here. They live in
    * <RadarPresence>, mounted once in the app shell, because a clinician who
@@ -74,6 +85,25 @@ export function TherapistConsole(props: ConsoleProps) {
       // Re-render the shell so presence starts or stops with the switch.
       router.refresh();
     });
+
+  /**
+   * Going on call and being able to hear are the same decision.
+   *
+   * The button says "a stranger in crisis can be in a room with you inside a
+   * minute". If the browser is muted that sentence is false, and it fails in
+   * the worst direction: the clinician is advertised as reachable, the patient
+   * pays, and nobody comes. So the switch asks first — once — and the answer
+   * is proved by a sound they hear rather than by a claim we make.
+   *
+   * Going offline never asks. Nothing depends on hearing anything.
+   */
+  const requestOnline = () => {
+    if (online || sound === "ready") {
+      flip(!online);
+      return;
+    }
+    setAsking(true);
+  };
 
   const ready = props.rateCents > 0 ? props.chargesEnabled : true;
 
@@ -175,7 +205,7 @@ export function TherapistConsole(props: ConsoleProps) {
           <button
             type="button"
             disabled={pending}
-            onClick={() => flip(!online)}
+            onClick={requestOnline}
             className={cn(
               "mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold transition-colors disabled:opacity-50",
               online
@@ -187,6 +217,13 @@ export function TherapistConsole(props: ConsoleProps) {
             {pending ? "Working…" : online ? "Go offline" : "Go on the radar"}
           </button>
 
+          {online && sound !== "ready" ? (
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-medium text-red-300">
+              <VolumeX className="h-3.5 w-3.5" aria-hidden />
+              You are live but your browser is silent — turn the alarm on below.
+            </p>
+          ) : null}
+
           {!props.country ? (
             <p className="mt-2 text-center text-xs text-white/40">
               Add your country below and you will appear on the map.
@@ -195,10 +232,26 @@ export function TherapistConsole(props: ConsoleProps) {
         </div>
       </div>
 
+      {asking ? (
+        <GoOnlineSound
+          onCancel={() => setAsking(false)}
+          onArmed={(armed) => {
+            setAsking(false);
+            // On the radar either way. A clinician who cannot get sound out of
+            // this machine still has the banner, the tab title and the email —
+            // refusing to let them work would be us punishing them for their
+            // browser.
+            void armed;
+            flip(true);
+          }}
+        />
+      ) : null}
+
       {/* ---------------------------------------------------------- alerts */}
       <AlertSettings
         initialOnView={props.alertOnView}
         initialOnBooking={props.alertOnBooking}
+        sound={sound}
       />
 
       {/* --------------------------------------------------------- profile */}
@@ -322,12 +375,91 @@ function CheckGroup({
  * it *without* silencing the second, or they will silence both and miss the one
  * that mattered.
  */
+/**
+ * The question asked at the moment it means something.
+ *
+ * Not on page load, where every permission prompt gets dismissed by reflex,
+ * and not buried in settings, where nobody goes. Here, between "I want to take
+ * crisis calls" and actually being on the board — the one instant where "may
+ * we make a noise when one arrives" has an obvious answer.
+ *
+ * The button's click is itself the gesture the browser requires, which is the
+ * entire reason this is a modal and not a `useEffect`.
+ */
+function GoOnlineSound({
+  onCancel,
+  onArmed,
+}: {
+  onCancel: () => void;
+  onArmed: (armed: boolean) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:items-center">
+      <div className="animate-fade-rise w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50">
+          <BellRing className="h-5 w-5 text-teal-600" aria-hidden />
+        </span>
+
+        <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">
+          Can we ring you?
+        </p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+          You are about to be visible to people in crisis. Your browser will not play a sound
+          until you allow it — tap below and you will hear the alarm straight away, so you know
+          it works before anyone needs it.
+        </p>
+
+        {failed ? (
+          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-800">
+            Your browser refused. Open the padlock in the address bar, allow <strong>Sound</strong>{" "}
+            and reload. You can still go on the radar — you will get the on-screen banner and a
+            flashing tab title instead.
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            const result = await armAlarmAndAlerts();
+            setBusy(false);
+            if (result.sound === "ready") {
+              playTone("ring");
+              onArmed(true);
+              return;
+            }
+            setFailed(true);
+          }}
+          className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
+        >
+          <Volume2 className="h-4 w-4" aria-hidden />
+          {busy ? "Turning it on…" : "Turn the alarm on and go live"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => (failed ? onArmed(false) : onCancel())}
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-500 hover:bg-slate-50"
+        >
+          {failed ? "Go on the radar without sound" : "Cancel"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AlertSettings({
   initialOnView,
   initialOnBooking,
+  sound,
 }: {
   initialOnView: boolean;
   initialOnBooking: boolean;
+  sound: AlarmState;
 }) {
   const router = useRouter();
   const [onView, setOnView] = useState(initialOnView);
@@ -378,10 +510,55 @@ function AlertSettings({
         />
       </div>
 
-      <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        Sounds reach you anywhere in 24Therapy, not just this page. Your browser will not play
-        anything until you have clicked something on the page at least once — going on the radar
-        counts.
+      {/*
+        Prove it, do not promise it.
+        ----------------------------
+        This card used to end with a paragraph explaining that the browser
+        would probably play something once you had clicked around a bit. It
+        was true and it was useless: there was no way to find out whether the
+        alarm worked except to have a patient arrive and not hear them. A
+        button that plays the actual sound answers the question in one tap.
+      */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+        {sound === "ready" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => playTone("ring")}
+              className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Volume2 className="h-3.5 w-3.5 text-teal-600" aria-hidden />
+              Hear a booking
+            </button>
+            <button
+              type="button"
+              onClick={() => playTone("urgent")}
+              className="flex h-10 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100"
+            >
+              <BellRing className="h-3.5 w-3.5" aria-hidden />
+              Hear a patient waiting
+            </button>
+            <span className="text-xs font-medium text-emerald-600">Sound is on</span>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={async () => {
+              const result = await armAlarmAndAlerts();
+              if (result.sound === "ready") playTone("ring");
+            }}
+            className="flex h-10 items-center gap-1.5 rounded-xl bg-teal-500 px-3.5 text-xs font-semibold text-white hover:bg-teal-400"
+          >
+            <Volume2 className="h-3.5 w-3.5" aria-hidden />
+            Turn the alarm on
+          </button>
+        )}
+      </div>
+
+      <p className="mt-2.5 text-xs leading-relaxed text-slate-500">
+        Sounds reach you anywhere in 24Therapy, not just this page — including when this tab is
+        behind something else. While a patient is waiting the tab title flashes too, which no
+        browser setting can switch off.
       </p>
     </Card>
   );
