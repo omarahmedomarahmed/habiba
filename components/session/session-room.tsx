@@ -30,6 +30,8 @@ type RoomProps = {
   paymentStatus: "not_required" | "pending" | "paid";
   initialLines: TranscriptLine[];
   patientAlreadyJoined: boolean;
+  /** Null for sessions that predate the consent step, or that never used the join form. */
+  recordingConsent: "granted" | "declined" | null;
 };
 
 export function SessionRoom(props: RoomProps) {
@@ -38,7 +40,18 @@ export function SessionRoom(props: RoomProps) {
 
   const [live, setLive] = useState(props.initialStatus === "in_progress");
   const [lines, setLines] = useState<TranscriptLine[]>(props.initialLines);
-  const [offRecord, setOffRecord] = useState(false);
+  /*
+   * A refusal starts the room off record, and the clinician has to overrule it
+   * deliberately.
+   *
+   * This is the only place the patient's answer can actually bind anything.
+   * Storing "declined" and then opening a room with the microphone live would
+   * be worse than never asking — it manufactures evidence that we knew. The
+   * button still works, because a patient can change their mind out loud
+   * mid-session and the clinician needs to be able to act on that; what it no
+   * longer is, is the default.
+   */
+  const [offRecord, setOffRecord] = useState(props.recordingConsent === "declined");
   const [elapsed, setElapsed] = useState(0);
   const [crisis, setCrisis] = useState(false);
   const [suggestions, setSuggestions] = useState<CopilotSuggestion[]>([]);
@@ -307,6 +320,25 @@ export function SessionRoom(props: RoomProps) {
           </span>
         ) : null}
       </header>
+
+      {/*
+        The refusal, said once, where it cannot be missed.
+        -------------------------------------------------
+        Not a toast and not a line in a sidebar. A clinician who reaches for
+        the record button out of habit needs the reason it is already off to
+        be the most obvious thing on the screen — and needs to know it was the
+        patient's decision rather than a bug, or they will simply "fix" it.
+      */}
+      {props.recordingConsent === "declined" ? (
+        <p className="flex items-start gap-2 border-b border-amber-500/25 bg-amber-500/15 px-4 py-2.5 text-xs leading-relaxed text-amber-100">
+          <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>
+            <strong className="font-semibold">{props.patientLabel} asked not to be recorded.</strong>{" "}
+            The room is off record and no audio is being kept. Only turn recording on if they tell
+            you, in the session, that they have changed their mind.
+          </span>
+        </p>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col">
         {props.modality === "video" ? (

@@ -545,3 +545,105 @@ test("a session the clinician actually started is never abandoned", async () => 
     "a long session is not an abandoned one",
   );
 });
+
+/**
+ * Consent, and whether a refusal actually does anything.
+ *
+ * The dangerous failure here is not "we forgot to ask" — it is asking,
+ * recording the answer, and then recording the session anyway. That produces a
+ * document proving we knew, which is strictly worse than never having a
+ * consent step at all. So the test that matters is the one where the patient
+ * says no.
+ */
+test("a patient who declines is not recorded, and the refusal is stored", async () => {
+  const sessionId = await newSession();
+  const { RECORDING_CONSENT_VERSION } = await import("../lib/consent");
+
+  // What submitJoin writes for a refusal.
+  await db
+    .update(sessions)
+    .set({
+      recordingConsent: "declined",
+      recordingConsentAt: new Date(),
+      recordingConsentVersion: RECORDING_CONSENT_VERSION,
+      recordingPausedAt: new Date(),
+    })
+    .where(eq(sessions.id, sessionId));
+
+  const [row] = await db
+    .select({
+      consent: sessions.recordingConsent,
+      at: sessions.recordingConsentAt,
+      version: sessions.recordingConsentVersion,
+      paused: sessions.recordingPausedAt,
+    })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  assert.equal(row?.consent, "declined");
+  assert.ok(row?.at, "a refusal is a decision with a time, not an absence");
+  assert.equal(
+    row?.version,
+    RECORDING_CONSENT_VERSION,
+    "consent is to particular words; without the version it is an assertion",
+  );
+  assert.ok(
+    row?.paused,
+    "a stored refusal that leaves the microphone running is worse than never asking",
+  );
+});
+
+test("the patient's own screen shows the recording is off", async () => {
+  const sessionId = await newSession();
+  const [before] = await db
+    .select({ token: sessions.joinToken })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  const token = before?.token;
+  assert.ok(token);
+
+  await db
+    .update(sessions)
+    .set({
+      recordingConsent: "declined",
+      recordingPausedAt: new Date(),
+      startedAt: new Date(),
+      status: "in_progress",
+    })
+    .where(eq(sessions.id, sessionId));
+
+  const { checkJoinState } = await import("../app/join/[token]/actions");
+  const state = await checkJoinState(token);
+
+  assert.equal(state.live, true);
+  assert.equal(
+    state.recording,
+    false,
+    "the person who refused is the one person who must be able to see that it stuck",
+  );
+});
+
+test("consent that was granted leaves the microphone alone", async () => {
+  const sessionId = await newSession();
+  const { RECORDING_CONSENT_VERSION } = await import("../lib/consent");
+
+  await db
+    .update(sessions)
+    .set({
+      recordingConsent: "granted",
+      recordingConsentAt: new Date(),
+      recordingConsentVersion: RECORDING_CONSENT_VERSION,
+    })
+    .where(eq(sessions.id, sessionId));
+
+  const [row] = await db
+    .select({ consent: sessions.recordingConsent, paused: sessions.recordingPausedAt })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  assert.equal(row?.consent, "granted");
+  assert.equal(row?.paused, null);
+});

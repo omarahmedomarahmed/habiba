@@ -62,9 +62,25 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
   const token = String(formData.get("token") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const consent = formData.get("consent");
 
   if (!name) return { error: "Please enter your first name." };
   if (name.length > 80) return { error: "That name is a little long." };
+
+  /*
+   * Consent is required to proceed; agreeing is not.
+   *
+   * The distinction is the whole design. There is no default and no
+   * pre-selected option, because a pre-ticked box is not an affirmative act
+   * and would leave us with a stored "granted" that means nothing. Declining
+   * is a first-class answer that costs the patient nothing — the session runs
+   * identically, off record — so nobody is nudged into agreeing by the fear
+   * of losing their appointment.
+   */
+  const { isRecordingConsent } = await import("@/lib/consent");
+  if (!isRecordingConsent(consent)) {
+    return { error: "Please choose whether your therapist may record the session." };
+  }
 
   /*
    * Throttled even though the token is 24 random bytes and cannot realistically
@@ -82,6 +98,16 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
   if (!sessionId) {
     return { error: "This link is no longer valid. Ask your therapist for a new one." };
   }
+
+  /*
+   * Recorded before the paywall, not after.
+   *
+   * A patient who agrees and then abandons Stripe has still made a decision we
+   * are obliged to honour, and one we would otherwise lose. It also means the
+   * answer is already stored when they walk back in from checkout, so nobody
+   * is asked the same question twice.
+   */
+  await recordConsent(sessionId, consent);
 
   const session = await resolveJoinToken(token);
   if (!session) return { joined: true, videoUrl: null };
@@ -129,6 +155,38 @@ export async function resumeAfterPayment(token: string): Promise<JoinState> {
 
   await joinByToken(token, name);
   return admit(token, name);
+}
+
+/**
+ * Store the answer, and make a refusal actually mean something.
+ *
+ * Writing "declined" into a column and then recording anyway would be worse
+ * than never asking — it manufactures a paper trail that says we knew. So a
+ * refusal also sets `recordingPausedAt`, which is the same switch the
+ * clinician's off-record button uses: the room opens with the indicator amber,
+ * the patient can see it from their own screen, and the clinician has to take
+ * a deliberate action to change it rather than an accidental one.
+ */
+async function recordConsent(sessionId: string, consent: "granted" | "declined") {
+  const { RECORDING_CONSENT_VERSION } = await import("@/lib/consent");
+  const { db } = await import("@/lib/db");
+  const { sessions } = await import("@/lib/db/schema");
+  const { eq } = await import("drizzle-orm");
+
+  await db
+    .update(sessions)
+    .set({
+      recordingConsent: consent,
+      recordingConsentAt: new Date(),
+      recordingConsentVersion: RECORDING_CONSENT_VERSION,
+      ...(consent === "declined" ? { recordingPausedAt: new Date() } : {}),
+    })
+    .where(eq(sessions.id, sessionId));
+
+  // Deliberately not through the PHI audit helper: there is no actor with a
+  // user id here, and the fact recorded is about consent rather than about
+  // anybody reading a chart.
+  log.info("recording consent recorded", { consent, version: RECORDING_CONSENT_VERSION });
 }
 
 /** Polled by the waiting room until the clinician starts. */

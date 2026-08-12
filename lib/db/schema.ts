@@ -359,6 +359,24 @@ export const sessions = pgTable(
      * recording stopped. Persisted so the patient's own screen can show it.
      */
     recordingPausedAt: timestamp("recording_paused_at", { withTimezone: true }),
+
+    /**
+     * Whether the patient agreed to be recorded, when, and to what wording.
+     *
+     * The page used to say "your therapist may record it to write their
+     * clinical notes" and leave it there. That is notice; consent is an act.
+     * There was nothing to produce if a recording were ever disputed, which is
+     * the only moment the question is ever asked.
+     *
+     * `declined` is a value rather than an absence because "they never agreed"
+     * and "they refused" are opposite facts, and a null cannot tell them
+     * apart. A refusal does not stop the session — it starts it off record.
+     */
+    recordingConsent: text("recording_consent").$type<"granted" | "declined">(),
+    recordingConsentAt: timestamp("recording_consent_at", { withTimezone: true }),
+    /** Consent is to particular words, and the words will be edited. */
+    recordingConsentVersion: text("recording_consent_version"),
+
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),

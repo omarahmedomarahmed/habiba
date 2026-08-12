@@ -12,6 +12,7 @@ import {
   type JoinState,
 } from "@/app/join/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { RECORDING_CONSENT } from "@/lib/consent";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { PatientRoom, type Therapist } from "@/components/join/patient-room";
@@ -223,16 +224,93 @@ export function JoinFlow({
         </Field>
       ) : null}
 
+      <ConsentStep />
+
       <Submit priceCents={owes ? priceCents : 0} />
 
       <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         {owes
-          ? "Payment is handled by Stripe and goes to your therapist — we never see your card. Your session is private, and your therapist may record it to write their clinical notes."
-          : modality === "video"
-            ? "Your session is private. Your therapist may record it to write their clinical notes — ask them if you have any questions about that."
-            : "Your session is private. Your therapist may record it to write their clinical notes."}
+          ? "Payment is handled by Stripe and goes to your therapist — we never see your card. Your session is private and is not shared with anyone else."
+          : "Your session is private and is not shared with anyone else."}
       </p>
     </form>
+  );
+}
+
+/**
+ * Asking, rather than telling.
+ *
+ * The page used to carry a line of grey twelve-pixel text saying "your
+ * therapist may record it to write their clinical notes", below the button,
+ * next to the payment disclaimer. That is notice. It records nothing, it
+ * proves nothing, and it is placed exactly where nobody reads it.
+ *
+ * Three deliberate choices here:
+ *
+ *   Nothing is pre-selected. A pre-ticked box is not an affirmative act, and
+ *   a stored "granted" that came from a default is worse than no record at
+ *   all — it is a document asserting a decision that never happened.
+ *
+ *   The consequence of refusing is stated before the choice, not after. A
+ *   person who does not know whether saying no costs them their appointment
+ *   is not choosing freely, they are guessing.
+ *
+ *   Both options look the same. Styling "yes" as the primary action and "no"
+ *   as a grey escape hatch is a nudge, and a nudged consent is the kind that
+ *   falls over the moment anybody examines it.
+ */
+function ConsentStep() {
+  const [choice, setChoice] = useState<"granted" | "declined" | null>(null);
+
+  return (
+    <fieldset className="rounded-2xl border border-slate-200 p-4">
+      <legend className="px-1.5 text-sm font-semibold text-slate-900">
+        {RECORDING_CONSENT.question}
+      </legend>
+
+      <ul className="mt-1 space-y-1.5">
+        {RECORDING_CONSENT.points.map((point) => (
+          <li key={point} className="flex gap-2 text-xs leading-relaxed text-slate-600">
+            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" aria-hidden />
+            {point}
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-2.5 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
+        {RECORDING_CONSENT.refusal}
+      </p>
+
+      <div className="mt-3 grid gap-2">
+        {(
+          [
+            ["granted", RECORDING_CONSENT.grant],
+            ["declined", RECORDING_CONSENT.decline],
+          ] as const
+        ).map(([value, label]) => (
+          <label
+            key={value}
+            className={cn(
+              "flex cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm font-medium transition-colors",
+              choice === value
+                ? "border-teal-500 bg-teal-50 text-teal-900"
+                : "border-slate-200 text-slate-700 hover:bg-slate-50",
+            )}
+          >
+            <input
+              type="radio"
+              name="consent"
+              value={value}
+              required
+              checked={choice === value}
+              onChange={() => setChoice(value)}
+              className="h-4 w-4 border-slate-300 text-teal-600 focus:ring-teal-500"
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

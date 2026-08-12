@@ -64,6 +64,14 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
       priceCents={row.session.priceCents}
       paymentStatus={row.session.paymentStatus}
       patientAlreadyJoined={Boolean(row.session.patientJoinedAt)}
+      /*
+        Whether the patient agreed to be recorded.
+        ----------------------------------------
+        Passed because a refusal the clinician cannot see is worse than
+        never having asked: it produces a record saying we knew, next to a
+        recording made anyway.
+      */
+      recordingConsent={row.session.recordingConsent}
       initialLines={transcript.map((segment) => ({
         id: segment.id,
         speaker: segment.speaker,
