@@ -368,6 +368,25 @@ export function SessionRoom(props: RoomProps) {
           </div>
         ) : null}
 
+        {/*
+          They are here — said out loud.
+          ------------------------------
+          Until this, the clinician's only signal that the patient had arrived
+          was the *disappearance* of the waiting strip below. An absence is a
+          terrible way to announce a person: a clinician who glanced away has
+          nothing to glance back at, and "did the link work?" is the question
+          they are actually holding while they wait.
+        */}
+        {props.joinUrl && patientJoined && !live ? (
+          <p
+            className="flex items-center gap-2 border-b border-teal-400/25 bg-teal-400/15 px-4 py-2.5 text-xs font-medium text-teal-100"
+            data-patient-joined="true"
+          >
+            <span className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-teal-300" aria-hidden />
+            {props.patientLabel} is in the room, waiting for you to start.
+          </p>
+        ) : null}
+
         {props.joinUrl && !patientJoined ? (
           <div className="border-b border-white/10 bg-white/5 px-4 py-3" data-join-url={props.joinUrl}>
             <p className="text-xs font-medium text-slate-300">

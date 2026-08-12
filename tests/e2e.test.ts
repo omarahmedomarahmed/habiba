@@ -60,6 +60,51 @@ after(async () => {
   mock?.server.close();
 });
 
+/**
+ * Get the alarm prompt out of the way, the way a clinician would.
+ *
+ * The portal asks every clinician for permission to make a noise, once per
+ * browser session, as a full-screen dialog — because an alarm nobody armed is
+ * the failure mode that matters, and a dismissible corner toast is how that
+ * gets ignored. It is a real modal, so it really does block everything behind
+ * it, and this suite found that out by failing seven tests at once the moment
+ * it was added.
+ *
+ * Dismissing it here rather than special-casing the component is the honest
+ * arrangement: the dialog is doing exactly what it is supposed to, and a test
+ * driving the product has to answer it like a person does.
+ */
+/**
+ * Start from a known budget.
+ *
+ * The limiter is keyed on the caller's network, and this whole suite is one
+ * caller: every test that joins, books or polls spends from the same buckets,
+ * and a test that runs after the one which deliberately fires eighty requests
+ * inherits whatever it left behind. That made two tests here depend on their
+ * position in the file — passing or failing on ordering rather than on the
+ * behaviour they exist to check.
+ *
+ * Clearing the rows is legitimate setup rather than papering over a bug: the
+ * limiter's correctness under concurrency is proved in tests/radar.test.ts
+ * against real Postgres. What these tests are for is the flow.
+ */
+async function resetLimiter() {
+  const { pool } = connect();
+  try {
+    await pool.query("DELETE FROM rate_limits");
+  } finally {
+    await pool.end();
+  }
+}
+
+async function dismissAlarmPrompt(target: Page) {
+  const later = target.getByRole("button", { name: /^(Later|Not now)$/ });
+  if ((await later.count()) > 0) {
+    await later.first().click();
+    await target.waitForTimeout(200);
+  }
+}
+
 test("the public home page renders the live hero from real portal components", async () => {
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("text=Finish your notes before you leave the room");
@@ -77,6 +122,7 @@ test("a new therapist is sent to verification before they can see a patient", as
   await page.fill("#email", EMAIL);
   await page.fill("#password", PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
+  await dismissAlarmPrompt(page);
 
   // The gate. Signing up gets you an account, not a caseload.
   await page.waitForURL(/\/onboarding/, { timeout: 30_000 });
@@ -89,6 +135,7 @@ test("a new therapist is sent to verification before they can see a patient", as
    * boundary.
    */
   await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await dismissAlarmPrompt(page);
   await page.waitForURL(/\/onboarding/, { timeout: 15_000 });
 });
 
@@ -132,6 +179,7 @@ test("an approved therapist lands directly in a new session", async () => {
   }
 
   await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await dismissAlarmPrompt(page);
   await page.waitForSelector("#guestName", { timeout: 30_000 });
 });
 
@@ -272,6 +320,7 @@ test("an expired session logs the therapist out instead of looping", async () =>
   await page.fill("#password", PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/\/dashboard|\/sessions/, { timeout: 30_000 });
+  await dismissAlarmPrompt(page);
 });
 
 test("the note appears in the notes list as approved", async () => {
@@ -283,6 +332,7 @@ test("the note appears in the notes list as approved", async () => {
 test("a patient can join by link with no account", async () => {
   // Create a video session so a join link exists.
   await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await dismissAlarmPrompt(page);
   await page.getByRole("button", { name: /Video/ }).click();
   await page.fill("#guestName", "Sam");
   await page.getByRole("button", { name: "Start session now" }).click();
@@ -298,10 +348,25 @@ test("a patient can join by link with no account", async () => {
 
   await patientPage.waitForSelector("text=Join your session");
   await patientPage.fill("#name", "Sam");
+
+  /*
+   * The consent step is a gate, and this proves it is one: submitting without
+   * an answer must not get through. If this ever starts passing without the
+   * click below, the gate has become decoration.
+   */
+  await patientPage.getByRole("button", { name: "Join session" }).click();
+  await patientPage.waitForTimeout(500);
+  assert.equal(
+    await patientPage.locator("text=Do not close this tab").count(),
+    0,
+    "a patient must not be able to enter the room without answering the recording question",
+  );
+
+  await patientPage.getByText("Yes, you may record").click();
   await patientPage.getByRole("button", { name: "Join session" }).click();
   // The room, not a holding card: it names the clinician and says what
   // happens afterwards, whether or not the call itself has started.
-  await patientPage.waitForSelector("text=Keep this tab open", { timeout: 30_000 });
+  await patientPage.waitForSelector("text=Do not close this tab", { timeout: 30_000 });
 
   await anonymous.close();
 });
@@ -351,9 +416,19 @@ test("a stranger can book a therapist off the public radar", async () => {
   await patientPage.getByRole("button", { name: "Start now" }).click();
 
   await patientPage.waitForURL(/\/join\//, { timeout: 30_000 });
+
+  /*
+   * A radar booking never touches the join form, so this is where the
+   * recording question gets put to the fastest arrivals in the product — the
+   * ones who were, until it was added, the only patients nobody asked.
+   */
+  await patientPage.waitForSelector("text=One question before you go in", { timeout: 30_000 });
+  await patientPage.getByText("Yes, you may record").click();
+  await patientPage.getByRole("button", { name: "Go in" }).click();
+
   // The room, not a holding card: it names the clinician and says what
   // happens afterwards, whether or not the call itself has started.
-  await patientPage.waitForSelector("text=Keep this tab open", { timeout: 30_000 });
+  await patientPage.waitForSelector("text=Do not close this tab", { timeout: 30_000 });
 
   await anonymous.close();
 
@@ -381,6 +456,7 @@ test("a stranger can book a therapist off the public radar", async () => {
  */
 test("a session with a price will not admit a patient who has not paid", async () => {
   await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await dismissAlarmPrompt(page);
   await page.getByRole("button", { name: /Video/ }).click();
   await page.fill("#guestName", "Robin");
   await page.getByRole("button", { name: "Start session now" }).click();
@@ -407,6 +483,7 @@ test("a session with a price will not admit a patient who has not paid", async (
 
   await patientPage.waitForSelector("text=$60");
   await patientPage.fill("#name", "Robin");
+  await patientPage.getByText("Yes, you may record").click();
   await patientPage.getByRole("button", { name: /Pay \$60 and join/ }).click();
 
   // Stripe is not configured in this environment, so the attempt fails — and
@@ -414,7 +491,7 @@ test("a session with a price will not admit a patient who has not paid", async (
   await patientPage.waitForSelector('[role="alert"]', { timeout: 30_000 });
   assert.equal(await patientPage.locator("iframe").count(), 0, "no room may be handed over");
   assert.equal(
-    await patientPage.locator("text=Keep this tab open").count(),
+    await patientPage.locator("text=Do not close this tab").count(),
     0,
     "an unpaid patient must not reach the session room",
   );
@@ -432,6 +509,7 @@ test("a session with a price will not admit a patient who has not paid", async (
  * library and is never called protects nothing.
  */
 test("the public radar endpoint refuses a flood", async () => {
+  await resetLimiter();
   const codes = await Promise.all(
     Array.from({ length: 80 }, async () => {
       const response = await fetch(`${BASE_URL}/api/radar`, { cache: "no-store" });
@@ -449,4 +527,135 @@ test("the public radar endpoint refuses a flood", async () => {
     limited.every((c) => Number(c.retryAfter) > 0),
     "every 429 must carry a Retry-After the caller can act on",
   );
+});
+
+/**
+ * Two people, one room.
+ *
+ * The single most important thing this product claims, and the one thing
+ * nothing had ever exercised. Every other test drives one browser: the
+ * therapist records, or the patient joins, but never both at once — so
+ * "a stranger in crisis is in a room with a clinician inside a minute" was an
+ * assertion nobody had checked end to end.
+ *
+ * What it actually proves depends on the environment, and that is stated
+ * rather than hidden. With DAILY_API_KEY set, both sides mount a real Daily
+ * iframe against a real private room with per-participant tokens. Without it,
+ * the room degrades to "video is not configured" — and the test still checks
+ * everything around the call, because the surrounding choreography is where
+ * the bugs have actually been: the join link, the consent gate, the patient's
+ * arrival reaching the clinician's screen, the recording indicator.
+ */
+test("a therapist and a patient are in the same room at the same time", async () => {
+  // This runs straight after a test that deliberately floods the limiter from
+  // the same address; without this the patient is refused entry for a reason
+  // that has nothing to do with what is being checked.
+  await resetLimiter();
+
+  await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
+  await dismissAlarmPrompt(page);
+  await page.getByRole("button", { name: /Video/ }).click();
+  await page.fill("#guestName", "Alex");
+  await page.getByRole("button", { name: "Start session now" }).click();
+  await page.waitForURL(/\/sessions\/[0-9a-f-]+\/room/, { timeout: 30_000 });
+
+  const joinLink = await page.getAttribute("[data-join-url]", "data-join-url");
+  assert.ok(joinLink, "a video session must expose a join link");
+
+  const videoConfigured =
+    (await page.locator("text=Video is not configured").count()) === 0;
+
+  // Second browser context: a different person, on a different device.
+  const anonymous = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    permissions: ["camera", "microphone"],
+  });
+  const patientPage = await anonymous.newPage();
+
+  try {
+    await patientPage.goto(joinLink!, { waitUntil: "domcontentloaded" });
+    await patientPage.waitForSelector("text=Join your session");
+    await patientPage.fill("#name", "Alex");
+    await patientPage.getByText("Yes, you may record").click();
+    await patientPage.getByRole("button", { name: "Join session" }).click();
+
+    /*
+     * Say what went wrong instead of timing out.
+     *
+     * This test runs straight after the one that deliberately floods the
+     * limiter from this same address, and a join refused for that reason looks
+     * identical to a broken room from a bare waitForSelector: thirty seconds,
+     * then "element not found". Reading the form's own error first turns a
+     * mystery into a sentence.
+     */
+    /*
+     * Say what went wrong instead of timing out.
+     *
+     * This runs straight after a test that deliberately floods the limiter
+     * from the same address, and a refusal looks identical to a broken room
+     * from a bare waitForSelector: thirty seconds, then "element not found".
+     *
+     * `:not(:empty)` is load-bearing. The form renders its alert container
+     * unconditionally, so racing against a bare [role="alert"] resolves
+     * instantly against an empty box and reports a failure that never
+     * happened — which is exactly what the first version of this did.
+     */
+    const refusal = patientPage.locator('[role="alert"]:not(:empty)');
+    const outcome = await Promise.race([
+      patientPage
+        .waitForSelector("text=Do not close this tab", { timeout: 30_000 })
+        .then(() => "room" as const),
+      refusal
+        .first()
+        .waitFor({ timeout: 30_000 })
+        .then(() => "refused" as const),
+    ]).catch(() => "timeout" as const);
+
+    if (outcome !== "room") {
+      const said = (await refusal.first().textContent().catch(() => null))?.trim();
+      assert.fail(
+        said ? `the patient was refused entry: ${said}` : "the patient never reached the room",
+      );
+    }
+
+    /*
+     * The clinician's screen learns the patient arrived.
+     *
+     * This is the half that cannot be tested with one browser, and the half
+     * that matters: a clinician sitting in a room with no idea somebody is on
+     * the other side of it is the failure the whole alarm exists to prevent.
+     */
+    await page.locator("[data-patient-joined]").first().waitFor({ timeout: 30_000 });
+    assert.match(
+      (await page.locator("[data-patient-joined]").first().textContent()) ?? "",
+      /Alex/,
+      "the clinician is told who arrived, by name",
+    );
+
+    if (videoConfigured) {
+      // Both sides mount the call against the same private room.
+      await page.locator("iframe[title*='call' i], iframe[src*='daily']").first().waitFor({
+        timeout: 30_000,
+      });
+      await patientPage
+        .locator("iframe[title*='call' i], iframe[src*='daily']")
+        .first()
+        .waitFor({ timeout: 30_000 });
+    } else {
+      // Say so out loud rather than reporting a pass that proved less than it
+      // looks like it did.
+      console.log(
+        "  ! DAILY_API_KEY is not set: the call itself was not exercised, only the flow around it",
+      );
+    }
+
+    // And the patient can see whether the microphone is running, which is the
+    // promise made to them on the way in.
+    assert.ok(
+      (await patientPage.locator("text=/recording|not being recorded/i").count()) > 0,
+      "the patient must be told the recording state at all times",
+    );
+  } finally {
+    await anonymous.close();
+  }
 });

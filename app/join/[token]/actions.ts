@@ -16,6 +16,12 @@ export type JoinState = {
   videoUrl?: string | null;
   /** Set when the session must be paid for before the room is handed over. */
   payUrl?: string;
+  /**
+   * The patient is known and cleared, but has never been asked about
+   * recording. See `resumeAfterPayment` — the radar path skips the join form
+   * entirely, so this is the only place that question can be put to them.
+   */
+  needsConsent?: boolean;
 };
 
 /**
@@ -154,7 +160,59 @@ export async function resumeAfterPayment(token: string): Promise<JoinState> {
   if (!name) return {};
 
   await joinByToken(token, name);
+
+  /*
+   * The hole this closes.
+   *
+   * Consent was collected in `submitJoin`, which is the form. A radar booking
+   * never touches that form: the patient types their name on the public radar,
+   * the session is created for them, and they are redirected here already
+   * named and already admitted. So the product's headline flow — a stranger in
+   * crisis, booked in ninety seconds — was the one flow that recorded people
+   * without ever asking. The same is true of anyone returning from Stripe on a
+   * session created before this shipped.
+   *
+   * Answering is the price of entry, and it is asked here rather than waved
+   * through, because "we asked everybody except the ones who arrived the
+   * quickest" is not a consent process.
+   */
+  const consented = await hasConsent(session.id);
+  if (!consented) return { needsConsent: true };
   return admit(token, name);
+}
+
+/** Has this session been asked the recording question at all? */
+async function hasConsent(sessionId: string): Promise<boolean> {
+  const { db } = await import("@/lib/db");
+  const { sessions } = await import("@/lib/db/schema");
+  const { eq } = await import("drizzle-orm");
+
+  const [row] = await db
+    .select({ consent: sessions.recordingConsent })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  return Boolean(row?.consent);
+}
+
+/**
+ * The answer, given by somebody who never saw the join form.
+ *
+ * Unauthenticated like the rest of this file — the join token is the
+ * credential and it names exactly one session.
+ */
+export async function answerConsent(token: string, consent: string): Promise<JoinState> {
+  const { isRecordingConsent } = await import("@/lib/consent");
+  if (!isRecordingConsent(consent)) {
+    return { needsConsent: true, error: "Please choose one." };
+  }
+
+  const session = await resolveJoinToken(token);
+  if (!session) return { error: "This link is no longer valid." };
+
+  await recordConsent(session.id, consent);
+  return admit(token, session.guestName?.trim() || "Patient");
 }
 
 /**

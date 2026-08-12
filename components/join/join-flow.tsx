@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { CreditCard, Loader2, ShieldCheck, Star } from "lucide-react";
 
 import {
+  answerConsent,
   checkJoinState,
   rateOnArrival,
   resumeAfterPayment as resumeAction,
@@ -118,6 +119,18 @@ export function JoinFlow({
     }, 5000);
     return () => clearInterval(poll);
   }, [current.joined, live, token]);
+
+  /*
+   * Booked off the radar, and never asked.
+   *
+   * These patients skipped the join form entirely — they typed their name on
+   * the public radar and were redirected straight in. They are the fastest
+   * arrivals in the product and were, until this, the only ones nobody asked
+   * about recording. The question is put here instead, before the room.
+   */
+  if (current.needsConsent) {
+    return <ConsentGate token={token} onAnswered={setResumed} />;
+  }
 
   if (ended) {
     /*
@@ -260,6 +273,59 @@ export function JoinFlow({
  *   as a grey escape hatch is a nudge, and a nudged consent is the kind that
  *   falls over the moment anybody examines it.
  */
+/**
+ * The same question, for an arrival that has no form to put it in.
+ *
+ * Deliberately a full stop rather than an overlay on the room: somebody who
+ * has not answered is not in the session yet, and rendering the room behind a
+ * dialog would suggest the recording had already started.
+ */
+function ConsentGate({
+  token,
+  onAnswered,
+}: {
+  token: string;
+  onAnswered: (state: JoinState) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <Card className="p-5">
+      <p className="text-lg font-bold tracking-tight text-slate-900">One question before you go in</p>
+      <p className="mt-1 text-sm leading-relaxed text-slate-500">
+        Your therapist is ready. This takes a second and you can say no.
+      </p>
+
+      {error ? (
+        <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
+
+      <form
+        className="mt-4 space-y-4"
+        action={(formData) =>
+          startTransition(async () => {
+            setError(null);
+            const result = await answerConsent(token, String(formData.get("consent") ?? ""));
+            if (result.error) {
+              setError(result.error);
+              return;
+            }
+            onAnswered(result);
+          })
+        }
+      >
+        <ConsentStep />
+        <Button type="submit" size="lg" variant="teal" full disabled={pending}>
+          {pending ? "Going in…" : "Go in"}
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
 function ConsentStep() {
   const [choice, setChoice] = useState<"granted" | "declined" | null>(null);
 
