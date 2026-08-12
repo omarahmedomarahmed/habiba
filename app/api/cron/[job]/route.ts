@@ -151,7 +151,12 @@ const JOBS = {
     // Rate-limit rows self-invalidate on read; this only stops the table
     // growing without bound.
     const limitsPurged = await purgeExpiredLimits();
-    return { auditPurged: purged.length, sessionsPurged, limitsPurged };
+    // Errors are kept for a month — long enough to see a pattern, short
+    // enough that a route throwing all weekend does not become the largest
+    // table in the database.
+    const { purgeOldErrors } = await import("@/lib/observability/errors");
+    const errorsPurged = await purgeOldErrors();
+    return { auditPurged: purged.length, sessionsPurged, limitsPurged, errorsPurged };
   },
 } as const;
 

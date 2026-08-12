@@ -1329,6 +1329,46 @@ export const contentPages = pgTable(
   (t) => [uniqueIndex("content_pages_slug_unique").on(t.slug)],
 );
 
+/**
+ * Server errors, kept where somebody will actually look at them.
+ *
+ * In our own database rather than a third-party drain, and that is the whole
+ * design decision. An error thrown while writing a note can carry a patient's
+ * words in a stack frame; shipping that to a vendor is a disclosure, and one
+ * nobody consented to. Here it sits under the same access control, the same
+ * audit log and the same retention rules as the record it came from.
+ *
+ * Nothing is written without going through `recordError`, which drops the
+ * request body, the query string and every path segment that could be an
+ * identifier first.
+ */
+export const errorEvents = pgTable(
+  "error_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /**
+     * Route plus the top of the stack, hashed.
+     *
+     * What turns four thousand rows into nine problems. Deliberately not the
+     * message: messages interpolate ids and values, which would split a single
+     * bug into hundreds of groups and hide the fact that it is one bug.
+     */
+    fingerprint: text("fingerprint").notNull(),
+    route: text("route").notNull(),
+    method: text("method"),
+    kind: text("kind").$type<"server" | "client">().notNull().default("server"),
+    message: text("message").notNull(),
+    stack: text("stack"),
+    /** Next's own error digest, so a user-reported code can be looked up. */
+    digest: text("digest"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("error_events_created_idx").on(table.createdAt),
+    index("error_events_fingerprint_idx").on(table.fingerprint),
+  ],
+);
+
 export type Organization = typeof organizations.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Patient = typeof patients.$inferSelect;
@@ -1348,3 +1388,4 @@ export type RateLimit = typeof rateLimits.$inferSelect;
 export type TherapistVerification = typeof therapistVerifications.$inferSelect;
 export type SessionFeedback = typeof sessionFeedback.$inferSelect;
 export type SessionReport = typeof sessionReports.$inferSelect;
+export type ErrorEvent = typeof errorEvents.$inferSelect;

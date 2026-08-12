@@ -151,7 +151,6 @@ export const env = {
 
   cronSecret: process.env.CRON_SECRET || "",
 
-  sentryDsn: process.env.SENTRY_DSN || "",
 } as const;
 
 /** Feature availability, derived — never a separate FEATURE_* flag. */

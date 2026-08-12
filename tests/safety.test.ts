@@ -301,3 +301,45 @@ test("citations are de-duplicated and a non-array is handled", () => {
   assert.deepEqual(resolveCitations(null, index), []);
   assert.deepEqual(resolveCitations("S1:1", index), []);
 });
+
+/**
+ * The error recorder's scrubbing.
+ *
+ * These assertions are the security page's claim, written down as code. It
+ * tells readers that identifiers are removed from paths before an error is
+ * stored — and the previous version of that page described a reporter that did
+ * not exist at all, so the claim deserves a test rather than another promise.
+ *
+ * The threat is mundane and therefore likely: an admin exports the error table
+ * to send to somebody, or leaves it open on a shared screen. Anything that
+ * survives scrubbing survives into that moment.
+ */
+test("identifiers never reach the error log", async () => {
+  const { scrubPath } = await import("../lib/observability/errors");
+
+  assert.equal(
+    scrubPath("/sessions/58b00bbe-b591-4da1-8b4e-aac8c4a7af99/room"),
+    "/sessions/[id]/room",
+    "a session uuid in a path is a chart anyone can look up",
+  );
+
+  assert.equal(
+    scrubPath("/join/UyoBFkMyf8SELXgyyN1g0TAonuCqtTM6"),
+    "/join/[token]",
+    "a join token is a live credential — it lets the holder into the room",
+  );
+
+  assert.equal(
+    scrubPath("/records/abc123XYZ_tokenvalue-here999"),
+    "/records/[token]",
+    "an export token opens a whole medical record",
+  );
+
+  assert.equal(scrubPath("/invoices/4821"), "/invoices/[n]");
+
+  // And the routes that carry nothing sensitive must stay legible, or the
+  // list becomes a wall of placeholders nobody can debug from.
+  assert.equal(scrubPath("/api/cron/crisis"), "/api/cron/crisis");
+  assert.equal(scrubPath("/admin/radar"), "/admin/radar");
+  assert.equal(scrubPath("/"), "/");
+});
