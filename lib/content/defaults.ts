@@ -394,26 +394,29 @@ export const DEFAULT_PAGES: DefaultPage[] = [
   },
   {
     /*
-     * Kept at /hipaa because the URL is in the footer, the sitemap and
-     * whatever links already point at it — but the page is no longer a claim
-     * of HIPAA compliance.
+     * HIPAA, stated as a destination rather than a possession.
      *
-     * It used to say "we sign a BAA with every customer on every plan" and
-     * "each [subprocessor] holds a BAA before any protected health
-     * information reaches it". The second one was checkably false: the
-     * database that holds every chart is not on a HIPAA-eligible plan and
-     * there is no BAA behind it. A compliance officer at a clinic verifies
-     * exactly that sentence, and the cost of being caught asserting it is the
-     * whole relationship — far more than the cost of not claiming it.
+     * This page has now been wrong in both directions. It first claimed BAAs
+     * that did not exist, which is the version a clinic's compliance officer
+     * catches. Then it was stripped back to a flat "we are not compliant",
+     * which is honest and useless — it tells a prospective customer nothing
+     * about whether we will be, or when, or what is actually left to do.
      *
-     * So this page now says what is true, names what is not in place, and
-     * says which framework actually governs a Gulf clinic. That reads as
-     * weaker marketing and is stronger evidence: a vendor who volunteers
-     * their gaps is a vendor whose other statements you can use.
+     * The third version is the one a real pre-launch company can defend: name
+     * every subprocessor, say whether a BAA is available from them at all,
+     * say whether we hold one, and date the gap. "Coming soon" is only
+     * credible when the reader can see the list it is coming from — a badge
+     * with no checklist behind it is marketing, and this audience is
+     * specifically trained to discount it.
+     *
+     * The order of operations is real and worth writing down: a BAA is a
+     * contract, and a contract needs a legal entity. Nothing on this list can
+     * be signed before the US entity exists, which is why the entity is the
+     * first row rather than a footnote.
      */
     slug: "hipaa",
     title: "Compliance",
-    description: "What is in place, what is not, and where your data lives.",
+    description: "Where we are on HIPAA, and what is left.",
     layout: "document",
     navLabel: "Compliance",
     navOrder: 12,
@@ -421,40 +424,40 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "hero",
         eyebrow: "Compliance",
-        heading: "Compliance",
+        heading: "HIPAA — in progress",
         demo: "none",
         icon: "shield",
         backgroundImage: "/backgrounds/contours.svg",
       },
       {
         type: "prose",
+        heading: "Where we are today",
+        body: "24Therapy is in closed beta and is not yet HIPAA compliant. We are incorporating in the United States, and business associate agreements with each of our infrastructure providers are the next step after that — a BAA is a contract, and a contract needs a legal entity to sign it. Until every row in the table below reads signed, do not put protected health information into this product. We will tell you the day that changes rather than leaving you to check.",
+      },
+      {
+        type: "prose",
+        heading: "The subprocessors, and where each one stands",
+        body: "Vercel — hosting and compute. HIPAA-eligible on their Enterprise plan; BAA available; not yet signed. Neon — the database holding every clinical record. HIPAA-eligible on their Business plan; BAA available; not yet signed. OpenAI — transcription and note generation. Zero-retention and a BAA are available on their enterprise terms; not yet signed. Daily — video. HIPAA-eligible plan with a BAA available; not yet signed. Stripe — payments; a BAA is available and payment data is not PHI in our architecture, since we never see a card. Resend — transactional email; a BAA is available. Every one of these is a company we can sign with, which is why they were chosen; none of them is signed yet, which is why this page says in progress rather than compliant.",
+      },
+      {
+        type: "prose",
+        heading: "What the beta means for you",
+        body: "Our first customers are a small number of practices who know exactly what this is: a product being tested, priced for that, with the compliance work openly unfinished. Their patients are told too — the recording consent step is real, it stores what was agreed and when, and refusing it costs the patient nothing. If you are a US covered entity and you are not comfortable being one of those first practices, wait for the table above to go green. That is a reasonable position and we will not argue you out of it.",
+      },
+      {
+        type: "prose",
+        heading: "What is already built",
+        body: "None of this depends on a signature and all of it can be inspected. Access to any chart requires an authenticated, non-expired session; sessions expire after 30 minutes of inactivity and 8 hours absolute. Every read and write of clinical data is recorded in an append-only audit log with actor, patient, resource and timestamp. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp and the wording they saw. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
+      },
+      {
+        type: "prose",
         heading: "Where your data is held",
-        body: "Clinical records, transcripts and notes are stored in Amazon Web Services in Oregon, United States (us-west-2). Recordings are processed in the United States. If your regulator requires patient data to remain inside your country — as the UAE does for health information under Federal Law No. 2 of 2019 — this deployment does not meet that requirement today, and you should talk to us before putting patient data in it. A region inside your jurisdiction is available on request.",
-      },
-      {
-        type: "prose",
-        heading: "Which rules apply to you",
-        body: "HIPAA is a United States statute. It binds US covered entities and their business associates; it does not govern a clinic in Dubai, Abu Dhabi, Riyadh or Cairo, and a vendor claiming it tells you nothing about your own obligations. A UAE practice answers to the Department of Health or the Dubai Health Authority and to Federal Law No. 2 of 2019. We will support your filing with whichever of those applies to you.",
-      },
-      {
-        type: "prose",
-        heading: "Business associate agreements",
-        body: "We do not currently hold business associate agreements with our subprocessors, and we are not representing this deployment as HIPAA compliant. If you are a US covered entity, do not put protected health information into it until that is in place — ask us and we will tell you the current status honestly rather than sell you a plan.",
-      },
-      {
-        type: "prose",
-        heading: "Technical safeguards that are in place",
-        body: "These are built and can be inspected. Access to any chart requires an authenticated, non-expired session; sessions expire after 30 minutes of inactivity and 8 hours absolute. Every read and write of clinical data is recorded in an append-only audit log with actor, patient, resource and timestamp. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
-      },
-      {
-        type: "prose",
-        heading: "Subprocessors",
-        body: "Hosting and compute (Vercel), database (Neon), transcription and note generation (OpenAI), transactional email (Resend), video (Daily). Any of these can see the data passing through it, which is why the list is here rather than in an appendix. Your administrator maintains the current version.",
+        body: "Amazon Web Services in Oregon, United States (us-west-2). If your regulator requires patient data to remain inside your own country — as the UAE does for health information under Federal Law No. 2 of 2019 — this deployment does not meet that requirement, and a region inside your jurisdiction is available on request. HIPAA is a United States statute and does not itself govern a practice in Dubai or Riyadh; we are meeting the US standard first because it is the higher bar, and because clearing it makes everything that follows easier to answer.",
       },
       {
         type: "prose",
         heading: "Retention and recovery",
-        body: "Audit records are retained for six years. Clinical records are retained until deleted by the practice. Database point-in-time recovery currently covers the last 24 hours; a longer window is available and is worth asking about before you rely on this for records you are legally required to keep.",
+        body: "Audit records are retained for six years. Clinical records are retained until deleted by the practice. Database point-in-time recovery currently covers the last 24 hours and will be extended before general availability.",
       },
     ],
   },
