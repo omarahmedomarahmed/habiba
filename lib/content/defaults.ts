@@ -393,40 +393,68 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     ],
   },
   {
+    /*
+     * Kept at /hipaa because the URL is in the footer, the sitemap and
+     * whatever links already point at it — but the page is no longer a claim
+     * of HIPAA compliance.
+     *
+     * It used to say "we sign a BAA with every customer on every plan" and
+     * "each [subprocessor] holds a BAA before any protected health
+     * information reaches it". The second one was checkably false: the
+     * database that holds every chart is not on a HIPAA-eligible plan and
+     * there is no BAA behind it. A compliance officer at a clinic verifies
+     * exactly that sentence, and the cost of being caught asserting it is the
+     * whole relationship — far more than the cost of not claiming it.
+     *
+     * So this page now says what is true, names what is not in place, and
+     * says which framework actually governs a Gulf clinic. That reads as
+     * weaker marketing and is stronger evidence: a vendor who volunteers
+     * their gaps is a vendor whose other statements you can use.
+     */
     slug: "hipaa",
-    title: "HIPAA",
-    description: "How 24Therapy supports HIPAA compliance.",
+    title: "Compliance",
+    description: "What is in place, what is not, and where your data lives.",
     layout: "document",
-    navLabel: "HIPAA",
+    navLabel: "Compliance",
     navOrder: 12,
     blocks: [
       {
         type: "hero",
         eyebrow: "Compliance",
-        heading: "HIPAA",
+        heading: "Compliance",
         demo: "none",
         icon: "shield",
         backgroundImage: "/backgrounds/contours.svg",
       },
       {
         type: "prose",
-        heading: "Business associate agreement",
-        body: "We sign a BAA with every customer on every plan. Handling protected health information on your behalf makes us a business associate; that is a legal relationship, not a paid feature.",
+        heading: "Where your data is held",
+        body: "Clinical records, transcripts and notes are stored in Amazon Web Services in Oregon, United States (us-west-2). Recordings are processed in the United States. If your regulator requires patient data to remain inside your country — as the UAE does for health information under Federal Law No. 2 of 2019 — this deployment does not meet that requirement today, and you should talk to us before putting patient data in it. A region inside your jurisdiction is available on request.",
       },
       {
         type: "prose",
-        heading: "Technical safeguards in the product",
-        body: "Access to any chart requires an authenticated, non-expired session; sessions expire after 30 minutes of inactivity and 8 hours absolute. Every read and write of clinical data is recorded in an append-only audit log with actor, patient, resource and timestamp. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token.",
+        heading: "Which rules apply to you",
+        body: "HIPAA is a United States statute. It binds US covered entities and their business associates; it does not govern a clinic in Dubai, Abu Dhabi, Riyadh or Cairo, and a vendor claiming it tells you nothing about your own obligations. A UAE practice answers to the Department of Health or the Dubai Health Authority and to Federal Law No. 2 of 2019. We will support your filing with whichever of those applies to you.",
+      },
+      {
+        type: "prose",
+        heading: "Business associate agreements",
+        body: "We do not currently hold business associate agreements with our subprocessors, and we are not representing this deployment as HIPAA compliant. If you are a US covered entity, do not put protected health information into it until that is in place — ask us and we will tell you the current status honestly rather than sell you a plan.",
+      },
+      {
+        type: "prose",
+        heading: "Technical safeguards that are in place",
+        body: "These are built and can be inspected. Access to any chart requires an authenticated, non-expired session; sessions expire after 30 minutes of inactivity and 8 hours absolute. Every read and write of clinical data is recorded in an append-only audit log with actor, patient, resource and timestamp. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
       },
       {
         type: "prose",
         heading: "Subprocessors",
-        body: "Hosting and compute, database, AI transcription and note generation, transactional email, and video. Each holds a BAA before any protected health information reaches it. Your administrator maintains the current list.",
+        body: "Hosting and compute (Vercel), database (Neon), transcription and note generation (OpenAI), transactional email (Resend), video (Daily). Any of these can see the data passing through it, which is why the list is here rather than in an appendix. Your administrator maintains the current version.",
       },
       {
         type: "prose",
-        heading: "Retention",
-        body: "Audit records are retained for six years. Clinical records are retained until deleted by the practice.",
+        heading: "Retention and recovery",
+        body: "Audit records are retained for six years. Clinical records are retained until deleted by the practice. Database point-in-time recovery currently covers the last 24 hours; a longer window is available and is worth asking about before you rely on this for records you are legally required to keep.",
       },
     ],
   },
@@ -457,9 +485,16 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         body: "Roles are an explicit allowlist, not a hierarchy of numbers — an unrecognised role is denied rather than silently permitted. Every query for clinical data is scoped to the practice that owns it, and the scoping is applied by the data layer rather than remembered by each caller.",
       },
       {
+        /*
+         * This used to describe an error reporter that did not exist —
+         * "error reporting strips request bodies and URLs, and session replay
+         * is disabled" — which is a claim about the behaviour of a system
+         * nobody had built. It is true now, and only because it was built in
+         * the same pass that corrected the sentence.
+         */
         type: "prose",
         heading: "Logging",
-        body: "Application logs contain request identifiers, never transcript text, note content, patient names or crisis indicators. Error reporting strips request bodies and URLs, and session replay is disabled.",
+        body: "Application logs contain request identifiers, never transcript text, note content, patient names or crisis indicators. Server errors are recorded with the route, the status and a stack trace; the request body, the query string and any path segment that could be an identifier are dropped before the record is written. There is no session replay and no client-side analytics.",
       },
       {
         type: "prose",
