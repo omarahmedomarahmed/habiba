@@ -49,7 +49,7 @@ export default async function AdminRadarPage({
         <h2 className="text-lg font-bold tracking-tight text-slate-900">
           Reports
           {view.totals.openReports > 0 ? (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
+            <span className="ms-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
               {view.totals.openReports} open
             </span>
           ) : null}

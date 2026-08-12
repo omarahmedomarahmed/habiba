@@ -54,7 +54,7 @@ export default async function InvestigatePage({
     <div className="space-y-5">
       <Link
         href="/admin/radar"
-        className="-ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-slate-500 hover:text-slate-800"
+        className="-ms-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-slate-500 hover:text-slate-800"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
         Radar control
@@ -142,7 +142,7 @@ export default async function InvestigatePage({
         <div className="mt-2 max-h-[36rem] space-y-1.5 overflow-y-auto">
           {transcript.map((line, index) => (
             <p key={index} className="text-sm leading-relaxed">
-              <span className="mr-2 font-mono text-[11px] text-slate-400 tabular-nums">
+              <span className="me-2 font-mono text-[11px] text-slate-400 tabular-nums">
                 {formatDuration(Math.round(line.startMs / 1000))}
               </span>
               <span className="font-semibold text-navy-500">

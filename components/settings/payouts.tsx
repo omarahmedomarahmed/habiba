@@ -168,7 +168,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           hint="Used as the default when you create a paid session link. Leave at 0 for free sessions."
         >
           <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400">
+            <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-400">
               $
             </span>
             <Input
@@ -180,7 +180,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
               step={1}
               value={rate}
               onChange={(event) => setRate(event.target.value)}
-              className="pl-7"
+              className="ps-7"
               placeholder="60"
             />
           </div>

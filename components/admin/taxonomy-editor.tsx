@@ -108,7 +108,7 @@ export function TaxonomyEditor({
         <span className="flex-1" />
         <label className="relative">
           <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute top-1/2 start-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
             aria-hidden
           />
           <Input
@@ -116,7 +116,7 @@ export function TaxonomyEditor({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter…"
-            className="h-9 w-40 pl-8 text-xs"
+            className="h-9 w-40 ps-8 text-xs"
           />
         </label>
       </div>
@@ -145,7 +145,7 @@ export function TaxonomyEditor({
                 row.enabled
                   ? "border-teal-300 bg-teal-50 text-teal-800 hover:bg-teal-100"
                   : "border-slate-200 bg-white text-slate-400 line-through hover:bg-slate-50",
-                row.custom && "rounded-r-none",
+                row.custom && "rounded-e-none",
               )}
             >
               {row.flag ? <span aria-hidden>{row.flag}</span> : null}
@@ -157,7 +157,7 @@ export function TaxonomyEditor({
                 onClick={() => remove(row)}
                 aria-label={`Delete ${row.label}`}
                 className={cn(
-                  "-ml-px inline-flex items-center rounded-r-full border px-2 text-slate-300 hover:text-red-600",
+                  "-ms-px inline-flex items-center rounded-e-full border px-2 text-slate-300 hover:text-red-600",
                   row.enabled ? "border-teal-300 bg-teal-50" : "border-slate-200 bg-white",
                 )}
               >

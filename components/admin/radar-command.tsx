@@ -177,7 +177,7 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
       <Card className="flex flex-wrap items-center gap-2 p-3">
         <label className="relative">
           <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute top-1/2 start-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
             aria-hidden
           />
           <Input
@@ -185,7 +185,7 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Name, email, city, practice"
-            className="h-9 w-56 pl-8 text-xs"
+            className="h-9 w-56 ps-8 text-xs"
           />
         </label>
 
@@ -234,7 +234,7 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
           ))}
         </div>
 
-        <span className="ml-auto text-xs text-slate-400">
+        <span className="ms-auto text-xs text-slate-400">
           {rows.length} of {view.rows.length}
         </span>
       </Card>
@@ -243,14 +243,14 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 text-left text-xs text-slate-400">
+            <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
               <tr>
                 <Th>Clinician</Th>
                 <Th>Where</Th>
                 <Th>State</Th>
-                <Th className="text-right">Rating</Th>
-                <Th className="text-right">30d</Th>
-                <Th className="text-right">Our cut</Th>
+                <Th className="text-end">Rating</Th>
+                <Th className="text-end">30d</Th>
+                <Th className="text-end">Our cut</Th>
                 <Th>Control</Th>
               </tr>
             </thead>
@@ -261,7 +261,7 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
                     <button
                       type="button"
                       onClick={() => setSelected(row)}
-                      className="text-left font-medium text-slate-900 hover:text-brand-600"
+                      className="text-start font-medium text-slate-900 hover:text-brand-600"
                     >
                       {row.name}
                     </button>
@@ -286,7 +286,7 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
                   <Td>
                     <State row={row} />
                   </Td>
-                  <Td className="text-right tabular-nums">
+                  <Td className="text-end tabular-nums">
                     {row.rating ? (
                       <span className="inline-flex items-center gap-0.5 text-amber-600">
                         <Star className="h-3 w-3 fill-current" aria-hidden />
@@ -297,8 +297,8 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
                       <span className="text-slate-300">—</span>
                     )}
                   </Td>
-                  <Td className="text-right tabular-nums text-slate-600">{row.sessions30d}</Td>
-                  <Td className="text-right tabular-nums font-medium text-slate-900">
+                  <Td className="text-end tabular-nums text-slate-600">{row.sessions30d}</Td>
+                  <Td className="text-end tabular-nums font-medium text-slate-900">
                     {row.feeCents30d > 0 ? formatUsd(row.feeCents30d) : "—"}
                   </Td>
                   <Td>

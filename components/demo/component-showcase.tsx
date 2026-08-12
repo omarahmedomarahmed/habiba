@@ -50,13 +50,13 @@ export function ComponentShowcase({ demo }: { demo?: string }) {
               <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" aria-hidden />
               <ul className="space-y-2">
                 <li className="text-sm leading-snug text-slate-100">
-                  <span className="mr-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
+                  <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
                     explore
                   </span>
                   Two of seven nights went better — worth naming that back.
                 </li>
                 <li className="text-sm leading-snug text-slate-100">
-                  <span className="mr-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
+                  <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
                     observation
                   </span>
                   Fatigue and worry described as a loop, not two problems.

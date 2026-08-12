@@ -31,10 +31,32 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Language and direction are set here, once, from the request.
+ *
+ * `dir` on `<html>` is what makes right-to-left actually work: the browser
+ * mirrors the whole box model, and every CSS logical property in the app —
+ * `ms-*`, `me-*`, `ps-*`, `pe-*`, `text-start` — follows from it. Setting the
+ * text to Arabic without setting this produces Arabic laid out left to right,
+ * which is the most recognisable way an interface announces that nobody
+ * localised it.
+ *
+ * It is deliberately not a client-side toggle. A layout that flips after
+ * hydration shows every patient a frame of the wrong direction, and on a slow
+ * phone in a crisis that frame is a long one.
+ */
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { getLocale } = await import("@/lib/i18n/server");
+  const { dirFor } = await import("@/lib/i18n/config");
+  const { I18nProvider } = await import("@/lib/i18n/client");
+
+  const locale = await getLocale();
+
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang={locale} dir={dirFor(locale)}>
+      <body>
+        <I18nProvider locale={locale}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

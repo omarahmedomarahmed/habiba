@@ -42,7 +42,7 @@ export default async function CopilotThreadPage({
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href="/copilot"
-          className="tap-target -ml-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Copilot
@@ -64,7 +64,7 @@ export default async function CopilotThreadPage({
               <summary className="tap-target flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-800">
                 <FileText className="h-4 w-4 text-slate-400" aria-hidden />
                 Session history and transcripts
-                <span className="ml-auto text-xs font-normal text-slate-400">
+                <span className="ms-auto text-xs font-normal text-slate-400">
                   {history.length}
                 </span>
               </summary>

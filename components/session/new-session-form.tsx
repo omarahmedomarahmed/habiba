@@ -174,7 +174,7 @@ export function NewSessionForm({
             <div className="mt-3 space-y-3">
               <Field label="Price for this session" htmlFor="price">
                 <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400">
+                  <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-400">
                     $
                   </span>
                   <Input
@@ -185,7 +185,7 @@ export function NewSessionForm({
                     step={1}
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
-                    className="pl-7"
+                    className="ps-7"
                     placeholder="60"
                     required
                   />
@@ -240,7 +240,7 @@ function ModalityOption({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-left transition-colors",
+        "flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-start transition-colors",
         active
           ? "border-brand-500 bg-brand-50 text-brand-900"
           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",

@@ -183,12 +183,12 @@ export function VideoCall({
         playsInline
         muted
         className={cn(
-          "absolute right-3 bottom-3 h-28 w-20 rounded-xl border border-white/20 object-cover shadow-lg sm:h-32 sm:w-24",
+          "absolute end-3 bottom-3 h-28 w-20 rounded-xl border border-white/20 object-cover shadow-lg sm:h-32 sm:w-24",
           cameraOff && "hidden",
         )}
       />
 
-      <div className="absolute bottom-3 left-3 flex gap-2">
+      <div className="absolute bottom-3 start-3 flex gap-2">
         <button
           type="button"
           onClick={toggleCamera}

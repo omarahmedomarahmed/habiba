@@ -111,7 +111,7 @@ export function RatingForm({
               dir={rtl ? "rtl" : "ltr"}
               className={cn(
                 "mt-2 space-y-3 text-[15px] leading-relaxed text-slate-800",
-                rtl && "text-right",
+                rtl && "text-end",
               )}
             >
               {brief
@@ -394,7 +394,7 @@ function ReportBox({
           <button
             type="button"
             onClick={() => setReporting("no_show")}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             They never joined — I want my money back
           </button>
@@ -402,7 +402,7 @@ function ReportBox({
         <button
           type="button"
           onClick={() => setReporting("abuse")}
-          className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
           Report something that happened in this session

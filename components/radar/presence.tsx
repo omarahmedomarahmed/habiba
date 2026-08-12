@@ -393,7 +393,7 @@ export function RadarPresence({
           />
 
           {attention?.kind === "viewing" ? (
-            <div className="safe-bottom pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-3 lg:bottom-4 lg:justify-end lg:pr-4">
+            <div className="safe-bottom pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-3 lg:bottom-4 lg:justify-end lg:pe-4">
               <p className="animate-fade-rise flex items-center gap-2 rounded-full bg-navy-500/95 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur">
                 <Eye className="h-3.5 w-3.5 text-teal-300" aria-hidden />
                 Someone is looking at your profile — you are showing as busy to others
@@ -402,7 +402,7 @@ export function RadarPresence({
           ) : null}
 
           {attention && attention.kind !== "viewing" ? (
-            <div className="safe-bottom fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 lg:bottom-4 lg:left-auto lg:w-96 lg:pr-4">
+            <div className="safe-bottom fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 lg:bottom-4 lg:start-auto lg:w-96 lg:pe-4">
               <div
                 className={cn(
                   "animate-fade-rise rounded-2xl px-4 py-3.5 text-white shadow-2xl shadow-black/40",
@@ -661,7 +661,7 @@ function StatusPill({
 
   return (
     <div className="safe-top pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-2">
-      <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-navy-500/90 py-1.5 pr-2 pl-3 text-xs font-medium text-white shadow-lg backdrop-blur">
+      <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-navy-500/90 py-1.5 pe-2 ps-3 text-xs font-medium text-white shadow-lg backdrop-blur">
         <span
           className={cn(
             "h-2 w-2 rounded-full",
@@ -686,7 +686,7 @@ function StatusPill({
           <button
             type="button"
             onClick={onEnableSound}
-            className="ml-1 flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-400"
+            className="ms-1 flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-400"
           >
             <VolumeX className="h-3 w-3" aria-hidden />
             sound off — turn on
@@ -695,13 +695,13 @@ function StatusPill({
           <button
             type="button"
             onClick={onAskPermission}
-            className="ml-1 flex items-center gap-1 rounded-full bg-teal-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-teal-400"
+            className="ms-1 flex items-center gap-1 rounded-full bg-teal-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-teal-400"
           >
             <Bell className="h-3 w-3" aria-hidden />
             Alert me
           </button>
         ) : permission === "denied" ? (
-          <span className="ml-1 rounded-full bg-white/10 px-2 py-1 text-[11px] text-white/60">
+          <span className="ms-1 rounded-full bg-white/10 px-2 py-1 text-[11px] text-white/60">
             notifications blocked
           </span>
         ) : null}

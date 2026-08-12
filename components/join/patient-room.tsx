@@ -92,7 +92,7 @@ export function PatientRoom({
             )}
           </div>
 
-          <p className="mt-2 px-1 text-center text-[11px] text-white/40 lg:text-left">
+          <p className="mt-2 px-1 text-center text-[11px] text-white/40 lg:text-start">
             Trouble seeing or hearing? Check your browser has permission to use your camera and
             microphone, then reload this page — you will come straight back in.
           </p>
@@ -420,7 +420,7 @@ function TroubleBox({ token }: { token: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-left text-xs font-medium text-white/70 hover:bg-slate-800"
+        className="flex w-full items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-start text-xs font-medium text-white/70 hover:bg-slate-800"
       >
         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
         Something is wrong — tell 24Therapy

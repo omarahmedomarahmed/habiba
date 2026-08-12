@@ -24,7 +24,7 @@ export function TherapistCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors",
+        "flex w-full items-center gap-3 rounded-2xl border p-3 text-start transition-colors",
         dark
           ? bookable
             ? "border-white/10 bg-white/5 hover:border-teal-400/50 hover:bg-white/10"
@@ -102,7 +102,7 @@ export function TherapistCard({
         ) : null}
       </span>
 
-      <span className="shrink-0 text-right">
+      <span className="shrink-0 text-end">
         <span className={cn("block text-sm font-bold", dark ? "text-white" : "text-slate-900")}>
           {entry.rateCents > 0 ? formatUsd(entry.rateCents) : "Free"}
         </span>

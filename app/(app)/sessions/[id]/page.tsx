@@ -45,7 +45,7 @@ export default async function SessionDetailPage({
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href="/sessions"
-          className="tap-target -ml-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Sessions

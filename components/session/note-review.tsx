@@ -306,7 +306,7 @@ function LangTab({
       }
     >
       {label}
-      <span className="ml-1.5 text-xs font-normal text-slate-400">{hint}</span>
+      <span className="ms-1.5 text-xs font-normal text-slate-400">{hint}</span>
     </button>
   );
 }

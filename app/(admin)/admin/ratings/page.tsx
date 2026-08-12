@@ -68,7 +68,7 @@ export default async function RatingsPage() {
                   </p>
                   <Score label="therapist" value={row.therapistStars} />
                   <Score label="us" value={row.serviceStars} />
-                  <span className="ml-auto text-[11px] text-slate-400">
+                  <span className="ms-auto text-[11px] text-slate-400">
                     {relativeDay(row.createdAt)}
                   </span>
                 </div>
@@ -87,7 +87,7 @@ export default async function RatingsPage() {
                 ) : null}
 
                 {row.comment ? (
-                  <p className="mt-2 border-l-2 border-slate-200 pl-3 text-sm leading-relaxed text-slate-700 italic">
+                  <p className="mt-2 border-s-2 border-slate-200 ps-3 text-sm leading-relaxed text-slate-700 italic">
                     “{row.comment}”
                   </p>
                 ) : null}

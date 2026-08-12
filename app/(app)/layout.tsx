@@ -70,7 +70,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-dvh bg-slate-50">
       {/* Desktop is the enhancement: a sidebar appears only at lg and above. */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-slate-200 bg-white lg:flex">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-slate-200 bg-white lg:flex">
         <div className="px-5 py-5">
           <Link href="/dashboard" className="text-[15px] font-bold tracking-tight text-navy-500">
             24Therapy
@@ -146,7 +146,7 @@ export default async function AppLayout({
         </div>
       </aside>
 
-      <div className="lg:pl-60">
+      <div className="lg:ps-60">
         {/* Content gets bottom padding on mobile so the nav never covers a control. */}
         <div className="pb-24 lg:pb-8">{children}</div>
       </div>

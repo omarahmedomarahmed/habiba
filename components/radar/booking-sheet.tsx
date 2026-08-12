@@ -177,12 +177,12 @@ export function BookingSheet({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="tap-target absolute top-3 right-3 flex items-center justify-center text-slate-400 hover:text-slate-700"
+          className="tap-target absolute top-3 end-3 flex items-center justify-center text-slate-400 hover:text-slate-700"
         >
           <X className="h-5 w-5" aria-hidden />
         </button>
 
-        <div className="flex items-start gap-3.5 pr-8">
+        <div className="flex items-start gap-3.5 pe-8">
           <Avatar entry={entry} large />
           <div className="min-w-0 flex-1">
             <p className="text-xl font-bold tracking-tight text-slate-900">

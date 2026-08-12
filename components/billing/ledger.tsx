@@ -223,7 +223,7 @@ export function BillingLedger({
                   <button
                     type="button"
                     onClick={() => setOpenId(open ? null : id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-start active:bg-slate-50"
                   >
                     <span
                       className={cn(
@@ -249,7 +249,7 @@ export function BillingLedger({
                       <span className="block text-xs text-slate-500">{entry.at}</span>
                     </span>
 
-                    <span className="shrink-0 text-right">
+                    <span className="shrink-0 text-end">
                       <span
                         className={cn(
                           "block text-sm font-semibold tabular-nums",
@@ -360,7 +360,7 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
       />
       <Line label="Date" value={payment.paidAt ?? payment.createdAt} />
       <p className="pt-1.5 text-xs leading-relaxed text-slate-500">
-        <Receipt className="mr-1 inline h-3 w-3" aria-hidden />
+        <Receipt className="me-1 inline h-3 w-3" aria-hidden />
         Paid directly into your own Stripe account — we never held this money. Stripe pays it out
         to your bank on its own schedule.
       </p>
@@ -372,7 +372,7 @@ function Line({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
       <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right text-slate-800 tabular-nums">{value}</dd>
+      <dd className="text-end text-slate-800 tabular-nums">{value}</dd>
     </div>
   );
 }

@@ -13,7 +13,7 @@ import {
   type JoinState,
 } from "@/app/join/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
-import { RECORDING_CONSENT } from "@/lib/consent";
+import { useT } from "@/lib/i18n/client";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { PatientRoom, type Therapist } from "@/components/join/patient-room";
@@ -22,17 +22,18 @@ const INITIAL: JoinState = {};
 
 function Submit({ priceCents }: { priceCents: number }) {
   const { pending } = useFormStatus();
+  const t = useT();
   const paid = priceCents > 0;
   return (
     <Button type="submit" size="lg" variant="teal" full disabled={pending}>
       {paid ? <CreditCard className="h-4 w-4" aria-hidden /> : null}
       {pending
         ? paid
-          ? "Opening checkout…"
-          : "Joining…"
+          ? t("join.openingCheckout")
+          : t("join.joining")
         : paid
-          ? `Pay ${formatUsd(priceCents)} and join`
-          : "Join session"}
+          ? t("join.submitPaid", { amount: formatUsd(priceCents) })
+          : t("join.submitFree")}
     </Button>
   );
 }
@@ -61,6 +62,7 @@ export function JoinFlow({
   resumeAfterPayment: boolean;
   cancelled: boolean;
 }) {
+  const t = useT();
   const [state, action] = useActionState(submitJoin, INITIAL);
   const [resumed, setResumed] = useState<JoinState | null>(null);
   const [live, setLive] = useState(false);
@@ -141,16 +143,15 @@ export function JoinFlow({
      */
     return (
       <Card className="p-6 text-center">
-        <p className="text-base font-semibold text-slate-900">The session has ended</p>
+        <p className="text-base font-semibold text-slate-900">{t("room.ended")}</p>
         <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
-          One minute of feedback and we will email you a plain-language summary of what you talked
-          about and what you agreed.
+          {t("room.endedBody")}
         </p>
         <a
           href={`/feedback/${token}`}
           className="mt-4 inline-flex h-12 items-center justify-center rounded-2xl bg-teal-500 px-5 text-sm font-semibold text-white hover:bg-teal-600"
         >
-          Rate the session and get my summary
+          {t("room.rateAndGet")}
         </a>
       </Card>
     );
@@ -160,8 +161,8 @@ export function JoinFlow({
     return (
       <Card className="p-6 text-center">
         <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-500" aria-hidden />
-        <p className="mt-3 text-base font-semibold text-slate-900">Payment received</p>
-        <p className="mt-1.5 text-sm text-slate-600">Taking you into your session…</p>
+        <p className="mt-3 text-base font-semibold text-slate-900">{t("join.paymentReceived")}</p>
+        <p className="mt-1.5 text-sm text-slate-600">{t("join.takingYouIn")}</p>
       </Card>
     );
   }
@@ -191,17 +192,15 @@ export function JoinFlow({
   return (
     <form action={action} className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Join your session</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("join.title")}</h1>
         <p className="mt-1.5 text-sm text-slate-600">
-          {owes
-            ? "No account needed. Tell us what to call you, then pay to enter."
-            : "No account needed. Just tell us what to call you."}
+          {owes ? t("join.subtitlePaid") : t("join.subtitleFree")}
         </p>
       </div>
 
       {owes ? (
         <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3.5 text-white">
-          <span className="text-sm text-white/70">This session</span>
+          <span className="text-sm text-white/70">{t("join.thisSession")}</span>
           <span className="text-2xl font-bold tracking-tight">{formatUsd(priceCents)}</span>
         </div>
       ) : null}
@@ -220,12 +219,12 @@ export function JoinFlow({
 
       <input type="hidden" name="token" value={token} />
 
-      <Field label="Your first name" htmlFor="name">
+      <Field label={t("join.firstName")} htmlFor="name">
         <Input id="name" name="name" autoComplete="given-name" autoCapitalize="words" required />
       </Field>
 
       {owes ? (
-        <Field label="Email for your receipt" htmlFor="email" hint="Optional.">
+        <Field label={t("join.receiptEmail")} htmlFor="email" hint={t("join.optional")}>
           <Input
             id="email"
             name="email"
@@ -243,9 +242,7 @@ export function JoinFlow({
 
       <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        {owes
-          ? "Payment is handled by Stripe and goes to your therapist — we never see your card. Your session is private and is not shared with anyone else."
-          : "Your session is private and is not shared with anyone else."}
+        {owes ? t("join.privateNotePaid") : t("join.privateNote")}
       </p>
     </form>
   );
@@ -287,14 +284,15 @@ function ConsentGate({
   token: string;
   onAnswered: (state: JoinState) => void;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   return (
     <Card className="p-5">
-      <p className="text-lg font-bold tracking-tight text-slate-900">One question before you go in</p>
+      <p className="text-lg font-bold tracking-tight text-slate-900">{t("consent.gate.title")}</p>
       <p className="mt-1 text-sm leading-relaxed text-slate-500">
-        Your therapist is ready. This takes a second and you can say no.
+        {t("consent.gate.body")}
       </p>
 
       {error ? (
@@ -319,7 +317,7 @@ function ConsentGate({
       >
         <ConsentStep />
         <Button type="submit" size="lg" variant="teal" full disabled={pending}>
-          {pending ? "Going in…" : "Go in"}
+          {pending ? t("consent.gate.submitting") : t("consent.gate.submit")}
         </Button>
       </form>
     </Card>
@@ -327,32 +325,35 @@ function ConsentGate({
 }
 
 function ConsentStep() {
+  const t = useT();
   const [choice, setChoice] = useState<"granted" | "declined" | null>(null);
 
   return (
     <fieldset className="rounded-2xl border border-slate-200 p-4">
       <legend className="px-1.5 text-sm font-semibold text-slate-900">
-        {RECORDING_CONSENT.question}
+        {t("consent.question")}
       </legend>
 
       <ul className="mt-1 space-y-1.5">
-        {RECORDING_CONSENT.points.map((point) => (
-          <li key={point} className="flex gap-2 text-xs leading-relaxed text-slate-600">
-            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" aria-hidden />
-            {point}
-          </li>
-        ))}
+        {(["consent.point.notes", "consent.point.private", "consent.point.changeMind"] as const).map(
+          (key) => (
+            <li key={key} className="flex gap-2 text-xs leading-relaxed text-slate-600">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" aria-hidden />
+              {t(key)}
+            </li>
+          ),
+        )}
       </ul>
 
       <p className="mt-2.5 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
-        {RECORDING_CONSENT.refusal}
+        {t("consent.refusal")}
       </p>
 
       <div className="mt-3 grid gap-2">
         {(
           [
-            ["granted", RECORDING_CONSENT.grant],
-            ["declined", RECORDING_CONSENT.decline],
+            ["granted", t("consent.grant")],
+            ["declined", t("consent.decline")],
           ] as const
         ).map(([value, label]) => (
           <label

@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { JoinFlow } from "@/components/join/join-flow";
+import { LanguageSwitch } from "@/components/i18n/language-switch";
+import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { feedbackContext } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
@@ -119,19 +121,26 @@ export default async function JoinPage({
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+async function Shell({ children }: { children: React.ReactNode }) {
+  const { t } = await getI18n();
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
-      <header className="px-4 py-5 sm:px-6">
+      {/*
+        The language switch belongs here, not buried in a menu.
+        --------------------------------------------------------
+        This page is the entire patient surface — no account, no settings, no
+        second visit. Somebody who lands on it in the wrong language has one
+        chance to fix that, and it has to be visible without scrolling.
+      */}
+      <header className="flex items-center justify-between px-4 py-5 sm:px-6">
         <span className="text-[15px] font-bold tracking-tight text-navy-500">24Therapy</span>
+        <LanguageSwitch />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 sm:items-center sm:px-6">
         <div className="w-full max-w-md">{children}</div>
       </main>
       <footer className="px-4 pb-6 text-center sm:px-6">
-        <p className="text-xs text-slate-400">
-          If you need urgent help, call or text 988 at any time.
-        </p>
+        <p className="text-xs text-slate-400">{t("urgent.footer")}</p>
       </footer>
     </div>
   );

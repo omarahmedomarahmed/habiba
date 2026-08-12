@@ -95,7 +95,7 @@ function ReportCard({ row }: { row: ReportRow }) {
       </div>
 
       {row.detail ? (
-        <blockquote className="border-l-2 border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-700 italic">
+        <blockquote className="border-s-2 border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-700 italic">
           “{row.detail}”
         </blockquote>
       ) : (

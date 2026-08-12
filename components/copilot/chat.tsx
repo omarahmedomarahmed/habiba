@@ -429,7 +429,7 @@ export function CopilotChat({
                 <button
                   type="button"
                   onClick={() => setDraft(template.text)}
-                  className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100"
+                  className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-start text-sm text-slate-700 hover:bg-slate-100"
                 >
                   {template.label}
                 </button>
@@ -611,7 +611,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm text-slate-600 hover:bg-slate-50"
+        className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-start text-sm text-slate-600 hover:bg-slate-50"
       >
         <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
         Start this chat over
@@ -696,7 +696,7 @@ function CorrectionBox({ patientId }: { patientId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm text-slate-600 hover:bg-slate-50"
+        className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-start text-sm text-slate-600 hover:bg-slate-50"
       >
         <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
         Correct the copilot

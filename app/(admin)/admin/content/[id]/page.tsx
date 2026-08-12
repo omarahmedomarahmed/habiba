@@ -21,7 +21,7 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
     <div className="space-y-4">
       <Link
         href="/admin/content"
-        className="tap-target -ml-2 inline-flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+        className="tap-target -ms-2 inline-flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
         Site content

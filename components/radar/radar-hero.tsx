@@ -182,7 +182,7 @@ export function RadarHero({
             <RadarFilters entries={all} value={filter} onChange={setFilter} tone="dark" />
           </div>
 
-          <div className="max-h-[22rem] space-y-2 overflow-y-auto pr-0.5">
+          <div className="max-h-[22rem] space-y-2 overflow-y-auto pe-0.5">
             {entries === null ? (
               <div className="flex h-32 items-center justify-center gap-2 text-sm text-white/50">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

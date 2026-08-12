@@ -535,7 +535,7 @@ function CopilotTray({
             <li key={i} className="text-sm leading-snug text-slate-100">
               <span
                 className={cn(
-                  "mr-1.5 text-[10px] font-bold tracking-wider uppercase",
+                  "me-1.5 text-[10px] font-bold tracking-wider uppercase",
                   suggestion.kind === "risk" ? "text-red-300" : "text-brand-300",
                 )}
               >

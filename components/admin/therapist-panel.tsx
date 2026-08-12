@@ -189,13 +189,13 @@ function Patients({ rows }: { rows: Patient[] }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 text-left text-xs text-slate-400">
+            <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
               <tr>
                 <Th>Patient</Th>
                 <Th>Email</Th>
                 <Th>Source</Th>
-                <Th className="text-right">Sessions</Th>
-                <Th className="text-right">Copilot</Th>
+                <Th className="text-end">Sessions</Th>
+                <Th className="text-end">Copilot</Th>
                 <Th>Last seen</Th>
                 <Th>Data request</Th>
               </tr>
@@ -210,8 +210,8 @@ function Patients({ rows }: { rows: Patient[] }) {
                       {row.source === "join_link" ? "self-joined" : "added"}
                     </Badge>
                   </Td>
-                  <Td className="text-right tabular-nums">{row.sessionCount}</Td>
-                  <Td className="text-right tabular-nums">{row.copilotMessages}</Td>
+                  <Td className="text-end tabular-nums">{row.sessionCount}</Td>
+                  <Td className="text-end tabular-nums">{row.copilotMessages}</Td>
                   <Td className="text-slate-500">{row.lastSessionAt ?? "never"}</Td>
                   <Td>
                     <SendRecord patientId={row.id} hasEmail={Boolean(row.email)} />
@@ -311,13 +311,13 @@ function Sessions({ rows }: { rows: SessionRow[] }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 text-left text-xs text-slate-400">
+            <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
               <tr>
                 <Th>When</Th>
                 <Th>Patient</Th>
                 <Th>Type</Th>
-                <Th className="text-right">Mins</Th>
-                <Th className="text-right">Lines</Th>
+                <Th className="text-end">Mins</Th>
+                <Th className="text-end">Lines</Th>
                 <Th>Note</Th>
                 <Th>Payment</Th>
               </tr>
@@ -330,8 +330,8 @@ function Sessions({ rows }: { rows: SessionRow[] }) {
                   <Td className="text-slate-500">
                     {row.modality === "video" ? "Video" : "In person"}
                   </Td>
-                  <Td className="text-right tabular-nums">{row.durationMinutes ?? "—"}</Td>
-                  <Td className="text-right tabular-nums">{row.segmentCount}</Td>
+                  <Td className="text-end tabular-nums">{row.durationMinutes ?? "—"}</Td>
+                  <Td className="text-end tabular-nums">{row.segmentCount}</Td>
                   <Td>
                     <Badge
                       tone={
@@ -400,7 +400,7 @@ function Copilot({
                     {row.errors}
                   </span>
                 ) : null}
-                <span className="w-20 text-right text-sm font-semibold tabular-nums text-slate-900">
+                <span className="w-20 text-end text-sm font-semibold tabular-nums text-slate-900">
                   {formatUsd(row.costCents)}
                 </span>
               </li>
@@ -421,12 +421,12 @@ function Copilot({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 text-left text-xs text-slate-400">
+              <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
                 <tr>
                   <Th>Patient</Th>
-                  <Th className="text-right">Asked</Th>
-                  <Th className="text-right">This month</Th>
-                  <Th className="text-right">Corrections</Th>
+                  <Th className="text-end">Asked</Th>
+                  <Th className="text-end">This month</Th>
+                  <Th className="text-end">Corrections</Th>
                   <Th>Last active</Th>
                 </tr>
               </thead>
@@ -434,13 +434,13 @@ function Copilot({
                 {rows.map((row) => (
                   <tr key={row.threadId}>
                     <Td className="font-medium text-slate-900">{row.patient}</Td>
-                    <Td className="text-right tabular-nums">{row.asked}</Td>
-                    <Td className="text-right tabular-nums">
+                    <Td className="text-end tabular-nums">{row.asked}</Td>
+                    <Td className="text-end tabular-nums">
                       <span className={row.askedThisMonth >= 10 ? "font-semibold text-amber-600" : ""}>
                         {row.askedThisMonth}
                       </span>
                     </Td>
-                    <Td className="text-right tabular-nums">{row.corrections}</Td>
+                    <Td className="text-end tabular-nums">{row.corrections}</Td>
                     <Td className="text-slate-500">{row.lastMessageAt ?? "—"}</Td>
                   </tr>
                 ))}
@@ -532,7 +532,7 @@ function Billing({
                       : ""}
                   </span>
                 </span>
-                <span className="shrink-0 text-right">
+                <span className="shrink-0 text-end">
                   <span className="block text-sm font-semibold tabular-nums text-slate-900">
                     {formatUsd(payment.therapistNetCents)}
                   </span>
@@ -584,7 +584,7 @@ function AdminInvoiceRow({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 text-left"
+        className="flex w-full items-center gap-3 text-start"
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-slate-900">

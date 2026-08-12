@@ -453,7 +453,7 @@ export function Globe({
       {/* Hover readout. Absolutely positioned rather than an SVG label so it
           never scales into illegibility on a phone. */}
       {hovered ? (
-        <div className="pointer-events-none absolute top-3 left-3 rounded-xl border border-white/10 bg-navy-500/80 px-3 py-2 backdrop-blur">
+        <div className="pointer-events-none absolute top-3 start-3 rounded-xl border border-white/10 bg-navy-500/80 px-3 py-2 backdrop-blur">
           <p className="text-sm font-semibold text-white">
             <span aria-hidden>{countryFlag(hover)}</span> {hovered.n}
           </p>

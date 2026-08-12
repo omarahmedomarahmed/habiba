@@ -175,7 +175,7 @@ export default async function VaultPage() {
               </span>
               <span className="text-xs text-slate-500">{kind.calls} calls</span>
               {kind.errors > 0 ? <Badge tone="amber">{kind.errors} errors</Badge> : null}
-              <span className="w-20 text-right text-sm font-semibold text-slate-900">
+              <span className="w-20 text-end text-sm font-semibold text-slate-900">
                 {formatUsd(kind.costCents)}
               </span>
             </li>
@@ -194,14 +194,14 @@ export default async function VaultPage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[42rem] text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+              <tr className="border-b border-slate-100 text-start text-xs text-slate-500">
                 <th className="px-4 py-2 font-medium">Clinician</th>
                 <th className="px-3 py-2 font-medium">Plan</th>
-                <th className="px-3 py-2 text-right font-medium">Sessions</th>
-                <th className="px-3 py-2 text-right font-medium">AI calls</th>
-                <th className="px-3 py-2 text-right font-medium">Model spend</th>
-                <th className="px-3 py-2 text-right font-medium">Paid us</th>
-                <th className="px-4 py-2 text-right font-medium">Margin</th>
+                <th className="px-3 py-2 text-end font-medium">Sessions</th>
+                <th className="px-3 py-2 text-end font-medium">AI calls</th>
+                <th className="px-3 py-2 text-end font-medium">Model spend</th>
+                <th className="px-3 py-2 text-end font-medium">Paid us</th>
+                <th className="px-4 py-2 text-end font-medium">Margin</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -220,19 +220,19 @@ export default async function VaultPage() {
                         {t.plan === "unlimited" ? "Unlimited" : "PAYG"}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{t.sessionCount}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{t.aiCalls}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">
+                    <td className="px-3 py-2.5 text-end tabular-nums">{t.sessionCount}</td>
+                    <td className="px-3 py-2.5 text-end tabular-nums">{t.aiCalls}</td>
+                    <td className="px-3 py-2.5 text-end tabular-nums text-slate-600">
                       {formatUsd(t.aiCostCents)}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-slate-900">
+                    <td className="px-3 py-2.5 text-end tabular-nums text-slate-900">
                       {formatUsd(t.revenueCents)}
                     </td>
                     <td
                       className={
                         margin >= 0
-                          ? "px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-700"
-                          : "px-4 py-2.5 text-right font-semibold tabular-nums text-red-600"
+                          ? "px-4 py-2.5 text-end font-semibold tabular-nums text-emerald-700"
+                          : "px-4 py-2.5 text-end font-semibold tabular-nums text-red-600"
                       }
                     >
                       {formatUsd(margin)}

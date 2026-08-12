@@ -57,7 +57,7 @@ export function VaultInvoiceRow(props: {
           </span>
         </span>
 
-        <span className="shrink-0 text-right">
+        <span className="shrink-0 text-end">
           <span className="block text-sm font-semibold tabular-nums text-slate-900">
             {formatUsd(payable)}
           </span>

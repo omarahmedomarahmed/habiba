@@ -188,7 +188,7 @@ export function PracticeForm(props: {
                 setChosen(hit);
                 setHits([]);
               }}
-              className="flex w-full items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left hover:border-brand-400 hover:bg-brand-50/40"
+              className="flex w-full items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-start hover:border-brand-400 hover:bg-brand-50/40"
             >
               <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
               <span className="min-w-0">
