@@ -121,9 +121,75 @@ function reachable(now: Date) {
   );
 }
 
+/**
+ * The board, shared between everyone looking at it.
+ *
+ * The public radar is polled every four seconds by every open tab, and each
+ * poll used to be its own pair of queries. That makes the database's load a
+ * function of how many people are on the marketing page — which is exactly
+ * backwards, because the answer it computes is *the same for all of them*. Only
+ * `reservedByYou` differs, and that is one comparison against a hash, done in
+ * memory below.
+ *
+ * Two seconds, which is the number that matters and is chosen against
+ * something specific: the client already polls at four, so the list a visitor
+ * sees is at most six seconds old rather than four. It is not correctness that
+ * absorbs the difference — it is that this list has never been the thing that
+ * decides a booking. `reserveTherapist` re-reads availability inside the
+ * atomic UPDATE, so a stale entry costs one honest "someone got there first"
+ * and never a double-booking. If that were not already true, none of this
+ * would be safe to cache for any length of time.
+ *
+ * Per lambda instance rather than shared, which means the saving scales with
+ * concurrency rather than being a fixed win: one visitor sees no change, fifty
+ * visitors on one instance collapse to the same two queries.
+ */
+const BOARD_TTL_MS = 2_000;
+
+type Board = { rows: Awaited<ReturnType<typeof queryBoard>>; ratings: Map<string, { average: number; count: number }> };
+let board: { at: number; value: Promise<Board> } | null = null;
+
+/** Exposed so a booking that changes the board can invalidate it immediately. */
+export function invalidateRadarBoard() {
+  board = null;
+}
+
+async function loadBoard(): Promise<Board> {
+  const fresh = Date.now();
+  if (board && fresh - board.at < BOARD_TTL_MS) return board.value;
+
+  /*
+   * The promise is cached, not the result.
+   *
+   * Twenty requests arriving in the same millisecond on a cold cache would
+   * otherwise each start their own pair of queries — a stampede that is worst
+   * exactly when traffic is highest, which is the opposite of what a cache is
+   * for. Storing the in-flight promise means they all wait on the first one.
+   */
+  const value = (async () => {
+    const [rows, ratings] = await Promise.all([queryBoard(), therapistRatings()]);
+    return { rows, ratings };
+  })();
+
+  board = { at: fresh, value };
+
+  // A failure must not be cached, or one blip poisons the board for two
+  // seconds and every retry inside that window returns the same rejection.
+  value.catch(() => {
+    if (board?.value === value) board = null;
+  });
+
+  return value;
+}
+
 export async function listRadar(viewer?: string | null): Promise<RadarTherapist[]> {
-  const now = new Date();
   const viewerHash = viewer ? hashViewer(viewer) : null;
+  const { rows, ratings } = await loadBoard();
+  return shapeBoard(rows, ratings, viewerHash);
+}
+
+async function queryBoard() {
+  const now = new Date();
 
   const rows = await db
     .select({
@@ -183,8 +249,15 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
     )
     .limit(100);
 
+  return rows;
+}
+
+function shapeBoard(
+  rows: Awaited<ReturnType<typeof queryBoard>>,
+  ratings: Map<string, { average: number; count: number }>,
+  viewerHash: string | null,
+): RadarTherapist[] {
   const nowMs = Date.now();
-  const ratings = await therapistRatings();
 
   return rows.map((row) => {
     const lapsed = Boolean(row.pendingUntil && row.pendingUntil.getTime() < nowMs);

@@ -22,6 +22,7 @@ import {
 import {
   CLAIM_MINUTES,
   claimTherapist,
+  invalidateRadarBoard,
   listRadar,
   releaseClaim,
   releaseReservation,
@@ -201,6 +202,11 @@ test("a clinician whose heartbeat stopped is not bookable and is swept offline",
   await sweepRadar();
   assert.equal((await currentStatus()).status, "offline");
 
+  // The board is cached for a couple of seconds and is advisory — booking is
+  // decided by the atomic UPDATE, not by this list. The test is asserting what
+  // a visitor *sees*, so it has to ask for a fresh one rather than accidentally
+  // pass or fail on where it lands inside the window.
+  invalidateRadarBoard();
   const visible = await listRadar();
   assert.equal(
     visible.some((row) => row.userId === therapistId),
@@ -414,7 +420,11 @@ test("a reservation only tells its own holder that it is theirs", async () => {
   const me = `viewer-list-${stamp}`;
   await reserveTherapist({ therapistUserId: therapistId, viewer: me });
 
+  invalidateRadarBoard();
   const asMe = (await listRadar(me)).find((row) => row.userId === therapistId);
+  // Deliberately no invalidation between these two: the whole point is that one
+  // cached board yields different answers to different viewers, because the
+  // only per-viewer field is computed in memory from it.
   const asOther = (await listRadar(`other-${stamp}`)).find((row) => row.userId === therapistId);
 
   assert.equal(asMe?.reservedByYou, true, "I see it as mine");
@@ -646,4 +656,65 @@ test("consent that was granted leaves the microphone alone", async () => {
 
   assert.equal(row?.consent, "granted");
   assert.equal(row?.paused, null);
+});
+
+/**
+ * The cached board.
+ *
+ * The public radar is polled every four seconds by every open tab, and each
+ * poll used to be its own pair of queries — making database load a function of
+ * how many people are looking at the marketing page, for an answer that is
+ * identical for all of them.
+ *
+ * Two things have to hold for that to be safe, and neither is obvious from
+ * reading the cache: different viewers must still get different answers out of
+ * one cached board, and the cache must never be what decides a booking.
+ */
+test("one cached board still answers each viewer about their own reservation", async () => {
+  const mine = `viewer-cache-${stamp}`;
+
+  await setStatus({ status: "online", pendingUntil: null, pendingSessionId: null, reservedBy: null });
+  const held = await reserveTherapist({ therapistUserId: therapistId, viewer: mine });
+  assert.equal(held, true);
+
+  invalidateRadarBoard();
+
+  // Two reads inside the TTL: the second is served from the first one's rows.
+  const asMe = (await listRadar(mine)).find((row) => row.userId === therapistId);
+  const asStranger = (await listRadar(`stranger-${stamp}`)).find(
+    (row) => row.userId === therapistId,
+  );
+
+  assert.equal(asMe?.reservedByYou, true, "the holder must still be told it is theirs");
+  assert.equal(
+    asStranger?.reservedByYou,
+    false,
+    "a shared cache must not leak one visitor's reservation to another",
+  );
+
+  await releaseReservation({ therapistUserId: therapistId, viewer: mine });
+});
+
+test("a stale board cannot cause a double booking", async () => {
+  const first = await newSession();
+  const second = await newSession();
+
+  await setStatus({ status: "online", pendingUntil: null, pendingSessionId: null, reservedBy: null });
+
+  // Warm the cache while the clinician is free, then take them.
+  invalidateRadarBoard();
+  await listRadar();
+  assert.equal(await claimTherapist({ therapistUserId: therapistId, sessionId: first }), true);
+
+  // The board still says "online" — it is up to two seconds behind. The claim
+  // must refuse anyway, because availability is decided by the UPDATE.
+  const board = (await listRadar()).find((row) => row.userId === therapistId);
+  assert.equal(board?.status, "online", "the cached board is deliberately stale here");
+  assert.equal(
+    await claimTherapist({ therapistUserId: therapistId, sessionId: second }),
+    false,
+    "the list is advisory; the atomic UPDATE is the authority",
+  );
+
+  await releaseClaim(first);
 });
