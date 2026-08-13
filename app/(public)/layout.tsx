@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui";
+import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getFooterLinks, getPublicNav } from "@/lib/content/service";
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,12 @@ export default async function PublicLayout({ children }: { children: React.React
           </nav>
 
           <div className="flex items-center gap-2">
+            {/*
+              Without this the Arabic site is unreachable for anyone whose
+              browser does not already ask for Arabic — which is most people
+              testing it, on a phone set to English.
+            */}
+            <LanguageSwitch className="hidden sm:inline-flex" />
             <Link href="/radar" className="sm:hidden">
               <Button variant="ghost" size="sm" className="text-teal-700">
                 Talk now

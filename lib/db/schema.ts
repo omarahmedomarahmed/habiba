@@ -1339,6 +1339,14 @@ export const contentPages = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     slug: text("slug").notNull(),
+    /**
+     * Which language this row is written in.
+     *
+     * A page used to be unique on slug alone, which quietly made the entire
+     * public site English-only at the database level — interface translation
+     * never reaches it, because these words are rows rather than strings.
+     */
+    locale: text("locale").notNull().default("en"),
     title: text("title").notNull(),
     description: text("description"),
     blocks: jsonb("blocks").$type<ContentBlock[]>().default([]).notNull(),
@@ -1352,7 +1360,7 @@ export const contentPages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("content_pages_slug_unique").on(t.slug)],
+  (t) => [uniqueIndex("content_pages_slug_locale_unique").on(t.slug, t.locale)],
 );
 
 /**

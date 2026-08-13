@@ -49,7 +49,9 @@ export function LanguageSwitch({ className }: { className?: string }) {
           aria-pressed={locale === current}
           lang={locale}
           className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-50",
+            // 44px minimum: this is a real control, not an inline link, and the
+            // WCAG exemption for links in a sentence does not cover it.
+            "flex min-h-11 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50",
             locale === current
               ? "bg-white text-slate-900 shadow-sm"
               : "text-slate-500 hover:text-slate-900",

@@ -19,14 +19,25 @@
  * than syncing everything, prints what it is about to replace, and leaves
  * every page it was not asked about alone.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { connect, schema } from "./db";
 import { DEFAULT_PAGES } from "../lib/content/defaults";
+import { DEFAULT_PAGES_AR } from "../lib/content/defaults-ar";
 
 async function main() {
   const argv = process.argv.slice(2);
   const all = argv.includes("--all");
+  /*
+   * Arabic rows are inserted when missing, unlike English ones.
+   *
+   * The English branch below deliberately refuses to insert — a slug with no
+   * row is already being served from defaults.ts, and creating one would only
+   * open the divergence this script exists to close. Arabic is the opposite
+   * case: there is no Arabic fallback in defaults.ts, so a missing row means
+   * the page simply is not available in Arabic and inserting it is the point.
+   */
+  const arabic = argv.includes("--ar");
   const wanted = argv.filter((arg) => !arg.startsWith("--"));
 
   if (!all && wanted.length === 0) {
@@ -35,11 +46,13 @@ async function main() {
     process.exit(1);
   }
 
-  const pages = all ? DEFAULT_PAGES : DEFAULT_PAGES.filter((page) => wanted.includes(page.slug));
+  const source = arabic ? DEFAULT_PAGES_AR : DEFAULT_PAGES;
+  const locale = arabic ? "ar" : "en";
+  const pages = all ? source : source.filter((page) => wanted.includes(page.slug));
 
-  const missing = wanted.filter((slug) => !DEFAULT_PAGES.some((page) => page.slug === slug));
+  const missing = wanted.filter((slug) => !source.some((page) => page.slug === slug));
   if (missing.length > 0) {
-    console.error(`No built-in page for: ${missing.join(", ")}`);
+    console.error(`No built-in ${locale} page for: ${missing.join(", ")}`);
     process.exit(1);
   }
 
@@ -49,8 +62,24 @@ async function main() {
     const [existing] = await db
       .select({ id: schema.contentPages.id, title: schema.contentPages.title })
       .from(schema.contentPages)
-      .where(eq(schema.contentPages.slug, page.slug))
+      .where(and(eq(schema.contentPages.slug, page.slug), eq(schema.contentPages.locale, locale)))
       .limit(1);
+
+    if (!existing && arabic) {
+      await db.insert(schema.contentPages).values({
+        slug: page.slug,
+        locale,
+        title: page.title,
+        description: page.description,
+        layout: page.layout,
+        navLabel: page.navLabel,
+        navOrder: page.navOrder,
+        blocks: page.blocks,
+        status: "published",
+      });
+      console.log(`+ ${page.slug} [${locale}] — created (${page.blocks.length} blocks)`);
+      continue;
+    }
 
     if (!existing) {
       // Nothing in the database means the fallback is already serving this
@@ -63,6 +92,7 @@ async function main() {
     await db
       .update(schema.contentPages)
       .set({
+        locale,
         title: page.title,
         description: page.description,
         layout: page.layout,
@@ -75,7 +105,7 @@ async function main() {
       .where(eq(schema.contentPages.id, existing.id));
 
     console.log(
-      `✓ ${page.slug} — "${existing.title}" → "${page.title}" (${page.blocks.length} blocks)`,
+      `✓ ${page.slug} [${locale}] — "${existing.title}" → "${page.title}"`,
     );
   }
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { db, isDatabaseUnavailable } from "@/lib/db";
 import { contentPages, type ContentBlock } from "@/lib/db/schema";
@@ -25,12 +25,36 @@ export type PublicPage = {
  * fails the deploy rather than shipping a static page.
  */
 export async function getPublicPage(slug: string): Promise<PublicPage | null> {
+  const { getLocale } = await import("@/lib/i18n/server");
+  const locale = await getLocale();
+
   try {
-    const [row] = await db
+    /*
+     * The requested language, then English.
+     *
+     * The fallback is deliberate and is the opposite of the rule for interface
+     * strings, where an English fallback is banned and the type system
+     * enforces it. The difference is what a gap means: a missing UI string is
+     * a bug somebody forgot, and showing English there hides it. A missing CMS
+     * page is content nobody has written yet, and a patient looking for the
+     * crisis radar needs the page more than they need it in their language.
+     *
+     * Ordering by locale puts the exact match first — `desc` works because the
+     * only two values are 'en' and 'ar' and we filter to the pair we want.
+     */
+    const rows = await db
       .select()
       .from(contentPages)
-      .where(eq(contentPages.slug, slug))
-      .limit(1);
+      .where(
+        and(
+          eq(contentPages.slug, slug),
+          inArray(contentPages.locale, locale === "en" ? ["en"] : [locale, "en"]),
+        ),
+      );
+
+    const row =
+      rows.find((candidate) => candidate.locale === locale && candidate.status === "published") ??
+      rows.find((candidate) => candidate.locale === "en");
 
     if (row && row.status === "published") {
       return {
@@ -61,10 +85,14 @@ export async function getPublicPage(slug: string): Promise<PublicPage | null> {
 export type NavItem = { slug: string; label: string };
 
 export async function getPublicNav(): Promise<NavItem[]> {
+  const { getLocale } = await import("@/lib/i18n/server");
+  const locale = await getLocale();
+
   try {
     const rows = await db
       .select({
         slug: contentPages.slug,
+        locale: contentPages.locale,
         navLabel: contentPages.navLabel,
         navOrder: contentPages.navOrder,
       })
@@ -72,7 +100,27 @@ export async function getPublicNav(): Promise<NavItem[]> {
       .where(isNotNull(contentPages.navLabel))
       .orderBy(asc(contentPages.navOrder));
 
-    const published = rows.filter((r) => r.navLabel && (r.navOrder ?? 99) < 10);
+    /*
+     * One entry per slug, in the reader's language where it exists.
+     *
+     * Adding Arabic rows made this query return the same page twice — once per
+     * locale — which would have put every item in the navigation bar twice,
+     * each in a different language. Collapsing by slug and preferring the
+     * requested locale is what keeps one page one link, and it keeps the
+     * English label as the fallback for a page nobody has translated yet.
+     */
+    const bySlug = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      const existing = bySlug.get(row.slug);
+      if (!existing || (row.locale === locale && existing.locale !== locale)) {
+        bySlug.set(row.slug, row);
+      }
+    }
+
+    const published = [...bySlug.values()]
+      .filter((r) => r.navLabel && (r.navOrder ?? 99) < 10)
+      .sort((a, b) => (a.navOrder ?? 99) - (b.navOrder ?? 99));
+
     if (published.length > 0) {
       return published.map((r) => ({ slug: r.slug, label: r.navLabel! }));
     }

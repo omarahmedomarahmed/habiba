@@ -196,12 +196,20 @@ function tally(
 
 function Scroller({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2">
       <span className="sr-only">{label}</span>
       {/* Scrolls on a phone, wraps once there is room. A chip cut in half at
           the edge of a wide screen reads as a rendering bug rather than as an
           invitation to scroll. */}
-      <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 py-0.5 sm:flex-wrap sm:overflow-x-visible">
+      {/*
+        `min-w-0` is what makes the horizontal scroll actually work.
+        ----------------------------------------------------------
+        A flex item defaults to `min-width: auto`, which means it refuses to
+        shrink below its content — so `overflow-x-auto` here scrolled nothing
+        and the row pushed the whole page 13px wider than an iPhone SE instead.
+        The scroll was written; the parent quietly overruled it.
+      */}
+      <div className="no-scrollbar -mx-1 flex min-w-0 gap-1.5 overflow-x-auto px-1 py-0.5 sm:flex-wrap sm:overflow-x-visible">
         {children}
       </div>
     </div>
