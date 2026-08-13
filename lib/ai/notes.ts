@@ -255,7 +255,7 @@ async function translateNote(opts: {
     organizationId: opts.organizationId,
     userId: opts.userId,
     sessionId: opts.sessionId,
-    kind: "note",
+    kind: "translate",
     model: MODELS.note,
     inputTokens: completion.usage?.prompt_tokens ?? 0,
     outputTokens: completion.usage?.completion_tokens ?? 0,

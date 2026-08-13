@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -990,12 +991,37 @@ export const aiRequestLogs = pgTable(
     }),
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
-    kind: text("kind").$type<"transcribe" | "note" | "risk" | "copilot">().notNull(),
+    /**
+     * Every kind of model call we make.
+     *
+     * Widened past the original four because the union was quietly incomplete:
+     * the patient-facing copilot, the note translation pass and speech
+     * synthesis all logged as something they were not, which made a
+     * per-therapist cost breakdown wrong in a way no total would reveal.
+     */
+    kind: text("kind")
+      .$type<"transcribe" | "note" | "risk" | "copilot" | "patient_copilot" | "translate" | "speech">()
+      .notNull(),
     model: text("model").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
     audioSeconds: integer("audio_seconds").notNull().default(0),
+    /**
+     * Kept, and no longer the number anything reads.
+     *
+     * Rounding every cost into whole cents recorded zero for 91% of calls —
+     * a transcription chunk is 0.15 cents and a mini copilot call is 0.014.
+     * See `costMicrocents`.
+     */
     costCents: integer("cost_cents").notNull().default(0),
+    /**
+     * A thousandth of a cent, as an integer.
+     *
+     * The smallest thing we pay for is a few hundredths of a cent, so cents
+     * cannot hold it and a float would reintroduce the same bug more quietly.
+     * Everything that reports spend reads this.
+     */
+    costMicrocents: bigint("cost_microcents", { mode: "number" }).notNull().default(0),
     durationMs: integer("duration_ms").notNull().default(0),
     status: text("status").$type<"success" | "error">().notNull(),
     errorCode: text("error_code"),

@@ -58,11 +58,29 @@ export class AiUnavailableError extends Error {
   }
 }
 
+/**
+ * Every kind of model call, including the three that were missing.
+ *
+ * The union used to be four values while five call sites existed, so the
+ * patient-facing copilot and the note translation pass logged themselves as
+ * something else. A total stays right when a category is mislabelled, which
+ * is exactly why nobody notices until they try to break spend down per
+ * therapist and the numbers refuse to add up.
+ */
+export type UsageKind =
+  | "transcribe"
+  | "note"
+  | "risk"
+  | "copilot"
+  | "patient_copilot"
+  | "translate"
+  | "speech";
+
 type UsageInput = {
   organizationId: string | null;
   userId: string | null;
   sessionId: string | null;
-  kind: "transcribe" | "note" | "risk" | "copilot";
+  kind: UsageKind;
   model: string;
   inputTokens?: number;
   outputTokens?: number;
@@ -73,7 +91,7 @@ type UsageInput = {
 };
 
 export async function logUsage(input: UsageInput): Promise<void> {
-  const cost = estimateCostCents(input);
+  const microcents = estimateCostMicrocents(input);
   try {
     await db.insert(aiRequestLogs).values({
       organizationId: input.organizationId,
@@ -84,7 +102,10 @@ export async function logUsage(input: UsageInput): Promise<void> {
       inputTokens: input.inputTokens ?? 0,
       outputTokens: input.outputTokens ?? 0,
       audioSeconds: input.audioSeconds ?? 0,
-      costCents: cost,
+      // Kept in step for anything still reading it, and still lossy — see the
+      // note on `estimateCostMicrocents`.
+      costCents: Math.round(microcents / 1000),
+      costMicrocents: microcents,
       durationMs: input.durationMs,
       status: input.status,
       errorCode: input.errorCode ?? null,
@@ -95,15 +116,33 @@ export async function logUsage(input: UsageInput): Promise<void> {
   }
 }
 
-function estimateCostCents(input: UsageInput): number {
+/**
+ * Cost in thousandths of a cent.
+ *
+ * This function used to return whole cents, and that single `Math.round` made
+ * the entire spend ledger read zero. The real numbers are far below one cent:
+ * a thirty-second transcription chunk is 0.15 cents, a gpt-4o-mini copilot
+ * call about 0.014. Both rounded to nothing, and since chunks are by far the
+ * highest-volume call, essentially all transcription spend was invisible —
+ * 115 calls and 902 seconds of audio recorded as $0.00.
+ *
+ * It was not a small error in a number. It was a ledger that ran on every
+ * request, cost a database write each time, and reported nothing — the kind
+ * of instrumentation that is worse than none, because its existence stops
+ * anyone looking for the missing figure.
+ *
+ * Integers rather than floats: money in floating point reintroduces the same
+ * family of bug in a form that is harder to see.
+ */
+function estimateCostMicrocents(input: UsageInput): number {
   if (input.kind === "transcribe") {
     const rate = RATES["gpt-4o-mini-transcribe"];
-    return Math.round(((input.audioSeconds ?? 0) / 60) * rate.perAudioMinute);
+    return Math.round(((input.audioSeconds ?? 0) / 60) * rate.perAudioMinute * 1000);
   }
   const rate = input.model === "gpt-4o-mini" ? RATES["gpt-4o-mini"] : RATES["gpt-4o"];
   const inCost = ((input.inputTokens ?? 0) / 1_000_000) * rate.inPerMTok;
   const outCost = ((input.outputTokens ?? 0) / 1_000_000) * rate.outPerMTok;
-  return Math.round(inCost + outCost);
+  return Math.round((inCost + outCost) * 1000);
 }
 
 /**
