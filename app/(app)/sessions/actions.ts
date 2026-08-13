@@ -113,6 +113,20 @@ export async function goLive(sessionId: string): Promise<SessionActionState> {
   const actor = await requireUser();
   try {
     await startSession(actor, sessionId);
+    /*
+     * Recorded after the transition succeeds, never before.
+     *
+     * An audit line for something that then failed is worse than no line: it
+     * puts an event in the record that did not happen, and the record's whole
+     * value is that it did not need to be believed.
+     */
+    await audit({
+      actor,
+      category: "clinical",
+      action: "session.start",
+      resourceType: "session",
+      resourceId: sessionId,
+    });
     revalidatePath(`/sessions/${sessionId}/room`);
     return { ok: true };
   } catch (error) {
@@ -140,6 +154,14 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
   let patientId: string | null = null;
   try {
     const result = await completeSession(actor, sessionId);
+
+    await audit({
+      actor,
+      category: "clinical",
+      action: "session.end",
+      resourceType: "session",
+      resourceId: sessionId,
+    });
     patientId = result.patientId;
     if (result.alreadyCompleted) return { ok: true };
   } catch (error) {
@@ -305,5 +327,13 @@ export async function setRecordingPaused(
         eq(sessions.therapistId, actor.userId),
       ),
     );
+
+  await audit({
+    actor,
+    category: "clinical",
+    action: paused ? "recording.pause" : "recording.resume",
+    resourceType: "session",
+    resourceId: sessionId,
+  });
   return { ok: true };
 }

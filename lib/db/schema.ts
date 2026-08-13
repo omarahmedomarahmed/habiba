@@ -1226,6 +1226,20 @@ export const AUDIT_CATEGORIES = [
   "admin",
   "billing",
   "break_glass",
+  /**
+   * What a clinician did, as distinct from what they read.
+   *
+   * `phi_access` answers "who looked at this chart", which is the question a
+   * privacy regulator asks. It does not answer "what happened in the product",
+   * which is the question an operator, a support agent or a court asks — and
+   * that question had no answer at all: starting a session, ending one,
+   * approving a note, pausing a recording and going on the radar were all
+   * unrecorded.
+   *
+   * One trail rather than a second table. Two audit logs means two places to
+   * look and two chances for the answer to be in the other one.
+   */
+  "clinical",
 ] as const;
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 
