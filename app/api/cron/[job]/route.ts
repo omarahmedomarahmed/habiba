@@ -16,7 +16,38 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Scheduled work. Four jobs, down from nine.
+ * Scheduled work. Four jobs, down from nine — and none of them scheduled.
+ *
+ * ## NOTHING RUNS ON A SCHEDULE RIGHT NOW. RESTORE BEFORE LAUNCH.
+ *
+ * `vercel.json` has an empty `crons` array. Every job below is still reachable
+ * by hand with the shared secret; nothing calls them on a clock.
+ *
+ * That is correct today and wrong the moment a real patient uses this. The
+ * product is pre-launch with no users, so the only thing the schedule was
+ * doing was waking the database once an hour to find nothing — five minutes of
+ * paid compute per hour, forever, to sweep an empty table.
+ *
+ * What is being given up, and when it starts to matter:
+ *
+ *   crisis    — retries crisis alerts whose notification failed. Nothing to
+ *               retry with no users. SAFETY-RELEVANT the day there are any.
+ *   billing   — charges completed sessions that produced no charge row, which
+ *               happens when a Stripe webhook is lost. Costs money to skip.
+ *   retention — purges audit rows past six years, expired sessions, spent
+ *               rate-limit rows and errors past thirty days. Nothing is six
+ *               years old yet; the error table grows slowly.
+ *
+ * Restore by putting the schedules back in `vercel.json`:
+ *
+ *   crisis     0 * * * *      (hourly)
+ *   billing    0 * / 6 * * *  (six-hourly — remove the spaces)
+ *   retention  0 3 * * *      (daily)
+ *
+ * A cheaper restoration, if the bill still stings once there are users:
+ * schedule all three at the same minute so they share one wake rather than
+ * three. Neon charges for the idle timeout a cron resets, not for the work,
+ * so three jobs at 03:00 cost exactly what one job costs.
  *
  * Authenticated with a shared secret, because a cron endpoint that anyone can
  * hit is a free way to make the platform do work — and `retention` deletes
@@ -40,8 +71,10 @@ export const maxDuration = 300;
  * idle product. Vercel's own logs made it plain: twenty-four hits on
  * /api/cron/crisis in six hours and eleven on everything else combined.
  *
- * So the schedule is hourly, and the thing that used to justify running it
- * often does not live here any more.
+ * So the schedule went hourly — and then to nothing at all, once it was clear
+ * that hourly still meant five minutes of paid compute every hour to sweep an
+ * empty table. The history below is kept because it is the reasoning to
+ * re-apply when the schedules come back, not because it describes today.
  *
  * ## What moved, and why that is the actual fix
  *
