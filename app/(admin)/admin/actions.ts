@@ -1,7 +1,9 @@
 "use server";
 
 import { after } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+
+import { CMS_TAG } from "@/lib/content/service";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
@@ -99,10 +101,21 @@ export async function savePage(
     resourceId: pageId,
   });
 
-  // Publish should be visible immediately rather than at the next revalidation.
-  if (page?.slug) {
-    revalidatePath(page.slug === "home" ? "/" : `/${page.slug}`);
-  }
+  /*
+   * Publishing is now the *only* thing that refreshes the public site.
+   *
+   * The marketing pages used to regenerate on a one-hour timer, which meant
+   * one visitor an hour was enough to keep the database awake around the
+   * clock — the same duty cycle as the cron that was removed for exactly that
+   * reason. The page data is cached until this line runs.
+   *
+   * The whole tag rather than one path: the navigation and the footer are
+   * built from this same table, so editing one page's label changes the header
+   * on every other page. Invalidating one path would leave the rest showing a
+   * stale menu, which is a worse bug than a broader invalidation of content
+   * that changes a few times a month.
+   */
+  revalidateTag(CMS_TAG);
   revalidatePath("/admin/content");
   return { ok: true };
 }

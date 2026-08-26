@@ -10,7 +10,8 @@ import { getPublicPage } from "@/lib/content/service";
  * path explicitly on publish, so an edit is live immediately rather than in an
  * hour.
  */
-export const revalidate = 3600;
+/* See the note in [slug]/page.tsx — refreshed on publish, never on a clock. */
+export const revalidate = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getPublicPage("home");

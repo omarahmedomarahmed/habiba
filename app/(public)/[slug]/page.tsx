@@ -5,7 +5,15 @@ import { BlockRenderer } from "@/components/public/blocks";
 import { DEFAULT_PAGES } from "@/lib/content/defaults";
 import { getPublicPage } from "@/lib/content/service";
 
-export const revalidate = 3600;
+/*
+ * Never on a timer. Only when somebody publishes.
+ *
+ * This was 3600, which meant one visitor an hour was enough to keep the
+ * database awake permanently — the same duty cycle as the cron removed for
+ * exactly that reason. The page data is cached until `revalidateTag(CMS_TAG)`
+ * runs, which is what the admin editor and /api/revalidate do.
+ */
+export const revalidate = false;
 export const dynamicParams = true;
 
 export function generateStaticParams() {

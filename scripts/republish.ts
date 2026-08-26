@@ -110,6 +110,41 @@ async function main() {
   }
 
   await pool.end();
+
+  /*
+   * Tell the running deployment, because nothing else will.
+   *
+   * The public pages no longer expire on a timer, so a script that writes to
+   * the database from a laptop leaves the live site serving cached content
+   * indefinitely. That is the cost of taking the database out of the request
+   * path, and it is paid here.
+   *
+   * A failure is reported and not thrown: the rows are already written, and
+   * exiting non-zero would suggest they were not.
+   */
+  const target = process.env.APP_URL ?? "https://habiba-zeta.vercel.app";
+  const secret = process.env.CRON_SECRET;
+
+  if (!secret) {
+    console.log(`\n! CRON_SECRET is not set — could not refresh ${target}.`);
+    console.log("  The database is updated; the live site will keep serving cached pages.");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${target}/api/revalidate`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secret}` },
+    });
+    console.log(
+      response.ok
+        ? `\n✓ ${target} refreshed`
+        : `\n! ${target} refused the refresh (${response.status}) — pages may be stale`,
+    );
+  } catch (error) {
+    console.log(`\n! could not reach ${target}: ${(error as Error).message}`);
+    console.log("  The database is updated; the live site will keep serving cached pages.");
+  }
 }
 
 void main();
