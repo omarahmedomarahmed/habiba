@@ -253,14 +253,33 @@ export async function therapistPatients(userId: string) {
       source: patients.source,
       createdAt: patients.createdAt,
       lastSessionAt: patients.lastSessionAt,
+      /*
+       * The outer column is qualified by hand, and it has to be.
+       *
+       * Drizzle only prefixes column names with their table when the query has
+       * a join to disambiguate. This select reads from `patients` alone, so it
+       * emitted every column bare — and inside a correlated subquery, a bare
+       * name binds to the *innermost* scope that has one.
+       *
+       * That produced two different failures from one cause. `sessionCount`
+       * resolved `id` to `sessions.id` and quietly counted the sessions whose
+       * patient_id equals their own id, which is none of them: every clinician's
+       * patient list showed zero sessions and nothing looked broken. The
+       * copilot count had two inner tables carrying an `id`, so Postgres could
+       * not choose at all and the whole clinician page 500'd.
+       *
+       * `${patients}` interpolates the table name, so this stays correct if the
+       * table is ever renamed, and no longer depends on how Drizzle decides to
+       * qualify.
+       */
       sessionCount: sql<number>`(
-        SELECT count(*)::int FROM ${sessions}
-        WHERE ${sessions.patientId} = ${patients.id} AND ${sessions.status} = 'completed'
+        SELECT count(*)::int FROM ${sessions} s
+        WHERE s.patient_id = ${patients}."id" AND s.status = 'completed'
       )`,
       copilotMessages: sql<number>`(
         SELECT count(*)::int FROM ${copilotMessages} m
         JOIN ${copilotThreads} t ON t.id = m.thread_id
-        WHERE t.patient_id = ${patients.id} AND m.role = 'therapist'
+        WHERE t.patient_id = ${patients}."id" AND m.role = 'therapist'
       )`,
     })
     .from(patients)

@@ -17,3 +17,6 @@ next-env.d.ts
 
 # Generated demo assets — regenerate with scripts/demo-video.mts
 demo-output/
+
+# Development-only credential uploads (see lib/uploads.ts)
+.uploads/

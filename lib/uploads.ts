@@ -49,8 +49,35 @@ export function uploadProblem(file: { size: number; type: string } | null): stri
   return null;
 }
 
+/**
+ * An opt-in fallback to the local disk, for running without Vercel Blob.
+ *
+ * Without it, a checkout with no Blob token cannot run the flow every new
+ * clinician goes through first: upload a licence, wait for an admin to look at
+ * it, get approved. That made onboarding unreachable outside production, which
+ * is the worst place for it to be exercised for the first time.
+ *
+ * Two conditions, both required, because this writes identity documents:
+ *
+ *   The Blob token must be absent. A deployment that has one always uses it,
+ *   so this can never silently take over a working store.
+ *
+ *   ALLOW_LOCAL_UPLOADS must be set explicitly. Nobody arrives here by
+ *   forgetting something — it is a decision, made once, in an env file.
+ *
+ * Do not set it on a real deployment. Serverless filesystems are ephemeral and
+ * per-instance: the documents would be unreadable from any other instance and,
+ * on the one that held them, would sit outside every retention rule the real
+ * store is subject to.
+ */
+const LOCAL_UPLOADS =
+  !process.env.BLOB_READ_WRITE_TOKEN && process.env.ALLOW_LOCAL_UPLOADS === "1";
+const LOCAL_DIR = ".uploads";
+/** Served by `app/api/uploads/[...path]`, which is also development-only. */
+const LOCAL_PREFIX = "/api/uploads/";
+
 export function uploadsConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN) || LOCAL_UPLOADS;
 }
 
 /**
@@ -80,6 +107,21 @@ export async function uploadDocument(opts: {
   // access on its own, because the secret segment is what makes the URL work.
   const path = `${opts.kind}/${opts.userId}/${opts.label}-${secret}.${extension}`;
 
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    // Same path, same entropy, same opacity — a different disk.
+    try {
+      const { mkdir, writeFile } = await import("node:fs/promises");
+      const { dirname, join } = await import("node:path");
+      const target = join(process.cwd(), LOCAL_DIR, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, Buffer.from(await opts.file.arrayBuffer()));
+      return { url: `${LOCAL_PREFIX}${path}` };
+    } catch (error) {
+      log.error("local upload failed", { kind: opts.kind, reason: safeErrorMessage(error) });
+      return { error: "The upload did not go through. Try again." };
+    }
+  }
+
   try {
     const blob = await put(path, opts.file, {
       access: "public",
@@ -98,6 +140,16 @@ export async function uploadDocument(opts: {
 /** Remove a stored file. Used when a document is replaced. */
 export async function deleteDocument(url: string | null | undefined): Promise<void> {
   if (!url || !uploadsConfigured()) return;
+  if (url.startsWith(LOCAL_PREFIX)) {
+    try {
+      const { rm } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      await rm(join(process.cwd(), LOCAL_DIR, url.slice(LOCAL_PREFIX.length)), { force: true });
+    } catch (error) {
+      log.warn("local upload delete failed", { reason: safeErrorMessage(error) });
+    }
+    return;
+  }
   try {
     await del(url);
   } catch (error) {
@@ -123,6 +175,9 @@ function extensionFor(type: string): string {
  */
 export function documentUrl(stored: string | null | undefined): string | null {
   if (!stored) return null;
+  // Locally stored documents are same-origin paths, and only ever exist in a
+  // development database. The https:// rule still governs everything else.
+  if (LOCAL_UPLOADS && stored.startsWith(LOCAL_PREFIX)) return stored;
   if (!stored.startsWith("https://")) return null;
   return stored;
 }
