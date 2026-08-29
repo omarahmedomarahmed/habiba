@@ -50,6 +50,13 @@ import { chromium } from "playwright";
 
 const OUT = process.env.DEMO_OUT ?? "demo-output";
 const FILE = join(OUT, "24therapy-demo-edit.webm");
+/*
+ * VP9 undershoots this target by roughly a third on screen content, which is
+ * mostly static frames and slow moves. 4.2 Mbps lands near 23 MB for 71
+ * seconds — under the 30 MB most places accept on an upload. Raise it for a
+ * master copy that is only ever going to a video host.
+ */
+const BITRATE = Number(process.env.DEMO_BITRATE ?? 4_200_000);
 const W = 1920;
 const H = 1080;
 
@@ -202,7 +209,7 @@ const XDUR = 0.42;
 
 /* ------------------------------------------------------------- the page */
 
-function pageHtml(timeline: unknown, transitions: unknown, xdur: number) {
+function pageHtml(timeline: unknown, transitions: unknown, xdur: number, bitrate: number) {
   return `<!doctype html><meta charset="utf-8"><style>
     html,body{margin:0;background:#000;overflow:hidden}
     canvas{display:block}
@@ -211,6 +218,7 @@ const W=${W}, H=${H};
 const TIMELINE=${JSON.stringify(timeline)};
 const TRANSITIONS=${JSON.stringify(transitions)};
 const XDUR=${xdur};
+const BITRATE=${bitrate};
 
 const NAVY='#0A2342', DEEP='#04101F', TEAL='#2EC4B6', ICE='#C9DCEF',
       WHITE='#FFFFFF', MUTED='#8098B4', PANE='#0E2337';
@@ -615,7 +623,7 @@ window.__run=async function(names){
   const stream=cv.captureStream(30);
   const chunks=[];
   const rec=new MediaRecorder(stream,{
-    mimeType:'video/webm;codecs=vp9', videoBitsPerSecond:8000000,
+    mimeType:'video/webm;codecs=vp9', videoBitsPerSecond:BITRATE,
   });
   rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
   const done=new Promise(r=>{ rec.onstop=r; });
@@ -689,7 +697,7 @@ async function main() {
     const path = (req.url ?? "/").split("?")[0];
     if (path === "/") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(pageHtml(TIMELINE, TRANSITIONS, XDUR));
+      res.end(pageHtml(TIMELINE, TRANSITIONS, XDUR, BITRATE));
       return;
     }
     const file = join(OUT, path.replace(/^\/+/, ""));
