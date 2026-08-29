@@ -27,8 +27,25 @@ import { mkdirSync, rmSync, globSync } from "node:fs";
 import { chromium, type Page } from "playwright";
 
 const BASE = process.env.DEMO_BASE ?? "http://localhost:3100";
-const OUT = "demo-output";
-const VIEWPORT = { width: 1280, height: 800 };
+const OUT = process.env.DEMO_OUT ?? "demo-output";
+/*
+ * 1080p by default, because this footage is the source for the edit in
+ * `scripts/demo-edit.mts`, which sits each frame inside a browser mockup and
+ * therefore *shrinks* it. Shooting at the delivery resolution and scaling down
+ * keeps the type crisp; shooting smaller and scaling up does not.
+ */
+const VIEWPORT = {
+  width: Number(process.env.DEMO_WIDTH ?? 1440),
+  height: Number(process.env.DEMO_HEIGHT ?? 900),
+};
+/*
+ * Stills are shot at twice the viewport; the recording is not, because
+ * `recordVideo` captures CSS pixels and ignores this. That asymmetry is
+ * deliberate — the stills carry the detail zooms in the edit, where a 2x
+ * source is the difference between readable and mush, and the video only ever
+ * plays at roughly the size it was shot.
+ */
+const SCALE = Number(process.env.DEMO_SCALE ?? 2);
 
 let shot = 0;
 
@@ -88,7 +105,7 @@ async function main() {
 
   const context = await browser.newContext({
     viewport: VIEWPORT,
-    deviceScaleFactor: 1,
+    deviceScaleFactor: SCALE,
     permissions: ["camera", "microphone"],
     recordVideo: { dir: `${OUT}/video`, size: VIEWPORT },
   });
@@ -122,7 +139,15 @@ async function main() {
   await page.waitForTimeout(3800);
   await beat(page, "radar-board", 1200);
 
-  const pick = page.getByRole("button", { name: /Layla Mansour/ }).first();
+  /*
+   * Whoever is free, not whoever was free last time.
+   *
+   * This used to name a clinician. The previous recording booked her, the
+   * booking is a real row, and the next run opened her sheet to "They are in a
+   * session at the moment" — no form, no beats five through ten, and a silent
+   * half-recording. The board is live data; the script has to read it.
+   */
+  const pick = page.getByRole("button", { name: /Available/ }).first();
   await click(page, pick);
   await beat(page, "booking-sheet", 2400);
 

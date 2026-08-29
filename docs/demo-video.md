@@ -1,93 +1,120 @@
-# Making the demo video
+# The demo video
 
-`npx tsx scripts/demo-video.mts` drives a real browser through the real product
-and writes everything below into `demo-output/`. Nothing in it is mocked — the
-clinicians are rows in the database and the board is the live radar.
+Two scripts, run in order. The first gathers evidence from the running
+product; the second cuts it into a film.
 
+```bash
+npx tsx scripts/demo-video.mts     # drive the real site, capture stills + screen recording
+npx tsx scripts/demo-edit.mts      # composite the edit and encode it
 ```
-DEMO_BASE=https://habiba-zeta.vercel.app npx tsx scripts/demo-video.mts
-```
+
+Both write to `demo-output/`, which is gitignored — it regenerates in about
+three minutes.
 
 | File | What it is |
 | --- | --- |
-| `24therapy-demo.webm` | 1280×800 screen recording of the whole run, with a visible cursor |
-| `01-home-globe.png` … `10-patient-room.png` | One still per beat, in order |
+| `24therapy-demo-edit.webm` | **The deliverable.** 1920×1080, 71s, VP9. Titles, mockup frame, camera moves, punch-ins, four cut styles. |
+| `24therapy-demo.webm` | The raw screen recording, 1440×900, with a visible cursor. Evidence, not a film. |
+| `01-home-globe.png` … `10-patient-room.png` | One 2880×1800 still per beat, in order |
+| `frames/` | Single frames rendered for review — see *Reviewing the edit* |
 
-## The shot list
+Every frame of the film is a screenshot of the running product. The only
+synthetic pixels are the window frame around the screenshots and the words on
+top of them. Nothing depicts a feature that does not exist.
 
-The recording already has the pacing. What it does not have is a voice. Below
-is the script, timed against the beats — read it over the webm and you have a
-demo video. Total runs about 75 seconds, which is the right length for an
-accelerator application or a cold email.
+## The cut
 
-| # | Still | On screen | Say this |
-| --- | --- | --- | --- |
-| 1 | `01-home-globe` | Homepage, globe drawing, "8 therapists online right now" | "This is the homepage. Not a landing page — a live board of licensed therapists who are online right now." |
-| 2 | `02-home-clinicians` | Scrolled to the clinician cards | "Every card is a real clinician with a heartbeat behind it. Price and length are on the card, before you click anything." |
-| 3 | `03-filter-arabic` | Arabic language filter active | "Filter by language first, because language is the first thing that rules a therapist out. The whole product runs in Arabic too, right to left." |
-| 4 | `04-radar-board` | `/radar`, full board | "The full board. Countries, languages, and what you need help with." |
-| 5 | `05-booking-sheet` | Layla Mansour's sheet, "Held for you · 59s" | "Pick someone and they are held for you for sixty seconds. They go busy for everyone else while you decide, and are released if you walk away." |
-| 6 | `06-booking-name` | First name typed | "A first name. That is the entire form. No account, no insurance, no waiting list." |
-| 7 | `07-join-arrived` | Arrived at the session URL | "One click and you are through." |
-| 8 | `08-consent-question` | "May your therapist record this session?" | "One question before you go in. Recording is opt-in, and saying no changes nothing — the session runs exactly the same and the therapist writes their own notes." |
-| 9 | `09-consent-chosen` | Answer selected | "Answered once, stored with the exact wording they agreed to." |
-| 10 | `10-patient-room` | Session room, "Do not close this tab." | "And you are in. The loudest thing on the screen is the one instruction that matters — because the rating and the written summary both live on the other side of this session ending. The rating is anonymous. The therapist sees the stars and the words, never who wrote them." |
-
-## Three ways to finish it
-
-| Route | Effort | When to use it |
+| Time | Scene | On screen |
 | --- | --- | --- |
-| Ship the webm as-is | none | Email, Notion, an application form. YouTube, Vimeo, Loom, Slack, Google Drive and Notion all accept webm directly. |
-| Narrate over it | ~20 min | Anything a human will watch. Record the script above in one take; the beats are already paced for it. |
-| Stills as a slideshow | ~30 min | When you need captions instead of a voice, or an mp4 with no video editor. |
+| 0:00 | Title | *Talk to a real therapist in the next sixty seconds.* |
+| 0:04 | Homepage | The live board. Focus ring lands on the online count. |
+| 0:10 | **Punch-in** | "A live count, not a claim" |
+| 0:14 | Language filter | Split layout — copy left, product right |
+| 0:19 | Full radar | The globe, mid-rotation |
+| 0:24 | Booking sheet | Focus ring lands on the hold timer |
+| 0:30 | **Punch-in** | "Sixty seconds, held" |
+| 0:34 | The form | "A first name. That is the form." |
+| 0:39 | Statement | *One question before you go in.* |
+| 0:42 | Consent | Focus ring lands on the two answers |
+| 0:48 | **Punch-in** | "Saying no changes nothing else" |
+| 0:52 | The room | "And you are in" |
+| 0:57 | **Punch-in** | "The rating is anonymous" |
+| 1:02 | Statement | *Meanwhile, the session documents itself.* + three lines |
+| 1:06 | Outro | Logo, URL, honest status line |
 
-### Narrating over the recording
+Cuts alternate `punch → push → dissolve → wipe` and back. The bottom hairline
+is a progress bar, so a viewer always knows how much is left.
 
-Loom, Descript, CapCut and iMovie all import webm. Drop the file on the
-timeline, record voice-over against it, export mp4. Do not re-cut the timing —
-the holds in `demo-video.mts` are already longer than they feel, deliberately,
-so a viewer who has never seen the product can follow.
+## Adding a voice
 
-### Building it from the stills instead
+The film is deliberately silent — it reads on autoplay in a feed or on a
+landing page with the sound off, which is where most of these get watched.
+If you want narration, the on-screen titles are already the script: read them
+plus a sentence each, against the timings above.
 
-Ten stills, seven seconds each, cross-faded. This is the route that needs no
-editor at all:
+Loom, Descript, CapCut and iMovie all import webm. Drop it on a timeline,
+record over it, export.
+
+## If you need mp4
+
+There is no full ffmpeg in the build environment — Playwright's bundled copy
+is a stripped webm muxer with no encoders — so the film is encoded by
+Chromium's own VP9 encoder through `MediaRecorder`. Everywhere that matters
+takes webm directly: YouTube, Vimeo, Loom, Slack, Notion, Google Drive, and
+every browser except Safari.
+
+For mp4, on a machine with a real ffmpeg:
 
 ```bash
-cd demo-output
-ffmpeg -framerate 1/7 -pattern_type glob -i '*.png' \
-  -vf "scale=1280:800:force_original_aspect_ratio=decrease,pad=1280:800:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
-  -c:v libx264 -r 30 24therapy-slides.mp4
+ffmpeg -i 24therapy-demo-edit.webm -c:v libx264 -crf 20 -preset slow -pix_fmt yuv420p -an 24therapy-demo.mp4
 ```
 
-Add the voice-over as a second pass:
+## Changing the edit
+
+`TIMELINE` at the top of `scripts/demo-edit.mts` is the edit decision list —
+scene order, durations, copy, which still, where the camera pushes, and which
+rectangle each punch-in frames. Editing it is the whole interface; the
+rendering below it rarely needs touching.
+
+`focus` (the ring on a shot) and `crop` (what the following punch-in frames)
+are in image-normalised coordinates, 0–1 of the still, so they survive a
+re-shoot at a different resolution.
+
+### Reviewing the edit
+
+A `MediaRecorder` webm carries no seek index, so seeking the finished file
+lands on frame zero every time. Render frames from the source instead:
 
 ```bash
-ffmpeg -i 24therapy-slides.mp4 -i voiceover.m4a -c:v copy -c:a aac -shortest 24therapy-demo.mp4
+DEMO_STILLS=1.8,11,30.5,60.5 npx tsx scripts/demo-edit.mts
 ```
 
-## Why there is no mp4 in the output
+That writes `demo-output/frames/tNNN.N.png` and skips encoding entirely. It is
+the fast loop — a frame takes a second, a full render takes 71.
 
-Playwright records webm and nothing else, and the ffmpeg it bundles is a
-stripped build with the webm muxer only — no h264 encoder — so it cannot
-convert its own output. Every platform that matters takes webm. If you
-specifically need mp4, install a full ffmpeg locally and:
+## Re-shooting the source
 
-```bash
-ffmpeg -i 24therapy-demo.webm -c:v libx264 -crf 20 -preset slow -an 24therapy-demo.mp4
-```
-
-## Re-shooting it
-
-Change the flow in `scripts/demo-video.mts` and run it again. The script pins
-its selectors to what is actually on the page (`#radar-name`, the clinician's
-name on the card, the consent option text), so a copy change will break the
-run loudly rather than record a wrong video quietly.
-
-Two things it does that a test would not, and both should survive any edit:
+`scripts/demo-video.mts` drives the live site, so it breaks loudly when the
+product changes rather than recording something wrong quietly. Two things it
+does that a test would not, and both should survive any edit:
 
 - **A cursor.** Playwright moves the mouse without drawing one, so an
-  unmodified recording is a screen that changes by itself. The injected dot
-  makes it read as a person using the product.
-- **Pacing.** Every step holds long enough to read what changed. Those holds
+  unmodified recording is a screen that changes by itself.
+- **Pacing.** Every step holds long enough to read what changed. The holds
   feel too long to whoever already knows what happens next. Leave them.
+
+It picks whichever clinician is showing as available rather than naming one.
+An earlier version named a therapist, the previous run booked her — a real
+row, in the real database — and the next run opened her sheet to "They are in
+a session at the moment", producing a silent half-recording that stopped at
+beat five. The board is live data, so the script has to read it.
+
+Resolution is configurable, and the defaults are load-bearing:
+
+```bash
+DEMO_WIDTH=1440 DEMO_HEIGHT=900 DEMO_SCALE=2 DEMO_BASE=http://localhost:3100 npx tsx scripts/demo-video.mts
+```
+
+Stills come out at twice the viewport because the punch-ins magnify them
+roughly 2–3×; the screen recording ignores `DEMO_SCALE` because
+`recordVideo` captures CSS pixels.
