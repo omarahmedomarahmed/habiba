@@ -1,28 +1,55 @@
-# The demo video
+# The demo videos
 
-Two scripts, run in order. The first gathers evidence from the running
-product; the second cuts it into a film.
-
-```bash
-npx tsx scripts/demo-video.mts     # drive the real site, capture stills + screen recording
-npx tsx scripts/demo-edit.mts      # composite the edit and encode it
-```
-
-Both write to `demo-output/`, which is gitignored — it regenerates in about
-three minutes.
+Two films, from the same machinery.
 
 | File | What it is |
 | --- | --- |
-| `24therapy-demo-edit.webm` | **The deliverable.** 1920×1080, 71s, VP9. Titles, mockup frame, camera moves, punch-ins, four cut styles. |
-| `24therapy-demo.webm` | The raw screen recording, 1440×900, with a visible cursor. Evidence, not a film. |
-| `01-home-globe.png` … `10-patient-room.png` | One 2880×1800 still per beat, in order |
-| `frames/` | Single frames rendered for review — see *Reviewing the edit* |
+| `24therapy-demo-edit.webm` | **The pitch cut.** 71s. The patient's ninety seconds — homepage to session. |
+| `24therapy-product-tour.webm` | **The walkthrough.** 150s, seven chapters. The whole product, all four people in it. |
 
-Every frame of the film is a screenshot of the running product. The only
-synthetic pixels are the window frame around the screenshots and the words on
-top of them. Nothing depicts a feature that does not exist.
+```bash
+npx tsx scripts/demo-speech.mts     # once — synthesises the session audio (costs a few cents)
+npx tsx scripts/demo-video.mts      # the patient's flow: stills + a screen recording
+npx tsx scripts/demo-full.mts       # everything else: clinician, operator, session, note, money
+npx tsx scripts/demo-edit.mts                    # cuts the pitch film
+DEMO_FILM=tour npx tsx scripts/demo-edit.mts     # cuts the walkthrough
+```
 
-## The cut
+## The clinical text is not illustrated
+
+`demo-speech.mts` synthesises a two-voice first session with OpenAI TTS and
+writes it as a WAV. Chromium is then launched with
+`--use-file-for-fake-audio-capture` pointed at that file, so the browser's
+microphone *is* that conversation. Which means, in the film:
+
+- the transcript was transcribed from audio, during the session;
+- the SOAP note was written from that transcript;
+- the copilot's answers were written from that note, and cite timestamps that
+  exist in it.
+
+Nothing clinical on screen is a fixture. The one thing that is not real is the
+camera feed — there is nobody in front of a camera.
+
+## What a run writes
+
+Real rows: a clinician account, verification documents, a session, a note, a
+rating, audit entries — and a clinician who appears on the public radar until
+the script takes them offline at the end. It prints every id it created so the
+account can be found and removed. Point `DEMO_BASE` carefully.
+
+## The walkthrough, chapter by chapter
+
+| Chapter | What it covers |
+| --- | --- |
+| I — A clinician arrives | Signup, the country-aware verification form, four documents |
+| II — Somebody actually checks | The operator's queue, the documents side by side, approval |
+| III — Going on the radar | Rate and practice, the alarm permission, "you are about to be visible to people in crisis" |
+| IV — A patient arrives | The sixty-second hold, and the alarm ringing on the clinician's caseload page |
+| V — The session | Consent, recording, the live transcript |
+| VI — The note writes itself | Generation, the SOAP note, the patient's rating, signing it |
+| VII — Afterwards | The copilot with citations, billing, the operator's view of the account |
+
+## The pitch cut, beat by beat
 
 | Time | Scene | On screen |
 | --- | --- | --- |

@@ -49,7 +49,7 @@ import { extname, join } from "node:path";
 import { chromium } from "playwright";
 
 const OUT = process.env.DEMO_OUT ?? "demo-output";
-const FILE = join(OUT, "24therapy-demo-edit.webm");
+const FILE = join(OUT, process.env.DEMO_FILM === "tour" ? "24therapy-product-tour.webm" : "24therapy-demo-edit.webm");
 /*
  * VP9 undershoots this target by roughly a third on screen content, which is
  * mostly static frames and slow moves. 4.2 Mbps lands near 23 MB for 71
@@ -69,7 +69,7 @@ const H = 1080;
  * They are deliberately the same rectangle wherever both appear — the ring
  * tells you where to look and the cut takes you there.
  */
-const TIMELINE = [
+const SHORT = [
   { kind: "title", dur: 4.0 },
 
   {
@@ -202,6 +202,185 @@ const TIMELINE = [
 
   { kind: "outro", dur: 5.0 },
 ] as const;
+
+/**
+ * The long one: the whole product, both sides, in seven chapters.
+ *
+ * Every still here comes from `scripts/demo-full.mts`, which drove the real
+ * application — including the AI. The SOAP note on screen was written from a
+ * transcript that was transcribed from audio, and the copilot's answers come
+ * from that note. Nothing in these frames is a fixture or a mock-up.
+ */
+const TOUR = [
+  { kind: "title", dur: 4.0, tour: true },
+
+  { kind: "chapter", dur: 2.8, numeral: "I", line: "A clinician arrives" },
+  {
+    kind: "shot", layout: "a", img: "full/02-signup-filled.png", url: "24therapy.com/signup",
+    dur: 4.2, kb: [1.03, 1.0], anchor: 0.5,
+    title: "Signing up is a name and an email",
+    sub: "Thirty seconds. Nothing about it implies you are allowed to see a patient yet.",
+  },
+  {
+    kind: "shot", layout: "b", img: "full/04-verify-form.png", url: "24therapy.com/onboarding",
+    dur: 5.0, kb: [1.0, 1.03],
+    title: "Then the part that matters",
+    sub: "Which country you practise in, which regulator licensed you, and the number they gave you. The form changes to match the country — it asks the UAE for an Emirates ID and a DHA licence.",
+  },
+  {
+    kind: "shot", layout: "a", img: "full/09-verify-uploaded.png", url: "24therapy.com/onboarding",
+    dur: 4.6, kb: [1.0, 1.03],
+    title: "Four documents",
+    sub: "Identity, licence, and a headshot — the only one of the four a patient ever sees.",
+  },
+  {
+    kind: "detail", img: "full/09-verify-uploaded.png", dur: 4.0,
+    crop: { cx: 0.58, cy: 0.46, z: 0.52 },
+    label: "Photos are fine",
+    sub: "Everything except the headshot is private to the compliance team, and never shown to a patient or another clinician.",
+  },
+
+  { kind: "chapter", dur: 2.8, numeral: "II", line: "Somebody actually checks" },
+  {
+    kind: "shot", layout: "a", img: "full/13-admin-queue.png", url: "24therapy.com/admin/verifications",
+    dur: 4.2, kb: [1.03, 1.0],
+    title: "A queue, with a human in it",
+    sub: "No clinician reaches the radar without an operator opening their file first.",
+  },
+  {
+    kind: "shot", layout: "b", img: "full/14-admin-documents.png", url: "24therapy.com/admin/verifications",
+    dur: 5.0, kb: [1.0, 1.03],
+    title: "Every document, side by side",
+    sub: "Approve, or reject with a reason — and a rejection is not optional prose. The clinician is sent that reason word for word.",
+  },
+  {
+    kind: "shot", layout: "a", img: "full/15-admin-approved.png", url: "24therapy.com/admin/verifications",
+    dur: 3.8, kb: [1.02, 1.0],
+    title: "Approved",
+    sub: "Now, and only now, they can be reached.",
+  },
+
+  { kind: "chapter", dur: 2.8, numeral: "III", line: "Going on the radar" },
+  {
+    kind: "shot", layout: "a", img: "full/19-oncall-ready.png", url: "24therapy.com/on-call",
+    dur: 4.4, kb: [1.0, 1.03],
+    title: "Your rate, your hours, your practice",
+    sub: "One switch stands between a clinician and a stranger in crisis.",
+  },
+  {
+    kind: "detail", img: "full/20-going-live-confirm.png", dur: 4.4,
+    crop: { cx: 0.5, cy: 0.5, z: 0.44 },
+    label: "So it asks, in those words",
+    sub: "“You are about to be visible to people in crisis.” A browser will not play a sound until somebody taps something — so this tap is also what makes the alarm possible.",
+  },
+  {
+    kind: "shot", layout: "a", img: "full/21-online.png", url: "24therapy.com/on-call",
+    dur: 4.0, kb: [1.02, 1.0],
+    title: "Live",
+    sub: "On the public board, reachable, this minute.",
+  },
+
+  { kind: "chapter", dur: 2.8, numeral: "IV", line: "A patient arrives" },
+  {
+    kind: "shot", layout: "a", img: "full/24-patient-sheet.png", url: "24therapy.com/radar",
+    dur: 4.4, kb: [1.0, 1.03], anchor: 0.5,
+    title: "Held for you, for sixty seconds",
+    sub: "The clinician goes busy to everyone else the moment the sheet opens.",
+  },
+  {
+    kind: "shot", layout: "a", img: "full/27-radar-ringing.png", url: "24therapy.com/patients",
+    dur: 4.6, kb: [1.02, 1.0],
+    title: "And it rings",
+    sub: "Anywhere in the portal — the clinician was looking at their caseload.",
+    focus: { x: 0.735, y: 0.8, w: 0.26, h: 0.17 },
+  },
+  {
+    kind: "detail", img: "full/27-radar-ringing.png", dur: 4.2,
+    crop: { cx: 0.86, cy: 0.88, z: 0.44 },
+    label: "“Sam is waiting for you”",
+    sub: "It repeats until the room is opened, and the tab title flashes too — which no browser setting can switch off.",
+  },
+
+  { kind: "chapter", dur: 2.8, numeral: "V", line: "The session" },
+  {
+    kind: "shot", layout: "b", img: "full/29-patient-room.png", url: "24therapy.com/join",
+    dur: 4.4, kb: [1.0, 1.03],
+    title: "The patient is already in",
+    sub: "No account, no download. They answered one question about recording on the way in.",
+  },
+  {
+    kind: "shot", layout: "a", img: "full/39-room-full-transcript.png", url: "24therapy.com/sessions",
+    dur: 5.0, kb: [1.02, 1.0],
+    title: "Transcribed as it is said",
+    sub: "This is a real transcript of a real conversation, produced during the session.",
+  },
+  {
+    kind: "detail", img: "full/39-room-full-transcript.png", dur: 4.6,
+    crop: { cx: 0.3, cy: 0.42, z: 0.62 },
+    label: "Every word of it",
+    sub: "Broken sleep, a self-critical loop about work, some withdrawal, and alcohol doing a job it cannot do.",
+  },
+
+  { kind: "chapter", dur: 2.8, numeral: "VI", line: "The note writes itself" },
+  {
+    kind: "shot", layout: "a", img: "full/43-note-soap.png", url: "24therapy.com/sessions",
+    dur: 5.0, kb: [1.02, 1.0],
+    title: "A SOAP note, inside a minute",
+    sub: "Subjective, assessment, key points, and clinical impressions kept separate and flagged for review.",
+    focus: { x: 0.36, y: 0.42, w: 0.42, h: 0.13 },
+  },
+  {
+    kind: "detail", img: "full/43-note-soap.png", dur: 4.8,
+    crop: { cx: 0.58, cy: 0.5, z: 0.5 },
+    label: "Written from what was said",
+    sub: "Four hours of sleep for three weeks, a project inherited in March, and a fear of being found behind that also ended the last job.",
+  },
+  {
+    kind: "shot", layout: "b", img: "full/46-patient-rated.png", url: "24therapy.com/feedback",
+    dur: 4.4, kb: [1.0, 1.03],
+    title: "The patient rates it first",
+    sub: "The clinician, the session and the platform, separately — and the clinician never learns who said what.",
+  },
+  {
+    kind: "shot", layout: "a", img: "full/50-note-approved.png", url: "24therapy.com/sessions",
+    dur: 4.4, kb: [1.02, 1.0],
+    title: "Signing it releases their copy",
+    sub: "The patient gets a plain-language summary by email. Never the clinical note — a different document, by design.",
+  },
+
+  { kind: "chapter", dur: 2.8, numeral: "VII", line: "Afterwards" },
+  {
+    kind: "shot", layout: "a", img: "full/54-copilot-answer.png", url: "24therapy.com/copilot",
+    dur: 5.0, kb: [1.0, 1.03],
+    title: "Ask about the patient, later",
+    sub: "The copilot answers from the sessions on record, and cites the moment each claim came from.",
+  },
+  {
+    kind: "shot", layout: "b", img: "full/56-billing.png", url: "24therapy.com/billing",
+    dur: 4.4, kb: [1.0, 1.03],
+    title: "The first session is free",
+    sub: "After that, six dollars a completed session — or ninety-nine a month and stop counting. Radar sessions are charged to the patient and paid out through Stripe.",
+  },
+  {
+    kind: "shot", layout: "a", img: "full/59-admin-therapist-detail.png", url: "24therapy.com/admin/therapists",
+    dur: 4.6, kb: [1.02, 1.0],
+    title: "And the operator sees the account",
+    sub: "Sessions, patients, usage, spend and payouts — with no transcript, no note and no copilot message anywhere in it.",
+  },
+
+  {
+    kind: "statement", dur: 4.6,
+    line: "Every screen in this film is the running product.",
+    bullets: [
+      "The transcript was transcribed from audio, during the session",
+      "The note was written from that transcript",
+      "The copilot answered from that note",
+    ],
+  },
+  { kind: "outro", dur: 5.0 },
+] as const;
+
+const TIMELINE = (process.env.DEMO_FILM === "tour" ? TOUR : SHORT) as typeof SHORT;
 
 /** Cut style between each pair of scenes, cycled. */
 const TRANSITIONS = ["punch", "push", "dissolve", "wipe"] as const;
@@ -371,12 +550,17 @@ function sceneTitle(c,p,t){
   c.globalAlpha=seg(p,0.26,0.58);
   c.fillStyle=WHITE; c.font=f(800,74); c.textAlign='center';
   const rise=lerp(26,0,seg(p,0.26,0.58));
-  c.fillText('Talk to a real therapist',cx,586+rise);
-  c.fillText('in the next sixty seconds.',cx,672+rise);
+  const tour=TIMELINE[0] && TIMELINE[0].tour;
+  c.fillText(tour?'The whole product,':'Talk to a real therapist',cx,586+rise);
+  c.fillText(tour?'end to end.':'in the next sixty seconds.',cx,672+rise);
 
   c.globalAlpha=seg(p,0.46,0.78);
   c.fillStyle=MUTED; c.font=f(400,26);
-  c.fillText('An on-demand therapy marketplace with a clinical AI copilot in every session.',cx,752+rise);
+  c.fillText(
+    tour
+      ? 'A clinician signing up, an operator approving them, a patient arriving, and the note that writes itself.'
+      : 'An on-demand therapy marketplace with a clinical AI copilot in every session.',
+    cx,752+rise);
   c.globalAlpha=1;
 }
 
@@ -506,6 +690,37 @@ function sceneStatement(c,sc,p,t){
   c.globalAlpha=1;
 }
 
+/**
+ * A chapter card: a numeral, a line, and a beat of silence.
+ *
+ * The tour runs to several minutes and moves between four different people's
+ * screens. Without a break between acts it reads as one long scroll of
+ * software; with one, a viewer knows they have finished something.
+ */
+function sceneChapter(c,sc,p,t){
+  backdrop(c,t);
+  const a=seg(p,0.04,0.34);
+  const cx=W/2;
+
+  c.save(); c.globalAlpha=a; c.translate(0,lerp(16,0,a));
+  c.textAlign='center';
+  c.fillStyle=TEAL; c.font=f(800,120);
+  c.fillText(sc.numeral,cx,H/2-30);
+  c.fillStyle=WHITE; c.font=f(800,52);
+  c.fillText(sc.line,cx,H/2+70);
+  c.restore();
+
+  // A rule under the numeral, sized to the words, drawn as the card settles.
+  const grow=seg(p,0.16,0.52);
+  if(grow>0){
+    c.font=f(800,52);
+    const w=c.measureText(sc.line).width*grow;
+    c.fillStyle='rgba(46,196,182,0.5)';
+    c.fillRect(cx-w/2,H/2+108,w,3);
+  }
+  c.globalAlpha=1;
+}
+
 function sceneOutro(c,p,t){
   backdrop(c,t);
   const cx=W/2;
@@ -535,6 +750,7 @@ function render(c,sc,tl,tAbs,imgs){
   if(sc.kind==='shot')return sceneShot(c,sc,p,tAbs,imgs);
   if(sc.kind==='detail')return sceneDetail(c,sc,p,tAbs,imgs);
   if(sc.kind==='statement')return sceneStatement(c,sc,p,tAbs);
+  if(sc.kind==='chapter')return sceneChapter(c,sc,p,tAbs);
   return sceneOutro(c,p,tAbs);
 }
 
