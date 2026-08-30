@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Banknote, Wallet } from "lucide-react";
+import { ArrowUpRight, Banknote, Clock, Wallet } from "lucide-react";
 
 import { openPayoutDashboard, payOutNow, type SettingsState } from "@/app/(app)/settings/actions";
 import { Card } from "@/components/ui";
@@ -18,16 +18,22 @@ export type EarningsProps = {
   platformFeesCents: number;
   settledFromEarningsCents: number;
   paidSessionCount: number;
+  /** Money we took on their behalf and are holding until Stripe verifies them. */
+  heldCents: number;
 };
 
 /**
  * What the therapist has earned, and where it is.
  *
- * The distinction that matters and is easy to blur: "available" and "clearing"
- * are read live from Stripe and are their money; everything below the fold is
- * our record of what happened. If Stripe is unreachable we show no balance
- * rather than a stale one — a wrong number here is the number someone plans
- * their rent around.
+ * Three places money can be, and conflating any two of them is how somebody
+ * plans their rent around the wrong number:
+ *
+ *   available / clearing  in their own Stripe account, read live. Theirs.
+ *   held                  in ours, because Stripe had not verified them when
+ *                         the patient paid. Theirs, and not yet reachable.
+ *   lifetime              our record of what happened. History, not a balance.
+ *
+ * If Stripe is unreachable we show no balance rather than a stale one.
  */
 export function EarningsCard(props: EarningsProps) {
   const [pending, startTransition] = useTransition();
@@ -40,28 +46,66 @@ export function EarningsCard(props: EarningsProps) {
       if (result?.error) setError(result.error);
     });
 
+  /*
+   * Not connected, but possibly not empty either.
+   *
+   * A clinician can now set a price and be paid before Stripe has ever heard of
+   * them. If that has already happened there is real money with their name on
+   * it, and the old copy — an invitation to start charging — would be telling
+   * somebody who is already owed forty dollars that they might like to try
+   * charging sometime.
+   */
   if (!props.connected) {
     return (
       <Card className="p-5">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
-            <Wallet className="h-4 w-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-900">Charge for your sessions</p>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Set a price on a session link and the patient pays before they join. The money lands
-              in your own Stripe account, not ours.
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/settings"
-          className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
-        >
-          <Banknote className="h-4 w-4" aria-hidden />
-          Set up payouts
-        </Link>
+        {props.heldCents > 0 ? (
+          <>
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <Clock className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">
+                  {formatUsd(props.heldCents)} is waiting for you
+                </p>
+                <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+                  Your patients have paid. We are holding your share because Stripe has not
+                  verified you yet — it goes to your account automatically the moment they do,
+                  and there is nothing to claim.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/settings"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
+            >
+              <Banknote className="h-4 w-4" aria-hidden />
+              Finish setting up payouts
+            </Link>
+          </>
+        ) : (
+          <>
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                <Wallet className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">Charge for your sessions</p>
+                <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+                  Set a price and the patient pays before they join. You can start today — if
+                  Stripe has not verified you yet we hold your share and send it on when they do.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/settings"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
+            >
+              <Banknote className="h-4 w-4" aria-hidden />
+              Set up payouts
+            </Link>
+          </>
+        )}
       </Card>
     );
   }
@@ -96,6 +140,26 @@ export function EarningsCard(props: EarningsProps) {
               <dd className="mt-0.5 text-2xl font-bold">{props.paidSessionCount}</dd>
             </div>
           </dl>
+
+          {/*
+            Held money gets its own row rather than being folded into the
+            headline. It is not "available now" and showing it as though it were
+            would be the single most misleading thing on this page.
+          */}
+          {props.heldCents > 0 ? (
+            <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-amber-400/20 px-4 py-3">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">
+                  {formatUsd(props.heldCents)} held by 24Therapy
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-white/70">
+                  Taken on your behalf before Stripe finished verifying you. It moves to your
+                  account by itself — you do not have to ask.
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           {error ? (
             <p role="alert" className="mt-3 rounded-xl bg-black/20 px-3.5 py-2.5 text-sm">
@@ -136,8 +200,6 @@ export function EarningsCard(props: EarningsProps) {
           .
         </div>
       </div>
-
     </div>
   );
 }
-

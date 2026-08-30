@@ -169,6 +169,13 @@
       "when": 1788500000000,
       "tag": "0023_patient_note_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788600000000,
+      "tag": "0024_ledger",
+      "breakpoints": true
     }
   ]
 }

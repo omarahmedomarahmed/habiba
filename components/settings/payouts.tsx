@@ -26,6 +26,8 @@ export type PayoutState = {
   pendingCents: number | null;
   outstandingCents: number;
   feeBps: number;
+  /** Taken on their behalf before Stripe verified them, and not yet released. */
+  heldCents: number;
 };
 
 function Saving({ label }: { label: string }) {
@@ -72,9 +74,18 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900">Get paid by patients</p>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Charge for a session link and the money goes straight to your own Stripe account —
-            we never hold it.
+          {/*
+            The old line — "the money goes straight to your own Stripe account,
+            we never hold it" — was a promise the product can no longer make
+            unconditionally, and a promise that is true most of the time is the
+            worst kind to leave on a screen about money.
+          */}
+          <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+            {state.heldCents > 0
+              ? `We are holding ${formatUsd(state.heldCents)} of yours until Stripe finishes verifying you. It moves to your account by itself the moment they do.`
+              : state.payoutsEnabled
+                ? "Charge for a session link and the money goes straight into your own Stripe account — we never touch it."
+                : "Charge for a session from today. Once Stripe has verified you the money goes straight into your own account; until then we hold your share and pass it on automatically."}
           </p>
         </div>
       </div>

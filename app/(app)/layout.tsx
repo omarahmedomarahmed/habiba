@@ -9,7 +9,7 @@ import {
   Radio,
   Settings,
   ShieldCheck,
-  Users, LogOut } from "lucide-react";
+  Users, Wallet, LogOut } from "lucide-react";
 
 import { signOut } from "@/lib/auth/actions";
 import { BottomNav } from "@/components/nav/bottom-nav";
@@ -40,7 +40,7 @@ import { initials } from "@/lib/utils";
  * and reading the terms are things you should be able to do while waiting for
  * approval; everything else needs a patient, and they do not have one yet.
  */
-const OPEN_TO_UNVERIFIED = ["/onboarding", "/settings", "/billing"];
+const OPEN_TO_UNVERIFIED = ["/onboarding", "/settings", "/billing", "/earnings"];
 
 export default async function AppLayout({
   children,
@@ -136,8 +136,11 @@ export default async function AppLayout({
           </SidebarLink>
           </>
           ) : null}
+          <SidebarLink href="/earnings" icon={Wallet}>
+            Earnings
+          </SidebarLink>
           <SidebarLink href="/billing" icon={CreditCard}>
-            Billing &amp; earnings
+            Billing
           </SidebarLink>
           <SidebarLink href="/settings" icon={Settings}>
             Settings

@@ -29,6 +29,21 @@ export type LedgerInvoice = {
   /** ISO, for ordering. The display strings above are already localised, and
    *  "9 Aug 2026" does not sort. */
   sortAt: string;
+  /**
+   * What the session actually involved.
+   *
+   * Null for a subscription period, and for any session old enough to predate
+   * usage logging. "Completed session · $6" eleven times is a bill nobody can
+   * check; this is what turns one of those rows into something a clinician can
+   * recognise as a specific afternoon.
+   */
+  usage: {
+    transcribedSeconds: number;
+    noteWritten: boolean;
+    copilotQuestions: number;
+    riskScans: number;
+    translated: boolean;
+  } | null;
 };
 
 export type LedgerPayment = {
@@ -39,6 +54,8 @@ export type LedgerPayment = {
   settledInvoiceCents: number;
   therapistNetCents: number;
   status: "pending" | "paid" | "refunded" | "failed";
+  /** Straight into their account, or held by us pending verification. */
+  capture: "destination" | "platform";
   createdAt: string;
   paidAt: string | null;
   /** ISO, for ordering — see LedgerInvoice.sortAt. */
@@ -333,7 +350,50 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
         value={<span className="font-semibold">{invoice.paidAt ? formatUsd(payable) : "—"}</span>}
       />
       {invoice.paidAt ? <Line label="Settled" value={invoice.paidAt} /> : null}
+
+      {invoice.usage ? <UsageBreakdown usage={invoice.usage} /> : null}
     </dl>
+  );
+}
+
+/**
+ * What the money bought.
+ *
+ * The work, not our cost. A clinician is entitled to know what a charge covered
+ * — and a forty-minute session next to a two-minute one that dropped is the
+ * difference between a fair bill and one worth querying. What we paid a model
+ * for it is our side of the trade and belongs on the admin screens, not on a
+ * customer's invoice, where it would start an argument about margin instead of
+ * answering the question.
+ */
+function UsageBreakdown({ usage }: { usage: NonNullable<LedgerInvoice["usage"]> }) {
+  const minutes = Math.round(usage.transcribedSeconds / 60);
+  const items = [
+    minutes > 0 ? `${minutes} minute${minutes === 1 ? "" : "s"} transcribed` : null,
+    usage.noteWritten ? "Note written" : null,
+    usage.translated ? "Note translated" : null,
+    usage.riskScans > 0 ? `${usage.riskScans} risk scan${usage.riskScans === 1 ? "" : "s"}` : null,
+    usage.copilotQuestions > 0
+      ? `${usage.copilotQuestions} copilot question${usage.copilotQuestions === 1 ? "" : "s"}`
+      : null,
+  ].filter(Boolean) as string[];
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-2.5 border-t border-slate-200 pt-2.5">
+      <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+        What this covered
+      </p>
+      <ul className="mt-1.5 space-y-1">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2 text-sm text-slate-600">
+            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-300" />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -351,7 +411,7 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
         />
       ) : null}
       <Line
-        label="Into your Stripe account"
+        label={payment.capture === "destination" ? "Into your Stripe account" : "Held for you"}
         value={
           <span className="font-semibold text-teal-700">
             {formatUsd(payment.therapistNetCents)}
@@ -359,10 +419,16 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
         }
       />
       <Line label="Date" value={payment.paidAt ?? payment.createdAt} />
+      {/*
+        Two payments, two true sentences. Printing the first one on a held
+        payment would be the most consequential lie on the page — it says the
+        money is somewhere it is not.
+      */}
       <p className="pt-1.5 text-xs leading-relaxed text-slate-500">
         <Receipt className="me-1 inline h-3 w-3" aria-hidden />
-        Paid directly into your own Stripe account — we never held this money. Stripe pays it out
-        to your bank on its own schedule.
+        {payment.capture === "destination"
+          ? "Paid directly into your own Stripe account — we never held this money. Stripe pays it out to your bank on its own schedule."
+          : "Stripe had not finished verifying you when this was paid, so we took it and are holding your share. It moves to your account automatically the moment verification completes."}
       </p>
     </dl>
   );

@@ -18,8 +18,10 @@ import {
   contentPages,
   invoices,
   users,
+  LEDGER_ACCOUNTS,
   TAXONOMY_KINDS,
   type ContentBlock,
+  type LedgerAccount,
   type TaxonomyKind,
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
@@ -493,6 +495,75 @@ export async function refundPatient(
     resourceType: "session_payment",
     resourceId: paymentId,
     reason: trimmed,
+  });
+
+  revalidatePath("/admin/vault");
+  return { ok: true };
+}
+
+/**
+ * Push a clinician's held earnings out now.
+ *
+ * Three automatic paths already do this — the webhook, the settings page, the
+ * nightly sweep — and this exists for the case none of them can help with: a
+ * clinician on the phone saying their money has not arrived. It fails loudly
+ * with Stripe's own reason rather than pretending, because "we tried and Stripe
+ * says the account is not verified" is an answer somebody can act on and
+ * "nothing happened" is not.
+ */
+export async function releaseTherapistEarnings(
+  therapistId: string,
+): Promise<AdminActionState & { movedCents?: number }> {
+  const actor = await requireRole("super_admin");
+
+  const { releaseHeldEarnings } = await import("@/lib/billing/connect");
+  const result = await releaseHeldEarnings(therapistId, { adminUserId: actor.userId });
+  if (result.error) return { error: result.error };
+  if (result.movedCents === 0) return { error: "There is nothing held for this clinician." };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "earnings.release",
+    resourceType: "user",
+    resourceId: therapistId,
+    reason: `Released ${result.movedCents} cents`,
+  });
+
+  revalidatePath("/admin/vault");
+  return { ok: true, movedCents: result.movedCents };
+}
+
+/**
+ * Move a number in the books by hand.
+ *
+ * The escape hatch, and deliberately an uncomfortable one: it demands a reason,
+ * records who, and posts a balanced pair rather than editing a balance. There
+ * is no way to make the ledger disagree with itself from here, which is the
+ * only property that makes an escape hatch safe to have.
+ */
+export async function adjustLedger(input: {
+  organizationId: string;
+  therapistId: string | null;
+  account: LedgerAccount;
+  amountCents: number;
+  reason: string;
+}): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  if (!LEDGER_ACCOUNTS.includes(input.account)) return { error: "Unknown account." };
+
+  const { postAdjustment } = await import("@/lib/billing/ledger");
+  const result = await postAdjustment({ ...input, adminUserId: actor.userId });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "ledger.adjust",
+    resourceType: "organization",
+    resourceId: input.organizationId,
+    reason: `${input.account} ${input.amountCents} — ${input.reason.trim()}`,
   });
 
   revalidatePath("/admin/vault");

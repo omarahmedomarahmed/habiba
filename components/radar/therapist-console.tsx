@@ -105,7 +105,18 @@ export function TherapistConsole(props: ConsoleProps) {
     setAsking(true);
   };
 
-  const ready = props.rateCents > 0 ? props.chargesEnabled : true;
+  /*
+   * A rate is charged whether or not Stripe has finished with them.
+   *
+   * This used to compute a `ready` flag and, when it was false, quietly show
+   * the clinician's own rate as "Free" — so somebody who had set forty dollars
+   * went on the radar advertising nothing, and only found out afterwards. The
+   * payment now goes through either way; if their account is not ready to
+   * receive it, the platform holds their share and releases it on verification.
+   *
+   * What is left is a disclosure, not a block.
+   */
+  const held = props.rateCents > 0 && !props.chargesEnabled;
 
   return (
     <div className="space-y-4">
@@ -171,15 +182,13 @@ export function TherapistConsole(props: ConsoleProps) {
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/50">Your rate · 30 min</dt>
               <dd className="mt-0.5 text-xl font-bold text-white">
-                {props.rateCents > 0 && props.chargesEnabled
-                  ? formatUsd(props.rateCents)
-                  : "Free"}
+                {props.rateCents > 0 ? formatUsd(props.rateCents) : "Free"}
               </dd>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/50">You keep</dt>
               <dd className="mt-0.5 text-xl font-bold text-teal-300">
-                {props.rateCents > 0 && props.chargesEnabled
+                {props.rateCents > 0
                   ? formatUsd(props.rateCents - Math.floor((props.rateCents * 1000) / 10_000))
                   : "—"}
               </dd>
@@ -195,10 +204,10 @@ export function TherapistConsole(props: ConsoleProps) {
             </p>
           ) : null}
 
-          {!ready ? (
-            <p className="mt-4 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-sm text-amber-200">
-              Finish Stripe onboarding in Settings before charging. Until then you can still go on
-              the radar, but sessions will be free.
+          {held ? (
+            <p className="mt-4 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-sm leading-relaxed text-amber-200">
+              Go on the radar and charge your rate now — Stripe has not verified you yet, so we
+              hold your share and send it to your account the moment they do. Nothing to claim.
             </p>
           ) : null}
 

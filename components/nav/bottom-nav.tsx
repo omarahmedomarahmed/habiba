@@ -15,6 +15,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 
@@ -43,7 +44,8 @@ const MORE = [
   { href: "/copilot", label: "Copilot", icon: MessageSquare, hint: "Ask about a patient" },
   { href: "/notes", label: "Notes", icon: FileText, hint: "Drafts waiting for you" },
   { href: "/on-call", label: "Crisis Radar", icon: Radio, hint: "Go online, get booked" },
-  { href: "/billing", label: "Billing & earnings", icon: CreditCard, hint: "Invoices and payouts" },
+  { href: "/earnings", label: "Earnings", icon: Wallet, hint: "What patients paid you" },
+  { href: "/billing", label: "Billing", icon: CreditCard, hint: "What you owe 24Therapy" },
   { href: "/settings", label: "Settings", icon: Settings, hint: "Profile, payouts, licence" },
 ] as const;
 

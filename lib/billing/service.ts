@@ -3,7 +3,7 @@ import "server-only";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { invoices, payableCents, sessions, subscriptions } from "@/lib/db/schema";
+import { aiRequestLogs, invoices, payableCents, sessions, subscriptions } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getPlan } from "./plans";
 
@@ -119,7 +119,7 @@ async function raiseInvoice(input: {
   periodEnd?: Date | null;
   stripePaymentIntentId?: string | null;
 }) {
-  await db
+  const [created] = await db
     .insert(invoices)
     .values({
       organizationId: input.organizationId,
@@ -133,7 +133,37 @@ async function raiseInvoice(input: {
       stripePaymentIntentId: input.stripePaymentIntentId ?? null,
       paidAt: input.status === "paid" ? new Date() : null,
     })
-    .onConflictDoNothing({ target: invoices.sessionId });
+    .onConflictDoNothing({ target: invoices.sessionId })
+    .returning({ id: invoices.id });
+
+  /*
+   * Only a real bill reaches the ledger.
+   *
+   * `onConflictDoNothing` returns nothing when the reconciler and a live
+   * completion race each other, and that empty result is what stops the second
+   * one posting a duplicate. Waived and included sessions are zero and post
+   * nothing at all — there is no revenue to recognise and no receivable to
+   * chase.
+   */
+  if (created && input.amountCents > 0) {
+    const { postInvoiceRaised, postInvoicePaidByCard } = await import("./ledger");
+    await postInvoiceRaised({
+      id: created.id,
+      organizationId: input.organizationId,
+      amountCents: input.amountCents,
+      description: input.description,
+    });
+    // A subscription invoice is written already paid, so the receivable it just
+    // created is cleared in the same breath.
+    if (input.status === "paid") {
+      await postInvoicePaidByCard({
+        invoiceId: created.id,
+        organizationId: input.organizationId,
+        amountCents: input.amountCents,
+        memo: input.description,
+      });
+    }
+  }
 }
 
 /**
@@ -177,6 +207,114 @@ export async function recordSubscriptionInvoice(opts: {
       .set({ upcomingDiscountCents: 0, upcomingDiscountReason: null, updatedAt: new Date() })
       .where(eq(subscriptions.organizationId, opts.organizationId));
   }
+
+  if (created) {
+    const { postInvoiceRaised, postInvoicePaidByCard, postInvoiceWrittenOff } = await import(
+      "./ledger"
+    );
+    const description = opts.description ?? "Unlimited — monthly subscription";
+    await postInvoiceRaised({
+      id: created.id,
+      organizationId: opts.organizationId,
+      amountCents: opts.amountCents,
+      description,
+    });
+    // The discount is the part of the bill we chose not to collect, so it
+    // leaves the books as an expense rather than never having been revenue —
+    // which is what makes "how much did we give away this month" answerable.
+    if (discount > 0) {
+      await postInvoiceWrittenOff({
+        invoiceId: created.id,
+        organizationId: opts.organizationId,
+        amountCents: discount,
+        memo: subscription.upcomingDiscountReason ?? "Credit applied",
+        adminUserId: null,
+      });
+    }
+    await postInvoicePaidByCard({
+      invoiceId: created.id,
+      organizationId: opts.organizationId,
+      amountCents: opts.amountCents - discount,
+      memo: description,
+    });
+  }
+}
+
+/**
+ * What each billed session actually involved.
+ *
+ * "Completed session · $6" is a line item, not an explanation, and a clinician
+ * looking at eleven of them has no way to tell a fifty-minute session apart
+ * from a two-minute one that disconnected. This is the work behind the number:
+ * minutes transcribed, whether a note was written, how many copilot questions
+ * were asked afterwards.
+ *
+ * Deliberately the *work*, not our cost. What we pay a model is our business
+ * and putting it on a customer's bill invites an argument about margin instead
+ * of the question the breakdown is there to answer, which is "what did I get
+ * for this". Administrators see the cost side; see `lib/data/admin.ts`.
+ *
+ * One grouped query for the whole page rather than one per invoice — a billing
+ * page with sixty rows would otherwise be sixty round trips.
+ */
+export type SessionUsage = {
+  transcribedSeconds: number;
+  noteWritten: boolean;
+  copilotQuestions: number;
+  riskScans: number;
+  translated: boolean;
+};
+
+export async function usageBySession(
+  organizationId: string,
+  sessionIds: string[],
+): Promise<Map<string, SessionUsage>> {
+  const found = new Map<string, SessionUsage>();
+  if (sessionIds.length === 0) return found;
+
+  const rows = await db
+    .select({
+      sessionId: aiRequestLogs.sessionId,
+      kind: aiRequestLogs.kind,
+      calls: sql<number>`COUNT(*)::int`,
+      audioSeconds: sql<number>`COALESCE(SUM(${aiRequestLogs.audioSeconds}), 0)::int`,
+    })
+    .from(aiRequestLogs)
+    .where(
+      and(
+        eq(aiRequestLogs.organizationId, organizationId),
+        inArray(aiRequestLogs.sessionId, sessionIds),
+        eq(aiRequestLogs.status, "success"),
+      ),
+    )
+    .groupBy(aiRequestLogs.sessionId, aiRequestLogs.kind);
+
+  for (const row of rows) {
+    if (!row.sessionId) continue;
+    const usage =
+      found.get(row.sessionId) ??
+      ({
+        transcribedSeconds: 0,
+        noteWritten: false,
+        copilotQuestions: 0,
+        riskScans: 0,
+        translated: false,
+      } satisfies SessionUsage);
+
+    if (row.kind === "transcribe") usage.transcribedSeconds += row.audioSeconds;
+    if (row.kind === "note") usage.noteWritten = true;
+    if (row.kind === "translate") usage.translated = true;
+    if (row.kind === "risk") usage.riskScans += row.calls;
+    // Both sides of the copilot count: a question the clinician asked and a
+    // question the patient asked cost the same and are the same feature.
+    if (row.kind === "copilot" || row.kind === "patient_copilot") {
+      usage.copilotQuestions += row.calls;
+    }
+
+    found.set(row.sessionId, usage);
+  }
+
+  return found;
 }
 
 export async function listInvoices(organizationId: string, limit = 100) {
@@ -305,6 +443,25 @@ export async function discountInvoice(opts: {
       status: discount >= invoice.amountCents ? "waived" : invoice.status,
     })
     .where(eq(invoices.id, opts.invoiceId));
+
+  /*
+   * Money given away is an expense, not revenue that never existed.
+   *
+   * The difference matters at exactly the moment somebody asks how much the
+   * platform is discounting and why. Only the *increase* is posted, so raising
+   * a discount from $2 to $5 writes off $3 rather than $5 a second time.
+   */
+  const increase = discount - invoice.discountCents;
+  if (increase > 0) {
+    const { postInvoiceWrittenOff } = await import("./ledger");
+    await postInvoiceWrittenOff({
+      invoiceId: invoice.id,
+      organizationId: invoice.organizationId,
+      amountCents: increase,
+      memo: opts.reason.trim() || "Discount applied by an administrator",
+      adminUserId: opts.adminUserId,
+    });
+  }
 
   return {};
 }

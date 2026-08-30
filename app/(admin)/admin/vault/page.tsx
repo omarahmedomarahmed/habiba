@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { HeldBalances } from "@/components/admin/held-balances";
 import { VaultInvoiceRow } from "@/components/admin/vault-invoice-row";
 import { VaultPaymentRow } from "@/components/admin/vault-payment-row";
 import { Badge, Card } from "@/components/ui";
@@ -14,6 +15,7 @@ import {
   therapistEconomics,
   tractionMetrics,
 } from "@/lib/data/vault";
+import { heldBalances, trialBalance } from "@/lib/billing/ledger";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Vault", robots: { index: false } };
@@ -22,7 +24,8 @@ export const dynamic = "force-dynamic";
 export default async function VaultPage() {
   await requireRole("super_admin");
 
-  const [ledger, months, therapists, traction, kinds, invoices, payments] = await Promise.all([
+  const [ledger, months, therapists, traction, kinds, invoices, payments, held, books] =
+    await Promise.all([
     ledgerSummary(),
     monthlyLedger(6),
     therapistEconomics(),
@@ -30,6 +33,8 @@ export default async function VaultPage() {
     costByKind(30),
     allInvoices(200),
     allSessionPayments(200),
+    heldBalances(),
+    trialBalance(),
   ]);
 
   const peak = Math.max(1, ...months.map((m) => Math.max(m.collected, m.spent)));
@@ -42,6 +47,28 @@ export default async function VaultPage() {
           Every dollar in, every dollar of model spend, and the margin between them.
         </p>
       </div>
+
+      {/*
+        Liabilities before results.
+        --------------------------
+        Everything below this is revenue, spend and margin — ours. This is the
+        one figure on the page that is somebody else's, and it goes first
+        because a platform that has to be reminded it is holding other people's
+        money is a platform that will eventually forget.
+      */}
+      <HeldBalances
+        rows={held.map((row) => ({
+          therapistId: row.therapistId!,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          email: row.email,
+          payoutsEnabled: row.payoutsEnabled,
+          hasAccount: Boolean(row.stripeAccountId),
+          heldCents: row.heldCents,
+        }))}
+        totalHeldCents={books.heldForTherapistsCents}
+        outOfBalanceCents={books.outOfBalanceCents}
+      />
 
       {/* ------------------------------------------------------------ ledger */}
       <section className="space-y-3">

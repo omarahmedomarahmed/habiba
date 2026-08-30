@@ -12,6 +12,7 @@ import {
   PLATFORM_FEE_BPS,
   refreshAccountStatus,
 } from "@/lib/billing/connect";
+import { heldForTherapist } from "@/lib/billing/ledger";
 import { db } from "@/lib/db";
 import { invoices, users } from "@/lib/db/schema";
 
@@ -82,6 +83,7 @@ export default async function SettingsPage({
             pendingCents: balance?.pendingCents ?? null,
             outstandingCents: outstanding?.cents ?? 0,
             feeBps: PLATFORM_FEE_BPS,
+            heldCents: await heldForTherapist(actor.userId),
           }}
         />
 

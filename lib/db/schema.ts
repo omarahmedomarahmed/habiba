@@ -1232,9 +1232,37 @@ export const sessionPayments = pgTable(
     /** Gross minus the application fee — what reaches the therapist's account. */
     therapistNetCents: integer("therapist_net_cents").notNull(),
 
+    /**
+     * Where the money landed.
+     *
+     * `destination` is the ordinary case: a destination charge straight into
+     * the clinician's own connected account, our cut taken as an application
+     * fee, Stripe owning the payout. `platform` means the clinician was not yet
+     * transfer-capable when the patient paid, so we took the charge ourselves
+     * and are holding their share — see `lib/billing/ledger.ts`.
+     *
+     * Recorded per payment rather than read off the account, because the
+     * account's capabilities change and last month's payment did not.
+     */
+    capture: text("capture").$type<"destination" | "platform">().notNull().default("destination"),
+
     status: text("status").$type<PaymentStatus>().notNull().default("pending"),
     stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
+    stripeChargeId: text("stripe_charge_id"),
+
+    /**
+     * How they paid, for the patient's own record and for a dispute.
+     *
+     * Brand and last four only — never a token, never a fingerprint, never
+     * anything that could be used to charge the card again. A clinician looking
+     * at "Visa ·1234, 14 March" can answer a patient's question without us
+     * storing a payment credential to do it.
+     */
+    paymentBrand: text("payment_brand"),
+    paymentLast4: text("payment_last4"),
+    /** Stripe's own hosted receipt. We do not host a copy of it. */
+    receiptUrl: text("receipt_url"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
@@ -1253,6 +1281,154 @@ export const sessionPayments = pgTable(
 export function payableCents(invoice: { amountCents: number; discountCents: number }): number {
   return Math.max(0, invoice.amountCents - invoice.discountCents);
 }
+
+/* ------------------------------------------------------------------ ledger -- */
+
+/**
+ * The five accounts every movement of money touches.
+ *
+ * `invoices` and `session_payments` answer "what happened to this session".
+ * Neither answers "how much of the money in our Stripe balance is ours" — and
+ * the moment we can take a payment for a clinician who has not finished
+ * onboarding, that question has a real answer that is not zero and somebody
+ * will eventually have to defend it.
+ *
+ *   cash                  asset      what we actually hold
+ *   therapist_payable     liability  the part of it that belongs to a clinician
+ *   therapist_receivable  asset      what a clinician owes 24Therapy
+ *   platform_revenue      revenue    our fee, and the subscription and
+ *                                    per-session charges
+ *   platform_expense      expense    fees given back, and anything written off
+ */
+export const LEDGER_ACCOUNTS = [
+  "cash",
+  "therapist_payable",
+  "therapist_receivable",
+  "platform_revenue",
+  "platform_expense",
+] as const;
+export type LedgerAccount = (typeof LEDGER_ACCOUNTS)[number];
+
+export const LEDGER_TXN_KINDS = [
+  "session_payment",
+  "session_refund",
+  "invoice_raised",
+  "invoice_settled",
+  "invoice_written_off",
+  "earnings_transfer",
+  "adjustment",
+] as const;
+export type LedgerTxnKind = (typeof LEDGER_TXN_KINDS)[number];
+
+/**
+ * Double-entry, one leg per row.
+ *
+ * ## The sign convention, stated once
+ *
+ * `amountCents` is signed, positive is a debit, and **the legs of one `txnId`
+ * always sum to exactly zero**. That single rule is what makes the table worth
+ * having: a balance is a `SUM`, a reconciliation is a `GROUP BY txn_id HAVING
+ * SUM(...) <> 0`, and a bug that loses money shows up as a number rather than
+ * as a missing row nobody thinks to look for.
+ *
+ * Assets and expenses rise with a positive amount; liabilities and revenue rise
+ * with a negative one. So money we hold *for* a clinician accumulates as a
+ * growing negative on `therapist_payable`, and `heldForTherapist` negates it
+ * rather than asking every caller to remember which way round it goes.
+ *
+ * ## Why this is not derived from the other two tables
+ *
+ * It could have been, right up until the platform started taking charges on its
+ * own account for clinicians Stripe has not verified yet. That money is ours to
+ * hold and not ours to keep, it sits in one balance with our own revenue, and
+ * "reconstruct it from a join over invoices and payments" is the kind of
+ * derivation that is correct until the first refund.
+ *
+ * ## Append-only
+ *
+ * Nothing here is ever updated or deleted. A mistake is corrected by posting
+ * the reversing transaction, which is also what leaves the mistake visible.
+ */
+export const ledgerEntries = pgTable(
+  "ledger_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Groups the legs of one movement. Legs of a txn sum to zero. */
+    txnId: uuid("txn_id").notNull(),
+    txnKind: text("txn_kind").$type<LedgerTxnKind>().notNull(),
+    account: text("account").$type<LedgerAccount>().notNull(),
+
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    /** The clinician whose sub-ledger this leg belongs to, where there is one. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default("usd"),
+
+    /** What this leg is about: a session payment, an invoice, a transfer. */
+    refType: text("ref_type"),
+    refId: uuid("ref_id"),
+    /** Written for a person reading the ledger, not for a machine. */
+    memo: text("memo").notNull(),
+    /** Set only when a human caused it — an admin adjustment or write-off. */
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("ledger_txn_idx").on(t.txnId),
+    index("ledger_account_idx").on(t.account, t.createdAt),
+    index("ledger_user_idx").on(t.userId, t.account),
+    index("ledger_org_idx").on(t.organizationId, t.createdAt),
+    index("ledger_ref_idx").on(t.refType, t.refId),
+  ],
+);
+
+export type LedgerEntry = typeof ledgerEntries.$inferSelect;
+
+/**
+ * Money moved out to a clinician who could not be paid at the time they earned
+ * it.
+ *
+ * A destination charge needs no row here — Stripe routed the money at the
+ * moment the patient paid and there is nothing for us to remember. This exists
+ * for the other case: a clinician set a price and took bookings before Stripe
+ * finished verifying them, we captured the payment ourselves, and the money has
+ * been sitting in our balance with their name on it ever since. Each row is one
+ * release of that.
+ */
+export const earningsTransfers = pgTable(
+  "earnings_transfers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    therapistId: uuid("therapist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    amountCents: integer("amount_cents").notNull(),
+    status: text("status")
+      .$type<"pending" | "paid" | "failed">()
+      .notNull()
+      .default("pending"),
+    stripeTransferId: text("stripe_transfer_id"),
+    stripeAccountId: text("stripe_account_id"),
+    failureReason: text("failure_reason"),
+    /** Null when the platform released it automatically. */
+    releasedBy: uuid("released_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("earnings_transfers_therapist_idx").on(t.therapistId, t.createdAt),
+    uniqueIndex("earnings_transfers_stripe_unique").on(t.stripeTransferId),
+  ],
+);
+
+export type EarningsTransfer = typeof earningsTransfers.$inferSelect;
 
 // -------------------------------------------------------------- throttling ---
 

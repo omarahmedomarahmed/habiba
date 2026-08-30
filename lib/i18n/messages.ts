@@ -48,6 +48,13 @@ export const en = {
   "join.linkDead": "This link is no longer valid. Ask your therapist for a new one.",
   "join.tooManyAttempts": "Too many attempts. Wait a moment and try again.",
   "join.privateNote": "Your session is private and is not shared with anyone else.",
+  /*
+     "goes to your therapist" is still true; "goes *straight* to your
+     therapist" no longer always is, and the difference is a promise. When the
+     clinician is mid-verification the platform takes the payment and passes
+     their share on. The patient's card handling is unchanged either way, which
+     is the part this line exists to reassure them about.
+  */
   "join.privateNotePaid":
     "Payment is handled by Stripe and goes to your therapist — we never see your card. Your session is private and is not shared with anyone else.",
   "join.paymentReceived": "Payment received",

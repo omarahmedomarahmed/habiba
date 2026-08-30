@@ -148,7 +148,21 @@ const JOBS = {
   /** Charge completed sessions that somehow produced no charge row. */
   async billing() {
     const reconciled = await reconcileMissingCharges();
-    return { reconciled };
+
+    /*
+     * And send out anything we are still holding for a clinician Stripe has
+     * since verified.
+     *
+     * The webhook and the settings page both release on their own, and this is
+     * the backstop for when neither fires — a dropped `account.updated`, a
+     * clinician who finished onboarding on their phone and never came back to
+     * the page. It is somebody else's money; one missed event is not an
+     * acceptable reason for it to sit here.
+     */
+    const { releaseAllHeldEarnings } = await import("@/lib/billing/connect");
+    const released = await releaseAllHeldEarnings();
+
+    return { reconciled, released: released.released, centsMoved: released.centsMoved };
   },
 
   /**

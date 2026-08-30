@@ -199,7 +199,6 @@ async function queryBoard() {
       lastName: users.lastName,
       profile: users.profile,
       rateCents: users.sessionRateCents,
-      chargesEnabled: users.chargesEnabled,
       headline: therapistRadar.headline,
       photoUrl: therapistRadar.photoUrl,
       languages: therapistRadar.languages,
@@ -288,9 +287,17 @@ function shapeBoard(
               lon: row.practiceLon,
             }
           : null,
-      // A clinician who has not finished Stripe onboarding cannot be charged
-      // for, so they are shown as free rather than a price nobody can pay.
-      rateCents: row.chargesEnabled ? row.rateCents : 0,
+      /*
+       * The price they set, whatever Stripe thinks of them.
+       *
+       * This used to show a clinician as free until their connected account was
+       * live, which was wrong in both directions: a patient was quoted nothing
+       * and then met somebody who works for money, and a clinician waiting on
+       * verification was advertised on a rate they never chose. The payment now
+       * goes through either way — held by the platform if it has to be — so
+       * there is no longer a price nobody can pay.
+       */
+      rateCents: row.rateCents,
       rating: (() => {
         const found = ratings.get(row.userId);
         return found && found.count >= RATINGS_VISIBLE_AFTER
@@ -371,7 +378,6 @@ export async function publicProfile(
       lastName: users.lastName,
       profile: users.profile,
       rateCents: users.sessionRateCents,
-      chargesEnabled: users.chargesEnabled,
       headline: therapistRadar.headline,
       photoUrl: therapistRadar.photoUrl,
       languages: therapistRadar.languages,

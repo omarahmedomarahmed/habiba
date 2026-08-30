@@ -1,10 +1,10 @@
 import "server-only";
 
 import Stripe from "stripe";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { invoices, organizations, stripeEvents, subscriptions } from "@/lib/db/schema";
+import { invoices, organizations, payableCents, stripeEvents, subscriptions } from "@/lib/db/schema";
 import { recordSubscriptionInvoice, sumPayable } from "./service";
 import { env, features } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
@@ -186,10 +186,37 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
   // the therapist's outstanding invoices. In both, the invoices carry this
   // checkout's id, so "who paid" is already decided by the time we get here.
   if (session.payment_status === "paid") {
-    await db
+    const settled = await db
       .update(invoices)
       .set({ status: "paid", paidAt: new Date(), stripePaymentIntentId: paymentIntentId })
-      .where(eq(invoices.stripeCheckoutSessionId, session.id));
+      .where(
+        and(
+          eq(invoices.stripeCheckoutSessionId, session.id),
+          // Guarded on the current state so the webhook and the redirect —
+          // which both land here — cannot post the same settlement twice.
+          eq(invoices.status, "due"),
+        ),
+      )
+      .returning();
+
+    const { postInvoicePaidByCard } = await import("./ledger");
+    for (const invoice of settled) {
+      /*
+       * A session payment's settlement is already on the books.
+       *
+       * When a patient's payment carried the clinician's bills inside the
+       * application fee, `postSessionPayment` credited the receivable at the
+       * moment the charge landed. Posting again here would clear the same debt
+       * twice and quietly manufacture cash.
+       */
+      if (session.metadata?.kind === "session_payment") continue;
+      await postInvoicePaidByCard({
+        invoiceId: invoice.id,
+        organizationId: invoice.organizationId,
+        amountCents: payableCents(invoice),
+        memo: invoice.description,
+      });
+    }
   }
 }
 

@@ -8,7 +8,7 @@ import { and, eq } from "drizzle-orm";
 import { generateAndStoreNote } from "@/lib/ai/notes";
 import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
-import { getConnectAccount, priceProblem } from "@/lib/billing/connect";
+import { priceProblem } from "@/lib/billing/connect";
 import { chargeForSession } from "@/lib/billing/service";
 import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
@@ -53,12 +53,19 @@ export async function startNewSession(
   const problem = priceProblem(priceCents);
   if (problem) return { error: problem };
 
-  if (priceCents > 0) {
-    const connect = await getConnectAccount(actor.userId);
-    if (!connect.chargesEnabled) {
-      return { error: "Finish setting up payouts in Settings before charging for a session." };
-    }
-  }
+  /*
+   * A price no longer waits on Stripe.
+   *
+   * This used to refuse any paid session until the clinician's connected
+   * account was live, which reads as prudent and is actually the product
+   * refusing to let somebody work. Verification takes anywhere from minutes to
+   * days and is entirely outside their control; meanwhile the session in front
+   * of them is happening now.
+   *
+   * The payment is captured either way — see `createSessionPaymentCheckout`.
+   * What changes is where it lands, and if it has to land with us we hold it,
+   * say so, and release it the moment Stripe is done.
+   */
 
   let sessionId: string;
   try {
@@ -186,6 +193,24 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
     await releaseClaim(sessionId);
 
     await chargeForSession({ organizationId, sessionId });
+
+    /*
+     * And pay it out of what we are already holding for them, if we are.
+     *
+     * A clinician mid-verification is the one most likely to have both an
+     * unpaid session bill and money they cannot reach — we took their patients'
+     * payments and are sitting on their share. Making them find a card in that
+     * situation would be indefensible, and no money moves at Stripe to do it:
+     * we owe them less and they owe us less, by the same amount, in one
+     * balanced transaction.
+     *
+     * A no-op for the ordinary case, where nothing is held.
+     */
+    const { settleInvoicesFromHeld } = await import("@/lib/billing/connect");
+    await settleInvoicesFromHeld(therapistId).catch((error) =>
+      log.warn("held settlement failed", { reason: safeErrorMessage(error) }),
+    );
+
     await generateAndStoreNote({ sessionId, organizationId, therapistId, patientId });
   });
 
