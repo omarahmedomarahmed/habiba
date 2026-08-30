@@ -13,8 +13,7 @@ import {
   Navigation,
   ShieldCheck,
   Sparkles,
-  X,
-} from "lucide-react";
+  X, ChevronRight } from "lucide-react";
 
 import {
   bookFromRadar,
@@ -213,6 +212,22 @@ export function BookingSheet({
               "Not shared"}
           </Row>
         </dl>
+
+        {/*
+          A way out of the sheet that is not "close".
+
+          Somebody deciding whether to sit down with a stranger for half an
+          hour is allowed to want more than four lines about them. The profile
+          is a real page with a real URL, which also means the clinician has
+          something to hand out.
+        */}
+        <a
+          href={`/t/${entry.userId}`}
+          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700"
+        >
+          See their full profile
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+        </a>
 
         {entry.practice ? <WalkIn entry={entry} /> : null}
 

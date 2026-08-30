@@ -335,6 +335,101 @@ export function hashViewer(viewer: string): string {
  */
 export type ReservationOutcome = "held" | "taken" | "unavailable";
 
+/**
+ * One clinician, published, whether or not they are on shift.
+ *
+ * `listRadar` deliberately returns only people who are reachable right now —
+ * that is what a board of live availability means. A profile is the opposite
+ * promise: it is a link a clinician hands out, and a link that 404s every time
+ * its owner logs off is not a link anybody can hand out. So this returns them
+ * offline too, and says so.
+ *
+ * What it will not do is publish somebody who has been suspended. Being
+ * visible with a reason attached would tell anonymous strangers a
+ * disciplinary fact about a named person; being visible without one would
+ * offer a booking that cannot complete. Neither is acceptable, so a suspended
+ * clinician has no public profile at all.
+ */
+export type PublicProfile = Omit<RadarTherapist, "status"> & {
+  status: RadarTherapist["status"] | "offline";
+  /** Their own words. Longer than the one-line headline the board shows. */
+  bio: string | null;
+};
+
+export async function publicProfile(
+  userId: string,
+  viewer?: string | null,
+): Promise<PublicProfile | null> {
+  const now = new Date();
+  const viewerHash = viewer ? hashViewer(viewer) : null;
+
+  const rows = await db
+    .select({
+      userId: users.id,
+      organizationId: users.organizationId,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      profile: users.profile,
+      rateCents: users.sessionRateCents,
+      chargesEnabled: users.chargesEnabled,
+      headline: therapistRadar.headline,
+      photoUrl: therapistRadar.photoUrl,
+      languages: therapistRadar.languages,
+      specialties: therapistRadar.specialties,
+      country: therapistRadar.country,
+      region: therapistRadar.region,
+      city: therapistRadar.city,
+      practiceName: therapistRadar.practiceName,
+      practiceAddress: therapistRadar.practiceAddress,
+      practiceLat: therapistRadar.practiceLat,
+      practiceLon: therapistRadar.practiceLon,
+      practiceConfirmedAt: therapistRadar.practiceConfirmedAt,
+      acceptsWalkIns: therapistRadar.acceptsWalkIns,
+      status: therapistRadar.status,
+      pendingUntil: therapistRadar.pendingUntil,
+      pendingSessionId: therapistRadar.pendingSessionId,
+      reservedBy: therapistRadar.reservedBy,
+      demo: therapistRadar.demo,
+      suspendedUntil: therapistRadar.suspendedUntil,
+      lastSeenAt: therapistRadar.lastSeenAt,
+    })
+    .from(therapistRadar)
+    .innerJoin(users, eq(users.id, therapistRadar.userId))
+    .where(
+      and(
+        eq(users.id, userId),
+        isNull(users.deletedAt),
+        eq(users.status, "active"),
+        eq(users.verificationStatus, "verified"),
+        or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
+      ),
+    )
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return null;
+
+  const ratings = await therapistRatings();
+  const [shaped] = shapeBoard([row], ratings, viewerHash);
+  if (!shaped) return null;
+
+  /*
+   * `shapeBoard` assumes everything it is given is on the board, so it never
+   * produces "offline". Here it has to: the row was fetched without the
+   * reachability predicate, so the heartbeat is the only thing that says
+   * whether this person is actually there.
+   */
+  const beating =
+    row.lastSeenAt !== null &&
+    row.lastSeenAt.getTime() >= now.getTime() - HEARTBEAT_STALE_MS;
+  const stale = !row.demo && !beating;
+  return {
+    ...shaped,
+    status: row.status === "offline" || stale ? "offline" : shaped.status,
+    bio: row.profile?.bio ?? null,
+  };
+}
+
 export async function reserveTherapist(opts: {
   therapistUserId: string;
   viewer: string;
