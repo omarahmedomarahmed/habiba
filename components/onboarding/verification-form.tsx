@@ -298,6 +298,21 @@ export function VerificationForm({
         {missing.length > 0 ? (
           <>
             <p className="text-sm font-semibold text-slate-900">Nearly there</p>
+            {/*
+              Say which copy of the truth this list is reading.
+
+              It is built from the saved row, not from what is on screen — so
+              somebody who has just filled the form in and not pressed "Save
+              details" sees their own answers listed as missing, next to a
+              submit button that will not respond, with nothing explaining
+              either. That is a signup drop-off, and it is entirely avoidable
+              with one sentence.
+            */}
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              This is what we have saved. If you have just filled something in above, press
+              <span className="font-semibold text-slate-700"> Save details </span>
+              first and this list will catch up.
+            </p>
             <ul className="mt-2 space-y-1">
               {missing.map((item) => (
                 <li key={item} className="flex items-center gap-2 text-sm text-slate-600">

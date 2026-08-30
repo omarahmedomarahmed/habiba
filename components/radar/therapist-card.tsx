@@ -37,7 +37,17 @@ export function TherapistCard({
       <Avatar entry={entry} dark={dark} />
 
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
+        {/*
+          `min-w-0` has to be on every level of the chain, not just the column.
+
+          The name below is set to truncate, and it never did: this row is
+          itself a flex container, and a flex item's default `min-width: auto`
+          means it refuses to shrink below its content — so the row stayed as
+          wide as the longest name plus its badges, the truncation never
+          engaged, and the card sat 29px wider than the column holding it. That
+          is the 13px of sideways scroll the radar has had at 375px all along.
+        */}
+        <span className="flex min-w-0 items-center gap-2">
           <span
             className={cn(
               "truncate text-sm font-semibold",

@@ -545,6 +545,20 @@ function SoundPrompt({
   };
 
   if (!mounted || sound === "ready") return null;
+
+  /*
+   * An offline clinician is not reachable, so there is nothing to ring them
+   * about — and asking anyway put this modal over all ten pages of the portal,
+   * including Settings and Billing, on every navigation until they answered it.
+   *
+   * The gesture the browser actually needs is the one on "Go on the radar",
+   * which already asks for it at the moment it becomes true. Anything earlier
+   * is a question about a situation the clinician is not in.
+   *
+   * `forced` still overrides everything: a booking ringing on an unarmed alarm
+   * is not a suggestion, whatever page they happen to be looking at.
+   */
+  if (!online && !forced) return null;
   if (dismissed && !forced) return null;
 
   const blocked = sound === "blocked";

@@ -68,7 +68,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-sm font-bold text-navy-500">24Therapy</p>
               <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
@@ -76,7 +76,15 @@ export default async function PublicLayout({ children }: { children: React.React
               </p>
             </div>
 
-            <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2">
+            {/*
+              `min-w-0` on a flex item is not optional here.
+
+              A flex item's default `min-width: auto` refuses to shrink below
+              its content, so this nav sat 32px wider than the padded column it
+              lives in and pushed the last link two pixels past the viewport at
+              375px — the whole page scrolling sideways because of one word.
+            */}
+            <nav aria-label="Footer" className="flex min-w-0 flex-wrap gap-x-5 gap-y-2">
               {nav.concat(footer).map((item) => (
                 <Link
                   key={item.slug}

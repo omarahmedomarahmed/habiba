@@ -155,8 +155,16 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
         </Card>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
+          {/*
+            `min-w-0` on the grid item, for the same reason as the flex rows
+            inside the card: a grid track sized `1fr` still will not shrink
+            below its item's min-content, and a grid item's default
+            `min-width: auto` makes that min-content the full untruncated card.
+            Without it the list is wider than the column it sits in, whatever
+            the card itself does.
+          */}
           {visible.map((entry) => (
-            <li key={entry.userId}>
+            <li key={entry.userId} className="min-w-0">
               <TherapistCard entry={entry} onSelect={() => setSelectedId(entry.userId)} />
             </li>
           ))}

@@ -9,9 +9,9 @@ import {
   Radio,
   Settings,
   ShieldCheck,
-  Users,
-} from "lucide-react";
+  Users, LogOut } from "lucide-react";
 
+import { signOut } from "@/lib/auth/actions";
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
@@ -118,8 +118,21 @@ export default async function AppLayout({
           <SidebarLink href="/copilot" icon={MessageSquare}>
             Copilot
           </SidebarLink>
+          {/*
+            When a clinician is live, the radar stops being one nav item among
+            eight. It is the only thing on this screen that a stranger in crisis
+            is currently depending on, so it says so.
+          */}
           <SidebarLink href="/on-call" icon={Radio}>
-            Crisis Radar
+            <span className="flex items-center gap-2">
+              Crisis Radar
+              {radar?.status === "online" || radar?.status === "in_session" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-teal-700 uppercase">
+                  <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" />
+                  {radar.status === "in_session" ? "In session" : "Live"}
+                </span>
+              ) : null}
+            </span>
           </SidebarLink>
           </>
           ) : null}
@@ -131,9 +144,17 @@ export default async function AppLayout({
           </SidebarLink>
         </nav>
 
-        <div className="border-t border-slate-100 px-4 py-3">
-          <Link href="/settings" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-500 text-xs font-semibold text-white">
+        {/*
+          Sign out lives here, next to who you are signed in as.
+
+          It used to be a button halfway down the Settings page, which is not
+          where anybody looks for it — every other product on a clinician's
+          screen puts it against their own name, and a person who wants to leave
+          a screen with patient data on it should not have to hunt.
+        */}
+        <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
+          <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy-500 text-xs font-semibold text-white">
               {initials(actor.firstName, actor.lastName)}
             </span>
             <span className="min-w-0">
@@ -143,6 +164,16 @@ export default async function AppLayout({
               <span className="block truncate text-xs text-slate-400">{actor.email}</span>
             </span>
           </Link>
+          <form action={signOut}>
+            <button
+              type="submit"
+              title="Sign out"
+              aria-label="Sign out"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            >
+              <LogOut className="h-4 w-4" aria-hidden />
+            </button>
+          </form>
         </div>
       </aside>
 
