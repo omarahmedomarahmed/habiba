@@ -173,8 +173,36 @@ export async function sendSessionReport(opts: {
   const rtl = RTL_LANGUAGES.has(lang);
   const align = rtl ? "right" : "left";
 
-  const followUp = note.followUp
-    ? `<p style="margin:22px 0 0;font-size:14px;color:#334155;text-align:${align};"><strong>${esc(t.next)}:</strong> ${esc(note.followUp)}</p>`
+  /*
+   * The steps, and the line about what happens next.
+   *
+   * This email used to be prose and nothing else, and prose is read once. The
+   * thing a patient goes back to their inbox for on Thursday is the short list
+   * of what they said they would try — so it gets its own block, with the
+   * numbers a person can count, rather than being buried in the third
+   * paragraph.
+   *
+   * `patientSteps` and `patientNext` are written to the patient by the same
+   * pass that writes the note, and the clinician signs them separately before
+   * anything is sent. `recommendations` and `followUp` — the clinician's own
+   * lists, about the patient rather than to them — are not in this file's
+   * reach and never were.
+   */
+  const steps =
+    note.patientSteps.length > 0
+      ? `<div style="margin:22px 0 0;padding:16px 18px;background:#f0fdfa;border-radius:12px;">
+           <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#0f766e;text-align:${align};">${esc(t.before)}</p>
+           ${note.patientSteps
+             .map(
+               (step) =>
+                 `<p style="margin:0 0 8px;font-size:15px;line-height:1.65;color:#134e4a;text-align:${align};">${esc(step)}</p>`,
+             )
+             .join("")}
+         </div>`
+      : "";
+
+  const nextLine = note.patientNext
+    ? `<p style="margin:18px 0 0;font-size:14px;line-height:1.7;color:#334155;text-align:${align};"><strong>${esc(t.next)}:</strong> ${esc(note.patientNext)}</p>`
     : "";
 
   const html = layout(
@@ -205,7 +233,8 @@ export async function sendSessionReport(opts: {
                .join("")}</div>`
            : ""
        }
-       ${followUp}
+       ${steps}
+       ${nextLine}
        <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
          ${esc(t.closing)}
        </p>
@@ -214,6 +243,50 @@ export async function sendSessionReport(opts: {
   );
 
   return send({ to: opts.to, subject: t.subject, html });
+}
+
+/**
+ * "Your summary is written, and it is waiting behind one question."
+ *
+ * The rating is a gate in front of the summary, which is the only reason the
+ * rating rate is not eight percent. But a gate makes a failure mode: somebody
+ * closes the tab, and then nobody ever tells them the thing they were promised
+ * is now sitting there. This is the one email that closes that loop.
+ *
+ * Deliberately not a review request. Nothing here says "rate your therapist"
+ * or asks how we did — it says a summary exists, and the link is the way to it.
+ * A patient who does not want to answer anything about their session should not
+ * be receiving marketing about it a day later, so this is sent exactly once
+ * (`ratingReminderAt`) and never followed up.
+ */
+export async function sendRatingReminder(opts: {
+  to: string;
+  therapistName: string;
+  therapistFirstName: string;
+  url: string;
+  sessionDate: Date;
+}): Promise<boolean> {
+  const html = layout(
+    "Your session summary is ready",
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;letter-spacing:-0.02em;">Your summary is ready</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.7;">
+       ${esc(opts.therapistFirstName)} has finished writing up your session on ${esc(
+         opts.sessionDate.toLocaleDateString("en", { dateStyle: "long" }),
+       )}. It is a short summary written for you — what you talked about and what you agreed to try — and it is waiting on the same link you used to join.
+     </p>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open my summary</a>
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.7;">
+       You will be asked to rate the session first. It takes about a minute, it is anonymous to ${esc(
+         opts.therapistFirstName,
+       )}, and it is the only thing we ask of you.
+     </p>
+     <p style="margin:10px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+       The link stops working three days after your session. We will not email you about this again.
+     </p>`,
+    "24Therapy sent this because you had a session on the platform.<br>If you were not expecting it, you can safely ignore it.",
+  );
+
+  return send({ to: opts.to, subject: "Your session summary is ready", html });
 }
 
 /**

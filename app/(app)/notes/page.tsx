@@ -13,16 +13,27 @@ export const dynamic = "force-dynamic";
 export default async function NotesPage() {
   const actor = await requireUser();
   const notes = await listRecentNotes(actor);
-  const drafts = notes.filter((n) => n.status === "draft");
+  /*
+   * Two things can be outstanding on one note, and the one with a person
+   * waiting on it is the patient's summary. A list that counted only unsigned
+   * charts would show "Everything approved" while three people were sitting
+   * with nothing.
+   */
+  const open = notes.filter((n) => n.status === "draft" || n.patientStatus === "draft");
+  const waitingOnPatientCopy = notes.filter(
+    (n) => n.status === "approved" && n.patientStatus === "draft",
+  ).length;
 
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
         title="Notes"
         subtitle={
-          drafts.length > 0
-            ? `${drafts.length} waiting for your approval`
-            : "Everything approved"
+          open.length === 0
+            ? "Everything approved"
+            : waitingOnPatientCopy > 0
+              ? `${open.length} waiting — ${waitingOnPatientCopy} where the patient's summary is not released`
+              : `${open.length} waiting for your approval`
         }
       />
 
@@ -56,6 +67,9 @@ export default async function NotesPage() {
                     </div>
                     {note.status === "draft" ? (
                       <Badge tone="amber">Draft</Badge>
+                    ) : note.patientStatus === "draft" ? (
+                      // Signed, but the patient still has nothing.
+                      <Badge tone="teal">Summary held</Badge>
                     ) : (
                       <Badge tone="green">Approved</Badge>
                     )}

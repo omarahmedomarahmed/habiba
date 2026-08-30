@@ -399,6 +399,17 @@ export const sessions = pgTable(
 
     reportSentAt: timestamp("report_sent_at", { withTimezone: true }),
 
+    /**
+     * When we nudged the patient to rate the session, so we never nudge twice.
+     *
+     * The rating is the gate in front of the summary, which makes an unrated
+     * session a person who was told there was something for them and then never
+     * came back for it. One reminder is a service; two is us pestering somebody
+     * about their therapy, so this column exists to make the second impossible
+     * rather than unlikely.
+     */
+    ratingReminderAt: timestamp("rating_reminder_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -460,6 +471,27 @@ export type NoteContent = {
    * phone. Nothing else is ever emailed out.
    */
   patientBrief: string;
+  /**
+   * The part of the brief somebody actually acts on.
+   *
+   * `recommendations` is the clinician's list — "trial behavioural activation",
+   * "consider psychiatric referral" — and it is written about the patient. This
+   * is the same session's plan written *to* them, in the second person, as
+   * things a person can do in a week: two or three at most, because a list of
+   * seven is a list nobody starts.
+   *
+   * Kept apart from the prose because prose is read once and a list is read
+   * again on Thursday. It was the single most common thing missing from what
+   * the patient received: a warm summary of a conversation with nothing in it
+   * to do next.
+   */
+  patientSteps: string[];
+  /**
+   * One line about what happens after this: when to come back, and what to do
+   * if it gets worse before then. The patient-facing counterpart to
+   * `followUp`, which is a clinician's scheduling note and stays in the chart.
+   */
+  patientNext: string;
   talkingPoints: string[];
   observations: string;
   impressions: string;
@@ -535,9 +567,35 @@ export const sessionNotes = pgTable(
      * convenience — for a supervisor, an insurer, or us.
      */
     contentEn: jsonb("content_en").$type<NoteContent | null>(),
+    /**
+     * The clinical record's signature. This is the one that makes the note a
+     * document rather than a draft, and it is the one an auditor asks about.
+     */
     status: text("status").$type<"draft" | "approved">().notNull().default("draft"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
+
+    /**
+     * The patient's copy, signed separately.
+     *
+     * These are two different decisions and they were one button. "This is an
+     * accurate clinical record" and "this is what I am content for the person
+     * to read on their phone tonight" are not the same judgement, they are not
+     * always made at the same moment, and one of them is irreversible in a way
+     * the other is not — once the brief is sent it cannot be unsent.
+     *
+     * Splitting them also lets the useful order happen: a clinician can release
+     * the plain-language summary while the patient is still holding their phone
+     * and finish the formal write-up later, which is the sequence everybody
+     * actually wanted and the old single button forbade.
+     *
+     * Nothing is emailed until *this* one is approved — see `releaseBrief`.
+     */
+    patientStatus: text("patient_status").$type<"draft" | "approved">().notNull().default("draft"),
+    patientApprovedAt: timestamp("patient_approved_at", { withTimezone: true }),
+    patientApprovedBy: uuid("patient_approved_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
 
     model: text("model"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

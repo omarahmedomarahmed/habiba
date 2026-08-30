@@ -28,7 +28,8 @@ export const maxDuration = 300;
  * few seconds of sweeping.
  *
  *   crisis     03:00  retries crisis alerts whose notification failed, sweeps
- *                     the radar, and closes rooms a patient walked away from.
+ *                     the radar, closes rooms a patient walked away from, and
+ *                     tells patients whose summary is written and unclaimed.
  *                     SAFETY-RELEVANT.
  *   billing    03:05  charges completed sessions that produced no charge row,
  *                     which happens when a Stripe webhook is lost.
@@ -120,8 +121,19 @@ const JOBS = {
     const swept = await sweepRadar();
     // And the one that matters most: a patient sitting in an empty room
     // because the clinician who advertised themselves never turned up.
-    const { sweepAbandonedPatients } = await import("@/lib/data/feedback");
+    const { sweepAbandonedPatients, sweepUnratedSessions } = await import("@/lib/data/feedback");
     const left = await sweepAbandonedPatients();
+    /*
+     * And the patients whose summary is finished and who never came back for
+     * it. Folded in here for the same billing reason as the radar sweep: the
+     * expensive part is waking the database, not the query.
+     *
+     * The event-driven path in `approvePatientNote` catches most of these the
+     * moment the clinician signs. This is the backstop for the ones it cannot
+     * see — a note signed inside the first three-quarters of an hour, before
+     * the reminder is allowed to send at all.
+     */
+    const unrated = await sweepUnratedSessions();
     return {
       delivered,
       released: swept.released,
@@ -129,6 +141,7 @@ const JOBS = {
       abandoned: swept.abandoned,
       warned: left.warned,
       suspended: left.suspended,
+      reminded: unrated.reminded,
     };
   },
 

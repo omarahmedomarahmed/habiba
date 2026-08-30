@@ -40,9 +40,9 @@ export async function rateSession(input: {
    * which is exactly how the two of them end up disagreeing about what a
    * patient is allowed to read.
    *
-   * If the clinician has not signed the note yet this does nothing and returns
-   * false; the approval path sends it later. Either way the patient has done
-   * their part and is told so.
+   * If the clinician has not approved the patient's copy yet this does nothing
+   * and returns false; the approval path sends it later. Either way the patient
+   * has done their part and is told so.
    */
   return { ok: true, sent: await releaseBrief(context.sessionId) };
 }

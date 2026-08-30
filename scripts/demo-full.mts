@@ -524,14 +524,32 @@ async function main() {
     }
   });
 
-  await act("The clinician signs the note, which releases the summary", async () => {
+  /*
+   * Two signatures, filmed as two.
+   *
+   * The chart and the patient's copy are separate approvals now, and the second
+   * one is the interesting shot: it is the moment a real person gets something.
+   * Filming only the first would show a clinician pressing a button and nothing
+   * reaching anybody.
+   */
+  await act("The clinician signs the chart, then releases the patient's summary", async () => {
     await clinician.bringToFront();
     await clinician.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
     await clinician.waitForTimeout(2000);
-    const approve = clinician.getByRole("button", { name: /approve note/i }).first();
-    if (!(await approve.count())) throw new Error("no Approve note button");
+
+    const sign = clinician.getByRole("button", { name: /sign the note/i }).first();
+    if (!(await sign.count())) throw new Error("no Sign the note button");
     await step(clinician, "note-before-approve", 1200);
-    await approve.click();
+    await sign.click();
+    await clinician.waitForTimeout(2500);
+    await step(clinician, "note-signed", 1600);
+
+    // Signing the chart switches to the patient tab by itself, because that is
+    // the half with somebody waiting on it.
+    const release = clinician.getByRole("button", { name: /approve and send/i }).first();
+    if (!(await release.count())) throw new Error("no Approve and send button");
+    await step(clinician, "patient-note-before-approve", 1600);
+    await release.click();
     await clinician.waitForTimeout(4000);
     await step(clinician, "note-approved", 2200);
   });

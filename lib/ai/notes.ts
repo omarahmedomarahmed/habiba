@@ -24,6 +24,8 @@ const EMPTY_NOTE: NoteContent = {
   recommendations: [],
   followUp: "",
   patientBrief: "",
+  patientSteps: [],
+  patientNext: "",
 };
 
 const SYSTEM_PROMPT = `You are a clinical documentation assistant for a licensed psychotherapist.
@@ -43,8 +45,13 @@ LANGUAGE
 - Write the note in the language the session was conducted in. If the transcript is in Arabic, the note is in Arabic; if it is in Spanish, the note is in Spanish. Do not translate the clinical record into English.
 - Use the clinical register a professional in that language would actually write in, not a literal translation of English phrasing.
 - Report the language you wrote in as a two-letter ISO 639-1 code in "language".
-- "patientBrief" is the only part the patient ever reads, and it is written *to them*. Second person, plain words, no clinical vocabulary, no diagnosis, no impressions, no risk language. Three short paragraphs at most: what you talked about, what you agreed, and what to do before next time. It must be true to the session and it must be something the person could read alone at midnight without feeling labelled. Write it in the same language as the rest of the note.
 - If the session mixes languages, use the one the patient mostly spoke in — the record should read naturally to the clinician who was in the room.
+
+THE PATIENT'S COPY
+Three fields — "patientBrief", "patientSteps", "patientNext" — are the only part the patient ever reads, and they are written *to them*: second person, plain words, no clinical vocabulary, no diagnosis, no impressions, no risk language, no labels. Write them in the same language as the rest of the note. All three must be true to the session, and must be something the person could read alone at midnight without feeling described.
+- "patientBrief": two or three short paragraphs. What you talked about, and what you worked out together. Not a transcript and not a compliment — the point is that they recognise their own session in it.
+- "patientSteps": what to actually do before the next session. Two or three items, never more than four. Each one concrete enough to do on a Tuesday evening and small enough to finish: "write down the three times this week you noticed the tight feeling starting" rather than "practise mindfulness". Only include something that was actually agreed or suggested in the session. If nothing was, return an empty array rather than inventing homework.
+- "patientNext": one sentence about what happens next — when to come back, and what to do in the meantime if things get harder. No risk language: "if it gets heavier before then, book sooner" and not "if you experience suicidal ideation".
 
 Respond with a single JSON object with exactly these keys:
 {
@@ -56,7 +63,9 @@ Respond with a single JSON object with exactly these keys:
   "impressions": string,
   "recommendations": string[],
   "followUp": string,
-  "patientBrief": string
+  "patientBrief": string,
+  "patientSteps": string[],
+  "patientNext": string
 }`;
 
 /**
@@ -302,6 +311,11 @@ export function normaliseNote(raw: Record<string, unknown>): NoteContent {
     recommendations: asArray(raw.recommendations),
     followUp: asString(raw.followUp),
     patientBrief: asString(raw.patientBrief),
+    // Four is the cap in the prompt; enforced again here because a model that
+    // returns nine has produced a list nobody will start, and the clinician
+    // would have to delete five of them by hand before releasing it.
+    patientSteps: asArray(raw.patientSteps).slice(0, 4),
+    patientNext: asString(raw.patientNext),
   };
 }
 

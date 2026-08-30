@@ -55,8 +55,11 @@ export default async function FeedbackPage({
         token={token}
         therapistFirstName={context.therapistFirstName}
         brief={context.brief}
+        briefSteps={context.briefSteps}
+        briefNext={context.briefNext}
         briefLanguage={context.briefLanguage}
         notePending={context.notePending}
+        emailed={context.emailed}
         alreadyDone={context.done}
         paid={context.paidCents > 0}
         ratedApp={context.ratedApp}

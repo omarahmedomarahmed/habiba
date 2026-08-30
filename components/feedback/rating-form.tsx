@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { AlertTriangle, Check, Mail, Star } from "lucide-react";
 
 import { rateSession, reportSession } from "@/app/feedback/[token]/actions";
+import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback-options";
 import { cn } from "@/lib/utils";
@@ -26,8 +27,11 @@ export function RatingForm({
   sessionDate,
   therapistFirstName,
   brief,
+  briefSteps,
+  briefNext,
   briefLanguage,
   notePending,
+  emailed,
   alreadyDone,
   paid,
   ratedApp,
@@ -36,8 +40,12 @@ export function RatingForm({
   sessionDate: string;
   therapistFirstName: string;
   brief: string | null;
+  briefSteps: string[];
+  briefNext: string;
   briefLanguage: string;
   notePending: boolean;
+  /** A copy actually reached their inbox — do not claim one otherwise. */
+  emailed: boolean;
   alreadyDone: boolean;
   paid: boolean;
   /** They rated the app when the session began; do not ask a second time. */
@@ -94,11 +102,11 @@ export function RatingForm({
           </span>
           <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">Thank you</p>
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
-            {sent
-              ? "Your summary is on its way to your inbox. It is also below."
+            {sent || emailed
+              ? "Your summary is below, and a copy is on its way to your inbox."
               : notePending
-                ? `${therapistFirstName} is still writing up the session. Your summary will arrive by email as soon as it is signed — usually within the hour.`
-                : "Your summary is below, and a copy is in your inbox."}
+                ? `${therapistFirstName} is still writing up the session. Your summary will arrive by email as soon as it is approved — usually within the hour.`
+                : "Your summary is below. Keep this link if you want to come back to it."}
           </p>
         </Card>
 
@@ -107,20 +115,15 @@ export function RatingForm({
             <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
               Your summary
             </p>
-            <div
-              dir={rtl ? "rtl" : "ltr"}
-              className={cn(
-                "mt-2 space-y-3 text-[15px] leading-relaxed text-slate-800",
-                rtl && "text-end",
-              )}
-            >
-              {brief
-                .split("\n")
-                .filter(Boolean)
-                .map((paragraph, index) => (
-                  <p key={index}>{paragraph}</p>
-                ))}
-            </div>
+            {/* Same component the clinician approved this on, so what they
+                saw and what you are reading cannot drift apart. */}
+            <PatientBriefCard
+              className="mt-2"
+              brief={brief}
+              steps={briefSteps}
+              next={briefNext}
+              rtl={rtl}
+            />
             <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-400">
               This is written for you. Your therapist keeps a separate clinical note, which stays
               with them.

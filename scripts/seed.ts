@@ -88,7 +88,14 @@ const DEMO_NOTE = {
   ],
   followUp: "One week",
   patientBrief:
-    "We spent most of today on the nights you have been having, and on how much of the day gets spent bracing for the next bad one. You put it into words really clearly.\n\nWe agreed you will try the wind-down we talked about — screens down an hour before bed, and getting up at the same time even after a rough night. Small and boring on purpose; it is the consistency that does the work.\n\nBefore next week, jot down roughly when you fall asleep and when you wake. Not a diary, just times. Bring it and we will look at it together.",
+    "We spent most of today on the nights you have been having, and on how much of the day gets spent bracing for the next bad one. You put it into words really clearly.\n\nThe part worth holding on to: on the two nights you did the wind-down, you slept better. You had written both of those off as flukes until we lined them up.",
+  patientSteps: [
+    "Screens down an hour before bed, four nights this week — pick the nights now rather than deciding each evening.",
+    "Get up at the same time even after a bad night. This is the one that does the most work and feels the most pointless.",
+    "Jot down roughly when you fell asleep and when you woke. Not a diary, just two times.",
+  ],
+  patientNext:
+    "Same time next week, and bring the times you wrote down. If the review lands earlier than expected and the nights get heavier, message to move it sooner.",
 };
 
 async function main() {

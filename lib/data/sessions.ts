@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 
 import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/ai/crisis";
 import { auditPhi } from "@/lib/audit";
@@ -412,6 +412,7 @@ export async function listRecentNotes(actor: Actor, limit = 50) {
       id: sessionNotes.id,
       sessionId: sessionNotes.sessionId,
       status: sessionNotes.status,
+      patientStatus: sessionNotes.patientStatus,
       createdAt: sessionNotes.createdAt,
       content: sessionNotes.content,
       patientFirstName: patients.firstName,
@@ -427,12 +428,25 @@ export async function listRecentNotes(actor: Actor, limit = 50) {
     .limit(limit);
 }
 
+/**
+ * Notes still waiting on the clinician — either signature outstanding.
+ *
+ * A note whose chart is signed but whose patient summary has not been approved
+ * is still work: somebody is waiting for it. Counting only `status` would have
+ * dropped exactly those from the badge, which is the half that has a person on
+ * the other end of it.
+ */
 export async function countOpenDrafts(actor: Actor): Promise<number> {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(sessionNotes)
     .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
-    .where(and(scope(actor), eq(sessionNotes.status, "draft")));
+    .where(
+      and(
+        scope(actor),
+        or(eq(sessionNotes.status, "draft"), eq(sessionNotes.patientStatus, "draft")),
+      ),
+    );
   return row?.count ?? 0;
 }
 

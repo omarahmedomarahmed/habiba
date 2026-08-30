@@ -90,6 +90,7 @@ export default async function SessionDetailPage({
             languageLabel={NOTE_LANGUAGES[note?.language ?? "en"] ?? "Original"}
             contentEn={note?.contentEn ?? null}
             initialStatus={note?.status ?? "draft"}
+            initialPatientStatus={note?.patientStatus ?? "draft"}
             noteStatus={row.session.noteStatus}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}

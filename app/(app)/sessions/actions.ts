@@ -10,7 +10,7 @@ import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { getConnectAccount, priceProblem } from "@/lib/billing/connect";
 import { chargeForSession } from "@/lib/billing/service";
-import { releaseBrief } from "@/lib/data/feedback";
+import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
@@ -24,7 +24,7 @@ import { db } from "@/lib/db";
 import { patients, sessionNotes, sessions, type NoteContent } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { sendSessionInvite, sendSessionReport } from "@/lib/mail";
+import { sendSessionInvite } from "@/lib/mail";
 import { createPrivateRoom, deleteRoom } from "@/lib/video";
 import { fullName } from "@/lib/utils";
 
@@ -250,6 +250,14 @@ export async function saveNote(
   return { ok: true, message: "Saved" };
 }
 
+/**
+ * Sign the clinical record.
+ *
+ * This one is about the chart. It sends nothing, releases nothing and is
+ * visible to no patient — it turns a machine's draft into a document the
+ * clinician stands behind. Releasing the patient's copy is a separate decision
+ * with a separate button; see `approvePatientNote`.
+ */
 export async function approveNote(sessionId: string): Promise<SessionActionState> {
   const actor = await requireUser();
   const row = await getSession(actor, sessionId);
@@ -266,18 +274,108 @@ export async function approveNote(sessionId: string): Promise<SessionActionState
     patientId: row.session.patientId,
   });
 
-  /*
-   * Signing the note is what releases the patient's brief.
-   *
-   * Only if they already asked for it. A patient who rated the session before
-   * the clinician finished writing up has done their part and is waiting; one
-   * who has not rated it yet gets nothing until they do, which is the whole
-   * mechanism. Nothing here can send the clinical note — `releaseBrief` reads
-   * `patientBrief` and only `patientBrief`.
-   */
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/notes");
+  return { ok: true, message: "Clinical note signed" };
+}
+
+/**
+ * Edit what the patient will read.
+ *
+ * A separate action from `saveNote` and a deliberately narrow one: it can write
+ * three fields and no others. The clinical record and the patient's copy live
+ * in the same JSON blob, so a single "save the note" that took a whole
+ * `NoteContent` would mean the patient-facing editor was, mechanically, able to
+ * rewrite the assessment. This one cannot, whatever it is sent.
+ */
+export async function savePatientNote(
+  sessionId: string,
+  patch: { patientBrief: string; patientSteps: string[]; patientNext: string },
+): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const row = await getSession(actor, sessionId);
+  if (!row) return { error: "Session not found." };
+
+  const [note] = await db
+    .select({ content: sessionNotes.content })
+    .from(sessionNotes)
+    .where(eq(sessionNotes.sessionId, sessionId))
+    .limit(1);
+  if (!note) return { error: "There is no note for this session yet." };
+
+  await db
+    .update(sessionNotes)
+    .set({
+      content: {
+        ...note.content,
+        patientBrief: patch.patientBrief.trim(),
+        patientSteps: patch.patientSteps.map((s) => s.trim()).filter(Boolean).slice(0, 4),
+        patientNext: patch.patientNext.trim(),
+      },
+      updatedAt: new Date(),
+    })
+    .where(eq(sessionNotes.sessionId, sessionId));
+
+  await auditPhi(actor, "note.patient.update", {
+    resourceType: "note",
+    resourceId: sessionId,
+    patientId: row.session.patientId,
+  });
+
+  revalidatePath(`/sessions/${sessionId}`);
+  return { ok: true, message: "Saved" };
+}
+
+/**
+ * Approve the patient's copy, and release it.
+ *
+ * The irreversible one. Everything up to here can be edited; the moment this
+ * runs, a real person may be reading it on their phone thirty seconds later and
+ * there is no unsending. That is exactly why it is not the same button as
+ * signing the chart.
+ *
+ * The release itself only happens if they already asked for it. A patient who
+ * rated the session before the clinician finished writing up has done their
+ * part and is waiting; one who has not rated it yet gets an email saying their
+ * summary is ready, and collects it through the link they already hold.
+ *
+ * Nothing here can send the clinical note — `releaseBrief` reads the three
+ * patient-facing fields and nothing else.
+ */
+export async function approvePatientNote(sessionId: string): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const row = await getSession(actor, sessionId);
+  if (!row) return { error: "Session not found." };
+
+  await db
+    .update(sessionNotes)
+    .set({
+      patientStatus: "approved",
+      patientApprovedAt: new Date(),
+      patientApprovedBy: actor.userId,
+    })
+    .where(eq(sessionNotes.sessionId, sessionId));
+
+  await auditPhi(actor, "note.patient.approve", {
+    resourceType: "note",
+    resourceId: sessionId,
+    patientId: row.session.patientId,
+  });
+
   after(async () => {
     try {
-      await releaseBrief(sessionId);
+      const sent = await releaseBrief(sessionId);
+      /*
+       * If it could not go, tell them it is there.
+       *
+       * `releaseBrief` returns false when the patient has not rated the session
+       * yet — which is most of the time, because the clinician usually writes
+       * up after the patient has closed the tab. Without this, the summary sits
+       * finished behind a gate nobody knows is open. The sweep would catch it
+       * eventually; doing it here means it happens at the moment it becomes
+       * true, and `ratingReminderAt` stops the two of them sending twice.
+       */
+      if (!sent) await sweepUnratedSessions(sessionId);
     } catch (error) {
       log.warn("brief release failed", { reason: safeErrorMessage(error) });
     }
@@ -285,7 +383,7 @@ export async function approveNote(sessionId: string): Promise<SessionActionState
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
-  return { ok: true, message: "Note approved — their summary is released" };
+  return { ok: true, message: "Approved — their summary is released" };
 }
 
 /*

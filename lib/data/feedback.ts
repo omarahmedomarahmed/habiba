@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, avg, count, desc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, avg, count, desc, eq, gt, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -40,8 +40,23 @@ export type FeedbackContext = {
   done: boolean;
   brief: string | null;
   briefLanguage: string;
+  /** What to do before next time, in their own words back to them. */
+  briefSteps: string[];
+  /** One line on what happens next. */
+  briefNext: string;
   /** Null while the clinician has not finished writing it up. */
   notePending: boolean;
+  /**
+   * Whether a copy actually reached their inbox.
+   *
+   * The page used to say "a copy is in your inbox" whenever the brief was on
+   * screen, which is a claim about something that happens elsewhere and can
+   * fail — an unverified sending domain, a bounced address, a provider outage.
+   * Telling somebody to go and look for an email that was never delivered is a
+   * small lie with a real cost: they stop looking at the summary in front of
+   * them and go hunting for one that does not exist.
+   */
+  emailed: boolean;
   paidCents: number;
   /** True when they already rated the app on the way in — do not ask twice. */
   ratedApp: boolean;
@@ -80,9 +95,10 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
       therapistLast: users.lastName,
       noteContent: sessionNotes.content,
       noteLanguage: sessionNotes.language,
-      noteStatus: sessionNotes.status,
+      noteStatus: sessionNotes.patientStatus,
       feedbackId: sessionFeedback.id,
       arrivedAt: sessionFeedback.arrivedAt,
+      briefSentAt: sessionFeedback.briefSentAt,
       therapistStars: sessionFeedback.therapistStars,
     })
     .from(sessions)
@@ -98,7 +114,8 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
   if (Date.now() - ended.getTime() > FEEDBACK_WINDOW_HOURS * 3600_000) return null;
 
   /*
-   * The brief is only shown once the clinician has signed the note.
+   * The brief is only shown once the clinician has approved *the patient's
+   * copy* — a separate signature from the one on the clinical record.
    *
    * A draft is a machine's first attempt at describing somebody's therapy. It
    * goes to a person who was in the room only after the person who was in the
@@ -116,8 +133,14 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     done: row.therapistStars !== null,
     ratedApp: Boolean(row.arrivedAt),
     brief: signed ? (row.noteContent?.patientBrief ?? row.noteContent?.summary ?? null) : null,
+    briefSteps: signed ? (row.noteContent?.patientSteps ?? []) : [],
+    briefNext: signed ? (row.noteContent?.patientNext ?? "") : "",
     briefLanguage: row.noteLanguage ?? "en",
     notePending: !signed,
+    // Set only by `markBriefSent`, which only runs after the provider accepted
+    // the message. A refused send leaves it null and the page says nothing
+    // about an inbox.
+    emailed: row.briefSentAt !== null,
     paidCents: row.paymentStatus === "paid" ? row.priceCents : 0,
   };
 }
@@ -490,13 +513,18 @@ export async function releaseFromRadarBan(therapistId: string): Promise<void> {
  * Send the brief to whoever asked for it, once.
  *
  * The only function in the codebase that emails clinical text to a patient,
- * and it reads exactly one field. There is no parameter for "which part" and
- * no caller that can pass the SOAP note: if you want to widen what a patient
- * receives you have to come here and mean it.
+ * and it reads exactly three fields — all three of them the ones written *to*
+ * the patient. There is no parameter for "which part" and no caller that can
+ * pass the SOAP note: if you want to widen what a patient receives you have to
+ * come here and mean it.
  *
- * Called after the clinician signs the note, and again from the rating form —
- * whichever happens second is the one that sends. Guarded by `briefSentAt`, so
- * the order does not matter and neither does a retry.
+ * Gated on `patientStatus`, not `status`. The clinical record being signed says
+ * nothing about whether the clinician has read what the patient is about to
+ * receive, and the sending is the irreversible half.
+ *
+ * Called after the clinician approves the patient's copy, and again from the
+ * rating form — whichever happens second is the one that sends. Guarded by
+ * `briefSentAt`, so the order does not matter and neither does a retry.
  */
 export async function releaseBrief(sessionId: string): Promise<boolean> {
   const [row] = await db
@@ -505,7 +533,7 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
       alreadySent: sessionFeedback.briefSentAt,
       content: sessionNotes.content,
       language: sessionNotes.language,
-      status: sessionNotes.status,
+      patientStatus: sessionNotes.patientStatus,
       endedAt: sessions.endedAt,
       createdAt: sessions.createdAt,
       therapistFirst: users.firstName,
@@ -519,7 +547,7 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
     .limit(1);
 
   if (!row || row.alreadySent || !row.email) return false;
-  if (row.status !== "approved") return false;
+  if (row.patientStatus !== "approved") return false;
 
   const brief = row.content?.patientBrief?.trim() || row.content?.summary?.trim();
   if (!brief) return false;
@@ -533,10 +561,15 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
       soap: { subjective: "", objective: "", assessment: "", plan: "" },
       summary: "",
       patientBrief: brief,
+      patientSteps: row.content?.patientSteps ?? [],
+      patientNext: row.content?.patientNext ?? "",
       talkingPoints: [],
       observations: "",
       impressions: "",
       recommendations: [],
+      // Deliberately empty. `followUp` is the clinician's scheduling note and
+      // this email used to carry it under "Next session" — `patientNext` is
+      // the same information written for the person reading it.
       followUp: "",
     },
     language: row.language ?? "en",
@@ -551,6 +584,99 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
       .where(eq(sessions.id, sessionId));
   }
   return sent;
+}
+
+/* ------------------------------------------------------ rating reminders -- */
+
+/**
+ * How long after a session ends before we remind somebody it is waiting.
+ *
+ * Long enough that the reminder never lands while they are still on the rating
+ * page — the whole point is to reach the person who closed the tab. Short
+ * enough that the session is still the thing they were doing today.
+ */
+export const RATING_REMINDER_AFTER_MINUTES = 45;
+
+/**
+ * Nudge the patients whose summary is sitting behind an unrated session.
+ *
+ * The rating is a gate, and a gate creates a failure mode the old design had no
+ * answer for: a person is told there is a summary for them, closes the tab
+ * because they are not ready to answer questions about their therapy, and then
+ * never hears about it again. The clinician has written it, we are holding it,
+ * and nobody told them.
+ *
+ * One email, ever, per session — `ratingReminderAt` is the guard, and it is set
+ * whether or not the send succeeds so a bounced address cannot become a loop.
+ *
+ * Bounded by the feedback window on both ends: there is no point reminding
+ * anybody about a link that has already expired, and the query is written so a
+ * long-idle deployment cannot suddenly mail three months of backlog.
+ */
+export async function sweepUnratedSessions(
+  onlySessionId?: string,
+): Promise<{ reminded: number }> {
+  const now = Date.now();
+  const ripe = new Date(now - RATING_REMINDER_AFTER_MINUTES * 60_000);
+  const expired = new Date(now - FEEDBACK_WINDOW_HOURS * 3600_000);
+
+  const waiting = await db
+    .select({
+      sessionId: sessions.id,
+      token: sessions.feedbackToken,
+      endedAt: sessions.endedAt,
+      // Whichever address we have. A radar patient often has only the one they
+      // typed into the waiting room.
+      email: sql<string | null>`COALESCE(${sessionFeedback.patientEmail}, ${sessions.guestEmail}, ${patients.email})`,
+      therapistFirst: users.firstName,
+      therapistLast: users.lastName,
+    })
+    .from(sessions)
+    .innerJoin(users, eq(users.id, sessions.therapistId))
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .leftJoin(sessionFeedback, eq(sessionFeedback.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.status, "completed"),
+        isNotNull(sessions.feedbackToken),
+        isNotNull(sessions.endedAt),
+        lt(sessions.endedAt, ripe),
+        gt(sessions.endedAt, expired),
+        isNull(sessions.ratingReminderAt),
+        // Already rated — nothing to ask for, and the brief is on its way.
+        isNull(sessionFeedback.therapistStars),
+        ...(onlySessionId ? [eq(sessions.id, onlySessionId)] : []),
+      ),
+    )
+    .limit(100);
+
+  let reminded = 0;
+
+  for (const row of waiting) {
+    if (!row.token) continue;
+
+    // Stamped first. A send that throws halfway must not leave the row
+    // eligible for a second attempt on the next sweep — one reminder about
+    // somebody's therapy session is a service and two is an intrusion.
+    await db
+      .update(sessions)
+      .set({ ratingReminderAt: new Date() })
+      .where(eq(sessions.id, row.sessionId));
+
+    if (!row.email) continue;
+
+    const { sendRatingReminder } = await import("@/lib/mail");
+    const sent = await sendRatingReminder({
+      to: row.email,
+      therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
+      therapistFirstName: row.therapistFirst,
+      url: `${(await import("@/lib/env")).env.appUrl}/feedback/${row.token}`,
+      sessionDate: row.endedAt ?? new Date(),
+    });
+    if (sent) reminded += 1;
+  }
+
+  return { reminded };
 }
 
 /* ------------------------------------------------------- abandoned rooms -- */
