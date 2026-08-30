@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 
 import { AuthorizationError, requireUserApi } from "@/lib/auth/guard";
+import { autoEndSession, readSessionClock } from "@/lib/data/sessions";
 import { db } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
+import { finishSession } from "@/lib/session-finish";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,11 +43,44 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     if (!row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
+    /*
+     * The clock rides on the poll the room is already making.
+     *
+     * The room computes the same ladder locally so the countdown ticks between
+     * polls rather than jumping every five seconds — but this is the copy that
+     * decides, because a client's own clock can be wrong and a browser tab that
+     * has been asleep is wrong by however long it slept.
+     */
+    const clock = await readSessionClock(id);
+
+    // Over the cap, or a room everybody left. Ended here rather than waiting
+    // for a person, because the person is precisely what is missing.
+    if (clock.shouldEnd && clock.endReason) {
+      const ended = await autoEndSession(id, clock.endReason);
+      if (ended.ended) {
+        after(() =>
+          finishSession({
+            sessionId: id,
+            organizationId: ended.organizationId!,
+            therapistId: ended.therapistId!,
+            patientId: ended.patientId ?? null,
+          }),
+        );
+      }
+    }
+
     return NextResponse.json({
-      status: row.status,
+      status: clock.shouldEnd ? "completed" : row.status,
       patientJoined: Boolean(row.patientJoinedAt),
       patientName: row.guestName,
       noteStatus: row.noteStatus,
+      clock: {
+        stage: clock.stage,
+        elapsedSeconds: clock.elapsedSeconds,
+        remainingSeconds: clock.remainingSeconds,
+        extended: clock.extended,
+        endReason: clock.endReason,
+      },
     });
   } catch (error) {
     if (error instanceof AuthorizationError) {

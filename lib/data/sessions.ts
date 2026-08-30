@@ -14,6 +14,8 @@ import {
   transcriptSegments,
   type Modality,
 } from "@/lib/db/schema";
+import { log, ref } from "@/lib/logger";
+import { sessionClock, type SessionClock } from "@/lib/session-clock";
 
 /**
  * Every read and write of clinical data goes through this module, and every
@@ -240,6 +242,124 @@ export async function startSession(actor: Actor, sessionId: string) {
     .update(sessions)
     .set({ status: "in_progress", startedAt: new Date(), updatedAt: new Date() })
     .where(and(scope(actor), eq(sessions.id, sessionId)));
+}
+
+/* ---------------------------------------------------------- the clock -- */
+
+/**
+ * Where a live session is on its ladder, read from the database.
+ *
+ * The one authority. Both clients compute the same thing locally so the
+ * countdown ticks smoothly between polls, but this is the copy that decides
+ * whether a session is over — a client that computes its own answer and acts on
+ * it is a client that can be lied to by a changed system clock.
+ *
+ * Unauthenticated by design, because the patient needs it too and has no
+ * account. It returns nothing but a countdown.
+ */
+export async function readSessionClock(sessionId: string): Promise<SessionClock & { live: boolean }> {
+  const [row] = await db
+    .select({
+      status: sessions.status,
+      startedAt: sessions.startedAt,
+      extendedAt: sessions.extendedAt,
+      /*
+       * The last thing anybody said, for the "everyone left" check.
+       *
+       * `created_at` on the newest segment rather than a column on the session:
+       * it is already written by the upload path, it cannot drift from the
+       * transcript it describes, and it costs one indexed lookup.
+       */
+      lastActivityAt: sql<Date | null>`(
+        SELECT max(t."created_at") FROM ${transcriptSegments} t
+        WHERE t."session_id" = ${sessions}."id"
+      )`,
+    })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  if (!row) {
+    return { ...sessionClock({ startedAt: null, extendedAt: null }), live: false };
+  }
+
+  return {
+    ...sessionClock({
+      startedAt: row.status === "in_progress" ? row.startedAt : null,
+      extendedAt: row.extendedAt,
+      lastActivityAt: row.lastActivityAt,
+    }),
+    live: row.status === "in_progress",
+  };
+}
+
+/**
+ * The clinician chose to keep going.
+ *
+ * Idempotent, and deliberately one-way: there is no "un-extend", because
+ * changing your mind about continuing is simply ending the session. Writing the
+ * timestamp only when it is null means a double tap does not reset the clock.
+ */
+export async function extendSession(actor: Actor, sessionId: string): Promise<boolean> {
+  const updated = await db
+    .update(sessions)
+    .set({ extendedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        scope(actor),
+        eq(sessions.id, sessionId),
+        eq(sessions.status, "in_progress"),
+        isNull(sessions.extendedAt),
+      ),
+    )
+    .returning({ id: sessions.id });
+  return updated.length > 0;
+}
+
+/**
+ * End a session nobody is ending.
+ *
+ * Runs off whichever side happens to poll — the clinician's room, or the
+ * patient's page — for the same reason the abandonment check does: the event
+ * that matters is somebody being in a session that has run over, and that
+ * somebody is already talking to us every few seconds. A cron would have to
+ * wake the database on a schedule to ask a question whose answer is almost
+ * always no.
+ *
+ * Unscoped by actor on purpose. The patient has no account and is exactly the
+ * party most likely to still have a tab open when the clinician's laptop has
+ * gone to sleep — which is the case this exists for.
+ *
+ * The guard on `status` makes it safe to call from both sides at once: whoever
+ * gets there second updates nothing and returns false.
+ */
+export async function autoEndSession(
+  sessionId: string,
+  reason: "cap" | "silence",
+): Promise<{ ended: boolean; organizationId?: string; therapistId?: string; patientId?: string | null }> {
+  const endedAt = new Date();
+
+  const [row] = await db
+    .update(sessions)
+    .set({
+      status: "completed",
+      endedAt,
+      autoEndedReason: reason,
+      durationMinutes: sql`GREATEST(1, ROUND(EXTRACT(EPOCH FROM (${endedAt.toISOString()}::timestamptz - ${sessions.startedAt})) / 60))::int`,
+      noteStatus: "generating",
+      updatedAt: endedAt,
+    })
+    .where(and(eq(sessions.id, sessionId), eq(sessions.status, "in_progress")))
+    .returning({
+      organizationId: sessions.organizationId,
+      therapistId: sessions.therapistId,
+      patientId: sessions.patientId,
+    });
+
+  if (!row) return { ended: false };
+
+  log.info("session auto-ended", { session: ref(sessionId), reason });
+  return { ended: true, ...row };
 }
 
 export async function completeSession(actor: Actor, sessionId: string) {

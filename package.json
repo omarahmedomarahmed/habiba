@@ -22,7 +22,8 @@
     "test:e2e": "bash tests/run-e2e.sh",
     "demo:seed": "tsx scripts/demo.ts seed",
     "demo:purge": "tsx scripts/demo.ts purge",
-    "test:ledger": "node --import tsx --conditions=react-server --test tests/ledger.test.ts"
+    "test:ledger": "node --import tsx --conditions=react-server --test tests/ledger.test.ts",
+    "test:clock": "node --import tsx --test tests/clock.test.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

@@ -391,6 +391,29 @@ export const sessions = pgTable(
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
 
+    /**
+     * When the clinician chose to keep going past the half hour they were paid
+     * for.
+     *
+     * Null means the decision has not been made — not that it was declined,
+     * because declining is simply ending the session. Recorded as a timestamp
+     * rather than a flag so the record can answer "at what point did this
+     * become a longer session", which is a clinical question as much as a
+     * billing one.
+     *
+     * Nothing about this raises a second charge. See `lib/session-clock.ts`.
+     */
+    extendedAt: timestamp("extended_at", { withTimezone: true }),
+    /**
+     * Why the session stopped, when it was not a person pressing End.
+     *
+     * `cap` is the fifty-minute limit; `silence` is a room everybody left. A
+     * session that ended by itself must say so — the alternative is a clinician
+     * reading a duration that does not match their memory with no explanation
+     * anywhere.
+     */
+    autoEndedReason: text("auto_ended_reason").$type<"cap" | "silence" | null>(),
+
     /** Drives the "generating your note" state without a job queue. */
     noteStatus: text("note_status")
       .$type<"none" | "generating" | "ready" | "failed">()

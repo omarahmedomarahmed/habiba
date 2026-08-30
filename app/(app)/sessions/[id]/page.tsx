@@ -61,7 +61,23 @@ export default async function SessionDetailPage({
             {formatDateTime(row.session.endedAt ?? row.session.createdAt)}
             {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
             {row.session.modality === "video" ? " · Video" : " · In person"}
+            {row.session.extendedAt ? " · Extended" : ""}
           </p>
+          {/*
+            A session that ended by itself says so.
+            --------------------------------------
+            Otherwise a clinician reads a duration that does not match their
+            memory of the room with no explanation anywhere — and the two
+            reasons are different enough to matter: one means they ran long,
+            the other means the room emptied and nobody noticed.
+          */}
+          {row.session.autoEndedReason ? (
+            <p className="mt-1 text-xs text-amber-700">
+              {row.session.autoEndedReason === "cap"
+                ? "Ended automatically at the 50 minute limit."
+                : "Ended automatically — the room went quiet after the paid time."}
+            </p>
+          ) : null}
         </div>
         <StatusBadge status={row.session.status} />
       </div>

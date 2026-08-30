@@ -9,13 +9,13 @@ import { generateAndStoreNote } from "@/lib/ai/notes";
 import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { priceProblem } from "@/lib/billing/connect";
-import { chargeForSession } from "@/lib/billing/service";
 import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
   completeSession,
   createSession,
+  extendSession,
   getSession,
   startSession,
   TransitionError,
@@ -25,7 +25,8 @@ import { patients, sessionNotes, sessions, type NoteContent } from "@/lib/db/sch
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendSessionInvite } from "@/lib/mail";
-import { createPrivateRoom, deleteRoom } from "@/lib/video";
+import { finishSession } from "@/lib/session-finish";
+import { createPrivateRoom } from "@/lib/video";
 import { fullName } from "@/lib/utils";
 
 export type SessionActionState = { error?: string; ok?: boolean; message?: string };
@@ -179,44 +180,45 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
   const organizationId = actor.organizationId;
   const therapistId = actor.userId;
 
-  after(async () => {
-    // Ending the session must end the call for everyone, including a patient
-    // still sitting in the room. Deleting the Daily room ejects every
-    // participant, so the clinician never has to press Leave inside the video
-    // UI as a separate step — and a patient cannot linger in a call for a
-    // session that is already documented and closed.
-    if (roomName) await deleteRoom(roomName);
-
-    // Back on the radar, if this session came from one. Doing it here rather
-    // than on a timer means the clinician is bookable again the instant they
-    // are actually free.
-    await releaseClaim(sessionId);
-
-    await chargeForSession({ organizationId, sessionId });
-
-    /*
-     * And pay it out of what we are already holding for them, if we are.
-     *
-     * A clinician mid-verification is the one most likely to have both an
-     * unpaid session bill and money they cannot reach — we took their patients'
-     * payments and are sitting on their share. Making them find a card in that
-     * situation would be indefensible, and no money moves at Stripe to do it:
-     * we owe them less and they owe us less, by the same amount, in one
-     * balanced transaction.
-     *
-     * A no-op for the ordinary case, where nothing is held.
-     */
-    const { settleInvoicesFromHeld } = await import("@/lib/billing/connect");
-    await settleInvoicesFromHeld(therapistId).catch((error) =>
-      log.warn("held settlement failed", { reason: safeErrorMessage(error) }),
-    );
-
-    await generateAndStoreNote({ sessionId, organizationId, therapistId, patientId });
-  });
+  /*
+   * One tail, shared with the two ways a session ends without anybody pressing
+   * this button.
+   *
+   * It used to be written out here, which meant the fifty-minute cap and the
+   * empty-room timeout would have skipped all of it: the video room left open,
+   * the clinician still marked in-session on the public radar, no bill, no
+   * note. See `lib/session-finish.ts`.
+   */
+  after(() => finishSession({ sessionId, organizationId, therapistId, patientId, roomName }));
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/sessions");
   return { ok: true };
+}
+
+/**
+ * Keep going past the half hour the patient paid for.
+ *
+ * The clinician's call, and only theirs — the patient is not asked, because a
+ * person in distress being asked "shall we continue?" hears "am I taking too
+ * much of your time?". Nothing is charged for the extra time and nothing can
+ * be: `sessions.priceCents` was fixed at booking and is charged once.
+ */
+export async function extendCurrentSession(sessionId: string): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const extended = await extendSession(actor, sessionId);
+  if (!extended) return { error: "This session cannot be extended." };
+
+  await audit({
+    actor,
+    category: "clinical",
+    action: "session.extend",
+    resourceType: "session",
+    resourceId: sessionId,
+  });
+
+  revalidatePath(`/sessions/${sessionId}/room`);
+  return { ok: true, message: "Twenty more minutes — the patient is not charged for them." };
 }
 
 export async function abandonSession(sessionId: string): Promise<void> {

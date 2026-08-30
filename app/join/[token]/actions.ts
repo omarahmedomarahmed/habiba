@@ -3,6 +3,7 @@
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { joinByToken, resolveJoinToken } from "@/lib/data/sessions";
 import { callerKey, consume } from "@/lib/rate-limit";
+import { MAX_MINUTES, type ClockStage } from "@/lib/session-clock";
 import { createMeetingToken, roomUrlWithToken } from "@/lib/video";
 import { log } from "@/lib/logger";
 
@@ -47,7 +48,8 @@ async function admit(token: string, name: string): Promise<JoinState> {
       roomName: session.videoRoomName,
       userName: name,
       isOwner: false,
-      minutes: 120,
+      // The patient's key expires with the session, not two hours after it.
+      minutes: MAX_MINUTES + 15,
     });
     videoUrl = roomUrlWithToken(session.videoRoomUrl, meetingToken);
   }
@@ -248,11 +250,29 @@ async function recordConsent(sessionId: string, consent: "granted" | "declined")
 }
 
 /** Polled by the waiting room until the clinician starts. */
-export async function checkJoinState(
-  token: string,
-): Promise<{ live: boolean; ended: boolean; recording: boolean; startedAt: string | null }> {
+export async function checkJoinState(token: string): Promise<{
+  live: boolean;
+  ended: boolean;
+  recording: boolean;
+  startedAt: string | null;
+  /**
+   * The same countdown the clinician sees.
+   *
+   * A patient watching a session approach its end deserves to know before it
+   * happens, in the same words and against the same clock. Giving the timer to
+   * only one side of a conversation makes the other side's "we should wrap up"
+   * arrive out of nowhere.
+   */
+  clock: {
+    stage: ClockStage;
+    remainingSeconds: number;
+    extended: boolean;
+  } | null;
+}> {
   const session = await resolveJoinToken(token);
-  if (!session) return { live: false, ended: true, recording: false, startedAt: null };
+  if (!session) {
+    return { live: false, ended: true, recording: false, startedAt: null, clock: null };
+  }
 
   /*
    * Whether the microphone is actually running, not merely whether a session
@@ -301,11 +321,48 @@ export async function checkJoinState(
     });
   }
 
+  /*
+   * The cap is enforced off whichever side is still watching.
+   *
+   * The clinician's laptop going to sleep is the single most likely reason a
+   * session runs past fifty minutes, and it is exactly the case where their
+   * room has stopped polling. The patient's page is often the only thing still
+   * asking us anything, so it gets to end the session too — the UPDATE is
+   * guarded on `in_progress`, so both sides racing is a no-op for whoever
+   * arrives second.
+   */
+  const { readSessionClock, autoEndSession } = await import("@/lib/data/sessions");
+  const clock = await readSessionClock(session.id);
+
+  if (clock.shouldEnd && clock.endReason) {
+    const ended = await autoEndSession(session.id, clock.endReason);
+    if (ended.ended) {
+      const { after } = await import("next/server");
+      const { finishSession } = await import("@/lib/session-finish");
+      after(() =>
+        finishSession({
+          sessionId: session.id,
+          organizationId: ended.organizationId!,
+          therapistId: ended.therapistId!,
+          patientId: ended.patientId ?? null,
+        }),
+      );
+    }
+    return { live: false, ended: true, recording: false, startedAt: null, clock: null };
+  }
+
   return {
     live,
     ended: false,
     recording: live && !row?.recordingPausedAt,
     startedAt: row?.startedAt?.toISOString() ?? null,
+    clock: live
+      ? {
+          stage: clock.stage,
+          remainingSeconds: clock.remainingSeconds,
+          extended: clock.extended,
+        }
+      : null,
   };
 }
 

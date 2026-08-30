@@ -15,6 +15,7 @@ import {
 import { Button, Card, Field, Input } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 import { formatUsd } from "@/lib/billing/plans";
+import type { ClockStage } from "@/lib/session-clock";
 import { cn } from "@/lib/utils";
 import { PatientRoom, type Therapist } from "@/components/join/patient-room";
 
@@ -71,6 +72,14 @@ export function JoinFlow({
   const [live, setLive] = useState(false);
   const [recording, setRecording] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  /*
+   * The countdown, from the same server call that already tells them whether
+   * the microphone is on. No second poll: the patient's page makes one request
+   * every five seconds and that is the whole realtime surface of this side.
+   */
+  const [clock, setClock] = useState<
+    { stage: ClockStage; remainingSeconds: number; extended: boolean } | null
+  >(null);
   const [ended, setEnded] = useState(false);
   const resuming = useRef(false);
 
@@ -102,6 +111,7 @@ export function JoinFlow({
       if (result.live) setLive(true);
       setRecording(result.recording);
       setStartedAt(result.startedAt);
+      setClock(result.clock);
     }, 5000);
     return () => clearInterval(poll);
   }, [current.joined, live, token]);
@@ -121,6 +131,7 @@ export function JoinFlow({
       if (result.ended) setEnded(true);
       setRecording(result.recording);
       setStartedAt(result.startedAt);
+      setClock(result.clock);
     }, 5000);
     return () => clearInterval(poll);
   }, [current.joined, live, token]);
@@ -188,6 +199,7 @@ export function JoinFlow({
         live={live}
         recording={recording}
         startedAt={startedAt}
+        clock={clock}
       />
     );
   }

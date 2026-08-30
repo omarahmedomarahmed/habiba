@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   AlertTriangle,
+  Clock,
   Headphones,
   Lock,
   Mail,
@@ -14,6 +15,7 @@ import {
 import { rateOnArrival } from "@/app/join/[token]/actions";
 import { reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
+import type { ClockStage } from "@/lib/session-clock";
 import { cn, initials } from "@/lib/utils";
 
 export type Therapist = {
@@ -45,6 +47,7 @@ export function PatientRoom({
   live,
   recording,
   startedAt,
+  clock,
 }: {
   token: string;
   therapist: Therapist;
@@ -52,6 +55,7 @@ export function PatientRoom({
   live: boolean;
   recording: boolean;
   startedAt: string | null;
+  clock: { stage: ClockStage; remainingSeconds: number; extended: boolean } | null;
 }) {
   /*
    * Escapes the join page's centred column.
@@ -111,6 +115,7 @@ export function PatientRoom({
             This is an instruction.
           */}
           <StayHere therapist={therapist} />
+          {live && clock ? <PatientClockNote therapist={therapist} clock={clock} /> : null}
           <WhoYouAreWith therapist={therapist} live={live} startedAt={startedAt} />
           <SummaryAndRating token={token} live={live} therapist={therapist} />
           <Reassurance />
@@ -147,6 +152,61 @@ function RecordingStrip({ live, recording }: { live: boolean; recording: boolean
       />
       {recording ? "Recording — for your therapist's notes" : "Recording paused by your therapist"}
     </div>
+  );
+}
+
+/* --------------------------------------------------------------- clock -- */
+
+/**
+ * The patient's half of the countdown.
+ *
+ * Deliberately not a permanent timer. The elapsed-minutes line below stays what
+ * it was — orientation rather than pressure — and this appears only when there
+ * is something the patient would want to have known in advance: the last few
+ * minutes, and the moment their clinician is deciding whether to carry on.
+ *
+ * That decision is the one that most needs saying out loud. Without it, "shall
+ * we start wrapping up?" arrives from nowhere thirty minutes in and reads as
+ * being moved along. With it, the patient already knows the paid half hour is
+ * up — and knows that carrying on costs them nothing, which is the part they
+ * would otherwise be too polite to ask about.
+ */
+function PatientClockNote({
+  therapist,
+  clock,
+}: {
+  therapist: Therapist;
+  clock: { stage: ClockStage; remainingSeconds: number; extended: boolean };
+}) {
+  if (clock.stage === "running" || clock.stage === "extended") return null;
+
+  const minutes = Math.max(1, Math.round(clock.remainingSeconds / 60));
+
+  if (clock.stage === "decision") {
+    return (
+      <Card className="border-amber-200 bg-amber-50/70 p-4">
+        <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+          <Clock className="h-4 w-4 shrink-0" aria-hidden />
+          Your half hour is up
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-amber-800">
+          {therapist.firstName} is deciding whether to carry on. If they do, the extra time is
+          free — you will not be charged anything more, whatever happens next.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-4">
+      <p className="flex items-center gap-2 text-sm text-slate-700">
+        <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <span>
+          About <span className="font-semibold text-slate-900">{minutes} minute{minutes === 1 ? "" : "s"}</span>{" "}
+          {clock.stage === "wrapUp" ? "left in this session." : "of your session left."}
+        </span>
+      </p>
+    </Card>
   );
 }
 

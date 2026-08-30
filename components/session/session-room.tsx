@@ -9,8 +9,15 @@ import { TranscriptPanel, type TranscriptLine } from "@/components/clinical/tran
 import { VideoCall } from "@/components/session/video-call";
 import { Button } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
-import { endSession, goLive, setRecordingPaused } from "@/app/(app)/sessions/actions";
+import { SessionClockBar } from "@/components/session/session-clock-bar";
+import {
+  endSession,
+  extendCurrentSession,
+  goLive,
+  setRecordingPaused,
+} from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
+import { sessionClock } from "@/lib/session-clock";
 import { cn, formatDuration } from "@/lib/utils";
 
 type Speaker = "therapist" | "patient" | "unknown";
@@ -32,6 +39,10 @@ type RoomProps = {
   patientAlreadyJoined: boolean;
   /** Null for sessions that predate the consent step, or that never used the join form. */
   recordingConsent: "granted" | "declined" | null;
+  /** ISO, so the countdown survives a refresh mid-session. */
+  startedAt: string | null;
+  /** ISO of the moment the clinician chose to keep going, if they have. */
+  extendedAt: string | null;
 };
 
 export function SessionRoom(props: RoomProps) {
@@ -52,7 +63,15 @@ export function SessionRoom(props: RoomProps) {
    * longer is, is the default.
    */
   const [offRecord, setOffRecord] = useState(props.recordingConsent === "declined");
-  const [elapsed, setElapsed] = useState(0);
+  /*
+   * The clock's two inputs, mirrored so the countdown ticks every second
+   * instead of stepping every five when the poll lands. The poll is still the
+   * authority — it is what corrects a tab that was asleep, and it is what
+   * actually ends the session.
+   */
+  const [startedAt, setStartedAt] = useState<string | null>(props.startedAt);
+  const [extendedAt, setExtendedAt] = useState<string | null>(props.extendedAt);
+  const [now, setNow] = useState(() => Date.now());
   const [crisis, setCrisis] = useState(false);
   const [suggestions, setSuggestions] = useState<CopilotSuggestion[]>([]);
   const [showCopilot, setShowCopilot] = useState(true);
@@ -219,28 +238,48 @@ export function SessionRoom(props: RoomProps) {
 
   useEffect(() => {
     if (!live) return;
-    const timer = setInterval(() => setElapsed((n) => n + 1), 1000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [live]);
 
   /* --------------------------------------------------- patient poll (video) */
 
+  /*
+   * The poll now runs for the whole session, not only while waiting.
+   *
+   * It used to stop the moment the patient arrived, because the only thing it
+   * carried was one boolean. It also carries the clock — and the clock is what
+   * ends a session nobody is ending, so it has to keep asking right up until
+   * the session is over.
+   */
   useEffect(() => {
-    if (props.modality !== "video" || patientJoined) return;
+    if (!live && (props.modality !== "video" || patientJoined)) return;
     const poll = setInterval(async () => {
       try {
         const response = await fetch(`/api/sessions/${props.sessionId}/state`, {
           credentials: "same-origin",
         });
         if (!response.ok) return;
-        const data = (await response.json()) as { patientJoined?: boolean };
+        const data = (await response.json()) as {
+          patientJoined?: boolean;
+          status?: string;
+          clock?: { extended?: boolean; endReason?: string | null };
+        };
         if (data.patientJoined) setPatientJoined(true);
+
+        // The server ended it — the cap, or a room everybody left. Go to the
+        // note rather than leaving a dead room on screen.
+        if (data.status === "completed") {
+          router.replace(`/sessions/${props.sessionId}`);
+          return;
+        }
+        if (data.clock?.extended && !extendedAt) setExtendedAt(new Date().toISOString());
       } catch {
         /* transient */
       }
     }, 5000);
     return () => clearInterval(poll);
-  }, [props.modality, props.sessionId, patientJoined]);
+  }, [props.modality, props.sessionId, patientJoined, live, extendedAt, router]);
 
   /* ---------------------------------------------------------- transitions -- */
 
@@ -253,6 +292,16 @@ export function SessionRoom(props: RoomProps) {
         return;
       }
       setLive(true);
+      setStartedAt(new Date().toISOString());
+    });
+  };
+
+  const handleExtend = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await extendCurrentSession(props.sessionId);
+      if (result.error) setError(result.error);
+      else setExtendedAt(new Date().toISOString());
     });
   };
 
@@ -304,6 +353,15 @@ export function SessionRoom(props: RoomProps) {
 
   /* ---------------------------------------------------------------- view -- */
 
+  /*
+   * Computed locally from the same pure function the server runs, so the bar
+   * ticks second by second rather than stepping when a poll lands. Deliberately
+   * without the silence check — that one needs the transcript's own timestamps
+   * and only the server has them, which is also why only the server ends a
+   * session.
+   */
+  const clock = sessionClock({ startedAt, extendedAt, now: new Date(now) });
+
   return (
     <div data-surface="room" className="flex min-h-dvh flex-col bg-navy-600">
       <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
@@ -311,7 +369,7 @@ export function SessionRoom(props: RoomProps) {
           <p className="truncate text-sm font-semibold text-white">{props.patientLabel}</p>
           <p className="text-xs text-slate-400">
             {props.modality === "video" ? "Video session" : "In person"}
-            {live ? ` · ${formatDuration(elapsed)}` : ""}
+            {live ? ` · ${formatDuration(clock.elapsedSeconds)}` : ""}
           </p>
         </div>
 
@@ -329,6 +387,17 @@ export function SessionRoom(props: RoomProps) {
           </span>
         ) : null}
       </header>
+
+      {live ? (
+        <SessionClockBar
+          stage={clock.stage}
+          remainingSeconds={clock.remainingSeconds}
+          extended={clock.extended}
+          onExtend={handleExtend}
+          onEnd={handleEnd}
+          pending={pending || ending}
+        />
+      ) : null}
 
       {/*
         The refusal, said once, where it cannot be missed.
