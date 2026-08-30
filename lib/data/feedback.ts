@@ -47,6 +47,24 @@ export type FeedbackContext = {
   ratedApp: boolean;
 };
 
+/**
+ * Translate a join token into the rating token for the same session.
+ *
+ * The two are separate secrets now, but a patient only ever holds the join
+ * link — it is the one they were sent. When their session ends, this is what
+ * turns the key they have into the key the rating page wants, without ever
+ * putting the room key in the rating URL.
+ */
+export async function feedbackTokenForJoin(joinToken: string): Promise<string | null> {
+  if (!joinToken || joinToken.length < 16) return null;
+  const [row] = await db
+    .select({ feedbackToken: sessions.feedbackToken })
+    .from(sessions)
+    .where(eq(sessions.joinToken, joinToken))
+    .limit(1);
+  return row?.feedbackToken ?? null;
+}
+
 export async function feedbackContext(token: string): Promise<FeedbackContext | null> {
   if (!token || token.length < 16) return null;
 
@@ -71,7 +89,7 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     .innerJoin(users, eq(users.id, sessions.therapistId))
     .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
     .leftJoin(sessionFeedback, eq(sessionFeedback.sessionId, sessions.id))
-    .where(eq(sessions.joinToken, token))
+    .where(eq(sessions.feedbackToken, token))
     .limit(1);
 
   if (!row) return null;
@@ -127,7 +145,7 @@ export async function submitFeedback(
       patientId: sessions.patientId,
     })
     .from(sessions)
-    .where(eq(sessions.joinToken, input.token))
+    .where(eq(sessions.feedbackToken, input.token))
     .limit(1);
 
   if (!row) return { error: "This link is no longer valid." };
@@ -231,7 +249,7 @@ export async function recordArrival(input: {
       therapistId: sessions.therapistId,
     })
     .from(sessions)
-    .where(eq(sessions.joinToken, input.token))
+    .where(eq(sessions.feedbackToken, input.token))
     .limit(1);
 
   if (!row) return { error: "This link is no longer valid." };
@@ -287,7 +305,7 @@ export async function fileReport(input: {
       therapistId: sessions.therapistId,
     })
     .from(sessions)
-    .where(eq(sessions.joinToken, input.token))
+    .where(eq(sessions.feedbackToken, input.token))
     .limit(1);
 
   if (!row) return { error: "This link is no longer valid." };

@@ -330,6 +330,15 @@ export const sessions = pgTable(
     /** Patient join link. Random, expiring, revocable. */
     joinToken: text("join_token"),
     joinTokenExpiresAt: timestamp("join_token_expires_at", { withTimezone: true }),
+    /**
+     * The rating link, deliberately not the join token.
+     *
+     * These were the same value once, which meant a forwarded "rate your
+     * session" link also opened the room, and a rating that had to work for
+     * days forced the room key to stay valid for days. They have different
+     * lifetimes and different audiences, so they are different secrets.
+     */
+    feedbackToken: text("feedback_token"),
 
     videoRoomUrl: text("video_room_url"),
     videoRoomName: text("video_room_name"),
@@ -395,6 +404,7 @@ export const sessions = pgTable(
   },
   (t) => [
     uniqueIndex("sessions_join_token_unique").on(t.joinToken),
+    uniqueIndex("sessions_feedback_token_unique").on(t.feedbackToken),
     index("sessions_org_idx").on(t.organizationId),
     index("sessions_therapist_idx").on(t.therapistId, t.createdAt),
     index("sessions_patient_idx").on(t.patientId),
@@ -415,6 +425,8 @@ export const transcriptSegments = pgTable(
     speaker: text("speaker").$type<"therapist" | "patient" | "unknown">()
       .notNull()
       .default("unknown"),
+    /** True when the speaker was inferred from the words, not heard on a track. */
+    speakerInferred: boolean("speaker_inferred").notNull().default(false),
     text: text("text").notNull(),
     startMs: integer("start_ms").notNull().default(0),
     endMs: integer("end_ms").notNull().default(0),
@@ -1000,7 +1012,7 @@ export const aiRequestLogs = pgTable(
      * per-therapist cost breakdown wrong in a way no total would reveal.
      */
     kind: text("kind")
-      .$type<"transcribe" | "note" | "risk" | "copilot" | "patient_copilot" | "translate" | "speech">()
+      .$type<"transcribe" | "note" | "risk" | "copilot" | "patient_copilot" | "translate" | "speech" | "diarise">()
       .notNull(),
     model: text("model").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),

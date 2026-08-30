@@ -6,7 +6,7 @@ import { JoinFlow } from "@/components/join/join-flow";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
-import { feedbackContext } from "@/lib/data/feedback";
+import { feedbackContext, feedbackTokenForJoin } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { db } from "@/lib/db";
@@ -59,8 +59,8 @@ export default async function JoinPage({
      * not broken — it is now the way to their summary, and it is the only
      * moment we will ever get their rating.
      */
-    const feedback = await feedbackContext(token);
-    if (feedback) redirect(`/feedback/${token}`);
+    const rateToken = await feedbackTokenForJoin(token);
+    if (rateToken && (await feedbackContext(rateToken))) redirect(`/feedback/${rateToken}`);
 
     return (
       <Shell>
@@ -96,6 +96,7 @@ export default async function JoinPage({
   return (
     <Shell>
       <JoinFlow
+        feedbackToken={await feedbackTokenForJoin(token)}
         therapist={{
           name: [clinician?.firstName, clinician?.lastName].filter(Boolean).join(" ") || "Your therapist",
           firstName: clinician?.firstName ?? "your therapist",

@@ -28,10 +28,25 @@ export async function listPatients(actor: Actor) {
       email: patients.email,
       lastSessionAt: patients.lastSessionAt,
       source: patients.source,
+      /*
+       * `${patients}."id"`, not `${patients.id}`.
+       *
+       * This select reads from one table, and Drizzle only prefixes column
+       * names with their table when a join forces it — so it emitted the
+       * correlated reference bare, as `"patient_id" = "id"`, and Postgres bound
+       * `id` to the innermost scope that had one: `sessions`. The subquery
+       * counted the sessions whose patient_id equals their own id, which is
+       * none of them, and every clinician's caseload showed zero sessions
+       * against patients they had just seen.
+       *
+       * Nothing errored. The same mistake in `lib/data/admin.ts` did error,
+       * because there the subquery had two inner tables carrying an `id` and
+       * Postgres could not choose — which is the only reason it was ever found.
+       */
       sessionCount: sql<number>`(
-        SELECT count(*)::int FROM ${sessions}
-        WHERE ${sessions.patientId} = ${patients.id}
-          AND ${sessions.status} = 'completed'
+        SELECT count(*)::int FROM ${sessions} s
+        WHERE s.patient_id = ${patients}."id"
+          AND s.status = 'completed'
       )`,
     })
     .from(patients)

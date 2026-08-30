@@ -9,6 +9,14 @@ export type TranscriptLine = {
   id: string;
   speaker: "therapist" | "patient" | "unknown";
   text: string;
+  /**
+   * The speaker was worked out from the words, not heard on their own track.
+   *
+   * Shown, not hidden. A clinician reading their own record is entitled to know
+   * which attributions are measurements and which are inferences, because only
+   * one of those is worth correcting.
+   */
+  speakerInferred?: boolean;
 };
 
 /**
@@ -97,15 +105,25 @@ export function TranscriptPanel({
             <div key={line.id} className="animate-fade-rise">
               <p
                 className={cn(
-                  "text-[11px] font-semibold tracking-wide uppercase",
+                  "flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase",
                   line.speaker === "patient" ? "text-teal-300" : "text-brand-300",
                 )}
               >
-                {line.speaker === "patient"
-                  ? "Patient"
-                  : line.speaker === "therapist"
-                    ? "You"
-                    : "Speaker"}
+                <span className={cn(line.speakerInferred && "border-b border-dotted border-current")}>
+                  {line.speaker === "patient"
+                    ? "Patient"
+                    : line.speaker === "therapist"
+                      ? "You"
+                      : "Speaker"}
+                </span>
+                {line.speakerInferred ? (
+                  <span
+                    className="font-normal normal-case tracking-normal text-slate-400"
+                    title="One microphone heard both of you. This name was worked out from the words, not from separate audio."
+                  >
+                    inferred
+                  </span>
+                ) : null}
               </p>
               <p className="mt-0.5 text-[15px] leading-relaxed text-slate-100">{line.text}</p>
             </div>

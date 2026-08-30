@@ -331,6 +331,25 @@ export async function generateAndStoreNote(opts: {
   patientId: string | null;
 }): Promise<void> {
   try {
+    /*
+     * Attribute the turns before writing anything from them.
+     *
+     * Order matters: the note is generated from the transcript, so a transcript
+     * that does not know who spoke produces a note that has to guess — and it
+     * guesses in the direction of whoever the segments claim to be. Running
+     * this first means the note, the patient's brief and every later copilot
+     * answer all read the same, attributed record.
+     *
+     * It is a no-op when the two-track capture already answered the question,
+     * and it never throws: a session that cannot be diarised still gets a note.
+     */
+    const { diariseSession } = await import("@/lib/ai/diarise");
+    await diariseSession({
+      sessionId: opts.sessionId,
+      organizationId: opts.organizationId,
+      userId: opts.therapistId,
+    });
+
     const { content, language, contentEn, model } = await generateNoteContent({
       sessionId: opts.sessionId,
       organizationId: opts.organizationId,

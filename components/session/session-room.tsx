@@ -142,14 +142,23 @@ export function SessionRoom(props: RoomProps) {
     if (localRecorder.current) return;
     const recorder = new SessionRecorder({
       onChunk: ({ blob, durationSeconds }) => {
-        // In person there is one microphone in a room and it hears both people,
-        // so attributing it to the therapist would be a lie. On video this
-        // track is unambiguously the therapist.
-        void uploadChunk(
-          blob,
-          durationSeconds,
-          props.modality === "video" ? "therapist" : "unknown",
-        );
+        /*
+         * This track is only the therapist if somebody else's track is also
+         * being recorded.
+         *
+         * In person there is one microphone hearing two people, which was
+         * always labelled `unknown`. On video the label used to be `therapist`
+         * unconditionally — but if the patient never connects, or their track
+         * drops, this microphone is still the only one running and it is
+         * picking up whatever it can hear. Calling that "the therapist" put the
+         * patient's words in the clinician's mouth, in a clinical record,
+         * silently.
+         *
+         * `unknown` is not a worse answer. It is the true one, and
+         * `lib/ai/diarise.ts` resolves it afterwards from the words themselves.
+         */
+        const twoTrack = props.modality === "video" && remoteRecorder.current !== null;
+        void uploadChunk(blob, durationSeconds, twoTrack ? "therapist" : "unknown");
       },
     });
     try {

@@ -48,6 +48,7 @@ function Submit({ priceCents }: { priceCents: number }) {
 export function JoinFlow({
   therapist,
   token,
+  feedbackToken,
   modality,
   priceCents,
   paymentStatus,
@@ -56,6 +57,8 @@ export function JoinFlow({
 }: {
   therapist: Therapist;
   token: string;
+  /** Separate from `token`: the rating link outlives the room key. */
+  feedbackToken: string | null;
   modality: "in_person" | "video";
   priceCents: number;
   paymentStatus: "not_required" | "pending" | "paid";
@@ -148,7 +151,7 @@ export function JoinFlow({
           {t("room.endedBody")}
         </p>
         <a
-          href={`/feedback/${token}`}
+          href={`/feedback/${feedbackToken ?? token}`}
           className="mt-4 inline-flex h-12 items-center justify-center rounded-2xl bg-teal-500 px-5 text-sm font-semibold text-white hover:bg-teal-600"
         >
           {t("room.rateAndGet")}

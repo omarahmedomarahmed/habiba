@@ -148,6 +148,10 @@ export async function createSession(
       modality: input.modality,
       status: "scheduled",
       joinToken: needsLink ? randomBytes(24).toString("base64url") : null,
+      // Issued alongside the join token and never equal to it. This one has to
+      // outlive the session, because a patient who closed the tab should still
+      // be able to rate it days later.
+      feedbackToken: randomBytes(24).toString("base64url"),
       joinTokenExpiresAt: needsLink ? new Date(Date.now() + 12 * 60 * 60 * 1000) : null,
       priceCents: price,
       paymentStatus: price > 0 ? "pending" : "not_required",
@@ -190,6 +194,7 @@ export async function createRadarSession(input: {
       modality: "video",
       status: "scheduled",
       joinToken: randomBytes(24).toString("base64url"),
+      feedbackToken: randomBytes(24).toString("base64url"),
       // Short: this is a session starting now, not an invitation for later.
       joinTokenExpiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
       priceCents: input.priceCents,

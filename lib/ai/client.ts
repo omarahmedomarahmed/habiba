@@ -70,6 +70,7 @@ export class AiUnavailableError extends Error {
 export type UsageKind =
   | "transcribe"
   | "note"
+  | "diarise"
   | "risk"
   | "copilot"
   | "patient_copilot"

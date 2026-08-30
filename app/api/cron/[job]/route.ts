@@ -16,39 +16,33 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Scheduled work. Four jobs, down from nine — and none of them scheduled.
+ * Scheduled work. Four jobs, three of them on a clock.
  *
- * ## NOTHING RUNS ON A SCHEDULE RIGHT NOW. RESTORE BEFORE LAUNCH.
+ * ## The schedule, and why it is shaped like this
  *
- * `vercel.json` has an empty `crons` array. Every job below is still reachable
- * by hand with the shared secret; nothing calls them on a clock.
+ * All three run inside ten minutes of 03:00 UTC, and that is the whole trick.
+ * Neon bills for the time the compute is *awake*, not for the work done, and a
+ * cron holds the database up for the entire idle timeout it resets on the way
+ * past. Three jobs spread across the day cost three wakes; three jobs inside
+ * one idle window cost one. The five minutes of compute is the price, not the
+ * few seconds of sweeping.
  *
- * That is correct today and wrong the moment a real patient uses this. The
- * product is pre-launch with no users, so the only thing the schedule was
- * doing was waking the database once an hour to find nothing — five minutes of
- * paid compute per hour, forever, to sweep an empty table.
+ *   crisis     03:00  retries crisis alerts whose notification failed, sweeps
+ *                     the radar, and closes rooms a patient walked away from.
+ *                     SAFETY-RELEVANT.
+ *   billing    03:05  charges completed sessions that produced no charge row,
+ *                     which happens when a Stripe webhook is lost.
+ *   retention  03:10  purges audit rows past six years, expired sessions,
+ *                     spent rate-limit rows and errors past thirty days.
  *
- * What is being given up, and when it starts to matter:
+ * These were switched off for a while, when the product had no users and the
+ * only thing an hourly sweep achieved was five minutes of paid compute per
+ * hour to look at an empty table. That was the right call then and the wrong
+ * one now: with the schedule off, a session whose room was closed without
+ * being ended stayed `in_progress` with a null duration forever, and one is
+ * sitting in the database as proof.
  *
- *   crisis    — retries crisis alerts whose notification failed. Nothing to
- *               retry with no users. SAFETY-RELEVANT the day there are any.
- *   billing   — charges completed sessions that produced no charge row, which
- *               happens when a Stripe webhook is lost. Costs money to skip.
- *   retention — purges audit rows past six years, expired sessions, spent
- *               rate-limit rows and errors past thirty days. Nothing is six
- *               years old yet; the error table grows slowly.
- *
- * Restore by putting the schedules back in `vercel.json`:
- *
- *   crisis     0 * * * *      (hourly)
- *   billing    0 * / 6 * * *  (six-hourly — remove the spaces)
- *   retention  0 3 * * *      (daily)
- *
- * A cheaper restoration, if the bill still stings once there are users:
- * schedule all three at the same minute so they share one wake rather than
- * three. Neon charges for the idle timeout a cron resets, not for the work,
- * so three jobs at 03:00 cost exactly what one job costs.
- *
+
  * Authenticated with a shared secret, because a cron endpoint that anyone can
  * hit is a free way to make the platform do work — and `retention` deletes
  * rows.
