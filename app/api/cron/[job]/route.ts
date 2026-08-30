@@ -134,6 +134,19 @@ const JOBS = {
      * the reminder is allowed to send at all.
      */
     const unrated = await sweepUnratedSessions();
+
+    /*
+     * And sessions that ran past the cap with nobody watching.
+     *
+     * The ladder fires on the polls both sides make, which is right — but a
+     * session whose clinician closed the tab and whose patient never had one is
+     * polled by nobody, so nothing ever ends it. It stays in progress with the
+     * clinician marked unavailable on the public radar. One such row predates
+     * this sweep.
+     */
+    const { sweepOverrunSessions } = await import("@/lib/data/sessions");
+    const overrun = await sweepOverrunSessions();
+
     return {
       delivered,
       released: swept.released,
@@ -142,6 +155,7 @@ const JOBS = {
       warned: left.warned,
       suspended: left.suspended,
       reminded: unrated.reminded,
+      overrunEnded: overrun.ended,
     };
   },
 

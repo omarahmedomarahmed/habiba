@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/ai/crisis";
 import { auditPhi } from "@/lib/audit";
@@ -15,7 +15,7 @@ import {
   type Modality,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
-import { sessionClock, type SessionClock } from "@/lib/session-clock";
+import { MAX_MINUTES, sessionClock, type SessionClock } from "@/lib/session-clock";
 
 /**
  * Every read and write of clinical data goes through this module, and every
@@ -360,6 +360,51 @@ export async function autoEndSession(
 
   log.info("session auto-ended", { session: ref(sessionId), reason });
   return { ended: true, ...row };
+}
+
+/**
+ * Close sessions that ran over and that nobody is watching.
+ *
+ * The ladder is enforced on the polls both sides make, which is the right place
+ * for it — it costs nothing when nobody is in a session and it fires the moment
+ * one runs over. But it has one blind spot, and this database contains an
+ * example of it: a session whose clinician closed the tab and whose patient
+ * never had one. Nothing polls, so nothing ever ends it, and it sits
+ * `in_progress` with the clinician marked unavailable on the public radar.
+ *
+ * Bounded to sessions past the cap so it can never touch one that is genuinely
+ * running, and folded into the nightly batch so it costs no extra wake.
+ */
+export async function sweepOverrunSessions(): Promise<{ ended: number }> {
+  const cutoff = new Date(Date.now() - MAX_MINUTES * 60_000);
+
+  const stale = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(
+      and(
+        eq(sessions.status, "in_progress"),
+        isNotNull(sessions.startedAt),
+        lt(sessions.startedAt, cutoff),
+      ),
+    )
+    .limit(200);
+
+  let ended = 0;
+  for (const row of stale) {
+    const result = await autoEndSession(row.id, "cap");
+    if (!result.ended) continue;
+    ended += 1;
+    const { finishSession } = await import("@/lib/session-finish");
+    await finishSession({
+      sessionId: row.id,
+      organizationId: result.organizationId!,
+      therapistId: result.therapistId!,
+      patientId: result.patientId ?? null,
+    });
+  }
+
+  return { ended };
 }
 
 export async function completeSession(actor: Actor, sessionId: string) {

@@ -52,7 +52,14 @@ function layout(title: string, body: string, footer?: string): string {
 </body></html>`;
 }
 
-async function send(opts: { to: string; subject: string; html: string }): Promise<boolean> {
+async function send(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  /** Blind copy. Never shown to the primary recipient. */
+  bcc?: string;
+  attachments?: { filename: string; content: string }[];
+}): Promise<boolean> {
   const mailer = client();
   if (!mailer) {
     log.warn("email skipped: RESEND_API_KEY not configured", { subject: opts.subject });
@@ -62,6 +69,8 @@ async function send(opts: { to: string; subject: string; html: string }): Promis
     const { error } = await mailer.emails.send({
       from: env.emailFrom,
       to: opts.to,
+      ...(opts.bcc && opts.bcc !== opts.to ? { bcc: opts.bcc } : {}),
+      ...(opts.attachments ? { attachments: opts.attachments } : {}),
       subject: opts.subject,
       html: opts.html,
     });
@@ -405,6 +414,8 @@ export async function sendRecordExport(opts: {
   clinicianName: string;
   url: string;
   expiresInHours: number;
+  /** Blind copy of the same message, for the person who requested it. */
+  copyTo?: string;
 }): Promise<boolean> {
   const html = layout(
     "Your record",
@@ -427,7 +438,55 @@ export async function sendRecordExport(opts: {
     "This message was sent by 24Therapy at the request of you or your therapist.<br>It contains a private link — please do not forward it.",
   );
 
-  return send({ to: opts.to, subject: "Your 24Therapy record", html });
+  return send({ to: opts.to, bcc: opts.copyTo, subject: "Your 24Therapy record", html });
+}
+
+/**
+ * One clinician's session and note history, to a named address.
+ *
+ * The body carries the stated reason and the requesting address, and the data
+ * itself is an attached CSV rather than text in the message — a spreadsheet is
+ * what the recipient of a records request actually needs, and it keeps the
+ * message itself readable by a person deciding whether to open the attachment.
+ */
+export async function sendClinicianHistory(opts: {
+  to: string;
+  copyTo: string;
+  clinicianName: string;
+  reason: string;
+  csv: string;
+  summary: string;
+}): Promise<boolean> {
+  const html = layout(
+    "Records request",
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Records request — ${esc(opts.clinicianName)}</p>
+     <p style="margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.7;">
+       Attached is the session and note history held by 24Therapy for this clinician.
+     </p>
+     <div style="margin:0 0 16px;padding:14px 16px;background:#f8fafc;border-radius:12px;font-size:14px;line-height:1.7;color:#334155;">
+       ${esc(opts.summary)}
+     </div>
+     <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;">Stated reason</p>
+     <p style="margin:0 0 20px;color:#334155;font-size:14px;line-height:1.7;">${esc(opts.reason)}</p>
+     <p style="margin:0;color:#64748b;font-size:13px;line-height:1.7;">
+       This disclosure is recorded in our audit log with the requesting administrator, the address
+       it was sent to and the reason above. The clinician has been told that it happened.
+     </p>`,
+    "Sent by 24Therapy in response to a formal request.",
+  );
+
+  return send({
+    to: opts.to,
+    bcc: opts.copyTo,
+    subject: `24Therapy records — ${opts.clinicianName}`,
+    html,
+    attachments: [
+      {
+        filename: `24therapy-${opts.clinicianName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`,
+        content: Buffer.from(opts.csv, "utf8").toString("base64"),
+      },
+    ],
+  });
 }
 
 /**

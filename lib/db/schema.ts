@@ -176,6 +176,12 @@ export const authSessions = pgTable(
     /** Hard cap, independent of activity. */
     absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true }).notNull(),
     userAgent: text("user_agent"),
+    /**
+     * Expiry of an elevated read grant on this session. Null for every ordinary
+     * session; set by a second-factor check and always shorter than the session
+     * itself.
+     */
+    elevatedUntil: timestamp("elevated_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
@@ -184,6 +190,21 @@ export const authSessions = pgTable(
     index("auth_sessions_user_idx").on(t.userId),
   ],
 );
+
+/**
+ * Second-factor material for restricted administrative reads.
+ *
+ * Two slots, both scrypt-hashed with the same helper the login path uses. Slot
+ * `a` is rotatable through the application; slot `b` is write-once from the
+ * application and thereafter changeable only with direct database access.
+ */
+export const consoleKeys = pgTable("console_keys", {
+  slot: text("slot").$type<"a" | "b">().primaryKey(),
+  hash: text("hash").notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 /** Single-use, hashed, short-lived tokens for password reset / email verify. */
 export const authTokens = pgTable(
