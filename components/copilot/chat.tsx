@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import {
   Copy,
   Info,
+  Languages,
   Loader2,
   Mic,
   Pencil,
@@ -15,7 +16,13 @@ import {
   X,
 } from "lucide-react";
 
-import { askCopilot, correctCopilot, resetCopilot } from "@/app/(app)/copilot/actions";
+import {
+  askCopilot,
+  correctCopilot,
+  removeCorrection,
+  resetCopilot,
+  setCopilotLanguage,
+} from "@/app/(app)/copilot/actions";
 import { saveVoicePreference } from "@/app/(app)/settings/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
@@ -45,6 +52,8 @@ export function CopilotChat({
   quota,
   initialVoice,
   initialSpeed,
+  initialLanguage,
+  guidance,
 }: {
   patientId: string;
   patientName: string;
@@ -53,6 +62,10 @@ export function CopilotChat({
   quota: { used: number; limit: number | null };
   initialVoice: string;
   initialSpeed: number;
+  /** `auto`, or an ISO 639-1 code. Per patient, not per clinician. */
+  initialLanguage: string;
+  /** Standing corrections, shown so they can be seen rather than trusted. */
+  guidance: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [messages, setMessages] = useState(initialMessages);
@@ -450,7 +463,9 @@ export function CopilotChat({
           </ul>
         </Card>
 
-        <CorrectionBox patientId={patientId} />
+        <LanguageBox patientId={patientId} initial={initialLanguage} />
+
+        <CorrectionBox patientId={patientId} guidance={guidance} />
 
         <ResetBox
           patientId={patientId}
@@ -685,7 +700,77 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
 
 /* ------------------------------------------------------------- correction -- */
 
-function CorrectionBox({ patientId }: { patientId: string }) {
+/**
+ * What language the answers come back in.
+ *
+ * A setting, not a correction. It was reachable only through the corrections
+ * box before, which was the wrong tool twice over: "answer in Arabic" is not a
+ * fact about a patient, and a correction buried at the end of a long prompt was
+ * obeyed zero times out of six when measured. Now it is one control, it says
+ * what it will do, and the prompt treats it as a rule.
+ */
+function LanguageBox({ patientId, initial }: { patientId: string; initial: string }) {
+  const [pending, startTransition] = useTransition();
+  const [language, setLanguage] = useState(initial);
+
+  const choose = (next: string) => {
+    const previous = language;
+    setLanguage(next);
+    startTransition(async () => {
+      const result = await setCopilotLanguage(patientId, next);
+      // Put it back rather than showing a setting that did not save.
+      if (result.error) setLanguage(previous);
+    });
+  };
+
+  return (
+    <Card className="p-3">
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <Languages className="h-3.5 w-3.5" aria-hidden />
+        Answer in
+      </p>
+      <div className="mt-2 flex gap-1 rounded-xl bg-slate-100 p-1">
+        {(
+          [
+            ["auto", "Your language"],
+            ["en", "English"],
+            ["ar", "العربية"],
+          ] as const
+        ).map(([code, label]) => (
+          <button
+            key={code}
+            type="button"
+            disabled={pending}
+            onClick={() => choose(code)}
+            aria-pressed={language === code}
+            className={cn(
+              "flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors disabled:opacity-60",
+              language === code ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+        {language === "auto"
+          ? "Answers come back in whatever language you asked in."
+          : language === "ar"
+            ? "كل الإجابات بالعربية، مهما كانت لغة سؤالك."
+            : "Every answer in English, whatever language you ask in."}
+      </p>
+    </Card>
+  );
+}
+
+function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: string | null }) {
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [lines, setLines] = useState<string[]>(() =>
+    (guidance ?? "")
+      .split("\n")
+      .map((line) => line.replace(/^-\s*/, "").trim())
+      .filter(Boolean),
+  );
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -718,15 +803,50 @@ function CorrectionBox({ patientId }: { patientId: string }) {
         </button>
       </div>
 
+      {/*
+        The standing corrections, on screen.
+
+        They were invisible, which is how a clinician ends up believing one was
+        applied when it was not — the box said "noted" and there was nothing
+        anywhere to check it against.
+      */}
+      {lines.length > 0 ? (
+        <ul className="space-y-1 rounded-xl bg-slate-50 px-3 py-2.5">
+          {lines.map((line) => (
+            <li key={line} className="flex items-start gap-2 text-xs leading-relaxed text-slate-600">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-300" />
+              <span className="min-w-0 flex-1">{line}</span>
+              <button
+                type="button"
+                disabled={removing === line}
+                aria-label={`Remove: ${line}`}
+                onClick={() =>
+                  startTransition(async () => {
+                    setRemoving(line);
+                    const result = await removeCorrection(patientId, line);
+                    if (!result.error) setLines((rest) => rest.filter((l) => l !== line));
+                    setRemoving(null);
+                  })
+                }
+                className="tap-target -my-1 flex shrink-0 items-center justify-center text-slate-300 hover:text-red-600"
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       {done ? (
         <p className="text-sm text-teal-700">
-          Noted. I will keep that in mind for this patient from now on.
+          Noted. I will read that before every answer about this patient from now on.
         </p>
       ) : (
         <>
           <p className="text-xs leading-relaxed text-slate-500">
-            Tell me what I got wrong. This sticks for this patient — it changes how I answer next
-            time, not just now.
+            Tell me what I got wrong. I read every one of these before I answer anything about this
+            patient. For what language to answer in, use the setting above instead — it is more
+            reliable than telling me here.
           </p>
           <Input
             value={text}
@@ -739,9 +859,11 @@ function CorrectionBox({ patientId }: { patientId: string }) {
             disabled={pending || !text.trim()}
             onClick={() =>
               startTransition(async () => {
-                const result = await correctCopilot(patientId, text);
+                const saved = text.trim();
+                const result = await correctCopilot(patientId, saved);
                 if (!result.error) {
                   setDone(true);
+                  setLines((rest) => [...rest, saved]);
                   setText("");
                 }
               })

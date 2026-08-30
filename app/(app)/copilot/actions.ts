@@ -9,7 +9,9 @@ import {
   appendMessage,
   checkQuota,
   getOrCreateThread,
+  removeGuidanceLine,
   resetCopilotConversation,
+  setReplyLanguage,
   auditThreadRead,
 } from "@/lib/data/copilot";
 import type { Citation } from "@/lib/db/schema";
@@ -58,6 +60,7 @@ export async function askCopilot(patientId: string, question: string): Promise<A
       userId: actor.userId,
       question: trimmed,
       guidance: found.thread.guidance,
+      replyLanguage: found.thread.replyLanguage,
     });
 
     await appendMessage({
@@ -100,6 +103,44 @@ export async function correctCopilot(
   if (!found) return { error: "Patient not found." };
 
   await addGuidance(actor, found.thread.id, trimmed);
+  revalidatePath(`/copilot/${patientId}`);
+  return { ok: true };
+}
+
+/**
+ * Choose the language the copilot answers this patient's thread in.
+ *
+ * Per thread rather than per clinician: somebody running a bilingual practice
+ * works in Arabic with one person and English with the next, and a global
+ * setting would be wrong for half their caseload.
+ */
+export async function setCopilotLanguage(
+  patientId: string,
+  language: string,
+): Promise<{ error?: string; ok?: boolean }> {
+  const actor = await requireUser();
+  const found = await getOrCreateThread(actor, patientId);
+  if (!found) return { error: "Patient not found." };
+
+  const result = await setReplyLanguage(actor, found.thread.id, language);
+  if (result.error) return result;
+
+  revalidatePath(`/copilot/${patientId}`);
+  return { ok: true };
+}
+
+/** Remove one standing correction, leaving the rest and the chat alone. */
+export async function removeCorrection(
+  patientId: string,
+  line: string,
+): Promise<{ error?: string; ok?: boolean }> {
+  const actor = await requireUser();
+  const found = await getOrCreateThread(actor, patientId);
+  if (!found) return { error: "Patient not found." };
+
+  const result = await removeGuidanceLine(actor, found.thread.id, line);
+  if (result.error) return result;
+
   revalidatePath(`/copilot/${patientId}`);
   return { ok: true };
 }

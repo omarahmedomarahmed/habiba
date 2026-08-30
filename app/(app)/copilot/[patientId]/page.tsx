@@ -99,6 +99,8 @@ export default async function CopilotThreadPage({
           quota={{ used: quota.used, limit: quota.limit }}
           initialVoice={me?.profile?.voice ?? "british_female"}
           initialSpeed={me?.profile?.voiceSpeed ?? 1}
+          initialLanguage={found.thread.replyLanguage}
+          guidance={found.thread.guidance}
           initialMessages={messages.map((m) => ({
             id: m.id,
             role: m.role,

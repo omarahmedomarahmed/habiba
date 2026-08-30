@@ -719,10 +719,26 @@ export const copilotThreads = pgTable(
     /**
      * Accumulated corrections from the therapist — "she is not the one with the
      * sister, that is a different patient", "stop suggesting CBT homework".
-     * Prepended to the system prompt so a correction actually changes behaviour
-     * instead of being forgotten at the end of the turn.
+     *
+     * Prepended to the system prompt, above everything else and framed as
+     * overriding it. That placement is load-bearing and was learned the hard
+     * way: appended at the end, after the output schema, "all answers in
+     * arabic" was obeyed zero times out of six on a real thread. The model was
+     * given the instruction and quietly outvoted it with twelve sessions of
+     * context.
      */
     guidance: text("guidance"),
+    /**
+     * What language the copilot answers this thread in.
+     *
+     * `auto` means "match the language the question was asked in", which is the
+     * right default and was, until this column existed, not what happened: the
+     * prompt is written in English and said nothing about language, so an
+     * Arabic question got an English answer. A clinician working in Arabic
+     * should not have to correct that every time, and a correction is the wrong
+     * tool for a setting.
+     */
+    replyLanguage: text("reply_language").notNull().default("auto"),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

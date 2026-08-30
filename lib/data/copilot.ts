@@ -12,6 +12,7 @@ import {
   copilotThreads,
   patients,
   sessions,
+  NOTE_LANGUAGES,
   type Citation,
 } from "@/lib/db/schema";
 
@@ -194,6 +195,71 @@ export async function checkQuota(
   };
 }
 
+/**
+ * What language this thread's answers come back in.
+ *
+ * A setting rather than a correction. Telling the copilot "answer in Arabic"
+ * through the corrections box is teaching it a fact about a patient it does not
+ * have, and it was measured as unreliable besides — see the prompt assembly in
+ * `lib/ai/patient-copilot.ts`.
+ */
+export async function setReplyLanguage(
+  actor: Actor,
+  threadId: string,
+  language: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  if (language !== "auto" && !(language in NOTE_LANGUAGES)) {
+    return { error: "That is not a language the copilot can write in." };
+  }
+
+  const updated = await db
+    .update(copilotThreads)
+    .set({ replyLanguage: language })
+    .where(and(scope(actor), eq(copilotThreads.id, threadId)))
+    .returning({ id: copilotThreads.id });
+
+  return updated.length > 0 ? { ok: true } : { error: "Thread not found." };
+}
+
+/**
+ * Drop one standing correction.
+ *
+ * Corrections accumulate, which is right — but nothing could remove one, so a
+ * line that had gone stale ("all answers in arabic", written before the
+ * language setting existed) stayed in the prompt forever and could contradict a
+ * newer instruction. Asking the model to arbitrate between two of the
+ * therapist's own instructions is a worse answer than letting them delete the
+ * one they no longer mean.
+ *
+ * Matched on the line's own text rather than an index: the list is re-rendered
+ * from a text column, and an index from a stale page would delete the wrong
+ * line.
+ */
+export async function removeGuidanceLine(
+  actor: Actor,
+  threadId: string,
+  line: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const [thread] = await db
+    .select()
+    .from(copilotThreads)
+    .where(and(scope(actor), eq(copilotThreads.id, threadId)))
+    .limit(1);
+  if (!thread?.guidance) return { error: "Nothing to remove." };
+
+  const target = line.trim();
+  const kept = thread.guidance
+    .split("\n")
+    .filter((row) => row.replace(/^-\s*/, "").trim() !== target);
+
+  await db
+    .update(copilotThreads)
+    .set({ guidance: kept.join("\n").trim() || null })
+    .where(eq(copilotThreads.id, threadId));
+
+  return { ok: true };
+}
+
 export async function addGuidance(actor: Actor, threadId: string, correction: string) {
   const [thread] = await db
     .select()
@@ -363,6 +429,10 @@ export async function resetCopilotConversation(
   // Standing corrections go with the conversation they came from. Keeping them
   // would mean the "fresh start" still carries the instruction that made the
   // clinician want a fresh start.
+  //
+  // `replyLanguage` deliberately survives. It is a setting about how this
+  // clinician works with this patient, not a thing said in a conversation, and
+  // clearing the chat should not silently put their answers back into English.
   await db
     .update(copilotThreads)
     .set({ guidance: null, lastMessageAt: new Date() })

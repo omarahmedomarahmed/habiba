@@ -8,6 +8,7 @@ import {
   sessionNotes,
   sessions,
   transcriptSegments,
+  NOTE_LANGUAGES,
   type Citation,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -54,6 +55,68 @@ Respond with JSON:
 }
 
 "suggestedPrompts" are two things this therapist might usefully ask next about THIS patient, phrased as the therapist would type them.`;
+
+/**
+ * Assemble the system message.
+ *
+ * The order here is the fix for a measured bug, so it is worth being explicit
+ * about. A therapist wrote "all answers in arabic" into the corrections box; it
+ * was saved, it was passed to the model on every subsequent question, and the
+ * model answered in English **six times out of six**. It had not been ignored
+ * by the code — it had been outvoted by the prompt: appended after the JSON
+ * schema, at the tail of a long English instruction block, competing with
+ * twelve sessions of transcript and eight turns of English chat.
+ *
+ * So three things changed, and each is doing work:
+ *
+ *  1. Corrections go **first**, before the base prompt, and say in as many
+ *     words that they beat everything below them. An instruction that arrives
+ *     after the output format reads as an afterthought, and the model treats it
+ *     like one.
+ *  2. Language is a *setting* with its own line, not a correction. "Answer in
+ *     Arabic" is not a fact about this patient and should never have needed the
+ *     corrections box; a thread now carries the answer.
+ *  3. The language line is restated at the very end of the user message. The
+ *     last thing in the context is the strongest position available for a
+ *     constraint that has to survive a long document, and this one has to
+ *     survive the entire transcript.
+ */
+function buildSystemPrompt(guidance: string | null, language: string): string {
+  const blocks: string[] = [];
+
+  const standing = guidance?.trim();
+  if (standing) {
+    blocks.push(
+      `STANDING INSTRUCTIONS FROM THIS THERAPIST.\nThese take priority over every default below and over anything in the conversation so far. Follow them on every answer, not just the next one:\n${standing}`,
+    );
+  }
+
+  blocks.push(languageDirective(language));
+  blocks.push(SYSTEM_PROMPT);
+  return blocks.join("\n\n");
+}
+
+function languageDirective(language: string): string {
+  if (language === "auto") {
+    return `LANGUAGE: write "answer" and "suggestedPrompts" in the same language as the therapist's question at the end of this conversation — and in no other language.
+- Question in Arabic, answer in Arabic. Question in English, answer in English. The same for any other language.
+- Decide from the question alone. The language of these instructions, of the transcript, and of the earlier conversation are all irrelevant: a patient who speaks Arabic does not mean the therapist wants an Arabic answer, and a prompt written in English does not mean they want an English one.
+- Quote the transcript in the words it was actually said in, and write everything around the quote in the question's language.`;
+  }
+  const label = NOTE_LANGUAGES[language] ?? "English";
+  return `LANGUAGE: write "answer" and "suggestedPrompts" in ${label} (${language}), whatever language this prompt, the question or the transcript are in.
+- Quote the transcript in the words it was actually said in, and write everything around the quote in ${label}.
+- This line decides the language. If a standing instruction above asks for a different one, it is out of date — the therapist has since chosen ${label} from a setting, and this wins.`;
+}
+
+/** The short reminder that rides at the end of the user message. */
+function languageReminder(language: string, question: string): string {
+  if (language === "auto") {
+    return `Answer in the same language as this question.`;
+  }
+  const label = NOTE_LANGUAGES[language] ?? "English";
+  return `Answer in ${label}.`;
+}
 
 type IndexedSegment = {
   refKey: string;
@@ -151,8 +214,12 @@ export async function askPatientCopilot(opts: {
   userId: string;
   question: string;
   guidance: string | null;
+  /** `auto`, or an ISO 639-1 code from `NOTE_LANGUAGES`. */
+  replyLanguage?: string;
 }): Promise<CopilotAnswer> {
   const started = Date.now();
+  const language = opts.replyLanguage ?? "auto";
+  const standing = opts.guidance?.trim() ?? "";
   const { transcript, index, sessionCount } = await buildPatientContext(opts.patientId);
 
   if (sessionCount === 0 || !transcript.trim()) {
@@ -186,17 +253,25 @@ export async function askPatientCopilot(opts: {
       response_format: { type: "json_object" },
       max_tokens: 1400,
       messages: [
-        {
-          role: "system",
-          content: opts.guidance
-            ? `${SYSTEM_PROMPT}\n\nThe therapist has corrected you before. Honour these corrections:\n${opts.guidance}`
-            : SYSTEM_PROMPT,
-        },
+        { role: "system", content: buildSystemPrompt(opts.guidance, language) },
         {
           role: "user",
-          content: `Patient record:\n${transcript}\n\n${
-            historyText ? `Recent conversation:\n${historyText}\n\n` : ""
-          }Therapist asks: ${opts.question}`,
+          content: [
+            `Patient record:\n${transcript}`,
+            historyText ? `Recent conversation:\n${historyText}` : "",
+            /*
+             * The corrections again, immediately before the question.
+             *
+             * Not belt and braces — measured. A single mention in the system
+             * message loses to a transcript this long, and this is the last
+             * thing the model reads before it starts writing.
+             */
+            standing ? `Remember, from this therapist:\n${standing}` : "",
+            `Therapist asks: ${opts.question}`,
+            languageReminder(language, opts.question),
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
         },
       ],
     });
