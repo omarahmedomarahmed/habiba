@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Lightbulb, Link2, Loader2, Mic, MicOff, Square, Video, X } from "lucide-react";
+import { Copy, Link2, Loader2, Mic, MicOff, Square, Video, X } from "lucide-react";
 
 import { RiskBanner } from "@/components/clinical/risk-banner";
 import { TranscriptPanel, type TranscriptLine } from "@/components/clinical/transcript-panel";
 import { VideoCall } from "@/components/session/video-call";
 import { Button } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
+import { CopilotToasts, mergeToasts, type Toast } from "@/components/session/copilot-toasts";
 import { SessionClockBar } from "@/components/session/session-clock-bar";
 import {
   endSession,
@@ -73,8 +74,7 @@ export function SessionRoom(props: RoomProps) {
   const [extendedAt, setExtendedAt] = useState<string | null>(props.extendedAt);
   const [now, setNow] = useState(() => Date.now());
   const [crisis, setCrisis] = useState(false);
-  const [suggestions, setSuggestions] = useState<CopilotSuggestion[]>([]);
-  const [showCopilot, setShowCopilot] = useState(true);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [micDenied, setMicDenied] = useState(false);
   const [patientJoined, setPatientJoined] = useState(props.patientAlreadyJoined);
   const [copied, setCopied] = useState(false);
@@ -142,9 +142,15 @@ export function SessionRoom(props: RoomProps) {
         }
         // The chunk response is the push channel — no socket required.
         if (data.crisis) setCrisis(true);
+        /*
+         * Merged, never replaced.
+         *
+         * `setSuggestions(data.suggestions)` overwrote, so a batch arriving
+         * while the clinician was still reading the last one erased it. Each
+         * suggestion now has its own card and its own fifteen seconds.
+         */
         if (data.suggestions?.length) {
-          setSuggestions(data.suggestions);
-          setShowCopilot(true);
+          setToasts((current) => mergeToasts(current, data.suggestions!));
         }
       } catch {
         // A dropped chunk costs a few seconds of transcript, never the session.
@@ -516,23 +522,35 @@ export function SessionRoom(props: RoomProps) {
           </div>
         ) : null}
 
-        <TranscriptPanel
-          lines={lines}
-          live={live}
-          paused={offRecord}
-          className="min-h-0 flex-1"
-          emptyTitle={live ? "Listening…" : "Ready when you are"}
-          emptyBody={
-            live
-              ? "What is said in the room appears here within a few seconds."
-              : "Press Start session to begin recording and transcribing."
-          }
-        />
-      </div>
+        {/*
+          Anchored to the scrolling region, not the page.
+          -----------------------------------------------
+          The suggestions sit over the top of the transcript, which is the
+          opposite end of the screen from where new lines land — so reading one
+          never competes with watching the room.
+        */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          {live ? (
+            <CopilotToasts
+              toasts={toasts}
+              onDismiss={(id) => setToasts((rest) => rest.filter((t) => t.id !== id))}
+            />
+          ) : null}
 
-      {live && suggestions.length > 0 && showCopilot ? (
-        <CopilotTray suggestions={suggestions} onDismiss={() => setShowCopilot(false)} />
-      ) : null}
+          <TranscriptPanel
+              lines={lines}
+            live={live}
+            paused={offRecord}
+            className="min-h-0 flex-1"
+            emptyTitle={live ? "Listening…" : "Ready when you are"}
+            emptyBody={
+              live
+                ? "What is said in the room appears here within a few seconds."
+                : "Press Start session to begin recording and transcribing."
+            }
+          />
+        </div>
+      </div>
 
       <div className="safe-bottom sticky bottom-0 border-t border-white/10 bg-navy-600/95 px-4 pt-3 backdrop-blur">
         {live ? (
@@ -590,48 +608,3 @@ export function SessionRoom(props: RoomProps) {
   );
 }
 
-/**
- * Copilot suggestions.
- *
- * Sits above the controls, dismissible, never more than two at a time. A
- * clinician is listening to a person while this is on screen — anything that
- * demands reading is worse than nothing.
- */
-function CopilotTray({
-  suggestions,
-  onDismiss,
-}: {
-  suggestions: CopilotSuggestion[];
-  onDismiss: () => void;
-}) {
-  return (
-    <div className="animate-fade-rise border-t border-white/10 bg-brand-500/10 px-4 py-3">
-      <div className="flex items-start gap-2.5">
-        <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" aria-hidden />
-        <ul className="min-w-0 flex-1 space-y-1.5">
-          {suggestions.map((suggestion, i) => (
-            <li key={i} className="text-sm leading-snug text-slate-100">
-              <span
-                className={cn(
-                  "me-1.5 text-[10px] font-bold tracking-wider uppercase",
-                  suggestion.kind === "risk" ? "text-red-300" : "text-brand-300",
-                )}
-              >
-                {suggestion.kind}
-              </span>
-              {suggestion.text}
-            </li>
-          ))}
-        </ul>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss suggestions"
-          className="tap-target -m-2 flex items-center justify-center rounded-lg p-2 text-slate-400 hover:text-white"
-        >
-          <X className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
-    </div>
-  );
-}
