@@ -148,10 +148,85 @@ other therapist, and never reaches the patient's record.
 | `npm run test:transcribe` | **10/10** new |
 | safety / alarm / ledger / clock / toasts | 23 / 7 / 9 / 12 / 8 — all pass |
 
-**Still unmeasured:** whether Arabic transcription accuracy is actually better.
-It cannot be proven from a unit test. Sprint 1 opens with a real-audio A/B, and
-until that runs, the honest claim is "the request is no longer lying about the
-language", not "Arabic works well now".
+---
+
+## Sprint 0 postscript — the measurement, and a correction
+
+The A/B ran immediately after the commit. **It disproved the reason the commit
+was written.** Recording it in full because the wrong conclusion is already in
+the commit message and in the spec artifact.
+
+### What was claimed
+
+That `language: "en"` was the cause of the reported Arabic accuracy problem.
+
+### What the measurement shows
+
+Five Arabic clips through `gpt-4o-mini-transcribe`, old settings vs new:
+
+| Clip | `language:"en"` (old) | omitted (detect) | `language:"ar"` |
+|---|---|---|---|
+| long clinical sentence | Arabic ✓ | Arabic ✓ | Arabic ✓ |
+| `أيوه.. مش عارف.` | Arabic ✓ | Arabic ✓ | Arabic ✓ |
+| `آه، صح.` | Arabic ✓ | Arabic ✓ | Arabic ✓ |
+| `يعني... ممكن...` | Arabic ✓ | Arabic ✓ | Arabic ✓ |
+| Arabic + English loanword | Arabic ✓ | Arabic ✓ | Arabic ✓ |
+
+**Chunks where the old forced-English setting produced non-Arabic: 0 / 5.**
+
+`gpt-4o-mini-transcribe` overrides a wrong `language` hint when the audio
+clearly disagrees with it. The hardcode was a lie in the request, but it was a
+lie the model ignored.
+
+Differences were small and went both ways. `language:"ar"` recovered `كام`
+where the others produced `كم`. But on the code-switched clip, **detect
+preserved the English word `anxiety` as Latin text while both `en` and `ar`
+transliterated it to `أنكزايتي`** — and for a clinical transcript the real
+English term is the better output.
+
+### So the commit is still right, for a different reason
+
+Keep it, but understand what it is: **a prerequisite, not a fix.** Deepgram
+respects the `language` parameter. Sending `language=en` on Arabic audio through
+Deepgram would produce genuine garbage. Sprint 1 is unsafe without this change;
+Sprint 0 did not fix a live accuracy problem.
+
+### What the real problem looks like
+
+Session `452f8851-7206-4558-a449-a1747daf8e7f` — 95 real Arabic segments:
+
+| Symptom | Evidence |
+|---|---|
+| **No speaker attribution at all** | **95 of 95 segments are `unknown`** |
+| Two speakers merged into one segment | seg 3 contains the clinician's question *and* the patient's answer |
+| Sentences cut at the chunk boundary | seg 10 ends `...في إسكندرية for me it feels` |
+| Heavy Arabic↔English code-switching | seg 8: `كملي. What feelings come up for you?` |
+
+A separate boundary test (one sentence, cut mid-word, halves transcribed
+independently) recovered 22/26 source words versus 23/26 whole — so fixed
+8-second windows cost roughly one word per boundary. Real, cumulative, modest.
+
+**Ranked by damage, the actual causes are:**
+
+1. **No diarization.** 95/95 unknown. A clinical transcript where nobody can
+   tell who spoke is the single largest quality problem in the product, and it
+   is what the LLM is currently being asked to guess from context.
+2. Time-based chunking that cuts on the clock rather than on speaker turns.
+3. Mid-word boundary loss, ~1 word per 8 seconds.
+4. Model size — untested against Deepgram or `gpt-4o-transcribe`.
+
+Language was not on the list.
+
+### 🔴 A consequence for the control shipped in 0.1
+
+Real sessions code-switch constantly — a Cairo clinician moves between Arabic
+and English inside one sentence. **Pinning a language is actively worse for
+them**, and the measurement shows why: pinning forces English clinical terms
+into Arabic transliteration, while detect keeps them.
+
+`Detect` is the correct default and must stay the default. The pin exists for a
+clinician working strictly in one language; it should not be presented as an
+accuracy improvement, because for this user base it usually is not.
 
 ---
 

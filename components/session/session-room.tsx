@@ -568,11 +568,15 @@ export function SessionRoom(props: RoomProps) {
         {/*
           Spoken language, above the controls rather than beside them.
 
-          It belongs in the room and not in settings because the answer can
-          change between one patient and the next, and occasionally within a
-          session. It is small and quiet because a clinician should almost never
-          need it — "Detect" is right most of the time. It exists for the case
-          where it is not, which for a bilingual Cairo practice is a Tuesday.
+          Detect is the default and should stay it. Measured on real sessions:
+          clinicians here code-switch constantly — one recorded session has
+          "كملي. What feelings come up for you?" as a single line — and pinning
+          a language forces English clinical terms into transliteration, so
+          "anxiety" comes back as "أنكزايتي". Detect keeps the real term.
+
+          The pin is therefore not an accuracy setting and must not be sold as
+          one. It exists for a clinician working strictly in one language, which
+          is a minority of this user base.
         */}
         {live ? (
           <div className="mb-2.5 flex items-center gap-1.5">
