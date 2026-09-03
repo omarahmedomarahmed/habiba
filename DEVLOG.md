@@ -263,14 +263,32 @@ Verified in the tree on 3 Sep. Two features that read as "new asks" are wiring:
 | Voice dictation returning text for review | `app/api/copilot/voice/route.ts` |
 | Session length ladder 30→50 min | `lib/session-clock.ts` |
 
-### Open questions nobody has answered
+### Answered 3 Sep
+
+| Question | Answer |
+|---|---|
+| **No-show** | Patient waits 5 min with a calm message, then gets *report* + *find someone now*. The live radar appears **inside the waiting room** — session transfers, new clinician's device rings, money follows whoever turned up. Reliability score computed from no-shows, shown on the public profile |
+| **Gaming the go-offline escape** | 🎯 **Not a risk — my concern was wrong.** A clinician earns nothing while online, so there is nothing to gain by hiding. Leave it ungated; the real uses are the bathroom, a phone call, an overrunning session |
+| **Consent duration** | **Two shapes, patient chooses.** 24 hours for a one-off clinician; **open-ended until revoked** for their regular therapist. Making a weekly therapist re-ask daily trains the patient to approve without reading |
+
+### Still unanswered
 
 | # | Question | Blocks |
 |---|---|---|
-| 1 | **No-show policy.** "If booked they must attend" is not enforceable by code. Refund? Rating penalty? Suspension? | Sprint 1C |
-| 2 | **Gaming the go-offline escape.** A clinician who vanishes whenever anyone looks makes the radar useless. Cooldown, cap, or visible reliability score? | Sprint 1C |
-| 3 | **OCR for scanned history documents.** Most previous-clinician reports are photos or scans. Chunking and citations need text. No decision on a provider | Sprint 5 |
-| 4 | Neon plan limits + overage rate | Cost model |
+| 1 | **OCR for scanned history documents.** Most previous-clinician reports are photos or scans. Chunking and citations need text. No provider chosen | Sprint 5 |
+| 2 | Neon plan limits + overage rate | Cost model |
+| 3 | Resend domain unverified — **now on the critical path**, booking confirmations cannot be delivered | Sprint 1B |
+
+### More that already exists — do not rebuild
+
+| Thing | Where | What is actually missing |
+|---|---|---|
+| **Homework** | `NoteContent.patientSteps: string[]` — AI already drafts tasks into the patient's note | Therapist authoring, and completion tracking |
+| **Delayed payout / money-after-delivery** | `sessionPayments.capture`, `earningsTransfers`, the double-entry ledger | Only re-pointing the payable on reassignment |
+| Ratings | `therapistStars`, `sessionStars`, `serviceStars` | A reliability metric from no-shows |
+| Patient-facing routes | `app/records/[token]`, `app/feedback/[token]`, `app/join/[token]` | — |
+
+**Genuinely new, verified absent:** session reassignment between clinicians · `historyGrants` · availability slots · `scheduledAt`.
 
 ---
 
