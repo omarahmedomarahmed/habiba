@@ -230,6 +230,50 @@ accuracy improvement, because for this user base it usually is not.
 
 ---
 
+## Decisions log — read before proposing anything
+
+Settled with evidence. Re-opening one of these needs a new measurement, not an
+argument.
+
+| Decision | Verdict | Evidence |
+|---|---|---|
+| **Deepgram** | 🔴 **Rejected** | Tested 3 Sep on Egyptian Arabic. `nova-3`+`ar` turned `anxiety` into `أنكزايتي`; `multi` produced `Doctor L. Andy anxiety. The sunny hases in neha akterminkida`. `nova-2` returns *"No such model/language/tier combination"* for Arabic — `nova-3` is the only option and it loses. Diarization found **1 speaker where there were 2** |
+| **`gpt-4o-transcribe`** (the bigger model) | 🔴 Rejected | Scored **21/26** words vs the mini's **23/26**. Bigger is not better here |
+| **Transcription provider** | ✅ **Keep OpenAI `gpt-4o-mini-transcribe`** | Won every comparison run |
+| **Language handling** | ✅ **Detect + Arabic prompt** | Best of four configs — kept the English word `anxiety` 2/3 vs 1/3 (English prompt) and 0/3 (pinned `ar`, or no prompt) |
+| **Pinning a session language** | ⚠️ Available, **not** an accuracy feature | Pinning was the *worst* config. Real sessions code-switch mid-sentence |
+| **Emotion labels** | 🔴 Rejected | Culture-bound and contested. Build **acoustic descriptors** instead — pace, pause length, volume — computed by us, no vendor |
+| **Patient joins on their own phone in-person** | 🔴 Rejected by the user | Bad product. Do not re-propose |
+| **Couples / group therapy** | 🔴 **Cancelled** | One patient per session, permanently. Keeps `sessions.patientId` a single column |
+| **Patient auth** | ✅ Full accounts — signup, signin, reset | User's call. Mirrors `lib/auth/actions.ts` |
+| **Consent** | ✅ Patient-granted, 24h windows, revocable | Psychotherapy notes carry stronger protection than general records |
+| **Corrections box** | ✅ Stays one box, relabelled | Shipped in Sprint 0 |
+| **Mobile** | ✅ PWA first | The globe already runs in a browser |
+
+### Already exists — do not rebuild
+
+Verified in the tree on 3 Sep. Two features that read as "new asks" are wiring:
+
+| Thing | Where |
+|---|---|
+| Bottom nav for therapists | `components/nav/bottom-nav.tsx` — already has the right destinations |
+| "Someone is viewing your profile" signal | `lib/data/radar.ts` emits `{ kind: "viewing" }`; `components/radar/presence.tsx:283` consumes it |
+| Atomic booking claim (WHERE-as-precondition) | `claimTherapist` in `lib/data/radar.ts` — the right primitive for the go-offline race. Do not invent a second one |
+| LLM speaker attribution | `lib/ai/diarise.ts` — works, but has run **2 times against 29 notes** |
+| Voice dictation returning text for review | `app/api/copilot/voice/route.ts` |
+| Session length ladder 30→50 min | `lib/session-clock.ts` |
+
+### Open questions nobody has answered
+
+| # | Question | Blocks |
+|---|---|---|
+| 1 | **No-show policy.** "If booked they must attend" is not enforceable by code. Refund? Rating penalty? Suspension? | Sprint 1C |
+| 2 | **Gaming the go-offline escape.** A clinician who vanishes whenever anyone looks makes the radar useless. Cooldown, cap, or visible reliability score? | Sprint 1C |
+| 3 | **OCR for scanned history documents.** Most previous-clinician reports are photos or scans. Chunking and citations need text. No decision on a provider | Sprint 5 |
+| 4 | Neon plan limits + overage rate | Cost model |
+
+---
+
 ## Sprint 1 — next
 
 Do **not** start a vendor migration until the Sprint 0 fix has been measured on
