@@ -84,6 +84,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
         recording made anyway.
       */
       recordingConsent={row.session.recordingConsent}
+      transcriptLanguage={row.session.transcriptLanguage}
       initialLines={transcript.map((segment) => ({
         id: segment.id,
         speaker: segment.speaker,

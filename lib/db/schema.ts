@@ -435,6 +435,24 @@ export const sessions = pgTable(
      */
     autoEndedReason: text("auto_ended_reason").$type<"cap" | "silence" | null>(),
 
+    /**
+     * The language this session is spoken in, as an ISO 639-1 code.
+     *
+     * Null means we do not know, and the transcription request omits the
+     * language parameter so the model detects it. A value pins every chunk of
+     * the session to one language.
+     *
+     * That pinning is the point. Chunks are eight seconds long and transcribed
+     * independently, so per-chunk detection on a chunk that is mostly "mm-hmm"
+     * is a coin flip — and a transcript that switches language every third line
+     * is harder to read, and harder to write a note from, than one that is
+     * consistently wrong. A clinician who works in two languages can set this
+     * in the room and it stays set.
+     *
+     * The value it replaces was `language: "en"`, hardcoded into every request.
+     */
+    transcriptLanguage: text("transcript_language"),
+
     /** Drives the "generating your note" state without a job queue. */
     noteStatus: text("note_status")
       .$type<"none" | "generating" | "ready" | "failed">()

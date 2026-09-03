@@ -197,6 +197,13 @@
       "when": 1788900000000,
       "tag": "0027_copilot_language",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1789000000000,
+      "tag": "0028_transcript_language",
+      "breakpoints": true
     }
   ]
 }

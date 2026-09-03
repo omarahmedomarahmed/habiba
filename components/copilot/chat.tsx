@@ -784,7 +784,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
         className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-start text-sm text-slate-600 hover:bg-slate-50"
       >
         <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        Correct the copilot
+        Change how I answer
       </button>
     );
   }
@@ -792,7 +792,9 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
   return (
     <Card className="space-y-2.5 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Correct me</p>
+        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+          How I answer
+        </p>
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -843,15 +845,32 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
         </p>
       ) : (
         <>
+          {/*
+            The boundary, said plainly.
+
+            Clinicians type facts in here — "she was diagnosed with GAD in
+            2019" — because a box labelled "correct the copilot" reads like the
+            place you put things the copilot got wrong about the patient. It is
+            not. These lines steer how answers are written; they are not
+            evidence, they cannot be cited, and a fact stored here is a fact
+            that no other therapist will ever see and that no answer can point
+            at. Saying so costs two sentences and saves a year of a patient's
+            history living in a settings field.
+          */}
           <p className="text-xs leading-relaxed text-slate-500">
-            Tell me what I got wrong. I read every one of these before I answer anything about this
-            patient. For what language to answer in, use the setting above instead — it is more
-            reliable than telling me here.
+            This changes how I write, not what I know. Tone, length, things to stop doing — those
+            belong here. Facts about the patient do not: I cannot cite a note left in this box, so
+            put their history and diagnosis on the patient&rsquo;s record instead. For what language
+            to answer in, use the setting above — it is more reliable than telling me here.
           </p>
           <Input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="The sister reference is a different client."
+            // The example teaches the rule harder than the paragraph above it
+            // does. The old one — "the sister reference is a different client"
+            // — was a fact about a patient, which is exactly what this box is
+            // not for, so it invited the mistake the copy is trying to prevent.
+            placeholder="Keep answers to three sentences. Stop suggesting homework."
           />
           <Button
             size="sm"

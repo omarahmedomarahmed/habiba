@@ -16,6 +16,7 @@ import {
   extendCurrentSession,
   goLive,
   setRecordingPaused,
+  setTranscriptLanguage,
 } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { sessionClock } from "@/lib/session-clock";
@@ -44,6 +45,16 @@ type RoomProps = {
   startedAt: string | null;
   /** ISO of the moment the clinician chose to keep going, if they have. */
   extendedAt: string | null;
+  /**
+   * The language being spoken, or null to let the model work it out.
+   *
+   * Null is the honest default and it is what every existing session has. It is
+   * not, however, what every existing session was *transcribed* with: the
+   * request used to carry a hardcoded `language: "en"`, so an Arabic session
+   * was decoded by a model told the audio was English. This control is how a
+   * clinician stops that happening to them.
+   */
+  transcriptLanguage: string | null;
 };
 
 export function SessionRoom(props: RoomProps) {
@@ -76,6 +87,7 @@ export function SessionRoom(props: RoomProps) {
   const [crisis, setCrisis] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [micDenied, setMicDenied] = useState(false);
+  const [spokenLanguage, setSpokenLanguage] = useState<string | null>(props.transcriptLanguage);
   const [patientJoined, setPatientJoined] = useState(props.patientAlreadyJoined);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -553,6 +565,54 @@ export function SessionRoom(props: RoomProps) {
       </div>
 
       <div className="safe-bottom sticky bottom-0 border-t border-white/10 bg-navy-600/95 px-4 pt-3 backdrop-blur">
+        {/*
+          Spoken language, above the controls rather than beside them.
+
+          It belongs in the room and not in settings because the answer can
+          change between one patient and the next, and occasionally within a
+          session. It is small and quiet because a clinician should almost never
+          need it — "Detect" is right most of the time. It exists for the case
+          where it is not, which for a bilingual Cairo practice is a Tuesday.
+        */}
+        {live ? (
+          <div className="mb-2.5 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold tracking-wider text-white/35 uppercase">
+              Spoken
+            </span>
+            <div className="flex flex-1 gap-1 rounded-xl bg-white/5 p-0.5">
+              {(
+                [
+                  [null, "Detect"],
+                  ["en", "English"],
+                  ["ar", "العربية"],
+                ] as const
+              ).map(([code, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    const previous = spokenLanguage;
+                    setSpokenLanguage(code);
+                    void setTranscriptLanguage(props.sessionId, code).then((r) => {
+                      // Put it back rather than showing a setting that did not save.
+                      if (!r.ok) setSpokenLanguage(previous);
+                    });
+                  }}
+                  aria-pressed={spokenLanguage === code}
+                  className={cn(
+                    "flex-1 rounded-lg px-2 py-1 text-xs font-semibold transition-colors",
+                    spokenLanguage === code
+                      ? "bg-white/15 text-white"
+                      : "text-white/45 active:bg-white/10",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {live ? (
           <div className="flex items-center gap-2.5">
             <button

@@ -40,6 +40,7 @@ export async function POST(
         organizationId: sessions.organizationId,
         therapistId: sessions.therapistId,
         patientId: sessions.patientId,
+        transcriptLanguage: sessions.transcriptLanguage,
       })
       .from(sessions)
       .where(
@@ -88,6 +89,10 @@ export async function POST(
       organizationId: session.organizationId,
       userId: actor.userId,
       sessionId: session.id,
+      // Null until somebody sets it in the room, and null means "detect it".
+      // Either is better than the "en" that used to be hardcoded one layer
+      // down, which asserted English over every Arabic session on the platform.
+      language: session.transcriptLanguage,
     });
 
     if (!text) {

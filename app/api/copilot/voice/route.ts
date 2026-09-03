@@ -31,6 +31,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "too_large" }, { status: 413 });
     }
 
+    // No language is passed on purpose, so the model detects one. A clinician
+    // dictating a question moves between languages far more freely than a
+    // session does — often mid-sentence — and there is no session here to pin
+    // it to. Do not "fix" this by adding a language.
     const text = await transcribeChunk({
       audio: await file.arrayBuffer(),
       mimeType: file.type || "audio/wav",

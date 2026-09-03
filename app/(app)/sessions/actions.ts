@@ -21,7 +21,13 @@ import {
   TransitionError,
 } from "@/lib/data/sessions";
 import { db } from "@/lib/db";
-import { patients, sessionNotes, sessions, type NoteContent } from "@/lib/db/schema";
+import {
+  NOTE_LANGUAGES,
+  patients,
+  sessionNotes,
+  sessions,
+  type NoteContent,
+} from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendSessionInvite } from "@/lib/mail";
@@ -459,6 +465,59 @@ export async function setRecordingPaused(
     action: paused ? "recording.pause" : "recording.resume",
     resourceType: "session",
     resourceId: sessionId,
+  });
+  return { ok: true };
+}
+
+/**
+ * Pin the language this session is being spoken in.
+ *
+ * `null` hands the decision back to the model, which is the right default and
+ * was, until this existed, not what happened: every request carried a
+ * hardcoded `language: "en"`, so an Arabic session was transcribed by a model
+ * that had been told the audio was English. That is the whole reason a
+ * clinician working in Arabic saw a transcript of near-words.
+ *
+ * Pinning matters beyond fixing that. Chunks are eight seconds and transcribed
+ * independently, so detection re-runs on every one of them; a chunk that is
+ * mostly a pause detects as anything, and a transcript whose language changes
+ * every third line is harder to read than one that is wrong in a steady
+ * direction. A bilingual clinician sets this once and the session holds it.
+ *
+ * Takes effect on the next chunk. Nothing already transcribed is rewritten —
+ * re-running finished audio through a second model would produce two versions
+ * of what somebody said, and there is no honest way to choose between them in
+ * a clinical record.
+ */
+export async function setTranscriptLanguage(
+  sessionId: string,
+  language: string | null,
+): Promise<{ ok: boolean }> {
+  const actor = await requireUser();
+
+  // Validated against the same closed set the notes use, so a value that would
+  // fail the transcription request can never reach the column.
+  const base = (language ?? "").trim().toLowerCase().split(/[-_]/)[0];
+  const next = base && base !== "auto" && base in NOTE_LANGUAGES ? base : null;
+
+  await db
+    .update(sessions)
+    .set({ transcriptLanguage: next })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.organizationId, actor.organizationId),
+        eq(sessions.therapistId, actor.userId),
+      ),
+    );
+
+  await audit({
+    actor,
+    category: "clinical",
+    action: "session.transcript_language",
+    resourceType: "session",
+    resourceId: sessionId,
+    reason: next ?? "auto",
   });
   return { ok: true };
 }
