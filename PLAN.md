@@ -159,11 +159,17 @@ tiers, included sessions, copilot limits, VAT per country, the cap.
 
 ## §4 · SPRINTS
 
-Admin comes **last** on purpose — it can only verify what already exists.
+**Ordered by who is waiting.** Therapists are live on this product today, so
+their pain ships first — sprints 2 and 3 are fixes to things they use every day.
+Revenue comes next. The patient-side rebuild is foundation work with nothing
+visible until sprint 13, which is why it sits after the parts that pay for it.
+
+Admin is **last**, on purpose: it exists to verify and correct everything else,
+and it cannot verify what does not yet exist.
 
 ### Sprint 1 — Settings foundation · ~4 days
 
-Everything downstream reads these. Hardcoding any of it means rewriting later.
+Everything downstream reads these. Anything hardcoded here is rewritten in 15.
 
 - [ ] **1.1** `platform_settings` — rates, tiers, included sessions, copilot
       limits, price cap. Seeded with §3's numbers
@@ -177,143 +183,156 @@ Everything downstream reads these. Hardcoding any of it means rewriting later.
 - **Accept:** changing a rate in the database changes what the next session
       bills, with no deploy.
 
-### Sprint 2 — Attribution · ~1 week
+### Sprint 2 — The room and the shell · ~1 week · 🔴 LIVE PAIN
 
-- [ ] **2.1** Fix `diarise` batching (H11), then backfill existing transcripts
-- [ ] **2.2** Cut audio on pauses, not the 8-second clock. RMS gating already
+Therapists use this every day and it is the worst screen in the product.
+
+- [ ] **2.1** 🔴 **Room relayout.** Video is `aspect-video w-full` today, so the
+      transcript sits below the fold — a clinician cannot look at their patient
+      and read the copilot at the same time. Small video, transcript and copilot
+      visible together, no scrolling
+- [ ] **2.2** Mobile layout on desktop too — bottom bar, large targets. One
+      shell, not two
+- [ ] **2.3** Floating orb on every page: dim · teal · 🟡 someone looking ·
+      🔴 booked and paying · red steady in session
+- [ ] **2.4** Orb expands — status, session rate, clinic-visit toggle, address
+- [ ] **2.5** **Keep `/on-call`** as full radar control: settings, session
+      history with the price charged at the time, patient record links, access
+      state, copilot credits used per session
+- [ ] **2.6** Act on the existing `{ kind: "viewing" }` signal — go offline
+      before a booking lands. Use `claimTherapist`'s atomic claim; do not invent
+      a second mechanism
+
+### Sprint 3 — Attribution · ~1 week · 🔴 LIVE PAIN
+
+In-person transcripts are 92% unattributed. Video is 12%.
+
+- [ ] **3.1** Fix `diarise` batching (H11), then backfill existing transcripts
+- [ ] **3.2** Cut audio on pauses, not the 8-second clock. RMS gating already
       exists in `lib/audio/recorder.ts`
-- [ ] **2.3** Acoustic descriptors — speaking rate, pause length. **Descriptors,
+- [ ] **3.3** Acoustic descriptors — speaking rate, pause length. **Descriptors,
       never emotion labels**
-- [ ] **2.4** Handle a dropped video track: today attribution silently stops
+- [ ] **3.4** Handle a dropped video track: attribution silently stops today
 - **Accept:** no transcript line ends mid-word across a 10-session sample.
 
-### Sprint 3 — Person layer · ~1 week · FOUNDATION
+### Sprint 4 — Paid links · ~1.5 weeks · 💰 REVENUE
 
-- [ ] **3.1** `people` above `patients`; `patients.personId` nullable at first
-- [ ] **3.2** `people.claimedAt` — null means unclaimed
-- [ ] **3.3** Backfill: every patient becomes its own person. **No merging**
-- [ ] **3.4** Match on email **or** phone. Suggest only
-- [ ] **3.5** **Server-side rule:** unclaimed can never be shared, granted or
+The first sprint that earns money.
+
+- [ ] **4.1** Price on session creation. `$0` = today's direct link, unchanged
+- [ ] **4.2** `/pay/[token]` — patient picks **country first**, then sees
+      currency, exchange rate and their country's methods
+- [ ] **4.3** Save the patient's payment preferences
+- [ ] **4.4** FX quote fixed for **1 hour**, stored with the payment
+- [ ] **4.5** 15% cut + VAT, shown to patient and therapist as separate lines
+      with reasons — never one number
+- [ ] **4.6** Session type recorded: free link · paid link · radar · scheduled
+
+### Sprint 5 — Person layer · ~1 week · FOUNDATION
+
+- [ ] **5.1** `people` above `patients`; `patients.personId` nullable at first
+- [ ] **5.2** `people.claimedAt` — null means unclaimed
+- [ ] **5.3** Backfill: every patient becomes its own person. **No merging**
+- [ ] **5.4** Match on email **or** phone. Suggest only
+- [ ] **5.5** **Server-side rule:** unclaimed can never be shared, granted or
       merged
 - 🔴 **Never auto-merge.** A wrong merge puts one person's trauma in a
       stranger's file and a clinician treats them on it.
 
-### Sprint 4 — Patient accounts · ~1 week · FOUNDATION
+### Sprint 6 — Patient accounts · ~1 week · FOUNDATION
 
-- [ ] **4.1** Add `"patient"` to `ROLES`
-- [ ] **4.2** 🔴 **Separate patient identity table — not a nullable
+- [ ] **6.1** Add `"patient"` to `ROLES`
+- [ ] **6.2** 🔴 **Separate patient identity table — not a nullable
       `organizationId`.** Nullable voids `users_org_email_unique`, because
       Postgres treats NULLs as distinct: one email, unlimited signups
-- [ ] **4.3** `Actor.organizationId` → `string | null`. **Audit every consumer**
-- [ ] **4.4** `requirePatient()` mirroring `requireUser()`
-- [ ] **4.5** Signup, signin, reset — reuse `lib/auth/*`
-- [ ] **4.6** Fix `middleware.ts` — a signed-in patient lands on the therapist
+- [ ] **6.3** `Actor.organizationId` → `string | null`. **Audit every consumer**
+- [ ] **6.4** `requirePatient()` mirroring `requireUser()`
+- [ ] **6.5** Signup, signin, reset — reuse `lib/auth/*`
+- [ ] **6.6** Fix `middleware.ts` — a signed-in patient lands on the therapist
       dashboard today
-- [ ] **4.7** `app/(patient)/` route group
-- [ ] **4.8** The claim flow, all eight steps from §3
-- [ ] **4.9** Verification by email or WhatsApp
+- [ ] **6.7** `app/(patient)/` route group
+- [ ] **6.8** The claim flow, all eight steps from §3
+- [ ] **6.9** Verification by email or WhatsApp
 
-### Sprint 5 — Consent · ~4 days · FOUNDATION
+### Sprint 7 — Consent · ~4 days · FOUNDATION
 
-- [ ] **5.1** `historyGrants` — person, therapist, granted, expires, revoked
-- [ ] **5.2** Two shapes: **24 hours**, or **open-ended until revoked**
-- [ ] **5.3** Request access with a note. Rate-limited against spam
-- [ ] **5.4** Patient rejects freely — silently, or with a preset reason
-- [ ] **5.5** Revoke in one tap, effective immediately
-- [ ] **5.6** Audit every grant, denial, expiry, revocation and read
-- [ ] **5.7** Copilot honours the four states in §3
+- [ ] **7.1** `historyGrants` — person, therapist, granted, expires, revoked
+- [ ] **7.2** Two shapes: **24 hours**, or **open-ended until revoked**
+- [ ] **7.3** Request access with a note. Rate-limited against spam
+- [ ] **7.4** Patient rejects freely — silently, or with a preset reason
+- [ ] **7.5** Revoke in one tap, effective immediately
+- [ ] **7.6** Audit every grant, denial, expiry, revocation and read
+- [ ] **7.7** Copilot honours the four states in §3
+- [ ] **7.8** Two consent controls in the room, per §3. Note stamped when
+      recording started late
 
-### Sprint 6 — Paid links and the room · ~1.5 weeks
+### Sprint 8 — Personal Profile · ~1.5 weeks
 
-- [ ] **6.1** Price on session creation. `$0` = today's direct link
-- [ ] **6.2** `/pay/[token]` — patient picks **country first**, then sees
-      currency, exchange rate, and their country's methods
-- [ ] **6.3** Save the patient's payment preferences
-- [ ] **6.4** FX quote fixed for **1 hour**, stored with the payment
-- [ ] **6.5** 15% cut + VAT, both shown to patient and therapist as separate
-      lines with reasons
-- [ ] **6.6** 🔴 **Room relayout.** Video is `aspect-video w-full` today, so the
-      transcript sits below the fold. Small video, transcript and copilot
-      visible together, no scrolling to read while looking at the patient
-- [ ] **6.7** Two consent controls in the room, per §3
-- [ ] **6.8** Note stamped when recording started late
-
-### Sprint 7 — Scheduling · ~1.5 weeks
-
-- [ ] **7.1** `availability_slots` — whole hours only, 19:00–20:00, never 19:15
-- [ ] **7.2** `sessions.scheduledAt`
-- [ ] **7.3** Booking calendar on the public profile
-- [ ] **7.4** Radar escape hatch: *"not urgent? see their calendar"*
-- [ ] **7.5** Auto-offline as a booked slot approaches
-- [ ] **7.6** Mid-session warning about an upcoming booking
-- [ ] **7.7** Confirmation and reminder emails
-- 🔴 **Blocked on the Resend domain.** One address on earth receives mail today.
-
-### Sprint 8 — No-show recovery · ~1 week
-
-- [ ] **8.1** 0–5 min: *"joining shortly"*. No blame
-- [ ] **8.2** At 5 min: report, **and** the live radar inside the room
-- [ ] **8.3** Only therapists at **equal or lower** price are offered
-- [ ] **8.4** **Nobody suitable online → full refund and an apology.** Never
-      leave them in an empty room
-- [ ] **8.5** Reassign the session. Nothing transfers a session today
-- [ ] **8.6** Paid more than the replacement charges → difference becomes
-      patient credit, **expires 12 months**, applied after VAT
-- [ ] **8.7** Reliability score from no-shows, on the public profile
-- [ ] **8.8** Keep the existing warn → suspend ladder in `lib/data/feedback.ts`
-
-### Sprint 9 — Therapist shell and radar · ~1 week
-
-- [ ] **9.1** Mobile layout on desktop too — bottom bar, large targets
-- [ ] **9.2** Floating orb on every page. Dim · teal · 🟡 someone looking ·
-      🔴 booked and paying · red steady in session
-- [ ] **9.3** Orb expands: status, session rate, clinic-visit toggle, address
-- [ ] **9.4** **Keep `/on-call`** as full radar control: settings, session
-      history with the price charged at the time, patient record links, access
-      state, copilot credits used per session
-- [ ] **9.5** Act on the existing `{ kind: "viewing" }` signal — go offline
-      before a booking lands. Use `claimTherapist`'s atomic claim; do not invent
-      a second mechanism
-
-### Sprint 10 — Personal Profile · ~1.5 weeks
-
-- [ ] **10.1** Documents on the person: upload, type, dictate
-- [ ] **10.2** Allow PDF and Word; raise the 8 MB cap
-- [ ] **10.3** Chunking on a worker, not a request handler (H9)
-- [ ] **10.4** `[D7:3]` citations that resolve or are discarded
-- [ ] **10.5** Click a citation, see the exact passage
-- [ ] **10.6** Provenance — which therapist, which date
-- [ ] **10.7** Flag a document, phrase or diagnosis as outdated or wrong
-- [ ] **10.8** Diagnosis fields — **extract only what is written**, show the
+- [ ] **8.1** Documents on the person: upload, type, dictate
+- [ ] **8.2** **Accept any format** — PDF, Word, scans, photos. Raise the 8 MB
+      cap
+- [ ] **8.3** Text we can read is chunked on a worker, not a request handler (H9)
+- [ ] **8.4** An image we cannot read is still stored, shown and zoomable, and
+      labelled *"image — not searchable"* so nobody assumes the copilot read it.
+      **No OCR**
+- [ ] **8.5** `[D7:3]` citations that resolve or are discarded
+- [ ] **8.6** Click a citation, see the exact passage
+- [ ] **8.7** Provenance — which therapist, which date
+- [ ] **8.8** Flag a document, phrase or diagnosis as outdated or wrong
+- [ ] **8.9** Diagnosis fields — **extract only what is written**, show the
       source sentence, require confirmation. Never inferred from symptoms
-- [ ] **10.9** Read-only viewer, watermark, audited. **Server-side speech — the
+- [ ] **8.10** Read-only viewer, watermark, audited. **Server-side speech — the
       text never reaches the browser**
-- 🔴 **Open: OCR.** Most previous-clinician reports are scans. No provider
-      chosen. Raise it in §2 if it blocks you.
 
-### Sprint 11 — Memory and homework · ~1.5 weeks
+### Sprint 9 — Memory and homework · ~1.5 weeks
 
-- [ ] **11.1** Rolling profile, regenerated from sources after each session and
+- [ ] **9.1** Rolling profile, regenerated from sources after each session and
       document. Dated, cited, **never hand-edited into permanence**
-- [ ] **11.2** Dated observation timeline
-- [ ] **11.3** Copilot cites history alongside sessions, marking which is which
-- [ ] **11.4** **Sessions outrank history.** Surface conflicts, never resolve
-- [ ] **11.5** Homework: `NoteContent.patientSteps` already drafts it. Add
+- [ ] **9.2** Dated observation timeline
+- [ ] **9.3** Copilot cites history alongside sessions, marking which is which
+- [ ] **9.4** **Sessions outrank history.** Surface conflicts, never resolve
+- [ ] **9.5** Homework: `NoteContent.patientSteps` already drafts it. Add
       therapist authoring, patient completion, history across sessions
 - ⚠️ A completion rate shown to a depressed patient is a scoreboard of their
       failures. Trend to the therapist; next action to the patient.
 
-### Sprint 12 — General copilot · ~4 days
+### Sprint 10 — General copilot · ~4 days
 
-- [ ] **12.1** Chat box on the therapist home
-- [ ] **12.2** Roster only — names, next appointment, draft count. **No clinical
-      content in context.** The guarantee comes from what is absent
-- [ ] **12.3** Patient names as links, **validated server-side against the real
+- [ ] **10.1** Chat box on the therapist home
+- [ ] **10.2** Roster only — names, next appointment, draft count. **No clinical
+      content in context.** The guarantee comes from what is absent, not from
+      what the prompt says
+- [ ] **10.3** Patient names as links, **validated server-side against the real
       roster** so a hallucinated name can never become one
-- [ ] **12.4** Multiple threads: pick, continue, delete
-- [ ] **12.5** **50 messages per month**, all threads
-- [ ] **12.6** Preferences on first use — language, voice, playback speed.
+- [ ] **10.4** Multiple threads: pick, continue, delete
+- [ ] **10.5** **50 messages per month**, across all threads
+- [ ] **10.6** Preferences on first use — language, voice, playback speed.
       Editable later
+
+### Sprint 11 — Scheduling · ~1.5 weeks
+
+- [ ] **11.1** `availability_slots` — whole hours only, 19:00–20:00, never 19:15
+- [ ] **11.2** `sessions.scheduledAt`
+- [ ] **11.3** Booking calendar on the public profile
+- [ ] **11.4** Radar escape hatch: *"not urgent? see their calendar"*
+- [ ] **11.5** Auto-offline as a booked slot approaches
+- [ ] **11.6** Mid-session warning about an upcoming booking
+- [ ] **11.7** Confirmation and reminder emails
+- ⚠️ Needs the Resend domain verified before real patients get reminders. Being
+      arranged — build it, do not wait on it.
+
+### Sprint 12 — No-show recovery · ~1 week
+
+- [ ] **12.1** 0–5 min: *"joining shortly"*. No blame
+- [ ] **12.2** At 5 min: report, **and** the live radar inside the room
+- [ ] **12.3** Only therapists at **equal or lower** price are offered
+- [ ] **12.4** **Nobody suitable online → full refund and an apology.** Never
+      leave them in an empty room
+- [ ] **12.5** Reassign the session. Nothing transfers a session today
+- [ ] **12.6** Paid more than the replacement charges → difference becomes
+      patient credit, **expires 12 months**, applied after VAT
+- [ ] **12.7** Reliability score from no-shows, on the public profile
+- [ ] **12.8** Keep the existing warn → suspend ladder in `lib/data/feedback.ts`
 
 ### Sprint 13 — Patient app · ~1.5 weeks
 
@@ -331,7 +350,9 @@ Everything downstream reads these. Hardcoding any of it means rewriting later.
 
 ### Sprint 14 — Payments by country · ~1.5 weeks
 
-- [ ] **14.1** Provider registry per country, admin-managed
+- [ ] **14.1** Provider registry per country, admin-managed. **Build the
+      abstraction so adding Paymob or Paymint is configuration, not code** — the
+      Egyptian entity and the provider contracts are being arranged in parallel
 - [ ] **14.2** A provider has many methods — Paymob → Instapay, Vodafone Cash
 - [ ] **14.3** Country locks currency: no USD in Egypt, no EGP in the US
 - [ ] **14.4** Keys as environment variables, presence checked at boot
@@ -350,17 +371,15 @@ Built last so it can be verified against everything that already exists.
 
 - [ ] **15.1** Edit every pricing figure — rates, tiers, included, copilot caps
 - [ ] **15.2** VAT and currency per country
-- [ ] **15.3** Payment providers per country, integration status, which
+- [ ] **15.3** Payment providers per country, integration status, and which
       countries have none
 - [ ] **15.4** 🆕 **Verification requirements per country** — authority name,
-      licence name, ID number format, sample photo. Currently hardcoded
+      licence name, ID number format, sample photo. Hardcoded today
 - [ ] **15.5** Therapist credentials by country
 - [ ] **15.6** Margin per session from real usage
 - [ ] **15.7** Total View extended to everything above
 - **Accept:** every number in §3 is editable without a deploy, and admin can see
       and correct anything built in sprints 1–14.
-
----
 
 ## §5 · BUILD LOG
 
