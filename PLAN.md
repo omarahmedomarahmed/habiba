@@ -84,6 +84,8 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C21 | 15 | **`invoices.kind` still has the value `subscription`** for what is now a credit purchase. Renaming means migrating every historical row and every reader for a label. Left as-is; `recordCreditPurchaseInvoice` says so at the call site. | minor | sprint 1 | open |
 | C22 | 5, 6 | **§3's "unclaimed patient gets 5 credits, unlocked by a diagnosis and a history" cannot be enforced yet** — it needs the claimed/unclaimed state from sprint 5. `checkQuota` currently applies `unclaimedPatientCredits` as a floor for *every* patient, which is the more generous reading and cannot lock a therapist out of a patient they just added. Tighten when `people` lands. | minor | sprint 1 | open |
 | C25 | — | 🆕 **There is no copilot in the room, and that is the real gap behind old 2.1.** `session-room.tsx` renders only `CopilotToasts` — passive one-line suggestions written from the transcript. A therapist who wants to *ask* something mid-session must leave the room for `/copilot`. Scoped as its own ticket per ruling, deliberately **not** absorbed into sprint 2. Needs: a room surface, the four access states from §3, and the per-session credit accounting from C14. Estimate ≥1 week on its own. | major | sprint 2 | open, unscheduled |
+| C30 | 2 | **The "someone is looking" toast was removed, not just relocated.** The orb says the same sentence permanently in the same corner, so the two overlapped and told the clinician the same thing twice. The *booking* card stays — that one is an interruption, not a status, and the orb steps aside for it (`liftedForBooking`). | minor | sprint 2 | **resolved** |
+| C31 | 2.5 | **`savePractice` cannot be used for a single toggle.** It takes the whole practice payload, so driving it from a floating control would rebuild name, address and coordinates from nothing and silently erase them. Added `setAcceptsWalkIns`, a conditional UPDATE that refuses to publish an address which has not been confirmed — and never guards turning it *off*, because somebody withdrawing consent to be visited must not be told they cannot. | minor | sprint 2 | **resolved** |
 | C27 | 2.5 | **"Access state" in 2.5 could not be built.** The four copilot states in §3 are defined by claimed/unclaimed and by `historyGrants`, which arrive in sprints 5–7. `/on-call` shows everything else the ticket asks for; the access column is deliberately absent rather than faked with a placeholder that would always read the same. Revisit after sprint 7. | minor | sprint 2 | open |
 | C28 | 2.5 | **Copilot questions had no session attribution.** `copilot_messages.session_id` was written only on `session_note` rows — measured: 97/97 notes, **0/23 therapist questions**. So "credits used per session" had no answer. Now stamped when the question is asked during a live session with that patient. **Historical rows are not backfilled** and must not be: nothing recorded which session those 23 belong to, and inferring it from timestamps would invent an attribution nobody can check. | minor | sprint 2 | **resolved going forward** |
 | C29 | 1 | **Stale copy left behind by sprint 1.** The copilot quota error still said "…for this patient this month. Unlimited removes the cap." The allowance is no longer monthly and there is no Unlimited plan — telling a clinician to wait for a reset that never comes, or to buy something that does not exist, is worse than the cap. Found while building 2.5; fixed there. A reminder to sweep user-facing strings when semantics change, not just the code. | minor | sprint 2 | **resolved** |
@@ -288,9 +290,13 @@ Therapists use this every day and it is the worst screen in the product.
       sidebar and a `lg:hidden` bottom nav; the room deliberately has neither.
       What was a stretched phone is the room's control bar, now `lg:max-w-3xl`
       rather than a 1400px-wide button
-- [ ] **2.3** Floating orb on every page: dim · teal · 🟡 someone looking ·
-      🔴 booked and paying · red steady in session
-- [ ] **2.4** Orb expands — status, session rate, clinic-visit toggle, address
+- [x] **2.3** Floating orb on every page, in **all five** states including
+      offline — which is the state nothing showed before, because `StatusPill`
+      renders only when active. Pulsing is reserved for "booked and paying"
+      alone; a dot that pulses in four states is decoration
+- [x] **2.4** Orb expands — status and what it means, go on/off the radar,
+      session rate (with a warning when payouts are not set up, since 1.8 now
+      refuses those payments outright), clinic-visit toggle and address
 - [x] **2.5** **Keep `/on-call`** as full radar control. Added session history:
       price charged **at the time** (frozen, never re-derived — verified by
       changing settings underneath it), patient record links, the money split

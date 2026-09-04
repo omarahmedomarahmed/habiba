@@ -254,3 +254,28 @@ export async function savePractice(input: {
   revalidatePath("/radar");
   return { ok: true };
 }
+
+/**
+ * Flip clinic visits on or off, and nothing else.
+ *
+ * `savePractice` demands the whole practice payload — name, address, both
+ * coordinates, country, region, city — because it is a form submission. The orb
+ * needs to toggle one boolean from anywhere in the product, and rebuilding the
+ * whole payload from a floating control is how a half-populated form silently
+ * erases somebody's address.
+ *
+ * Refuses when there is no confirmed address, because `accepts_walk_ins` is
+ * what makes the address public: turning it on with nothing to publish invites
+ * patients to an empty pin. The schema says the same thing next to the column.
+ */
+export async function toggleClinicVisits(accepts: boolean): Promise<RadarState> {
+  const actor = await requireUser();
+
+  const { setAcceptsWalkIns } = await import("@/lib/data/radar");
+  const result = await setAcceptsWalkIns(actor, accepts);
+  if (result.error) return result;
+
+  revalidatePath("/on-call");
+  revalidatePath("/radar");
+  return { ok: true };
+}

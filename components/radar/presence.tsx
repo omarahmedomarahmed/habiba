@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, BellRing, Eye, Volume2, VolumeX } from "lucide-react";
+import { Bell, BellRing, Volume2, VolumeX } from "lucide-react";
 
 import { radarPing } from "@/app/(app)/on-call/actions";
+import { RadarOrb, type OrbStatus } from "@/components/radar/orb";
 import {
   alarmRemembered,
   alarmServerSnapshot,
@@ -74,12 +75,29 @@ export function RadarPresence({
   alertOnView,
   alertOnBooking,
   clinician,
+  orb,
 }: {
   initialStatus: string;
   alertOnView: boolean;
   alertOnBooking: boolean;
   /** Only clinicians get asked to arm an alarm; nothing ever rings for an admin. */
   clinician: boolean;
+  /*
+   * The orb's static half.
+   *
+   * Rendered from inside this component rather than beside it in the layout
+   * because the live half — status, attention, suspension — is already polled
+   * here. A second component polling `radarPing` would double the request rate
+   * and could disagree with this one about whether somebody is being booked,
+   * which is the one thing on the screen that must not have two answers.
+   */
+  orb?: {
+    rateCents: number;
+    chargesEnabled: boolean;
+    acceptsWalkIns: boolean;
+    practiceAddress: string | null;
+    practiceConfirmed: boolean;
+  };
 }) {
   const [status, setStatus] = useState<Status>(initialStatus as Status);
   const active = status !== "offline";
@@ -371,6 +389,27 @@ export function RadarPresence({
 
   return (
     <>
+      {/*
+        The orb, in every state including offline.
+
+        `StatusPill` below renders only when the clinician is active, which
+        left the one state they most often need to fix — invisible — as the
+        one state nothing showed. They had to open /on-call to find out.
+      */}
+      {clinician && orb ? (
+        <RadarOrb
+          status={status as OrbStatus}
+          booked={booking}
+          suspended={Boolean(suspended)}
+          liftedForBooking={booking}
+          rateCents={orb.rateCents}
+          chargesEnabled={orb.chargesEnabled}
+          acceptsWalkIns={orb.acceptsWalkIns}
+          practiceAddress={orb.practiceAddress}
+          practiceConfirmed={orb.practiceConfirmed}
+        />
+      ) : null}
+
       {clinician ? (
         <SoundPrompt
           sound={sound}
@@ -392,14 +431,18 @@ export function RadarPresence({
             onEnableSound={enableSound}
           />
 
-          {attention?.kind === "viewing" ? (
-            <div className="safe-bottom pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-3 lg:bottom-4 lg:justify-end lg:pe-4">
-              <p className="animate-fade-rise flex items-center gap-2 rounded-full bg-navy-500/95 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur">
-                <Eye className="h-3.5 w-3.5 text-teal-300" aria-hidden />
-                Someone is looking at your profile — you are showing as busy to others
-              </p>
-            </div>
-          ) : null}
+          {/*
+            The "someone is looking" toast used to live here.
+
+            It is gone because the orb now says the same sentence permanently,
+            in the same corner — so the two collided visually and told the
+            clinician the same thing twice. A duplicate that overlaps its
+            original is worse than either alone.
+
+            The *booking* card below stays. That one is not a status, it is an
+            interruption: money is in flight and somebody has to move. It earns
+            the space, and the orb steps aside for it.
+          */}
 
           {attention && attention.kind !== "viewing" ? (
             <div className="safe-bottom fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 lg:bottom-4 lg:start-auto lg:w-96 lg:pe-4">

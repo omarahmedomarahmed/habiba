@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { and, desc, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
@@ -1124,4 +1124,42 @@ export async function radarSessionHistory(
           },
     copilotAsked: r.copilotAsked ?? 0,
   }));
+}
+
+/**
+ * Turn clinic visits on or off on their own.
+ *
+ * A conditional UPDATE rather than a read-then-write, and the condition is the
+ * point: `accepts_walk_ins` is what publishes a clinician's street address, so
+ * it may only be turned on for a practice whose location has actually been
+ * confirmed. Doing that in the WHERE clause means the check cannot be skipped
+ * by a caller that forgot it, and cannot be raced by a concurrent edit that
+ * clears the address.
+ *
+ * Turning it *off* is always allowed and never guarded. Somebody withdrawing
+ * consent to be visited must never be told they cannot.
+ */
+export async function setAcceptsWalkIns(
+  actor: Actor,
+  accepts: boolean,
+): Promise<{ error?: string }> {
+  await ensureRadarProfile(actor);
+
+  const updated = await db
+    .update(therapistRadar)
+    .set({ acceptsWalkIns: accepts, updatedAt: new Date() })
+    .where(
+      accepts
+        ? and(
+            eq(therapistRadar.userId, actor.userId),
+            isNotNull(therapistRadar.practiceAddress),
+            isNotNull(therapistRadar.practiceConfirmedAt),
+          )
+        : eq(therapistRadar.userId, actor.userId),
+    )
+    .returning({ id: therapistRadar.id });
+
+  return updated.length > 0
+    ? {}
+    : { error: "Add and confirm your practice address before offering clinic visits." };
 }

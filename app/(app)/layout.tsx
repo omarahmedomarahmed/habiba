@@ -50,7 +50,15 @@ export default async function AppLayout({
   const actor = await requireUser();
   const [radar, [me], state] = await Promise.all([
     getRadarProfile(actor.userId),
-    db.select({ profile: users.profile }).from(users).where(eq(users.id, actor.userId)).limit(1),
+    db
+      .select({
+        profile: users.profile,
+        sessionRateCents: users.sessionRateCents,
+        chargesEnabled: users.chargesEnabled,
+      })
+      .from(users)
+      .where(eq(users.id, actor.userId))
+      .limit(1),
     practiceState(actor.userId),
   ]);
 
@@ -205,6 +213,17 @@ export default async function AppLayout({
           dismiss our prompts reflexively.
         */
         clinician={cleared && actor.role === "therapist"}
+        /*
+          The orb's static half. The live half is polled inside the component —
+          see the prop's own comment for why there is not a second poller.
+        */
+        orb={{
+          rateCents: me?.sessionRateCents ?? 0,
+          chargesEnabled: me?.chargesEnabled ?? false,
+          acceptsWalkIns: radar?.acceptsWalkIns ?? false,
+          practiceAddress: radar?.practiceAddress ?? null,
+          practiceConfirmed: Boolean(radar?.practiceConfirmedAt),
+        }}
       />
     </div>
   );

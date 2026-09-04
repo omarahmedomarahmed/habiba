@@ -38,11 +38,23 @@ type Geometry = {
   bodyScrollWidth: number;
 };
 
+/**
+ * Answer the alarm prompt the way a clinician would.
+ *
+ * It is a real full-screen modal and it really does block everything behind it,
+ * which is the point — an unarmed alarm is the failure mode that matters. Its
+ * dismiss button is worded three different ways depending on state ("Later"
+ * offline, "Not now" online, "I will fix it in my browser" when the browser has
+ * blocked notifications outright), and matching only the first two is what made
+ * this script time out clicking the orb through an invisible overlay.
+ */
 async function dismissAlarmPrompt(page: Page) {
-  const later = page.getByRole("button", { name: /^(Later|Not now)$/ });
-  if ((await later.count()) > 0) {
-    await later.first().click();
-    await page.waitForTimeout(200);
+  const dismiss = page.getByRole("button", {
+    name: /^(Later|Not now|I will fix it in my browser)$/,
+  });
+  if ((await dismiss.count()) > 0) {
+    await dismiss.first().click();
+    await page.waitForTimeout(250);
   }
 }
 
@@ -262,6 +274,97 @@ async function main() {
       `document.querySelectorAll('ul li').length`,
     );
     console.log(`\non-call: session history rendered, ${historyRows} list item(s)`);
+
+    /*
+     * The orb, driven through its states.
+     *
+     * The five states are the whole ticket, and four of them are database
+     * states rather than anything a browser can click into — so they are set
+     * directly on `therapist_radar` and the page reloaded, which is exactly
+     * what the poll would have produced.
+     */
+    const orbStates: Array<[string, Record<string, unknown>]> = [
+      ["off", { status: "offline", pendingSessionId: null, pendingUntil: null }],
+      ["live", { status: "online", pendingSessionId: null, pendingUntil: null, lastSeenAt: new Date() }],
+      [
+        "viewing",
+        {
+          status: "pending",
+          pendingSessionId: null,
+          pendingUntil: new Date(Date.now() + 60_000),
+          reservedBy: "someone",
+        },
+      ],
+      ["in-session", { status: "in_session", pendingSessionId: null, pendingUntil: null }],
+    ];
+
+    const { pool: p2, db: db2 } = connect();
+    let orbFailures = 0;
+    try {
+      const [me] = await db2
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, EMAIL))
+        .limit(1);
+
+      await page.setViewportSize({ width: 1440, height: 900 });
+
+      for (const [label, patch] of orbStates) {
+        await db2
+          .update(schema.therapistRadar)
+          .set(patch as never)
+          .where(eq(schema.therapistRadar.userId, me!.id));
+
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "domcontentloaded" });
+        await dismissAlarmPrompt(page);
+
+        const orb = page.getByRole("button", { name: /Open radar controls/ });
+        await orb.waitFor({ timeout: 20_000 });
+
+        /*
+         * Dismiss again, after the orb exists.
+         *
+         * The first call fires on `domcontentloaded`, which is before React has
+         * hydrated and rendered the alarm modal — so it found nothing, and the
+         * modal then appeared over the orb and ate every click. The prompt
+         * re-renders on every load while the clinician is online, so this is
+         * not a one-time setup step.
+         */
+        await dismissAlarmPrompt(page);
+
+        // The accessible name carries the state, so this asserts what a screen
+        // reader would say rather than what colour a div happens to be.
+        const name = await orb.getAttribute("aria-label");
+        const expected: Record<string, RegExp> = {
+          off: /Off the radar/,
+          live: /Live on the radar/,
+          viewing: /looking at your profile/,
+          "in-session": /In a session/,
+        };
+        const ok = expected[label]!.test(name ?? "");
+        console.log(`  ${ok ? "ok  " : "FAIL"} orb state "${label}" — ${name}`);
+        if (!ok) orbFailures += 1;
+
+        await orb.click();
+        await page.waitForSelector('[role="dialog"][aria-label="Crisis Radar"]', {
+          timeout: 10_000,
+        });
+        // Let `animate-fade-rise` finish, or the shot catches a half-faded
+        // panel and looks like a rendering bug that is not there.
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: `${OUT}/orb-${label}.png` });
+        await page.keyboard.press("Escape");
+      }
+
+      // Put them back where the room shots left them.
+      await db2
+        .update(schema.therapistRadar)
+        .set({ status: "offline", pendingSessionId: null, pendingUntil: null, reservedBy: null } as never)
+        .where(eq(schema.therapistRadar.userId, me!.id));
+    } finally {
+      await p2.end();
+    }
+    failures += orbFailures;
 
     console.log(`\nscreenshots in ${OUT}`);
   } finally {
