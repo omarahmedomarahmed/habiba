@@ -126,31 +126,61 @@ Two controls, side by side, both visible, both changeable mid-session:
 
 | Line | Rule |
 |---|---|
-| **Session bill** | Therapist pays for AI used: PAYG **$3**, or from their bundle |
+| **Session bill** | Therapist pays for the AI used, at whichever rate their bundle bought |
 | **Platform cut** | **15% of any session the patient paid for.** Free links take no cut |
 | **VAT** | By country. Egypt **14%**. **The patient pays it, on top of everything** |
 | Worked example | $30 session → patient pays **$34.20** · $4.20 VAT · $4.50 our cut · $25.50 to the therapist · plus the therapist's own session bill |
 | Refunds | Our cut is refunded. **VAT is not** |
-| Price cap | **$500** per session |
+| Price cap | **$500** per session. Currently **$1,000** in code — lower it |
 | Free links | Allowed. No cut, but the session bill still applies |
 | In-person | Always free. Paid at the clinic, we take nothing |
 
-### Plans — every number admin-editable
+### Pricing — one rate, bought in a minimum quantity
 
-| Plan | Price | Included | After that |
+Not subscriptions. A therapist buys sessions at a rate, and the rate is set by
+how many they buy at once.
+
+| Tier | Rate | Minimum | Costs them |
 |---|---|---|---|
-| **PAYG** | — | — | $3.00/session |
-| **Starter** | $20/mo | 10 sessions | $2.00/session |
-| **Practice** | $45/mo | 30 sessions | $1.50/session |
+| **PAYG** | **$4.00**/session | 0 | pay as they go |
+| **Starter** | **$3.00**/session | 10 sessions | $30 |
+| **Growth** | **$2.00**/session | 30 sessions | $60 |
+
+Above a minimum they buy as many as they like at the same rate — a slider, not
+a fixed pack.
 
 | Rule | |
 |---|---|
 | Credits expire | **12 months** |
-| Cancel or downgrade | Keep unused credits, consume them first, then the new rate |
-| Cancelling clears the pending bill | Reason recorded: *downgraded to PAYG* |
+| Downgrade | Keep every unused credit. They are consumed first, then the new rate applies |
+| Buying more at a better rate | Allowed any time. It does not touch the existing balance |
 | Copilot per patient | **10 messages per session**, rolls over on that patient, expires 12 months |
 | Unclaimed patient | **5 credits**, unlocked by documenting them |
-| General chat | **50 messages per month**, any number of threads |
+| General chat | **50 messages per calendar month**, across any number of threads |
+
+**Margin at each rate**, against a measured cost of ~$0.97 for a 60-minute
+session — transcription, note, in-session copilot and video:
+
+| Tier | Charge | Cost | Margin |
+|---|---|---|---|
+| PAYG | $4.00 | $0.97 | **$3.03 · 76%** |
+| Starter | $3.00 | $0.97 | **$2.03 · 68%** |
+| Growth | $2.00 | $0.97 | **$1.03 · 52%** |
+
+The 15% cut on paid sessions is on top of all three.
+
+### Production today — none of the above is live
+
+| | Now | Target |
+|---|---|---|
+| PAYG rate | **$6.00** (`plans.ts`) | $4.00 |
+| Plans | `payg` + `unlimited $99/mo` | PAYG · Starter · Growth |
+| Platform cut | **10%** (`PLATFORM_FEE_BPS = 1000`) | 15% |
+| Price cap | **$1,000** | $500 |
+
+**Move every therapist to PAYG, including unlimited subscribers.** They are demo
+accounts under test by real clinicians — no real revenue, nobody to notify. The
+ledger holds 2 rows and no payment has ever been taken, so nothing real breaks.
 
 🔴 **Every figure above lives in an admin-editable table, not in code.** Rates,
 tiers, included sessions, copilot limits, VAT per country, the cap.
@@ -178,10 +208,23 @@ Everything downstream reads these. Anything hardcoded here is rewritten in 15.
       remain in code**
 - [ ] **1.4** Fix `lib/ai/client.ts` — the transcribe rate ignores `input.model`
       (H12)
-- [ ] **1.5** Session length 50 → **60 min**: 50 running, 10-minute countdown,
-      hard stop
+- [ ] **1.5** Session length 50 → **60 min**: 50 running, then a **10-minute
+      countdown shown on both screens**, hard stop at 60. To continue, the
+      therapist creates a new session — free or paid — and sends that patient
+      the link
+- [ ] **1.6** Reprice to §3: PAYG $4, Starter $3/min 10, Growth $2/min 30.
+      Platform cut 10% → **15%**. Price cap $1,000 → **$500**
+- [ ] **1.7** **Move every therapist to PAYG**, unlimited subscribers included.
+      Demo accounts, no real revenue, nobody to notify
+- [ ] **1.8** 🔴 **Stop taking custody of therapist money.** `connect.ts:386`
+      selects `capture: "platform"` automatically whenever a clinician has no
+      Connect account — so we hold their balance today, by default, for exactly
+      the therapists least able to chase us for it. Refuse the payment and
+      prompt them to finish Connect onboarding instead. **This is remediation,
+      not prevention: it is live**
 - **Accept:** changing a rate in the database changes what the next session
-      bills, with no deploy.
+      bills, with no deploy. And no code path can put a patient's payment
+      anywhere but a clinician's own Stripe account.
 
 ### Sprint 2 — The room and the shell · ~1 week · 🔴 LIVE PAIN
 
@@ -359,8 +402,9 @@ The first sprint that earns money.
 - [ ] **14.5** Payout preferences: country, then available methods
 - [ ] **14.6** Wallet screen — **display only**, showing what Connect will pay
 
-🔴 **Do not hold therapist balances.** Holding money and paying it out later
-makes this company a money transmitter: ~48 US state licences with bonds from
+🔴 **Do not hold therapist balances.** Closed in sprint 1.8 — this sprint must
+not reopen it. Holding money and paying it out later makes this company a money
+transmitter: ~48 US state licences with bonds from
 $50k, Central Bank licensing in Egypt and the UAE. Stripe Connect exists so we
 never touch it. The wallet is a screen over Connect, or a licensed local partner
 is the payer of record. **Not our balance sheet.**
