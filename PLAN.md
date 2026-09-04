@@ -9,8 +9,13 @@ each other.
 - **History, measurements and traps:** `DEVLOG.md`
 - **This file:** what to build, in what order, and where to object.
 
-**Baseline:** `main` @ `547ae5d` · migrations `0000–0028` · Sprint 0 shipped ·
-69 tests green across six suites.
+**Baseline:** `main` @ `4a85e8c` · migrations `0000–0028` · Sprint 0 shipped ·
+**109 tests across eight suites** — 60 run without a database, 49 need one.
+
+*The "69 across six suites" this line used to claim was wrong. `radar.test.ts`
+(27) and `e2e.test.ts` (13) were never in the standing check, and the 27 cover
+`claimTherapist` — the exact primitive 1C.3 and 1D depend on. Found by the
+audit, not by me.*
 
 ---
 
@@ -29,25 +34,80 @@ other channel between sessions.
 
 # §1 · VERDICT
 
-> **Auditor: fill this in before writing any product code.**
-> Replace this block. Keep it short — tables, not prose.
+```
+Status: AUDITED — source read, nothing executed (see C1)
+Auditor session: claude/24therapy-rebuild-research-fkjen7
+Date: 3 Sep
+Commit audited: 3e2df61
+```
 
-```
-Status: NOT YET AUDITED
-Auditor session:
-Date:
-Commit audited:
-```
+**What was and was not run.** Dependencies installed after the first pass, so
+the static checks *were* run and are reported below. There is still no
+`.env.local`, so nothing that touches the database ran. See **C1**.
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | ✅ clean — confirms DEVLOG's claim |
+| `test` / `alarm` / `clock` / `toasts` / `transcribe` | ✅ **60/60** — 23 · 7 · 12 · 8 · 10 |
+| `npm run build` | ⚠️ **compiles and typechecks clean in 29.7 s**, then fails collecting page data: `Missing required environment variable: DATABASE_URL`. Env-blocked, not code-blocked |
+| `test:ledger` | ❌ 0 pass / 10 fail, all `DATABASE_URL`. *(DEVLOG says 9 tests; the runner reports 10 failures)* |
+| `information_schema` migration checks | ❌ not run — **trap T1 is unverified this session** |
+| Every claim in Sprint 1 needing real audio or real rows | ❌ not run |
+
+So: the tree is healthy and the plan's *static* baseline is confirmed.
+Everything the plan asks to be **measured** still is not.
 
 | Question | Answer |
 |---|---|
-| Does the plan match the codebase? | |
-| What is already built that the plan thinks is missing? | |
-| What is wrong, impossible, or costlier than stated? | |
-| What has the plan missed? | |
-| Is the sprint order right? | |
-| Any settled decision you disagree with, with evidence? | |
-| **Verdict: proceed / proceed with changes / stop** | |
+| Does the plan match the codebase? | Structurally yes. Every file, line number and absence it names is real — `client.ts:140`, `middleware.ts:62-67`, `ROLES` without `patient`, `Actor.organizationId: string`, no `people`/`historyGrants`/`availability_slots`/`scheduledAt`. It is wrong mainly about **how much already exists** and about **three cost estimates**. |
+| What is already built that the plan thinks is missing? | **Ten more, on top of DEVLOG's list** — see table A. Two whole tickets (**1B.6, 1D.7**) are shipped; **1D.2/1D.6** are ~70% shipped; **5.4's** citation machinery already exists and resolves. |
+| What is wrong, impossible, or costlier than stated? | Seven items — see table B. Two are `blocker` (**C1**, **C4**), three `major`. **1D.5 is a payments redesign**, `1.1`'s acceptance criterion is unachievable as written, and `3.2`'s nullable-org branch silently destroys a uniqueness guarantee. |
+| What has the plan missed? | Table C. Chiefly: no worker infrastructure exists for 5.3; blob URLs are secrets, not access control, so 5.9's watermark/audit is bypassable; `copilot_threads` is one-per-patient **globally**, which blocks 7.5 and collides with Sprint 2; and Sprint 4 says nothing about what a grant does when a session is reassigned by 1D.4. |
+| Is the sprint order right? | **Nearly. One real fault: 1B before 3.** 1B.3 builds a guest booking calendar; Sprint 3 gives patients accounts and rewires that same entry point. 1B is also `blocked` on Resend, which is not a code task. Move 1B after 3. Proposed: **1 → 1C → 2 → 3 → 4 → 1B → 1D → 5 → 5B → 6 → 7 → 8**. 2→3→4 as foundation is correct and I would not touch it. |
+| Any settled decision you disagree with, with evidence? | **One, partly.** DEVLOG: *"Going offline is ungated and carries no penalty — not a risk."* True for the act it describes. But `suspendFromRadar` already penalises the **adjacent** act, and 1C.3 + 1B.5 would make going offline **automatic**. See **C9**. Deepgram, pinned language, `gpt-4o-transcribe`, emotion labels, couples therapy: **not re-opened, no new measurement offered.** |
+| **Verdict** | ⚠️ **PROCEED WITH CHANGES.** Sprint 1 can start on 1.3/1.4/1.5 today. **1.1 and 1.2 cannot start until C1 is resolved** — neither can be done without database access, and 1.2 is a measurement ticket by its own wording. Re-scope 1D before Sprint 1D. Take the *separate identity* branch of 3.2, not the nullable one. |
+
+### Table A · Already built — do not rebuild *(beyond DEVLOG's list)*
+
+| # | Thing | Where | Ticket it closes or shrinks |
+|---|---|---|---|
+| A1 | **Mid-session warning, fully shipped and wired** — `WARNING_MINUTES = 5`, stages `closing`/`decision`/`wrapUp` | `lib/session-clock.ts:50`, `<SessionClockBar>` rendered at `components/session/session-room.tsx:410` | **1B.6 — nothing to build** |
+| A2 | **No-show detection, penalty ladder and the clinician's email** — auto-files `session_reports.kind="no_show"`, first offence warns, second suspends | `lib/data/feedback.ts:702-792` (`sweepAbandonedPatients`), `:468` `suspensionFor`, `:474` `countNoShows`, `:488` `suspendFromRadar` | **1D.7 — shipped, wording included.** 1D.2, 1D.6 mostly shipped |
+| A3 | It is **patient-poll triggered, not cron** — `markAbandonedIfWaiting` from `checkJoinState` | `lib/data/feedback.ts:814` | 1D needs **no scheduler**. Cheaper than it reads |
+| A4 | **Two-track speaker attribution, exact** — a video session runs two recorders; `diariseSession` deliberately no-ops when it sees one | `lib/audio/recorder.ts:8-12`, `lib/ai/diarise.ts:98-100` | Scopes all of Sprint 1 attribution to **in-person / dropped-track only** |
+| A5 | **Citations that resolve or are discarded** — `[S2:14]` refs validated against real rows; invented refs dropped | `lib/ai/patient-copilot.ts:26-32`, `Citation` type `lib/db/schema.ts:769` | **5.4 is an extension, not new machinery** |
+| A6 | **Server-side TTS, same vendor, no new bill** — `gpt-4o-mini-tts` | `app/api/copilot/speak/route.ts` | 5.9's vendor question is answered — but see **C6** for its shape |
+| A7 | **Client-side RMS + silence gating already in the recorder** | `lib/audio/recorder.ts:174,187-196` | **1.3 and 1.4 are ~30 lines in an existing file**, not new pipeline |
+| A8 | **Refund with `reverse_transfer` + `refund_application_fee`** | `lib/billing/connect.ts:661-665` | The only existing lever for 1D.5 — see **C4** |
+| A9 | `findPatientByEmail` | `lib/data/patients.ts:174` | 2.3's match primitive |
+| A10 | `offRecordGaps` — gap analysis over segment timing | `lib/data/feedback.ts:440` | 1.4's pause-length descriptor, half done |
+
+Also: **`tests/radar.test.ts` (27) and `tests/e2e.test.ts` (13) exist and are
+not in the "69 across six suites" standing check.** Real total is 109. The 27
+uncounted ones cover `claimTherapist` — the exact primitive 1C.3 and 1D depend on.
+
+### Table B · Wrong, impossible, or costlier
+
+| # | Ticket | Finding |
+|---|---|---|
+| B1 | **1.1** | Acceptance criterion **unachievable as written**. `MAX_SEGMENTS = 160` (`diarise.ts:46`); a 50-minute session at 8 s/chunk is ~375 segments, so the tail can *never* be attributed. Separately the two-track guard is all-or-nothing (`diarise.ts:98`) — a video session whose patient track dropped after two minutes has 2 attributed rows, 300 `unknown`, and is skipped forever. **Fix the function, then backfill.** Backfilling first bakes both holes in. |
+| B2 | **1.2** | Contradicts its own sprint header (*"No vendor. No new bill. No BAA."*). Speaker embeddings are not in the OpenAI API; Deepgram is closed; self-hosting pyannote/ECAPA is a Python runtime Vercel does not have (**T13**). And per **A4** its value is confined to in-person sessions. Costlier and narrower than stated. |
+| B3 | **1.5** | ✅ Confirmed exactly as described. `lib/ai/client.ts:138-142` hardcodes `RATES["gpt-4o-mini-transcribe"]` and never reads `input.model`. Real today. |
+| B4 | **3.2 / 3.3** | Take the **separate patient identity**, not nullable `users.organizationId`. Evidence: `users_org_email_unique` is `(organization_id, email)` (`schema.ts:149-151`). **Postgres treats NULLs as distinct**, so a null org silently voids the index and one email can sign up without limit. Blast radius measured: **298 `organizationId` references** across `app/lib/components`, **148** actor-shaped. |
+| B5 | **1D.5** | *"not a payments redesign"* — **it is.** The ordinary case is a Stripe **destination charge** (`connect.ts:439-448`): money lands in therapist A's connected account at checkout, before the session. There is no payable to re-point. `session_payments_session_unique` (`schema.ts:1351`) also permits only one payment row per session. **Recommendation with a one-parameter shape:** add `capture_method: "manual"` to `payment_intent_data` at `connect.ts:438` for radar bookings — authorise at booking, capture when the session actually *starts*. Then 1D.5 really is cheap. |
+| B6 | **5.2** | Reverses a **documented** security decision without replacing its reasoning: *"PDFs are excluded deliberately: a PDF is a script host"* (`lib/uploads.ts:33-36`). Patient-uploaded PDFs are strictly worse than the clinician case that comment refuses; `.docx` adds macros. And raising the 8 MB cap collides with Vercel's ~4.5 MB request-body limit — see `MAX_BYTES = 4 * 1024 * 1024` in the transcribe route. Needs client-direct-to-blob upload, which is not in the ticket. |
+| B7 | **5.3** | *"background worker"* — **there is no worker.** The only async primitives in the tree are `waitUntil()` and three daily Vercel crons (`vercel.json`). This is new infrastructure, not a sprint line item. |
+
+### Table C · Missed entirely
+
+| # | Gap |
+|---|---|
+| C-a | **`copilot_threads.patient_id` is NOT NULL and uniquely indexed on `patient_id` alone** (`schema.ts:764`) — one thread per patient **across all therapists**, including its `guidance`. Blocks **7.5** outright and collides with Sprint 2's cross-therapist person. |
+| C-b | **Blob URLs are unguessable secrets, not access control** (`lib/uploads.ts:16-19`). 5.9's read-only viewer, watermark and audit are all bypassable by anyone holding the URL. The seam is named in that file; the plan does not budget it. |
+| C-c | **Sprint 4 says nothing about reassignment.** 1D.4 moves a session to clinician B. Does B inherit A's `historyGrant`? Silence here is a wrong-access bug. |
+| C-d | **`lib/consent.ts` already exists** and means *recording* consent. Sprint 4 must not overload the word. |
+| C-e | **Data hygiene before Sprint 2's backfill.** ~35 `demo.nadia.*`/`e2e-*` accounts and the ledger test's `ledger-test-*` rows are in production `patients`/`users`. 2.2 gives every one of them a `person`. Purge first. |
+| C-f | **1D's threshold disagrees with the code.** Plan and DEVLOG say 5 minutes; `ABANDON_AFTER_MINUTES = 10` (`feedback.ts:685`). Changing it also changes when a clinician gets suspended. One decision, two consequences. |
 
 ---
 
@@ -58,7 +118,22 @@ Commit audited:
 
 | # | Sprint | Concern | Severity | Raised by | Status | Resolution |
 |---|---|---|---|---|---|---|
-| — | — | *(none yet)* | — | — | — | — |
+| C1 | 0 / all | **No `.env.local` in the audit container.** *Narrowed after `npm ci`:* static checks all pass — `tsc` clean, 60/60 DB-free tests, build compiles in 29.7 s. What remains impossible: `test:ledger`, `npm run build` past page-data collection, **every `information_schema` check (T1 unverified)**, and every Sprint 1 measurement. 1.1 and 1.2 are still unstartable | `blocker` | audit @ `3e2df61` | **narrowed** `54294af`→ | Needs `DATABASE_URL` + `OPENAI_API_KEY`. Read-only DB is enough for 1.1's verification query; 1.2 needs the AI key and real two-speaker audio |
+| C2 | 1.1 | `MAX_SEGMENTS = 160` (`diarise.ts:46`) caps attribution at ~21 min of an 8 s-chunked session. A 50-min session is ~375 segments; the tail can never be attributed. **The acceptance criterion cannot be met by a backfill alone** | `major` | audit | open | Paginate `diariseSession` over segment windows *before* backfilling, or restate the criterion to name the cap |
+| C3 | 1.1 | The two-track guard (`diarise.ts:98-100`) is all-or-nothing: **one** `patient` segment skips the whole session. A video call whose patient track dropped at minute 2 keeps ~300 permanently `unknown` rows | `major` | audit | open | Make the guard per-run-of-segments, not per-session |
+| C4 | 1D.5 | *"not a payments redesign"* is wrong. Destination charges (`connect.ts:439-448`) put the money in therapist A's connected account **before the session**; there is no payable to re-point, and `session_payments_session_unique` allows one payment row per session. Re-pointing today = refund A + charge the patient again, on a no-show, in crisis | `blocker` | audit | open | Add `capture_method: "manual"` at `connect.ts:438` for radar bookings. Authorise at booking, capture at session start. Then 1D.5 is an UPDATE |
+| C5 | 3.2 / 3.3 | Nullable `users.organization_id` **silently voids** `users_org_email_unique` — Postgres NULLs are distinct, so one email could sign up without limit. Not a crash; a data-integrity hole that passes every test | `blocker` | audit | open | Take the *separate patient identity* branch. If nullable is chosen anyway, add a second partial unique index on `(email) WHERE organization_id IS NULL` |
+| C6 | 5.9 | The existing TTS route takes **text from the client** (`speak/route.ts:30`) — exactly the shape **T10** forbids. Reusing it as-is ships the trap | `major` | audit | open | New sibling endpoint keyed on document/chunk **id**; text is fetched server-side and never leaves it. Also: `slice(0, 4000)` will not hold a document |
+| C7 | 5.1 / 5.9 | Blob URLs are unguessable secrets, **not** access control (`lib/uploads.ts:16-19`). Watermark, read-only viewer and audit are all bypassable by URL | `major` | audit | open | Serve every document read through an authorised route; never hand the blob URL to a browser |
+| C8 | 5.2 | Reverses a documented decision (*"a PDF is a script host"*, `uploads.ts:33-36`) with no replacement mitigation, and patient uploads are less trusted than the clinician case it refuses. Raising 8 MB also hits Vercel's ~4.5 MB body limit | `major` | audit | open | Client-direct-to-blob upload; never serve an original inline; `Content-Disposition: attachment`; treat `.docx` separately from PDF |
+| C9 | 1C.3 / 1B.5 | **Partial disagreement with a settled decision.** "Going offline is ungated, not a risk" holds for the *manual* act — but `suspendFromRadar` already penalises the adjacent one, and 1C.3/1B.5 make going offline **automatic**. A clinician auto-offlined the instant a patient books can still be counted absent by the 10-minute sweep | `minor` | audit | open | Not re-opening the decision. Asking that auto-offline and `sweepAbandonedPatients` be made aware of each other before 1C.3 ships |
+| C10 | 7.4 / 7.5 | `copilot_threads.patient_id` is NOT NULL and uniquely indexed on `patient_id` **alone** (`schema.ts:764`) — one thread per patient globally, shared `guidance` included. Blocks 7.5; collides with Sprint 2 | `major` | audit | open | Nullable `patient_id` + partial unique on `(patient_id, therapist_id) WHERE patient_id IS NOT NULL`. Cheapest as a Sprint 2 migration, not a Sprint 7 one |
+| C11 | 5.3 | No worker exists. `waitUntil()` and three **daily** Vercel crons are the whole async surface | `major` | audit | open | Name the mechanism before Sprint 5: resumable cron, QStash, or a separate host |
+| C12 | order | **1B before 3.** 1B.3 builds a guest booking calendar that Sprint 3 then rewires for real accounts. 1B is also blocked on Resend, which is not a code task | `major` | audit | open | Proposed order: **1 → 1C → 2 → 3 → 4 → 1B → 1D → 5 → 5B → 6 → 7 → 8** |
+| C13 | 1D | Plan says 5 minutes; `ABANDON_AFTER_MINUTES = 10` (`feedback.ts:685`). The same constant governs **when a clinician is suspended** | `minor` | audit | open | One decision, stated once, with both consequences named |
+| C14 | 2.2 | ~35 `demo.nadia.*`/`e2e-*` accounts and `ledger-test-*` rows are in production. 2.2 mints a `person` for each | `minor` | audit | open | Purge before the backfill, not after |
+| C15 | 4 | Nothing says what happens to a `historyGrant` when 1D.4 reassigns a session. Silence here is a wrong-access bug, not a gap | `major` | audit | open | Decide before 4.1: does B inherit A's grant, or does the patient re-approve? |
+| C16 | testing | `tests/radar.test.ts` (27) and `tests/e2e.test.ts` (13) are outside the "69 across six suites" standing check. The 27 cover `claimTherapist` — the primitive 1C.3 and 1D depend on | `minor` | audit | open | Add `test:db` to the standing list before touching radar |
 
 **Severity:** `blocker` stops the sprint · `major` changes the design ·
 `minor` worth noting.
