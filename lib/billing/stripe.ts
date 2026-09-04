@@ -5,10 +5,10 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { invoices, organizations, payableCents, stripeEvents, subscriptions } from "@/lib/db/schema";
-import { recordSubscriptionInvoice, sumPayable } from "./service";
+import { activatePurchase, createPendingPurchase, quoteCredits } from "./credits";
+import { recordCreditPurchaseInvoice, sumPayable } from "./service";
 import { env, features } from "@/lib/env";
-import { log, safeErrorMessage } from "@/lib/logger";
-import { PLANS } from "./plans";
+import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 let stripe: Stripe | null = null;
 
@@ -45,47 +45,86 @@ async function ensureCustomer(organizationId: string, email: string): Promise<st
 }
 
 /**
- * Subscription checkout.
+ * Buy sessions in advance.
  *
- * `success_url` carries the checkout session id so the app can confirm the
- * outcome on redirect. That confirm path is not redundant with the webhook: in
- * preview and local environments Stripe cannot reach the webhook endpoint at
- * all, and without the redirect confirmation a paid subscription simply never
- * activated. Keeping both is the fix that made billing testable.
+ * This replaced `createSubscriptionCheckout`, which sold a $99/month
+ * `unlimited` plan that no longer exists. The mode changed with it: a one-time
+ * `payment` rather than a `subscription`, because a therapist now buys a
+ * quantity of sessions outright and there is no renewal to manage, no
+ * cancellation to handle and no proration to get wrong.
+ *
+ * The quantity is a slider above the tier's minimum, so the line item is priced
+ * from `quoteCredits` rather than chosen from a list of Stripe products — the
+ * rate comes from `platform_settings` and an admin changing it must not require
+ * a new product in Stripe.
+ *
+ * `success_url` carries the checkout session id so the app can confirm on
+ * redirect. That is not redundant with the webhook: Stripe cannot reach a
+ * preview or local deployment at all, and without the redirect confirmation a
+ * paid purchase simply never activated. Both paths are guarded on
+ * `status = 'pending'`, so whichever arrives first wins and the second is a
+ * no-op.
  */
-export async function createSubscriptionCheckout(opts: {
+export async function createCreditCheckout(opts: {
   organizationId: string;
   email: string;
-}): Promise<string | null> {
+  quantity: number;
+}): Promise<{ url?: string; error?: string }> {
   const client = getStripe();
-  if (!client) return null;
+  if (!client) return { error: "Payments are not configured on this deployment." };
+
+  const quote = await quoteCredits(opts.quantity);
+  if (quote.quantity <= 0) return { error: "Choose how many sessions to buy." };
 
   const customerId = await ensureCustomer(opts.organizationId, opts.email);
-  if (!customerId) return null;
+  if (!customerId) return { error: "Stripe could not identify your account." };
 
-  const plan = PLANS.unlimited;
-
-  const checkout = await client.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: plan.monthlyCents!,
-          recurring: { interval: "month" },
-          product_data: { name: `24Therapy ${plan.name}`, description: plan.tagline },
+  try {
+    const checkout = await client.checkout.sessions.create({
+      mode: "payment",
+      customer: customerId,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: quote.totalCents,
+            product_data: {
+              name: `24Therapy — ${quote.quantity} sessions`,
+              description: `${quote.tier.name} rate · $${(quote.tier.rateCents / 100).toFixed(2)} per session · valid until ${quote.expiresAt.toISOString().slice(0, 10)}`,
+            },
+          },
         },
+      ],
+      success_url: `${env.appUrl}/billing?checkout={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.appUrl}/billing?checkout=cancelled`,
+      metadata: {
+        kind: "credit_purchase",
+        organizationId: opts.organizationId,
+        quantity: String(quote.quantity),
       },
-    ],
-    success_url: `${env.appUrl}/billing?checkout={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.appUrl}/billing?checkout=cancelled`,
-    metadata: { organizationId: opts.organizationId, plan: plan.key },
-    subscription_data: { metadata: { organizationId: opts.organizationId } },
-  });
+    });
 
-  return checkout.url;
+    if (!checkout.url) return { error: "Stripe did not return a payment link." };
+
+    // Recorded as `pending` before the therapist is sent anywhere: a purchase
+    // that completes while we have no row for it is unreconcilable, and the
+    // webhook may well arrive before the browser comes back.
+    const pending = await createPendingPurchase({
+      organizationId: opts.organizationId,
+      quantity: quote.quantity,
+      stripeCheckoutSessionId: checkout.id,
+    });
+    if (!pending) return { error: "Could not record the purchase. Nothing has been charged." };
+
+    return { url: checkout.url };
+  } catch (error) {
+    log.error("credit checkout failed", {
+      organization: ref(opts.organizationId),
+      reason: safeErrorMessage(error),
+    });
+    return { error: "Stripe could not start the purchase just now. Try again in a moment." };
+  }
 }
 
 /**
@@ -155,28 +194,23 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
     await settleSessionPayment({ id: session.id, paymentIntentId });
   }
 
-  if (organizationId && session.mode === "subscription" && session.status === "complete") {
-    await db
-      .update(subscriptions)
-      .set({
-        plan: "unlimited",
-        status: "active",
-        stripeSubscriptionId:
-          typeof session.subscription === "string" ? session.subscription : null,
-        cancelAtPeriodEnd: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(subscriptions.organizationId, organizationId));
-
-    // Record the payment as an invoice. Without this the therapist pays and the
-    // product shows them nothing at all.
-    await recordSubscriptionInvoice({
-      organizationId,
-      amountCents: session.amount_total ?? PLANS.unlimited.monthlyCents ?? 0,
-      periodStart: new Date(),
-      periodEnd: null,
+  if (session.metadata?.kind === "credit_purchase" && session.payment_status === "paid") {
+    const activated = await activatePurchase({
+      stripeCheckoutSessionId: session.id,
       stripePaymentIntentId: paymentIntentId,
     });
+
+    // Only on the transition. `activatePurchase` is guarded on `pending`, so a
+    // second arrival — the webhook after the redirect, or the reverse — returns
+    // false and does not raise a duplicate invoice.
+    if (activated.activated && activated.organizationId) {
+      await recordCreditPurchaseInvoice({
+        organizationId: activated.organizationId,
+        amountCents: session.amount_total ?? 0,
+        quantity: activated.quantity,
+        stripePaymentIntentId: paymentIntentId,
+      });
+    }
   }
 
   // Settle every invoice attached to this checkout, however many there were.
@@ -263,65 +297,17 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
       await applyCheckoutOutcome(event.data.object);
       break;
 
-    case "customer.subscription.updated": {
-      const sub = event.data.object;
-      const organizationId = sub.metadata?.organizationId;
-      if (organizationId) {
-        await db
-          .update(subscriptions)
-          .set({
-            status: sub.status === "active" || sub.status === "trialing" ? "active" : "past_due",
-            cancelAtPeriodEnd: sub.cancel_at_period_end,
-            currentPeriodEnd: sub.current_period_end
-              ? new Date(sub.current_period_end * 1000)
-              : null,
-            updatedAt: new Date(),
-          })
-          .where(eq(subscriptions.organizationId, organizationId));
-      }
-      break;
-    }
-
-    case "customer.subscription.deleted": {
-      const sub = event.data.object;
-      const organizationId = sub.metadata?.organizationId;
-      if (organizationId) {
-        await db
-          .update(subscriptions)
-          .set({ plan: "payg", status: "cancelled", stripeSubscriptionId: null, updatedAt: new Date() })
-          .where(eq(subscriptions.organizationId, organizationId));
-      }
-      break;
-    }
-
-    case "invoice.payment_succeeded": {
-      const stripeInvoice = event.data.object;
-      const customerId =
-        typeof stripeInvoice.customer === "string" ? stripeInvoice.customer : null;
-      // Only renewals: the first payment already produced an invoice via the
-      // checkout, and billing_reason distinguishes them.
-      if (customerId && stripeInvoice.billing_reason === "subscription_cycle") {
-        const [org] = await db
-          .select({ id: organizations.id })
-          .from(organizations)
-          .where(eq(organizations.stripeCustomerId, customerId))
-          .limit(1);
-        if (org) {
-          await recordSubscriptionInvoice({
-            organizationId: org.id,
-            amountCents: stripeInvoice.amount_paid ?? 0,
-            periodStart: stripeInvoice.period_start
-              ? new Date(stripeInvoice.period_start * 1000)
-              : null,
-            periodEnd: stripeInvoice.period_end
-              ? new Date(stripeInvoice.period_end * 1000)
-              : null,
-            description: "Unlimited — monthly renewal",
-          });
-        }
-      }
-      break;
-    }
+    /*
+     * The subscription and renewal branches that used to live here are gone.
+     *
+     * There is no recurring plan any more — sessions are bought outright, and a
+     * credit purchase arrives as `checkout.session.completed` like any other
+     * one-time payment. Stripe will still deliver subscription events for the
+     * handful of accounts that had one before the move to PAYG; they fall
+     * through to the default and are recorded in `stripe_events` without
+     * action, which is the correct outcome: those subscriptions were cancelled
+     * in Stripe and there is nothing left for us to mirror.
+     */
 
     /**
      * Connect capabilities. This is the only trustworthy source for
@@ -359,6 +345,17 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
   }
 }
 
+/**
+ * Cancel whatever recurring billing an account still has in Stripe.
+ *
+ * Kept, narrowed, and no longer reachable from the product: there is nothing to
+ * subscribe to any more, so this exists for the accounts that had a
+ * subscription before the move to PAYG and for an admin cleaning one up. It
+ * cancels at period end rather than immediately — a therapist who has paid for
+ * this month keeps this month.
+ *
+ * The local row is already `payg`; this only stops Stripe from charging again.
+ */
 export async function cancelSubscription(organizationId: string): Promise<boolean> {
   const client = getStripe();
   const [sub] = await db
@@ -367,13 +364,7 @@ export async function cancelSubscription(organizationId: string): Promise<boolea
     .where(eq(subscriptions.organizationId, organizationId))
     .limit(1);
 
-  if (!sub?.stripeSubscriptionId || !client) {
-    await db
-      .update(subscriptions)
-      .set({ plan: "payg", status: "cancelled", updatedAt: new Date() })
-      .where(eq(subscriptions.organizationId, organizationId));
-    return true;
-  }
+  if (!sub?.stripeSubscriptionId || !client) return true;
 
   await client.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true });
   await db

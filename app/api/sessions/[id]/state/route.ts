@@ -78,7 +78,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         stage: clock.stage,
         elapsedSeconds: clock.elapsedSeconds,
         remainingSeconds: clock.remainingSeconds,
-        extended: clock.extended,
         endReason: clock.endReason,
       },
     });

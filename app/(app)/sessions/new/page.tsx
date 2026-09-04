@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { NewSessionForm } from "@/components/session/new-session-form";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
-import { getConnectAccount, PLATFORM_FEE_BPS } from "@/lib/billing/connect";
+import { getConnectAccount } from "@/lib/billing/connect";
 import { listPatients } from "@/lib/data/patients";
+import { getSettings } from "@/lib/settings";
 import { fullName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "New session", robots: { index: false } };
@@ -16,10 +17,11 @@ export default async function NewSessionPage({
   searchParams: Promise<{ welcome?: string }>;
 }) {
   const actor = await requireUser();
-  const [{ welcome }, patients, connect] = await Promise.all([
+  const [{ welcome }, patients, connect, settings] = await Promise.all([
     searchParams,
     listPatients(actor),
     getConnectAccount(actor.userId),
+    getSettings(),
   ]);
 
   return (
@@ -33,7 +35,12 @@ export default async function NewSessionPage({
           // patient to a checkout that cannot complete.
           payments={
             connect.chargesEnabled
-              ? { defaultRateCents: connect.sessionRateCents, feeBps: PLATFORM_FEE_BPS }
+              ? {
+                  defaultRateCents: connect.sessionRateCents,
+                  feeBps: settings.session.platformFeeBps,
+                  minPriceCents: settings.session.minPriceCents,
+                  maxPriceCents: settings.session.maxPriceCents,
+                }
               : undefined
           }
           patients={patients.map((p) => ({

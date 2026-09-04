@@ -5,7 +5,9 @@ import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aiRequestLogs, invoices, payableCents, sessions, subscriptions } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { getPlan } from "./plans";
+import { getSettings } from "@/lib/settings";
+
+import { consumeCredit, currentTier, getCreditBalance } from "./credits";
 
 export async function getSubscription(organizationId: string) {
   const [row] = await db
@@ -50,17 +52,33 @@ export async function chargeForSession(opts: {
   sessionId: string;
 }): Promise<{ status: string; amountCents: number } | null> {
   try {
-    const subscription = await getSubscription(opts.organizationId);
-    const plan = getPlan(subscription.plan);
+    await getSubscription(opts.organizationId);
 
-    if (plan.perSessionCents === null) {
+    /*
+     * Credits first, always.
+     *
+     * §3: unused credits are consumed before any rate applies, so a therapist
+     * who bought thirty sessions at the Growth rate and then dropped to PAYG
+     * spends what they paid for before they are charged $4 for anything. The
+     * spend is a conditional UPDATE inside `consumeCredit` — see the comment
+     * there for why this is not a read followed by a write.
+     *
+     * Note the order relative to the free first session below: a credit is
+     * spent in preference to the freebie. That is the right way round. The free
+     * session exists to remove the risk from a therapist's *first* session, and
+     * somebody who has already bought a bundle has plainly cleared that bar;
+     * burning their trial on a session they had already paid for would be a
+     * gift of nothing.
+     */
+    const credit = await consumeCredit(opts.organizationId);
+    if (credit.spent) {
       await raiseInvoice({
         organizationId: opts.organizationId,
         kind: "session",
         sessionId: opts.sessionId,
         amountCents: 0,
         status: "included",
-        description: `Session · included in ${plan.name}`,
+        description: "Session · from your credits",
       });
       return { status: "included", amountCents: 0 };
     }
@@ -88,15 +106,20 @@ export async function chargeForSession(opts: {
       return { status: "waived", amountCents: 0 };
     }
 
+    // No credits and no trial left: their tier's rate, read from
+    // `platform_settings` at the moment the session completed. An admin who
+    // changes the rate changes what the *next* session bills; this invoice is
+    // already a fact.
+    const tier = await currentTier(opts.organizationId);
     await raiseInvoice({
       organizationId: opts.organizationId,
       kind: "session",
       sessionId: opts.sessionId,
-      amountCents: plan.perSessionCents,
+      amountCents: tier.rateCents,
       status: "due",
       description: "Completed session",
     });
-    return { status: "due", amountCents: plan.perSessionCents };
+    return { status: "due", amountCents: tier.rateCents };
   } catch (error) {
     // Billing must never block a clinician finishing a session. The reconciler
     // picks up anything missed.
@@ -167,17 +190,24 @@ async function raiseInvoice(input: {
 }
 
 /**
- * Record a subscription payment as an invoice.
+ * Record a credit purchase as an invoice.
  *
- * This is the gap that made a therapist pay $99 and see nothing: money left
- * their account and the product had no row for it. Any standing admin discount
- * is consumed here, once.
+ * This closes the gap that once made a therapist pay $99 for a subscription and
+ * see nothing: money left their account and the product had no row for it. The
+ * product being bought has changed — sessions in advance rather than a monthly
+ * plan — and the requirement has not. Any standing admin discount is consumed
+ * here, once.
+ *
+ * The invoice kind is still `subscription`, which is now a misnomer for
+ * "something other than a completed session". Renaming it means migrating
+ * `invoices.kind` across every historical row and every reader, for a label; it
+ * is recorded in §2 instead and left for the admin sprint.
  */
-export async function recordSubscriptionInvoice(opts: {
+export async function recordCreditPurchaseInvoice(opts: {
   organizationId: string;
   amountCents: number;
-  periodStart: Date | null;
-  periodEnd: Date | null;
+  /** Sessions bought, for the line the therapist reads on the invoice. */
+  quantity: number;
   stripePaymentIntentId?: string | null;
   description?: string;
 }): Promise<void> {
@@ -193,9 +223,10 @@ export async function recordSubscriptionInvoice(opts: {
       discountCents: discount,
       discountReason: discount > 0 ? subscription.upcomingDiscountReason : null,
       status: "paid",
-      description: opts.description ?? "Unlimited — monthly subscription",
-      periodStart: opts.periodStart,
-      periodEnd: opts.periodEnd,
+      description:
+        opts.description ?? `${opts.quantity} session credits`,
+      periodStart: null,
+      periodEnd: null,
       stripePaymentIntentId: opts.stripePaymentIntentId ?? null,
       paidAt: new Date(),
     })
@@ -336,7 +367,11 @@ export async function getDueInvoices(organizationId: string) {
 
 export async function billingSummary(organizationId: string) {
   const subscription = await getSubscription(organizationId);
-  const plan = getPlan(subscription.plan);
+  const [settings, tier, credits] = await Promise.all([
+    getSettings(),
+    currentTier(organizationId),
+    getCreditBalance(organizationId),
+  ]);
 
   const startOfMonth = new Date();
   startOfMonth.setUTCDate(1);
@@ -360,7 +395,9 @@ export async function billingSummary(organizationId: string) {
 
   return {
     subscription,
-    plan,
+    tier,
+    tiers: settings.pricing.tiers,
+    credits,
     sessionsThisMonth: month?.sessionsThisMonth ?? 0,
     spentThisMonthCents: month?.spentCents ?? 0,
     outstandingCents: outstanding?.dueCents ?? 0,

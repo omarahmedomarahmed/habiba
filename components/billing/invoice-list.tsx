@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { Check, CreditCard, Sparkles } from "lucide-react";
 
-import { downgrade, payInvoices, upgradeToUnlimited } from "@/app/(app)/billing/actions";
+import { buyCredits, payInvoices } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn, formatDate } from "@/lib/utils";
@@ -19,29 +19,58 @@ export type InvoiceRow = {
   issuedAt: string;
 };
 
+export type TierRow = { key: string; name: string; rateCents: number; minimumSessions: number };
+
 /**
- * The plan card. Unlimited is the thing being sold, so on Unlimited it is the
- * loudest object on the page rather than a line of small text at the top.
+ * What a session costs you, and how to make it cost less.
+ *
+ * ## What this replaced
+ *
+ * A card that sold a $99/month Unlimited subscription and, on PAYG, existed
+ * mainly to advertise it — "worth it from 17 sessions a month". There is no
+ * subscription any more. A therapist buys sessions outright and the rate falls
+ * with the quantity, so the card's job changed from *upgrade* to *stock up*.
+ *
+ * The quantity is a slider above the tier minimum rather than three fixed
+ * packs, because that is what §3 asks for and because a fixed pack makes a
+ * therapist who needs eleven sessions buy thirty.
+ *
+ * Every figure here — the rates, the minimums, the expiry — is passed in from
+ * `platform_settings`. Nothing on this card is written in the file.
  */
 export function PlanCard({
-  plan,
-  status,
-  cancelAtPeriodEnd,
+  tiers,
+  currentTierKey,
+  creditsRemaining,
+  creditsExpireOn,
   billingEnabled,
   sessionsThisMonth,
   spentThisMonthCents,
-  renewsOn,
 }: {
-  plan: "payg" | "unlimited";
-  status: string;
-  cancelAtPeriodEnd: boolean;
+  tiers: TierRow[];
+  currentTierKey: string;
+  creditsRemaining: number;
+  creditsExpireOn: string | null;
   billingEnabled: boolean;
   sessionsThisMonth: number;
   spentThisMonthCents: number;
-  renewsOn: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const payg = tiers.find((t) => t.minimumSessions === 0) ?? tiers[0];
+  const best = tiers.reduce((a, b) => (b.minimumSessions > a.minimumSessions ? b : a), tiers[0]!);
+
+  // Start the slider at the cheapest tier's minimum: the number a therapist is
+  // most likely to want is the one that unlocks the best rate.
+  const [quantity, setQuantity] = useState(best.minimumSessions || 10);
+
+  const tierFor = (qty: number) =>
+    tiers.reduce((chosen, t) => (t.minimumSessions <= qty ? t : chosen), tiers[0]!);
+
+  const chosen = tierFor(quantity);
+  const total = chosen.rateCents * quantity;
+  const current = tiers.find((t) => t.key === currentTierKey) ?? payg;
 
   const run = (fn: () => Promise<{ error?: string }>) =>
     startTransition(async () => {
@@ -50,73 +79,21 @@ export function PlanCard({
       if (result?.error) setError(result.error);
     });
 
-  if (plan === "unlimited") {
-    return (
-      <div className="overflow-hidden rounded-3xl bg-navy-500 text-white">
-        <div className="px-5 pt-5 pb-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/20 px-2.5 py-1 text-xs font-semibold text-teal-300">
-                <Sparkles className="h-3 w-3" aria-hidden />
-                Unlimited
-              </span>
-              <p className="mt-3 text-2xl font-bold tracking-tight">
-                Every session, documented
-              </p>
-              <p className="mt-1 text-sm text-white/60">
-                No per-session bills to track. $99 a month.
-              </p>
-            </div>
-          </div>
-
-          <dl className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-white/60">Sessions this month</dt>
-              <dd className="mt-0.5 text-2xl font-bold">{sessionsThisMonth}</dd>
-            </div>
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-white/60">Extra charges</dt>
-              <dd className="mt-0.5 text-2xl font-bold">$0</dd>
-            </div>
-          </dl>
-
-          {renewsOn ? (
-            <p className="mt-3 text-xs text-white/50">
-              {cancelAtPeriodEnd ? "Ends" : "Renews"} {renewsOn}
-            </p>
-          ) : null}
-          {status !== "active" ? (
-            <p className="mt-3 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-sm text-amber-200">
-              Your subscription is {status}. Update your card to avoid interruption.
-            </p>
-          ) : null}
-        </div>
-
-        <div className="border-t border-white/10 px-5 py-3">
-          {cancelAtPeriodEnd ? (
-            <p className="text-xs text-white/60">
-              Unlimited ends at the close of this period, then you return to pay as you go.
-            </p>
-          ) : (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(downgrade)}
-              className="text-xs font-medium text-white/60 hover:text-white"
-            >
-              {pending ? "Working…" : "Cancel Unlimited"}
-            </button>
-          )}
-          {error ? <p className="mt-1 text-xs text-red-300">{error}</p> : null}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-900">Pay as you go</p>
-      <p className="mt-0.5 text-sm text-slate-500">$6 per completed session.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{current.name}</p>
+          <p className="mt-0.5 text-sm text-slate-500">
+            {formatUsd(current.rateCents)} per completed session.
+          </p>
+        </div>
+        {creditsRemaining > 0 ? (
+          <Badge tone="teal">
+            {creditsRemaining} credit{creditsRemaining === 1 ? "" : "s"} left
+          </Badge>
+        ) : null}
+      </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
@@ -131,20 +108,66 @@ export function PlanCard({
         </div>
       </dl>
 
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {creditsRemaining > 0 && creditsExpireOn ? (
+        <p className="mt-3 text-xs text-slate-500">
+          Your credits are used before anything is billed. The next batch expires{" "}
+          {creditsExpireOn}.
+        </p>
+      ) : null}
 
-      <Button
-        full
-        className="mt-4"
-        disabled={pending || !billingEnabled}
-        onClick={() => run(upgradeToUnlimited)}
-      >
-        <Sparkles className="h-4 w-4" aria-hidden />
-        {pending ? "Opening checkout…" : "Switch to Unlimited — $99/mo"}
-      </Button>
-      <p className="mt-2 text-center text-xs text-slate-500">
-        Worth it from 17 sessions a month.
-      </p>
+      <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+        <label htmlFor="credit-quantity" className="text-sm font-semibold text-slate-900">
+          Buy sessions in advance
+        </label>
+        <p className="mt-0.5 text-xs text-slate-500">
+          The more you buy at once, the less each one costs. They never expire before you have had
+          a year to use them.
+        </p>
+
+        <div className="mt-3 flex items-center gap-3">
+          <input
+            id="credit-quantity"
+            type="range"
+            min={1}
+            max={Math.max(best.minimumSessions * 2, 60)}
+            step={1}
+            value={quantity}
+            onChange={(event) => setQuantity(Number(event.target.value))}
+            className="h-2 flex-1 cursor-pointer accent-brand-500"
+          />
+          <span className="w-20 shrink-0 text-end text-sm font-semibold tabular-nums text-slate-900">
+            {quantity} session{quantity === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {/*
+          Three lines with reasons, never one number.
+          The rate is the thing that changes with the slider, so it is named
+          rather than folded into the total.
+        */}
+        <dl className="mt-3 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-slate-500">{chosen.name} rate</dt>
+            <dd className="tabular-nums text-slate-900">{formatUsd(chosen.rateCents)} each</dd>
+          </div>
+          <div className="flex justify-between font-semibold">
+            <dt className="text-slate-900">Total today</dt>
+            <dd className="tabular-nums text-slate-900">{formatUsd(total)}</dd>
+          </div>
+        </dl>
+
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+
+        <Button
+          full
+          className="mt-4"
+          disabled={pending || !billingEnabled || quantity < 1}
+          onClick={() => run(() => buyCredits(quantity))}
+        >
+          <Sparkles className="h-4 w-4" aria-hidden />
+          {pending ? "Opening checkout…" : `Buy ${quantity} for ${formatUsd(total)}`}
+        </Button>
+      </div>
     </Card>
   );
 }

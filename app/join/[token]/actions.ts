@@ -3,7 +3,8 @@
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { joinByToken, resolveJoinToken } from "@/lib/data/sessions";
 import { callerKey, consume } from "@/lib/rate-limit";
-import { MAX_MINUTES, type ClockStage } from "@/lib/session-clock";
+import { capSeconds, type ClockStage } from "@/lib/session-clock";
+import { getSettings } from "@/lib/settings";
 import { createMeetingToken, roomUrlWithToken } from "@/lib/video";
 import { log } from "@/lib/logger";
 
@@ -49,7 +50,7 @@ async function admit(token: string, name: string): Promise<JoinState> {
       userName: name,
       isOwner: false,
       // The patient's key expires with the session, not two hours after it.
-      minutes: MAX_MINUTES + 15,
+      minutes: capSeconds((await getSettings()).clock) / 60 + 15,
     });
     videoUrl = roomUrlWithToken(session.videoRoomUrl, meetingToken);
   }
@@ -266,7 +267,6 @@ export async function checkJoinState(token: string): Promise<{
   clock: {
     stage: ClockStage;
     remainingSeconds: number;
-    extended: boolean;
   } | null;
 }> {
   const session = await resolveJoinToken(token);
@@ -360,7 +360,6 @@ export async function checkJoinState(token: string): Promise<{
       ? {
           stage: clock.stage,
           remainingSeconds: clock.remainingSeconds,
-          extended: clock.extended,
         }
       : null,
   };

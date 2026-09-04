@@ -1,19 +1,22 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { __costing } from "../lib/ai/client";
 import { patientFacingCrisisMessage, scanForCrisisLanguage } from "../lib/ai/crisis";
 import { resolveCitations } from "../lib/ai/patient-copilot";
 import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";
 import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/password";
+import { priceProblem } from "../lib/billing/connect";
+import { quoteForQuantity, tierByKey, tierForQuantity } from "../lib/billing/plans";
 import {
-  MAX_SESSION_PRICE_CENTS,
-  MIN_SESSION_PRICE_CENTS,
-  platformFee,
-  priceProblem,
-  therapistNet,
-} from "../lib/billing/connect";
-import { getPlan, PLANS } from "../lib/billing/plans";
+  parseGroup,
+  platformFeeOn,
+  sessionMoney,
+  SETTINGS_DEFAULTS,
+  settingsProblem,
+  vatOn,
+} from "../lib/settings/defs";
 import { inspectEnv } from "../lib/env";
 import { log, ref } from "../lib/logger";
 
@@ -161,43 +164,148 @@ test("development is not gated by the production requirements", () => {
 
 /* ------------------------------------------------------------------ billing */
 
-test("an unknown plan key fails closed to the metered plan", () => {
-  assert.equal(getPlan("enterprise").key, "payg");
-  assert.equal(getPlan(null).key, "payg");
-  assert.equal(getPlan(undefined).key, "payg");
-  assert.equal(getPlan("unlimited").key, "unlimited");
+const TIERS = SETTINGS_DEFAULTS.pricing.tiers;
+const BOUNDS = SETTINGS_DEFAULTS.session;
+
+test("the seeded schedule is the one §3 asks for", () => {
+  assert.deepEqual(
+    TIERS.map((t) => [t.key, t.rateCents, t.minimumSessions]),
+    [
+      ["payg", 400, 0],
+      ["starter", 300, 10],
+      ["growth", 200, 30],
+    ],
+  );
+  assert.equal(BOUNDS.platformFeeBps, 1500, "the platform cut is 15%");
+  assert.equal(BOUNDS.maxPriceCents, 50_000, "the price cap is $500");
+  assert.equal(settingsProblem(SETTINGS_DEFAULTS), null);
 });
 
+test("a quantity gets the best rate its size has earned, and never a better one", () => {
+  assert.equal(tierForQuantity(TIERS, 0).key, "payg");
+  assert.equal(tierForQuantity(TIERS, 9).key, "payg");
+  assert.equal(tierForQuantity(TIERS, 10).key, "starter");
+  assert.equal(tierForQuantity(TIERS, 29).key, "starter");
+  assert.equal(tierForQuantity(TIERS, 30).key, "growth");
+  // Above a minimum they buy as many as they like at the same rate — a slider,
+  // not a fixed pack.
+  assert.equal(tierForQuantity(TIERS, 500).key, "growth");
+});
+
+test("an unknown tier key fails closed to the most expensive rate", () => {
+  // The mirror of the old "unknown plan must not grant unlimited": a typo in a
+  // stored key must never hand somebody the cheapest rate.
+  assert.equal(tierByKey(TIERS, "enterprise").key, "payg");
+  assert.equal(tierByKey(TIERS, null).key, "payg");
+  assert.equal(tierByKey(TIERS, undefined).key, "payg");
+  assert.equal(tierByKey(TIERS, "growth").key, "growth");
+});
+
+test("a quote is the tier rate times the quantity, and refuses nonsense", () => {
+  assert.equal(quoteForQuantity(TIERS, 10).totalCents, 3000);
+  assert.equal(quoteForQuantity(TIERS, 30).totalCents, 6000);
+  assert.equal(quoteForQuantity(TIERS, 1).totalCents, 400);
+  assert.equal(quoteForQuantity(TIERS, 0).totalCents, 0);
+  assert.equal(quoteForQuantity(TIERS, -5).quantity, 0);
+  assert.equal(quoteForQuantity(TIERS, 10.7).quantity, 10, "a fraction of a session is not a thing");
+});
+
+/* ------------------------------------------------------- settings integrity */
+
 /**
- * A BAA is a legal obligation the moment we process a customer's patient data,
- * so it cannot be a paid tier. This test stops it being turned into one.
+ * The fallback exists so that a missing or mangled row degrades to a known
+ * price rather than to `undefined` — which in a billing path is a charge of
+ * `NaN` cents and in a cap is no cap at all.
  */
-test("every plan advertises a HIPAA BAA", () => {
-  for (const plan of Object.values(PLANS)) {
-    assert.ok(
-      plan.features.some((f) => /HIPAA BAA/i.test(f)),
-      `${plan.key} must include a BAA`,
-    );
-  }
+test("a corrupt settings row falls back field by field, not group by group", () => {
+  const parsed = parseGroup("session", {
+    platformFeeBps: "fifteen percent",
+    minPriceCents: 250,
+    maxPriceCents: 1e21,
+  });
+  assert.equal(parsed.platformFeeBps, BOUNDS.platformFeeBps, "a bad field falls back");
+  assert.equal(parsed.minPriceCents, 250, "a good field beside it survives");
+  assert.equal(parsed.maxPriceCents, BOUNDS.maxPriceCents, "an out-of-range field falls back");
+});
+
+test("settings that cannot be true are refused rather than applied", () => {
+  const inverted = { ...SETTINGS_DEFAULTS, session: { ...BOUNDS, maxPriceCents: 100 } };
+  assert.ok(settingsProblem(inverted), "a cap below the floor makes every price invalid");
+
+  const noBase = {
+    ...SETTINGS_DEFAULTS,
+    pricing: { ...SETTINGS_DEFAULTS.pricing, tiers: TIERS.filter((t) => t.minimumSessions > 0) },
+  };
+  assert.ok(settingsProblem(noBase), "somebody who has bought nothing must still have a rate");
+});
+
+test("a fee of the whole payment is not a configuration", () => {
+  // 9_000 bps is the ceiling. Above it the therapist receives nothing, which is
+  // a bug wearing a settings row.
+  assert.equal(parseGroup("session", { platformFeeBps: 10_000 }).platformFeeBps, BOUNDS.platformFeeBps);
+  assert.equal(parseGroup("session", { platformFeeBps: 9_000 }).platformFeeBps, 9_000);
+});
+
+test("an empty or unusable tier list falls back rather than leaving nobody a rate", () => {
+  assert.deepEqual(parseGroup("pricing", { tiers: [] }).tiers, TIERS);
+  assert.deepEqual(parseGroup("pricing", { tiers: [{ name: "no key" }] }).tiers, TIERS);
+  assert.deepEqual(parseGroup("pricing", { tiers: "growth" }).tiers, TIERS);
 });
 
 /* --------------------------------------------------------- connect payouts */
 
 test("the platform cut is rounded in the therapist's favour and never exceeds the gross", () => {
-  // 10% of $60.05 is 600.5 cents; the therapist must not be short the half cent.
-  assert.equal(platformFee(6005), 600);
-  assert.equal(platformFee(6005) + therapistNet(6005), 6005);
+  const bps = BOUNDS.platformFeeBps;
+  // 15% of $60.05 is 900.75 cents; the therapist must not be short the fraction.
+  assert.equal(platformFeeOn(6005, bps), 900);
 
-  for (const gross of [0, 1, 499, 500, 6000, 12_345, 100_000]) {
-    const fee = platformFee(gross);
+  for (const gross of [0, 1, 499, 500, 6000, 12_345, 50_000]) {
+    const fee = platformFeeOn(gross, bps);
     assert.ok(fee >= 0 && fee <= gross, `fee out of range for ${gross}`);
-    assert.equal(fee + therapistNet(gross), gross, `fee + net must equal gross for ${gross}`);
+    const money = sessionMoney({ grossCents: gross, feeBps: bps, vatBps: 0 });
+    assert.equal(
+      money.platformCutCents + money.therapistNetCents,
+      gross,
+      `cut + net must equal gross for ${gross}`,
+    );
   }
 });
 
 test("a negative or nonsense gross cannot produce a negative fee", () => {
-  assert.equal(platformFee(-5000), 0);
-  assert.equal(therapistNet(-5000), 0);
+  assert.equal(platformFeeOn(-5000, BOUNDS.platformFeeBps), 0);
+  assert.equal(sessionMoney({ grossCents: -5000, feeBps: 1500, vatBps: 1400 }).therapistNetCents, 0);
+  assert.equal(sessionMoney({ grossCents: -5000, feeBps: 1500, vatBps: 1400 }).vatCents, 0);
+});
+
+/**
+ * §3's worked example, as a test.
+ *
+ * A $30 session in Egypt: the patient pays $34.20, of which $4.20 is VAT; our
+ * cut is $4.50 and $25.50 reaches the therapist. The two roundings deliberately
+ * go opposite ways — VAT up toward the authority, our fee down toward the
+ * clinician — so both errors are at most a cent and both land on us.
+ */
+test("the worked example in §3 comes out to the cent", () => {
+  const money = sessionMoney({ grossCents: 3000, feeBps: 1500, vatBps: 1400 });
+  assert.equal(money.vatCents, 420);
+  assert.equal(money.patientTotalCents, 3420);
+  assert.equal(money.platformCutCents, 450);
+  assert.equal(money.therapistNetCents, 2550);
+});
+
+test("VAT is charged on top of the price, never taken out of it", () => {
+  // The distinction that decides who is out of pocket. The therapist's net is
+  // the same whether or not the patient's country charges VAT.
+  const noVat = sessionMoney({ grossCents: 3000, feeBps: 1500, vatBps: 0 });
+  const egypt = sessionMoney({ grossCents: 3000, feeBps: 1500, vatBps: 1400 });
+  assert.equal(noVat.therapistNetCents, egypt.therapistNetCents);
+  assert.equal(noVat.platformCutCents, egypt.platformCutCents);
+  assert.equal(egypt.patientTotalCents - noVat.patientTotalCents, egypt.vatCents);
+});
+
+test("a country with no VAT rate charges no VAT", () => {
+  assert.equal(vatOn(3000, 0), 0);
+  assert.equal(vatOn(0, 1400), 0);
 });
 
 /**
@@ -205,16 +313,80 @@ test("a negative or nonsense gross cannot produce a negative fee", () => {
  * the rules around it are worth pinning down. Zero is allowed — most sessions
  * are free to join because the money changes hands outside the product.
  */
-test("session pricing accepts free and refuses amounts Stripe cannot process", () => {
-  assert.equal(priceProblem(0), null);
-  assert.equal(priceProblem(6000), null);
-  assert.equal(priceProblem(MIN_SESSION_PRICE_CENTS), null);
+test("session pricing accepts free and refuses amounts we cannot process", () => {
+  assert.equal(priceProblem(0, BOUNDS), null);
+  assert.equal(priceProblem(6000, BOUNDS), null);
+  assert.equal(priceProblem(BOUNDS.minPriceCents, BOUNDS), null);
+  assert.equal(priceProblem(BOUNDS.maxPriceCents, BOUNDS), null);
 
-  assert.ok(priceProblem(1));
-  assert.ok(priceProblem(MIN_SESSION_PRICE_CENTS - 1));
-  assert.ok(priceProblem(MAX_SESSION_PRICE_CENTS + 1));
-  assert.ok(priceProblem(12.5));
-  assert.ok(priceProblem(Number.NaN));
+  assert.ok(priceProblem(1, BOUNDS));
+  assert.ok(priceProblem(BOUNDS.minPriceCents - 1, BOUNDS));
+  assert.ok(priceProblem(BOUNDS.maxPriceCents + 1, BOUNDS));
+  assert.ok(priceProblem(12.5, BOUNDS));
+  assert.ok(priceProblem(Number.NaN, BOUNDS));
+});
+
+test("the price cap is enforced against the settings, not a constant", () => {
+  // H4: the old cap was $1,000 and the new one is $500. A price that was legal
+  // last week must be refused now, and the check must follow the settings if an
+  // admin moves them again.
+  assert.ok(priceProblem(60_000, BOUNDS), "$600 is above the $500 cap");
+  const raised = { minPriceCents: 500, maxPriceCents: 100_000 };
+  assert.equal(priceProblem(60_000, raised), null, "and legal again if an admin raises the cap");
+});
+
+/* ------------------------------------------------------------- model costs */
+
+/**
+ * H12: the transcribe branch costed every call at a hardcoded rate and ignored
+ * `input.model`. These tests exist so that a second provider cannot be added
+ * without the ledger noticing.
+ */
+test("a transcription is costed at the rate of the model that actually ran", () => {
+  const { estimateCostMicrocents } = __costing;
+  const sixtySeconds = { kind: "transcribe" as const, audioSeconds: 60 };
+
+  const mini = estimateCostMicrocents({ ...sixtySeconds, model: "gpt-4o-mini-transcribe" });
+  const whisper = estimateCostMicrocents({ ...sixtySeconds, model: "whisper-1" });
+
+  assert.equal(mini, 300, "0.3 cents a minute, in thousandths of a cent");
+  assert.notEqual(mini, whisper, "two rates must not collapse into one");
+  assert.equal(whisper, 600);
+});
+
+test("an unpriced model overstates rather than understates", () => {
+  const { estimateCostMicrocents, AUDIO_RATES, TOKEN_RATES } = __costing;
+
+  const unknownAudio = estimateCostMicrocents({
+    kind: "transcribe",
+    model: "some-future-model",
+    audioSeconds: 60,
+  });
+  const dearestAudio = Math.max(...Object.values(AUDIO_RATES).map((r) => r.perAudioMinute));
+  assert.equal(unknownAudio, Math.round(dearestAudio * 1000));
+  assert.ok(unknownAudio > 0, "an unpriced model must never be recorded as free");
+
+  const unknownTokens = estimateCostMicrocents({
+    kind: "note",
+    model: "some-future-model",
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+  });
+  const dearestIn = Math.max(...Object.values(TOKEN_RATES).map((r) => r.inPerMTok));
+  assert.equal(unknownTokens, dearestIn * 1000);
+});
+
+test("cost is in thousandths of a cent, per H13", () => {
+  const { estimateCostMicrocents } = __costing;
+  // $1 is 100_000 units. One million gpt-4o input tokens is 250 cents.
+  const cost = estimateCostMicrocents({
+    kind: "note",
+    model: "gpt-4o",
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+  });
+  assert.equal(cost, 250_000, "divide by 1e5 for dollars, not 1e8");
+  assert.equal(cost / 1e5, 2.5);
 });
 
 /* ------------------------------------------------------------------ logging */

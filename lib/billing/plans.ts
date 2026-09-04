@@ -1,84 +1,82 @@
-import type { PlanKey } from "@/lib/db/schema";
+/**
+ * What a therapist is billed per session, and how they buy it cheaper.
+ *
+ * ## What changed, and why the old shape is gone
+ *
+ * This used to be a `PLANS` record of subscription tiers with a monthly price
+ * and a feature list. It is not that any more, and the change is a product one
+ * rather than a renaming: a therapist no longer subscribes, they **buy sessions
+ * at a rate, and the rate is set by how many they buy at once**. There is no
+ * monthly fee, no "included" allowance to reconcile at the end of a period, and
+ * no `unlimited` tier — which also removes a class of bug the old shape kept
+ * producing, where `perSessionCents: null` meant "free" in one branch and
+ * "unset" in another.
+ *
+ * ## Where the numbers live
+ *
+ * Not here. Every figure is a row in `platform_settings`, read through
+ * `lib/settings`. This module holds the *logic* over those figures and nothing
+ * else, so that changing a rate is an admin action and not a deploy. The
+ * functions all take the settings they need as an argument rather than fetching
+ * them, which keeps them pure, testable without a database, and safe to call
+ * from a component that already has the snapshot.
+ */
+import type { PlatformSettings, PricingTier } from "@/lib/settings/defs";
+
+export type { PricingTier };
 
 /**
- * The plan matrix. Two plans, and every field here is actually enforced
- * somewhere in the code.
+ * The rate a therapist gets for buying `quantity` sessions at once.
  *
- * The previous matrix had four tiers and fourteen feature flags, nine of which
- * were read by nothing — marketing copy shipped as a type. It also gated
- * `hipaa_baa` behind the paid tiers, which is not a thing you can sell: we are
- * a business associate the moment we process a therapist's patient data, on any
- * plan. A BAA is a contract we owe every customer, not an upsell.
+ * Walks to the best tier they qualify for. Tiers arrive sorted by minimum
+ * ascending (`parseTiers` guarantees it), so the last one whose minimum they
+ * meet is the cheapest one they have earned.
+ *
+ * A quantity below every minimum still returns a tier — the zero-minimum one —
+ * because "bought nothing" is pay-as-you-go, not "no rate". `settingsProblem`
+ * refuses a configuration with no zero-minimum tier for exactly this reason.
  */
-export type Plan = {
-  key: PlanKey;
-  name: string;
-  tagline: string;
-  /** Cents per completed session, or null when sessions are included. */
-  perSessionCents: number | null;
-  monthlyCents: number | null;
-  /** First completed session is free, once per organization. */
-  firstSessionFree: boolean;
-  /** Copilot messages per patient per calendar month, or null for uncapped. */
-  copilotMessagesPerPatient: number | null;
-  features: string[];
-};
+export function tierForQuantity(tiers: PricingTier[], quantity: number): PricingTier {
+  const qty = Math.max(0, Math.floor(quantity));
+  let best = tiers[0]!;
+  for (const tier of tiers) {
+    if (tier.minimumSessions <= qty) best = tier;
+  }
+  return best;
+}
+
+export function tierByKey(tiers: PricingTier[], key: string | null | undefined): PricingTier {
+  // Fail closed to the most expensive tier a therapist could be on rather than
+  // the cheapest: an unrecognised key must never silently grant the best rate.
+  return tiers.find((t) => t.key === key) ?? tierForQuantity(tiers, 0);
+}
+
+/** What buying `quantity` sessions at once costs, and at what rate. */
+export function quoteForQuantity(
+  tiers: PricingTier[],
+  quantity: number,
+): { tier: PricingTier; quantity: number; totalCents: number } {
+  const qty = Math.max(0, Math.floor(quantity));
+  const tier = tierForQuantity(tiers, qty);
+  return { tier, quantity: qty, totalCents: tier.rateCents * qty };
+}
 
 /**
- * Copilot allowance on the metered plan.
+ * What this session costs the therapist.
  *
- * Defined here rather than in the copilot code because it is a *price*, and a
- * price that lives next to the feature that enforces it drifts from the price
- * on the marketing page. `lib/data/copilot.ts` reads this value.
+ * A therapist with credits pays nothing now — the credit was paid for when it
+ * was bought — and one without pays their tier's rate. Credits are consumed
+ * before the rate applies, which is what §3 means by "keep every unused credit,
+ * they are consumed first".
  */
-export const PAYG_COPILOT_MESSAGES = 10;
-
-export const PLANS: Record<PlanKey, Plan> = {
-  payg: {
-    key: "payg",
-    name: "Pay as you go",
-    tagline: "Only pay for the sessions you actually run.",
-    perSessionCents: 600,
-    monthlyCents: null,
-    firstSessionFree: true,
-    copilotMessagesPerPatient: PAYG_COPILOT_MESSAGES,
-    features: [
-      "Live transcription",
-      "SOAP note in under a minute",
-      // The copilot allowance is part of what $6 buys, so it belongs in the
-      // price, not in a footnote a therapist discovers when they hit the cap.
-      `${PAYG_COPILOT_MESSAGES} copilot questions per patient, every month`,
-      "Every answer cites the session and timestamp it came from",
-      "Patient report by email",
-      "Video or in-person sessions",
-      "Crisis-language alerts",
-      "Get paid by patients — Crisis Radar and paid session links",
-      "HIPAA BAA included",
-    ],
-  },
-  unlimited: {
-    key: "unlimited",
-    name: "Unlimited",
-    tagline: "Every session documented, one flat price.",
-    perSessionCents: null,
-    monthlyCents: 9900,
-    firstSessionFree: false,
-    copilotMessagesPerPatient: null,
-    features: [
-      "Everything in Pay as you go",
-      "Unlimited sessions",
-      "Unlimited copilot questions on every patient",
-      "No per-session billing to track",
-      "Priority transcription queue",
-      "HIPAA BAA included",
-    ],
-  },
-};
-
-export function getPlan(key: string | null | undefined): Plan {
-  // Fail closed to the metered plan on an unknown key. An unrecognised plan
-  // must never silently grant unlimited usage.
-  return PLANS[(key ?? "") as PlanKey] ?? PLANS.payg;
+export function sessionCharge(input: {
+  settings: PlatformSettings;
+  tierKey: string | null;
+  creditsRemaining: number;
+}): { source: "credit" | "rate"; amountCents: number; tier: PricingTier } {
+  const tier = tierByKey(input.settings.pricing.tiers, input.tierKey);
+  if (input.creditsRemaining > 0) return { source: "credit", amountCents: 0, tier };
+  return { source: "rate", amountCents: tier.rateCents, tier };
 }
 
 export function formatUsd(cents: number): string {

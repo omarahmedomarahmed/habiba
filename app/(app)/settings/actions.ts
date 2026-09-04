@@ -13,6 +13,7 @@ import {
   startOnboarding,
 } from "@/lib/billing/connect";
 import { db } from "@/lib/db";
+import { getSettings } from "@/lib/settings";
 import { users, type TherapistProfile } from "@/lib/db/schema";
 
 export type SettingsState = { error?: string; ok?: boolean };
@@ -165,7 +166,7 @@ export async function updatePaymentSettings(
 
   const dollars = Number(String(formData.get("rateDollars") ?? "0").trim() || "0");
   const cents = Math.round(dollars * 100);
-  const problem = priceProblem(cents);
+  const problem = priceProblem(cents, (await getSettings()).session);
   if (problem) return { error: problem };
 
   await db

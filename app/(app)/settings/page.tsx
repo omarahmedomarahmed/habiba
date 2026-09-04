@@ -6,10 +6,10 @@ import { PayoutSettings } from "@/components/settings/payouts";
 import { SettingsForms } from "@/components/settings/settings-forms";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
+import { getSettings } from "@/lib/settings";
 import {
   accountBalance,
   getConnectAccount,
-  PLATFORM_FEE_BPS,
   refreshAccountStatus,
 } from "@/lib/billing/connect";
 import { heldForTherapist } from "@/lib/billing/ledger";
@@ -36,7 +36,7 @@ export default async function SettingsPage({
       ? await refreshAccountStatus(actor.userId)
       : await getConnectAccount(actor.userId);
 
-  const [[user], balance, [outstanding]] = await Promise.all([
+  const [[user], balance, [outstanding], settings] = await Promise.all([
     db.select().from(users).where(eq(users.id, actor.userId)).limit(1),
     accountBalance(actor.userId),
     db
@@ -47,6 +47,7 @@ export default async function SettingsPage({
       .where(
         and(eq(invoices.organizationId, actor.organizationId), eq(invoices.status, "due")),
       ),
+    getSettings(),
   ]);
 
   return (
@@ -82,7 +83,7 @@ export default async function SettingsPage({
             availableCents: balance?.availableCents ?? null,
             pendingCents: balance?.pendingCents ?? null,
             outstandingCents: outstanding?.cents ?? 0,
-            feeBps: PLATFORM_FEE_BPS,
+            feeBps: settings.session.platformFeeBps,
             heldCents: await heldForTherapist(actor.userId),
           }}
         />

@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import { getSettings, platformFeeOn } from "@/lib/settings";
 import { getStripe } from "./stripe";
 
 /**
@@ -24,64 +25,63 @@ import { getStripe } from "./stripe";
  * application fee. Stripe does the KYC, the payout schedule, the 1099s and the
  * negative-balance liability.
  *
- * ## The exception, and what it costs
+ * ## The exception that used to exist, and why it is gone
  *
- * That only works once Stripe has verified the clinician. Until then the
- * account cannot receive a transfer at all, and the old code drew the obvious
- * conclusion: no verified account, no charging. Which meant a clinician who
- * signed up on Sunday night could not put a price on their time until Stripe
- * got round to them, and the radar showed them as free.
+ * A destination charge only works once Stripe has verified the clinician. Until
+ * then the account cannot receive a transfer at all — so this module used to
+ * take a second path: the platform captured the charge itself and held the
+ * clinician's share until it could be released. `capture: "platform"` on the
+ * payment row, a `therapist_payable` balance in `lib/billing/ledger.ts`, and an
+ * `earnings_transfers` row when it finally moved.
  *
- * So there is a second path. When the connected account cannot take a transfer
- * yet, the platform captures the charge itself and holds the clinician's share
- * until it can be released — `capture: "platform"` on the payment row, a
- * `therapist_payable` balance in `lib/billing/ledger.ts`, and an
- * `earnings_transfers` row when it finally moves.
+ * That path is closed as of sprint 1.8. For as long as we held it, that was
+ * somebody else's money sitting in our Stripe balance: a real obligation with
+ * real licensing exposure, and "we were only holding it briefly" is a fact
+ * about our intentions rather than about our regulator. The comment that used
+ * to sit here argued the arrangement was bounded because it was "never the
+ * default" — which was untrue in the way that mattered. It was selected
+ * automatically for every clinician without a finished Connect account, so it
+ * was the default for precisely the newest ones.
  *
- * Be clear about what that is: for as long as we hold it, that is somebody
- * else's money sitting in our Stripe balance. It is a real obligation and it
- * carries real exposure — this is the arrangement a regulator would look at
- * first, and "we were only holding it briefly" is a fact about our intentions,
- * not about our licensing. Three things keep it bounded, and all three are
- * load-bearing:
- *
- *   1. It is never the default. A transfer-capable account always gets a
- *      destination charge and the money never touches us.
- *   2. It is released automatically the moment Stripe verifies the account —
- *      on the webhook, on the settings page, and on a nightly sweep, so it does
- *      not depend on any one of them working.
- *   3. Both sides are told. The clinician sees the held balance and what it is
- *      waiting on; the patient's receipt is unaffected.
+ * `createSessionCheckout` now refuses the payment instead, and says so in words
+ * a patient can act on. What remains here is the cleanup half of that story:
+ * `releaseHeldEarnings` and `earnings_transfers` still pay out the balances we
+ * already took, because closing the door is not the same as pretending it was
+ * never open.
  */
-
-/** Our cut of a patient payment, in basis points. 10%. */
-export const PLATFORM_FEE_BPS = 1000;
-
-/** Below this, Stripe's own processing fee eats the whole charge. */
-export const MIN_SESSION_PRICE_CENTS = 500;
-export const MAX_SESSION_PRICE_CENTS = 100_000;
 
 /**
- * The platform cut. Rounded down so the therapist is never short a cent, and
- * exported because the number is shown to the therapist before they set a price
- * — a fee they discover on the statement is a fee they resent.
+ * The fee, the floor and the cap are no longer constants.
+ *
+ * They were `PLATFORM_FEE_BPS = 1000`, `MIN_SESSION_PRICE_CENTS = 500` and
+ * `MAX_SESSION_PRICE_CENTS = 100_000` until sprint 1. They now live in
+ * `platform_settings.session` and every function that needs one takes it as an
+ * argument, so that changing our cut is an admin action and not a deploy. The
+ * arithmetic itself is in `lib/settings/defs.ts` — pure, and shared with the
+ * VAT calculation it has to round in the opposite direction from.
  */
-export function platformFee(grossCents: number): number {
-  return Math.floor((Math.max(0, grossCents) * PLATFORM_FEE_BPS) / 10_000);
-}
+export { platformFeeOn, sessionMoney, vatOn } from "@/lib/settings/defs";
 
-/** What reaches the therapist, before any invoice settlement. */
-export function therapistNet(grossCents: number): number {
-  return Math.max(0, grossCents - platformFee(grossCents));
-}
-
-export function priceProblem(cents: number): string | null {
+/**
+ * Is this a price we can charge?
+ *
+ * Takes the bounds rather than reading them, because it runs in a server action
+ * that already has the settings snapshot and in a form that was handed one —
+ * and a validator that disagreed with the value the page was rendered from
+ * would reject a price the therapist had just been told was fine.
+ */
+export function priceProblem(
+  cents: number,
+  bounds: { minPriceCents: number; maxPriceCents: number },
+): string | null {
   if (!Number.isFinite(cents) || !Number.isInteger(cents)) return "Enter a whole dollar amount.";
   if (cents === 0) return null; // Free sessions are allowed and are the default.
-  if (cents < MIN_SESSION_PRICE_CENTS) {
-    return `The lowest chargeable price is $${MIN_SESSION_PRICE_CENTS / 100}.`;
+  if (cents < bounds.minPriceCents) {
+    return `The lowest chargeable price is $${(bounds.minPriceCents / 100).toFixed(2)}.`;
   }
-  if (cents > MAX_SESSION_PRICE_CENTS) return "That price is higher than we can process.";
+  if (cents > bounds.maxPriceCents) {
+    return `The highest price we can process is $${(bounds.maxPriceCents / 100).toFixed(0)}.`;
+  }
   return null;
 }
 
@@ -373,20 +373,46 @@ export async function createSessionPaymentCheckout(opts: {
   if (row.session.priceCents <= 0) return { error: "This session does not need a payment." };
 
   /*
-   * Which route the money takes.
+   * Which route the money takes — and there is now only one.
    *
-   * A destination charge needs a connected account that Stripe will actually
-   * transfer into. Anything less — no account at all, or an account still in
-   * verification — and we capture it ourselves and hold their share. The
-   * patient's experience is identical either way, which is the point: a person
-   * in distress at one in the morning is not the right party to absorb the
-   * consequences of their clinician's onboarding being half finished.
+   * This used to fall back to `capture: "platform"` whenever the clinician had
+   * no transfer-capable Connect account: we took the charge onto our own Stripe
+   * balance and held their share until Stripe verified them. The reasoning was
+   * about the patient, and it was sincere — a person in distress at one in the
+   * morning should not absorb the consequences of their clinician's onboarding
+   * being half finished.
+   *
+   * It was still wrong, and PLAN.md 1.8 is the correction. Holding somebody
+   * else's money and paying it out later is money transmission, whatever our
+   * intentions were and however briefly we did it: ~48 US state licences with
+   * bonds from $50k, Central Bank licensing in Egypt and the UAE. Worse, the
+   * fallback selected itself automatically, so it applied to exactly the
+   * clinicians least equipped to chase us for a balance — the newest ones.
+   *
+   * So: no connected account, no charge. The session is still real and can
+   * still happen; it happens as a free link until the clinician finishes
+   * onboarding, which is a delay measured in minutes and entirely within their
+   * control. Stripe Connect exists so that we never touch this money.
+   *
+   * Historical rows with `capture = "platform"` remain, and `releaseHeldEarnings`
+   * still pays them out. This closes the door; it does not pretend the door was
+   * never open.
    */
-  const capture: "destination" | "platform" =
-    row.accountId && row.chargesEnabled ? "destination" : "platform";
+  if (!row.accountId || !row.chargesEnabled) {
+    log.warn("refused payment: clinician cannot receive transfers", {
+      session: ref(opts.sessionId),
+      therapist: ref(row.therapistId),
+    });
+    return {
+      error:
+        "This therapist has not finished setting up payouts yet, so we cannot take a payment for this session. They can finish in Settings — it takes a couple of minutes — or send you a free link in the meantime.",
+    };
+  }
+
+  const capture = "destination" as const;
 
   const gross = row.session.priceCents;
-  const cut = platformFee(gross);
+  const cut = platformFeeOn(gross, (await getSettings()).session.platformFeeBps);
   const net = gross - cut;
 
   // Settle the therapist's own outstanding 24Therapy bills out of this charge,

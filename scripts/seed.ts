@@ -122,7 +122,7 @@ async function main() {
 
     await db
       .insert(subscriptions)
-      .values({ organizationId: org.id, plan: "unlimited", status: "active" })
+      .values({ organizationId: org.id, plan: "payg", status: "active" })
       .onConflictDoNothing({ target: subscriptions.organizationId });
 
     // ----------------------------------------------------------- super admin

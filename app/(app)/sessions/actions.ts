@@ -9,13 +9,13 @@ import { generateAndStoreNote } from "@/lib/ai/notes";
 import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { priceProblem } from "@/lib/billing/connect";
+import { getSettings } from "@/lib/settings";
 import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
   completeSession,
   createSession,
-  extendSession,
   getSession,
   startSession,
   TransitionError,
@@ -57,7 +57,7 @@ export async function startNewSession(
   // put a paywall in front of.
   const priceDollars = Number(String(formData.get("priceDollars") ?? "0").trim() || "0");
   const priceCents = modality === "video" ? Math.round(priceDollars * 100) : 0;
-  const problem = priceProblem(priceCents);
+  const problem = priceProblem(priceCents, (await getSettings()).session);
   if (problem) return { error: problem };
 
   /*
@@ -200,31 +200,6 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/sessions");
   return { ok: true };
-}
-
-/**
- * Keep going past the half hour the patient paid for.
- *
- * The clinician's call, and only theirs — the patient is not asked, because a
- * person in distress being asked "shall we continue?" hears "am I taking too
- * much of your time?". Nothing is charged for the extra time and nothing can
- * be: `sessions.priceCents` was fixed at booking and is charged once.
- */
-export async function extendCurrentSession(sessionId: string): Promise<SessionActionState> {
-  const actor = await requireUser();
-  const extended = await extendSession(actor, sessionId);
-  if (!extended) return { error: "This session cannot be extended." };
-
-  await audit({
-    actor,
-    category: "clinical",
-    action: "session.extend",
-    resourceType: "session",
-    resourceId: sessionId,
-  });
-
-  revalidatePath(`/sessions/${sessionId}/room`);
-  return { ok: true, message: "Twenty more minutes — the patient is not charged for them." };
 }
 
 export async function abandonSession(sessionId: string): Promise<void> {

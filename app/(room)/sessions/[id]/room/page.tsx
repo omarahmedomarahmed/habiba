@@ -6,7 +6,8 @@ import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { getSession, getTranscript } from "@/lib/data/sessions";
 import { env, features } from "@/lib/env";
-import { MAX_MINUTES } from "@/lib/session-clock";
+import { capSeconds } from "@/lib/session-clock";
+import { getSettings } from "@/lib/settings";
 import { fullName } from "@/lib/utils";
 import { createMeetingToken } from "@/lib/video";
 
@@ -45,12 +46,12 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
        * Comfortably past the cap, and no further.
        *
        * It was three hours, chosen when nothing bounded a session. A meeting
-       * token that outlives the fifty-minute limit by two hours is a key to a
+       * token that outlives the session's own hard stop by two hours is a key to a
        * room that should already be gone — and the room *is* deleted when the
        * session ends, so this only matters when something has gone wrong,
        * which is exactly when a shorter key is worth having.
        */
-      minutes: MAX_MINUTES + 15,
+      minutes: capSeconds((await getSettings()).clock) / 60 + 15,
     });
     videoUrl = row.session.videoRoomUrl;
   }
@@ -68,7 +69,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
       modality={row.session.modality}
       initialStatus={row.session.status}
       startedAt={row.session.startedAt?.toISOString() ?? null}
-      extendedAt={row.session.extendedAt?.toISOString() ?? null}
+      clockLimits={(await getSettings()).clock}
       videoRoomUrl={videoUrl}
       videoToken={videoToken}
       videoConfigured={features.video}

@@ -31,7 +31,17 @@ import {
 export const ROLES = ["super_admin", "therapist"] as const;
 export type Role = (typeof ROLES)[number];
 
-export const PLANS = ["payg", "unlimited"] as const;
+/**
+ * The tiers a therapist can be on. Keys only — every *figure* lives in
+ * `platform_settings.pricing`, which is why there is no rate here.
+ *
+ * `unlimited` is gone: there is no subscription any more, only sessions bought
+ * at a rate. Existing rows were moved to `payg` by `scripts/settings.ts
+ * reprice`. The column is plain `text` with no check constraint, so a value
+ * outside this list is possible in the database and `tierByKey` fails closed to
+ * the zero-minimum tier rather than throwing.
+ */
+export const PLANS = ["payg", "starter", "growth"] as const;
 export type PlanKey = (typeof PLANS)[number];
 
 export const SESSION_STATUSES = [
@@ -1741,7 +1751,56 @@ export const errorEvents = pgTable(
   ],
 );
 
+/* ---------------------------------------------------------------- settings -- */
+
+/**
+ * Every price, rate, limit and cap, out of the code and into a row.
+ *
+ * One row per *group* (`pricing`, `session`, `clock`, `copilot`) holding a
+ * jsonb object, rather than a column per figure. The trade is deliberate:
+ * adding a setting in a later sprint becomes a seed instead of a migration,
+ * and the cost — that Postgres cannot type-check the contents — is paid back
+ * by `parseGroup` in `lib/settings/defs.ts`, which validates field by field and
+ * falls back per field rather than per group.
+ *
+ * `updatedBy` is a user id and not an organisation: changing a platform rate is
+ * an act by a named admin, and §6 requires it be attributable. The audit log
+ * carries the before and after; this column carries the last hand on it.
+ */
+export const platformSettings = pgTable("platform_settings", {
+  /** One of `SETTINGS_GROUPS`. */
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * VAT, currency and payment methods, per country.
+ *
+ * A country with no row here is not "a country with 0% VAT" — it is a country
+ * we cannot yet price a session in, and the accessor refuses rather than
+ * guessing. Under-collecting a tax is a debt somebody discovers later; charging
+ * a patient for a tax that does not exist is worse.
+ */
+export const countrySettings = pgTable("country_settings", {
+  /** ISO 3166-1 alpha-2, uppercase. */
+  code: text("code").primaryKey(),
+  name: text("name").notNull(),
+  /** Basis points. Egypt is 1400. */
+  vatBps: integer("vat_bps").notNull().default(0),
+  /** ISO 4217, lowercase, as Stripe wants it. */
+  currency: text("currency").notNull(),
+  paymentMethods: jsonb("payment_methods").$type<string[]>().notNull().default([]),
+  /** A country switched off stops accepting new paid sessions immediately. */
+  enabled: boolean("enabled").notNull().default(true),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type Organization = typeof organizations.$inferSelect;
+export type PlatformSetting = typeof platformSettings.$inferSelect;
+export type CountrySetting = typeof countrySettings.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Patient = typeof patients.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
@@ -1761,3 +1820,62 @@ export type TherapistVerification = typeof therapistVerifications.$inferSelect;
 export type SessionFeedback = typeof sessionFeedback.$inferSelect;
 export type SessionReport = typeof sessionReports.$inferSelect;
 export type ErrorEvent = typeof errorEvents.$inferSelect;
+
+/* ----------------------------------------------------------- credits -- */
+
+export const CREDIT_STATUSES = ["pending", "active", "void"] as const;
+export type CreditStatus = (typeof CREDIT_STATUSES)[number];
+
+/**
+ * Sessions bought in advance, at the rate the quantity earned.
+ *
+ * One row per purchase, never one row per credit: a therapist buying thirty
+ * sessions is one commercial event with one expiry and one price, and thirty
+ * rows would make "what did they actually pay" a SUM that a partial refund
+ * silently corrupts.
+ *
+ * `rateCents` is copied in rather than looked up. The rate is a fact about the
+ * moment of purchase and `platform_settings` is mutable by design — an admin
+ * lowering the Growth rate next March must not retroactively change what
+ * somebody paid last week, and the earnings page reads this column precisely so
+ * that it cannot.
+ *
+ * Consumption is `consumed` on the row rather than a join to sessions, and it
+ * moves only through the conditional UPDATE in `consumeCredit`, which cannot
+ * take a credit that is not there. A read-then-write here is two simultaneous
+ * session completions both spending the last credit.
+ */
+export const sessionCredits = pgTable(
+  "session_credits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    /** The tier key from `platform_settings.pricing`, as bought. */
+    tierKey: text("tier_key").notNull(),
+    /** The per-session rate at the moment of purchase. Never re-read. */
+    rateCents: integer("rate_cents").notNull(),
+    quantity: integer("quantity").notNull(),
+    consumed: integer("consumed").notNull().default(0),
+
+    /** Purchase time plus `pricing.creditExpiryMonths`. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+
+    status: text("status").$type<CreditStatus>().notNull().default("pending"),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // The consumption order: soonest to expire, oldest first. Indexed because
+    // it runs on every completed session.
+    index("session_credits_spend_idx").on(t.organizationId, t.status, t.expiresAt),
+    uniqueIndex("session_credits_checkout_idx").on(t.stripeCheckoutSessionId),
+  ],
+);
+
+export type SessionCredit = typeof sessionCredits.$inferSelect;

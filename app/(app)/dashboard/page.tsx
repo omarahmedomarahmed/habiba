@@ -188,7 +188,7 @@ export default async function DashboardPage() {
           <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
             <span className="flex-1">
               <span className="block text-sm font-semibold text-slate-900">
-                {billing.plan.name}
+                {billing.tier.name}
               </span>
               <span className="block text-xs text-slate-500">
                 {billing.sessionsThisMonth} session

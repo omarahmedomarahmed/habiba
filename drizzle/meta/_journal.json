@@ -204,6 +204,20 @@
       "when": 1789000000000,
       "tag": "0028_transcript_language",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789100000000,
+      "tag": "0029_platform_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789200000000,
+      "tag": "0030_session_credits",
+      "breakpoints": true
     }
   ]
 }

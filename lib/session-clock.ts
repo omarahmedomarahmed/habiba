@@ -9,95 +9,88 @@
  *
  * ## The shape of the thing
  *
- * A radar session is sold as thirty minutes. Thirty minutes is also, roughly,
- * how long a person in acute distress can usefully talk — and it is emphatically
- * not a duration anybody should be cut off at mid-sentence.
+ *   0–50    running     nothing on screen
+ *   50–60   countdown   the same timer on *both* screens
+ *   60      over        ended, by us
  *
- *   0–25    running     nothing on screen
- *   25–30   closing     "five minutes left", both sides
- *   30      decision    the paid half hour is up. The clinician chooses:
- *                       wrap up, or keep going. Nothing happens on its own.
- *   30–45   extended    only if they chose to continue
- *   45–50   wrapUp      "five minutes left, and this one is the last"
- *   50      capped      ended, by us
+ * ## What this replaced, and why
  *
- * ## Why there is a hard cap at all
+ * There used to be a middle state: the paid half hour ended at thirty minutes,
+ * the clinician was asked whether to continue, and choosing to continue
+ * unlocked a free extension to a fifty-minute cap. Two things were wrong with
+ * it. It put a commercial prompt in front of a clinician mid-session, at the
+ * exact moment the answer should have been clinical; and the patient's screen
+ * and the clinician's showed different things, because only one of them could
+ * answer the prompt.
  *
- * Because the alternative is a session that runs until somebody remembers. A
- * clinician who forgets to press End leaves a recording running, a patient
- * nominally in a room, and a radar slot occupied — and the clinician is
- * unavailable to everybody else the whole time. Fifty minutes is the standard
- * therapeutic hour, so the cap lands where a clinician's own instinct already
- * does.
+ * Now there is one timeline, both sides see the same number, and continuing
+ * past the hard stop means the therapist creates a new session — free or paid —
+ * and sends that patient the link. That is a deliberate friction: it makes the
+ * decision to keep going explicit and, when it is a paid session, honest.
  *
- * ## Why the extension is free
+ * `sessions.extendedAt` still exists and is still readable on historical rows,
+ * because sessions that were extended under the old rules really were, and §6
+ * does not let us rewrite what happened. Nothing writes it any more.
  *
- * The patient paid for a half hour with somebody who then judged that stopping
- * at thirty minutes would be wrong. Billing them for that judgement would make
- * the clinical decision a commercial one, and would teach every patient that
- * the honest answer to "are you all right?" costs money. `sessions.priceCents`
- * is fixed at booking and charged once; there is no code path that raises a
- * second charge, and this comment is here so nobody adds one.
+ * ## Where the numbers come from
+ *
+ * `platform_settings.clock`, passed in as `limits`. They are an argument rather
+ * than an import so that this module stays pure and the browser can be handed
+ * the same snapshot the server used — a clock whose bounds are fetched at two
+ * different moments is a clock that disagrees with itself.
  */
+import { SETTINGS_DEFAULTS } from "@/lib/settings/defs";
 
-/** What the patient bought. */
-export const INCLUDED_MINUTES = 30;
-
-/** The therapeutic hour. Nothing runs past this. */
-export const MAX_MINUTES = 50;
-
-/** How long before each boundary the warning appears. */
-export const WARNING_MINUTES = 5;
+export type ClockLimits = {
+  runningMinutes: number;
+  countdownMinutes: number;
+  silenceSeconds: number;
+};
 
 /**
- * A gap in the transcript this long, after the paid time, means nobody is
- * there.
+ * The fallback, and only the fallback.
  *
- * Ninety seconds rather than thirty: therapy contains silence, and a
- * ninety-second pause in a difficult session is a normal and sometimes
- * important thing. This is not a silence detector, it is an "everyone has left"
- * detector, and it only applies once the session is already past the time it
- * was sold for.
+ * Exported so a caller with no settings snapshot to hand — a unit test, a
+ * client component during its first paint — has one obvious wrong-but-safe
+ * answer rather than three different ones.
  */
-export const SILENCE_SECONDS = 90;
+export const DEFAULT_CLOCK_LIMITS: ClockLimits = SETTINGS_DEFAULTS.clock;
 
 export type ClockStage =
   /** Running normally, nothing to say. */
   | "running"
-  /** Inside the last five minutes of the paid half hour. */
-  | "closing"
-  /** The half hour is up and the clinician has not decided yet. */
-  | "decision"
-  /** They chose to keep going. */
-  | "extended"
-  /** Inside the last five minutes before the cap. */
-  | "wrapUp"
-  /** Over the cap, or gone quiet past the paid time. Should be ended. */
+  /** Inside the last stretch before the hard stop. Shown on both screens. */
+  | "countdown"
+  /** Past the hard stop, or gone quiet. Should be ended. */
   | "over";
 
 export type SessionClock = {
   stage: ClockStage;
   elapsedSeconds: number;
-  /** To the next boundary that matters: the half hour, or the cap. */
+  /** To the hard stop. The same number on both screens. */
   remainingSeconds: number;
-  /** True once the clinician has chosen to keep going. */
-  extended: boolean;
   /** The server should end this session now. */
   shouldEnd: boolean;
   /** Why, when it should. Shown to nobody — it goes in the log. */
   endReason: "cap" | "silence" | null;
 };
 
+/** The hard stop, in seconds. */
+export function capSeconds(limits: ClockLimits): number {
+  return (limits.runningMinutes + limits.countdownMinutes) * 60;
+}
+
 export function sessionClock(input: {
   startedAt: Date | string | null;
-  /** When the clinician chose to continue past the paid time. */
-  extendedAt: Date | string | null;
   /** The most recent transcript segment, for the "everyone left" check. */
   lastActivityAt?: Date | string | null;
   now?: Date;
+  limits?: ClockLimits;
 }): SessionClock {
+  const limits = input.limits ?? DEFAULT_CLOCK_LIMITS;
   const now = input.now ?? new Date();
   const started = toDate(input.startedAt);
+  const cap = capSeconds(limits);
 
   // Not started: a clock that counts before the session begins would show a
   // patient in the waiting room a countdown against time they are not using.
@@ -105,81 +98,44 @@ export function sessionClock(input: {
     return {
       stage: "running",
       elapsedSeconds: 0,
-      remainingSeconds: INCLUDED_MINUTES * 60,
-      extended: false,
+      remainingSeconds: cap,
       shouldEnd: false,
       endReason: null,
     };
   }
 
   const elapsed = Math.max(0, Math.floor((now.getTime() - started.getTime()) / 1000));
-  const extended = toDate(input.extendedAt) !== null;
-  const included = INCLUDED_MINUTES * 60;
-  const cap = MAX_MINUTES * 60;
-  const warning = WARNING_MINUTES * 60;
+  const running = limits.runningMinutes * 60;
 
   /*
    * Everybody left.
    *
-   * Only after the paid time, and only when there was activity to lose in the
-   * first place: a session whose transcript never started — the microphone was
-   * refused, or the clinician is working off record — has no last segment, and
-   * inferring abandonment from that would end a real session in progress.
+   * Only once the session is past its running time, and only when there was
+   * activity to lose in the first place: a session whose transcript never
+   * started — the microphone was refused, or the clinician is working off
+   * record — has no last segment, and inferring abandonment from that would end
+   * a real session in progress.
    */
   const lastActivity = toDate(input.lastActivityAt);
   const silent =
-    elapsed > included &&
+    elapsed > running &&
     lastActivity !== null &&
-    now.getTime() - lastActivity.getTime() > SILENCE_SECONDS * 1000;
+    now.getTime() - lastActivity.getTime() > limits.silenceSeconds * 1000;
 
   if (elapsed >= cap || silent) {
     return {
       stage: "over",
       elapsedSeconds: elapsed,
       remainingSeconds: 0,
-      extended,
       shouldEnd: true,
       endReason: elapsed >= cap ? "cap" : "silence",
     };
   }
 
-  if (elapsed >= included) {
-    /*
-     * Past the half hour and nobody has decided.
-     *
-     * This state does *not* end the session. A prompt that becomes a hangup
-     * after thirty seconds would cut somebody off in the middle of the exact
-     * sentence that made the clinician want to keep going. It sits there until
-     * the clinician answers it, and the cap is what stops it sitting forever.
-     */
-    if (!extended) {
-      return {
-        stage: "decision",
-        elapsedSeconds: elapsed,
-        remainingSeconds: Math.max(0, cap - elapsed),
-        extended: false,
-        shouldEnd: false,
-        endReason: null,
-      };
-    }
-
-    const toCap = cap - elapsed;
-    return {
-      stage: toCap <= warning ? "wrapUp" : "extended",
-      elapsedSeconds: elapsed,
-      remainingSeconds: toCap,
-      extended: true,
-      shouldEnd: false,
-      endReason: null,
-    };
-  }
-
-  const toIncluded = included - elapsed;
   return {
-    stage: toIncluded <= warning ? "closing" : "running",
+    stage: elapsed >= running ? "countdown" : "running",
     elapsedSeconds: elapsed,
-    remainingSeconds: toIncluded,
-    extended: false,
+    remainingSeconds: cap - elapsed,
     shouldEnd: false,
     endReason: null,
   };

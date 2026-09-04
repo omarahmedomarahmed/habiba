@@ -27,12 +27,48 @@ export const MODELS = {
   copilot: "gpt-4o-mini",
 } as const;
 
-/** Rough public rates, in cents, used only for the admin usage dashboard. */
-const RATES = {
+/**
+ * Rough public rates, in cents. Used for the admin usage dashboard and for the
+ * margin figure the pricing tiers are set against.
+ *
+ * Keyed by the exact model string we send, so that adding a model means adding
+ * a rate rather than silently inheriting somebody else's — see
+ * `estimateCostMicrocents`.
+ */
+type TokenRate = { inPerMTok: number; outPerMTok: number };
+type AudioRate = { perAudioMinute: number };
+
+const TOKEN_RATES: Record<string, TokenRate> = {
   "gpt-4o": { inPerMTok: 250, outPerMTok: 1000 },
   "gpt-4o-mini": { inPerMTok: 15, outPerMTok: 60 },
+};
+
+const AUDIO_RATES: Record<string, AudioRate> = {
   "gpt-4o-mini-transcribe": { perAudioMinute: 0.3 },
-} as const;
+  // Whisper is not wired up, but its rate is public and being here is what
+  // makes switching to it a configuration change rather than a silent
+  // mispricing.
+  "whisper-1": { perAudioMinute: 0.6 },
+};
+
+/**
+ * The rate to use when a model has none.
+ *
+ * Deliberately the *most expensive* rate in each table rather than zero. A
+ * model we forgot to price must overstate the cost, because an overstatement
+ * shows up as a margin that looks too thin and gets investigated, while a zero
+ * shows up as free and gets believed. This is the failure mode H12 describes,
+ * and the fallback is the belt to the fix's braces.
+ */
+function dearestTokenRate(): TokenRate {
+  return Object.values(TOKEN_RATES).reduce((a, b) => (b.inPerMTok > a.inPerMTok ? b : a));
+}
+
+function dearestAudioRate(): AudioRate {
+  return Object.values(AUDIO_RATES).reduce((a, b) =>
+    b.perAudioMinute > a.perAudioMinute ? b : a,
+  );
+}
 
 let client: OpenAI | null = null;
 
@@ -135,16 +171,46 @@ export async function logUsage(input: UsageInput): Promise<void> {
  * Integers rather than floats: money in floating point reintroduces the same
  * family of bug in a form that is harder to see.
  */
-function estimateCostMicrocents(input: UsageInput): number {
+/**
+ * Only the fields that decide the price.
+ *
+ * Narrower than `UsageInput` on purpose: costing must not be able to depend on
+ * who ran the call or how long it took, and a test should not have to invent an
+ * organisation id to check an arithmetic rate.
+ */
+type CostInput = Pick<UsageInput, "kind" | "model" | "inputTokens" | "outputTokens" | "audioSeconds">;
+
+function estimateCostMicrocents(input: CostInput): number {
   if (input.kind === "transcribe") {
-    const rate = RATES["gpt-4o-mini-transcribe"];
+    /*
+     * H12, fixed.
+     *
+     * This line used to be `RATES["gpt-4o-mini-transcribe"]` — a hardcoded
+     * lookup that ignored `input.model` entirely. Every transcription was
+     * costed at the mini rate no matter which model actually ran, so pointing
+     * transcription at a second provider or a larger model would have kept
+     * billing the cheap one, silently and forever, with nothing in the data to
+     * show it. The hazard note is explicit that this had to be fixed *before* a
+     * second provider existed, because afterwards the wrong figures are already
+     * in the ledger and indistinguishable from right ones.
+     *
+     * The token branch below always did read `input.model`; it just did it with
+     * a ternary that treated everything that was not `gpt-4o-mini` as `gpt-4o`,
+     * which has the same shape of bug one model away. Both branches now look
+     * the model up, and both fall back loudly rather than cheaply.
+     */
+    const rate = AUDIO_RATES[input.model] ?? dearestAudioRate();
     return Math.round(((input.audioSeconds ?? 0) / 60) * rate.perAudioMinute * 1000);
   }
-  const rate = input.model === "gpt-4o-mini" ? RATES["gpt-4o-mini"] : RATES["gpt-4o"];
+
+  const rate = TOKEN_RATES[input.model] ?? dearestTokenRate();
   const inCost = ((input.inputTokens ?? 0) / 1_000_000) * rate.inPerMTok;
   const outCost = ((input.outputTokens ?? 0) / 1_000_000) * rate.outPerMTok;
   return Math.round((inCost + outCost) * 1000);
 }
+
+/** Exported for the cost test — the arithmetic, without a database. */
+export const __costing = { estimateCostMicrocents, TOKEN_RATES, AUDIO_RATES };
 
 /**
  * Parse a model response that is supposed to be JSON.

@@ -13,13 +13,12 @@ import { CopilotToasts, mergeToasts, type Toast } from "@/components/session/cop
 import { SessionClockBar } from "@/components/session/session-clock-bar";
 import {
   endSession,
-  extendCurrentSession,
   goLive,
   setRecordingPaused,
   setTranscriptLanguage,
 } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
-import { sessionClock } from "@/lib/session-clock";
+import { sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { cn, formatDuration } from "@/lib/utils";
 
 type Speaker = "therapist" | "patient" | "unknown";
@@ -44,7 +43,7 @@ type RoomProps = {
   /** ISO, so the countdown survives a refresh mid-session. */
   startedAt: string | null;
   /** ISO of the moment the clinician chose to keep going, if they have. */
-  extendedAt: string | null;
+  clockLimits: ClockLimits;
   /**
    * The language being spoken, or null to let the model work it out.
    *
@@ -82,7 +81,6 @@ export function SessionRoom(props: RoomProps) {
    * actually ends the session.
    */
   const [startedAt, setStartedAt] = useState<string | null>(props.startedAt);
-  const [extendedAt, setExtendedAt] = useState<string | null>(props.extendedAt);
   const [now, setNow] = useState(() => Date.now());
   const [crisis, setCrisis] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -281,7 +279,7 @@ export function SessionRoom(props: RoomProps) {
         const data = (await response.json()) as {
           patientJoined?: boolean;
           status?: string;
-          clock?: { extended?: boolean; endReason?: string | null };
+          clock?: { endReason?: string | null };
         };
         if (data.patientJoined) setPatientJoined(true);
 
@@ -291,13 +289,12 @@ export function SessionRoom(props: RoomProps) {
           router.replace(`/sessions/${props.sessionId}`);
           return;
         }
-        if (data.clock?.extended && !extendedAt) setExtendedAt(new Date().toISOString());
       } catch {
         /* transient */
       }
     }, 5000);
     return () => clearInterval(poll);
-  }, [props.modality, props.sessionId, patientJoined, live, extendedAt, router]);
+  }, [props.modality, props.sessionId, patientJoined, live, router]);
 
   /* ---------------------------------------------------------- transitions -- */
 
@@ -311,15 +308,6 @@ export function SessionRoom(props: RoomProps) {
       }
       setLive(true);
       setStartedAt(new Date().toISOString());
-    });
-  };
-
-  const handleExtend = () => {
-    setError(null);
-    startTransition(async () => {
-      const result = await extendCurrentSession(props.sessionId);
-      if (result.error) setError(result.error);
-      else setExtendedAt(new Date().toISOString());
     });
   };
 
@@ -378,7 +366,7 @@ export function SessionRoom(props: RoomProps) {
    * and only the server has them, which is also why only the server ends a
    * session.
    */
-  const clock = sessionClock({ startedAt, extendedAt, now: new Date(now) });
+  const clock = sessionClock({ startedAt, now: new Date(now), limits: props.clockLimits });
 
   return (
     <div data-surface="room" className="flex min-h-dvh flex-col bg-navy-600">
@@ -407,14 +395,7 @@ export function SessionRoom(props: RoomProps) {
       </header>
 
       {live ? (
-        <SessionClockBar
-          stage={clock.stage}
-          remainingSeconds={clock.remainingSeconds}
-          extended={clock.extended}
-          onExtend={handleExtend}
-          onEnd={handleEnd}
-          pending={pending || ending}
-        />
+        <SessionClockBar stage={clock.stage} remainingSeconds={clock.remainingSeconds} />
       ) : null}
 
       {/*

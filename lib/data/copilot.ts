@@ -4,9 +4,8 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { PAYG_COPILOT_MESSAGES } from "@/lib/billing/plans";
-import { getSubscription } from "@/lib/billing/service";
 import { db } from "@/lib/db";
+import { getSettings } from "@/lib/settings";
 import {
   copilotMessages,
   copilotThreads,
@@ -16,15 +15,6 @@ import {
   type Citation,
 } from "@/lib/db/schema";
 
-/**
- * PAYG gets a taste of the copilot; Unlimited gets all of it.
- *
- * The number itself lives in the plan matrix, because it is advertised on the
- * pricing page as part of what $6 buys. Two constants would mean the page and
- * the enforcement could disagree, and the one that loses that argument is the
- * customer.
- */
-export const PAYG_MESSAGES_PER_PATIENT_PER_MONTH = PAYG_COPILOT_MESSAGES;
 
 function scope(actor: Actor) {
   return actor.role === "super_admin"
@@ -161,38 +151,93 @@ export async function appendMessage(input: {
 /**
  * Quota.
  *
- * Counted per patient per calendar month, and only therapist questions count —
- * the copilot's own answers and the notes saved automatically from a live
- * session are not billable actions the therapist chose to take.
+ * ## What this used to be, and why it was wrong
+ *
+ * A flat allowance per patient per **calendar month**, reset on the 1st. §3 asks
+ * for something different in kind, not merely a different number: **ten messages
+ * per session, per patient, rolling over on that patient**, expiring after
+ * `pricing.creditExpiryMonths`. Moving the figure into `platform_settings`
+ * would not have converted one into the other, so the counting changed too.
+ *
+ * The difference is the therapist's, not ours. Under the old rule somebody who
+ * saw a patient weekly and somebody who saw them once got the same ten
+ * questions, and both lost whatever they had not spent at midnight on the 31st.
+ * Under this one the allowance is earned by the work: each completed session
+ * with that patient earns ten questions about that patient, and they keep until
+ * they lapse.
+ *
+ * ## The window
+ *
+ * Earned and used are counted over the *same* twelve months. Counting a
+ * lifetime of questions against a year of sessions would let an old thread
+ * start out already over its limit.
+ *
+ * Only therapist messages count. The copilot's own answers and the notes saved
+ * automatically from a live session are not questions the therapist chose to
+ * ask.
  */
 export async function checkQuota(
   actor: Actor,
   threadId: string,
-): Promise<{ allowed: boolean; used: number; limit: number | null }> {
-  const subscription = await getSubscription(actor.organizationId);
-  if (subscription.plan === "unlimited") return { allowed: true, used: 0, limit: null };
+): Promise<{ allowed: boolean; used: number; limit: number }> {
+  const settings = await getSettings();
+  const perSession = settings.copilot.messagesPerPatientPerSession;
 
-  const startOfMonth = new Date();
-  startOfMonth.setUTCDate(1);
-  startOfMonth.setUTCHours(0, 0, 0, 0);
+  const since = new Date();
+  since.setUTCMonth(since.getUTCMonth() - settings.pricing.creditExpiryMonths);
 
-  const [row] = await db
+  // Which patient this thread is about. The thread is already scoped to the
+  // actor by `getOrCreateThread`; this read is by id because the caller has
+  // just been through that check.
+  const [thread] = await db
+    .select({ patientId: copilotThreads.patientId })
+    .from(copilotThreads)
+    .where(and(eq(copilotThreads.id, threadId), scope(actor)))
+    .limit(1);
+
+  if (!thread) return { allowed: false, used: 0, limit: 0 };
+
+  const [earnedRow] = await db
+    .select({ sessions: sql<number>`COUNT(*)::int` })
+    .from(sessions)
+    .where(
+      and(
+        eq(sessions.patientId, thread.patientId),
+        eq(sessions.organizationId, actor.organizationId),
+        eq(sessions.status, "completed"),
+        gte(sessions.createdAt, since),
+      ),
+    );
+
+  const [usedRow] = await db
     .select({ used: sql<number>`COUNT(*)::int` })
     .from(copilotMessages)
     .where(
       and(
         eq(copilotMessages.threadId, threadId),
         eq(copilotMessages.role, "therapist"),
-        gte(copilotMessages.createdAt, startOfMonth),
+        gte(copilotMessages.createdAt, since),
       ),
     );
 
-  const used = row?.used ?? 0;
-  return {
-    allowed: used < PAYG_MESSAGES_PER_PATIENT_PER_MONTH,
-    used,
-    limit: PAYG_MESSAGES_PER_PATIENT_PER_MONTH,
-  };
+  /*
+   * A patient with no completed session yet.
+   *
+   * §3 gives an undocumented patient nothing and a documented unclaimed one
+   * five credits, unlocked by adding a diagnosis and a history. That
+   * distinction needs the `people` table and the claimed/unclaimed state from
+   * sprint 5, which does not exist yet — so until it does, the floor is the
+   * `unclaimedPatientCredits` setting for every patient, which is the more
+   * generous of the two readings and cannot lock a therapist out of a patient
+   * they have only just added.
+   */
+  const earned = Math.max(
+    settings.copilot.unclaimedPatientCredits,
+    (earnedRow?.sessions ?? 0) * perSession,
+  );
+  const used = usedRow?.used ?? 0;
+
+  return { allowed: used < earned, used, limit: earned };
 }
 
 /**

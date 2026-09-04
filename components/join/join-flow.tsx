@@ -78,7 +78,7 @@ export function JoinFlow({
    * every five seconds and that is the whole realtime surface of this side.
    */
   const [clock, setClock] = useState<
-    { stage: ClockStage; remainingSeconds: number; extended: boolean } | null
+    { stage: ClockStage; remainingSeconds: number } | null
   >(null);
   const [ended, setEnded] = useState(false);
   const resuming = useRef(false);

@@ -243,8 +243,8 @@ export default async function VaultPage() {
                       <span className="block text-xs text-slate-400">{t.organizationName}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <Badge tone={t.plan === "unlimited" ? "teal" : "slate"}>
-                        {t.plan === "unlimited" ? "Unlimited" : "PAYG"}
+                      <Badge tone={t.plan && t.plan !== "payg" ? "teal" : "slate"}>
+                        {t.plan ?? "payg"}
                       </Badge>
                     </td>
                     <td className="px-3 py-2.5 text-end tabular-nums">{t.sessionCount}</td>

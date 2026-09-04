@@ -4,9 +4,9 @@ import { ChevronRight, MessageSquare } from "lucide-react";
 
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
-import { getSubscription } from "@/lib/billing/service";
-import { listThreads, PAYG_MESSAGES_PER_PATIENT_PER_MONTH } from "@/lib/data/copilot";
+import { listThreads } from "@/lib/data/copilot";
 import { listPatients } from "@/lib/data/patients";
+import { getSettings } from "@/lib/settings";
 import { fullName, initials, relativeDay } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Copilot", robots: { index: false } };
@@ -20,10 +20,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function CopilotInboxPage() {
   const actor = await requireUser();
-  const [threads, patients, subscription] = await Promise.all([
+  const [threads, patients, settings] = await Promise.all([
     listThreads(actor),
     listPatients(actor),
-    getSubscription(actor.organizationId),
+    getSettings(),
   ]);
 
   const withThreads = new Set(threads.map((t) => t.patientId));
@@ -37,12 +37,11 @@ export default async function CopilotInboxPage() {
       />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
-        {subscription.plan === "payg" ? (
-          <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
-            Pay as you go includes {PAYG_MESSAGES_PER_PATIENT_PER_MONTH} copilot messages per
-            patient each month. Unlimited removes the cap.
-          </p>
-        ) : null}
+        <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
+          Every session you complete earns {settings.copilot.messagesPerPatientPerSession} copilot
+          questions about that patient. Unused ones roll over and last{" "}
+          {settings.pricing.creditExpiryMonths} months.
+        </p>
 
         {threads.length === 0 && untouched.length === 0 ? (
           <Card>

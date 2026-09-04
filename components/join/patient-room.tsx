@@ -55,7 +55,7 @@ export function PatientRoom({
   live: boolean;
   recording: boolean;
   startedAt: string | null;
-  clock: { stage: ClockStage; remainingSeconds: number; extended: boolean } | null;
+  clock: { stage: ClockStage; remainingSeconds: number } | null;
 }) {
   /*
    * Escapes the join page's centred column.
@@ -115,7 +115,7 @@ export function PatientRoom({
             This is an instruction.
           */}
           <StayHere therapist={therapist} />
-          {live && clock ? <PatientClockNote therapist={therapist} clock={clock} /> : null}
+          {live && clock ? <PatientClockNote clock={clock} /> : null}
           <WhoYouAreWith therapist={therapist} live={live} startedAt={startedAt} />
           <SummaryAndRating token={token} live={live} therapist={therapist} />
           <Reassurance />
@@ -158,52 +158,52 @@ function RecordingStrip({ live, recording }: { live: boolean; recording: boolean
 /* --------------------------------------------------------------- clock -- */
 
 /**
- * The patient's half of the countdown.
+ * The patient's half of the countdown — and it is now literally the same one.
  *
  * Deliberately not a permanent timer. The elapsed-minutes line below stays what
- * it was — orientation rather than pressure — and this appears only when there
- * is something the patient would want to have known in advance: the last few
- * minutes, and the moment their clinician is deciding whether to carry on.
+ * it was, orientation rather than pressure, and this appears only for the last
+ * stretch, when there is something the patient would want to have known in
+ * advance.
  *
- * That decision is the one that most needs saying out loud. Without it, "shall
- * we start wrapping up?" arrives from nowhere thirty minutes in and reads as
- * being moved along. With it, the patient already knows the paid half hour is
- * up — and knows that carrying on costs them nothing, which is the part they
- * would otherwise be too polite to ask about.
+ * The important change is that both screens now show the *same* number from the
+ * same function. Before, the clinician was answering a prompt about whether to
+ * continue and the patient was told their therapist was "deciding" — which is a
+ * strange thing to read while you are still talking. Neither side is deciding
+ * anything now: the session ends when it ends, and carrying on means a new one.
  */
 function PatientClockNote({
-  therapist,
   clock,
 }: {
-  therapist: Therapist;
-  clock: { stage: ClockStage; remainingSeconds: number; extended: boolean };
+  clock: { stage: ClockStage; remainingSeconds: number };
 }) {
-  if (clock.stage === "running" || clock.stage === "extended") return null;
+  if (clock.stage === "running") return null;
 
-  const minutes = Math.max(1, Math.round(clock.remainingSeconds / 60));
-
-  if (clock.stage === "decision") {
+  if (clock.stage === "over") {
     return (
       <Card className="border-amber-200 bg-amber-50/70 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
           <Clock className="h-4 w-4 shrink-0" aria-hidden />
-          Your half hour is up
+          This session has ended
         </p>
         <p className="mt-1 text-sm leading-relaxed text-amber-800">
-          {therapist.firstName} is deciding whether to carry on. If they do, the extra time is
-          free — you will not be charged anything more, whatever happens next.
+          If you and your therapist want to carry on, they can send you a link to a new session.
         </p>
       </Card>
     );
   }
+
+  const minutes = Math.max(1, Math.round(clock.remainingSeconds / 60));
 
   return (
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm text-slate-700">
         <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
         <span>
-          About <span className="font-semibold text-slate-900">{minutes} minute{minutes === 1 ? "" : "s"}</span>{" "}
-          {clock.stage === "wrapUp" ? "left in this session." : "of your session left."}
+          About{" "}
+          <span className="font-semibold text-slate-900">
+            {minutes} minute{minutes === 1 ? "" : "s"}
+          </span>{" "}
+          left in this session. Your therapist sees the same countdown.
         </span>
       </p>
     </Card>

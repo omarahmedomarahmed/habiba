@@ -68,20 +68,18 @@ export default async function BillingPage({
         ) : null}
 
         <PlanCard
-          plan={summary.subscription.plan}
-          status={summary.subscription.status}
-          cancelAtPeriodEnd={summary.subscription.cancelAtPeriodEnd}
+          tiers={summary.tiers}
+          currentTierKey={summary.tier.key}
+          creditsRemaining={summary.credits.remaining}
+          creditsExpireOn={
+            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt) : null
+          }
           billingEnabled={features.billing}
           sessionsThisMonth={summary.sessionsThisMonth}
           spentThisMonthCents={summary.spentThisMonthCents}
-          renewsOn={
-            summary.subscription.currentPeriodEnd
-              ? formatDate(summary.subscription.currentPeriodEnd)
-              : null
-          }
         />
 
-        {summary.subscription.plan === "payg" && !summary.subscription.trialSessionUsed ? (
+        {!summary.subscription.trialSessionUsed ? (
           <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
             Your first completed session is free.
           </p>

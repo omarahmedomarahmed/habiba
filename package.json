@@ -15,7 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "db:setup": "tsx scripts/migrate.ts && tsx scripts/seed.ts",
+    "db:setup": "tsx scripts/migrate.ts && tsx scripts/settings.ts seed && tsx scripts/seed.ts",
     "test": "node --import tsx --conditions=react-server --test tests/safety.test.ts",
     "test:db": "node --import tsx --conditions=react-server --test tests/radar.test.ts",
     "test:alarm": "node --import tsx --test tests/alarm.test.ts",
@@ -25,7 +25,11 @@
     "test:ledger": "node --import tsx --conditions=react-server --test tests/ledger.test.ts",
     "test:clock": "node --import tsx --test tests/clock.test.ts",
     "test:toasts": "node --import tsx --test tests/toasts.test.ts",
-    "test:transcribe": "node --import tsx --conditions=react-server --test tests/transcribe.test.ts"
+    "test:transcribe": "node --import tsx --conditions=react-server --test tests/transcribe.test.ts",
+    "settings:seed": "tsx scripts/settings.ts seed",
+    "settings:show": "tsx scripts/settings.ts show",
+    "settings:reprice": "tsx scripts/settings.ts reprice",
+    "verify:sprint1": "tsx scripts/verify-sprint1.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

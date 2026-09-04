@@ -78,7 +78,13 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C15 | 6.3 | **Measured cost:** `Actor.organizationId` is non-null `string` (`lib/auth/session.ts:32`); 32 direct `actor.organizationId` reads, 192 `.organizationId` reads overall, across 52 files calling `requireUser`/`requireRole`. "Audit every consumer" is the whole sprint, not a bullet. | major | audit @2a3965d | open |
 | C16 | 15 | **Admin is not greenfield.** 12 pages already exist under `app/(admin)/admin/` (`tv`, `usage`, `audit`, `errors`, `ratings`, `radar`, `taxonomy`, `therapists`, `verifications`, `vault`, `content`, `announce`). ~2 weeks may be right, but as extension work; the "built last so it can be verified" rationale does not apply to what is already shipped. | minor | audit @2a3965d | open |
 | C17 | — | **H13 has no owner.** `client.ts:108` (`costCents = microcents/1000`) is itself correct. The hazard lives in consumers of `cost_microcents`; no sprint audits them. One ticket, cheap now, expensive after sprint 4 adds currencies. | minor | audit @2a3965d | open |
-| C18 | 3 | **No acceptance measurement is possible from source.** "92% unattributed in-person, 12% video" and §3's "46 of 56 patients have no email" are DB claims; without C5 resolved neither the baseline nor the sprint-3 acceptance test can be run. | major | audit @2a3965d | open |
+| C18 | 3 | **No acceptance measurement is possible from source.** "92% unattributed in-person, 12% video" and §3's "46 of 56 patients have no email" are DB claims; without C5 resolved neither the baseline nor the sprint-3 acceptance test can be run. | major | audit @2a3965d | **resolved** — Neon branch `sprint-1-settings` off `br-curly-dream`. §3 confirmed exactly: 56 patients, 46 with no email |
+| C19 | 5, 6 | **46 of 56 patients have neither email nor phone**, not just no email — measured, `WHERE email IS NULL AND phone IS NULL` → 46. §3's claim flow keys on "email **or** phone" (step 1), so for 82% of existing patients there is nothing to match on and no path to claiming at all. Sprint 5.4's "match on email or phone" will find zero candidates for them. The plan needs an answer for a record whose only identifier is a name. | major | sprint 1 @f06b82c | open |
+| C20 | 1 | **Scope taken beyond the ticket, deliberately.** 1.6 says "reprice to Starter $3/min 10, Growth $2/min 30" — but minimums are unsellable without something to buy. Added `session_credits` (purchase, expiry, oldest-first consumption) and replaced the `unlimited` Stripe subscription checkout with a one-time credit checkout. Without it 1.6 would have shipped three tiers a therapist could not reach. | minor | sprint 1 | **accepted, built** |
+| C21 | 15 | **`invoices.kind` still has the value `subscription`** for what is now a credit purchase. Renaming means migrating every historical row and every reader for a label. Left as-is; `recordCreditPurchaseInvoice` says so at the call site. | minor | sprint 1 | open |
+| C22 | 5, 6 | **§3's "unclaimed patient gets 5 credits, unlocked by a diagnosis and a history" cannot be enforced yet** — it needs the claimed/unclaimed state from sprint 5. `checkQuota` currently applies `unclaimedPatientCredits` as a floor for *every* patient, which is the more generous reading and cannot lock a therapist out of a patient they just added. Tighten when `people` lands. | minor | sprint 1 | open |
+| C23 | 2 | **`sessions.extendedAt` is now written by nothing but still read** by the session detail page and admin Total View, which show "· Extended" for historical rows. That is correct — those sessions really were extended — but the column will look like dead schema to the next reader. Documented at the top of `lib/session-clock.ts`. | minor | sprint 1 | open |
+| C24 | all | **One test fails on `main` and still fails here** — `radar.test.ts:19`, "a finished session still resolves for feedback". Verified pre-existing by stashing this branch and re-running at `7f883e2`: identical failure. Not caused by sprint 1, and not fixed by it. Needs an owner. | major | sprint 1 | open |
 
 ---
 
@@ -222,22 +228,22 @@ and it cannot verify what does not yet exist.
 
 Everything downstream reads these. Anything hardcoded here is rewritten in 15.
 
-- [ ] **1.1** `platform_settings` — rates, tiers, included sessions, copilot
+- [x] **1.1** `platform_settings` — rates, tiers, included sessions, copilot
       limits, price cap. Seeded with §3's numbers
-- [ ] **1.2** `country_settings` — VAT rate, currency, allowed payment methods
-- [ ] **1.3** Typed accessor with a safe fallback. **No pricing constant may
+- [x] **1.2** `country_settings` — VAT rate, currency, allowed payment methods
+- [x] **1.3** Typed accessor with a safe fallback. **No pricing constant may
       remain in code**
-- [ ] **1.4** Fix `lib/ai/client.ts` — the transcribe rate ignores `input.model`
+- [x] **1.4** Fix `lib/ai/client.ts` — the transcribe rate ignores `input.model`
       (H12)
-- [ ] **1.5** Session length 50 → **60 min**: 50 running, then a **10-minute
+- [x] **1.5** Session length 50 → **60 min**: 50 running, then a **10-minute
       countdown shown on both screens**, hard stop at 60. To continue, the
       therapist creates a new session — free or paid — and sends that patient
       the link
-- [ ] **1.6** Reprice to §3: PAYG $4, Starter $3/min 10, Growth $2/min 30.
+- [x] **1.6** Reprice to §3: PAYG $4, Starter $3/min 10, Growth $2/min 30.
       Platform cut 10% → **15%**. Price cap $1,000 → **$500**
-- [ ] **1.7** **Move every therapist to PAYG**, unlimited subscribers included.
+- [x] **1.7** **Move every therapist to PAYG**, unlimited subscribers included.
       Demo accounts, no real revenue, nobody to notify
-- [ ] **1.8** 🔴 **Stop taking custody of therapist money.** `connect.ts:386`
+- [x] **1.8** 🔴 **Stop taking custody of therapist money.** `connect.ts:386`
       selects `capture: "platform"` automatically whenever a clinician has no
       Connect account — so we hold their balance today, by default, for exactly
       the therapists least able to chase us for it. Refuse the payment and
@@ -450,7 +456,13 @@ Built last so it can be verified against everything that already exists.
 
 | Date | Sprint | What | Commit | Verified how |
 |---|---|---|---|---|
-| — | — | *(none yet)* | — | — |
+| 2026-09-04 | 1.1–1.3 | `platform_settings` (4 jsonb groups) + `country_settings`; typed accessor `lib/settings` with per-field fallback | *this* | Migration `0029` verified against `information_schema`: 12 columns, all present (H1). `npx tsx scripts/settings.ts show` prints the seeded rows |
+| 2026-09-04 | 1.4 | H12 — transcribe costing now reads `input.model`; both branches look the model up and fall back to the **dearest** rate, never zero | *this* | 3 new tests in `safety`: two rates cannot collapse into one; an unpriced model overstates; H13's 1e5 divisor |
+| 2026-09-04 | 1.5 | Clock is 50 running → 10-minute countdown on **both** screens → hard stop at 60. `decision`/`extended` stages and `extendSession` removed | *this* | `clock` suite rewritten, 12 tests. One runs the whole ladder at 20+2 minutes (H4) and one at a zero-length countdown |
+| 2026-09-04 | 1.6 | Repriced: PAYG $4 · Starter $3/min 10 · Growth $2/min 30; cut 10%→**15%**; cap $1,000→**$500**. New `session_credits` table makes the tiers purchasable | *this* | Migration `0030`: 12 columns, 3 indexes. `verify:sprint1` asserts every figure against the live rows |
+| 2026-09-04 | 1.7 | Every therapist moved to PAYG; `unlimited` removed from `PLANS`, from Stripe checkout, and from the pricing page | *this* | `SELECT DISTINCT plan FROM subscriptions` → `payg` only, 36 rows, 0 stragglers |
+| 2026-09-04 | 1.8 | `createSessionCheckout` **refuses** a payment when the clinician has no transfer-capable Connect account, instead of capturing to our own balance | *this* | Only one `capture` value is now reachable (`"destination"`, typed `as const`). `verify:sprint1` confirms 0 historical `platform` rows — the door closed before anything went through it |
+| 2026-09-04 | C14 | Copilot allowance re-counted: 10 **per session per patient**, rolling over, expiring with `creditExpiryMonths`. Was per calendar month | *this* | `checkQuota` rewritten; earned and used are counted over the same window |
 
 ---
 

@@ -40,9 +40,7 @@ export function ClinicianRow(props: {
 
       <div className="flex shrink-0 flex-wrap items-center gap-1.5">
         {props.role === "super_admin" ? <Badge tone="brand">Admin</Badge> : null}
-        <Badge tone={props.plan === "unlimited" ? "teal" : "slate"}>
-          {props.plan === "unlimited" ? "Unlimited" : "Pay as you go"}
-        </Badge>
+        <Badge tone={props.plan !== "payg" ? "teal" : "slate"}>{props.plan}</Badge>
         <Badge
           tone={
             verification === "verified" ? "green" : verification === "rejected" ? "red" : "slate"

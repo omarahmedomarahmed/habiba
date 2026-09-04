@@ -38,7 +38,20 @@ export function NewSessionForm({
   patients: PatientOption[];
   welcome?: boolean;
   /** Absent when the therapist has not finished Stripe onboarding. */
-  payments?: { defaultRateCents: number; feeBps: number };
+  /**
+   * The live figures, handed down rather than imported.
+   *
+   * `feeBps`, `minPriceCents` and `maxPriceCents` all come from
+   * `platform_settings` now. The form must render from the same snapshot the
+   * server will validate against, or a therapist gets told $5 is fine and then
+   * that it is not.
+   */
+  payments?: {
+    defaultRateCents: number;
+    feeBps: number;
+    minPriceCents: number;
+    maxPriceCents: number;
+  };
 }) {
   const [state, action] = useActionState(startNewSession, INITIAL);
   const [modality, setModality] = useState<"in_person" | "video">("in_person");
@@ -181,7 +194,8 @@ export function NewSessionForm({
                     id="price"
                     type="number"
                     inputMode="decimal"
-                    min={5}
+                    min={payments.minPriceCents / 100}
+                    max={payments.maxPriceCents / 100}
                     step={1}
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
@@ -193,9 +207,20 @@ export function NewSessionForm({
               </Field>
 
               {priceCents > 0 ? (
+                /*
+                 * Separate lines with reasons, never one number (§3).
+                 *
+                 * VAT is not shown here because it is a fact about the
+                 * *patient's* country, which is not known until they open the
+                 * pay page and choose one — sprint 4. What the therapist can be
+                 * told truthfully today is their own side of the split, so that
+                 * is all this says.
+                 */
                 <p className="flex items-center gap-1.5 text-xs text-slate-600">
                   <DollarSign className="h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
-                  You keep {formatUsd(priceCents - cut)} — 24Therapy takes {formatUsd(cut)}.
+                  You keep {formatUsd(priceCents - cut)} — 24Therapy takes {formatUsd(cut)} (
+                  {payments.feeBps / 100}%). Your patient also pays VAT on top, set by their
+                  country.
                 </p>
               ) : null}
             </div>

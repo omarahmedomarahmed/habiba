@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -9,6 +9,7 @@ import {
   organizations,
   sessionPayments,
   sessions,
+  sessionCredits,
   subscriptions,
   users,
 } from "@/lib/db/schema";
@@ -285,10 +286,22 @@ export async function tractionMetrics(): Promise<Traction> {
     .from(sessions)
     .where(eq(sessions.status, "completed"));
 
+  /*
+   * "Paying customers" used to mean "on the unlimited plan", which no longer
+   * exists. It now means an organisation holding unspent, unexpired credits —
+   * somebody who has actually given us money and has not yet used it up. That
+   * is a closer answer to the question this figure was always being asked for.
+   */
   const [subs] = await db
-    .select({ paying: sql<number>`COUNT(*)::int` })
-    .from(subscriptions)
-    .where(and(eq(subscriptions.plan, "unlimited"), eq(subscriptions.status, "active")));
+    .select({ paying: sql<number>`COUNT(DISTINCT ${sessionCredits.organizationId})::int` })
+    .from(sessionCredits)
+    .where(
+      and(
+        eq(sessionCredits.status, "active"),
+        gt(sessionCredits.expiresAt, new Date()),
+        gt(sessionCredits.quantity, sessionCredits.consumed),
+      ),
+    );
 
   const [revenue30] = await db
     .select({

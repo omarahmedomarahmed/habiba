@@ -98,7 +98,7 @@ export default async function TherapistDetailPage({
             <Badge tone={therapist.verificationStatus === "verified" ? "teal" : "slate"}>
               {therapist.verificationStatus}
             </Badge>
-            <Badge tone={therapist.plan === "unlimited" ? "brand" : "slate"}>
+            <Badge tone={therapist.plan && therapist.plan !== "payg" ? "brand" : "slate"}>
               {therapist.plan ?? "payg"}
             </Badge>
             {therapist.chargesEnabled ? <Badge tone="teal">Stripe connected</Badge> : null}

@@ -15,7 +15,8 @@ import {
   type Modality,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
-import { MAX_MINUTES, sessionClock, type SessionClock } from "@/lib/session-clock";
+import { capSeconds, sessionClock, type SessionClock } from "@/lib/session-clock";
+import { getSettings } from "@/lib/settings";
 
 /**
  * Every read and write of clinical data goes through this module, and every
@@ -258,11 +259,12 @@ export async function startSession(actor: Actor, sessionId: string) {
  * account. It returns nothing but a countdown.
  */
 export async function readSessionClock(sessionId: string): Promise<SessionClock & { live: boolean }> {
+  const { clock: limits } = await getSettings();
+
   const [row] = await db
     .select({
       status: sessions.status,
       startedAt: sessions.startedAt,
-      extendedAt: sessions.extendedAt,
       /*
        * The last thing anybody said, for the "everyone left" check.
        *
@@ -280,40 +282,17 @@ export async function readSessionClock(sessionId: string): Promise<SessionClock 
     .limit(1);
 
   if (!row) {
-    return { ...sessionClock({ startedAt: null, extendedAt: null }), live: false };
+    return { ...sessionClock({ startedAt: null, limits }), live: false };
   }
 
   return {
     ...sessionClock({
       startedAt: row.status === "in_progress" ? row.startedAt : null,
-      extendedAt: row.extendedAt,
       lastActivityAt: row.lastActivityAt,
+      limits,
     }),
     live: row.status === "in_progress",
   };
-}
-
-/**
- * The clinician chose to keep going.
- *
- * Idempotent, and deliberately one-way: there is no "un-extend", because
- * changing your mind about continuing is simply ending the session. Writing the
- * timestamp only when it is null means a double tap does not reset the clock.
- */
-export async function extendSession(actor: Actor, sessionId: string): Promise<boolean> {
-  const updated = await db
-    .update(sessions)
-    .set({ extendedAt: new Date(), updatedAt: new Date() })
-    .where(
-      and(
-        scope(actor),
-        eq(sessions.id, sessionId),
-        eq(sessions.status, "in_progress"),
-        isNull(sessions.extendedAt),
-      ),
-    )
-    .returning({ id: sessions.id });
-  return updated.length > 0;
 }
 
 /**
@@ -376,7 +355,10 @@ export async function autoEndSession(
  * running, and folded into the nightly batch so it costs no extra wake.
  */
 export async function sweepOverrunSessions(): Promise<{ ended: number }> {
-  const cutoff = new Date(Date.now() - MAX_MINUTES * 60_000);
+  // The hard stop, read from settings rather than a constant: an admin who
+  // lengthens a session must not have the sweeper end it early the same night.
+  const { clock } = await getSettings();
+  const cutoff = new Date(Date.now() - capSeconds(clock) * 1000);
 
   const stale = await db
     .select({ id: sessions.id })
