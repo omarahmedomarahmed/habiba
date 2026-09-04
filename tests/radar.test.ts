@@ -435,35 +435,54 @@ test("a reservation only tells its own holder that it is theirs", async () => {
 });
 
 /**
- * The join token has to outlive the session, or nobody is ever rated.
+ * Feedback has to outlive the session, or nobody is ever rated.
  *
- * `completeSession` used to null it — "kill the link the moment the session ends",
- * which sounds obviously right. It was also belt over braces, because
+ * ## The bug this guards, and the one this test itself had
+ *
+ * `completeSession` used to null the join token — "kill the link the moment the
+ * session ends", which sounds obviously right. It was belt over braces, because
  * `resolveJoinToken` already refuses any session with an `ended_at`, and the
- * belt strangled the entire feedback flow: every lookup finds the session by
- * this token, so nulling it meant no patient could ever rate a session or
- * receive their brief.
+ * belt strangled the feedback flow: at the time, *feedback was looked up by the
+ * join token too*, so nulling it meant no patient could ever rate a session or
+ * receive their brief. Nothing failed loudly — a missing row reads as an
+ * expired link — so the feature was dead on arrival and looked like normal
+ * behaviour.
  *
- * Nothing failed loudly. A missing row reads as an expired link, so the whole
- * feature was dead on arrival and looked like normal behaviour. This test is
- * here because that is exactly the kind of bug that comes back.
+ * The fix was two separate tokens: `join_token`, which dies with the session,
+ * and `feedback_token`, which does not. `sessions.ts` says it out loud —
+ * "issued alongside the join token and never equal to it" — and
+ * `feedbackContext` queries `feedback_token`.
+ *
+ * This test was not updated when that landed. It kept asserting that the *join*
+ * token reaches the feedback page, which the current design deliberately makes
+ * false, so it failed on `main` for as long as the two-token design has
+ * existed. Measured on the sprint-1 branch database: 59 sessions, 0 with
+ * `join_token = feedback_token`.
+ *
+ * It now asserts the property that actually matters — that ending a session
+ * kills the way in and keeps the way to rate it — against the tokens the code
+ * really uses. A stale test that fails is worse than no test: one known-red
+ * suite teaches everybody to skim past red.
  */
 test("a finished session still resolves for feedback, but not for joining", async () => {
   const sessionId = await newSession();
 
   const [before] = await db
-    .select({ token: sessions.joinToken })
+    .select({ join: sessions.joinToken, feedback: sessions.feedbackToken })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .limit(1);
 
-  const token = before?.token;
-  assert.ok(token, "a radar session is created with a join token");
+  const joinToken = before?.join;
+  const feedbackToken = before?.feedback;
+  assert.ok(joinToken, "a radar session is created with a join token");
+  assert.ok(feedbackToken, "and with a feedback token");
+  assert.notEqual(joinToken, feedbackToken, "the two tokens are never the same value");
 
   const { completeSession, resolveJoinToken } = await import("../lib/data/sessions");
   const { feedbackContext } = await import("../lib/data/feedback");
 
-  assert.ok(await resolveJoinToken(token), "the link works while the session is live");
+  assert.ok(await resolveJoinToken(joinToken), "the link works while the session is live");
 
   await completeSession(
     { userId: therapistId, organizationId, role: "therapist" } as never,
@@ -471,14 +490,22 @@ test("a finished session still resolves for feedback, but not for joining", asyn
   );
 
   assert.equal(
-    await resolveJoinToken(token),
+    await resolveJoinToken(joinToken),
     null,
     "the meeting link is dead the moment the session ends",
   );
 
-  const feedback = await feedbackContext(token);
-  assert.ok(feedback, "the same token still reaches the feedback page");
+  const feedback = await feedbackContext(feedbackToken);
+  assert.ok(feedback, "the feedback token still reaches the rating page");
   assert.equal(feedback.sessionId, sessionId);
+
+  // And the dead one cannot be swapped in for the live one. A join token that
+  // still opened the feedback page would make "the link is dead" a half-truth.
+  assert.equal(
+    await feedbackContext(joinToken),
+    null,
+    "the join token is not a second key to the feedback page",
+  );
 });
 
 /**

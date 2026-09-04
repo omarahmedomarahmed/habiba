@@ -61,20 +61,20 @@ a database, 49 with. §3's patient-email figure could not be checked.
 
 | # | Sprint | Concern | Severity | Raised by | Status |
 |---|---|---|---|---|---|
-| C1 | 1 | **The platform cut is 10%, not 15%.** `PLATFORM_FEE_BPS = 1000` (`lib/billing/connect.ts:58`), applied at connect.ts:70. Seeding §3's 15% raises the fee on every live therapist with no notice. | blocker | audit @2a3965d | open |
-| C2 | 1 | **PAYG is $6.00/session, not $3.00.** `PLANS.payg.perSessionCents = 600` (`lib/billing/plans.ts`). §3 also invents Starter/Practice; production has `payg` and `unlimited` ($99/mo). Seeding §3 halves revenue per session and orphans every `unlimited` subscriber. | blocker | audit @2a3965d | open |
-| C3 | 1 | **Price cap is $1,000, not $500.** `MAX_SESSION_PRICE_CENTS = 100_000` (connect.ts:62). Also undocumented: `MIN_SESSION_PRICE_CENTS = 500` — a $5 floor §3 does not mention. Seeding §3 breaks existing sessions priced above $500. | major | audit @2a3965d | open |
-| C4 | 1 | **`PlanKey` is derived from the `PLANS` const and stored as `text`** (schema.ts:35, `subscriptions.plan` schema.ts:1194). New plan keys need a data migration for live rows, not just a settings table. Not in any ticket. | major | audit @2a3965d | open |
-| C5 | all | **No `.env.local` in a fresh session → H1's `information_schema` check is impossible.** Every migration sprint is unverifiable as specified. Needs a `DATABASE_URL` (a Neon branch, not production). | blocker | audit @2a3965d | open |
-| C6 | 14 | **We already hold therapist balances.** `session_payments.capture = "platform"` (schema.ts:1324) and the `therapist_payable` ledger account (schema.ts:1380) are live. §14's rule is written as prevention; it is remediation. Needs its own ticket with a measured exposure figure. | major | audit @2a3965d | open |
+| C1 | 1 | **The platform cut is 10%, not 15%.** `PLATFORM_FEE_BPS = 1000` (`lib/billing/connect.ts:58`), applied at connect.ts:70. Seeding §3's 15% raises the fee on every live therapist with no notice. | blocker | audit @2a3965d | **resolved sprint 1** — 1500bps in `platform_settings.session`, verified live |
+| C2 | 1 | **PAYG is $6.00/session, not $3.00.** `PLANS.payg.perSessionCents = 600` (`lib/billing/plans.ts`). §3 also invents Starter/Practice; production has `payg` and `unlimited` ($99/mo). Seeding §3 halves revenue per session and orphans every `unlimited` subscriber. | blocker | audit @2a3965d | **resolved sprint 1** — PAYG $4 / Starter $3 / Growth $2; `unlimited` removed, 36 subs moved |
+| C3 | 1 | **Price cap is $1,000, not $500.** `MAX_SESSION_PRICE_CENTS = 100_000` (connect.ts:62). Also undocumented: `MIN_SESSION_PRICE_CENTS = 500` — a $5 floor §3 does not mention. Seeding §3 breaks existing sessions priced above $500. | major | audit @2a3965d | **resolved sprint 1** — cap $500, floor $5, both in settings and both asserted |
+| C4 | 1 | **`PlanKey` is derived from the `PLANS` const and stored as `text`** (schema.ts:35, `subscriptions.plan` schema.ts:1194). New plan keys need a data migration for live rows, not just a settings table. Not in any ticket. | major | audit @2a3965d | **resolved sprint 1** — migration 0030 moved every row; `PLANS` is now keys only |
+| C5 | all | **No `.env.local` in a fresh session → H1's `information_schema` check is impossible.** Every migration sprint is unverifiable as specified. Needs a `DATABASE_URL` (a Neon branch, not production). | blocker | audit @2a3965d | **resolved** — Neon branch `sprint-1-settings`; both migrations verified against `information_schema` |
+| C6 | 14 | **We already hold therapist balances.** `session_payments.capture = "platform"` (schema.ts:1324) and the `therapist_payable` ledger account (schema.ts:1380) are live. §14's rule is written as prevention; it is remediation. Needs its own ticket with a measured exposure figure. | major | audit @2a3965d | **resolved sprint 1.8** — only `capture: "destination"` is reachable; 0 historical platform rows |
 | C7 | 2.1 | **Stated premise is wrong.** Video is `aspect-[3/4] w-full sm:aspect-video` (`video-call.tsx:158`), already responsive. The real gap: **no copilot exists in the room** — only `CopilotToasts` (session-room.tsx:546); the copilot lives at `app/(app)/copilot`. 2.1 is "build a room copilot", not "relayout". Re-scope and re-estimate. | major | audit @2a3965d | open |
 | C8 | 2.2 | **Likely already done.** `session-room.tsx:384` is a single `min-h-dvh` column with a `safe-bottom sticky` bottom bar, used on every viewport. There is no second desktop shell to merge. Verify on a real desktop before spending a ticket. | minor | audit @2a3965d | open |
 | C9 | 2.3, 2.4 | **Zero prior art** — no match for `orb`/`Orb` in `app/` or `components/`. Costed inside a 1-week sprint that also contains the room rebuild (C7). At least its own week. | major | audit @2a3965d | open |
 | C10 | 4 | **1.5 weeks is ~2× optimistic.** No `currency`, `vat_cents` or FX column exists on `session_payments`, `invoices` or `ledger_entries`; `ledgerEntries.currency` (schema.ts:1446) is the only one in the schema and defaults `'usd'`. Multi-currency + VAT is a migration across every money table and reader. | major | audit @2a3965d | open |
-| C11 | 4.1 | **Already built.** `sessions.priceCents` (schema.ts:372) is set at creation (`sessions/actions.ts:59`, validated by `priceProblem`) and gates entry at `join/[token]/actions.ts:40`. Sprint 4's "first sprint that earns money" framing is wrong — paid links earn today. | minor | audit @2a3965d | open |
+| C11 | 4.1 | **Already built.** `sessions.priceCents` (schema.ts:372) is set at creation (`sessions/actions.ts:59`, validated by `priceProblem`) and gates entry at `join/[token]/actions.ts:40`. Sprint 4's "first sprint that earns money" framing is wrong — paid links earn today. | minor | audit @2a3965d | **resolved sprint 1** — reworked to §3: cut, VAT lines and settings-driven bounds |
 | C12 | 4.3 → 5 | **Ordering.** 4.3 saves payment preferences onto a patient row that 5.1 immediately re-parents under `people`. Land 5.1–5.3 first, or accept a second migration. | minor | audit @2a3965d | open |
-| C13 | 1.5 | **Under-specified.** Three constants, not one: `INCLUDED_MINUTES = 30`, `MAX_MINUTES = 50`, `WARNING_MINUTES = 5` (`lib/session-clock.ts:44-50`). The ticket does not say what `INCLUDED_MINUTES` becomes, and it drives the *patient's* countdown. 12 clock tests assert current behaviour. | major | audit @2a3965d | open |
-| C14 | 1, 10 | **§3 changes copilot semantics, not just its number.** `plans.ts:22` = "per patient per **calendar month**", enforced in `lib/data/copilot.ts`. §3 = "10 per **session**, rolls over on that patient, expires 12 months". Different feature. Needs a ticket. | major | audit @2a3965d | open |
+| C13 | 1.5 | **Under-specified.** Three constants, not one: `INCLUDED_MINUTES = 30`, `MAX_MINUTES = 50`, `WARNING_MINUTES = 5` (`lib/session-clock.ts:44-50`). The ticket does not say what `INCLUDED_MINUTES` becomes, and it drives the *patient's* countdown. 12 clock tests assert current behaviour. | major | audit @2a3965d | **resolved sprint 1.5** — 50 running / 10 countdown / hard stop 60, all from settings |
+| C14 | 1, 10 | **§3 changes copilot semantics, not just its number.** `plans.ts:22` = "per patient per **calendar month**", enforced in `lib/data/copilot.ts`. §3 = "10 per **session**, rolls over on that patient, expires 12 months". Different feature. Needs a ticket. | major | audit @2a3965d | **resolved sprint 1** — `checkQuota` recounts per session per patient with rollover |
 | C15 | 6.3 | **Measured cost:** `Actor.organizationId` is non-null `string` (`lib/auth/session.ts:32`); 32 direct `actor.organizationId` reads, 192 `.organizationId` reads overall, across 52 files calling `requireUser`/`requireRole`. "Audit every consumer" is the whole sprint, not a bullet. | major | audit @2a3965d | open |
 | C16 | 15 | **Admin is not greenfield.** 12 pages already exist under `app/(admin)/admin/` (`tv`, `usage`, `audit`, `errors`, `ratings`, `radar`, `taxonomy`, `therapists`, `verifications`, `vault`, `content`, `announce`). ~2 weeks may be right, but as extension work; the "built last so it can be verified" rationale does not apply to what is already shipped. | minor | audit @2a3965d | open |
 | C17 | — | **H13 has no owner.** `client.ts:108` (`costCents = microcents/1000`) is itself correct. The hazard lives in consumers of `cost_microcents`; no sprint audits them. One ticket, cheap now, expensive after sprint 4 adds currencies. | minor | audit @2a3965d | open |
@@ -83,8 +83,10 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C20 | 1 | **Scope taken beyond the ticket, deliberately.** 1.6 says "reprice to Starter $3/min 10, Growth $2/min 30" — but minimums are unsellable without something to buy. Added `session_credits` (purchase, expiry, oldest-first consumption) and replaced the `unlimited` Stripe subscription checkout with a one-time credit checkout. Without it 1.6 would have shipped three tiers a therapist could not reach. | minor | sprint 1 | **accepted, built** |
 | C21 | 15 | **`invoices.kind` still has the value `subscription`** for what is now a credit purchase. Renaming means migrating every historical row and every reader for a label. Left as-is; `recordCreditPurchaseInvoice` says so at the call site. | minor | sprint 1 | open |
 | C22 | 5, 6 | **§3's "unclaimed patient gets 5 credits, unlocked by a diagnosis and a history" cannot be enforced yet** — it needs the claimed/unclaimed state from sprint 5. `checkQuota` currently applies `unclaimedPatientCredits` as a floor for *every* patient, which is the more generous reading and cannot lock a therapist out of a patient they just added. Tighten when `people` lands. | minor | sprint 1 | open |
+| C25 | — | 🆕 **There is no copilot in the room, and that is the real gap behind old 2.1.** `session-room.tsx` renders only `CopilotToasts` — passive one-line suggestions written from the transcript. A therapist who wants to *ask* something mid-session must leave the room for `/copilot`. Scoped as its own ticket per ruling, deliberately **not** absorbed into sprint 2. Needs: a room surface, the four access states from §3, and the per-session credit accounting from C14. Estimate ≥1 week on its own. | major | sprint 2 | open, unscheduled |
+| C26 | 12 | **20 of 59 sessions have no `feedback_token` at all** — rows predating the column. Those sessions can never be rated and their patients can never receive a brief. Harmless today (all completed long ago) but sprint 12's reliability score is computed from feedback, so it will read those therapists as unrated rather than unratable. One backfill, or an explicit exclusion. | minor | sprint 2 | open |
 | C23 | 2 | **`sessions.extendedAt` is now written by nothing but still read** by the session detail page and admin Total View, which show "· Extended" for historical rows. That is correct — those sessions really were extended — but the column will look like dead schema to the next reader. Documented at the top of `lib/session-clock.ts`. | minor | sprint 1 | open |
-| C24 | all | **One test fails on `main` and still fails here** — `radar.test.ts:19`, "a finished session still resolves for feedback". Verified pre-existing by stashing this branch and re-running at `7f883e2`: identical failure. Not caused by sprint 1, and not fixed by it. Needs an owner. | major | sprint 1 | open |
+| C24 | all | **One test fails on `main` and still fails here** — `radar.test.ts:19`, "a finished session still resolves for feedback". Verified pre-existing by stashing this branch and re-running at `7f883e2`: identical failure. Not caused by sprint 1, and not fixed by it. Needs an owner. | major | sprint 1 | **resolved in sprint 2** — the test was stale, not the code. It asserted the *join* token reaches the feedback page; the two-token design deliberately makes that false. Measured: 0 of 59 sessions have `join_token = feedback_token`. Rewritten to assert the real invariant, plus that the dead join token is *not* a second key |
 
 ---
 
@@ -119,6 +121,24 @@ the edge case. Nothing unclaimed may be shared, because there is nobody to ask.
 
 A first-time signup may match **several** unclaimed profiles. Same flow, one at
 a time.
+
+### The third route: an invite the therapist hands over
+
+**46 of 56 existing patients have neither an email nor a phone number**
+(measured, not estimated). Matching on contact details finds nothing for 82% of
+the existing book, so contact details cannot be the only way in.
+
+| Step | |
+|---|---|
+| 1 | Therapist opens an unclaimed record and generates an **invite link** |
+| 2 | The link is bound to **that specific record**, not to an address |
+| 3 | They hand it over — in the room, by WhatsApp, on paper. We do not send it |
+| 4 | Whoever opens it and signs up claims **that** record. No name confirmation step: the therapist already did the identifying |
+| 5 | Single use, expires, revocable. From step 7 of the flow above onwards it is identical — including the therapist's access defaulting to **OFF** |
+
+🔴 **A record nobody ever claims stays a private file. That is a valid ending,
+not a failure.** Most of these 46 will never be claimed, and the product must
+not treat that as a queue to be drained.
 
 ### The copilot has four states per patient
 
@@ -323,6 +343,9 @@ The first sprint that earns money.
 - [ ] **6.7** `app/(patient)/` route group
 - [ ] **6.8** The claim flow, all eight steps from §3
 - [ ] **6.9** Verification by email or WhatsApp
+- [ ] **6.10** 🆕 **Invite-link claim route** (§3). Bound to one record, single
+      use, expiring, revocable, never sent by us. The only route that works for
+      the 46 of 56 patients with no contact details at all
 
 ### Sprint 7 — Consent · ~4 days · FOUNDATION
 
