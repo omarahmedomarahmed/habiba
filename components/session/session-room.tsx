@@ -417,7 +417,24 @@ export function SessionRoom(props: RoomProps) {
         </p>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      {/*
+        One row on a wide screen, one column on a narrow one.
+        ------------------------------------------------------
+        The complaint this fixes, stated precisely: `video-call.tsx` is
+        `aspect-[3/4] w-full sm:aspect-video`, which is responsive between phone
+        and tablet and then keeps growing. At 1440px wide, `aspect-video w-full`
+        is 810px tall — so on the desktop a clinician actually works on, the
+        video alone is taller than the viewport and the transcript begins below
+        the fold. They could watch their patient or read the transcript, never
+        both, which is the whole job.
+
+        So the video stops being full-bleed past `lg` and takes a column of its
+        own with a sane ceiling, and the transcript takes the rest. Nothing
+        about the narrow layout changes: on a phone this is still the same
+        single column it was, because that one was never the problem.
+      */}
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 shrink-0 flex-col lg:w-[38%] lg:max-w-xl lg:border-e lg:border-white/10">
         {props.modality === "video" ? (
           <div className="shrink-0">
             {props.videoRoomUrl ? (
@@ -515,12 +532,21 @@ export function SessionRoom(props: RoomProps) {
           </div>
         ) : null}
 
+        </div>
+
         {/*
           Anchored to the scrolling region, not the page.
           -----------------------------------------------
           The suggestions sit over the top of the transcript, which is the
           opposite end of the screen from where new lines land — so reading one
           never competes with watching the room.
+
+          On a wide screen "the opposite end" is a different place: the newest
+          line still lands at the bottom of this column, so the cards still go
+          at its top. What changes is that they no longer cover a transcript
+          that is the only thing on screen — there is a video column beside it
+          now, so a dismissed card costs nothing and an undismissed one hides
+          less.
         */}
         <div className="relative flex min-h-0 flex-1 flex-col">
           {live ? (
@@ -545,7 +571,17 @@ export function SessionRoom(props: RoomProps) {
         </div>
       </div>
 
+      {/*
+        The controls stay one bar across the bottom, and stop being a phone bar
+        stretched to 1440px.
+
+        `mx-auto max-w-3xl` rather than a second desktop-only control cluster:
+        rendering these twice and hiding one per breakpoint would put two "End
+        session" buttons in the accessibility tree, and the wrong one is always
+        the one a screen reader reaches first.
+      */}
       <div className="safe-bottom sticky bottom-0 border-t border-white/10 bg-navy-600/95 px-4 pt-3 backdrop-blur">
+        <div className="mx-auto w-full lg:max-w-3xl">
         {/*
           Spoken language, above the controls rather than beside them.
 
@@ -648,6 +684,7 @@ export function SessionRoom(props: RoomProps) {
             ? "Your note is written the moment you end the session."
             : "Make sure your patient has consented to recording."}
         </p>
+        </div>
       </div>
     </div>
   );

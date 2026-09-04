@@ -277,12 +277,14 @@ Everything downstream reads these. Anything hardcoded here is rewritten in 15.
 
 Therapists use this every day and it is the worst screen in the product.
 
-- [ ] **2.1** 🔴 **Room relayout.** Video is `aspect-video w-full` today, so the
-      transcript sits below the fold — a clinician cannot look at their patient
-      and read the copilot at the same time. Small video, transcript and copilot
-      visible together, no scrolling
-- [ ] **2.2** Mobile layout on desktop too — bottom bar, large targets. One
-      shell, not two
+- [x] **2.1** 🔴 **Room relayout.** Measured before touching it: on 1440×900 the
+      transcript started at **y=1001** with **0px visible**, video 1440×810
+      full-bleed. Now two columns at `lg` — transcript at y=98, 701px visible,
+      video 546px wide. Phone unchanged (H4)
+- [x] **2.2** Desktop nav on wide viewports. The app shell already had a `lg:`
+      sidebar and a `lg:hidden` bottom nav; the room deliberately has neither.
+      What was a stretched phone is the room's control bar, now `lg:max-w-3xl`
+      rather than a 1400px-wide button
 - [ ] **2.3** Floating orb on every page: dim · teal · 🟡 someone looking ·
       🔴 booked and paying · red steady in session
 - [ ] **2.4** Orb expands — status, session rate, clinic-visit toggle, address
