@@ -291,9 +291,12 @@ Therapists use this every day and it is the worst screen in the product.
 - [ ] **2.5** **Keep `/on-call`** as full radar control: settings, session
       history with the price charged at the time, patient record links, access
       state, copilot credits used per session
-- [ ] **2.6** Act on the existing `{ kind: "viewing" }` signal — go offline
-      before a booking lands. Use `claimTherapist`'s atomic claim; do not invent
-      a second mechanism
+- [x] **2.6** Act on the `{ kind: "viewing" }` signal. The bug was that you
+      **could not** go offline while merely being viewed: `setOnline(false)`
+      refused on `status = 'pending'` alone and blamed a booking that did not
+      exist. Now a reservation (`pending_session_id IS NULL`) can be stood down
+      and a real booking cannot — same conditional-UPDATE shape as
+      `claimTherapist`, no second mechanism
 
 ### Sprint 3 — Attribution · ~1 week · 🔴 LIVE PAIN
 

@@ -26,6 +26,7 @@ import {
   listRadar,
   releaseClaim,
   releaseReservation,
+  setOnline,
   markInSession,
   reserveTherapist,
   sweepRadar,
@@ -432,6 +433,124 @@ test("a reservation only tells its own holder that it is theirs", async () => {
   assert.equal(asOther?.reservedByYou, false);
 
   await releaseReservation({ therapistUserId: therapistId, viewer: me });
+});
+
+/**
+ * Going offline while somebody is looking at you.
+ *
+ * A viewer opening the booking sheet moves the row to `pending`, and the
+ * Offline control used to refuse on `status = 'pending'` alone — so from the
+ * moment anybody so much as looked, a clinician could not stand down, and was
+ * told "you have a booking in progress" when there was no booking.
+ *
+ * The line is the one `claimTherapist` already draws: `pending_session_id IS
+ * NULL` is somebody deciding, and a non-null one is a session with money in
+ * flight. Only the second may hold a clinician on the radar against their will.
+ */
+test("a clinician can stand down while someone is merely viewing them", async () => {
+  const viewer = `stand-down-${stamp}`;
+  await setStatus({
+    status: "online",
+    pendingSessionId: null,
+    pendingUntil: null,
+    reservedBy: null,
+    lastSeenAt: new Date(),
+  });
+
+  const reserved = await reserveTherapist({ therapistUserId: therapistId, viewer });
+  assert.equal(reserved, true, "opening the sheet reserves them");
+  assert.equal((await currentStatus()).status, "pending", "which shows as pending");
+
+  const actor = { userId: therapistId, organizationId, role: "therapist" } as never;
+  const result = await setOnline(actor, false);
+
+  assert.equal(result.error, undefined, "standing down is allowed while only viewed");
+  const after = await currentStatus();
+  assert.equal(after.status, "offline");
+
+  // The reservation is cleared too. Leaving `reserved_by` set would let that
+  // viewer's own claim path find a live reservation on a clinician who has
+  // gone offline.
+  const [row] = await db
+    .select({ reservedBy: therapistRadar.reservedBy, pendingUntil: therapistRadar.pendingUntil })
+    .from(therapistRadar)
+    .where(eq(therapistRadar.userId, therapistId))
+    .limit(1);
+  assert.equal(row?.reservedBy, null);
+  assert.equal(row?.pendingUntil, null);
+
+  await releaseReservation({ therapistUserId: therapistId, viewer });
+});
+
+test("a real booking still holds them, and says so accurately", async () => {
+  await setStatus({
+    status: "online",
+    pendingSessionId: null,
+    pendingUntil: null,
+    reservedBy: null,
+    lastSeenAt: new Date(),
+  });
+
+  const sessionId = await newSession();
+  assert.equal(await claimTherapist({ therapistUserId: therapistId, sessionId }), true);
+
+  const actor = { userId: therapistId, organizationId, role: "therapist" } as never;
+  const result = await setOnline(actor, false);
+
+  assert.ok(result.error, "a paying patient is not dropped because of a mistimed tap");
+  assert.match(result.error!, /booked you/, "and the reason names what actually happened");
+  assert.equal((await currentStatus()).status, "pending", "they stay claimed");
+
+  await releaseClaim(sessionId);
+});
+
+test("standing down loses to a booking that lands in the same instant", async () => {
+  /*
+   * The race the conditional UPDATE exists for. The clinician reads a screen
+   * that says "someone is looking", decides to stop, and in the moment between
+   * the decision and the tap the viewer actually books.
+   *
+   * Both statements are fired together. Exactly one outcome is acceptable: if
+   * the claim wins, the stand-down must fail and the patient keeps their
+   * clinician; if the stand-down wins, the claim must fail and the patient is
+   * told to pick somebody else. What must never happen is both succeeding,
+   * which would leave a paid session pointing at an offline clinician.
+   */
+  const viewer = `race-${stamp}`;
+  await setStatus({
+    status: "online",
+    pendingSessionId: null,
+    pendingUntil: null,
+    reservedBy: null,
+    lastSeenAt: new Date(),
+  });
+  await reserveTherapist({ therapistUserId: therapistId, viewer });
+
+  const sessionId = await newSession();
+  const actor = { userId: therapistId, organizationId, role: "therapist" } as never;
+
+  const [claimed, standDown] = await Promise.all([
+    claimTherapist({ therapistUserId: therapistId, sessionId, viewer }),
+    setOnline(actor, false),
+  ]);
+
+  const final = await currentStatus();
+  const standDownWon = standDown.error === undefined;
+
+  assert.notEqual(
+    claimed && standDownWon,
+    true,
+    "a booking and a stand-down must never both succeed",
+  );
+
+  if (claimed) {
+    assert.equal(final.status, "pending", "the booking won, so they are held");
+    assert.equal(final.pendingSessionId, sessionId);
+  } else {
+    assert.equal(final.status, "offline", "the stand-down won, so the booking was refused");
+  }
+
+  await releaseClaim(sessionId);
 });
 
 /**

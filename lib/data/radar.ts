@@ -622,20 +622,67 @@ export async function setOnline(actor: Actor, online: boolean): Promise<{ error?
   await ensureRadarProfile(actor);
 
   if (!online) {
+    /*
+     * Going offline while somebody is *looking* at you.
+     *
+     * This used to be impossible. The condition was `status IN (online,
+     * offline)`, and a viewer opening the booking sheet moves the row to
+     * `pending` — so from the moment anybody so much as looked, the Offline
+     * control refused, and refused with "you have a booking in progress" when
+     * there was no booking and might never be one. A clinician who needed to
+     * stop taking strangers had to wait out somebody else's browsing.
+     *
+     * The distinction the old condition missed is the one `claimTherapist`
+     * already draws: `pending_session_id IS NULL` is a *reservation* — someone
+     * is deciding — and a non-null one is a real session with money in flight.
+     * Only the second is a booking.
+     *
+     * So: a reservation may be stood down, and a booking may not. The check is
+     * the same shape as `claimTherapist` deliberately — precondition in the
+     * WHERE, effect in the UPDATE, one statement — rather than a read followed
+     * by a write. That is what makes the race safe: if a patient's booking
+     * lands in the instant between the clinician reading the screen and
+     * pressing the button, `pending_session_id` is no longer null, this
+     * statement matches nothing, and they are told a patient just booked them
+     * instead of a paying patient being dropped into an empty room.
+     */
+    const standDown = or(
+      eq(therapistRadar.status, "online"),
+      eq(therapistRadar.status, "offline"),
+      and(eq(therapistRadar.status, "pending"), isNull(therapistRadar.pendingSessionId)),
+    );
+
     const updated = await db
       .update(therapistRadar)
-      .set({ status: "offline", lastSeenAt: null, updatedAt: new Date() })
-      .where(
-        and(
-          eq(therapistRadar.userId, actor.userId),
-          or(eq(therapistRadar.status, "online"), eq(therapistRadar.status, "offline")),
-        ),
-      )
+      .set({
+        status: "offline",
+        lastSeenAt: null,
+        // Clear the reservation as well as the status. Leaving `reserved_by`
+        // set would let the viewer's own claim path find a live reservation
+        // belonging to a clinician who has just gone offline.
+        pendingUntil: null,
+        reservedBy: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(therapistRadar.userId, actor.userId), standDown))
       .returning({ id: therapistRadar.id });
 
-    return updated.length > 0
-      ? {}
-      : { error: "You have a booking in progress — finish or end it first." };
+    if (updated.length > 0) return {};
+
+    // Nothing matched, so this is a real booking or a live session — and the
+    // clinician deserves to know which.
+    const [row] = await db
+      .select({ status: therapistRadar.status })
+      .from(therapistRadar)
+      .where(eq(therapistRadar.userId, actor.userId))
+      .limit(1);
+
+    return {
+      error:
+        row?.status === "in_session"
+          ? "You are in a session. End it first."
+          : "Someone has just booked you and is paying now. Open the session, or end it there.",
+    };
   }
 
   const updated = await db
