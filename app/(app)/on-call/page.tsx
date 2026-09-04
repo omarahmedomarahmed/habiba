@@ -4,10 +4,11 @@ import { eq } from "drizzle-orm";
 
 import { FeedbackCard } from "@/components/radar/feedback-card";
 import { PracticeForm } from "@/components/radar/practice-form";
+import { SessionHistory } from "@/components/radar/session-history";
 import { TherapistConsole } from "@/components/radar/therapist-console";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
-import { ensureRadarProfile } from "@/lib/data/radar";
+import { ensureRadarProfile, radarSessionHistory } from "@/lib/data/radar";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { feedbackForTherapist } from "@/lib/data/feedback";
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function RadarConsolePage() {
   const actor = await requireUser();
 
-  const [profile, [me], countryOptions, languageOptions, specialtyOptions, feedback] =
+  const [profile, [me], countryOptions, languageOptions, specialtyOptions, feedback, history] =
     await Promise.all([
     ensureRadarProfile(actor),
     db
@@ -35,6 +36,7 @@ export default async function RadarConsolePage() {
     activeTaxonomy("language"),
     activeTaxonomy("specialty"),
     feedbackForTherapist(actor.userId),
+    radarSessionHistory(actor),
   ]);
 
   return (
@@ -60,6 +62,8 @@ export default async function RadarConsolePage() {
           alertOnView={me?.profile?.alertOnView ?? true}
           alertOnBooking={me?.profile?.alertOnBooking ?? true}
         />
+
+        <SessionHistory rows={history} />
 
         <FeedbackCard
           therapistAverage={feedback.therapistAverage}

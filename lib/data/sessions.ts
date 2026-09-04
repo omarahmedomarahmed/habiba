@@ -673,3 +673,34 @@ export async function joinByToken(token: string, displayName: string) {
 
   return target.id;
 }
+
+/**
+ * The session this clinician has live with this patient, if any.
+ *
+ * Used to stamp a copilot question with the session it was asked during, so
+ * that "how much copilot did this session use" has an answer. Scoped through
+ * `scope(actor)` like everything else here: a patient id from a URL cannot
+ * reach a session on somebody else's caseload.
+ *
+ * Returns null when nothing is live, and null is a real answer — a question
+ * asked on a Tuesday about a patient seen last week belongs to no session.
+ */
+export async function liveSessionForPatient(
+  actor: Actor,
+  patientId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(
+      and(
+        scope(actor),
+        eq(sessions.patientId, patientId),
+        eq(sessions.status, "in_progress"),
+      ),
+    )
+    .orderBy(desc(sessions.startedAt))
+    .limit(1);
+
+  return row?.id ?? null;
+}

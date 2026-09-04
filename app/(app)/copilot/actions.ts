@@ -14,6 +14,7 @@ import {
   setReplyLanguage,
   auditThreadRead,
 } from "@/lib/data/copilot";
+import { liveSessionForPatient } from "@/lib/data/sessions";
 import type { Citation } from "@/lib/db/schema";
 import { log, safeErrorMessage } from "@/lib/logger";
 
@@ -41,16 +42,43 @@ export async function askCopilot(patientId: string, question: string): Promise<A
 
   const quota = await checkQuota(actor, found.thread.id);
   if (!quota.allowed) {
+    /*
+     * The old wording said "…for this patient this month. Unlimited removes the
+     * cap." Both halves were left behind by sprint 1: the allowance is no
+     * longer monthly, and there is no Unlimited plan to sell. Telling a
+     * clinician to wait for a reset that never comes, or to buy something that
+     * does not exist, is worse than the cap itself.
+     */
     return {
       quotaExhausted: true,
       used: quota.used,
       limit: quota.limit,
-      error: `You have used all ${quota.limit} copilot messages for this patient this month. Unlimited removes the cap.`,
+      error: `You have used all ${quota.limit} copilot questions for this patient. Each session you complete with them earns more, and unused ones roll over.`,
     };
   }
 
   await auditThreadRead(actor, patientId, found.thread.id);
-  await appendMessage({ threadId: found.thread.id, role: "therapist", content: trimmed });
+
+  /*
+   * Stamp the live session, when there is one.
+   *
+   * `copilot_messages.session_id` existed already but was only ever written on
+   * `session_note` rows — measured on the sprint database: 97 of 97 notes
+   * carry one, 0 of 23 therapist questions do. So "how much copilot did this
+   * session use" had no answer, which is exactly what /on-call is asked to
+   * show.
+   *
+   * Null when the clinician is asking between sessions, and that is a real
+   * answer rather than a missing one: a question asked on a Tuesday afternoon
+   * about a patient seen last week belongs to no session.
+   */
+  const liveSessionId = await liveSessionForPatient(actor, patientId);
+  await appendMessage({
+    threadId: found.thread.id,
+    role: "therapist",
+    content: trimmed,
+    sessionId: liveSessionId,
+  });
 
   try {
     const result = await askPatientCopilot({
@@ -68,6 +96,8 @@ export async function askCopilot(patientId: string, question: string): Promise<A
       role: "copilot",
       content: result.answer,
       citations: result.citations,
+      // The answer belongs to the same session as the question that caused it.
+      sessionId: liveSessionId,
     });
 
     revalidatePath(`/copilot/${patientId}`);

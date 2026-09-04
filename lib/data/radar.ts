@@ -1,11 +1,20 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { and, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { notifications, sessions, therapistRadar, users } from "@/lib/db/schema";
+import {
+  copilotMessages,
+  invoices,
+  notifications,
+  patients,
+  sessionPayments,
+  sessions,
+  therapistRadar,
+  users,
+} from "@/lib/db/schema";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
 import { log, ref } from "@/lib/logger";
 
@@ -974,4 +983,145 @@ export async function radarCount(): Promise<number> {
 
 export function logRadarClaimFailure(therapistUserId: string): void {
   log.info("radar claim lost", { therapist: ref(therapistUserId) });
+}
+
+/**
+ * What actually happened, session by session — the clinician's own ledger.
+ *
+ * PLAN.md 2.5 keeps `/on-call` as full radar control rather than letting it
+ * become a status toggle, and this is the half that was missing: session
+ * history with the price charged **at the time**, a link to the patient record,
+ * and how much copilot the session used.
+ *
+ * ## Every figure here is historical, and none of it is recomputed
+ *
+ * That is the whole point of the query. `sessions.price_cents` was fixed when
+ * the session was created; `session_payments.platform_fee_cents` was computed
+ * when the patient paid; `invoices.amount_cents` was the clinician's rate on
+ * the day the session completed. Sprint 1 moved all three inputs into
+ * `platform_settings`, where an admin can change them — so re-deriving any of
+ * these numbers from today's settings would silently rewrite what a therapist
+ * was paid last month. A clinician looking at March must see March's rates.
+ *
+ * ## Copilot use
+ *
+ * Counts only what the clinician asked, not what the copilot answered and not
+ * the notes saved automatically from a live session. Those are not questions
+ * anybody chose to spend.
+ */
+export type RadarSessionRow = {
+  sessionId: string;
+  startedAt: Date | null;
+  endedAt: Date | null;
+  status: string;
+  modality: string;
+  patientId: string | null;
+  patientLabel: string;
+  /** The asking price, frozen at creation. Zero for a free link. */
+  priceCents: number;
+  paymentStatus: string;
+  /** What the patient actually paid, and what it was split into. Null if unpaid. */
+  paid: { grossCents: number; feeCents: number; netCents: number; at: Date | null } | null;
+  /** The clinician's own bill for this session, as raised on the day. */
+  ownBill: { amountCents: number; status: string; description: string } | null;
+  /** Copilot questions the clinician asked during this session. */
+  copilotAsked: number;
+};
+
+export async function radarSessionHistory(
+  actor: Actor,
+  limit = 25,
+): Promise<RadarSessionRow[]> {
+  const rows = await db
+    .select({
+      sessionId: sessions.id,
+      startedAt: sessions.startedAt,
+      endedAt: sessions.endedAt,
+      createdAt: sessions.createdAt,
+      status: sessions.status,
+      modality: sessions.modality,
+      priceCents: sessions.priceCents,
+      paymentStatus: sessions.paymentStatus,
+      guestName: sessions.guestName,
+      patientId: sessions.patientId,
+      patientFirst: patients.firstName,
+      patientLast: patients.lastName,
+
+      payGross: sessionPayments.grossCents,
+      payFee: sessionPayments.platformFeeCents,
+      payNet: sessionPayments.therapistNetCents,
+      payStatus: sessionPayments.status,
+      paidAt: sessionPayments.paidAt,
+
+      billAmount: invoices.amountCents,
+      billDiscount: invoices.discountCents,
+      billStatus: invoices.status,
+      billDescription: invoices.description,
+
+      /*
+       * Correlated rather than joined.
+       *
+       * A join to `copilot_messages` would multiply every session row by its
+       * message count and quietly double the payment figures beside it — the
+       * classic fan-out that makes a money column wrong without making it look
+       * wrong.
+       */
+      copilotAsked: sql<number>`(
+        SELECT COUNT(*)::int FROM ${copilotMessages} cm
+        WHERE cm."session_id" = ${sessions}."id" AND cm."role" = 'therapist'
+      )`,
+    })
+    .from(sessions)
+    // Left joins throughout: a free session has no payment, an uncompleted one
+    // has no invoice, and a join-link patient has no patient row until they
+    // type a name. Any of those as an inner join silently drops real sessions.
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .leftJoin(sessionPayments, eq(sessionPayments.sessionId, sessions.id))
+    .leftJoin(
+      invoices,
+      and(eq(invoices.sessionId, sessions.id), eq(invoices.kind, "session")),
+    )
+    .where(
+      actor.role === "super_admin"
+        ? eq(sessions.organizationId, actor.organizationId)
+        : and(
+            eq(sessions.organizationId, actor.organizationId),
+            eq(sessions.therapistId, actor.userId),
+          ),
+    )
+    .orderBy(desc(sessions.createdAt))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    sessionId: r.sessionId,
+    startedAt: r.startedAt,
+    endedAt: r.endedAt ?? null,
+    status: r.status,
+    modality: r.modality,
+    patientId: r.patientId,
+    patientLabel:
+      [r.patientFirst, r.patientLast].filter(Boolean).join(" ").trim() ||
+      r.guestName ||
+      "Unnamed",
+    priceCents: r.priceCents,
+    paymentStatus: r.paymentStatus,
+    paid:
+      r.payStatus === "paid" && r.payGross !== null
+        ? {
+            grossCents: r.payGross,
+            feeCents: r.payFee ?? 0,
+            netCents: r.payNet ?? 0,
+            at: r.paidAt ?? null,
+          }
+        : null,
+    ownBill:
+      r.billAmount === null
+        ? null
+        : {
+            amountCents: Math.max(0, r.billAmount - (r.billDiscount ?? 0)),
+            status: r.billStatus ?? "due",
+            description: r.billDescription ?? "Session",
+          },
+    copilotAsked: r.copilotAsked ?? 0,
+  }));
 }

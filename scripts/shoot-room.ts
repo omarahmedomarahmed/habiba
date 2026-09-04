@@ -245,6 +245,24 @@ async function main() {
       }
     }
 
+    /*
+     * And /on-call, which sprint 2.5 adds session history to.
+     *
+     * This therapist has exactly the session created above, so the history has
+     * one real row rather than an empty state — which is the case worth
+     * photographing: an empty list proves only that the page did not crash.
+     */
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE_URL}/on-call`, { waitUntil: "domcontentloaded" });
+    await dismissAlarmPrompt(page);
+    await page.waitForSelector("text=Session history", { timeout: 30_000 });
+    await page.screenshot({ path: `${OUT}/on-call-1440.png`, fullPage: true });
+
+    const historyRows = await page.evaluate(
+      `document.querySelectorAll('ul li').length`,
+    );
+    console.log(`\non-call: session history rendered, ${historyRows} list item(s)`);
+
     console.log(`\nscreenshots in ${OUT}`);
   } finally {
     await browser?.close();
