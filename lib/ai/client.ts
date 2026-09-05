@@ -113,7 +113,9 @@ export type UsageKind =
   | "translate"
   | "speech"
   /** Reading a diagnosis out of an uploaded document (8.9). */
-  | "diagnosis";
+  | "diagnosis"
+  /** Rebuilding a person's rolling profile and timeline (9.1). */
+  | "profile";
 
 type UsageInput = {
   organizationId: string | null;

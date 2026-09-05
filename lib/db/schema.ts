@@ -1258,6 +1258,8 @@ export const aiRequestLogs = pgTable(
         | "diarise"
         // Reading a diagnosis out of an uploaded document (8.9).
         | "diagnosis"
+        // Rebuilding a person's rolling profile and timeline (9.1).
+        | "profile"
       >()
       .notNull(),
     model: text("model").notNull(),
@@ -2735,3 +2737,173 @@ export type PersonDocument = typeof personDocuments.$inferSelect;
 export type DocumentChunk = typeof documentChunks.$inferSelect;
 export type PersonDiagnosis = typeof personDiagnoses.$inferSelect;
 export type ContentFlag = typeof contentFlags.$inferSelect;
+
+/* ============================================================== sprint 9 == */
+
+/**
+ * The rolling profile. PLAN.md 9.1.
+ *
+ * ## Regenerated, never edited
+ *
+ * §3 and 9.1 both say it: *dated, cited, never hand-edited into permanence.*
+ * A profile somebody can type into becomes a place where a sentence outlives
+ * the evidence for it — a clinician writes "hostile to her mother" in 2024 and
+ * it is still the first thing every future clinician reads in 2027, long after
+ * the sessions it came from stopped supporting it.
+ *
+ * So there is exactly **one row per person**, it is replaced wholesale by
+ * `regenerateProfile`, and there is no update path that takes prose from a
+ * human. If a clinician disagrees with a line, they flag it (8.8) or they
+ * record a session that says otherwise — both of which change the *sources*,
+ * which is the only thing that can change the profile.
+ *
+ * `sections` carries its own citations, so every claim in the profile can be
+ * opened. A profile sentence with no citation is a sentence nobody can check,
+ * and this table has no way to store one.
+ */
+export type ProfileSection = {
+  /** "Presenting problem", "What has helped", … — the model's own headings. */
+  heading: string;
+  body: string;
+  /** `S2:14` for a session segment, `D7:3` for a document passage. */
+  refs: string[];
+};
+
+export const personProfiles = pgTable(
+  "person_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    sections: jsonb("sections").$type<ProfileSection[]>().notNull().default([]),
+
+    /** What it was built from, so staleness is visible rather than assumed. */
+    sessionCount: integer("session_count").notNull().default(0),
+    documentCount: integer("document_count").notNull().default(0),
+    /** 9.4 — conflicts found between sessions and history, surfaced not resolved. */
+    conflicts: jsonb("conflicts").$type<{ text: string; refs: string[] }[]>().notNull().default([]),
+
+    model: text("model"),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("person_profiles_person_unique").on(t.personId)],
+);
+
+/**
+ * The dated observation timeline. PLAN.md 9.2.
+ *
+ * One row per thing that was observed, on the date it was observed rather than
+ * the date it was written down — a letter from 2019 read into the record today
+ * belongs in 2019, or the timeline tells a story that never happened.
+ *
+ * Derived, like the profile: rows carry the source they came from and are
+ * replaced when that source is re-read. Nothing here is typed by a human.
+ */
+export const OBSERVATION_SOURCES = ["session", "document"] as const;
+export type ObservationSource = (typeof OBSERVATION_SOURCES)[number];
+
+export const observations = pgTable(
+  "observations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    /** When it happened, not when we learned it. */
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+    text: text("text").notNull(),
+
+    source: text("source").$type<ObservationSource>().notNull(),
+    /** The session or document it was drawn from. */
+    sourceId: uuid("source_id"),
+    /** `S2:14` or `D7:3` — openable, like everything else. */
+    ref: text("ref"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("observations_person_idx").on(t.personId, t.observedAt),
+    index("observations_source_idx").on(t.source, t.sourceId),
+  ],
+);
+
+/**
+ * Homework. PLAN.md 9.5.
+ *
+ * ## The warning at the top of the ticket is a schema decision
+ *
+ * > ⚠️ A completion rate shown to a depressed patient is a scoreboard of their
+ * > failures. Trend to the therapist; next action to the patient.
+ *
+ * So there is no `completion_rate` column and no `streak`. The patient's screen
+ * reads one row — the next thing to do — and the therapist's reads the set. The
+ * *same* data answers both, and the difference is which query each side is
+ * allowed to run: see `nextStepFor` and `homeworkTrend` in
+ * `lib/data/homework.ts`, which is where that rule is enforced rather than in a
+ * component somebody could copy.
+ *
+ * ## `skipped` is a first-class outcome
+ *
+ * Not "failed", and not silence. A person who did not do a thing has told us
+ * something clinically useful, and a status set that offers only done/not-done
+ * turns every unfinished week into an accusation.
+ */
+export const HOMEWORK_STATES = ["open", "done", "skipped"] as const;
+export type HomeworkState = (typeof HOMEWORK_STATES)[number];
+
+export const homeworkItems = pgTable(
+  "homework_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** The session it came out of. Null for something set between sessions. */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    assignedByUserId: uuid("assigned_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+
+    /** The step itself, in the words the patient reads. */
+    title: text("title").notNull(),
+    /** Optional detail — when, how, what counts as done. */
+    detail: text("detail"),
+
+    /**
+     * Drafted by the note, or written by the clinician.
+     *
+     * `NoteContent.patientSteps` already drafts these. Recorded separately
+     * because a step a clinician typed carries their intent and a step a model
+     * drafted carries a guess, and a patient asking "did you mean me to do
+     * this?" deserves a true answer.
+     */
+    source: text("source").$type<"drafted" | "therapist">().notNull().default("therapist"),
+
+    status: text("status").$type<HomeworkState>().notNull().default("open"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    /** Only the person themselves closes a step. A clinician cannot mark it done. */
+    completedByAccountId: uuid("completed_by_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
+    /** Optional, and never required. "I could not face it" is an answer. */
+    patientNote: text("patient_note"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("homework_person_idx").on(t.personId, t.status),
+    index("homework_session_idx").on(t.sessionId),
+  ],
+);
+
+export type PersonProfile = typeof personProfiles.$inferSelect;
+export type Observation = typeof observations.$inferSelect;
+export type HomeworkItem = typeof homeworkItems.$inferSelect;

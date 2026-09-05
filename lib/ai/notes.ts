@@ -457,6 +457,38 @@ export async function generateAndStoreNote(opts: {
       summary: content.summary,
     });
 
+    /*
+     * 9.1 — the rolling profile is rebuilt after every session.
+     *
+     * Here rather than on a schedule because "after each session" is what the
+     * ticket asks for and what a clinician expects: they finish at 3pm and the
+     * standing profile they read before the next appointment already knows
+     * about it.
+     *
+     * Best-effort and last. A profile that failed to rebuild is stale by one
+     * session; a note that failed to save is a session with no record, and the
+     * second must never be caused by the first.
+     */
+    if (opts.patientId) {
+      try {
+        const { personIdForPatient } = await import("@/lib/data/people");
+        const personId = await personIdForPatient(opts.patientId);
+        if (personId) {
+          const { regenerateProfile } = await import("@/lib/ai/profile");
+          await regenerateProfile({
+            personId,
+            organizationId: opts.organizationId,
+            userId: opts.therapistId,
+          });
+        }
+      } catch (error) {
+        log.warn("profile refresh after note failed", {
+          session: ref(opts.sessionId),
+          reason: safeErrorMessage(error),
+        });
+      }
+    }
+
     log.info("note generated", { session: ref(opts.sessionId) });
   } catch (error) {
     await db

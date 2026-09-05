@@ -46,6 +46,8 @@ Rules:
 - Answer only from the material provided. If it does not support an answer, say so plainly. "The transcripts do not cover that" is a good answer.
 - You know about this patient only. If asked about another patient, any other person, or anything outside this record, say you do not have that information.
 - Cite everything. Every factual claim must carry at least one reference you were actually given. Never invent a reference.
+- Two kinds of reference exist and they are NOT interchangeable. [S2:14] is a session — recent, first-hand, said by this person. [D7:3] is a historical document — a letter or report, often years old, written by somebody else. Say which you are drawing on, in words: "in session she said…" or "the 2019 discharge letter records…".
+- 🔴 SESSIONS OUTRANK HISTORY, AND YOU NEVER RESOLVE A CONFLICT. Where a session and a document disagree, give the session's account, then state the disagreement plainly with both references. Do not blend them, do not average them, do not quietly drop the older one. The therapist decides which is true; your job is to make sure they can see that there is a question.
 - Where a conclusion draws on several moments, cite all of them and say briefly how they connect.
 - Be concise and clinically useful. The therapist is preparing for or reflecting on a session, not reading an essay.
 - You do not diagnose and you do not make decisions. You surface what was said and what it might mean, for a clinician to judge.
@@ -287,6 +289,59 @@ async function documentsFor(
  * honest way to check it is to call the function that gives it. Exported under
  * a deliberately awkward name so nothing else reaches for it.
  */
+
+/**
+ * The standing profile, laid out for the prompt. 9.3.
+ *
+ * Withheld in the degraded state for the same reason the documents are: it is
+ * built *from* the documents, so handing it over would leak by summary what
+ * `documentsFor` refuses to leak directly. That is the failure mode a
+ * per-source check would miss — the profile is derived material, and derived
+ * material inherits its consent.
+ *
+ * Conflicts are included and labelled. §3 and 9.4 both want the therapist to
+ * see the disagreement, and a copilot that has the conflict but is not told it
+ * is a conflict will reconcile it in prose.
+ */
+async function profileFor(patientId: string, capabilities?: Capabilities): Promise<string> {
+  if (capabilities && !capabilities.liveProfile) return "";
+
+  const [row] = await db
+    .select({ personId: patients.personId })
+    .from(patients)
+    .where(eq(patients.id, patientId))
+    .limit(1);
+  if (!row?.personId) return "";
+
+  const { personProfiles } = await import("@/lib/db/schema");
+  const [profile] = await db
+    .select()
+    .from(personProfiles)
+    .where(eq(personProfiles.personId, row.personId))
+    .limit(1);
+
+  if (!profile || profile.sections.length === 0) return "";
+
+  const parts = [
+    `Standing profile, rebuilt ${profile.generatedAt.toISOString().slice(0, 10)} from ${profile.sessionCount} session(s) and ${profile.documentCount} document(s). Every line carries the references it came from:`,
+  ];
+
+  for (const section of profile.sections) {
+    parts.push(`## ${section.heading}\n${section.body}\nRefs: ${section.refs.join(", ")}`);
+  }
+
+  if (profile.conflicts.length > 0) {
+    parts.push(
+      "## UNRESOLVED CONFLICTS between the sessions and the history. Report these to the therapist as open questions. Do NOT resolve them:",
+    );
+    for (const conflict of profile.conflicts) {
+      parts.push(`- ${conflict.text} (${conflict.refs.join(", ")})`);
+    }
+  }
+
+  return parts.join("\n\n");
+}
+
 export const __documentsForTest = documentsFor;
 
 export async function askPatientCopilot(opts: {
@@ -312,6 +367,7 @@ export async function askPatientCopilot(opts: {
   const standing = opts.guidance?.trim() ?? "";
   const { transcript, index, sessionCount } = await buildPatientContext(opts.patientId);
   const documents = await documentsFor(opts.patientId, opts.capabilities);
+  const standingProfile = await profileFor(opts.patientId, opts.capabilities);
 
   // Documents alone are enough to answer from — that is the whole point of the
   // personal profile. Only a patient with neither is a patient with nothing.
@@ -369,6 +425,14 @@ export async function askPatientCopilot(opts: {
             documents.text
               ? `The patient's own documents. Cite a passage as [D<document>:<passage>], copying the marker exactly:\n${documents.text}`
               : "",
+            /*
+             * 9.3 — the standing profile, including any conflicts already
+             * found between the sessions and the history. Given to the model
+             * as *material it may use*, not as an answer: every line in it
+             * carries its own refs, so anything quoted from here can still be
+             * traced back to a session or a document.
+             */
+            standingProfile,
             historyText ? `Recent conversation:\n${historyText}` : "",
             /*
              * The corrections again, immediately before the question.

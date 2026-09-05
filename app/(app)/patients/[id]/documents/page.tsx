@@ -2,21 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 
 import { AccessBanner } from "@/components/patient/access-banner";
 import { DiagnosisList } from "@/components/documents/diagnosis-list";
+import { ClinicianHomework } from "@/components/homework/clinician-homework";
+import { StandingProfile } from "@/components/memory/standing-profile";
 import { DocumentPanel } from "@/components/documents/document-panel";
 import { Card } from "@/components/ui";
 import { explain } from "@/lib/access/state";
 import { requireUser } from "@/lib/auth/guard";
 import { listDiagnoses } from "@/lib/data/diagnoses";
 import { listDocuments } from "@/lib/data/documents";
+import { draftedStepsFor, homeworkTrend, listHomework } from "@/lib/data/homework";
+import { isStale, profileFor, timelineFor } from "@/lib/data/memory";
 import { accessFor } from "@/lib/data/grants";
 import { getPatient } from "@/lib/data/patients";
 import { personIdForPatient } from "@/lib/data/people";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { sessions, users } from "@/lib/db/schema";
 import { fullName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Profile", robots: { index: false } };
@@ -51,6 +55,31 @@ export default async function PatientDocumentsPage({
 
   const all = personId ? await listDocuments(personId) : [];
   const diagnoses = personId ? await listDiagnoses(personId) : [];
+
+  /*
+   * 9.1–9.5. All of this is on the *person*, so a clinician with no person row
+   * yet simply sees the empty states — a patient created before sprint 5's
+   * backfill is not an error, it is a record nobody has needed a person for.
+   */
+  const profile = personId ? await profileFor(personId) : null;
+  const timeline = personId ? await timelineFor(personId) : [];
+  const homework = personId ? await listHomework(personId) : [];
+  const trend = personId
+    ? await homeworkTrend(personId)
+    : { open: 0, done: 0, skipped: 0, skipStreak: 0, completionRate: null };
+
+  /*
+   * The most recent session's drafted steps, offered for promotion (9.5).
+   * `NoteContent.patientSteps` already drafts these; nothing is ever promoted
+   * automatically — see the note at the bottom of migration 0037.
+   */
+  const [lastSession] = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.patientId, id))
+    .orderBy(desc(sessions.createdAt))
+    .limit(1);
+  const drafted = lastSession ? await draftedStepsFor(lastSession.id) : [];
 
   /*
    * The filter that makes the degraded state real on this page. Not a
@@ -121,6 +150,27 @@ export default async function PatientDocumentsPage({
           />
         ) : null}
 
+        {/*
+          9.1 / 9.2 / 9.4 — the standing profile above the raw documents,
+          because it is what a clinician actually reads in the two minutes
+          before a session. Conflicts sit above even that.
+        */}
+        <StandingProfile
+          profile={
+            profile
+              ? {
+                  sections: profile.sections,
+                  conflicts: profile.conflicts,
+                  sessionCount: profile.sessionCount,
+                  documentCount: profile.documentCount,
+                  generatedAt: profile.generatedAt,
+                }
+              : null
+          }
+          timeline={timeline}
+          stale={isStale(profile, { sessions: profile?.sessionCount ?? 0, documents: all.length })}
+        />
+
         {personId ? (
           <DocumentPanel
             patientId={id}
@@ -135,6 +185,23 @@ export default async function PatientDocumentsPage({
             </p>
           </Card>
         )}
+
+        <ClinicianHomework
+          patientId={id}
+          items={homework.map((item) => ({
+            id: item.id,
+            title: item.title,
+            detail: item.detail,
+            status: item.status,
+            source: item.source,
+            createdAt: item.createdAt.toISOString(),
+            completedAt: item.completedAt?.toISOString() ?? null,
+            patientNote: item.patientNote,
+          }))}
+          trend={trend}
+          drafted={drafted}
+          canAssign={access.state !== "revoked"}
+        />
 
         <DiagnosisList
           patientId={id}

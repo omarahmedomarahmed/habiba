@@ -71,6 +71,17 @@ export async function addNote(
 
   if (!result.ok) return { error: result.error };
 
+  // 9.1 — a new source means a stale profile. Rebuilt after the response, so
+  // the therapist is not waiting on a model call to see their own note appear.
+  after(async () => {
+    const { regenerateProfile } = await import("@/lib/ai/profile");
+    await regenerateProfile({
+      personId: gate.personId,
+      organizationId: gate.actor.organizationId,
+      userId: gate.actor.userId,
+    });
+  });
+
   revalidatePath(`/patients/${patientId}/documents`);
   return { ok: true };
 }
@@ -104,6 +115,15 @@ export async function uploadDocumentFile(
    */
   after(async () => {
     await extractPending(1);
+    // Extraction first, then the profile — rebuilding before the text exists
+    // would produce a profile that has not read the document it was triggered
+    // by, and nothing would rebuild it again until the next session.
+    const { regenerateProfile } = await import("@/lib/ai/profile");
+    await regenerateProfile({
+      personId: gate.personId,
+      organizationId: gate.actor.organizationId,
+      userId: gate.actor.userId,
+    });
   });
 
   revalidatePath(`/patients/${patientId}/documents`);

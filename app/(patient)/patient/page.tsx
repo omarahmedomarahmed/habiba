@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Badge, Card } from "@/components/ui";
 import { pendingRequestsFor } from "@/lib/data/grants";
+import { nextStepFor } from "@/lib/data/homework";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { db } from "@/lib/db";
 import { patients, people } from "@/lib/db/schema";
@@ -31,6 +32,13 @@ export default async function PatientHomePage() {
   // on them, so it is counted here rather than discovered by navigating.
   const waiting = await pendingRequestsFor(actor.personId);
   const pending = waiting.length;
+
+  /*
+   * 9.5 — one step. `nextStepFor` returns a single row and a capped count of
+   * what else is waiting; it cannot return a rate, a streak or a history,
+   * which is how the ⚠️ rule is enforced rather than remembered.
+   */
+  const next = await nextStepFor(actor.personId);
 
   const [person] = await db
     .select({
@@ -89,6 +97,28 @@ export default async function PatientHomePage() {
           {pending > 0 ? "Answer now" : "Manage access"}
         </Link>
       </Card>
+
+      {next ? (
+        <Card className="border border-brand-200 p-4">
+          <p className="text-xs font-semibold tracking-wide text-brand-600 uppercase">
+            To try before your next session
+          </p>
+          <p className="mt-1.5 text-base leading-relaxed font-medium text-slate-900">
+            {next.title}
+          </p>
+          {next.detail ? (
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">{next.detail}</p>
+          ) : null}
+          <Link
+            href="/patient/homework"
+            className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
+          >
+            {next.othersWaiting > 0
+              ? `Open this and ${next.othersWaiting}${next.othersWaiting === 9 ? "+" : ""} more`
+              : "Open it"}
+          </Link>
+        </Card>
+      ) : null}
 
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">Your profile</p>
