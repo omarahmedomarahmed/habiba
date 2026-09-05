@@ -226,6 +226,24 @@ const JOBS = {
     const errorsPurged = await purgeOldErrors();
     return { auditPurged: purged.length, sessionsPurged, limitsPurged, errorsPurged };
   },
+
+  /**
+   * Read the text out of uploaded documents. PLAN.md 8.3, H9.
+   *
+   * Here rather than in the upload handler because a 25 MB file on a request
+   * handler is a timeout on exactly the document somebody cared about. Bounded
+   * and resumable: it takes the oldest pending rows and leaves the rest for the
+   * next tick, so a long queue is slow rather than fatal.
+   *
+   * Folded into the same 03:00-ish window as everything else, for the billing
+   * reason at the top of this file — the expensive part is waking the database,
+   * not the work.
+   */
+  async extract() {
+    const { extractPending } = await import("@/lib/data/documents");
+    const { done, failed } = await extractPending();
+    return { extracted: done, extractFailed: failed };
+  },
 } as const;
 
 type JobName = keyof typeof JOBS;

@@ -90,6 +90,22 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           }}
         />
 
+        {/* 8.x — the person's own record, one tap from their chart. */}
+        <Card>
+          <Link
+            href={`/patients/${patient.id}/documents`}
+            className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">Profile and documents</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Letters, prescriptions, history and the diagnoses they state.
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+          </Link>
+        </Card>
+
         <RecordAccess
           patientId={patient.id}
           claimed={access?.claimed ?? false}

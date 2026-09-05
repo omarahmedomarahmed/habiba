@@ -111,7 +111,9 @@ export type UsageKind =
   | "copilot"
   | "patient_copilot"
   | "translate"
-  | "speech";
+  | "speech"
+  /** Reading a diagnosis out of an uploaded document (8.9). */
+  | "diagnosis";
 
 type UsageInput = {
   organizationId: string | null;

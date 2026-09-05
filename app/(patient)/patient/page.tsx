@@ -91,6 +91,19 @@ export default async function PatientHomePage() {
       </Card>
 
       <Card className="p-4">
+        <p className="text-sm font-semibold text-slate-900">Your profile</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          Letters, prescriptions and anything you want a therapist to know. It travels with you.
+        </p>
+        <Link
+          href="/patient/profile"
+          className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
+        >
+          Open your profile
+        </Link>
+      </Card>
+
+      <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">Coming next</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           Your sessions, your homework and your billing appear here.

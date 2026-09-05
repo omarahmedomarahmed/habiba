@@ -1247,7 +1247,18 @@ export const aiRequestLogs = pgTable(
      * per-therapist cost breakdown wrong in a way no total would reveal.
      */
     kind: text("kind")
-      .$type<"transcribe" | "note" | "risk" | "copilot" | "patient_copilot" | "translate" | "speech" | "diarise">()
+      .$type<
+        | "transcribe"
+        | "note"
+        | "risk"
+        | "copilot"
+        | "patient_copilot"
+        | "translate"
+        | "speech"
+        | "diarise"
+        // Reading a diagnosis out of an uploaded document (8.9).
+        | "diagnosis"
+      >()
       .notNull(),
     model: text("model").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),
@@ -2479,3 +2490,248 @@ export const historyGrants = pgTable(
 );
 
 export type HistoryGrant = typeof historyGrants.$inferSelect;
+
+/* ============================================================== sprint 8 == */
+
+/**
+ * How a document got here. PLAN.md 8.1.
+ *
+ * `typed` and `dictated` are text we own from the first moment, so they are
+ * searchable immediately. `upload` is a file whose contents we may or may not
+ * be able to read — see `extraction` below, and 8.4.
+ */
+export const DOCUMENT_SOURCES = ["upload", "typed", "dictated"] as const;
+export type DocumentSource = (typeof DOCUMENT_SOURCES)[number];
+
+/**
+ * Whether the copilot can read this document, and why not when it cannot.
+ *
+ *   none          nothing to extract — the text is already here (typed, dictated)
+ *   pending       queued for the worker (H9: never in a request handler)
+ *   ready         chunked, searchable, citable
+ *   unsupported   we cannot read this format and will not pretend to (8.4)
+ *   failed        we tried and could not
+ *
+ * `unsupported` and `failed` are separate values because they are different
+ * facts. A scan of a prescription is *never* going to be searchable and the
+ * screen should say so plainly; a PDF that blew up once might work on a retry.
+ * One value for both would make the retry queue either useless or infinite.
+ */
+export const EXTRACTION_STATES = ["none", "pending", "ready", "unsupported", "failed"] as const;
+export type ExtractionState = (typeof EXTRACTION_STATES)[number];
+
+/**
+ * A document about a person, belonging to the person. PLAN.md 8.1–8.7.
+ *
+ * ## On the person, not the patient row
+ *
+ * This is the difference sprint 5 was building towards. A letter from a
+ * psychiatrist is a fact about a human being, not about one clinic's file on
+ * them — so it lives here, travels with them, and is visible to a clinician
+ * only through the consent states in `lib/access/state.ts`.
+ *
+ * `organizationId` and `uploadedByUserId` record *provenance* (8.7): which
+ * clinician put it there and when. They are not access control. §3's revoked
+ * state lets a clinician keep what they uploaded themselves, and that is the
+ * question those two columns answer.
+ *
+ * ## The ordinal, and why it is not the id
+ *
+ * §3's citation format is `[D7:3]` — document 7, chunk 3. Seven is *this
+ * person's* seventh document, stable and small enough for a model to repeat
+ * without transcription errors. A uuid in a citation is a uuid the model will
+ * eventually get one character wrong, and a citation that resolves to the
+ * wrong document is worse than one that fails to resolve (8.5).
+ */
+export const personDocuments = pgTable(
+  "person_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** 1-based, per person. The D-number in `[D7:3]`. */
+    ordinal: integer("ordinal").notNull(),
+
+    source: text("source").$type<DocumentSource>().notNull(),
+    title: text("title").notNull(),
+
+    /* ---- provenance (8.7). Exactly one of the two uploaders is ever set. --- */
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    uploadedByAccountId: uuid("uploaded_by_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    /** The date on the document itself, when somebody says what it is. */
+    documentDate: timestamp("document_date", { withTimezone: true }),
+
+    /* ------------------------------------------------------------ the file -- */
+    /**
+     * Where the bytes are. **Never sent to a browser** — H14: a blob URL is a
+     * secret, not access control, so a viewer that receives one has permanent
+     * unaudited access. Reads go through `/api/documents/[id]`, which checks
+     * consent and writes an audit row (8.10).
+     */
+    blobUrl: text("blob_url"),
+    mimeType: text("mime_type"),
+    byteSize: integer("byte_size"),
+
+    /* ----------------------------------------------------------- the text -- */
+    /** Typed or dictated text, verbatim. Null for uploads. */
+    body: text("body"),
+    extraction: text("extraction").$type<ExtractionState>().notNull().default("none"),
+    extractionError: text("extraction_error"),
+    extractedAt: timestamp("extracted_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("person_documents_ordinal_unique").on(t.personId, t.ordinal),
+    index("person_documents_person_idx").on(t.personId, t.createdAt),
+    // The worker's queue. Partial, so it stays the size of the backlog rather
+    // than the size of the table.
+    index("person_documents_pending_idx").on(t.createdAt).where(sql`extraction = 'pending'`),
+  ],
+);
+
+/**
+ * One citable passage. PLAN.md 8.5 / 8.6.
+ *
+ * The `:3` in `[D7:3]`. Chunks are numbered from 1 within a document and never
+ * renumbered — a citation written into a copilot answer last month has to
+ * still point at the same words, so re-extraction replaces the whole set and
+ * keeps the numbering deterministic rather than editing in place.
+ */
+export const documentChunks = pgTable(
+  "document_chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => personDocuments.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** 1-based within the document. */
+    sequence: integer("sequence").notNull(),
+    text: text("text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("document_chunks_sequence_unique").on(t.documentId, t.sequence),
+    index("document_chunks_person_idx").on(t.personId),
+  ],
+);
+
+/**
+ * A diagnosis **as written in a document**. PLAN.md 8.9.
+ *
+ * 🔴 The rule this table exists to enforce: *extract only what is written,
+ * show the source sentence, require confirmation, never infer from symptoms.*
+ *
+ * So `sourceSentence` is `NOT NULL`. There is no way to record a diagnosis
+ * here without the words it came from, which makes "the model inferred it"
+ * structurally impossible rather than merely discouraged — the same discipline
+ * as C35's straddles, where the fix was to refuse rather than to guess.
+ *
+ * `status` starts `proposed` and only a human moves it. An unconfirmed
+ * diagnosis is never shown as a diagnosis.
+ */
+export const DIAGNOSIS_STATES = ["proposed", "confirmed", "rejected"] as const;
+export type DiagnosisState = (typeof DIAGNOSIS_STATES)[number];
+
+export const personDiagnoses = pgTable(
+  "person_diagnoses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    /** ICD-10 or DSM code, only when the document states one. Never derived. */
+    code: text("code"),
+    /** The diagnosis as the document words it. */
+    label: text("label").notNull(),
+
+    /** 🔴 The sentence it was taken from. Not nullable, on purpose. */
+    sourceSentence: text("source_sentence").notNull(),
+    sourceDocumentId: uuid("source_document_id").references(() => personDocuments.id, {
+      onDelete: "cascade",
+    }),
+    sourceChunkId: uuid("source_chunk_id").references(() => documentChunks.id, {
+      onDelete: "set null",
+    }),
+
+    status: text("status").$type<DiagnosisState>().notNull().default("proposed"),
+    confirmedByUserId: uuid("confirmed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("person_diagnoses_person_idx").on(t.personId, t.status),
+    index("person_diagnoses_document_idx").on(t.sourceDocumentId),
+  ],
+);
+
+/**
+ * "This is outdated" / "this is wrong". PLAN.md 8.8.
+ *
+ * One table for documents, passages and diagnoses rather than three flag
+ * columns, because the flag is the same act every time and the thing being
+ * corrected differs only in what it points at.
+ *
+ * 🔴 A flag never deletes and never edits. A patient saying "that diagnosis is
+ * out of date" is a fact *about* the record, not permission to alter a
+ * clinician's document — which they may be legally required to keep. What it
+ * does is travel with the material: everything that renders a flagged item
+ * renders the flag, and the copilot is told about it.
+ */
+export const FLAG_TARGETS = ["document", "chunk", "diagnosis"] as const;
+export type FlagTarget = (typeof FLAG_TARGETS)[number];
+
+export const FLAG_REASONS = ["outdated", "wrong", "not_mine"] as const;
+export type FlagReason = (typeof FLAG_REASONS)[number];
+
+export const contentFlags = pgTable(
+  "content_flags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    targetType: text("target_type").$type<FlagTarget>().notNull(),
+    targetId: uuid("target_id").notNull(),
+
+    reason: text("reason").$type<FlagReason>().notNull(),
+    /** Optional. A flag with no note is still a flag. */
+    note: text("note"),
+
+    /* Exactly one of these, like every other actor pair since C49. */
+    raisedByUserId: uuid("raised_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    raisedByAccountId: uuid("raised_by_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Cleared by whoever raised it. Nobody else can dismiss somebody's flag. */
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("content_flags_target_idx").on(t.targetType, t.targetId),
+    index("content_flags_person_idx").on(t.personId),
+  ],
+);
+
+export type PersonDocument = typeof personDocuments.$inferSelect;
+export type DocumentChunk = typeof documentChunks.$inferSelect;
+export type PersonDiagnosis = typeof personDiagnoses.$inferSelect;
+export type ContentFlag = typeof contentFlags.$inferSelect;

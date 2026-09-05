@@ -3,9 +3,11 @@ import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
 
 import type { Capabilities } from "@/lib/access/state";
+import { keepResolvableCitations, type DocumentRef } from "@/lib/documents/chunk";
 import { db } from "@/lib/db";
 import {
   copilotMessages,
+  patients,
   sessionNotes,
   sessions,
   transcriptSegments,
@@ -98,13 +100,11 @@ function buildSystemPrompt(
    * deliberately the one thing their corrections cannot override, because a
    * therapist cannot instruct their way past a patient's consent.
    *
-   * What this is *not* is the enforcement. Today the context is assembled
-   * from one `patients` row — one clinic's own sessions and notes — which is
-   * exactly what §3 leaves a revoked therapist, so there is nothing here to
-   * withhold yet. The live profile and patient uploads arrive in sprint 8, and
-   * `capabilities.liveProfile` is what that assembly must consult. Until then
-   * this line does the only job available: stop the model *speculating* about
-   * the material it does not have. See C47.
+   * What this is *not* is the enforcement. The enforcement is `documentsFor`
+   * below: in this state the copilot is handed **no documents at all**, so the
+   * material it may not see never enters the prompt and cannot be leaked by a
+   * model that ignores an instruction. This line does the job the filter
+   * cannot — stop the model *speculating* about the gap it can tell is there.
    */
   if (capabilities && !capabilities.liveProfile) {
     blocks.push(
@@ -232,8 +232,62 @@ async function buildPatientContext(patientId: string): Promise<{
 export type CopilotAnswer = {
   answer: string;
   citations: Citation[];
+  /** 8.5 — the document passages that survived resolution. */
+  documentRefs: DocumentRef[];
   suggestedPrompts: string[];
 };
+
+/**
+ * The person's documents, laid out for the prompt — or nothing.
+ *
+ * 🔴 This is where the degraded state actually bites (C47). When
+ * `capabilities.liveProfile` is false the copilot is handed **no documents at
+ * all**, so the material a revoked clinician may not see is never in the
+ * prompt. Refusing at assembly rather than in the prompt is the difference
+ * between a rule the model follows and a rule it cannot break.
+ *
+ * A patient row has no person until sprint 5's backfill touched it; no person
+ * means no documents, which is the right answer rather than an error.
+ */
+async function documentsFor(
+  patientId: string,
+  capabilities?: Capabilities,
+): Promise<{ text: string; resolvable: Set<string> }> {
+  const empty = { text: "", resolvable: new Set<string>() };
+
+  // Absent capabilities means an internal caller that did its own scoping.
+  // Present and false is an explicit refusal.
+  if (capabilities && !capabilities.liveProfile) return empty;
+
+  const [row] = await db
+    .select({ personId: patients.personId })
+    .from(patients)
+    .where(eq(patients.id, patientId))
+    .limit(1);
+
+  if (!row?.personId) return empty;
+
+  const { documentContext } = await import("@/lib/data/documents");
+  const context = await documentContext(row.personId);
+  if (!context.text) return empty;
+
+  // Which `[D7:3]` markers actually exist, for the discard pass above.
+  const resolvable = new Set<string>();
+  for (const match of context.text.matchAll(/\[D(\d+):(\d+)\]/g)) {
+    resolvable.add(`${match[1]}:${match[2]}`);
+  }
+
+  return { text: context.text, resolvable };
+}
+
+/**
+ * The document assembly, exposed for `scripts/verify-sprint8.ts`.
+ *
+ * C47's closure is a claim about what the copilot is *given*, and the only
+ * honest way to check it is to call the function that gives it. Exported under
+ * a deliberately awkward name so nothing else reaches for it.
+ */
+export const __documentsForTest = documentsFor;
 
 export async function askPatientCopilot(opts: {
   threadId: string;
@@ -257,12 +311,16 @@ export async function askPatientCopilot(opts: {
   const language = opts.replyLanguage ?? "auto";
   const standing = opts.guidance?.trim() ?? "";
   const { transcript, index, sessionCount } = await buildPatientContext(opts.patientId);
+  const documents = await documentsFor(opts.patientId, opts.capabilities);
 
-  if (sessionCount === 0 || !transcript.trim()) {
+  // Documents alone are enough to answer from — that is the whole point of the
+  // personal profile. Only a patient with neither is a patient with nothing.
+  if ((sessionCount === 0 || !transcript.trim()) && !documents.text) {
     return {
       answer:
-        "There are no recorded sessions for this patient yet, so I have nothing to work from. Once you complete a session I will have the transcript.",
+        "There are no recorded sessions or documents for this patient yet, so I have nothing to work from. Once you complete a session, or add something to their profile, I will have material to read.",
       citations: [],
+      documentRefs: [],
       suggestedPrompts: [],
     };
   }
@@ -297,6 +355,20 @@ export async function askPatientCopilot(opts: {
           role: "user",
           content: [
             `Patient record:\n${transcript}`,
+            /*
+             * 8.5 — the person's own documents, each passage carrying its own
+             * `[D7:3]` marker so the model cites by copying rather than by
+             * counting. A model asked to compute a citation index gets it
+             * wrong, and a wrong citation is worse than none (C35's rule
+             * again).
+             *
+             * Empty in the revoked state: `documentsFor` returns nothing when
+             * `capabilities.liveProfile` is false, which is the enforcement
+             * C47 was waiting on. The model cannot leak what it was not given.
+             */
+            documents.text
+              ? `The patient's own documents. Cite a passage as [D<document>:<passage>], copying the marker exactly:\n${documents.text}`
+              : "",
             historyText ? `Recent conversation:\n${historyText}` : "",
             /*
              * The corrections again, immediately before the question.
@@ -333,12 +405,27 @@ export async function askPatientCopilot(opts: {
       suggestedPrompts?: unknown;
     }>(completion.choices[0]?.message?.content, {}, "patient-copilot");
 
+    const written =
+      typeof raw.answer === "string" && raw.answer.trim()
+        ? raw.answer.trim()
+        : "I could not form an answer from this patient's record.";
+
+    /*
+     * 8.5 — a `[D7:3]` that points at nothing is deleted from the answer.
+     *
+     * Not flagged, not left in place: a clinician clicking a citation and
+     * getting an error cannot tell "the copilot made this up" from "the app is
+     * broken", and the first of those is the one that matters. The answer
+     * stands on its own words instead.
+     */
+    const { answer, refs } = keepResolvableCitations(written, (docRef) =>
+      documents.resolvable.has(`${docRef.ordinal}:${docRef.sequence}`),
+    );
+
     return {
-      answer:
-        typeof raw.answer === "string" && raw.answer.trim()
-          ? raw.answer.trim()
-          : "I could not form an answer from this patient's record.",
+      answer,
       citations: resolveCitations(raw.citations, index),
+      documentRefs: refs,
       suggestedPrompts: normalisePrompts(raw.suggestedPrompts),
     };
   } catch (error) {
@@ -367,10 +454,7 @@ export async function askPatientCopilot(opts: {
  * This is the mechanism behind the promise that every claim is traceable: the
  * UI can only ever show a source that exists in the database.
  */
-export function resolveCitations(
-  raw: unknown,
-  index: Map<string, IndexedSegment>,
-): Citation[] {
+export function resolveCitations(raw: unknown, index: Map<string, IndexedSegment>): Citation[] {
   if (!Array.isArray(raw)) return [];
 
   const seen = new Set<string>();
