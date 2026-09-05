@@ -121,6 +121,15 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C23 | 2 | **`sessions.extendedAt` is now written by nothing but still read** by the session detail page and admin Total View, which show "· Extended" for historical rows. That is correct — those sessions really were extended — but the column will look like dead schema to the next reader. Documented at the top of `lib/session-clock.ts`. | minor | sprint 1 | open |
 | C24 | all | **One test fails on `main` and still fails here** — `radar.test.ts:19`, "a finished session still resolves for feedback". Verified pre-existing by stashing this branch and re-running at `7f883e2`: identical failure. Not caused by sprint 1, and not fixed by it. Needs an owner. | major | sprint 1 | **resolved in sprint 2** — the test was stale, not the code. It asserted the *join* token reaches the feedback page; the two-token design deliberately makes that false. Measured: 0 of 59 sessions have `join_token = feedback_token`. Rewritten to assert the real invariant, plus that the dead join token is *not* a second key |
 | C60 | merge | 🔴 **The public pricing page still advertised the old business.** The price cards read live from `platform_settings` and showed $4 / $3 / $2, but the hero and the FAQ around them are CMS copy, and both the shipped defaults and the **published `content_pages` row on production** still said "$6 buys the session", "$99 a month", "10% of the session price" and "Can I cancel Unlimited?". Sprint 1 removed `unlimited` from `PLANS`, from Stripe checkout and from the cards; it could not remove it from a database row written before that sprint existed. Fixed in both places — `lib/content/defaults.ts` and the live row — so a visitor is no longer quoted two different prices on one screen. **The general rule this exposes: any figure that lives in CMS copy is a second, unversioned source of truth for pricing.** Every later sprint that changes a number must grep `lib/content/` and check `content_pages` as well. | major | merge | **resolved at the merge** |
+| C61 | 11 | 🔴 **The confirmation quotes a different time than the booking screen.** `BookingCalendar` renders every slot with `toLocaleTimeString`, so a Cairo patient picks "22:00". The confirmation body and the reminder body are built from `startsAt.toISOString()` and say **"19:00 UTC"**. Same appointment, two numbers, and the one they keep is the wrong one. Same failure shape as C60 — one fact, two renderings, no shared source. | major | review of sprint 11 | open — **sprint 11R** |
+| C62 | 11 | **Clinicians publish availability in UTC hours.** `AvailabilityEditor`'s From/Until are integers passed straight to `hoursOn`, which documents them as UTC. A Cairo therapist choosing 18:00–21:00 publishes 20:00–23:00 their own time. There is a line of grey text admitting it, which makes it an honest trap rather than a hidden one. `byDay` compounds it: slots are bucketed on the **UTC** date and the header is printed with `toLocaleDateString`, so a 23:00Z slot sits under Monday and reads "Tuesday" in Cairo. | major | review of sprint 11 | open — **sprint 11R** |
+| C63 | 11 | 🔴 **The reminder marker is written into the patient's own words.** `bookSlot` stores the patient's free-text "anything they should know?" answer in `availability_slots.note`; `markReminded` then appends `' [reminded]'` to that same column and `bookingsNeedingReminder` filters on `note NOT LIKE '%[reminded]%'`. So the clinician's calendar shows the patient's sentence with a machine token glued to the end, and a patient who happens to type `[reminded]` is never reminded. Patient-authored text must not be edited by the system. Needs its own column. | major | review of sprint 11 | open — **sprint 11R** |
+| C64 | 11 | **Egyptian phone numbers will fail on the first real WhatsApp send.** `sendWhatsapp` does `phone.replace(/[^\d]/g, "")`, and `normalisePhone` deliberately refuses to expand a local number to E.164 ("guessing the country is how 01001234567 in Cairo becomes a number elsewhere") — correct in isolation, but nothing else expands it either, and the booking form asks for a "WhatsApp number" with no country field. `0100 123 4567` reaches Meta as `01001234567` instead of `201001234567` and is rejected. The booking path does not even call `normalisePhone`. | major | review of sprint 11 | open — **sprint 11R** |
+| C65 | 11 | **A same-day booking is never reminded, and the reminder lands at dawn.** The `reminders` job runs once, at 03:20 UTC, looking 24 hours ahead. Anything booked after 03:20 for later the same day has already missed the only run that would have caught it. 03:20 UTC is also 05:20 in Cairo (06:20 in summer) — that is when the phone buzzes. | minor | review of sprint 11 | open — **sprint 11R** |
+| C66 | 11 | **Production has 0039's objects but no record that it ran.** Verified on production: `availability_slots` 12 columns, all 4 foreign keys, all 4 indexes, the whole-hour CHECK, `sessions.scheduled_at` and its partial index — every claim true. But `drizzle.__drizzle_migrations` still holds **39** rows while the branch journal holds **40**. The DDL was applied without the ledger entry. Harmless in itself (the file is idempotent, so the next `db:migrate` records it), but the database and its bookkeeping disagree, which is H1 pointing the other way. **Latent trap in the same file:** all four foreign keys share one `DO $$ … EXCEPTION WHEN duplicate_object` block, so if ever one exists and three do not, the block aborts at the first and silently skips the rest. One block per constraint. | minor | review of sprint 11 | open — **sprint 11R** |
+| C67 | 11 | **An unauthenticated stranger can fill a clinician's calendar.** `book()` needs a first name and nothing else — email and phone are optional — and each accepted booking creates a `patients` row and a `sessions` row. Throttled at 6/hour per caller key, so roughly 144 fabricated appointments a day from one address, each one a patient record a clinician then has to look at. Not urgent pre-launch; it is an open door on a public endpoint that creates clinical rows. | minor | review of sprint 11 | open — **sprint 11R** |
+| C68 | 11 | 🔴 **C43 is not closed — the claim code still never reaches WhatsApp.** Sprint 11 built a real `notify()` seam and a real Meta Cloud API client, and neither is on the claim path: `app/(patient)/patient/claim/actions.ts` still calls `mailClaimCode` directly and writes `log.warn("whatsapp verification requested but no provider is configured")` when the patient picks WhatsApp — a line in a server log, not a thing the patient is told. `notify` is imported by exactly one file in the repository (the booking action), and `claim.code` is a declared `Message["kind"]` with **no entry in `TEMPLATES`**, so it would fall back to email even if it were wired. The moment a key exists, confirmations and reminders go by WhatsApp and claim codes still go by email. | major | review of sprint 11 | open — **sprint 11R** |
+| C69 | 16 | **"The session pays for itself out of your earnings" describes a mechanic that does not exist.** The platform never holds money (1.8, C6): Stripe Connect destination charges send the patient's payment to the clinician and the 15% to us, and the **session credit is a separate purchase**. Nothing nets one against the other. The requested framing is fair as economics — a $4 session fee against a $30 session you were paid for — but it must be written as arithmetic the reader can check, not as an automatic deduction, unless netting is actually built. | major | review of sprint 11 | open — **sprint 16 decides** |
 
 ---
 
@@ -560,6 +569,103 @@ The first sprint that earns money.
 - ⚠️ Needs the Resend domain verified before real patients get reminders. Being
       arranged — build it, do not wait on it.
 
+### Sprint 11R — Repair · ~4 days · 🔴 BEFORE ANYTHING ELSE
+
+Nothing new. This sprint closes every open objection carried out of sprints
+7–11 and the three items that have been deferred twice. Sprint 12 does not
+start until `verify:sprint11r` is green and sprint 11 + 11R are merged.
+
+**One clock, one rendering.** C61, C62.
+
+- [ ] **11R.1** A single `lib/scheduling/tz.ts`. Every time a human reads —
+      calendar, editor, confirmation, reminder, room banner — comes from one
+      formatter that takes a zone. No `toISOString()` in anything a person sees
+- [ ] **11R.2** `users.timezone` (IANA, nullable) and `patients.timezone`.
+      Clinicians publish hours in **their own** zone; the editor's From/Until
+      convert to UTC on submit and the label says which zone it means
+- [ ] **11R.3** The confirmation and the reminder are rendered in the
+      recipient's zone, with the offset spelled out — *"Thursday 12 September,
+      22:00 (Cairo)"*. Falls back to the clinician's zone, then UTC, and says so
+- [ ] **11R.4** `byDay` buckets on the **display** zone, not the UTC date, so a
+      23:00Z slot never sits under Monday and reads "Tuesday"
+- [ ] **11R.5** Test: one slot, three readers (Cairo, Dubai, New York) — three
+      renderings, one instant. And a DST boundary in Egypt, which observes it
+
+**Stop editing the patient's words.** C63.
+
+- [ ] **11R.6** `availability_slots.reminded_at timestamptz`. `markReminded`
+      writes the timestamp; `bookingsNeedingReminder` reads it. Nothing appends
+      to `note` ever again
+- [ ] **11R.7** Migration strips any ` [reminded]` already glued onto a note,
+      and the verifier asserts no note contains the marker
+- [ ] **11R.8** Test: a note containing the literal text `[reminded]` still
+      gets its reminder
+
+**Close C43 properly.** C68, C64.
+
+- [ ] **11R.9** The claim action routes through `notify()`. It stops calling
+      `mailClaimCode` directly
+- [ ] **11R.10** A `claim.code` template in `TEMPLATES` (Meta *authentication*
+      category, which is a different approval track from the utility ones —
+      say so in the setup notes)
+- [ ] **11R.11** The patient is **told which channel it went to**, on screen.
+      `ClaimState` carries the channel. Choosing WhatsApp and silently getting
+      an email is the defect; a server log is not a fix
+- [ ] **11R.12** `toE164(value, countryCode)` — expansion needs a country, so
+      ask for one. A country selector beside every phone field on the public
+      booking form and the patient signup, defaulting from the visitor's locale.
+      Store E.164, display local
+- [ ] **11R.13** `npm run whatsapp:check` refuses a number it cannot prove is
+      E.164, instead of sending something Meta will bounce
+- [ ] **11R.14** Test: `01001234567` + Egypt → `+201001234567`; the same digits
+      with no country → refused, never guessed
+
+**The reminder actually reaches people.** C65.
+
+- [ ] **11R.15** Reminders run **hourly**, not once at 03:20, and send at the
+      first run inside a 24–20 hour window before the session — plus a
+      same-day catch-up for anything booked inside that window
+- [ ] **11R.16** Nothing is sent between 22:00 and 07:00 in the **recipient's**
+      zone. It waits for morning
+- [ ] **11R.17** Weigh the extra Neon wakes against the note at the top of
+      `app/api/cron/[job]/route.ts` and record the arithmetic in the build log
+
+**The migration trap.** C66.
+
+- [ ] **11R.18** Record 0039 in `drizzle.__drizzle_migrations` on production, or
+      re-run it so the ledger and the database agree. Journal count must equal
+      the applied count — assert it
+- [ ] **11R.19** Split multi-constraint `DO $$` blocks: **one constraint per
+      block**, so a duplicate on the first never skips the rest. Sweep 0029–0039
+      for the same shape
+- [ ] **11R.20** `scripts/verify-migrations.ts` — journal vs `__drizzle_migrations`
+      vs `information_schema`, runnable against any database. Add it to the
+      standing checks in `HAZARDS.md`
+
+**The public booking endpoint.** C67.
+
+- [ ] **11R.21** A booking requires **one** contact method — an email or a
+      phone. A booking nobody can be told about is not a booking
+- [ ] **11R.22** Per-slot and per-clinician ceilings on top of the per-caller
+      one, and unconfirmed bookings expire back to `open`
+
+**The three that have been deferred twice.**
+
+- [ ] **11R.23** **C50 — build it.** `unpdf` for PDF, `mammoth` for Word. The
+      column-count heuristic is part of the ticket, not a follow-up: a document
+      whose extraction looks interleaved is marked `unsupported` and is never
+      citable. A wrong word behind a `[D7:3]` is worse than no citation (C35)
+- [ ] **11R.24** **C46 — turn it on, grandfathered.** The five-credit unlock
+      applies only to patients created after a `gateActiveFrom` date in
+      `platform_settings`. Verify against production numbers: the 65 of 66 who
+      have no history keep the copilot they use today. Assert it
+- [ ] **11R.25** **C47 / C27** — re-read both now that sprints 7–9 exist, and
+      either close them by measurement or say what is still missing
+- [ ] **11R.26** **C26** — 20 sessions with no `feedback_token`. Backfill or
+      exclude explicitly, before sprint 12 computes a reliability score from them
+- **Accept:** every row in §2 raised against sprints 7–11 reads **resolved** or
+      carries a sentence saying why it is deliberately still open.
+
 ### Sprint 12 — No-show recovery · ~1 week
 
 - [ ] **12.1** 0–5 min: *"joining shortly"*. No blame
@@ -621,6 +727,132 @@ Built last so it can be verified against everything that already exists.
 - **Accept:** every number in §3 is editable without a deploy, and admin can see
       and correct anything built in sprints 1–14.
 
+---
+
+## §4b · THE PUBLIC SITE — sprints 16–19
+
+Four sprints, in this order, each merged before the next begins. The order is
+the point: **revamp the site, then translate it, then make it editable.**
+Building the editor first means editing pages that are about to be rewritten,
+and translating first means translating copy that is about to change.
+
+### Sprint 16 — The pricing story · ~1 week · 💰 REVENUE
+
+The offer is good and the site does not say it. Fix the framing everywhere it
+appears, and write the default CMS copy properly so `content_pages` has
+something worth publishing.
+
+**The framing, in the product's own words.** Every surface below tells the same
+story in the same order:
+
+> **Joining is free.** No subscription, no seat fee, no setup fee.
+> **You pay per session, only when you run one** — $4, or less in a bundle —
+> and that includes ten copilot questions about that patient.
+> **Your first completed session is free.**
+> **Get booked on the Crisis Radar.** Patients find you and book you, and the
+> few dollars a session costs comes out of what that session paid you.
+
+- [ ] **16.1** 🔴 **Resolve C69 first.** Nothing nets the session fee against
+      Connect earnings today, and the platform must not start holding money
+      (1.8). So either build the netting or write the claim as arithmetic —
+      *"a $30 session pays you $25.50 after our 15%; the session itself costs
+      $4 of that"* — with the numbers read live from settings. **Do not ship a
+      sentence that describes a mechanic that does not exist.** Decide, and
+      write which you chose in the build log
+- [ ] **16.2** Pricing page reordered: **tier cards first, no hero section.**
+      The page opens on the three rates
+- [ ] **16.3** Under the cards, the free-to-use statement and the radar line
+- [ ] **16.4** **A slider on Growth.** Minimum 30, drag upward, live total at
+      $2 each. It is a slider and not a fixed pack because §3 says so — above
+      the minimum they buy as many as they like at the same rate
+- [ ] **16.5** The billing FAQ moves **below** all of that
+- [ ] **16.6** Call to action, everywhere, in this shape: **"Sign up free"**
+      primary · *"or buy a bundle"* secondary. Never "start your trial", never
+      "choose a plan" — there are no plans
+- [ ] **16.7** **The same three cards as a section on the homepage**, reading
+      the same live settings as the pricing page. One component, two pages —
+      not a copy, or C60 happens again in a new place
+- [ ] **16.8** Rewrite `lib/content/defaults.ts` for `pricing` and `home` so
+      the shipped defaults *are* the correct copy, then publish them to
+      `content_pages` for both locales and **bump `CACHE_VERSION`** (C60)
+- [ ] **16.9** Every figure in the copy comes from `platform_settings` at
+      render time. A number typed into a sentence is a number that will be
+      wrong after sprint 15 lets somebody edit it
+- **Accept:** no page states a price, a rate, a cut or a minimum that
+      disagrees with `platform_settings`, and `verify:sprint16` proves it by
+      changing a setting and re-reading both pages.
+
+### Sprint 17 — Public site revamp, and a side for patients · ~1.5 weeks
+
+Today the public site is written for clinicians. Half the people arriving are
+patients, and there is nothing addressed to them.
+
+- [ ] **17.1** Full pass over every public page — structure, hierarchy, what
+      each page is *for*. Not a reskin
+- [ ] **17.2** A **patients** section in the navigation, and the pages under it:
+      how to find a therapist · what the Crisis Radar is and when to use it ·
+      what happens in a session · what your therapist can and cannot see ·
+      your record and how to claim it · what it costs you · getting help now
+- [ ] **17.3** 🔴 The crisis page is reachable in one tap from every patient
+      page, and never behind a signup
+- [ ] **17.4** Patient-side call to action separated from the clinician one.
+      A person in distress and a clinician evaluating software need different
+      first buttons on the same site
+- [ ] **17.5** Every new page is a `content_pages` row with a shipped default,
+      not a hardcoded route — so sprints 18 and 19 can reach it
+- [ ] **17.6** The blocks the CMS can render are extended to cover whatever the
+      revamp needs, and each new block type is documented where the editor can
+      see it
+- [ ] **17.7** Re-check the whole site against §6: nothing on a public page
+      names a patient, quotes a session, or implies we can read a record
+- **Accept:** a patient landing cold can find a therapist, understand what is
+      recorded, and reach crisis help without an account or a scroll.
+
+### Sprint 18 — Arabic and English, everywhere · ~1.5 weeks
+
+- [ ] **18.1** Every public page has an `ar` row **and** an `en` row in
+      `content_pages`. The pricing page has no `ar` row today, which is why
+      `/ar/pricing` silently serves English (found in sprint 11)
+- [ ] **18.2** Every interface string in both languages. The existing rule
+      holds: an English fallback for a UI string is banned and the type system
+      enforces it — a gap is a bug, not a graceful degradation
+- [ ] **18.3** Arabic is a **right-to-left** layout, not translated English in
+      a left-to-right frame. Navigation, cards, the slider, form fields, the
+      globe's controls
+- [ ] **18.4** Numerals, currency and dates in the reader's convention, and
+      the timezone work from 11R applies to both
+- [ ] **18.5** Sessions mix Arabic and English inside one sentence — the site
+      must not fight that. Nothing that force-transliterates a name
+- [ ] **18.6** A verifier that fails the build on any page or string present in
+      one language and missing in the other
+- **Accept:** `/ar` and `/en` are the same site, not one site and a summary.
+
+### Sprint 19 — Every string editable by admin · ~1.5 weeks · LAST
+
+Done last, after the copy has stopped moving.
+
+- [ ] **19.1** A `ui_strings` table: `(key, locale, value, updated_by,
+      updated_at)`. The typed dictionary in the repository stays and remains
+      the default; a published row **overrides** it
+- [ ] **19.2** 🔴 **Every button label included.** "Sign up free", "Book",
+      "Join", "Publish", "Revoke" — the user asked for button text specifically
+      and it is the copy that changes most often
+- [ ] **19.3** Admin editor: search by key, filter by page, both locales side
+      by side, one save. Every write audited
+- [ ] **19.4** Cached like the CMS — one tag, no timer — and publishing
+      invalidates it. Any write from anything other than the editor bumps a
+      version key (C60, and the reason `CACHE_VERSION` exists)
+- [ ] **19.5** An empty override is **not** an empty string. Clearing a row
+      restores the shipped default rather than blanking a button
+- [ ] **19.6** A missing key renders the shipped default and reports itself —
+      never a raw key on screen, never blank
+- [ ] **19.7** Safety strings are marked and cannot be blanked: the crisis
+      copy, the recording notice, the consent wording. Admin may reword them;
+      admin may not delete them
+- **Accept:** a non-engineer changes any visible word on the public site, in
+      either language, and sees it live without a deploy — and cannot make a
+      button, a crisis instruction or a consent sentence disappear.
+
 ## §5 · BUILD LOG
 
 | Date | Sprint | What | Commit | Verified how |
@@ -667,3 +899,9 @@ Breaking one of these is a bug regardless of what any ticket says.
 | **`main` is live.** Apply the migration to production *before* pushing `main` (H16) | Process |
 | A migration must be additive, so the running deployment survives the gap | Process |
 | Changing a price or a rate? grep `lib/content/` **and** check `content_pages` (C60) | Process |
+| **Never edit text a patient wrote.** No markers, no flags, no suffixes in a column holding their words (C63) | Hard |
+| **No `toISOString()` in anything a person reads.** One instant, one formatter, the reader's zone (C61) | Hard |
+| A channel that falls back to another **tells the person on screen**, not the server log (C68) | Hard |
+| Every price, rate, cut and minimum on a public page is read from `platform_settings` at render time. Never typed into a sentence | Process |
+| Never describe a mechanic the product does not have, however fair the economics (C69) | Hard |
+| One constraint per `DO $$` block — a duplicate on the first silently skips the rest (C66) | Process |
