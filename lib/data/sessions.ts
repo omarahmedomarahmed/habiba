@@ -151,6 +151,8 @@ export async function createSession(
       guestEmail: input.guestEmail?.trim() || null,
       modality: input.modality,
       status: "scheduled",
+      // 4.6: where this session came from, recorded rather than inferred later.
+      sessionType: price > 0 ? "paid_link" : "direct",
       joinToken: needsLink ? randomBytes(24).toString("base64url") : null,
       // Issued alongside the join token and never equal to it. This one has to
       // outlive the session, because a patient who closed the tab should still
@@ -197,6 +199,9 @@ export async function createRadarSession(input: {
       guestEmail: input.guestEmail?.trim().toLowerCase() || null,
       modality: "video",
       status: "scheduled",
+      // Every session created here came off the live map, priced or not — the
+      // distinction a free radar session and a free link both lose otherwise.
+      sessionType: "radar",
       joinToken: randomBytes(24).toString("base64url"),
       feedbackToken: randomBytes(24).toString("base64url"),
       // Short: this is a session starting now, not an invitation for later.

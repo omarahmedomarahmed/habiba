@@ -225,6 +225,13 @@
       "when": 1789300000000,
       "tag": "0031_acoustic_descriptors",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789400000000,
+      "tag": "0032_money_model",
+      "breakpoints": true
     }
   ]
 }

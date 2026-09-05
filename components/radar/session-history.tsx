@@ -103,19 +103,47 @@ export function SessionHistory({ rows }: { rows: RadarSessionRow[] }) {
             {row.paid ? (
               <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
                 <div className="flex gap-1.5">
-                  <dt>Patient paid</dt>
+                  <dt>Session price</dt>
                   <dd className="tabular-nums text-slate-700">
                     {formatUsd(row.paid.grossCents)}
                   </dd>
                 </div>
+                {row.paid.vatCents > 0 ? (
+                  /*
+                    VAT is shown to the clinician and marked as not theirs.
+                    §3: the patient pays it on top, and a refund returns our cut
+                    but never the tax. A clinician who sees only "patient paid"
+                    and "you received" will read the gap as our fee, and be
+                    wrong by the size of the tax.
+                  */
+                  <div className="flex gap-1.5">
+                    <dt>
+                      Patient also paid VAT (
+                      {(row.paid.vatBps / 100).toFixed(row.paid.vatBps % 100 === 0 ? 0 : 1)}%)
+                    </dt>
+                    <dd className="tabular-nums text-slate-700">
+                      {formatUsd(row.paid.vatCents)}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex gap-1.5">
-                  <dt>24Therapy took</dt>
+                  <dt>
+                    24Therapy took
+                    {row.paid.feeBps > 0 ? ` (${(row.paid.feeBps / 100).toFixed(0)}%)` : ""}
+                  </dt>
                   <dd className="tabular-nums text-slate-700">{formatUsd(row.paid.feeCents)}</dd>
                 </div>
                 <div className="flex gap-1.5">
                   <dt>You received</dt>
                   <dd className="tabular-nums text-slate-700">{formatUsd(row.paid.netCents)}</dd>
                 </div>
+                {row.paid.presentedCurrency && row.paid.presentedCurrency !== row.paid.currency ? (
+                  <div className="basis-full text-slate-400">
+                    Paid in {row.paid.presentedCurrency.toUpperCase()}
+                    {row.paid.payerCountry ? ` from ${row.paid.payerCountry}` : ""} at the rate
+                    quoted that hour.
+                  </div>
+                ) : null}
               </dl>
             ) : null}
 

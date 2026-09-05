@@ -350,3 +350,38 @@ export function sessionMoney(input: {
     therapistNetCents: gross - cut,
   };
 }
+
+/**
+ * Convert an amount at a quoted rate.
+ *
+ * Pure, and separate from `lib/billing/fx.ts` so the arithmetic can be tested
+ * without a database. Rounds half-up to a whole minor unit: the patient's
+ * currency has no fractional piastres either.
+ */
+export function convertAtRate(amountCents: number, rateMicro: number): number {
+  if (amountCents <= 0 || rateMicro <= 0) return 0;
+  return Math.round((amountCents * rateMicro) / 1_000_000);
+}
+
+/**
+ * What the patient sees, in their own currency, from what the therapist charges.
+ *
+ * The order of operations is the part worth pinning down, and it follows §3:
+ * VAT is computed on the settlement amount and *then* the total is converted —
+ * not converted and then taxed. Both give nearly the same number and only one
+ * of them is defensible to a tax authority, which cares about the amount in the
+ * currency the invoice is denominated in.
+ */
+export function presentedTotal(input: {
+  grossCents: number;
+  vatBps: number;
+  rateMicro: number;
+}): { settlementTotalCents: number; presentedTotalCents: number; vatCents: number } {
+  const vat = vatOn(input.grossCents, input.vatBps);
+  const settlementTotal = Math.max(0, input.grossCents) + vat;
+  return {
+    settlementTotalCents: settlementTotal,
+    presentedTotalCents: convertAtRate(settlementTotal, input.rateMicro),
+    vatCents: vat,
+  };
+}

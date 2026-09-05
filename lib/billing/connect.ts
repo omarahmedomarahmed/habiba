@@ -13,7 +13,8 @@ import {
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { getSettings, platformFeeOn } from "@/lib/settings";
+import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
+import { quoteFor } from "./fx";
 import { getStripe } from "./stripe";
 
 /**
@@ -349,6 +350,15 @@ export async function createSessionPaymentCheckout(opts: {
   token: string;
   payerName: string;
   payerEmail?: string | null;
+  /**
+   * The patient's country, chosen on `/pay/[token]` before this is called.
+   *
+   * Required, and there is no default. VAT is a fact about *their*
+   * jurisdiction, not ours and not the therapist's, so guessing it means either
+   * under-collecting a tax somebody eventually owes or charging a patient for
+   * one that does not exist. An unconfigured country is refused below.
+   */
+  payerCountry: string;
 }): Promise<SessionCheckout> {
   const client = getStripe();
   if (!client) return { error: "Payments are not configured on this deployment." };
@@ -411,8 +421,42 @@ export async function createSessionPaymentCheckout(opts: {
 
   const capture = "destination" as const;
 
+  /*
+   * The money, assembled once, from settings and from the patient's country.
+   *
+   * Every figure is read here and written onto the payment row below, so the
+   * receipt, the refund and any later audit all read the same numbers — rather
+   * than each re-deriving them from settings that an admin may have changed in
+   * between.
+   */
+  const settings = await getSettings();
+  const country = await getCountrySettings(opts.payerCountry);
+  if (!country) {
+    return {
+      error:
+        "We cannot take payments in that country yet. Ask your therapist for a free link — the session itself works exactly the same.",
+    };
+  }
+
   const gross = row.session.priceCents;
-  const cut = platformFeeOn(gross, (await getSettings()).session.platformFeeBps);
+  const feeBps = settings.session.platformFeeBps;
+  const money = sessionMoney({ grossCents: gross, feeBps, vatBps: country.vatBps });
+
+  /*
+   * The rate, quoted once and stored.
+   *
+   * `quoteFor` reuses a live quote, so the number on the pay page is provably
+   * the number this charge is created with (§3/4.4, one hour). A pair we cannot
+   * price is refused rather than settled at a guess.
+   */
+  const quote = await quoteFor("usd", country.currency);
+  if (!quote) {
+    return { error: "We cannot price this session in your currency yet." };
+  }
+
+  const presentedTotalCents = convertAtRate(money.patientTotalCents, quote.rateMicro);
+
+  const cut = money.platformCutCents;
   const net = gross - cut;
 
   // Settle the therapist's own outstanding 24Therapy bills out of this charge,
@@ -446,12 +490,25 @@ export async function createSessionPaymentCheckout(opts: {
     const checkout = await client.checkout.sessions.create({
       mode: "payment",
       customer_email: opts.payerEmail?.trim() || undefined,
+      /*
+       * Two line items, never one. §3: the split is shown to the patient with
+       * reasons, "never one number".
+       *
+       * A patient who sees a single total cannot tell what the tax was, and a
+       * receipt that hides a 14% VAT line is the kind of thing people discover
+       * on a statement and stop trusting. Stripe renders these separately on
+       * the checkout page and on its own receipt, which is why they are line
+       * items rather than a description.
+       *
+       * Both are in the *presented* currency, converted at the stored quote —
+       * so the number here is provably the number the pay page showed.
+       */
       line_items: [
         {
           quantity: 1,
           price_data: {
-            currency: "usd",
-            unit_amount: gross,
+            currency: country.currency,
+            unit_amount: convertAtRate(gross, quote.rateMicro),
             product_data: {
               name: "Therapy session",
               description: `With ${[row.therapistFirstName, row.therapistLastName]
@@ -460,6 +517,21 @@ export async function createSessionPaymentCheckout(opts: {
             },
           },
         },
+        ...(money.vatCents > 0
+          ? [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: country.currency,
+                  unit_amount: convertAtRate(money.vatCents, quote.rateMicro),
+                  product_data: {
+                    name: `VAT (${(country.vatBps / 100).toFixed(country.vatBps % 100 === 0 ? 0 : 1)}%)`,
+                    description: `Charged in ${country.name} and paid to the tax authority there.`,
+                  },
+                },
+              },
+            ]
+          : []),
       ],
       payment_intent_data:
         capture === "destination"
@@ -506,7 +578,16 @@ export async function createSessionPaymentCheckout(opts: {
         payerName: opts.payerName.slice(0, 80),
         payerEmail: opts.payerEmail?.trim().toLowerCase() || null,
         grossCents: gross,
+        currency: "usd",
+        vatCents: money.vatCents,
+        vatBps: country.vatBps,
+        payerCountry: country.code,
+        presentedCents: presentedTotalCents,
+        presentedCurrency: country.currency,
+        fxRateMicro: quote.rateMicro,
+        fxQuotedAt: quote.quotedAt,
         platformFeeCents: applicationFee,
+        platformFeeBps: feeBps,
         settledInvoiceCents: settlement,
         therapistNetCents: gross - applicationFee,
         capture,
@@ -521,7 +602,16 @@ export async function createSessionPaymentCheckout(opts: {
           payerName: opts.payerName.slice(0, 80),
           payerEmail: opts.payerEmail?.trim().toLowerCase() || null,
           grossCents: gross,
+          currency: "usd",
+          vatCents: money.vatCents,
+          vatBps: country.vatBps,
+          payerCountry: country.code,
+          presentedCents: presentedTotalCents,
+          presentedCurrency: country.currency,
+          fxRateMicro: quote.rateMicro,
+          fxQuotedAt: quote.quotedAt,
           platformFeeCents: applicationFee,
+          platformFeeBps: feeBps,
           settledInvoiceCents: settlement,
           therapistNetCents: gross - applicationFee,
           capture,

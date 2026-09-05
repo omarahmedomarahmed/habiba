@@ -2,7 +2,6 @@
 
 import { and, eq } from "drizzle-orm";
 
-import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import {
   CLAIM_MINUTES,
   RESERVATION_SECONDS,
@@ -264,24 +263,21 @@ export async function bookFromRadar(
       return { joinUrl };
     }
 
-    const checkout = await createSessionPaymentCheckout({
-      sessionId: session.id,
-      token: session.joinToken!,
-      payerName: name,
-      payerEmail: email || null,
-    });
-
-    if (checkout.error || !checkout.url) {
-      // Never strand a clinician as "pending" because a payment could not be
-      // started — that would take them off the radar for ten minutes for
-      // nothing. The caller's hold goes back too, so they can immediately try
-      // someone else.
-      await releaseClaim(session.id);
-      await releaseHold(await callerKey("radar:hold"));
-      return { error: checkout.error ?? "Could not start the payment." };
-    }
-
-    return { payUrl: checkout.url };
+    /*
+     * To the pay page, not to Stripe.
+     *
+     * Sprint 4.2 puts a step in front of the card form: the patient chooses the
+     * country they are paying from, and only then do we know their currency,
+     * their VAT and the rate. Handing them straight to Stripe would mean
+     * charging in dollars with no tax line — which is what happened before, and
+     * is wrong everywhere outside the United States.
+     *
+     * The claim is *not* released here. The clinician stays held while the
+     * patient picks a country, exactly as they were held while the patient
+     * filled in a card, and the existing expiry sweep releases them if the
+     * patient walks away.
+     */
+    return { payUrl: `${env.appUrl}/pay/${session.joinToken}` };
   } catch (error) {
     await releaseClaim(session.id);
     await releaseHold(await callerKey("radar:hold"));

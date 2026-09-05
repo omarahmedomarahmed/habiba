@@ -1020,8 +1020,28 @@ export type RadarSessionRow = {
   /** The asking price, frozen at creation. Zero for a free link. */
   priceCents: number;
   paymentStatus: string;
-  /** What the patient actually paid, and what it was split into. Null if unpaid. */
-  paid: { grossCents: number; feeCents: number; netCents: number; at: Date | null } | null;
+  /**
+   * What the patient actually paid, and what it was split into. Null if unpaid.
+   *
+   * Carries the currency and the VAT as they were recorded on the payment, not
+   * as they would be recomputed today — see the note on this function. `vat` is
+   * shown to the clinician so they can see it was charged and that it was not
+   * theirs; §3 is explicit that VAT is the patient's, on top, and is never
+   * refunded.
+   */
+  paid: {
+    grossCents: number;
+    feeCents: number;
+    feeBps: number;
+    netCents: number;
+    vatCents: number;
+    vatBps: number;
+    currency: string;
+    presentedCents: number | null;
+    presentedCurrency: string | null;
+    payerCountry: string | null;
+    at: Date | null;
+  } | null;
   /** The clinician's own bill for this session, as raised on the day. */
   ownBill: { amountCents: number; status: string; description: string } | null;
   /** Copilot questions the clinician asked during this session. */
@@ -1049,7 +1069,14 @@ export async function radarSessionHistory(
 
       payGross: sessionPayments.grossCents,
       payFee: sessionPayments.platformFeeCents,
+      payFeeBps: sessionPayments.platformFeeBps,
       payNet: sessionPayments.therapistNetCents,
+      payVat: sessionPayments.vatCents,
+      payVatBps: sessionPayments.vatBps,
+      payCurrency: sessionPayments.currency,
+      payPresented: sessionPayments.presentedCents,
+      payPresentedCurrency: sessionPayments.presentedCurrency,
+      payCountry: sessionPayments.payerCountry,
       payStatus: sessionPayments.status,
       paidAt: sessionPayments.paidAt,
 
@@ -1110,7 +1137,14 @@ export async function radarSessionHistory(
         ? {
             grossCents: r.payGross,
             feeCents: r.payFee ?? 0,
+            feeBps: r.payFeeBps ?? 0,
             netCents: r.payNet ?? 0,
+            vatCents: r.payVat ?? 0,
+            vatBps: r.payVatBps ?? 0,
+            currency: r.payCurrency ?? "usd",
+            presentedCents: r.payPresented ?? null,
+            presentedCurrency: r.payPresentedCurrency ?? null,
+            payerCountry: r.payCountry ?? null,
             at: r.paidAt ?? null,
           }
         : null,

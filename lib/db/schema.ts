@@ -356,6 +356,24 @@ export const sessions = pgTable(
     guestEmail: text("guest_email"),
 
     modality: text("modality").$type<Modality>().notNull().default("in_person"),
+
+    /*
+     * How this session came to exist. PLAN.md 4.6.
+     *
+     * Distinct from `modality` (video or in person) and from `price_cents`
+     * (what it cost), because neither answers the question the business
+     * actually asks: where did this session come from? A free link and a $0
+     * radar session both have `price_cents = 0` and are completely different
+     * events — one is a clinician inviting somebody they already know, the
+     * other is a stranger in crisis finding them on a map.
+     *
+     * Backfilled on the migration from what *is* derivable, and `direct` is the
+     * honest answer for a row where nothing distinguishes the two.
+     */
+    sessionType: text("session_type")
+      .$type<SessionType>()
+      .notNull()
+      .default("direct"),
     status: text("status").$type<SessionStatus>().notNull().default("scheduled"),
 
     /** Patient join link. Random, expiring, revocable. */
@@ -1306,6 +1324,17 @@ export const invoices = pgTable(
   ],
 );
 
+/**
+ * Where a session came from.
+ *
+ *   direct     a link the clinician sent, free to join
+ *   paid_link  a link the clinician sent, with a price on it
+ *   radar      a stranger found them on the live map
+ *   scheduled  booked ahead against an availability slot (sprint 11)
+ */
+export const SESSION_TYPES = ["direct", "paid_link", "radar", "scheduled"] as const;
+export type SessionType = (typeof SESSION_TYPES)[number];
+
 export const PAYMENT_STATUSES = ["pending", "paid", "refunded", "failed"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
@@ -1338,9 +1367,62 @@ export const sessionPayments = pgTable(
     payerName: text("payer_name"),
     payerEmail: text("payer_email"),
 
+    /*
+     * The money, in two currencies, and the difference matters.
+     *
+     * ## Settlement vs presentment
+     *
+     * `grossCents` and everything derived from it stay in the **settlement**
+     * currency — what the therapist's price is denominated in, what Stripe
+     * charges, what the ledger balances in. `presented*` is what the patient
+     * actually saw and paid in their own currency.
+     *
+     * Keeping both is not redundancy. A refund is issued in the settlement
+     * currency; a dispute is argued about the presented one; and the rate
+     * between them was a fact about one hour on one day. Re-deriving either
+     * from the other later means re-deriving a rate that has since moved.
+     *
+     * Every pre-sprint-4 row is `usd` with no VAT, which is exactly what those
+     * payments were.
+     */
     grossCents: integer("gross_cents").notNull(),
+    /** ISO 4217, lowercase. The currency the therapist is paid in. */
+    currency: text("currency").notNull().default("usd"),
+
+    /*
+     * VAT, which the patient pays **on top** and which is never ours.
+     *
+     * §3: "the patient pays it, on top of everything", and on a refund "our cut
+     * is refunded, VAT is not" — because it was remitted to a government that
+     * is not giving it back because a session was cancelled. Storing the rate
+     * beside the amount means an audit can check the arithmetic without knowing
+     * what `country_settings` said that month.
+     */
+    vatCents: integer("vat_cents").notNull().default(0),
+    /** The rate applied, in basis points. Egypt is 1400. */
+    vatBps: integer("vat_bps").notNull().default(0),
+    /** The country whose VAT rule was applied — the patient's, not ours. */
+    payerCountry: text("payer_country"),
+
+    /** What the patient was shown, in their own currency. Null when the same. */
+    presentedCents: integer("presented_cents"),
+    presentedCurrency: text("presented_currency"),
+    /**
+     * Units of presented currency per unit of settlement currency, x1e6.
+     *
+     * An integer rather than a float, for the reason every other amount here is
+     * an integer: a rate that rounds differently in two places produces two
+     * different totals for one payment. 1e6 holds enough precision for a
+     * currency like EGP at ~48/USD without ever needing a decimal.
+     */
+    fxRateMicro: integer("fx_rate_micro"),
+    /** When the rate was quoted. §3/4.4: a quote is good for one hour. */
+    fxQuotedAt: timestamp("fx_quoted_at", { withTimezone: true }),
+
     /** Our application fee: the platform cut plus anything settled below. */
     platformFeeCents: integer("platform_fee_cents").notNull(),
+    /** The cut rate at the moment of payment, in basis points. */
+    platformFeeBps: integer("platform_fee_bps").notNull().default(0),
     /** Of the fee, the part that cleared the therapist's own 24Therapy bills. */
     settledInvoiceCents: integer("settled_invoice_cents").notNull().default(0),
     /** Gross minus the application fee — what reaches the therapist's account. */
@@ -1905,3 +1987,44 @@ export const sessionCredits = pgTable(
 );
 
 export type SessionCredit = typeof sessionCredits.$inferSelect;
+
+/* --------------------------------------------------------------- fx quotes -- */
+
+/**
+ * An exchange rate, frozen for an hour.
+ *
+ * PLAN.md 4.4. A patient who is shown "1,440 EGP" and then charged a different
+ * number because the market moved between the page and the card form has been
+ * quoted a price we did not honour — and in a product where the patient is
+ * often in crisis, that is not a rounding complaint.
+ *
+ * So a quote is a row: a pair, a rate, and an expiry. `getQuote` reuses a live
+ * one rather than asking again, which also means the rate a patient sees on the
+ * pay page is provably the rate their payment is created with — the payment
+ * stores the quote's own figures rather than re-fetching.
+ *
+ * Rates are not money and are not owed to anyone, so a stale row is garbage
+ * rather than history: nothing here is append-only and old rows can be deleted
+ * freely.
+ */
+export const fxQuotes = pgTable(
+  "fx_quotes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** ISO 4217 lowercase, e.g. "usd". */
+    baseCurrency: text("base_currency").notNull(),
+    quoteCurrency: text("quote_currency").notNull(),
+    /** Units of quote per unit of base, x1e6. See `fx_rate_micro`. */
+    rateMicro: integer("rate_micro").notNull(),
+    /** Where it came from, so a wrong rate can be traced to a provider. */
+    source: text("source").notNull().default("static"),
+    quotedAt: timestamp("quoted_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    // The lookup: the newest live quote for a pair.
+    index("fx_quotes_pair_idx").on(t.baseCurrency, t.quoteCurrency, t.expiresAt),
+  ],
+);
+
+export type FxQuote = typeof fxQuotes.$inferSelect;

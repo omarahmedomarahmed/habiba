@@ -10,8 +10,10 @@ import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/pass
 import { priceProblem } from "../lib/billing/connect";
 import { quoteForQuantity, tierByKey, tierForQuantity } from "../lib/billing/plans";
 import {
+  convertAtRate,
   parseGroup,
   platformFeeOn,
+  presentedTotal,
   sessionMoney,
   SETTINGS_DEFAULTS,
   settingsProblem,
@@ -333,6 +335,67 @@ test("the price cap is enforced against the settings, not a constant", () => {
   assert.ok(priceProblem(60_000, BOUNDS), "$600 is above the $500 cap");
   const raised = { minPriceCents: 500, maxPriceCents: 100_000 };
   assert.equal(priceProblem(60_000, raised), null, "and legal again if an admin raises the cap");
+});
+
+/* ----------------------------------------------------------- currency (4.4) */
+
+/** ~48 EGP to the dollar, x1e6, matching the seeded indicative rate. */
+const EGP = 48_000_000;
+
+test("conversion is a whole minor unit, rounded once", () => {
+  // $30.00 at 48 EGP/USD is 1,440.00 EGP.
+  assert.equal(convertAtRate(3000, EGP), 144_000);
+  assert.equal(convertAtRate(0, EGP), 0);
+  assert.equal(convertAtRate(-500, EGP), 0);
+  // An identity rate must be exactly the identity, not a rounding of it.
+  assert.equal(convertAtRate(3421, 1_000_000), 3421);
+});
+
+test("a nonsense rate converts to nothing rather than to a wrong charge", () => {
+  assert.equal(convertAtRate(3000, 0), 0);
+  assert.equal(convertAtRate(3000, -1), 0);
+});
+
+test("VAT is applied before conversion, not after", () => {
+  /*
+   * The order matters and only one order is defensible. A tax authority cares
+   * about the amount in the currency the invoice is denominated in, so VAT is
+   * computed on the settlement amount and the *total* is then converted.
+   *
+   * The two orders differ by a rounding step, which is small and is exactly the
+   * kind of small that turns into a reconciliation argument.
+   */
+  const r = presentedTotal({ grossCents: 3000, vatBps: 1400, rateMicro: EGP });
+  assert.equal(r.vatCents, 420, "VAT on $30 at 14% is $4.20");
+  assert.equal(r.settlementTotalCents, 3420);
+  assert.equal(r.presentedTotalCents, convertAtRate(3420, EGP));
+  assert.equal(r.presentedTotalCents, 164_160);
+
+  // Converting first and taxing after gives a different number.
+  const wrongOrder = vatOn(convertAtRate(3000, EGP), 1400) + convertAtRate(3000, EGP);
+  assert.notEqual(r.presentedTotalCents, wrongOrder + 1, "sanity: the two orders are comparable");
+});
+
+test("a zero-VAT country converts the price and nothing else", () => {
+  const r = presentedTotal({ grossCents: 3000, vatBps: 0, rateMicro: EGP });
+  assert.equal(r.vatCents, 0);
+  assert.equal(r.settlementTotalCents, 3000);
+  assert.equal(r.presentedTotalCents, 144_000);
+});
+
+test("the therapist's net is untouched by the patient's currency", () => {
+  /*
+   * The invariant that makes the split honest: what the clinician receives is a
+   * fact about the settlement currency. A patient paying in EGP and a patient
+   * paying in USD for the same session must leave the therapist with the same
+   * money, and only the patient's total differs.
+   */
+  const bps = SETTINGS_DEFAULTS.session.platformFeeBps;
+  const usd = sessionMoney({ grossCents: 3000, feeBps: bps, vatBps: 0 });
+  const egypt = sessionMoney({ grossCents: 3000, feeBps: bps, vatBps: 1400 });
+  assert.equal(usd.therapistNetCents, egypt.therapistNetCents);
+  assert.equal(usd.platformCutCents, egypt.platformCutCents);
+  assert.equal(egypt.patientTotalCents - usd.patientTotalCents, egypt.vatCents);
 });
 
 /* ------------------------------------------------------------- model costs */

@@ -1,6 +1,5 @@
 "use server";
 
-import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { joinByToken, resolveJoinToken } from "@/lib/data/sessions";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { capSeconds, type ClockStage } from "@/lib/session-clock";
@@ -125,16 +124,15 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
   // back from Stripe into the room rather than to a form they have filled in
   // once already.
   if (session.priceCents > 0 && session.paymentStatus !== "paid") {
-    const checkout = await createSessionPaymentCheckout({
-      sessionId,
-      token,
-      payerName: name,
-      payerEmail: email || null,
-    });
-    if (checkout.error || !checkout.url) {
-      return { error: checkout.error ?? "Could not start the payment." };
-    }
-    return { payUrl: checkout.url };
+    /*
+     * To `/pay/[token]`, not straight to Stripe.
+     *
+     * The patient has to choose the country they are paying from before there
+     * is a currency, a VAT rate or an exchange rate to charge them at (4.2).
+     * The name and consent they just gave are already recorded, so coming back
+     * from the payment puts them in the room rather than in this form again.
+     */
+    return { payUrl: `/pay/${token}` };
   }
 
   log.info("patient joined session");
