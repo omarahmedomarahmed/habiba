@@ -38,12 +38,30 @@ export const CMS_TAG = "cms";
  * `revalidate: false` means it never expires on a timer. The only thing that
  * refreshes it is `revalidateTag(CMS_TAG)`, which is what publishing does —
  * so a marketing page view stops waking the database at all.
+ *
+ * `CACHE_VERSION` is the escape hatch for the failure that trade allows. The
+ * data cache lives outside any one deployment, so an entry written before a
+ * deploy is still served after it: when the pricing copy was rewritten in the
+ * database (C60), the corrected row sat there unread while the site went on
+ * quoting "$6" and "Unlimited" through two deploys. Bumping this retires every
+ * entry at once by changing the key, which is the only lever that does not
+ * require the production `CRON_SECRET` or a click in the admin editor.
+ *
+ * Bump it whenever content is written by anything other than the editor —
+ * a migration, a script, a direct SQL fix — and note the reason.
+ *
+ *   v2 — 2026-09-05, C60: pricing copy corrected in the row, not the editor.
  */
+const CACHE_VERSION = "v2";
+
 function cached<Args extends unknown[], Result>(
   keyParts: string[],
   fn: (...args: Args) => Promise<Result>,
 ) {
-  return unstable_cache(fn, keyParts, { tags: [CMS_TAG], revalidate: false });
+  return unstable_cache(fn, [...keyParts, CACHE_VERSION], {
+    tags: [CMS_TAG],
+    revalidate: false,
+  });
 }
 
 export type PublicPage = {
