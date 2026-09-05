@@ -105,7 +105,73 @@ export function planBatches(
   return out;
 }
 
-const SYSTEM = `You are labelling the turns of a recorded therapy session.
+/**
+ * Does this line contain a turn boundary — two speakers in one chunk?
+ *
+ * ## Why a wrong label is worse than no label
+ *
+ * The old 8-second cutter sliced wherever the clock landed, so a chunk
+ * routinely holds the end of one person's turn and the start of the other's.
+ * The prompt used to tell the model to "label the line by whoever speaks most
+ * of it", which sounds reasonable and is not: it takes a line that is half
+ * therapist and half patient and writes a single confident answer into a
+ * clinical record.
+ *
+ * Measured on this database, one of those lines reads:
+ *
+ *   "What made you decide to come here today? Um, well, as I told you, I wanna
+ *    kill myself."
+ *
+ * labelled `patient`. Half of that is right. The half that is wrong attaches a
+ * therapist's question to a patient's crisis disclosure — and a clinician
+ * reading the note acts on the label, not on the raw text. `unknown` is honest;
+ * a guess manufactures certainty.
+ *
+ * ## The signal, and why it is this one
+ *
+ * An interior `?` or `؟` with words after it. In a therapy transcript a
+ * question is overwhelmingly the clinician, and text continuing past it is
+ * overwhelmingly the other person answering — so this is high precision.
+ *
+ * Interior `.` or `!` was measured and rejected: it fires on 60 of 151 labelled
+ * segments versus 22 for the question mark, because one speaker saying two
+ * sentences in a chunk is completely ordinary. Trading 38 correct labels for a
+ * handful of extra catches is the wrong trade; the model's own judgement covers
+ * the rest, and that costs nothing extra.
+ *
+ * Pure and exported so the rule is a test rather than a hope.
+ */
+export function straddlesTurnBoundary(text: string): boolean {
+  const trimmed = text.trim();
+  const lastQuestion = Math.max(trimmed.lastIndexOf("?"), trimmed.lastIndexOf("؟"));
+  if (lastQuestion === -1) return false;
+
+  /*
+   * Everything after the *last* question mark, not the first.
+   *
+   * The first draft of this used the first one, and hand-checking all 22 lines
+   * it flagged found 3 false positives with an identical shape: one clinician
+   * asking a run of questions in a single breath.
+   *
+   *   "Can you tell me more about what do you do for a living? Where do you
+   *    live? Are you married?"
+   *
+   * That is one speaker, and refusing to label it throws away a correct answer.
+   * Measuring from the last question mark separates the two cases exactly: a
+   * run of questions has nothing after the final one, while a question followed
+   * by somebody else's reply does.
+   */
+  const tail = trimmed.slice(lastQuestion + 1);
+  return /[\p{L}\p{N}]{2}/u.test(tail);
+}
+
+const SYSTEM = `RULE THAT OVERRIDES EVERYTHING BELOW: if a line contains two
+speakers — one person finishing and the other starting inside the same line —
+label it "unknown". Do not pick whoever says most of it. A half-correct label is
+worse than no label, because it is written into a clinical record as if it were
+certain. When in doubt between two speakers, "unknown" is the answer.
+
+You are labelling the turns of a recorded therapy session.
 
 The transcript comes from one microphone that heard both people, so the turns
 are not marked. Decide, for each numbered line, whether it was spoken by the
@@ -117,7 +183,8 @@ How to tell them apart:
 - The patient describes their own experience, answers questions, and discloses.
 - A single line may contain the end of one speaker's turn and the start of the
   other's, because the recording was cut into fixed chunks rather than at turn
-  boundaries. Label the line by whoever speaks most of it.
+  boundaries. **Label that line "unknown"** — see the rule at the top. A line
+  containing a question and then its answer is the commonest example.
 - If a line genuinely could be either, use "unknown". Do not guess to be tidy.
 
 Reply with JSON only: {"turns":[{"i":0,"speaker":"therapist"}, ...]}
@@ -128,6 +195,14 @@ type Turn = { i: number; speaker: "therapist" | "patient" | "unknown" };
 export type DiariseResult = {
   /** Segments whose speaker this changed. Zero is a normal outcome. */
   updated: number;
+  /**
+   * Lines left `unknown` because they contain two speakers.
+   *
+   * Reported rather than hidden: it is the number that says how much of a
+   * transcript the old cutter made unattributable, and it should fall as
+   * pause-aligned recordings replace clock-aligned ones.
+   */
+  straddles?: number;
   /** Why it did nothing, when it did nothing. */
   skipped?: "two-track" | "too-short" | "no-transcript" | "unavailable";
 };
@@ -208,6 +283,8 @@ export async function diariseSession(opts: {
   /** What each row was decided to be, keyed by its index in `rows`. */
   const decided = new Map<number, "therapist" | "patient">();
   let failedBatches = 0;
+  /** Lines the model labelled that were refused for containing two speakers. */
+  let straddles = 0;
 
   for (const batch of batches) {
     /*
@@ -282,6 +359,24 @@ export async function diariseSession(opts: {
       // dropped, which is what makes the context prefix safe.
       if (!Number.isInteger(turn.i) || turn.i < 0 || turn.i >= batch.rows.length) continue;
       if (turn.speaker !== "therapist" && turn.speaker !== "patient") continue;
+
+      /*
+       * The deterministic floor, applied after the model has answered.
+       *
+       * The prompt asks for `unknown` on a straddling line and puts that rule
+       * above the schema (H2 — an instruction below the schema loses to the
+       * weight of the context above it). This is the half that does not depend
+       * on the model having listened. A line with a question and an answer in
+       * it is left `unknown` whatever came back.
+       *
+       * Deliberately not applied to the *context* prefix, which is not being
+       * relabelled anyway.
+       */
+      if (straddlesTurnBoundary(batch.rows[turn.i]!.text)) {
+        straddles += 1;
+        continue;
+      }
+
       decided.set(batch.offset + turn.i, turn.speaker);
     }
   }
@@ -339,7 +434,8 @@ export async function diariseSession(opts: {
     segments: rows.length,
     batches: batches.length,
     failedBatches,
+    straddles,
     updated,
   });
-  return { updated };
+  return { updated, straddles };
 }

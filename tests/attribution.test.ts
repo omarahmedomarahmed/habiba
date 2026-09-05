@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { countWords, pauseBeforeMs, wordsPerMinute } from "../lib/ai/descriptors";
-import { planBatches } from "../lib/ai/diarise";
+import { planBatches, straddlesTurnBoundary } from "../lib/ai/diarise";
 import { shouldCut } from "../lib/audio/recorder";
 
 /**
@@ -60,6 +60,85 @@ test("the batch ceiling bounds the work rather than looping forever", () => {
   assert.ok(plan.length <= 40, `${plan.length} batches`);
   // And it is honest about stopping short — the caller logs the shortfall.
   assert.ok(plan.reduce((n, b) => n + b.length, 0) < 100_000);
+});
+
+/* ------------------------------------------------- C35: never label a straddle -- */
+
+test("a question followed by its answer is refused, not guessed at", () => {
+  /*
+   * The measured example, verbatim from the branch database. It was labelled
+   * `patient` — half right, and the half it got wrong welded a therapist's
+   * question onto a crisis disclosure.
+   */
+  assert.equal(
+    straddlesTurnBoundary(
+      "What made you decide to come here today? Um, well, as I told you, I wanna kill myself.",
+    ),
+    true,
+  );
+});
+
+test("the rule works in Arabic, which is most of this product", () => {
+  assert.equal(
+    straddlesTurnBoundary("إيه الإحساس اللي أنت بتحسي بيه؟ مضونة مش بعمل حاجة يعني"),
+    true,
+  );
+  assert.equal(
+    straddlesTurnBoundary("مظبوط مظبوط احكيلي عاملة إيه؟ الدنيا تمام أنا في إسكندرية"),
+    true,
+  );
+});
+
+test("a line that is only a question is labelled normally", () => {
+  // The clinician asking and the chunk ending there is the *good* case — it is
+  // one speaker, and refusing it would throw away a correct label.
+  assert.equal(straddlesTurnBoundary("Can you name your emotions?"), false);
+  assert.equal(straddlesTurnBoundary("كملي. What feelings come up for you?"), false);
+  assert.equal(straddlesTurnBoundary("How did that feel?  "), false);
+  // Trailing punctuation after the question mark is still the end of the line.
+  assert.equal(straddlesTurnBoundary("Are you sure?)"), false);
+});
+
+test("one clinician asking a run of questions is not a straddle", () => {
+  /*
+   * Found by hand-checking every line the first version of this rule flagged:
+   * 3 of 22 were a single clinician asking several questions in one breath.
+   * Measuring from the *last* question mark rather than the first separates
+   * them — a run of questions has nothing after the final one.
+   */
+  assert.equal(
+    straddlesTurnBoundary(
+      "Can you tell me more about what do you do for a living? Where do you live? Are you married?",
+    ),
+    false,
+  );
+  assert.equal(
+    straddlesTurnBoundary(
+      "Is it the marriage? Is it the work? What is the one thing that would make you feel better?",
+    ),
+    false,
+  );
+});
+
+test("one speaker saying several sentences is not a straddle", () => {
+  /*
+   * Why interior `.` was measured and rejected as a signal: it fires on 60 of
+   * 151 labelled segments against 22 for the question mark, because a person
+   * saying two sentences in eight seconds is completely ordinary. Trading 38
+   * correct labels for a few extra catches is the wrong trade.
+   */
+  assert.equal(
+    straddlesTurnBoundary("I don't know. Maybe a little bit depressed. At the same time, I'm..."),
+    false,
+  );
+  assert.equal(straddlesTurnBoundary("آه والحياة لطيفة يعني الحمد لله."), false);
+});
+
+test("an empty or trivial line is never a straddle", () => {
+  assert.equal(straddlesTurnBoundary(""), false);
+  assert.equal(straddlesTurnBoundary("   "), false);
+  assert.equal(straddlesTurnBoundary("?"), false);
+  assert.equal(straddlesTurnBoundary("Mm-hm"), false);
 });
 
 /* ------------------------------------------------------------------- 3.2 -- */
