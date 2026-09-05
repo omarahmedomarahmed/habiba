@@ -239,6 +239,60 @@ const JOBS = {
    * reason at the top of this file — the expensive part is waking the database,
    * not the work.
    */
+  /**
+   * Appointment reminders. PLAN.md 11.7.
+   *
+   * One pass a day, covering the next 24 hours — which for a 03:00 job means
+   * everybody booked for tomorrow gets told this morning. A tighter window
+   * would need a tighter schedule, and the billing note at the top of this
+   * file is why that trade has not been made: the reminder is worth a day's
+   * notice, not an hour's precision.
+   *
+   * 🔴 The message is a time, a name and a link. No clinical content — it lands
+   * in an inbox or a WhatsApp backup, and §6's rule about what a patient sees
+   * does not stop at our own screens.
+   */
+  async reminders() {
+    const { bookingsNeedingReminder, markReminded } = await import("@/lib/data/scheduling");
+    const { notify } = await import("@/lib/notify");
+
+    const due = await bookingsNeedingReminder(24);
+    let sent = 0;
+    let unreachable = 0;
+
+    for (const booking of due) {
+      const therapist = [booking.therapistFirstName, booking.therapistLastName]
+        .filter(Boolean)
+        .join(" ");
+      const when = booking.startsAt.toISOString().replace("T", " ").slice(0, 16);
+
+      const delivery = await notify(
+        { email: booking.patientEmail, phone: booking.patientPhone },
+        {
+          kind: "booking.reminder",
+          subject: `Tomorrow: your session with ${therapist}`,
+          body: `A reminder that your session with ${therapist} is at ${when} UTC.\n\nIf you cannot make it, tell them as early as you can — the hour goes back on their calendar for somebody else.`,
+          link: booking.sessionId
+            ? { label: "Open your session", url: `${env.appUrl}/sessions/${booking.sessionId}` }
+            : null,
+          variables: [therapist, `${when} UTC`],
+        },
+      );
+
+      /*
+       * Marked whatever happened. A reminder that could not be delivered will
+       * not be delivered by trying again tomorrow either — the patient has no
+       * address — and re-sending on every run would turn one unreachable
+       * booking into a daily log entry forever.
+       */
+      await markReminded(booking.slotId);
+      if (delivery.sent) sent += 1;
+      else unreachable += 1;
+    }
+
+    return { remindersDue: due.length, remindersSent: sent, unreachable };
+  },
+
   async extract() {
     const { extractPending } = await import("@/lib/data/documents");
     const { done, failed } = await extractPending();

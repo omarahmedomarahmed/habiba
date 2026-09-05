@@ -7,13 +7,11 @@ import { SettingsForms } from "@/components/settings/settings-forms";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { getSettings } from "@/lib/settings";
-import {
-  accountBalance,
-  getConnectAccount,
-  refreshAccountStatus,
-} from "@/lib/billing/connect";
+import { accountBalance, getConnectAccount, refreshAccountStatus } from "@/lib/billing/connect";
 import { heldForTherapist } from "@/lib/billing/ledger";
 import { db } from "@/lib/db";
+import { AssistantPrefsSettings } from "@/components/assistant/prefs-settings";
+import { assistantPrefs } from "@/lib/ai/assistant";
 import { invoices, users } from "@/lib/db/schema";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
@@ -36,7 +34,7 @@ export default async function SettingsPage({
       ? await refreshAccountStatus(actor.userId)
       : await getConnectAccount(actor.userId);
 
-  const [[user], balance, [outstanding], settings] = await Promise.all([
+  const [[user], balance, [outstanding], settings, prefs] = await Promise.all([
     db.select().from(users).where(eq(users.id, actor.userId)).limit(1),
     accountBalance(actor.userId),
     db
@@ -44,10 +42,9 @@ export default async function SettingsPage({
         cents: sql<number>`COALESCE(SUM(${invoices.amountCents} - ${invoices.discountCents}), 0)::int`,
       })
       .from(invoices)
-      .where(
-        and(eq(invoices.organizationId, actor.organizationId), eq(invoices.status, "due")),
-      ),
+      .where(and(eq(invoices.organizationId, actor.organizationId), eq(invoices.status, "due"))),
     getSettings(),
+    assistantPrefs(actor.userId),
   ]);
 
   return (
@@ -71,6 +68,15 @@ export default async function SettingsPage({
             licenseState: user?.profile?.licenseState ?? "",
           }}
           isAdmin={actor.role === "super_admin"}
+        />
+
+        {/* 10.6's second half — the "editable later" that sprint 10 left as [~]. */}
+        <AssistantPrefsSettings
+          initial={{
+            language: prefs.language,
+            voice: prefs.voice,
+            voiceSpeed: prefs.voiceSpeed,
+          }}
         />
 
         <PayoutSettings

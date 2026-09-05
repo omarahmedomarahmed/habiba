@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PublicProfile } from "@/components/radar/public-profile";
+import { BookingCalendar } from "@/components/scheduling/booking-calendar";
+import { formatUsd } from "@/lib/billing/plans";
 import { publicProfile } from "@/lib/data/radar";
+import { openHours } from "@/lib/data/scheduling";
 import { fullName } from "@/lib/utils";
 
 /**
@@ -47,5 +50,25 @@ export default async function TherapistProfilePage({
   const profile = await publicProfile(id);
   if (!profile) notFound();
 
-  return <PublicProfile initial={profile} />;
+  /*
+   * 11.3 / 11.4 — the calendar sits under the profile, and it is the escape
+   * hatch too: somebody who is *not* in crisis should be able to book an hour
+   * rather than pressing the button that pulls a clinician out of their
+   * evening. The radar and the calendar answer two different needs and the
+   * page now offers both.
+   */
+  const slots = await openHours(id);
+
+  return (
+    <>
+      <PublicProfile initial={profile} />
+      <div className="mx-auto max-w-2xl px-4 pb-10 sm:px-6">
+        <BookingCalendar
+          slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString() }))}
+          therapistName={profile.firstName}
+          rateLabel={profile.rateCents > 0 ? formatUsd(profile.rateCents) : "Free"}
+        />
+      </div>
+    </>
+  );
 }

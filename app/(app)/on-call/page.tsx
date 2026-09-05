@@ -4,11 +4,13 @@ import { eq } from "drizzle-orm";
 
 import { FeedbackCard } from "@/components/radar/feedback-card";
 import { PracticeForm } from "@/components/radar/practice-form";
+import { AvailabilityEditor } from "@/components/scheduling/availability-editor";
 import { SessionHistory } from "@/components/radar/session-history";
 import { TherapistConsole } from "@/components/radar/therapist-console";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { ensureRadarProfile, radarSessionHistory } from "@/lib/data/radar";
+import { myHours } from "@/lib/data/scheduling";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { feedbackForTherapist } from "@/lib/data/feedback";
@@ -20,8 +22,16 @@ export const dynamic = "force-dynamic";
 export default async function RadarConsolePage() {
   const actor = await requireUser();
 
-  const [profile, [me], countryOptions, languageOptions, specialtyOptions, feedback, history] =
-    await Promise.all([
+  const [
+    profile,
+    [me],
+    countryOptions,
+    languageOptions,
+    specialtyOptions,
+    feedback,
+    history,
+    slots,
+  ] = await Promise.all([
     ensureRadarProfile(actor),
     db
       .select({
@@ -37,6 +47,7 @@ export default async function RadarConsolePage() {
     activeTaxonomy("specialty"),
     feedbackForTherapist(actor.userId),
     radarSessionHistory(actor),
+    myHours(actor),
   ]);
 
   return (
@@ -58,9 +69,27 @@ export default async function RadarConsolePage() {
           chargesEnabled={me?.chargesEnabled ?? false}
           languageOptions={languageOptions.map((o) => o.label)}
           specialtyOptions={specialtyOptions.map((o) => o.label)}
-          countryOptions={countryOptions.map((o) => ({ code: o.code, name: o.label, flag: o.flag }))}
+          countryOptions={countryOptions.map((o) => ({
+            code: o.code,
+            name: o.label,
+            flag: o.flag,
+          }))}
           alertOnView={me?.profile?.alertOnView ?? true}
           alertOnBooking={me?.profile?.alertOnBooking ?? true}
+        />
+
+        {/*
+          11.1 / 11.4 — above the history, because it is a thing to *do* and
+          the history is a thing to read. It is also the radar's escape hatch:
+          the calendar is what a patient uses when they are not in crisis.
+        */}
+        <AvailabilityEditor
+          slots={slots.map((slot) => ({
+            id: slot.id,
+            startsAt: slot.startsAt.toISOString(),
+            status: slot.status,
+            note: slot.note,
+          }))}
         />
 
         <SessionHistory rows={history} />

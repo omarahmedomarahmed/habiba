@@ -492,6 +492,20 @@ export const sessions = pgTable(
     profileShareConsent: text("profile_share_consent").$type<"granted" | "declined">(),
     profileShareConsentAt: timestamp("profile_share_consent_at", { withTimezone: true }),
 
+    /**
+     * When this session is *planned* for. PLAN.md 11.2, closing C57.
+     *
+     * Distinct from `startedAt`, which is when it actually began. A session
+     * booked for Tuesday at 19:00 that nobody joined has a `scheduledAt` and
+     * no `startedAt`, and that gap is exactly what sprint 12's no-show
+     * recovery reads. Collapsing the two would make "did they turn up?"
+     * unanswerable.
+     *
+     * Nullable, and null for every session that came off the radar — those are
+     * unplanned by definition.
+     */
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
@@ -3010,3 +3024,79 @@ export const assistantMessages = pgTable(
 
 export type AssistantThread = typeof assistantThreads.$inferSelect;
 export type AssistantMessage = typeof assistantMessages.$inferSelect;
+
+/* ============================================================= sprint 11 == */
+
+/**
+ * Bookable time. PLAN.md 11.1.
+ *
+ * ## Whole hours, enforced by the database
+ *
+ * 11.1: *whole hours only, 19:00–20:00, never 19:15.* That is a
+ * `CHECK (date_part('minute', starts_at) = 0 AND date_part('second', ...) = 0)`
+ * in migration 0039, not a validation in a form. A form validates what a form
+ * submits; the constraint holds for a script, a backfill, an admin tool and
+ * whatever the next sprint writes.
+ *
+ * The reason it matters is not tidiness. A calendar with 19:00 and 19:15 slots
+ * on it is a calendar where two patients can book overlapping hours, and the
+ * clinician finds out when the second one joins the room.
+ *
+ * ## One slot per hour per clinician
+ *
+ * A unique index on (therapist, starts_at). Double-booking is then a database
+ * error rather than a race — two patients pressing "book" on the same slot at
+ * the same moment is the ordinary case, not the exotic one.
+ */
+export const SLOT_STATES = ["open", "held", "booked", "blocked"] as const;
+export type SlotState = (typeof SLOT_STATES)[number];
+
+export const availabilitySlots = pgTable(
+  "availability_slots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    therapistUserId: uuid("therapist_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    /** Always on the hour. The constraint is in the migration. */
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    /** One hour. A column rather than a constant so a 90-minute slot is a data change. */
+    durationMinutes: integer("duration_minutes").notNull().default(60),
+
+    status: text("status").$type<SlotState>().notNull().default("open"),
+
+    /**
+     * `held` is a short-lived state between "somebody is paying" and "booked".
+     *
+     * Without it, a patient who reaches Stripe and takes four minutes has an
+     * hour that is still advertised as free, and can lose it while their card
+     * is being charged. The hold expires by timestamp rather than by a job —
+     * a cron that runs late holds an hour nobody wants.
+     */
+    heldUntil: timestamp("held_until", { withTimezone: true }),
+
+    /** Set when the slot becomes a real session. */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    /** Who booked it, when there is an account. Null for a join-link booking. */
+    bookedByAccountId: uuid("booked_by_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
+    /** What the patient said when booking. Shown to the clinician, never required. */
+    note: text("note"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("availability_slots_hour_unique").on(t.therapistUserId, t.startsAt),
+    index("availability_slots_therapist_idx").on(t.therapistUserId, t.startsAt),
+    // The public calendar's query: open slots in the future, by clinician.
+    index("availability_slots_open_idx").on(t.startsAt).where(sql`status = 'open'`),
+  ],
+);
+
+export type AvailabilitySlot = typeof availabilitySlots.$inferSelect;

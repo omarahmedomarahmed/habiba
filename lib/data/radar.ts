@@ -6,6 +6,7 @@ import { and, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm"
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import {
+  availabilitySlots,
   copilotMessages,
   invoices,
   notifications,
@@ -127,6 +128,28 @@ function reachable(now: Date) {
       eq(therapistRadar.demo, true),
       gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
     ),
+    /*
+     * 11.5 — off the radar from fifteen minutes before a booked hour until the
+     * end of it.
+     *
+     * A `NOT EXISTS` inside the shared predicate rather than a flag on
+     * `therapist_radar`, for the reason at the top of this function: one
+     * definition of reachable, in one place. A boolean column would need
+     * something to flip it, and whatever flipped it would be late exactly when
+     * it mattered — which here means a stranger in crisis being handed a
+     * clinician who is twelve minutes from somebody else's appointment.
+     *
+     * The window covers the whole booked hour, not only the run-up. A
+     * clinician in a booked session is exactly as unavailable as one about to
+     * start it.
+     */
+    sql`NOT EXISTS (
+      SELECT 1 FROM ${availabilitySlots} a
+       WHERE a.therapist_user_id = ${therapistRadar.userId}
+         AND a.status = 'booked'
+         AND ${now} >= a.starts_at - interval '15 minutes'
+         AND ${now} <  a.starts_at + (a.duration_minutes * interval '1 minute')
+    )`,
   );
 }
 
@@ -155,7 +178,10 @@ function reachable(now: Date) {
  */
 const BOARD_TTL_MS = 2_000;
 
-type Board = { rows: Awaited<ReturnType<typeof queryBoard>>; ratings: Map<string, { average: number; count: number }> };
+type Board = {
+  rows: Awaited<ReturnType<typeof queryBoard>>;
+  ratings: Map<string, { average: number; count: number }>;
+};
 let board: { at: number; value: Promise<Board> } | null = null;
 
 /** Exposed so a booking that changes the board can invalidate it immediately. */
@@ -435,8 +461,7 @@ export async function publicProfile(
    * whether this person is actually there.
    */
   const beating =
-    row.lastSeenAt !== null &&
-    row.lastSeenAt.getTime() >= now.getTime() - HEARTBEAT_STALE_MS;
+    row.lastSeenAt !== null && row.lastSeenAt.getTime() >= now.getTime() - HEARTBEAT_STALE_MS;
   const stale = !row.demo && !beating;
   return {
     ...shaped,
@@ -772,13 +797,7 @@ export async function claimTherapist(opts: {
       reservedBy: hash,
       updatedAt: now,
     })
-    .where(
-      and(
-        eq(therapistRadar.userId, opts.therapistUserId),
-        reachable(now),
-        claimable,
-      ),
-    )
+    .where(and(eq(therapistRadar.userId, opts.therapistUserId), reachable(now), claimable))
     .returning({ id: therapistRadar.id });
 
   return claimed.length > 0;
@@ -1048,10 +1067,7 @@ export type RadarSessionRow = {
   copilotAsked: number;
 };
 
-export async function radarSessionHistory(
-  actor: Actor,
-  limit = 25,
-): Promise<RadarSessionRow[]> {
+export async function radarSessionHistory(actor: Actor, limit = 25): Promise<RadarSessionRow[]> {
   const rows = await db
     .select({
       sessionId: sessions.id,
@@ -1104,10 +1120,7 @@ export async function radarSessionHistory(
     // type a name. Any of those as an inner join silently drops real sessions.
     .leftJoin(patients, eq(patients.id, sessions.patientId))
     .leftJoin(sessionPayments, eq(sessionPayments.sessionId, sessions.id))
-    .leftJoin(
-      invoices,
-      and(eq(invoices.sessionId, sessions.id), eq(invoices.kind, "session")),
-    )
+    .leftJoin(invoices, and(eq(invoices.sessionId, sessions.id), eq(invoices.kind, "session")))
     .where(
       actor.role === "super_admin"
         ? eq(sessions.organizationId, actor.organizationId)
@@ -1127,9 +1140,7 @@ export async function radarSessionHistory(
     modality: r.modality,
     patientId: r.patientId,
     patientLabel:
-      [r.patientFirst, r.patientLast].filter(Boolean).join(" ").trim() ||
-      r.guestName ||
-      "Unnamed",
+      [r.patientFirst, r.patientLast].filter(Boolean).join(" ").trim() || r.guestName || "Unnamed",
     priceCents: r.priceCents,
     paymentStatus: r.paymentStatus,
     paid:

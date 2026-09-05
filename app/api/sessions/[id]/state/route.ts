@@ -69,11 +69,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
+    /*
+     * 11.6 — the next booked appointment, on the poll the room already makes.
+     *
+     * A clinician running long has no way to know somebody is waiting at 19:00
+     * unless we tell them inside the room. On this poll rather than its own,
+     * for the reason the clock is: two timers on one screen that disagree is
+     * worse than one that is five seconds stale.
+     */
+    const { upcomingBookings } = await import("@/lib/data/scheduling");
+    const { bookingWarning } = await import("@/lib/scheduling/hours");
+    const nextBooking = bookingWarning(await upcomingBookings(actor.userId), new Date());
+
     return NextResponse.json({
       status: clock.shouldEnd ? "completed" : row.status,
       patientJoined: Boolean(row.patientJoinedAt),
       patientName: row.guestName,
       noteStatus: row.noteStatus,
+      nextBooking: nextBooking
+        ? { minutes: nextBooking.minutes, startsAt: nextBooking.startsAt.toISOString() }
+        : null,
       clock: {
         stage: clock.stage,
         elapsedSeconds: clock.elapsedSeconds,

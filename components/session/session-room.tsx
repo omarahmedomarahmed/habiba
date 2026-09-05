@@ -88,6 +88,8 @@ export function SessionRoom(props: RoomProps) {
   const [spokenLanguage, setSpokenLanguage] = useState<string | null>(props.transcriptLanguage);
   const [patientJoined, setPatientJoined] = useState(props.patientAlreadyJoined);
   const [copied, setCopied] = useState(false);
+  /** 11.6 — the appointment after this one, when it is close enough to matter. */
+  const [nextBooking, setNextBooking] = useState<{ minutes: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ending, setEnding] = useState(false);
 
@@ -300,8 +302,12 @@ export function SessionRoom(props: RoomProps) {
           patientJoined?: boolean;
           status?: string;
           clock?: { endReason?: string | null };
+          nextBooking?: { minutes: number; startsAt: string } | null;
         };
         if (data.patientJoined) setPatientJoined(true);
+        // 11.6 — somebody is booked soon. On this poll rather than its own, so
+        // it can never disagree with the countdown six pixels away.
+        setNextBooking(data.nextBooking ?? null);
 
         // The server ended it — the cap, or a room everybody left. Go to the
         // note rather than leaving a dead room on screen.
@@ -415,7 +421,25 @@ export function SessionRoom(props: RoomProps) {
       </header>
 
       {live ? (
-        <SessionClockBar stage={clock.stage} remainingSeconds={clock.remainingSeconds} />
+        <>
+          <SessionClockBar stage={clock.stage} remainingSeconds={clock.remainingSeconds} />
+
+          {/*
+          11.6 — somebody else is booked, soon.
+          -------------------------------------
+          Under the clock, not over it: the countdown is about the person in
+          the room and this is about the next one, and a clinician who is
+          running over needs the first fact before the second. Stated as a
+          fact with no instruction attached — "wrap up now" is a clinical
+          judgement the product does not get to make.
+          */}
+          {nextBooking ? (
+            <p className="mx-auto w-full px-3 pt-1 text-center text-xs text-amber-700 lg:max-w-3xl">
+              Your next appointment starts in {nextBooking.minutes} minute
+              {nextBooking.minutes === 1 ? "" : "s"}.
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       {/*
@@ -430,7 +454,9 @@ export function SessionRoom(props: RoomProps) {
         <p className="flex items-start gap-2 border-b border-amber-500/25 bg-amber-500/15 px-4 py-2.5 text-xs leading-relaxed text-amber-100">
           <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           <span>
-            <strong className="font-semibold">{props.patientLabel} asked not to be recorded.</strong>{" "}
+            <strong className="font-semibold">
+              {props.patientLabel} asked not to be recorded.
+            </strong>{" "}
             The room is off record and no audio is being kept. Only turn recording on if they tell
             you, in the session, that they have changed their mind.
           </span>
@@ -455,34 +481,34 @@ export function SessionRoom(props: RoomProps) {
       */}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 shrink-0 flex-col lg:w-[38%] lg:max-w-xl lg:border-e lg:border-white/10">
-        {props.modality === "video" ? (
-          <div className="shrink-0">
-            {props.videoRoomUrl ? (
-              <VideoCall
-                roomUrl={props.videoRoomUrl}
-                token={props.videoToken}
-                userName={props.therapistName}
-                micMuted={offRecord}
-                onRemoteAudioTrack={handleRemoteTrack}
-                onPatientPresence={(present) => present && setPatientJoined(true)}
-                onError={setError}
-              />
-            ) : (
-              <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-black px-6 text-center">
-                <Video className="h-6 w-6 text-slate-500" aria-hidden />
-                <p className="text-sm font-medium text-slate-300">
-                  {props.videoConfigured ? "Setting up the room…" : "Video is not configured"}
-                </p>
-                <p className="max-w-xs text-xs text-slate-500">
-                  The session is still recorded and transcribed. Add a Daily.co API key to enable
-                  video calls.
-                </p>
-              </div>
-            )}
-          </div>
-        ) : null}
+          {props.modality === "video" ? (
+            <div className="shrink-0">
+              {props.videoRoomUrl ? (
+                <VideoCall
+                  roomUrl={props.videoRoomUrl}
+                  token={props.videoToken}
+                  userName={props.therapistName}
+                  micMuted={offRecord}
+                  onRemoteAudioTrack={handleRemoteTrack}
+                  onPatientPresence={(present) => present && setPatientJoined(true)}
+                  onError={setError}
+                />
+              ) : (
+                <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-black px-6 text-center">
+                  <Video className="h-6 w-6 text-slate-500" aria-hidden />
+                  <p className="text-sm font-medium text-slate-300">
+                    {props.videoConfigured ? "Setting up the room…" : "Video is not configured"}
+                  </p>
+                  <p className="max-w-xs text-xs text-slate-500">
+                    The session is still recorded and transcribed. Add a Daily.co API key to enable
+                    video calls.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
 
-        {/*
+          {/*
           They are here — said out loud.
           ------------------------------
           Until this, the clinician's only signal that the patient had arrived
@@ -491,67 +517,72 @@ export function SessionRoom(props: RoomProps) {
           nothing to glance back at, and "did the link work?" is the question
           they are actually holding while they wait.
         */}
-        {props.joinUrl && patientJoined && !live ? (
-          <p
-            className="flex items-center gap-2 border-b border-teal-400/25 bg-teal-400/15 px-4 py-2.5 text-xs font-medium text-teal-100"
-            data-patient-joined="true"
-          >
-            <span className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-teal-300" aria-hidden />
-            {props.patientLabel} is in the room, waiting for you to start.
-          </p>
-        ) : null}
-
-        {props.joinUrl && !patientJoined ? (
-          <div className="border-b border-white/10 bg-white/5 px-4 py-3" data-join-url={props.joinUrl}>
-            <p className="text-xs font-medium text-slate-300">
-              Waiting for your patient
-              {props.priceCents > 0
-                ? props.paymentStatus === "paid"
-                  ? " · paid"
-                  : ` · $${(props.priceCents / 100).toFixed(0)} to pay before they can join`
-                : ""}
+          {props.joinUrl && patientJoined && !live ? (
+            <p
+              className="flex items-center gap-2 border-b border-teal-400/25 bg-teal-400/15 px-4 py-2.5 text-xs font-medium text-teal-100"
+              data-patient-joined="true"
+            >
+              <span
+                className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-teal-300"
+                aria-hidden
+              />
+              {props.patientLabel} is in the room, waiting for you to start.
             </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={copyJoinLink}
-                className="tap-target flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-medium text-white active:bg-white/20"
-              >
-                {copied ? (
-                  <>
-                    <Copy className="h-3.5 w-3.5" aria-hidden /> Copied
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="h-3.5 w-3.5" aria-hidden /> Copy join link
-                  </>
-                )}
-              </button>
+          ) : null}
+
+          {props.joinUrl && !patientJoined ? (
+            <div
+              className="border-b border-white/10 bg-white/5 px-4 py-3"
+              data-join-url={props.joinUrl}
+            >
+              <p className="text-xs font-medium text-slate-300">
+                Waiting for your patient
+                {props.priceCents > 0
+                  ? props.paymentStatus === "paid"
+                    ? " · paid"
+                    : ` · $${(props.priceCents / 100).toFixed(0)} to pay before they can join`
+                  : ""}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={copyJoinLink}
+                  className="tap-target flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-medium text-white active:bg-white/20"
+                >
+                  {copied ? (
+                    <>
+                      <Copy className="h-3.5 w-3.5" aria-hidden /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-3.5 w-3.5" aria-hidden /> Copy join link
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {crisis ? (
-          <div className="px-4 pt-3">
-            <RiskBanner level="high" onDismiss={() => setCrisis(false)} />
-          </div>
-        ) : null}
+          {crisis ? (
+            <div className="px-4 pt-3">
+              <RiskBanner level="high" onDismiss={() => setCrisis(false)} />
+            </div>
+          ) : null}
 
-        {micDenied ? (
-          <div className="mx-4 mt-3 rounded-xl bg-amber-500/10 px-3.5 py-2.5">
-            <p className="text-sm text-amber-200">
-              No microphone access, so nothing is being transcribed. Allow the microphone and
-              reload to record this session.
-            </p>
-          </div>
-        ) : null}
+          {micDenied ? (
+            <div className="mx-4 mt-3 rounded-xl bg-amber-500/10 px-3.5 py-2.5">
+              <p className="text-sm text-amber-200">
+                No microphone access, so nothing is being transcribed. Allow the microphone and
+                reload to record this session.
+              </p>
+            </div>
+          ) : null}
 
-        {error ? (
-          <div className="mx-4 mt-3 rounded-xl bg-red-500/10 px-3.5 py-2.5">
-            <p className="text-sm text-red-200">{error}</p>
-          </div>
-        ) : null}
-
+          {error ? (
+            <div className="mx-4 mt-3 rounded-xl bg-red-500/10 px-3.5 py-2.5">
+              <p className="text-sm text-red-200">{error}</p>
+            </div>
+          ) : null}
         </div>
 
         {/*
@@ -577,7 +608,7 @@ export function SessionRoom(props: RoomProps) {
           ) : null}
 
           <TranscriptPanel
-              lines={lines}
+            lines={lines}
             live={live}
             paused={offRecord}
             className="min-h-0 flex-1"
@@ -602,7 +633,7 @@ export function SessionRoom(props: RoomProps) {
       */}
       <div className="safe-bottom sticky bottom-0 border-t border-white/10 bg-navy-600/95 px-4 pt-3 backdrop-blur">
         <div className="mx-auto w-full lg:max-w-3xl">
-        {/*
+          {/*
           Spoken language, above the controls rather than beside them.
 
           Detect is the default and should stay it. Measured on real sessions:
@@ -615,98 +646,99 @@ export function SessionRoom(props: RoomProps) {
           one. It exists for a clinician working strictly in one language, which
           is a minority of this user base.
         */}
-        {live ? (
-          <div className="mb-2.5 flex items-center gap-1.5">
-            <span className="text-[10px] font-bold tracking-wider text-white/35 uppercase">
-              Spoken
-            </span>
-            <div className="flex flex-1 gap-1 rounded-xl bg-white/5 p-0.5">
-              {(
-                [
-                  [null, "Detect"],
-                  ["en", "English"],
-                  ["ar", "العربية"],
-                ] as const
-              ).map(([code, label]) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => {
-                    const previous = spokenLanguage;
-                    setSpokenLanguage(code);
-                    void setTranscriptLanguage(props.sessionId, code).then((r) => {
-                      // Put it back rather than showing a setting that did not save.
-                      if (!r.ok) setSpokenLanguage(previous);
-                    });
-                  }}
-                  aria-pressed={spokenLanguage === code}
-                  className={cn(
-                    "flex-1 rounded-lg px-2 py-1 text-xs font-semibold transition-colors",
-                    spokenLanguage === code
-                      ? "bg-white/15 text-white"
-                      : "text-white/45 active:bg-white/10",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+          {live ? (
+            <div className="mb-2.5 flex items-center gap-1.5">
+              <span className="text-[10px] font-bold tracking-wider text-white/35 uppercase">
+                Spoken
+              </span>
+              <div className="flex flex-1 gap-1 rounded-xl bg-white/5 p-0.5">
+                {(
+                  [
+                    [null, "Detect"],
+                    ["en", "English"],
+                    ["ar", "العربية"],
+                  ] as const
+                ).map(([code, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      const previous = spokenLanguage;
+                      setSpokenLanguage(code);
+                      void setTranscriptLanguage(props.sessionId, code).then((r) => {
+                        // Put it back rather than showing a setting that did not save.
+                        if (!r.ok) setSpokenLanguage(previous);
+                      });
+                    }}
+                    aria-pressed={spokenLanguage === code}
+                    className={cn(
+                      "flex-1 rounded-lg px-2 py-1 text-xs font-semibold transition-colors",
+                      spokenLanguage === code
+                        ? "bg-white/15 text-white"
+                        : "text-white/45 active:bg-white/10",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {live ? (
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={toggleOffRecord}
-              aria-pressed={offRecord}
-              className={cn(
-                "tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
-                offRecord ? "bg-amber-500 text-white" : "bg-white/10 text-white active:bg-white/20",
-              )}
-            >
-              {offRecord ? (
-                <>
-                  <MicOff className="h-4 w-4" aria-hidden /> Resume
-                </>
-              ) : (
-                <>
-                  <Mic className="h-4 w-4" aria-hidden /> Off record
-                </>
-              )}
-            </button>
+          {live ? (
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={toggleOffRecord}
+                aria-pressed={offRecord}
+                className={cn(
+                  "tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
+                  offRecord
+                    ? "bg-amber-500 text-white"
+                    : "bg-white/10 text-white active:bg-white/20",
+                )}
+              >
+                {offRecord ? (
+                  <>
+                    <MicOff className="h-4 w-4" aria-hidden /> Resume
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-4 w-4" aria-hidden /> Off record
+                  </>
+                )}
+              </button>
 
-            <button
-              type="button"
-              onClick={handleEnd}
-              disabled={ending || pending}
-              className="tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl bg-red-600 text-sm font-semibold text-white active:bg-red-700 disabled:opacity-60"
-            >
-              {ending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Ending…
-                </>
-              ) : (
-                <>
-                  <Square className="h-4 w-4" aria-hidden /> End session
-                </>
-              )}
-            </button>
-          </div>
-        ) : (
-          <Button size="lg" variant="teal" full onClick={handleStart} disabled={pending}>
-            {pending ? "Starting…" : "Start session"}
-          </Button>
-        )}
+              <button
+                type="button"
+                onClick={handleEnd}
+                disabled={ending || pending}
+                className="tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl bg-red-600 text-sm font-semibold text-white active:bg-red-700 disabled:opacity-60"
+              >
+                {ending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Ending…
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-4 w-4" aria-hidden /> End session
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <Button size="lg" variant="teal" full onClick={handleStart} disabled={pending}>
+              {pending ? "Starting…" : "Start session"}
+            </Button>
+          )}
 
-        <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">
-          {live
-            ? "Your note is written the moment you end the session."
-            : "Make sure your patient has consented to recording."}
-        </p>
+          <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">
+            {live
+              ? "Your note is written the moment you end the session."
+              : "Make sure your patient has consented to recording."}
+          </p>
         </div>
       </div>
     </div>
   );
 }
-

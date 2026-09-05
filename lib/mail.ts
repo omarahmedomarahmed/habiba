@@ -232,7 +232,7 @@ export async function sendSessionReport(opts: {
           * clinical text that ever leaves the practice. The fallback exists
           * for notes generated before the brief did.
           */
-         (note.patientBrief || note.summary)
+         note.patientBrief || note.summary
            ? `<div style="margin:0;color:#334155;font-size:15px;line-height:1.75;">${esc(
                note.patientBrief || note.summary,
              )
@@ -550,4 +550,43 @@ export async function sendWalkInDirections(opts: {
   );
 
   return send({ to: opts.to, subject: `Directions to ${opts.therapistName}`, html });
+}
+
+/**
+ * The email channel behind `lib/notify`. PLAN.md 11.7.
+ *
+ * Exported here rather than reimplemented there, so the notification seam does
+ * not become a second mail implementation with its own idea of a footer, a
+ * from-address and an escaping rule.
+ *
+ * The footer is overridden: these are messages **24Therapy** sends about a
+ * booking, not messages a therapist sends, and the default line ("sent by your
+ * therapist") on a booking reminder is the mismatch that makes a real
+ * transactional email look like a phish.
+ */
+export async function sendNotification(opts: {
+  to: string;
+  subject: string;
+  /** Plain text. Paragraphs split on a blank line. */
+  body: string;
+  link?: { label: string; url: string } | null;
+}): Promise<boolean> {
+  const paragraphs = opts.body
+    .split("\n\n")
+    .map((line) => `<p style="margin:0 0 12px;line-height:1.6;">${esc(line)}</p>`)
+    .join("");
+
+  const button = opts.link
+    ? `<p style="margin:20px 0 0"><a href="${esc(opts.link.url)}" style="display:inline-block;background:#0A2342;color:#ffffff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:600;">${esc(opts.link.label)}</a></p>`
+    : "";
+
+  return send({
+    to: opts.to,
+    subject: opts.subject,
+    html: layout(
+      opts.subject,
+      paragraphs + button,
+      "This message was sent by 24Therapy about an appointment you booked.<br>If you were not expecting it, you can safely ignore it.",
+    ),
+  });
 }
