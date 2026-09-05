@@ -5,6 +5,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { audit, auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { ensurePersonForPatient } from "@/lib/data/people";
 import { patients, sessionNotes, sessions, type PatientClinical } from "@/lib/db/schema";
 
 function scope(actor: Actor) {
@@ -115,6 +116,19 @@ export async function createPatient(
       source: "therapist",
     })
     .returning();
+
+  /*
+   * Every patient gets a person (5.1).
+   *
+   * Its own person, even where the email matches an existing one — the same
+   * rule as the backfill, for the same reason: an address is not an identity.
+   * Linking two records is a decision a human makes later, on a suggestion.
+   *
+   * Best-effort rather than transactional. A patient without a person is a row
+   * `ensurePersonForPatient` will fix on the next read; a failed patient
+   * creation is a clinician who cannot start a session.
+   */
+  if (created) await ensurePersonForPatient(created.id);
 
   await auditPhi(actor, "patient.create", {
     resourceType: "patient",

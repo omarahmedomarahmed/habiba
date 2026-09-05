@@ -30,7 +30,8 @@
     "settings:show": "tsx scripts/settings.ts show",
     "settings:reprice": "tsx scripts/settings.ts reprice",
     "verify:sprint1": "tsx scripts/verify-sprint1.ts",
-    "test:attribution": "node --import tsx --conditions=react-server --test tests/attribution.test.ts"
+    "test:attribution": "node --import tsx --conditions=react-server --test tests/attribution.test.ts",
+    "test:people": "node --import tsx --conditions=react-server --test tests/people.test.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

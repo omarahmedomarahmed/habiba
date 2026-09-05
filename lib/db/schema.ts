@@ -321,6 +321,15 @@ export const patients = pgTable(
     email: text("email"),
     phone: text("phone"),
 
+    /**
+     * The person this file is about, once there is one (5.1).
+     *
+     * Nullable, and staying nullable: a patient created from a join link has no
+     * person until the backfill or the next write gives them one, and a NOT
+     * NULL here would make that a failed insert rather than a row to tidy up.
+     */
+    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
+
     clinical: jsonb("clinical").$type<PatientClinical>().default({}).notNull(),
 
     /** How the record came into being — `join_link` patients typed their own name. */
@@ -2028,3 +2037,96 @@ export const fxQuotes = pgTable(
 );
 
 export type FxQuote = typeof fxQuotes.$inferSelect;
+
+/* ------------------------------------------------------------------ people -- */
+
+/**
+ * A person, above the clinic that first wrote them down.
+ *
+ * ## What this changes
+ *
+ * `patients` is a row inside one practice: it has an `organization_id`, a
+ * `therapist_id`, and it is the therapist's file about somebody. That is the
+ * right shape for a paper drawer and the wrong shape for a person who sees two
+ * clinicians, moves cities, or wants their own history. `people` is the person;
+ * `patients.person_id` points at them.
+ *
+ * Deliberately nullable at first (5.1). Every existing patient gets its own
+ * person in the backfill, and nothing is forced to have one before it does —
+ * a NOT NULL added on the same migration as the backfill is a migration that
+ * fails halfway and leaves the table locked.
+ *
+ * ## Claimed and unclaimed
+ *
+ * `claimed_at IS NULL` is the normal state, not the edge case: measured on this
+ * database, **56 of 66 patients have no email and none has a phone number**, so
+ * most of these people have no way to be contacted and will never claim
+ * anything. §3 is explicit that this is a valid ending — an unclaimed record
+ * stays a private file, and the product must not treat it as a queue to drain.
+ *
+ * Everything that can leak follows from that one column. An unclaimed person
+ * cannot be shared, granted or merged, because there is nobody to ask — see
+ * `assertClaimed` in `lib/data/people.ts`, which is the single gate sprint 7's
+ * grants go through.
+ *
+ * ## Why the unique index is partial
+ *
+ * One *claimed* person per email. Unclaimed rows are deliberately free to
+ * collide, because they are not identities — they are what three different
+ * clinicians happened to type. Measured here: `omarabdelgawad001@gmail.com`
+ * appears on two patients named "Omar" and "Sam" in two organisations. A unique
+ * constraint over all rows would have refused that backfill; auto-merging them
+ * would have put one person's record in another's file.
+ */
+export const people = pgTable(
+  "people",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name"),
+    /** Lowercased on write. Null is the common case. */
+    email: text("email"),
+    /** Digits and a leading +, normalised on write. Null is the common case. */
+    phone: text("phone"),
+
+    /**
+     * When this person took ownership of their own record. Null means nobody
+     * has, which is most of them.
+     */
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    /** The patient account that claimed it. Arrives with `"patient"` in sprint 6. */
+    claimedByUserId: uuid("claimed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    /*
+     * Where they pay from, remembered (C36 / PLAN.md 4.3).
+     *
+     * On the person rather than on `patients`, because a preference belongs to
+     * whoever is paying and travels with them between clinicians. The *payment*
+     * still records the country it was actually made under — that is history
+     * and never moves.
+     */
+    preferredCountry: text("preferred_country"),
+    preferredCurrency: text("preferred_currency"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One claimed identity per email, and per phone. Unclaimed rows collide
+    // freely — see the note above.
+    uniqueIndex("people_claimed_email_unique")
+      .on(t.email)
+      .where(sql`${t.claimedAt} IS NOT NULL AND ${t.email} IS NOT NULL`),
+    uniqueIndex("people_claimed_phone_unique")
+      .on(t.phone)
+      .where(sql`${t.claimedAt} IS NOT NULL AND ${t.phone} IS NOT NULL`),
+    // The matcher reads these. Both are suggestions only.
+    index("people_email_idx").on(t.email),
+    index("people_phone_idx").on(t.phone),
+  ],
+);
+
+export type Person = typeof people.$inferSelect;

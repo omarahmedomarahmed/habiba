@@ -15,6 +15,7 @@ import {
   transcriptSegments,
   type Modality,
 } from "@/lib/db/schema";
+import { ensurePersonForPatient } from "@/lib/data/people";
 import { log, ref } from "@/lib/logger";
 import { capSeconds, sessionClock, type SessionClock } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
@@ -134,6 +135,8 @@ export async function createSession(
       })
       .returning({ id: patients.id });
     patientId = created?.id ?? null;
+    // 5.1: a chart created here is still a person's chart.
+    if (patientId) await ensurePersonForPatient(patientId);
   }
 
   const needsLink = input.modality === "video";
@@ -698,6 +701,21 @@ export async function joinByToken(token: string, displayName: string) {
       })
       .where(eq(sessions.id, target.id));
   });
+
+  /*
+   * After the transaction, not inside it (5.1).
+   *
+   * `ensurePersonForPatient` opens its own connection, and running it inside
+   * this transaction would deadlock against the row this transaction is still
+   * holding. A patient briefly without a person is a row the next read fixes;
+   * a deadlock is a patient who cannot get into the room.
+   */
+  const [after] = await db
+    .select({ patientId: sessions.patientId })
+    .from(sessions)
+    .where(eq(sessions.id, target.id))
+    .limit(1);
+  if (after?.patientId) await ensurePersonForPatient(after.patientId);
 
   return target.id;
 }
