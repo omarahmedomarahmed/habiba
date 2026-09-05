@@ -230,7 +230,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "pricing",
     title: "Pricing",
     description:
-      "$6 a session — including 10 copilot questions per patient every month — or $99 a month for everything. Your first session is free.",
+      "$4 a session, $3 from ten, $2 from thirty — each including 10 copilot questions per patient. Your first session is free.",
     layout: "marketing",
     navLabel: "Pricing",
     navOrder: 2,
@@ -238,8 +238,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "hero",
         eyebrow: "Pricing",
-        heading: "Two plans. No seats, no setup fee.",
-        body: "$6 buys the session and ten copilot questions about that patient every month — not the session alone. Switch to flat when it is cheaper. Your first completed session is free either way.",
+        heading: "Three rates. No seats, no setup fee.",
+        body: "$4 buys the session and ten copilot questions about that patient — not the session alone. Buy ten at once and the rate is $3; thirty and it is $2. Your first completed session is free at every rate.",
         ctaLabel: "Start free",
         ctaHref: "/signup",
         demo: "none",
@@ -255,8 +255,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             a: "When a session is marked complete. Your first one is free, and the invoice appears on your billing page immediately. You can pay several at once with a single link.",
           },
           {
-            q: "What does the $6 actually include?",
-            a: "The full session — live transcription, the SOAP note, the patient report and crisis alerts — plus ten copilot questions about that patient, resetting every calendar month. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not. On Unlimited there is no cap.",
+            q: "What does the session rate actually include?",
+            a: "The full session — live transcription, the SOAP note, the patient report and crisis alerts — plus ten copilot questions about that patient for every session you run with them, and unused ones roll over. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not.",
           },
           {
             q: "What if a session was a mistake?",
@@ -264,15 +264,15 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "What do you take when a patient pays me?",
-            a: "10% of the session price, and nothing else. The money is a direct charge into your own Stripe account — we never hold it — and Stripe handles the payout to your bank. You see exactly what you keep before you set a price.",
+            a: "15% of the session price, and nothing else. The money is a direct charge into your own Stripe account — we never hold it — and Stripe handles the payout to your bank. You see exactly what you keep before you set a price.",
           },
           {
             q: "Can I pay my 24Therapy bill out of my earnings?",
             a: "Yes. If you take payments from patients, anything you owe us can be settled out of the next one instead of a card. It is never more than what you would have received from that session, and you can turn it off.",
           },
           {
-            q: "Can I cancel Unlimited?",
-            a: "Yes, at any time. You keep access until the end of the period you have paid for, then drop back to pay as you go.",
+            q: "What happens to sessions I bought and did not use?",
+            a: "They last twelve months and are always spent before anything new is billed, so moving to a smaller bundle never strands what you already paid for.",
           },
         ],
       },
