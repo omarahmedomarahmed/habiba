@@ -338,6 +338,40 @@ export function isNoteEmpty(content: NoteContent): boolean {
  * persisted state, so a restart mid-generation lost the note permanently with
  * nothing to retry from.
  */
+/**
+ * The stamp for one session, read from the two timestamps that decide it.
+ *
+ * Separate from `lateRecordingStamp` (which is pure, in `lib/consent.ts`) so
+ * the rule can be tested without a database and the query lives next to its
+ * only caller.
+ */
+async function lateRecordingStampFor(
+  sessionId: string,
+  therapistId: string,
+): Promise<string | null> {
+  const { lateRecordingStamp } = await import("@/lib/consent");
+  const { users } = await import("@/lib/db/schema");
+
+  const [row] = await db
+    .select({
+      startedAt: sessions.startedAt,
+      recordingStartedAt: sessions.recordingStartedAt,
+      profile: users.profile,
+    })
+    .from(sessions)
+    .leftJoin(users, eq(users.id, therapistId))
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  if (!row) return null;
+
+  return lateRecordingStamp({
+    startedAt: row.startedAt,
+    recordingStartedAt: row.recordingStartedAt,
+    timeZone: row.profile?.timezone ?? null,
+  });
+}
+
 export async function generateAndStoreNote(opts: {
   sessionId: string;
   organizationId: string;
@@ -369,6 +403,24 @@ export async function generateAndStoreNote(opts: {
       organizationId: opts.organizationId,
       userId: opts.therapistId,
     });
+
+    /*
+     * 7.8 — a session that was only half recorded says so, on the note.
+     *
+     * Prepended to the summary rather than added as a field: it has to be the
+     * first thing read, and a separate field is a field a template can forget
+     * to render. Applied to the English copy too, because that is the one an
+     * auditor or a second clinician reads.
+     *
+     * This is a fact about the recording, not a summary of the session, so it
+     * is written here from the timestamps rather than asked of the model — a
+     * model asked to describe its own missing input will describe it wrongly.
+     */
+    const stamp = await lateRecordingStampFor(opts.sessionId, opts.therapistId);
+    if (stamp) {
+      content.summary = content.summary ? `${stamp}\n\n${content.summary}` : stamp;
+      if (contentEn?.summary) contentEn.summary = `${stamp}\n\n${contentEn.summary}`;
+    }
 
     await db
       .insert(sessionNotes)

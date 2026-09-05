@@ -238,7 +238,15 @@ async function recordConsent(sessionId: string, consent: "granted" | "declined")
       recordingConsent: consent,
       recordingConsentAt: new Date(),
       recordingConsentVersion: RECORDING_CONSENT_VERSION,
-      ...(consent === "declined" ? { recordingPausedAt: new Date() } : {}),
+      ...(consent === "declined"
+        ? { recordingPausedAt: new Date() }
+        : /*
+           * Agreeing on the way in starts the clock on the recording too
+           * (7.8). Without this every pre-session yes would look like a
+           * mid-session one to `lib/ai/notes.ts`, which decides whether to
+           * stamp the note by comparing this against the session start.
+           */
+          { recordingStartedAt: new Date() }),
     })
     .where(eq(sessions.id, sessionId));
 
@@ -255,6 +263,18 @@ export async function checkJoinState(token: string): Promise<{
   recording: boolean;
   startedAt: string | null;
   /**
+   * The two controls from §3 / 7.8, on the same poll as everything else.
+   *
+   * On this poll rather than on their own read so the panel cannot drift from
+   * the recording indicator six pixels above it — they are answers to the same
+   * question and a patient seeing them disagree has no way to know which one
+   * to believe.
+   */
+  consent: {
+    recording: "granted" | "declined" | null;
+    profileShare: "granted" | "declined" | null;
+  };
+  /**
    * The same countdown the clinician sees.
    *
    * A patient watching a session approach its end deserves to know before it
@@ -269,7 +289,14 @@ export async function checkJoinState(token: string): Promise<{
 }> {
   const session = await resolveJoinToken(token);
   if (!session) {
-    return { live: false, ended: true, recording: false, startedAt: null, clock: null };
+    return {
+      live: false,
+      ended: true,
+      recording: false,
+      startedAt: null,
+      clock: null,
+      consent: { recording: null, profileShare: null },
+    };
   }
 
   /*
@@ -289,6 +316,8 @@ export async function checkJoinState(token: string): Promise<{
       recordingPausedAt: sessions.recordingPausedAt,
       startedAt: sessions.startedAt,
       patientJoinedAt: sessions.patientJoinedAt,
+      recordingConsent: sessions.recordingConsent,
+      profileShareConsent: sessions.profileShareConsent,
     })
     .from(sessions)
     .where(eq(sessions.id, session.id))
@@ -346,7 +375,14 @@ export async function checkJoinState(token: string): Promise<{
         }),
       );
     }
-    return { live: false, ended: true, recording: false, startedAt: null, clock: null };
+    return {
+      live: false,
+      ended: true,
+      recording: false,
+      startedAt: null,
+      clock: null,
+      consent: { recording: null, profileShare: null },
+    };
   }
 
   return {
@@ -354,6 +390,10 @@ export async function checkJoinState(token: string): Promise<{
     ended: false,
     recording: live && !row?.recordingPausedAt,
     startedAt: row?.startedAt?.toISOString() ?? null,
+    consent: {
+      recording: row?.recordingConsent ?? null,
+      profileShare: row?.profileShareConsent ?? null,
+    },
     clock: live
       ? {
           stage: clock.stage,
@@ -376,4 +416,80 @@ export async function rateOnArrival(
 ): Promise<{ ok?: boolean; error?: string }> {
   const { recordArrival } = await import("@/lib/data/feedback");
   return recordArrival({ token, serviceStars, email });
+}
+
+/* --------------------------------------------- 7.8: turning a control on -- */
+
+/**
+ * Turn a control on, mid-session. §3 / 7.8.
+ *
+ * ## One direction only
+ *
+ * §3: "Wants to turn it off — cannot. End the session; answer no next time."
+ * That is not a UI convenience, it is the only honest option: minutes already
+ * captured exist, and a switch that appears to un-record them would be telling
+ * the patient something false at the moment they are most relying on it. The
+ * *therapist* can still pause the microphone; what nobody can do is make the
+ * first ten minutes stop having happened.
+ *
+ * ## The stamp
+ *
+ * Turning recording on writes `recording_started_at` if it is not already set.
+ * That timestamp is what puts *"recording began at 10:32; earlier conversation
+ * not captured"* on the note — see `lib/ai/notes.ts`. Without it a note about a
+ * half-recorded session reads as a complete record.
+ */
+export async function turnOnConsent(
+  token: string,
+  control: "recording" | "profileShare",
+): Promise<{ ok?: boolean; error?: string }> {
+  const session = await resolveJoinToken(token);
+  if (!session) return { error: "This link is no longer valid." };
+
+  const { RECORDING_CONSENT_VERSION } = await import("@/lib/consent");
+  const { db } = await import("@/lib/db");
+  const { sessions } = await import("@/lib/db/schema");
+  const { and, eq, isNull, or, ne } = await import("drizzle-orm");
+
+  const now = new Date();
+
+  if (control === "profileShare") {
+    await db
+      .update(sessions)
+      .set({ profileShareConsent: "granted", profileShareConsentAt: now })
+      .where(
+        // Conditional so a second tap, or a stale tab, cannot rewrite the
+        // moment they agreed.
+        and(eq(sessions.id, session.id), or(isNull(sessions.profileShareConsent), ne(sessions.profileShareConsent, "granted"))),
+      );
+    log.info("profile share consent granted mid-session");
+    return { ok: true };
+  }
+
+  await db
+    .update(sessions)
+    .set({
+      recordingConsent: "granted",
+      recordingConsentAt: now,
+      recordingConsentVersion: RECORDING_CONSENT_VERSION,
+      /*
+       * Un-pause, because a declined session was paused on the way in and a
+       * consent that leaves the microphone off is a consent that changed
+       * nothing.
+       */
+      recordingPausedAt: null,
+      recordingStartedAt: now,
+    })
+    .where(
+      and(
+        eq(sessions.id, session.id),
+        // Only if the microphone has never started. A session already
+        // recording keeps its original start time — that is the number the
+        // note quotes, and moving it would make the stamp a lie.
+        isNull(sessions.recordingStartedAt),
+      ),
+    );
+
+  log.info("recording consent granted mid-session");
+  return { ok: true };
 }

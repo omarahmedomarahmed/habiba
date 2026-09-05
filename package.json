@@ -33,7 +33,9 @@
     "test:attribution": "node --import tsx --conditions=react-server --test tests/attribution.test.ts",
     "test:people": "node --import tsx --conditions=react-server --test tests/people.test.ts",
     "test:routing": "node --import tsx --conditions=react-server --test tests/routing.test.ts",
-    "verify:sprint6": "node --import tsx --conditions=react-server scripts/verify-sprint6.ts"
+    "verify:sprint6": "node --import tsx --conditions=react-server scripts/verify-sprint6.ts",
+    "verify:sprint7": "node --import tsx --conditions=react-server scripts/verify-sprint7.ts",
+    "test:consent": "node --import tsx --conditions=react-server --test tests/consent.test.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

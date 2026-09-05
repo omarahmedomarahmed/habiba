@@ -4,10 +4,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 
 import { PatientEditor } from "@/components/patient/patient-editor";
+import { AccessBanner } from "@/components/patient/access-banner";
 import { RecordAccess } from "@/components/patient/record-access";
 import { Badge, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
+import { explain } from "@/lib/access/state";
 import { recordAccess } from "@/lib/data/claims";
+import { accessFor } from "@/lib/data/grants";
 import { getPatient, getPatientHistory } from "@/lib/data/patients";
 import { personIdForPatient } from "@/lib/data/people";
 import { fullName, relativeDay } from "@/lib/utils";
@@ -36,6 +39,12 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const personId = await personIdForPatient(id);
   const access = personId ? await recordAccess(personId, actor.userId) : null;
 
+  // 7.7 — and it is shown here as well as on the copilot, because this is the
+  // page with the diagnosis field on it, and that field is the one the revoked
+  // state actually refuses to save.
+  const consent = await accessFor(actor, id);
+  const consentMessage = explain(consent.state);
+
   return (
     <div className="mx-auto max-w-2xl">
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
@@ -59,6 +68,16 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
+        {consentMessage ? (
+          <AccessBanner
+            patientId={patient.id}
+            state={consent.state}
+            message={consentMessage}
+            canRequest={consent.capabilities.canRequestAccess}
+            pendingSince={consent.grant?.status === "pending" ? consent.grant.requestedAt : null}
+          />
+        ) : null}
+
         <PatientEditor
           patientId={patient.id}
           initial={{

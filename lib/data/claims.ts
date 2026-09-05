@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { patients, people, personClaims, personInvites } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
+import { applyClaimDecision } from "./grants";
 import { findMatches, redactName } from "./people";
 
 /**
@@ -273,6 +274,25 @@ export async function verifyClaim(input: {
       .where(and(eq(personClaims.personId, claim.personId), eq(personClaims.status, "pending")));
   });
 
+  /*
+   * Step 7, acted on at last (sprint 7).
+   *
+   * Sprint 6 recorded the answer and nothing read it, so "the therapist keeps
+   * access" was a stored opinion. `applyClaimDecision` turns a yes into an
+   * open-ended grant for every clinician holding a record, and a no into
+   * nothing at all — because in `lib/access/state.ts` the absence of a grant
+   * *is* the revoked state. That is what makes the default genuinely off.
+   *
+   * Outside the transaction on purpose: it opens its own connection (the C40
+   * deadlock), and a claim that succeeded must not be rolled back because a
+   * grant insert was slow. A missing grant is the safe failure — it denies.
+   */
+  await applyClaimDecision({
+    personId: claim.personId,
+    accountId: claim.accountId,
+    therapistKeepsAccess: input.therapistKeepsAccess,
+  });
+
   log.info("person claimed", { person: ref(claim.personId) });
   return { ok: true, personId: claim.personId, patientsMoved };
 }
@@ -438,6 +458,15 @@ export async function redeemInvite(input: {
   });
 
   if (!claimed) return { ok: false, error: "That link has already been used." };
+
+  // §3: from step 7 the invite route is identical to the matching one,
+  // including the therapist's access defaulting to off.
+  await applyClaimDecision({
+    personId: resolved.personId,
+    accountId: input.accountId,
+    therapistKeepsAccess: input.therapistKeepsAccess,
+  });
+
   log.info("person claimed by invite", { person: ref(resolved.personId) });
   return { ok: true, personId: resolved.personId, patientsMoved };
 }

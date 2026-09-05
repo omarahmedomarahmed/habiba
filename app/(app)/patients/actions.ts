@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guard";
 import { issueInvite, revokeInvite } from "@/lib/data/claims";
-import { createPatient, getPatient, updatePatient } from "@/lib/data/patients";
+import { requestAccess } from "@/lib/data/grants";
+import {
+  AccessRefusedError,
+  createPatient,
+  getPatient,
+  updatePatient,
+} from "@/lib/data/patients";
 import { ensurePersonForPatient } from "@/lib/data/people";
 import { env } from "@/lib/env";
 
@@ -45,16 +51,24 @@ export async function savePatient(
   const actor = await requireUser();
   if (!input.firstName.trim()) return { error: "A first name is required." };
 
-  await updatePatient(actor, patientId, {
-    firstName: input.firstName,
-    lastName: input.lastName || null,
-    email: input.email || null,
-    phone: input.phone || null,
-    clinical: {
-      diagnoses: input.diagnoses.filter(Boolean),
-      goals: input.goals.filter(Boolean),
-    },
-  });
+  try {
+    await updatePatient(actor, patientId, {
+      firstName: input.firstName,
+      lastName: input.lastName || null,
+      email: input.email || null,
+      phone: input.phone || null,
+      clinical: {
+        diagnoses: input.diagnoses.filter(Boolean),
+        goals: input.goals.filter(Boolean),
+      },
+    });
+  } catch (error) {
+    // 7.7: a consent refusal is a message, not a crash. Anything else is a
+    // real fault and must keep throwing — swallowing it would turn a failed
+    // save into a screen that says it succeeded.
+    if (error instanceof AccessRefusedError) return { error: error.message };
+    throw error;
+  }
 
   revalidatePath(`/patients/${patientId}`);
   return { ok: true };
@@ -145,6 +159,30 @@ export async function cancelInviteLink(
   const revoked = await revokeInvite(inviteId, actor.userId);
   if (!revoked) return { error: "That link was already used or cancelled." };
 
+  revalidatePath(`/patients/${patientId}`);
+  return { ok: true };
+}
+
+/* ------------------------------------------------ 7.3: asking for access -- */
+
+/**
+ * Ask a person to let you read their profile again.
+ *
+ * The only thing a revoked clinician can do about their state, and it is
+ * deliberately the *only* thing: there is no appeal, no notification to an
+ * administrator, and no way to see what they are missing. §3 gives them a note
+ * and a rate limit, and the answer belongs to the patient.
+ */
+export async function askForAccess(
+  patientId: string,
+  note: string,
+): Promise<PatientActionState> {
+  const actor = await requireUser();
+
+  const result = await requestAccess({ actor, patientId, note });
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath(`/copilot/${patientId}`);
   revalidatePath(`/patients/${patientId}`);
   return { ok: true };
 }

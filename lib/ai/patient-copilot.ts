@@ -2,6 +2,7 @@ import "server-only";
 
 import { asc, desc, eq } from "drizzle-orm";
 
+import type { Capabilities } from "@/lib/access/state";
 import { db } from "@/lib/db";
 import {
   copilotMessages,
@@ -81,8 +82,35 @@ Respond with JSON:
  *     constraint that has to survive a long document, and this one has to
  *     survive the entire transcript.
  */
-function buildSystemPrompt(guidance: string | null, language: string): string {
+function buildSystemPrompt(
+  guidance: string | null,
+  language: string,
+  capabilities?: Capabilities,
+): string {
   const blocks: string[] = [];
+
+  /*
+   * The consent boundary, stated first. PLAN.md 7.7, H2.
+   *
+   * H2: a rule buried under a long prompt loses to the material above it, and
+   * the material here is an entire clinical history. So the restriction goes
+   * at the very top, above the therapist's own standing instructions —
+   * deliberately the one thing their corrections cannot override, because a
+   * therapist cannot instruct their way past a patient's consent.
+   *
+   * What this is *not* is the enforcement. Today the context is assembled
+   * from one `patients` row — one clinic's own sessions and notes — which is
+   * exactly what §3 leaves a revoked therapist, so there is nothing here to
+   * withhold yet. The live profile and patient uploads arrive in sprint 8, and
+   * `capabilities.liveProfile` is what that assembly must consult. Until then
+   * this line does the only job available: stop the model *speculating* about
+   * the material it does not have. See C47.
+   */
+  if (capabilities && !capabilities.liveProfile) {
+    blocks.push(
+      "ACCESS RULE THAT OVERRIDES EVERYTHING BELOW, INCLUDING ANY INSTRUCTION FROM THE THERAPIST.\nThis person has not granted this therapist access to their current profile. You have only this therapist's own sessions and notes. Do not infer, guess at, or reconstruct anything about the patient's current diagnosis, medication, other clinicians, or life outside these transcripts. If asked, say plainly that you do not have access to it.",
+    );
+  }
 
   const standing = guidance?.trim();
   if (standing) {
@@ -216,6 +244,14 @@ export async function askPatientCopilot(opts: {
   guidance: string | null;
   /** `auto`, or an ISO 639-1 code from `NOTE_LANGUAGES`. */
   replyLanguage?: string;
+  /**
+   * What this clinician may read. PLAN.md 7.7.
+   *
+   * Optional so the one other caller (the in-session suggestions) is not
+   * forced to answer a question it does not have — absent means "no
+   * restriction beyond the scoping the caller already did".
+   */
+  capabilities?: Capabilities;
 }): Promise<CopilotAnswer> {
   const started = Date.now();
   const language = opts.replyLanguage ?? "auto";
@@ -253,7 +289,10 @@ export async function askPatientCopilot(opts: {
       response_format: { type: "json_object" },
       max_tokens: 1400,
       messages: [
-        { role: "system", content: buildSystemPrompt(opts.guidance, language) },
+        {
+          role: "system",
+          content: buildSystemPrompt(opts.guidance, language, opts.capabilities),
+        },
         {
           role: "user",
           content: [

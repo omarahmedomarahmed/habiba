@@ -139,6 +139,20 @@ export async function createPatient(
   return created!;
 }
 
+/**
+ * Thrown when a consent state forbids a write. PLAN.md 7.7.
+ *
+ * Named so an action can turn it into a message rather than a 500, and so it
+ * cannot be confused with a validation error — this one means "you may not",
+ * not "that was malformed".
+ */
+export class AccessRefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AccessRefusedError";
+  }
+}
+
 export async function updatePatient(
   actor: Actor,
   patientId: string,
@@ -159,7 +173,29 @@ export async function updatePatient(
   if (input.lastName !== undefined) patch.lastName = input.lastName?.trim() || null;
   if (input.email !== undefined) patch.email = input.email?.trim().toLowerCase() || null;
   if (input.phone !== undefined) patch.phone = input.phone?.trim() || null;
-  if (input.clinical !== undefined) patch.clinical = input.clinical;
+
+  if (input.clinical !== undefined) {
+    /*
+     * 7.7 — "no diagnosis changes" in the revoked state, enforced here.
+     *
+     * In the data layer rather than in the form, because a server action that
+     * exists can be called: hiding the field would leave the capability
+     * intact. `capabilities.diagnosisChanges` is false only for a claimed
+     * person who has not granted this clinician access, and for a stranger.
+     *
+     * The refusal throws rather than silently dropping the field. A clinician
+     * whose diagnosis quietly failed to save is a clinician treating on a
+     * record they believe says something it does not.
+     */
+    const { accessFor } = await import("./grants");
+    const access = await accessFor(actor, patientId);
+    if (!access.capabilities.diagnosisChanges) {
+      throw new AccessRefusedError(
+        "This person has not granted you access to their profile, so their diagnosis cannot be changed from here. Your own notes and sessions are unaffected.",
+      );
+    }
+    patch.clinical = input.clinical;
+  }
 
   await db
     .update(patients)

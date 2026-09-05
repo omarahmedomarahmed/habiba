@@ -7,6 +7,15 @@ import type { Actor } from "@/lib/auth/session";
 
 type AuditInput = {
   actor: Pick<Actor, "userId" | "organizationId"> | null;
+  /**
+   * The patient who did it. PLAN.md 7.6.
+   *
+   * A patient has no `Actor` and no organisation — see C41 — so they cannot be
+   * passed as one. Set this instead, with `actor: null`. Exactly one of the two
+   * is ever set: "who revoked this grant?" must not be answerable only by
+   * guessing which table the id belongs to.
+   */
+  patientAccountId?: string | null;
   category: AuditCategory;
   /** Verb-ish and stable, e.g. "session.read", "note.approve". */
   action: string;
@@ -28,9 +37,17 @@ type AuditInput = {
 export async function audit(input: AuditInput): Promise<void> {
   const [ip, ua] = await Promise.all([clientIp(), clientUserAgent()]);
 
+  if (input.actor && input.patientAccountId) {
+    // Not a defensive check for something that cannot happen — it is the
+    // invariant the column split exists to hold. A row naming both actors
+    // would make every "who did this" query ambiguous.
+    throw new Error("audit: an action has one actor, not both a clinician and a patient");
+  }
+
   await db.insert(auditLog).values({
     organizationId: input.actor?.organizationId ?? null,
     actorUserId: input.actor?.userId ?? null,
+    actorAccountId: input.patientAccountId ?? null,
     category: input.category,
     action: input.action,
     resourceType: input.resourceType ?? null,

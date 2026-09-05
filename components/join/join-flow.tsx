@@ -71,6 +71,12 @@ export function JoinFlow({
   const [resumed, setResumed] = useState<JoinState | null>(null);
   const [live, setLive] = useState(false);
   const [recording, setRecording] = useState(false);
+  // 7.8 — the two controls, kept in step with the recording indicator by the
+  // same poll that drives it.
+  const [consent, setConsent] = useState<{
+    recording: "granted" | "declined" | null;
+    profileShare: "granted" | "declined" | null;
+  }>({ recording: null, profileShare: null });
   const [startedAt, setStartedAt] = useState<string | null>(null);
   /*
    * The countdown, from the same server call that already tells them whether
@@ -110,6 +116,7 @@ export function JoinFlow({
       if (result.ended) setEnded(true);
       if (result.live) setLive(true);
       setRecording(result.recording);
+      setConsent(result.consent);
       setStartedAt(result.startedAt);
       setClock(result.clock);
     }, 5000);
@@ -130,6 +137,7 @@ export function JoinFlow({
       const result = await checkJoinState(token);
       if (result.ended) setEnded(true);
       setRecording(result.recording);
+      setConsent(result.consent);
       setStartedAt(result.startedAt);
       setClock(result.clock);
     }, 5000);
@@ -198,6 +206,7 @@ export function JoinFlow({
         videoUrl={current.videoUrl ?? null}
         live={live}
         recording={recording}
+        consent={consent}
         startedAt={startedAt}
         clock={clock}
       />

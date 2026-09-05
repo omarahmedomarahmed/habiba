@@ -4,10 +4,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileText } from "lucide-react";
 
 import { CopilotChat } from "@/components/copilot/chat";
+import { AccessBanner } from "@/components/patient/access-banner";
 import { Card } from "@/components/ui";
 import { PROMPT_TEMPLATES } from "@/lib/ai/patient-copilot";
 import { requireUser } from "@/lib/auth/guard";
+import { explain } from "@/lib/access/state";
 import { checkQuota, getMessages, getOrCreateThread } from "@/lib/data/copilot";
+import { accessFor } from "@/lib/data/grants";
 import { getPatientHistory } from "@/lib/data/patients";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -28,10 +31,11 @@ export default async function CopilotThreadPage({
   const found = await getOrCreateThread(actor, patientId);
   if (!found) notFound();
 
-  const [messages, quota, history, [me]] = await Promise.all([
+  const [messages, quota, history, access, [me]] = await Promise.all([
     getMessages(actor, found.thread.id),
     checkQuota(actor, found.thread.id),
     getPatientHistory(actor, patientId),
+    accessFor(actor, patientId),
     db.select({ profile: users.profile }).from(users).where(eq(users.id, actor.userId)).limit(1),
   ]);
 
@@ -58,6 +62,22 @@ export default async function CopilotThreadPage({
       </div>
 
       <div className="px-4 pb-10 sm:px-6">
+        {/*
+          7.7 — the state, said out loud, above the conversation rather than
+          beside it. A therapist who does not know the copilot has been
+          degraded reads a thin answer as the copilot being unhelpful.
+        */}
+        {explain(access.state) ? (
+          <div className="mb-4">
+            <AccessBanner
+              patientId={patientId}
+              state={access.state}
+              message={explain(access.state)!}
+              canRequest={access.capabilities.canRequestAccess}
+              pendingSince={access.grant?.status === "pending" ? access.grant.requestedAt : null}
+            />
+          </div>
+        ) : null}
         {history.length > 0 ? (
           <Card className="mb-4">
             <details>

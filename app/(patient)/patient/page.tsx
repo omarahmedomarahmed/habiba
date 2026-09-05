@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Badge, Card } from "@/components/ui";
+import { pendingRequestsFor } from "@/lib/data/grants";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { db } from "@/lib/db";
 import { patients, people } from "@/lib/db/schema";
@@ -25,6 +26,11 @@ export const dynamic = "force-dynamic";
  */
 export default async function PatientHomePage() {
   const actor = await requirePatient();
+
+  // 7.4 — an unanswered request is the one thing on this page that is waiting
+  // on them, so it is counted here rather than discovered by navigating.
+  const waiting = await pendingRequestsFor(actor.personId);
+  const pending = waiting.length;
 
   const [person] = await db
     .select({
@@ -67,10 +73,27 @@ export default async function PatientHomePage() {
       </Card>
 
       <Card className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-900">Who can read your history</p>
+          {pending > 0 ? <Badge tone="amber">{pending} waiting</Badge> : null}
+        </div>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          {pending > 0
+            ? `${pending} therapist${pending === 1 ? " has" : "s have"} asked to read your history. You decide, and you can change your mind later.`
+            : "Nobody reads your history unless you say so. You can stop anyone at any time."}
+        </p>
+        <Link
+          href="/patient/consent"
+          className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
+        >
+          {pending > 0 ? "Answer now" : "Manage access"}
+        </Link>
+      </Card>
+
+      <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">Coming next</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Your sessions, your homework and your billing appear here. Who can read your record
-          becomes yours to control in the next release.
+          Your sessions, your homework and your billing appear here.
         </p>
       </Card>
     </main>

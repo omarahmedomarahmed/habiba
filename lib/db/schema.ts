@@ -454,6 +454,33 @@ export const sessions = pgTable(
     /** Consent is to particular words, and the words will be edited. */
     recordingConsentVersion: text("recording_consent_version"),
 
+    /**
+     * When the microphone actually started. PLAN.md 7.8.
+     *
+     * Not the same as `recordingConsentAt` and not the same as `startedAt`. A
+     * patient who says yes at minute 10 creates a session where the first ten
+     * minutes were never captured, and §3 requires the note to say so in those
+     * words. Without this column the note can only claim the session was
+     * recorded, which reads as a complete record of something that is not.
+     */
+    recordingStartedAt: timestamp("recording_started_at", { withTimezone: true }),
+
+    /**
+     * The second control from §3: **share my profile**. PLAN.md 7.8.
+     *
+     * Separate from recording consent because they are different questions —
+     * one is about capturing this hour, the other is about handing over
+     * everything before it. A patient may reasonably say yes to one and no to
+     * the other, and a single "consent" flag makes that impossible to express.
+     *
+     * Both controls move in one direction only, off → on. Turning recording
+     * *off* mid-session would leave a recording that exists and a patient who
+     * believes it does not; §3's answer is to end the session and answer no
+     * next time.
+     */
+    profileShareConsent: text("profile_share_consent").$type<"granted" | "declined">(),
+    profileShareConsentAt: timestamp("profile_share_consent_at", { withTimezone: true }),
+
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
@@ -1716,6 +1743,19 @@ export const auditLog = pgTable(
       onDelete: "set null",
     }),
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    /**
+     * The patient who did it. PLAN.md 7.6.
+     *
+     * A second nullable actor column rather than a shared one, because the two
+     * ids point at different tables and a single column could not carry a
+     * foreign key to either. Exactly one of the two is set on any row: a
+     * clinician read, or a person granting, rejecting or revoking their own
+     * history. Collapsing them would make "who revoked this?" answerable only
+     * by guessing which table to look in.
+     */
+    actorAccountId: uuid("actor_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
     category: text("category").$type<AuditCategory>().notNull(),
     action: text("action").notNull(),
     resourceType: text("resource_type"),
@@ -2347,3 +2387,95 @@ export const personInvites = pgTable(
 export type PatientAccount = typeof patientAccounts.$inferSelect;
 export type PersonClaim = typeof personClaims.$inferSelect;
 export type PersonInvite = typeof personInvites.$inferSelect;
+
+/* ============================================================== sprint 7 == */
+
+/**
+ * Consent to read a person's history. PLAN.md 7.1.
+ *
+ * ## Why the row is the *request* as well as the grant
+ *
+ * §3 gives a therapist in the revoked state a "request access" button with a
+ * note. A separate requests table would mean two rows describing one
+ * relationship and a state machine spread across both — and the question the
+ * product actually asks is always the same one: *what is the current state
+ * between this person and this therapist?* One row answers it.
+ *
+ * So `status` walks `pending → granted | rejected`, and `granted → revoked`.
+ * A row never moves backwards; a new request after a rejection is a new row,
+ * which is what makes the history readable.
+ *
+ * ## Person, not patient
+ *
+ * The grant is given by the **person** and it covers everything of theirs,
+ * across every clinic. A grant keyed to a `patients` row would be a grant to
+ * one clinic's file about them, which is the thing they already cannot control.
+ *
+ * ## Expiry is a timestamp, not a job
+ *
+ * A 24-hour grant has `expires_at` set and nothing ever runs to "expire" it.
+ * Every read compares against `now()`. A cron that flips rows is a cron that
+ * can be late, and being late here means a therapist reading a chart after
+ * consent ran out.
+ */
+export const GRANT_SHAPES = ["24h", "open"] as const;
+export type GrantShape = (typeof GRANT_SHAPES)[number];
+
+export const GRANT_STATUSES = ["pending", "granted", "rejected", "revoked"] as const;
+export type GrantStatus = (typeof GRANT_STATUSES)[number];
+
+export const historyGrants = pgTable(
+  "history_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** The clinician the consent is given to. Consent is to a person, not a clinic. */
+    therapistUserId: uuid("therapist_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Denormalised for the audit trail — which practice they were in at the time. */
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+
+    status: text("status").$type<GrantStatus>().notNull().default("pending"),
+    shape: text("shape").$type<GrantShape>(),
+
+    /** 7.3 — a request carries a note, so the patient knows what they are agreeing to. */
+    requestNote: text("request_note"),
+    requestedAt: timestamp("requested_at", { withTimezone: true }),
+
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** Set only for a `24h` grant. Null on an open-ended one — see the header. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+
+    /**
+     * 7.4 — optional, and it stays optional.
+     *
+     * §3: the patient rejects "silently, or with a preset reason". A required
+     * reason is a toll on saying no, and the whole point is that saying no
+     * costs them nothing.
+     */
+    rejectionReason: text("rejection_reason"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * One live row per (person, therapist). Partial, so a rejected or revoked
+     * row does not block asking again later — and so a therapist cannot spam a
+     * patient with a second pending request while one is already waiting.
+     */
+    uniqueIndex("history_grants_live_unique")
+      .on(t.personId, t.therapistUserId)
+      .where(sql`status IN ('pending', 'granted')`),
+    index("history_grants_person_idx").on(t.personId, t.status),
+    index("history_grants_therapist_idx").on(t.therapistUserId, t.status),
+  ],
+);
+
+export type HistoryGrant = typeof historyGrants.$inferSelect;

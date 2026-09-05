@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { rateOnArrival } from "@/app/join/[token]/actions";
+import { ConsentControls } from "@/components/join/consent-controls";
 import { reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 import type { ClockStage } from "@/lib/session-clock";
@@ -46,6 +47,7 @@ export function PatientRoom({
   videoUrl,
   live,
   recording,
+  consent,
   startedAt,
   clock,
 }: {
@@ -54,6 +56,10 @@ export function PatientRoom({
   videoUrl: string | null;
   live: boolean;
   recording: boolean;
+  consent: {
+    recording: "granted" | "declined" | null;
+    profileShare: "granted" | "declined" | null;
+  };
   startedAt: string | null;
   clock: { stage: ClockStage; remainingSeconds: number } | null;
 }) {
@@ -115,6 +121,17 @@ export function PatientRoom({
             This is an instruction.
           */}
           <StayHere therapist={therapist} />
+          {/*
+            7.8 — above the reassurance and below the instruction. These are
+            the only two things on this panel the patient can *change*, and a
+            control buried under four paragraphs of explanation is a control
+            that gets found after the session rather than during it.
+          */}
+          <ConsentControls
+            token={token}
+            recording={consent.recording}
+            profileShare={consent.profileShare}
+          />
           {live && clock ? <PatientClockNote clock={clock} /> : null}
           <WhoYouAreWith therapist={therapist} live={live} startedAt={startedAt} />
           <SummaryAndRating token={token} live={live} therapist={therapist} />

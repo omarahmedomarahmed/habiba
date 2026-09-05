@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
+import { explain } from "@/lib/access/state";
 import { askPatientCopilot } from "@/lib/ai/patient-copilot";
+import { accessFor } from "@/lib/data/grants";
 import { requireUser } from "@/lib/auth/guard";
 import {
   addGuidance,
@@ -39,6 +41,20 @@ export async function askCopilot(patientId: string, question: string): Promise<A
   // open someone else's conversation.
   const found = await getOrCreateThread(actor, patientId);
   if (!found) return { error: "Patient not found." };
+
+  /*
+   * 7.7 — the four states, checked before anything is spent.
+   *
+   * Before the quota rather than after: a refusal that has already consumed a
+   * credit is a refusal the clinician pays for. `capabilities.copilot` is only
+   * false in the "no relationship" state, which `getOrCreateThread` already
+   * makes unreachable — so this is the belt to that braces, and the place the
+   * next state to lose the copilot will be handled.
+   */
+  const access = await accessFor(actor, patientId);
+  if (!access.capabilities.copilot) {
+    return { error: explain(access.state) ?? "You cannot use the copilot for this patient." };
+  }
 
   const quota = await checkQuota(actor, found.thread.id);
   if (!quota.allowed) {
@@ -89,6 +105,12 @@ export async function askCopilot(patientId: string, question: string): Promise<A
       question: trimmed,
       guidance: found.thread.guidance,
       replyLanguage: found.thread.replyLanguage,
+      /*
+       * What this clinician may read, passed down rather than re-derived.
+       * The copilot's context is assembled from the database and a second
+       * opinion about consent would be a second place for it to be wrong.
+       */
+      capabilities: access.capabilities,
     });
 
     await appendMessage({
