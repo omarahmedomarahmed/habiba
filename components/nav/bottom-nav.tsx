@@ -14,6 +14,7 @@ import {
   Radio,
   Settings,
   ShieldCheck,
+  Sparkles,
   Users,
   Wallet,
   X,
@@ -42,6 +43,13 @@ const PRIMARY = [
 
 const MORE = [
   { href: "/copilot", label: "Copilot", icon: MessageSquare, hint: "Ask about a patient" },
+  /*
+   * Named for what it is *not* allowed to see, because the two copilots are
+   * one tap apart and a clinician who asks the wrong one gets a refusal
+   * instead of an answer. "Assistant · your practice" beside "Copilot · ask
+   * about a patient" is the whole distinction.
+   */
+  { href: "/assistant", label: "Assistant", icon: Sparkles, hint: "Your week, not your notes" },
   { href: "/notes", label: "Notes", icon: FileText, hint: "Drafts waiting for you" },
   { href: "/on-call", label: "Crisis Radar", icon: Radio, hint: "Go online, get booked" },
   { href: "/earnings", label: "Earnings", icon: Wallet, hint: "What patients paid you" },
@@ -138,9 +146,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
                 <span
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                    isActive(item.href)
-                      ? "bg-brand-500 text-white"
-                      : "bg-slate-100 text-slate-500",
+                    isActive(item.href) ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500",
                   )}
                 >
                   <item.icon className="h-4 w-4" aria-hidden />
@@ -187,7 +193,9 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
             )}
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />
-            <span className={cn("text-[10px]", open || moreActive ? "font-semibold" : "font-medium")}>
+            <span
+              className={cn("text-[10px]", open || moreActive ? "font-semibold" : "font-medium")}
+            >
               More
             </span>
           </button>

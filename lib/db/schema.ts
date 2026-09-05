@@ -99,6 +99,17 @@ export type TherapistProfile = {
   voice?: "british_female" | "american_male" | "american_female" | "british_male";
   voiceSpeed?: number;
   /**
+   * The general copilot's preferences. PLAN.md 10.6.
+   *
+   * Three scalars on the person who owns them, kept here rather than in a new
+   * table — a table with one row per user and three columns is a join for no
+   * reason. `assistantPrefsSetAt` is what makes "asked once" possible: null
+   * means they have never been asked, which is a different state from having
+   * been asked and chosen the defaults.
+   */
+  assistantLanguage?: string;
+  assistantPrefsSetAt?: string;
+  /**
    * Which radar events make a noise.
    *
    * Separated because they are genuinely different events. Someone opening
@@ -2907,3 +2918,95 @@ export const homeworkItems = pgTable(
 export type PersonProfile = typeof personProfiles.$inferSelect;
 export type Observation = typeof observations.$inferSelect;
 export type HomeworkItem = typeof homeworkItems.$inferSelect;
+
+/* ============================================================= sprint 10 == */
+
+/**
+ * The general copilot — a separate table on purpose. PLAN.md 10.1–10.5.
+ *
+ * ## Why not a nullable `patient_id` on `copilot_threads`
+ *
+ * 10.2 is the whole ticket: *roster only, **no clinical content in context**,
+ * and the guarantee comes from what is absent rather than from what the prompt
+ * says.* A nullable `patient_id` would put the general assistant inside the
+ * module that assembles transcripts, notes and documents — one `if` away from
+ * a leak, and that `if` would be the only thing standing between a general
+ * question and twelve sessions of somebody's therapy.
+ *
+ * A separate table means `lib/ai/assistant.ts` imports **no clinical table at
+ * all**. There is no query in it that could reach a transcript, because there
+ * is no join that leads there. That is the same argument as C41's separate
+ * patient identity, and it is the reason both were built this way.
+ *
+ * ## Threads are soft-deleted
+ *
+ * 10.4 asks for delete. `deletedAt` rather than a row removal because a
+ * clinician deleting a thread is tidying their own workspace, not exercising a
+ * retention right — and a hard delete would take the usage rows for the month's
+ * allowance with it, which would quietly hand back messages they had spent.
+ */
+export const assistantThreads = pgTable(
+  "assistant_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    /** Named from the first question, so a list of threads is readable. */
+    title: text("title").notNull().default("New chat"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [index("assistant_threads_user_idx").on(t.userId, t.updatedAt)],
+);
+
+/**
+ * One turn of the general chat.
+ *
+ * `mentions` holds patient links the **server** resolved (10.3) — never what
+ * the model claimed. A name the model invented is not in this array, so it
+ * cannot become a link, and a link that exists here was matched against the
+ * clinician's real roster at the moment the answer was written.
+ */
+export const assistantMessages = pgTable(
+  "assistant_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => assistantThreads.id, { onDelete: "cascade" }),
+    /** Denormalised so the monthly allowance is one indexed count, not a join. */
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    role: text("role").$type<"therapist" | "assistant">().notNull(),
+    content: text("content").notNull(),
+    mentions: jsonb("mentions")
+      .$type<{ patientId: string; name: string }[]>()
+      .notNull()
+      .default([]),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("assistant_messages_thread_idx").on(t.threadId, t.createdAt),
+    /*
+     * The allowance query: therapist questions this month, across every thread.
+     * Partial on the role, because assistant replies are not spent messages and
+     * counting them would halve everybody's quota.
+     */
+    index("assistant_messages_quota_idx")
+      .on(t.userId, t.createdAt)
+      .where(sql`role = 'therapist'`),
+  ],
+);
+
+export type AssistantThread = typeof assistantThreads.$inferSelect;
+export type AssistantMessage = typeof assistantMessages.$inferSelect;
