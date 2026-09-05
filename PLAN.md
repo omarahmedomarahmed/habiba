@@ -93,6 +93,11 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C36 | 4.3 | **Payment preferences deferred, as C12 predicted.** The payment now records the country, currency, rate and VAT it was made under, which is history and belongs on the payment. A *preference* — "this is where I pay from" — is an attribute of a person, and `people` arrives in sprint 5. Storing it on `patients` now means migrating it in two sprints' time. Build it in 5, on the row that will own it. | minor | sprint 4 | **resolved sprint 5** — `people.preferred_country` / `preferred_currency`, with `savePaymentPreference`. The *payment* still records the country it was actually made under; that is history and never moves |
 | C37 | 4.4, 14 | 🔴 **The exchange rates are indicative, not a feed.** `lib/billing/fx.ts` has a `STATIC_RATES` table (~48 EGP/USD) and stamps every quote `source: "static"`, so a payment made against one is distinguishable in the row from a payment made against a real provider — and the pay page says so to the patient. `fetchRate` is the single function to replace. **A static rate must not settle real money in production.** An unpriceable pair is refused rather than guessed, so the failure is a country that cannot be paid in yet rather than a patient charged wrongly. Sprint 14 owns the real feed, next to the payment providers it must agree with. | major | sprint 4 | open — sprint 14 |
 | C38 | 4.4 | **Found by the verifier: the FX quote window was built from two clocks.** `quoted_at` defaulted to Postgres `now()` while `expires_at` was computed from this process's `Date.now()`, so the stored window was an hour ± the skew between two machines. The hour is a promise to the patient; a window derived from two clocks cannot be reproduced when somebody asks why a quote expired early. Both timestamps now come from the same instant. | minor | sprint 4 | **resolved** |
+| C41 | 6.3 | 🔴 **6.3 was deliberately NOT done, and doing it would be a security regression.** Making `Actor.organizationId` nullable was scoped when patients were expected to flow through the *same* actor. 6.2 chose a separate identity table instead, so no patient ever holds an `Actor` — and with nobody to be null for, the nullable buys nothing while putting `string | null` into **192 `.organizationId` reads across 52 files, every one of them a tenancy filter**. A filter that silently accepts null is a filter that returns another practice's rows. `PatientActor` (accountId, personId, email, name) has no `organizationId` field at all, which is the honest encoding: a patient is not in an organisation. Closes C15 by dissolving it rather than paying it. | major | sprint 6 | **resolved — deliberately not built.** `verify-sprint6` asserts `users.organization_id` is still `NOT NULL` |
+| C42 | 6.1 | **`"patient"` was deliberately NOT added to `ROLES`.** Same reasoning one layer up: `ROLES` is what `requireRole` checks, and every role in it is a role inside an organisation. A `"patient"` member would be a role that must never satisfy any `requireRole` call — a value whose only correct behaviour is to be rejected everywhere, which is a trap for the next person to add a role check. Patients authenticate through `requirePatient()` against their own table and their own cookie. `ROLES` carries a comment saying why the value is absent, so it is not re-added as an oversight. | minor | sprint 6 | **resolved — deliberately not built** |
+| C43 | 6.9 | **6.9's WhatsApp half is not built, and the UI does not pretend otherwise.** The channel is in the data model and in `sendClaimCode`, but there is no WhatsApp Business sender configured, so a `whatsapp` request logs a warning and delivers by email. The claim screen therefore offers **only** email — no WhatsApp button exists to press — because a screen that says "check WhatsApp" for a message nobody sent leaves a person waiting instead of claiming their record. Needs a provider decision (Meta Cloud API vs an aggregator). Measured constraint on its usefulness: **0 of 66 patients have a phone number on file**, so even with a provider there is nothing to send to until sprint 8 collects one. | minor | sprint 6 | open |
+| C44 | 6.8 | **Found by the verifier: `startClaim`'s upsert could never have run.** `person_claims_open_unique` is a *partial* index (unique on person+account only `WHERE status = 'pending'`), and the ON CONFLICT clause named the columns but not the predicate. Postgres does not degrade gracefully there — it refuses the statement outright with `42P10`. Every second press of "send me a code" would have been a 500, and no test would have caught it because the first press works. Fixed with `targetWhere`. The lesson repeats sprint 4's: an upsert against a partial index is not verifiable by reading. | minor | sprint 6 | **resolved** |
+| C45 | 6.6 | **Middleware prefix matching was substring, not segment.** `/patients` (the clinician's list) and `/patient` (the patient's own area) differ by one character, and `startsWith` put anything beginning with those letters under both. The routing decision moved to `lib/routing.ts` as a pure function matching on segment boundaries, with the structural claim — *no combination of cookies sends a `/patient/*` path to a clinician screen* — asserted exhaustively over all 4 cookie states × 2 expiry states rather than argued in a comment. | minor | sprint 6 | **resolved** |
 | C30 | 2 | **The "someone is looking" toast was removed, not just relocated.** The orb says the same sentence permanently in the same corner, so the two overlapped and told the clinician the same thing twice. The *booking* card stays — that one is an interruption, not a status, and the orb steps aside for it (`liftedForBooking`). | minor | sprint 2 | **resolved** |
 | C31 | 2.5 | **`savePractice` cannot be used for a single toggle.** It takes the whole practice payload, so driving it from a floating control would rebuild name, address and coordinates from nothing and silently erase them. Added `setAcceptsWalkIns`, a conditional UPDATE that refuses to publish an address which has not been confirmed — and never guards turning it *off*, because somebody withdrawing consent to be visited must not be told they cannot. | minor | sprint 2 | **resolved** |
 | C27 | 2.5 | **"Access state" in 2.5 could not be built.** The four copilot states in §3 are defined by claimed/unclaimed and by `historyGrants`, which arrive in sprints 5–7. `/on-call` shows everything else the ticket asks for; the access column is deliberately absent rather than faked with a placeholder that would always read the same. Revisit after sprint 7. | minor | sprint 2 | open |
@@ -384,21 +389,36 @@ The first sprint that earns money.
 
 ### Sprint 6 — Patient accounts · ~1 week · FOUNDATION
 
-- [ ] **6.1** Add `"patient"` to `ROLES`
-- [ ] **6.2** 🔴 **Separate patient identity table — not a nullable
-      `organizationId`.** Nullable voids `users_org_email_unique`, because
-      Postgres treats NULLs as distinct: one email, unlimited signups
-- [ ] **6.3** `Actor.organizationId` → `string | null`. **Audit every consumer**
-- [ ] **6.4** `requirePatient()` mirroring `requireUser()`
-- [ ] **6.5** Signup, signin, reset — reuse `lib/auth/*`
-- [ ] **6.6** Fix `middleware.ts` — a signed-in patient lands on the therapist
-      dashboard today
-- [ ] **6.7** `app/(patient)/` route group
-- [ ] **6.8** The claim flow, all eight steps from §3
-- [ ] **6.9** Verification by email or WhatsApp
-- [ ] **6.10** 🆕 **Invite-link claim route** (§3). Bound to one record, single
-      use, expiring, revocable, never sent by us. The only route that works for
-      the 46 of 56 patients with no contact details at all
+- [x] **6.1** ~~Add `"patient"` to `ROLES`~~ **deliberately not done — C42.**
+      Every role in `ROLES` is a role *inside an organisation*, and a value
+      whose only correct behaviour is to fail every `requireRole` check is a
+      trap. The absence is commented in `schema.ts` so it is not re-added
+- [x] **6.2** 🔴 **Separate patient identity table — not a nullable
+      `organizationId`.** `patient_accounts` / `patient_auth_sessions` /
+      `person_claims` / `person_invites` (migration 0034). The hole this
+      closes is asserted live: a second account on the same email is refused
+      **by the database**, not by remembering to look first
+- [x] **6.3** ~~`Actor.organizationId` → `string | null`~~ **deliberately not
+      done — C41.** With a separate identity no patient holds an `Actor`, so
+      the nullable buys nothing and would put `string | null` into 192
+      tenancy filters. Closes C15 by dissolving it
+- [x] **6.4** `requirePatient()` / `optionalPatient()`, own cookie
+      (`24t_patient`), own table, 4h idle / 7d absolute
+- [x] **6.5** Signup and signin reusing `lib/auth/password` unchanged. Duplicate
+      email answers exactly what a wrong password answers
+- [x] **6.6** `middleware.ts` fixed, and the decision extracted to
+      `lib/routing.ts` as a pure function — segment-boundary matching (C45),
+      with the no-fall-through claim asserted over every cookie state
+- [x] **6.7** `app/(patient)/` route group — home, login, signup, claim, invite
+- [x] **6.8** The claim flow, all eight steps. Step 7 defaults **off** in both
+      routes, and `verifyClaim` has no default for it — a caller that forgets
+      is a type error, not a silent grant
+- [~] **6.9** Email only. WhatsApp has no provider and the UI offers no button
+      for it rather than promising a message nobody sends — C43
+- [x] **6.10** 🆕 **Invite-link claim route.** Issued from the patient's chart,
+      single use (conditional UPDATE, not a read), 30-day expiry, revocable,
+      never sent by us. Only a hash is stored, so the token is shown once and
+      the copy says so
 
 ### Sprint 7 — Consent · ~4 days · FOUNDATION
 
@@ -540,6 +560,7 @@ Built last so it can be verified against everything that already exists.
 | 2026-09-04 | 1.8 | `createSessionCheckout` **refuses** a payment when the clinician has no transfer-capable Connect account, instead of capturing to our own balance | *this* | Only one `capture` value is now reachable (`"destination"`, typed `as const`). `verify:sprint1` confirms 0 historical `platform` rows — the door closed before anything went through it |
 | 2026-09-05 | 5.x | **Sprint 5 complete.** `people` above `patients` · claimed/unclaimed · backfill with no merging · suggest-only matching · the unclaimed rule | *sprint 5* | Migration 0033 verified against `information_schema`: 11 cols, 5 indexes, `patients.person_id` linked. **66 patients → 66 people, 0 orphans, 0 merges** — and checked field by field, because an `INSERT…SELECT` joined by `row_number()` can pair the wrong rows while every count still looks right: 66 pairs, 0 name and 0 email mismatches. `verify-sprint5.ts` asserts the three duplicate-email cases stayed separate. 155 tests / 9 suites |
 | 2026-09-05 | 4.x | **Sprint 4 complete.** Money model migrated · `/pay/[token]` country-first · FX quotes held an hour · cut and VAT as separate lines both sides · `session_type` | *sprint 4* | Migration 0032 verified against `information_schema`: 9 new columns on `session_payments`, `fx_quotes` 7 cols / 2 indexes, `session_type` backfilled 8 paid_link + 61 direct. `verify-sprint4.ts`: 17 checks incl. §3's worked example to the cent ($30 → $34.20 / $4.20 VAT / $4.50 cut / $25.50 net → 1641.60 EGP), quote reuse within the hour, and an unpriceable pair refused. It caught C38. 144 tests / 8 suites, build clean |
+| 2026-09-05 | 6.x | **Sprint 6 complete.** A separate patient identity · `requirePatient` · the `(patient)` route group · the eight-step claim · C19's invite link · the clinician's side of handing a record over | *sprint 6* | Migration 0034 verified against `information_schema`: `patient_accounts` 10 cols, `patient_auth_sessions` 8, `person_claims` 11, `person_invites` 9; three unique indexes present; `people.claimed_by_account_id` confirmed pointing at `patient_accounts`, not `users`. `verify-sprint6.ts` runs 30 checks that *try the thing that must fail*: a duplicate patient email is refused by the database, a forwarded invite cannot be redeemed twice, a superseded code stops working, a claimed record cannot be claimed or invited again, and `users.organization_id` is still `NOT NULL` (C41). It caught **C44** — an upsert against a partial index that Postgres would have refused outright, i.e. a 500 on every second "send me a code". 139 tests / 7 pure suites + 9 ledger, build clean, all five `/patient/*` routes present |
 | 2026-09-05 | 3.5 | **C35 — a straddling line is never labelled.** Prompt rule placed above the schema (H2) + a deterministic refusal at the write | *sprint 3* | Signal chosen by measurement, not guess: interior `.`/`!` fires on 60/151 and was rejected; interior `?`/`؟` fires on 22. Hand-read all 22 — 18 real straddles, 3 one-clinician question runs. Refined to measure from the **last** question mark, which drops exactly those 3 → 18. 6 new tests. Applied: 18 labels returned to `unknown`, in-person 12.2% → 21.6%, video 2.7% → 4.9% |
 | 2026-09-05 | 3.x | **C33 closed — backfill re-run against the real model.** Reset all 160 mock labels to `unknown` first, then `gpt-4o-mini`, 13 sessions, 151 segments, 31s | *sprint 3* | H10 honoured again (retention 0 → 86400 around the write pair). Coverage in-person **91.9% → 12.2%**, video **20.5% → 2.7%**. Note the video baseline is 20.5% not 11.9%: resetting exposed 16 rows an *earlier real* run had inferred. Quality hand-read on two sessions, one Arabic one English — new finding filed as C35 |
 | 2026-09-05 | 3.x | **Sprint 3 complete.** H11 batching + backfill · pause-based cutting · descriptors · dropped-track handling | *sprint 3* | Baseline measured first (video 11.9% / in-person 91.9% unknown — §3's figures exact). After backfill: **video 0%, in-person 9.5%**, the remaining 14 being sessions under the 4-segment floor. H10 honoured: retention set to 0 before the bulk write and restored to 86400 after. Migration 0031 verified against `information_schema`. 21 new tests. Two caveats filed as C32/C33 |

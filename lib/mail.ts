@@ -354,6 +354,26 @@ export async function sendPasswordReset(opts: { to: string; url: string }): Prom
 }
 
 /**
+ * A claim verification code. §3 step 5.
+ *
+ * Deliberately says nothing about who holds the record or which clinician
+ * wrote it. Somebody reading this over a shoulder — or a shared family inbox —
+ * learns that a code exists, not that this person is in therapy or with whom.
+ * The redacted name is shown on the screen, to somebody who is already signed
+ * in, and never in an email.
+ */
+export async function sendClaimCode(opts: { to: string; code: string }): Promise<boolean> {
+  const html = layout(
+    "Your verification code",
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your code</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">It expires in 30 minutes.</p>
+     <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:6px;">${esc(opts.code)}</p>
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">If you did not ask for this, ignore this email — nothing has changed.</p>`,
+  );
+  return send({ to: opts.to, subject: "Your 24Therapy verification code", html });
+}
+
+/**
  * The join link, with or without a price.
  *
  * One template rather than two. A paid invitation and a free one differ by a

@@ -4,12 +4,18 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 
 import { PatientEditor } from "@/components/patient/patient-editor";
+import { RecordAccess } from "@/components/patient/record-access";
 import { Badge, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
+import { recordAccess } from "@/lib/data/claims";
 import { getPatient, getPatientHistory } from "@/lib/data/patients";
+import { personIdForPatient } from "@/lib/data/people";
 import { fullName, relativeDay } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Patient", robots: { index: false } };
+export const metadata: Metadata = {
+  title: "Patient",
+  robots: { index: false },
+};
 export const dynamic = "force-dynamic";
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +26,15 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   if (!patient) notFound();
 
   const history = await getPatientHistory(actor, id);
+
+  /*
+   * A patient created before sprint 5's backfill, or by a route that has not
+   * been through `ensurePersonForPatient` yet, has no person row. That is not
+   * an error state — the invite action creates one on demand — so the panel
+   * renders as "no invite issued" rather than disappearing.
+   */
+  const personId = await personIdForPatient(id);
+  const access = personId ? await recordAccess(personId, actor.userId) : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -54,6 +69,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             diagnoses: patient.clinical?.diagnoses ?? [],
             goals: patient.clinical?.goals ?? [],
           }}
+        />
+
+        <RecordAccess
+          patientId={patient.id}
+          claimed={access?.claimed ?? false}
+          claimedAt={access?.claimedAt ?? null}
+          openInvite={access?.openInvite ?? null}
         />
 
         <Card>

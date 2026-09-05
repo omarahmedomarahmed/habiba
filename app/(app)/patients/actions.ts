@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/guard";
-import { createPatient, updatePatient } from "@/lib/data/patients";
+import { issueInvite, revokeInvite } from "@/lib/data/claims";
+import { createPatient, getPatient, updatePatient } from "@/lib/data/patients";
+import { ensurePersonForPatient } from "@/lib/data/people";
+import { env } from "@/lib/env";
 
 export type PatientActionState = { error?: string; ok?: boolean };
 
@@ -88,3 +91,60 @@ export async function savePatient(
  * erasure requests go through us, deliberately, because they need a decision
  * about retention law that a product surface cannot make.
  */
+
+/* ----------------------------------------------- 6.10: handing a record over -- */
+
+/**
+ * Issue an invite link for this patient's person record.
+ *
+ * Tenancy is enforced by `getPatient(actor, …)` — a clinician can only hand
+ * over a record they can already read. Everything after that is on the person
+ * rather than the patient row, because the record being handed over is the
+ * identity, not one clinic's file on it.
+ *
+ * The token comes back exactly once. We show it, and we never store it, so a
+ * clinician who loses the link revokes and issues another rather than asking
+ * us to look it up.
+ */
+export async function createInviteLink(
+  patientId: string,
+): Promise<{ url: string; expiresAt: string } | { error: string }> {
+  const actor = await requireUser();
+
+  const patient = await getPatient(actor, patientId);
+  if (!patient) return { error: "That patient is not in your practice." };
+
+  const personId = await ensurePersonForPatient(patientId);
+  if (!personId) return { error: "That patient no longer exists." };
+
+  const issued = await issueInvite({ personId, issuedByUserId: actor.userId });
+  if ("error" in issued) return issued;
+
+  revalidatePath(`/patients/${patientId}`);
+  return {
+    url: `${env.appUrl}/patient/invite/${issued.token}`,
+    expiresAt: issued.expiresAt.toISOString(),
+  };
+}
+
+/**
+ * Take a link back.
+ *
+ * `revokeInvite` is scoped to the issuing clinician, so this cannot revoke
+ * somebody else's invite even with a guessed id.
+ */
+export async function cancelInviteLink(
+  patientId: string,
+  inviteId: string,
+): Promise<PatientActionState> {
+  const actor = await requireUser();
+
+  const patient = await getPatient(actor, patientId);
+  if (!patient) return { error: "That patient is not in your practice." };
+
+  const revoked = await revokeInvite(inviteId, actor.userId);
+  if (!revoked) return { error: "That link was already used or cancelled." };
+
+  revalidatePath(`/patients/${patientId}`);
+  return { ok: true };
+}

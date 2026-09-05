@@ -28,6 +28,15 @@ import {
  *    be passed to the wrong foreign key.
  */
 
+/**
+ * Roles inside an organisation.
+ *
+ * `"patient"` is deliberately **not** here. PLAN.md 6.1 asks for it, and adding
+ * it would mean a patient is a `users` row — which 6.2, two tickets later,
+ * forbids for a concrete reason (see `patientAccounts`). A patient has their
+ * own identity table and their own session; they are not a member of an
+ * organisation and never become one. See C41.
+ */
 export const ROLES = ["super_admin", "therapist"] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -2095,10 +2104,13 @@ export const people = pgTable(
      * has, which is most of them.
      */
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
-    /** The patient account that claimed it. Arrives with `"patient"` in sprint 6. */
-    claimedByUserId: uuid("claimed_by_user_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
+    /**
+     * The patient account that claimed it.
+     *
+     * Points at `patient_accounts`, not `users` — a patient is not a member of
+     * an organisation and never becomes one. See the note on `patientAccounts`.
+     */
+    claimedByAccountId: uuid("claimed_by_account_id"),
 
     /*
      * Where they pay from, remembered (C36 / PLAN.md 4.3).
@@ -2130,3 +2142,208 @@ export const people = pgTable(
 );
 
 export type Person = typeof people.$inferSelect;
+
+/* -------------------------------------------------------- patient accounts -- */
+
+/**
+ * A patient's own login. **A separate table, not a nullable `organizationId`.**
+ *
+ * ## Why not `users`
+ *
+ * PLAN.md 6.2 is emphatic and it is right: `users_org_email_unique` is a unique
+ * index on `(organization_id, email)`, and Postgres treats NULLs as distinct.
+ * Putting patients in `users` with a null organisation means that index
+ * constrains nothing for them — one email, unlimited signups, silently.
+ *
+ * ## Why this also settles 6.3
+ *
+ * 6.3 asks for `Actor.organizationId` to become `string | null` and for every
+ * consumer to be audited: 32 direct reads across 52 files that call
+ * `requireUser`. That work follows from patients flowing through the *same*
+ * actor — and with a separate identity they do not.
+ *
+ * Leaving `Actor.organizationId` non-null is the safer answer, not merely the
+ * cheaper one. Making it nullable would put a nullable value into 192
+ * `.organizationId` reads, every one of which is a tenancy filter; a
+ * `where organization_id = NULL` matches no rows if you are lucky and is a
+ * missing filter if you are not. A therapist actor and a patient actor are
+ * different kinds of thing, and the type system should say so.
+ *
+ * See C41.
+ *
+ * ## What a patient account is not
+ *
+ * It is not a member of an organisation and never becomes one. It owns a
+ * `person`, and everything it can read is reached through that person and the
+ * grants in sprint 7 — never through an org.
+ */
+export const patientAccounts = pgTable(
+  "patient_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** The person this login owns. One account per person, one person per account. */
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "restrict" }),
+
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    /** Null until they follow the link. Nothing is shared before this. */
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    /** §3 step 5: verification by email **or** WhatsApp. */
+    phone: text("phone"),
+    phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    // One account per email — and unlike `users`, no organisation to make the
+    // constraint conditional on. This is the index 6.2 exists to protect.
+    uniqueIndex("patient_accounts_email_unique")
+      .on(t.email)
+      .where(sql`deleted_at IS NULL`),
+    uniqueIndex("patient_accounts_person_unique")
+      .on(t.personId)
+      .where(sql`deleted_at IS NULL`),
+  ],
+);
+
+/**
+ * Patient sessions, mirroring `auth_sessions` rather than sharing it.
+ *
+ * Sharing one table would need a nullable `user_id` and a nullable
+ * `patient_account_id` with a check constraint that exactly one is set — which
+ * is the same nullable-column bug as 6.2, one table down. Two tables cost a
+ * few lines and make "whose session is this" unanswerable-by-accident
+ * impossible.
+ */
+export const patientAuthSessions = pgTable(
+  "patient_auth_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientAccountId: uuid("patient_account_id")
+      .notNull()
+      .references(() => patientAccounts.id, { onDelete: "cascade" }),
+    /** SHA-256 of the cookie value. The raw token is never stored. */
+    tokenHash: text("token_hash").notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true }).notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("patient_auth_sessions_token_hash_unique").on(t.tokenHash),
+    index("patient_auth_sessions_account_idx").on(t.patientAccountId),
+  ],
+);
+
+export const CLAIM_STATUSES = ["pending", "verified", "rejected", "expired"] as const;
+export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
+
+export const CLAIM_ROUTES = ["match", "invite"] as const;
+export type ClaimRoute = (typeof CLAIM_ROUTES)[number];
+
+/**
+ * One attempt by one account to claim one person. §3's eight steps, as a row.
+ *
+ * ## Why it is a row rather than a flag on `people`
+ *
+ * Because a claim can fail, and because §3 says a first-time signup may match
+ * several unclaimed profiles — "same flow, one at a time". A flag cannot hold
+ * three attempts, two of which the person said no to, and cannot answer "who
+ * tried to claim this record and when" afterwards.
+ *
+ * ## `therapistKeepsAccess`, and why it has no default
+ *
+ * §3 step 7: "We ask whether the therapist keeps access. **Default is OFF.**
+ * The patient chooses." So the column is nullable and null means *not asked
+ * yet* — distinct from `false`, which means asked and refused. Defaulting it to
+ * false would be defaulting to the right answer for the wrong reason, and would
+ * make "did anybody actually ask?" unanswerable.
+ */
+export const personClaims = pgTable(
+  "person_claims",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    patientAccountId: uuid("patient_account_id")
+      .notNull()
+      .references(() => patientAccounts.id, { onDelete: "cascade" }),
+
+    /** How they got here: a contact-details match, or a link a therapist gave them. */
+    route: text("route").$type<ClaimRoute>().notNull().default("match"),
+    status: text("status").$type<ClaimStatus>().notNull().default("pending"),
+
+    /** SHA-256 of the verification code. The raw value is never stored. */
+    tokenHash: text("token_hash"),
+    /** Which channel the code went to — §3 step 5. */
+    channel: text("channel").$type<"email" | "whatsapp">(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+
+    /**
+     * Step 7. Null = not asked yet. False = asked, and they said no.
+     */
+    therapistKeepsAccess: boolean("therapist_keeps_access"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("person_claims_person_idx").on(t.personId, t.status),
+    index("person_claims_account_idx").on(t.patientAccountId),
+    // One live attempt per (account, person). A second is the same attempt.
+    uniqueIndex("person_claims_open_unique")
+      .on(t.personId, t.patientAccountId)
+      .where(sql`status = 'pending'`),
+  ],
+);
+
+/**
+ * A therapist-issued invite, bound to one record. C19 / PLAN.md 6.10.
+ *
+ * The third claim route, and for most of this database the *only* one that can
+ * work: 56 of 66 patients have no email and none has a phone number, so there
+ * is nothing to match on. The therapist hands the link over in the room, by
+ * WhatsApp, on paper — we never send it, because we have no address to send it
+ * to and that is exactly the situation.
+ *
+ * Single use and revocable. The token is stored hashed for the same reason a
+ * session token is: a leaked database row must not be a leaked medical record.
+ */
+export const personInvites = pgTable(
+  "person_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** The clinician who issued it — for the audit trail and for revocation. */
+    issuedByUserId: uuid("issued_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** Set the moment it is used. A used invite is dead. */
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    usedByAccountId: uuid("used_by_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("person_invites_token_hash_unique").on(t.tokenHash),
+    index("person_invites_person_idx").on(t.personId),
+  ],
+);
+
+export type PatientAccount = typeof patientAccounts.$inferSelect;
+export type PersonClaim = typeof personClaims.$inferSelect;
+export type PersonInvite = typeof personInvites.$inferSelect;

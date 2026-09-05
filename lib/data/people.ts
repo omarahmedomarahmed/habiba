@@ -69,7 +69,10 @@ export class UnclaimedError extends Error {
  */
 export function assertClaimed(person: Pick<Person, "id" | "claimedAt">, action: string): void {
   if (person.claimedAt === null) {
-    log.warn("refused an action on an unclaimed person", { person: ref(person.id), action });
+    log.warn("refused an action on an unclaimed person", {
+      person: ref(person.id),
+      action,
+    });
     throw new UnclaimedError(
       `This record has not been claimed by the person it describes, so it cannot be ${action}. Only they can agree to that.`,
     );
@@ -176,6 +179,22 @@ export async function getPerson(personId: string): Promise<Person | null> {
 }
 
 /**
+ * The person behind a patient row, or null if nobody has needed one yet.
+ *
+ * Read-only on purpose. `ensurePersonForPatient` writes, and a page render is
+ * a GET: rendering a chart should not create identity rows for every patient a
+ * clinician happens to open.
+ */
+export async function personIdForPatient(patientId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ personId: patients.personId })
+    .from(patients)
+    .where(eq(patients.id, patientId))
+    .limit(1);
+  return row?.personId ?? null;
+}
+
+/**
  * Ensure a patient has a person, creating one if it does not.
  *
  * Every patient created after the backfill needs this. It creates its **own**
@@ -243,7 +262,10 @@ export async function savePaymentPreference(input: {
 }
 
 /** How many people are claimed, for the admin view and for the verifier. */
-export async function peopleCounts(): Promise<{ total: number; claimed: number }> {
+export async function peopleCounts(): Promise<{
+  total: number;
+  claimed: number;
+}> {
   const [row] = await db
     .select({
       total: sql<number>`COUNT(*)::int`,
