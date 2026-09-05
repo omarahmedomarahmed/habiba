@@ -84,6 +84,9 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C21 | 15 | **`invoices.kind` still has the value `subscription`** for what is now a credit purchase. Renaming means migrating every historical row and every reader for a label. Left as-is; `recordCreditPurchaseInvoice` says so at the call site. | minor | sprint 1 | open |
 | C22 | 5, 6 | **§3's "unclaimed patient gets 5 credits, unlocked by a diagnosis and a history" cannot be enforced yet** — it needs the claimed/unclaimed state from sprint 5. `checkQuota` currently applies `unclaimedPatientCredits` as a floor for *every* patient, which is the more generous reading and cannot lock a therapist out of a patient they just added. Tighten when `people` lands. | minor | sprint 1 | open |
 | C25 | — | 🆕 **There is no copilot in the room, and that is the real gap behind old 2.1.** `session-room.tsx` renders only `CopilotToasts` — passive one-line suggestions written from the transcript. A therapist who wants to *ask* something mid-session must leave the room for `/copilot`. Scoped as its own ticket per ruling, deliberately **not** absorbed into sprint 2. Needs: a room surface, the four access states from §3, and the per-session credit accounting from C14. Estimate ≥1 week on its own. | major | sprint 2 | open, unscheduled |
+| C32 | 3 | **Sprint 3's acceptance cannot be fully met on existing data.** "No transcript line ends mid-word across a 10-session sample" is a claim about *recordings*, and every segment in this database was cut by the old 8-second metronome. The new rule only applies to audio recorded after it ships. Measured baseline via `scripts/measure-cuts.ts`: 311 interior cuts across 21 sessions, **24.4% end without terminal punctuation**, 5.5% are followed by a line reading as a continuation. Re-run after real sessions to close this. | major | sprint 3 | open — needs new recordings |
+| C33 | 3 | **The backfill's labels came from the mock, not a model.** There is no `OPENAI_API_KEY` in this environment, so the backfill was run against `tests/mock-openai.ts`, which was extended to answer diarisation with *alternating* speakers. That verifies the machinery end to end — batching, the unknown-only write, the chunked UPDATE, the counts — and says **nothing** about labelling quality. The coverage numbers (136→14, 22→0) are real; the labels on the branch database are not clinically meaningful. Re-run with a real key before trusting a label. | major | sprint 3 | open |
+| C34 | 3 | **H11's cap never actually bit on this data.** Measured before backfilling: 0 of 22 sessions exceed 160 segments — the longest is 95. So the fix matters for the 60-minute sessions sprint 1.5 just made possible, not for anything already recorded. Worth stating so nobody reads the backfill's improvement as evidence the cap was the cause; the cause here was the two-track guard and in-person sessions having no second track at all. | minor | sprint 3 | noted |
 | C30 | 2 | **The "someone is looking" toast was removed, not just relocated.** The orb says the same sentence permanently in the same corner, so the two overlapped and told the clinician the same thing twice. The *booking* card stays — that one is an interruption, not a status, and the orb steps aside for it (`liftedForBooking`). | minor | sprint 2 | **resolved** |
 | C31 | 2.5 | **`savePractice` cannot be used for a single toggle.** It takes the whole practice payload, so driving it from a floating control would rebuild name, address and coordinates from nothing and silently erase them. Added `setAcceptsWalkIns`, a conditional UPDATE that refuses to publish an address which has not been confirmed — and never guards turning it *off*, because somebody withdrawing consent to be visited must not be told they cannot. | minor | sprint 2 | **resolved** |
 | C27 | 2.5 | **"Access state" in 2.5 could not be built.** The four copilot states in §3 are defined by claimed/unclaimed and by `historyGrants`, which arrive in sprints 5–7. `/on-call` shows everything else the ticket asks for; the access column is deliberately absent rather than faked with a placeholder that would always read the same. Revisit after sprint 7. | minor | sprint 2 | open |
@@ -314,13 +317,24 @@ Therapists use this every day and it is the worst screen in the product.
 
 In-person transcripts are 92% unattributed. Video is 12%.
 
-- [ ] **3.1** Fix `diarise` batching (H11), then backfill existing transcripts
-- [ ] **3.2** Cut audio on pauses, not the 8-second clock. RMS gating already
-      exists in `lib/audio/recorder.ts`
-- [ ] **3.3** Acoustic descriptors — speaking rate, pause length. **Descriptors,
-      never emotion labels**
-- [ ] **3.4** Handle a dropped video track: attribution silently stops today
-- **Accept:** no transcript line ends mid-word across a 10-session sample.
+- [x] **3.1** `diarise` batching fixed (H11) and backfilled. The cap was a
+      `.limit(160)` on the *query*, so a long session was never read past
+      segment 160 — absent, not mislabelled. Now batched at 120 with an 8-line
+      overlap for context. Backfill: **136 → 14** unattributed in-person
+      segments, **22 → 0** video
+- [x] **3.2** Cut on pauses, not the clock. 600ms of quiet ends a chunk once
+      there is ≥2s to send; the 8s clock is now only the ceiling
+- [x] **3.3** Descriptors — `words_per_minute`, `pause_before_ms`, derived from
+      words and timings, no audio analysis and no second model call. **No
+      affect/tone/sentiment column exists, and a test asserts none is added**
+- [x] **3.4** A dropped track no longer stops attribution *or* stays silent.
+      The old two-track guard skipped any session with a single `patient` row,
+      so a call whose track dropped at minute 20 kept its whole second half
+      `unknown` for good. The clinician is now told, in words, what changed
+- **Accept:** ⚠️ **partially met — see C32.** The cutter is proved by 21 unit
+      tests; the corpus measurement is a *baseline* (24.4% of interior cuts end
+      without punctuation), because every existing segment was recorded by the
+      old cutter. Re-run `scripts/measure-cuts.ts` after real sessions.
 
 ### Sprint 4 — Paid links · ~1.5 weeks · 💰 REVENUE
 
@@ -502,6 +516,7 @@ Built last so it can be verified against everything that already exists.
 | 2026-09-04 | 1.6 | Repriced: PAYG $4 · Starter $3/min 10 · Growth $2/min 30; cut 10%→**15%**; cap $1,000→**$500**. New `session_credits` table makes the tiers purchasable | *this* | Migration `0030`: 12 columns, 3 indexes. `verify:sprint1` asserts every figure against the live rows |
 | 2026-09-04 | 1.7 | Every therapist moved to PAYG; `unlimited` removed from `PLANS`, from Stripe checkout, and from the pricing page | *this* | `SELECT DISTINCT plan FROM subscriptions` → `payg` only, 36 rows, 0 stragglers |
 | 2026-09-04 | 1.8 | `createSessionCheckout` **refuses** a payment when the clinician has no transfer-capable Connect account, instead of capturing to our own balance | *this* | Only one `capture` value is now reachable (`"destination"`, typed `as const`). `verify:sprint1` confirms 0 historical `platform` rows — the door closed before anything went through it |
+| 2026-09-05 | 3.x | **Sprint 3 complete.** H11 batching + backfill · pause-based cutting · descriptors · dropped-track handling | *sprint 3* | Baseline measured first (video 11.9% / in-person 91.9% unknown — §3's figures exact). After backfill: **video 0%, in-person 9.5%**, the remaining 14 being sessions under the 4-segment floor. H10 honoured: retention set to 0 before the bulk write and restored to 86400 after. Migration 0031 verified against `information_schema`. 21 new tests. Two caveats filed as C32/C33 |
 | 2026-09-04 | 2.x | **Sprint 2 complete.** C24 (the red test) fixed first · room two-column at `lg` · `/on-call` session history · viewing-signal stand-down · orb in five states | *sprint 2* | Room geometry measured before/after in a real browser at 4 viewports (transcript y=1001→98, 0px→701px visible; phone unchanged, H4). Orb states asserted on their accessible names. `verify-sprint2.ts` proves history is frozen by moving every rate +999 and re-reading. 112 tests / 8 suites, 0 failures |
 | 2026-09-04 | C14 | Copilot allowance re-counted: 10 **per session per patient**, rolling over, expiring with `creditExpiryMonths`. Was per calendar month | *this* | `checkQuota` rewritten; earned and used are counted over the same window |
 

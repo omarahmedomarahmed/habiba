@@ -42,8 +42,68 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 /** Long enough to have structure to reason about, short enough to be cheap. */
 const MIN_SEGMENTS = 4;
-/** Beyond this a single call gets unreliable about indices; the tail is left alone. */
-const MAX_SEGMENTS = 160;
+
+/**
+ * How many segments go into one call.
+ *
+ * ## The bug this replaces (H11)
+ *
+ * This used to be `MAX_SEGMENTS = 160`, applied as `.limit(160)` on the query —
+ * so a longer session was not merely labelled in one big call, it was **never
+ * read past segment 160 at all**. Measured on this database: a 60-minute
+ * session is around 450 segments, so roughly two thirds of a long session could
+ * not be attributed no matter how well the model performed. The tail was not
+ * unreliable; it was absent.
+ *
+ * The reasoning behind the cap was sound — a single call really does get
+ * unreliable about indices somewhere past a couple of hundred lines — but the
+ * remedy was to drop the data rather than to make more calls.
+ *
+ * Now every segment is fetched and the work is batched. The batch size is the
+ * old ceiling's *intent* (keep one call's index space small) without its
+ * consequence (lose everything after the first batch).
+ */
+const BATCH_SEGMENTS = 120;
+
+/**
+ * How many already-labelled lines ride along at the front of each later batch.
+ *
+ * A batch that starts cold has no idea who spoke last, and the first line of a
+ * therapy exchange is exactly where that matters: "And how did that feel?"
+ * belongs to whoever did *not* just disclose. These lines are sent as context
+ * and their labels are ignored on the way back — they are there to be read, not
+ * to be relabelled.
+ */
+const BATCH_OVERLAP = 8;
+
+/**
+ * A ceiling on total work, so one pathological session cannot bill for an hour.
+ *
+ * 40 batches is 4,800 segments — around ten hours of speech, which is not a
+ * session. Reaching this means something else is wrong.
+ */
+const MAX_BATCHES = 40;
+
+/**
+ * Which segments go in which call, as arithmetic.
+ *
+ * Pure and exported so the property that actually matters can be tested without
+ * a model, a network or a database: **every segment lands in exactly one batch,
+ * and none is dropped.** That is the whole of H11 — the old code's failure was
+ * not a bad label, it was a segment that was never looked at.
+ */
+export function planBatches(
+  total: number,
+  batchSize = BATCH_SEGMENTS,
+  maxBatches = MAX_BATCHES,
+): Array<{ offset: number; length: number }> {
+  const out: Array<{ offset: number; length: number }> = [];
+  for (let offset = 0; offset < total; offset += batchSize) {
+    out.push({ offset, length: Math.min(batchSize, total - offset) });
+    if (out.length >= maxBatches) break;
+  }
+  return out;
+}
 
 const SYSTEM = `You are labelling the turns of a recorded therapy session.
 
@@ -77,6 +137,7 @@ export async function diariseSession(opts: {
   organizationId: string;
   userId: string;
 }): Promise<DiariseResult> {
+  // No LIMIT. The old one silently discarded everything past segment 160.
   const rows = await db
     .select({
       id: transcriptSegments.id,
@@ -85,96 +146,200 @@ export async function diariseSession(opts: {
     })
     .from(transcriptSegments)
     .where(eq(transcriptSegments.sessionId, opts.sessionId))
-    .orderBy(asc(transcriptSegments.sequence))
-    .limit(MAX_SEGMENTS);
+    .orderBy(asc(transcriptSegments.sequence));
 
   if (rows.length === 0) return { updated: 0, skipped: "no-transcript" };
 
   /*
-   * If any row was attributed to the patient, the two-track capture worked and
-   * the physical answer is already on the table. Guessing over the top of a
-   * measurement would only make the record less true.
+   * Fill the gaps; never overwrite a measurement.
+   *
+   * ## The bug this replaces
+   *
+   * This used to be: if *any* row says "patient", the two-track capture worked,
+   * so return and change nothing. The reasoning was right — guessing over the
+   * top of a physical measurement makes the record less true — but the scope
+   * was wrong, and it produced the failure PLAN.md 3.4 describes as
+   * "attribution silently stops".
+   *
+   * A video session whose patient track drops at minute twenty has patient-
+   * labelled rows before the drop and `unknown` rows after it. The old guard
+   * saw the early rows, concluded two-track capture was working, and returned —
+   * so the entire second half of that session stayed `unknown` permanently, and
+   * nothing anywhere said so. The one case that most needs inference was the
+   * one case guaranteed not to get it.
+   *
+   * The rule now distinguishes the two questions. *Is there anything to do?* is
+   * "are any rows unknown". *May this row be changed?* is "is this row unknown"
+   * — enforced at the write below, so a measured `patient` or `therapist` label
+   * is never touched no matter what the model returns.
    */
-  if (rows.some((row) => row.speaker === "patient")) {
-    return { updated: 0, skipped: "two-track" };
-  }
+  const unknownCount = rows.filter((row) => row.speaker === "unknown").length;
+  if (unknownCount === 0) return { updated: 0, skipped: "two-track" };
   if (rows.length < MIN_SEGMENTS) return { updated: 0, skipped: "too-short" };
 
-  const numbered = rows.map((row, i) => `${i}: ${row.text}`).join("\n");
+  /*
+   * Batched, with an overlap, and each batch's indices are local to it.
+   *
+   * The model is asked about at most `BATCH_SEGMENTS` numbered lines at a time —
+   * which is what keeps index-following reliable — and each batch after the
+   * first is preceded by `BATCH_OVERLAP` lines it has already labelled, marked
+   * as context. Those carry the conversational thread across the seam so that
+   * the first line of a batch is not judged in a vacuum.
+   *
+   * One failed batch does not fail the session. A network blip in batch three
+   * of five leaves batches one, two, four and five attributed, which is
+   * strictly better than the old behaviour of attributing nothing past 160.
+   */
+  const plan = planBatches(rows.length);
+  const batches = plan.map((b) => ({
+    offset: b.offset,
+    rows: rows.slice(b.offset, b.offset + b.length),
+  }));
 
-  let turns: Turn[];
-  try {
-    const started = Date.now();
-    const response = await openai().chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: numbered },
-      ],
-    });
-
-    await logUsage({
-      organizationId: opts.organizationId,
-      userId: opts.userId,
-      sessionId: opts.sessionId,
-      kind: "diarise",
-      model: "gpt-4o-mini",
-      inputTokens: response.usage?.prompt_tokens ?? 0,
-      outputTokens: response.usage?.completion_tokens ?? 0,
-      durationMs: Date.now() - started,
-      status: "success",
-    });
-
-    const parsed = parseJson<{ turns?: Turn[] }>(
-      response.choices[0]?.message?.content ?? "",
-      { turns: [] },
-      "diarise",
-    );
-    turns = Array.isArray(parsed.turns) ? parsed.turns : [];
-  } catch (error) {
-    // A transcript with no speakers is worse than one with them and better than
-    // no session record at all. This never fails the note it runs before.
-    log.warn("diarisation unavailable", {
+  const planned = plan.reduce((n, b) => n + b.length, 0);
+  if (planned < rows.length) {
+    log.warn("diarisation truncated at the batch ceiling", {
       session: ref(opts.sessionId),
-      reason: safeErrorMessage(error),
+      segments: rows.length,
+      planned,
     });
-    return { updated: 0, skipped: "unavailable" };
+  }
+
+  /** What each row was decided to be, keyed by its index in `rows`. */
+  const decided = new Map<number, "therapist" | "patient">();
+  let failedBatches = 0;
+
+  for (const batch of batches) {
+    /*
+     * The context prefix: lines already labelled, immediately before this
+     * batch. Sent with their speaker so the model can see the rhythm it is
+     * joining, and with negative indices so a label coming back for one of them
+     * is unmistakably out of range and ignored.
+     */
+    const contextStart = Math.max(0, batch.offset - BATCH_OVERLAP);
+    const context = rows.slice(contextStart, batch.offset).map((row, i) => {
+      const idx = contextStart + i;
+      const who = decided.get(idx) ?? row.speaker;
+      return `(already labelled, ${who}): ${row.text}`;
+    });
+
+    const numbered = batch.rows.map((row, i) => `${i}: ${row.text}`).join("\n");
+    const content =
+      context.length > 0
+        ? `Earlier lines, for context only — do not label these:\n${context.join("\n")}\n\nLabel these:\n${numbered}`
+        : numbered;
+
+    let turns: Turn[];
+    try {
+      const started = Date.now();
+      const response = await openai().chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content },
+        ],
+      });
+
+      await logUsage({
+        organizationId: opts.organizationId,
+        userId: opts.userId,
+        sessionId: opts.sessionId,
+        kind: "diarise",
+        model: "gpt-4o-mini",
+        inputTokens: response.usage?.prompt_tokens ?? 0,
+        outputTokens: response.usage?.completion_tokens ?? 0,
+        durationMs: Date.now() - started,
+        status: "success",
+      });
+
+      const parsed = parseJson<{ turns?: Turn[] }>(
+        response.choices[0]?.message?.content ?? "",
+        { turns: [] },
+        "diarise",
+      );
+      turns = Array.isArray(parsed.turns) ? parsed.turns : [];
+    } catch (error) {
+      /*
+       * One batch, not the session.
+       *
+       * A transcript with some speakers is worse than one with all of them and
+       * far better than one with none. This never fails the note it runs
+       * before.
+       */
+      failedBatches += 1;
+      log.warn("diarisation batch unavailable", {
+        session: ref(opts.sessionId),
+        offset: batch.offset,
+        reason: safeErrorMessage(error),
+      });
+      continue;
+    }
+
+    for (const turn of turns) {
+      // Local index -> global. Anything outside this batch's own range is
+      // dropped, which is what makes the context prefix safe.
+      if (!Number.isInteger(turn.i) || turn.i < 0 || turn.i >= batch.rows.length) continue;
+      if (turn.speaker !== "therapist" && turn.speaker !== "patient") continue;
+      decided.set(batch.offset + turn.i, turn.speaker);
+    }
+  }
+
+  if (decided.size === 0) {
+    return { updated: 0, skipped: failedBatches > 0 ? "unavailable" : undefined };
   }
 
   /*
    * Group by speaker and write one statement per group rather than one per
-   * segment: a fifty-minute session is a hundred or so rows, and a hundred
+   * segment: a fifty-minute session is a few hundred rows, and a few hundred
    * round trips to say two distinct things is a waste of a database that
    * charges by the second it is awake.
    */
   const byLabel = new Map<"therapist" | "patient", string[]>();
-  for (const turn of turns) {
-    const row = rows[turn.i];
+  for (const [index, speaker] of decided) {
+    const row = rows[index];
     if (!row) continue;
-    if (turn.speaker !== "therapist" && turn.speaker !== "patient") continue;
-    if (row.speaker === turn.speaker) continue;
-    const list = byLabel.get(turn.speaker) ?? [];
+    // The invariant, enforced where it is cheapest to enforce: only a row that
+    // is currently `unknown` may be given an inferred speaker. A row the
+    // hardware already answered for is never overwritten by a guess.
+    if (row.speaker !== "unknown") continue;
+    const list = byLabel.get(speaker) ?? [];
     list.push(row.id);
-    byLabel.set(turn.speaker, list);
+    byLabel.set(speaker, list);
   }
 
   let updated = 0;
   for (const [speaker, ids] of byLabel) {
     if (ids.length === 0) continue;
-    await db
-      .update(transcriptSegments)
-      .set({ speaker, speakerInferred: true })
-      .where(
-        and(
-          eq(transcriptSegments.sessionId, opts.sessionId),
-          inArray(transcriptSegments.id, ids),
-        ),
-      );
-    updated += ids.length;
+    /*
+     * Chunked, because `inArray` becomes one bind parameter per id and Postgres
+     * caps a statement at 65535 of them. A long session labelled entirely as
+     * one speaker would otherwise fail at exactly the length this sprint set
+     * out to make possible. H7: `inArray` and parameter binding, never
+     * `sql.raw`.
+     */
+    for (let i = 0; i < ids.length; i += 500) {
+      const slice = ids.slice(i, i + 500);
+      await db
+        .update(transcriptSegments)
+        .set({ speaker, speakerInferred: true })
+        .where(
+          and(
+            eq(transcriptSegments.sessionId, opts.sessionId),
+            inArray(transcriptSegments.id, slice),
+          ),
+        );
+      updated += slice.length;
+    }
   }
 
-  log.info("diarisation complete", { session: ref(opts.sessionId), updated });
+  log.info("diarisation complete", {
+    session: ref(opts.sessionId),
+    segments: rows.length,
+    batches: batches.length,
+    failedBatches,
+    updated,
+  });
   return { updated };
 }

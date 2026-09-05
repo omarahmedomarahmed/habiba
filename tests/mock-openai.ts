@@ -65,6 +65,58 @@ export function startMockOpenAi(port: number): { server: Server; state: MockStat
           /* keep default */
         }
         state.chatRequests.push({ model, body: text });
+
+        /*
+         * Diarisation asks a different question and needs a different shape.
+         *
+         * Returning the note object for every chat call meant `diariseSession`
+         * parsed `{turns: []}` and attributed nothing — so any test or backfill
+         * that ran through the mock exercised the network and the database but
+         * proved nothing about the batching. Detected from the system prompt
+         * rather than the model name, because both calls use gpt-4o-mini.
+         *
+         * The labels alternate. That is not a claim about how a real session
+         * looks; it is the cheapest answer that is *well-formed*, which is what
+         * the mock exists to provide. Whether the model labels correctly is not
+         * something a stub can tell anybody.
+         */
+        if (text.includes("labelling the turns of a recorded therapy session")) {
+          let count = 0;
+          try {
+            const parsed = JSON.parse(text) as { messages?: Array<{ content?: string }> };
+            const user = parsed.messages?.[parsed.messages.length - 1]?.content ?? "";
+            // Count only the lines this batch was asked to label — the context
+            // prefix is deliberately not numbered.
+            const labelled = user.includes("Label these:") ? user.split("Label these:")[1]! : user;
+            count = labelled.split("\n").filter((l) => /^\d+:/.test(l.trim())).length;
+          } catch {
+            /* fall through with zero */
+          }
+
+          const turns = Array.from({ length: count }, (_, i) => ({
+            i,
+            speaker: i % 2 === 0 ? "therapist" : "patient",
+          }));
+
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              id: "chatcmpl-mock-diarise",
+              object: "chat.completion",
+              model,
+              choices: [
+                {
+                  index: 0,
+                  message: { role: "assistant", content: JSON.stringify({ turns }) },
+                  finish_reason: "stop",
+                },
+              ],
+              usage: { prompt_tokens: 900, completion_tokens: 200, total_tokens: 1100 },
+            }),
+          );
+          return;
+        }
+
         res.writeHead(200, { "content-type": "application/json" });
         res.end(
           JSON.stringify({

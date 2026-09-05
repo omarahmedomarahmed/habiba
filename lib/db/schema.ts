@@ -513,6 +513,32 @@ export const transcriptSegments = pgTable(
     text: text("text").notNull(),
     startMs: integer("start_ms").notNull().default(0),
     endMs: integer("end_ms").notNull().default(0),
+
+    /*
+     * Acoustic descriptors. **Descriptors, never emotion labels.**
+     *
+     * PLAN.md 3.3 is emphatic about the distinction and it is a clinical one,
+     * not a stylistic one. "Speaking at 190 words per minute after a 4-second
+     * pause" is an observation a clinician can check against their own memory
+     * of the room and disagree with. "Anxious" is a diagnosis, inferred from
+     * timing by software with no access to the person — and once it is written
+     * in a record it is very hard to unwrite, because the next reader sees a
+     * label rather than the flimsy evidence behind it.
+     *
+     * So the schema can hold rate and pause and nothing else. There is
+     * deliberately no `affect`, `tone` or `sentiment` column, and adding one is
+     * a decision to be argued for rather than a field to be filled in.
+     *
+     * Both are derived from data already captured — the transcribed words, the
+     * chunk's duration, and the gap to the previous segment — so no audio
+     * analysis and no second model call. Null means not computed, which every
+     * row predating this sprint is.
+     */
+    /** Words per minute over this segment. */
+    wordsPerMinute: integer("words_per_minute"),
+    /** Silence between the previous segment ending and this one starting. */
+    pauseBeforeMs: integer("pause_before_ms"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

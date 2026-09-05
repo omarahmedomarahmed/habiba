@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/ai/crisis";
+import { pauseBeforeMs, wordsPerMinute } from "@/lib/ai/descriptors";
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
@@ -498,6 +499,26 @@ export async function appendTranscriptSegment(input: {
   const text = input.text.trim();
   if (!text) return { inserted: false, crisis: false };
 
+  /*
+   * Descriptors, computed here because this is the only writer.
+   *
+   * The previous segment's end is read rather than passed in: the caller is an
+   * upload handler that knows about one chunk, and asking it to track the last
+   * one would put the same state in two places and let them drift. One indexed
+   * lookup on `(session_id, sequence)`, which is the index that already exists.
+   */
+  const [previous] = await db
+    .select({ endMs: transcriptSegments.endMs })
+    .from(transcriptSegments)
+    .where(
+      and(
+        eq(transcriptSegments.sessionId, input.sessionId),
+        lt(transcriptSegments.sequence, input.sequence),
+      ),
+    )
+    .orderBy(desc(transcriptSegments.sequence))
+    .limit(1);
+
   const result = await db
     .insert(transcriptSegments)
     .values({
@@ -508,6 +529,8 @@ export async function appendTranscriptSegment(input: {
       text,
       startMs: input.startMs,
       endMs: input.endMs,
+      wordsPerMinute: wordsPerMinute(text, input.endMs - input.startMs),
+      pauseBeforeMs: pauseBeforeMs(input.startMs, previous?.endMs ?? null),
     })
     // A retried chunk must not duplicate the segment.
     .onConflictDoNothing({

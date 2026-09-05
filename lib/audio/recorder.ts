@@ -20,7 +20,23 @@ const TARGET_SAMPLE_RATE = 16_000;
 export type RecordedChunk = { blob: Blob; durationSeconds: number };
 
 export type RecorderOptions = {
+  /** Hard ceiling on a chunk. Reached only when nobody pauses. */
   chunkSeconds?: number;
+  /**
+   * Don't cut before this much audio, even at a pause. A one-second chunk of
+   * "mm-hm" costs a whole request to transcribe a noise.
+   */
+  minChunkSeconds?: number;
+  /**
+   * How much continuous quiet counts as a gap between utterances.
+   *
+   * 600ms: long enough not to trigger on the stop consonant inside a word
+   * ("back to" has a gap of roughly 100ms), short enough to catch the ordinary
+   * beat between sentences. This is a *word boundary* detector, not the
+   * "everybody has left" detector in `lib/session-clock.ts`, which is measured
+   * in tens of seconds and answers a completely different question.
+   */
+  pauseMs?: number;
   /**
    * An existing track to record — a remote participant's audio, typically.
    * When omitted the recorder opens the local microphone itself.
@@ -46,7 +62,12 @@ export class SessionRecorder {
   private bufferedFrames = 0;
   private muted = false;
 
+  /** Frames of trailing quiet at the tail of the buffer. */
+  private silentTailFrames = 0;
+
   private readonly chunkSeconds: number;
+  private readonly minChunkSeconds: number;
+  private readonly pauseMs: number;
   private readonly track?: MediaStreamTrack;
   private readonly onChunk: RecorderOptions["onChunk"];
   private readonly onError?: RecorderOptions["onError"];
@@ -56,6 +77,8 @@ export class SessionRecorder {
     // accuracy (more context per request), and still well inside any serverless
     // body limit at roughly 256 KB per chunk.
     this.chunkSeconds = options.chunkSeconds ?? 8;
+    this.minChunkSeconds = options.minChunkSeconds ?? 2;
+    this.pauseMs = options.pauseMs ?? 600;
     this.track = options.track;
     this.onChunk = options.onChunk;
     this.onError = options.onError;
@@ -136,13 +159,48 @@ export class SessionRecorder {
     this.bufferedFrames = 0;
   }
 
+  /**
+   * Accumulate, and cut on a pause rather than on the clock.
+   *
+   * ## The bug this fixes
+   *
+   * The old rule was one line: flush when the buffer reaches `chunkSeconds`.
+   * That is a metronome, and speech is not — so roughly every eight seconds the
+   * cut landed wherever the speaker happened to be, which is usually the middle
+   * of a word. Each half of the word then went to the transcriber as the edge
+   * of a separate file, where it became a different word or nothing at all.
+   * That is what makes a transcript line end mid-word, and it is this sprint's
+   * acceptance criterion.
+   *
+   * Now the clock is only the *ceiling*. The buffer is cut when the speaker
+   * stops — a gap of `pauseMs` — provided there is at least `minChunkSeconds`
+   * to send. Someone who talks without pausing for eight seconds still gets cut
+   * at the ceiling, because a chunk has to be bounded, but that is now the
+   * exception rather than every single cut.
+   *
+   * The RMS gate this uses is the one that was already here for discarding
+   * silent chunks; it is now also read per block to find the gaps.
+   */
   private push(frames: Float32Array, sampleRate: number): void {
     if (this.muted) return;
 
     this.buffer.push(frames);
     this.bufferedFrames += frames.length;
 
-    if (this.bufferedFrames >= sampleRate * this.chunkSeconds) {
+    // Track how much quiet is sitting at the tail. A loud block resets it.
+    if (isEffectivelySilent(frames)) this.silentTailFrames += frames.length;
+    else this.silentTailFrames = 0;
+
+    if (
+      shouldCut({
+        bufferedFrames: this.bufferedFrames,
+        silentTailFrames: this.silentTailFrames,
+        sampleRate,
+        minChunkSeconds: this.minChunkSeconds,
+        maxChunkSeconds: this.chunkSeconds,
+        pauseMs: this.pauseMs,
+      })
+    ) {
       this.flush(sampleRate);
     }
   }
@@ -156,6 +214,7 @@ export class SessionRecorder {
     if (this.bufferedFrames < rate) {
       this.buffer = [];
       this.bufferedFrames = 0;
+      this.silentTailFrames = 0;
       return;
     }
 
@@ -167,6 +226,7 @@ export class SessionRecorder {
     }
     this.buffer = [];
     this.bufferedFrames = 0;
+    this.silentTailFrames = 0;
 
     // A remote participant who is muted, or simply not speaking, still produces
     // a stream of near-silent frames. Transcribing those wastes a request per
@@ -182,6 +242,38 @@ export class SessionRecorder {
       this.onError?.(error instanceof Error ? error : new Error("chunk handler failed"));
     }
   }
+}
+
+/**
+ * Cut here?
+ *
+ * Pure and exported so the rule can be tested without an AudioContext, a
+ * microphone or a browser — none of which exist in a unit test, which is
+ * exactly why the old clock-based rule was never covered by one.
+ *
+ * Two ways to say yes, and the order matters:
+ *   1. There is enough audio to be worth sending **and** the speaker has
+ *      stopped for `pauseMs`. This is the good cut — it lands in a gap.
+ *   2. The buffer has reached the ceiling. This is the fallback, and the only
+ *      one that can land mid-word.
+ */
+export function shouldCut(input: {
+  bufferedFrames: number;
+  silentTailFrames: number;
+  sampleRate: number;
+  minChunkSeconds: number;
+  maxChunkSeconds: number;
+  pauseMs: number;
+}): boolean {
+  const { bufferedFrames, silentTailFrames, sampleRate } = input;
+  if (sampleRate <= 0 || bufferedFrames <= 0) return false;
+
+  if (bufferedFrames >= sampleRate * input.maxChunkSeconds) return true;
+
+  const pauseFrames = (sampleRate * input.pauseMs) / 1000;
+  return (
+    bufferedFrames >= sampleRate * input.minChunkSeconds && silentTailFrames >= pauseFrames
+  );
 }
 
 /** RMS below this is a quiet room, not speech. */

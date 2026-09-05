@@ -226,10 +226,30 @@ export function SessionRoom(props: RoomProps) {
 
   const handleRemoteTrack = useCallback(
     (track: MediaStreamTrack | null) => {
+      const had = remoteRecorder.current !== null;
       remoteTrack.current = track;
       if (!track) {
         void remoteRecorder.current?.stop();
         remoteRecorder.current = null;
+        /*
+         * Say it out loud. This is the "silently" half of PLAN.md 3.4.
+         *
+         * When the patient's track drops, this microphone is still running and
+         * still hearing the room, so recording continues — but every chunk from
+         * here on is labelled `unknown` rather than `therapist`, because it is
+         * no longer certain whose voice it is. That is the correct label and it
+         * is invisible: the clinician sees the transcript carry on and has no
+         * idea the attribution stopped being measured.
+         *
+         * `lib/ai/diarise.ts` fills those rows in afterwards from the words, so
+         * this is a degradation rather than a loss — which is exactly what the
+         * message should say, and why it is not an error.
+         */
+        if (had && liveRef.current) {
+          setError(
+            "Your patient's audio dropped. The session is still recording, but from here we work out who said what from the words rather than from their microphone.",
+          );
+        }
         return;
       }
       void startRemoteRecorder();
