@@ -302,6 +302,13 @@
       "when": 1789600000008,
       "tag": "0042_sweep",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1789600000009,
+      "tag": "0043_claim_by_phone",
+      "breakpoints": true
     }
   ]
 }

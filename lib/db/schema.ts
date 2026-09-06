@@ -2286,9 +2286,35 @@ export const patientAccounts = pgTable(
     passwordHash: text("password_hash").notNull(),
     /** Null until they follow the link. Nothing is shared before this. */
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
-    /** §3 step 5: verification by email **or** WhatsApp. */
+    /**
+     * 🔴 §3b: **the identity.** Unique among live accounts (0043), E.164 only.
+     *
+     * Nullable in the column type because 0043's presence check is `NOT VALID`
+     * until sprint 22 empties the table — every write goes through it, and
+     * nothing may create an account without one.
+     */
     phone: text("phone"),
     phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
+
+    /**
+     * Where they are. 13.11–13.13 / C85.
+     *
+     * Detected in the browser at signup, **shown to them and editable**, then
+     * stored — so every patient screen takes it as a prop from the server, like
+     * the clinician screens do, instead of flashing UTC and correcting a frame
+     * later on the consent list where the date is the legally meaningful part.
+     *
+     * Nullable is the column, not the experience: empty only for accounts made
+     * before this shipped, or for somebody who cleared it deliberately.
+     *
+     * 🔴 Precedence (13.13): this beats `patients.timezone`, which `bookSlot`
+     * writes from the browser at anonymous booking time, which beats the
+     * therapist's, which beats UTC. **Claiming never copies this into
+     * `patients.timezone`** — that row records what the browser said the day
+     * the booking was made, and one account may hold records from two
+     * therapists.
+     */
+    timezone: text("timezone"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -2386,16 +2412,46 @@ export const personClaims = pgTable(
      */
     therapistKeepsAccess: boolean("therapist_keeps_access"),
 
+    /**
+     * §3b step 5–6 — the challenge, because a code proves a number and not a
+     * person.
+     *
+     * `seenTherapist` null = not asked · true = yes · false = **no, and
+     * remembered**, so nobody is asked about that record twice.
+     * `nameAttempts` is per claim rather than per caller: what is being
+     * protected is one record's name, and a fresh IP must not buy a fresh
+     * budget against it.
+     */
+    seenTherapist: boolean("seen_therapist"),
+    nameAttempts: integer("name_attempts").notNull().default(0),
+    challengedAt: timestamp("challenged_at", { withTimezone: true }),
+
+    /**
+     * Which clinician's record this attempt is about.
+     *
+     * Two therapists may hold the same number (§3b step 8) and the person
+     * answers for each separately — which a claim keyed only on the person
+     * cannot do.
+     */
+    patientId: uuid("patient_id").references(() => patients.id, { onDelete: "cascade" }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
   },
   (t) => [
     index("person_claims_person_idx").on(t.personId, t.status),
     index("person_claims_account_idx").on(t.patientAccountId),
-    // One live attempt per (account, person). A second is the same attempt.
+    /*
+     * One live attempt per (account, person, patient record). Per *record*
+     * since 0043: keyed only on the person, one therapist's claim would block
+     * the question about the other's.
+     */
     uniqueIndex("person_claims_open_unique")
-      .on(t.personId, t.patientAccountId)
+      .on(t.patientAccountId, t.personId, t.patientId)
       .where(sql`status = 'pending'`),
+    index("person_claims_declined_idx")
+      .on(t.patientAccountId, t.patientId)
+      .where(sql`status = 'rejected'`),
   ],
 );
 
