@@ -354,11 +354,49 @@ const JOBS = {
       else unreachable += 1;
     }
 
+    /*
+     * 11R.22 — and the hours nobody ever paid for go back on the calendar.
+     *
+     * Folded into this job rather than scheduled separately, for the reason at
+     * the top of this file: the expensive part is waking the database, and
+     * this sweep is one indexed query on most hours.
+     *
+     * The patient is told. An hour they were sent a confirmation for
+     * disappearing without a word is the product quietly cancelling somebody's
+     * therapy appointment — the quiet window applies here too, and a release
+     * held until morning is simply released on the next run, because
+     * `status = 'open'` makes it no longer a candidate.
+     */
+    const { releaseUnconfirmedBookings } = await import("@/lib/data/scheduling");
+    const released = await releaseUnconfirmedBookings(now);
+    let releasesTold = 0;
+
+    for (const row of released) {
+      const zone = resolveZone(row.patientTimezone, row.therapistTimezone);
+      const therapist = [row.therapistFirstName, row.therapistLastName].filter(Boolean).join(" ");
+      const when = formatWhenWithCaveat(row.startsAt, zone);
+
+      const delivery = await notify(
+        { email: row.patientEmail, phone: row.patientPhone, timezone: row.patientTimezone },
+        {
+          kind: "booking.cancelled",
+          subject: `Your session with ${therapist} was not confirmed`,
+          body: `Your session with ${therapist} on ${when} was never paid for, so the hour has gone back on their calendar.\n\nIf you still want it, book again — it may still be free.`,
+          link: { label: "Book again", url: `${env.appUrl}/radar` },
+          variables: [therapist, when],
+        },
+      );
+
+      if (delivery.sent) releasesTold += 1;
+    }
+
     return {
       remindersDue: due.length,
       remindersSent: sent,
       unreachable,
       heldForMorning,
+      released: released.length,
+      releasesTold,
     };
   },
 

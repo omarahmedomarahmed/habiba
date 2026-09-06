@@ -526,6 +526,158 @@ async function findOrCreatePatient(input: {
   return created!.id;
 }
 
+/* -------------------------------------------- 11R.22 releasing dead holds -- */
+
+/**
+ * How long a booking may sit unpaid before the hour goes back on the calendar.
+ *
+ * Twenty-four hours. Long enough that somebody who booked on a phone with a
+ * declined card and came back the next morning still has their appointment;
+ * short enough that a Tuesday evening is not held for a fortnight by a booking
+ * that was never going to happen.
+ */
+export const UNCONFIRMED_AFTER_MS = 24 * 3_600_000;
+
+/**
+ * How close to the appointment we stop releasing it.
+ *
+ * Two hours. Below that, releasing the hour helps nobody: the patient may be
+ * on their way, and the clinician cannot fill it. An unpaid session that close
+ * is a conversation between the two of them, not a sweep's decision.
+ */
+export const UNCONFIRMED_GRACE_MS = 2 * 3_600_000;
+
+export type ReleasedBooking = {
+  slotId: string;
+  sessionId: string;
+  startsAt: Date;
+  patientEmail: string | null;
+  patientPhone: string | null;
+  patientTimezone: string | null;
+  therapistFirstName: string;
+  therapistLastName: string | null;
+  therapistTimezone: string | null;
+};
+
+/**
+ * 11R.22 — put unconfirmed bookings back on the calendar.
+ *
+ * ## What "unconfirmed" means here, precisely
+ *
+ * A **paid** session (`price_cents > 0`) whose payment is still `pending`
+ * twenty-four hours after it was created, and which is more than two hours
+ * away. Nothing else. A free hour is never released, because there is nothing
+ * to confirm; neither is one somebody already paid for; neither is one about
+ * to start.
+ *
+ * ## Why a sweep and not an expiry compared at read time
+ *
+ * `held` slots expire by comparison — `openHours` treats a lapsed hold as
+ * bookable — and that works because nobody is told about a hold. A booking is
+ * different: the patient was sent a confirmation, so releasing it is an event
+ * they have to hear about. An event needs something to run, and this is it.
+ *
+ * The rows are returned rather than notified from in here: `lib/data` does not
+ * send messages, and the caller (the hourly cron) already owns the zone
+ * resolution and the quiet window.
+ */
+export async function releaseUnconfirmedBookings(now = new Date()): Promise<ReleasedBooking[]> {
+  const staleBefore = new Date(now.getTime() - UNCONFIRMED_AFTER_MS);
+  const soonest = new Date(now.getTime() + UNCONFIRMED_GRACE_MS);
+
+  const candidates = await db
+    .select({
+      slotId: availabilitySlots.id,
+      sessionId: sessions.id,
+      startsAt: availabilitySlots.startsAt,
+      patientEmail: sql<string | null>`COALESCE(${patients.email}, ${sessions.guestEmail})`,
+      patientPhone: patients.phone,
+      patientTimezone: patients.timezone,
+      therapistFirstName: users.firstName,
+      therapistLastName: users.lastName,
+      therapistTimezone: users.timezone,
+    })
+    .from(availabilitySlots)
+    .innerJoin(sessions, eq(sessions.id, availabilitySlots.sessionId))
+    .innerJoin(users, eq(users.id, availabilitySlots.therapistUserId))
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .where(
+      and(
+        eq(availabilitySlots.status, "booked"),
+        eq(sessions.status, "scheduled"),
+        eq(sessions.paymentStatus, "pending"),
+        gt(sessions.priceCents, 0),
+        lt(sessions.createdAt, staleBefore),
+        gt(availabilitySlots.startsAt, soonest),
+      ),
+    )
+    .limit(200);
+
+  const released: ReleasedBooking[] = [];
+
+  for (const row of candidates) {
+    /*
+     * Conditional on everything that made it a candidate, so a payment that
+     * landed between the SELECT and here wins. The slot is only freed if this
+     * UPDATE matched, and the session is only cancelled if the slot was freed
+     * — in that order, so the failure mode is a cancelled session with no
+     * slot (recoverable) rather than an open hour whose session still says
+     * somebody is coming.
+     */
+    const [freed] = await db
+      .update(availabilitySlots)
+      .set({
+        status: "open",
+        sessionId: null,
+        bookedByAccountId: null,
+        // 🔴 §6 / C63 — the note is the patient's own words. It goes with the
+        // booking rather than being edited, annotated or kept.
+        note: null,
+        remindedAt: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(availabilitySlots.id, row.slotId),
+          eq(availabilitySlots.status, "booked"),
+          eq(availabilitySlots.sessionId, row.sessionId),
+        ),
+      )
+      .returning({ id: availabilitySlots.id });
+
+    if (!freed) continue;
+
+    await db
+      .update(sessions)
+      .set({ status: "cancelled", updatedAt: now })
+      .where(and(eq(sessions.id, row.sessionId), eq(sessions.paymentStatus, "pending")));
+
+    released.push(row);
+  }
+
+  if (released.length > 0) {
+    log.info("released unconfirmed bookings", { count: released.length });
+  }
+
+  return released;
+}
+
+/**
+ * Who owns this hour, for the ceilings in the booking action. 11R.22.
+ *
+ * Read before the hold, because a per-clinician limit cannot be counted
+ * against a clinician nobody has looked up yet.
+ */
+export async function slotOwner(slotId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ therapistUserId: availabilitySlots.therapistUserId })
+    .from(availabilitySlots)
+    .where(eq(availabilitySlots.id, slotId))
+    .limit(1);
+
+  return row?.therapistUserId ?? null;
+}
+
 /* ------------------------------------------------------------- reminders -- */
 
 /**

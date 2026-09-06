@@ -1,11 +1,11 @@
 "use server";
 
-import { bookSlot, holdSlot } from "@/lib/data/scheduling";
+import { bookSlot, holdSlot, slotOwner } from "@/lib/data/scheduling";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { formatWhenWithCaveat, resolveZone } from "@/lib/scheduling/tz";
 import { notify } from "@/lib/notify";
 import { env } from "@/lib/env";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 
 export type BookState = {
@@ -42,6 +42,36 @@ export async function book(input: {
   const throttle = await consume(await callerKey("book"), 6, 60 * 60);
   if (!throttle.allowed) {
     return { error: "Too many attempts. Wait a moment and try again." };
+  }
+
+  /*
+   * 11R.22 — two more ceilings, because the per-caller one is the easiest of
+   * the three to walk around.
+   *
+   * The per-caller limit is keyed on an IP. Six an hour from each of a hundred
+   * addresses is six hundred bookings against one clinician's calendar, and
+   * every one of them creates a patient row and a session. These two are keyed
+   * on the *thing being harmed* rather than on whoever is doing it: one hour,
+   * and one clinician's week.
+   *
+   * Deliberately generous. A therapist with a popular Tuesday genuinely does
+   * get several attempts on the same hour within a minute of publishing it —
+   * that is the race `holdSlot` exists to settle — so this has to sit well
+   * above ordinary contention. It is a ceiling, not a queue.
+   */
+  const perSlot = await consume(subjectKey("book:slot", input.slotId), 12, 60 * 60);
+  if (!perSlot.allowed) {
+    return { error: "That time is getting a lot of attempts right now. Try another." };
+  }
+
+  const owner = await slotOwner(input.slotId);
+  if (!owner) return { error: "That time is no longer on the calendar." };
+
+  const perTherapist = await consume(subjectKey("book:therapist", owner), 40, 60 * 60);
+  if (!perTherapist.allowed) {
+    return {
+      error: "This calendar is busy right now. Try again shortly, or use the crisis radar.",
+    };
   }
 
   const name = input.name.trim();
