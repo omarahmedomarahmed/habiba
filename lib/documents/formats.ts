@@ -29,18 +29,37 @@
  */
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 
-/** Formats whose text we can extract today, with no new dependency. */
-export const READABLE_TYPES = ["text/plain", "text/markdown", "text/csv"] as const;
+/**
+ * Formats whose text we extract.
+ *
+ * PDF and `.docx` joined this list in 11R.23 (C50), with the condition that
+ * makes them safe: a PDF whose page layout looks like columns is extracted as
+ * nothing and labelled unsupported. See `lib/documents/layout.ts`.
+ */
+export const READABLE_TYPES = [
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+] as const;
 
 /**
  * Formats we store, show and never claim to have read.
  *
- * PDFs and Word files are in this list rather than the one above, and that is
- * a **deliberate deferral, not an oversight** — see C50. Extracting their text
- * needs a parser this project does not have, and shipping a bad one would put
- * wrong passages behind `[D7:3]` citations. A citation pointing at the wrong
- * words is the same class of error as C35's straddled turns: it manufactures
- * certainty a clinician will act on.
+ * Photographs and scans, because reading them needs OCR and this product does
+ * not have one — a phone photo of a discharge summary is the most common
+ * document a patient in Egypt actually has, and refusing it would lose the
+ * record entirely.
+ *
+ * Legacy `.doc` stays here too: mammoth reads OOXML, not the old binary
+ * format, and a second parser is not worth adding for a format nothing in this
+ * database uses.
+ *
+ * Being in this list is not the only way a document ends up unsearchable — a
+ * PDF with no text layer, or one laid out in columns, is *readable* by type
+ * and `unsupported` by outcome. The label the screen shows comes from the
+ * outcome.
  */
 export const STORED_ONLY_TYPES = [
   "image/jpeg",
@@ -49,9 +68,7 @@ export const STORED_ONLY_TYPES = [
   "image/heic",
   "image/heif",
   "image/tiff",
-  "application/pdf",
   "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ] as const;
 
 export type Readability = "readable" | "stored_only" | "rejected";
