@@ -138,6 +138,11 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C70 | 11R | **Billing, audit and admin timestamps are still rendered without a zone.** `formatDate`/`formatDateTime` in `lib/utils.ts` call `toLocaleDateString(undefined)`, which is the *browser's* zone in a client component and the *server's* (UTC on Vercel) in a server component — and roughly forty call sites mix the two. 11R.1 was scoped to times a patient reads about their own appointment, and every one of those now goes through `lib/scheduling/tz.ts`. These do not: an invoice date, an audit line, "last seen", a CMS page's updated-at. Nobody misses an appointment because an audit line is an hour out, which is why this is minor and not major — but it is the same defect, unfixed, in about forty places. Fix: give `formatDate`/`formatDateTime` a required zone and let the type error find the call sites. | minor | 11R | open |
 | C71 | 11R | **The two-column heuristic refuses wide tables along with genuine columns.** `columnCount` marks a page multi-column when 40% of its lines carry a wide gap through the middle, and a medication table or a results panel looks exactly like that. Those documents are stored and honestly labelled *"Stored, but not searchable"*, so nothing is claimed falsely — but a clinician who uploads a results table gets no copilot help with it. Deliberate, and the right direction (C35: a wrong number behind a `[D7:3]` is worse than no citation), recorded so nobody later reads the false positives as a bug in the maths. Fix, if it matters: a table is a gap in the *same place on every line*; a two-column layout's gutter wanders. | minor | 11R | open — accepted |
 | C72 | 11R | **`/ar/pricing` still falls back to English, and a sprint branch can carry copy production has already had corrected.** Re-checked on **production** during 11R: all 11 published `content_pages` rows are free of the old `$6 / Unlimited / 10%` copy — C60 stayed closed. But the *branch* database still held the pre-C60 pricing row, because it was forked before the merge fix and CMS content is data rather than schema, so no migration carried the correction across. Republished on the branch; production untouched. The residue: `pricing` has **no `ar` row** on either, so an Arabic visitor reads the English page. Sprint 18 is the bilingual sprint and this is squarely its work. **The general lesson, beside C60:** a Neon branch is a snapshot of data too, and a content fix made on production does not travel to a branch cut before it. | minor | 11R | open — **sprint 18** |
+| C73 | 16 | 🔴 **Holding money makes this a money transmitter, and that is now the plan.** §3c changes 1.8 deliberately, and the two cross-border crossings — USD collected for an Egyptian therapist, EGP collected for an international one — are the exposed ones. In the US that is licensing in roughly 48 states with bonds from $50k; in Egypt and the UAE it is central-bank licensing. The domestic Egyptian leg (EGP in, EGP out, one entity, one country) is a materially smaller question than the cross-border legs and should be separated when counsel is asked. **This is not a reason to stop building — it is a reason to have the answer before sprint 16 ships rather than after.** The code obligation is unconditional either way: a real ledger, one entity stamped per transaction, daily reconciliation to zero. | blocker | founder decision | open — **counsel before sprint 16 ships** |
+| C74 | 16 | **Manual payouts are three people, and people sleep.** A payout request that nobody picks up is money a therapist is owed and cannot see moving. The queue needs an age, an alert, and an owner per request — and a therapist-visible status, because "requested" with no date is how trust is lost. Also: a manual process is where the fraud is. Two-person approval above a threshold, and never the same person who edited the payout details. | major | review | open — **sprint 16** |
+| C75 | 13 | **One phone, one account excludes real people.** A mother and daughter sharing a handset, a shared clinic phone, a recycled number that used to belong to somebody else. The invariant is right for safety and it will lock somebody out. There must be an admin path to release a number from a dead account — audited, never self-service, and never a way to take over a live one. | major | review | open — **sprint 13** |
+| C76 | 16 | **Nobody has decided who absorbs the FX spread.** A price shown in EGP at a live rate and settled hours later at a different one leaves a difference. Freezing the rate on the transaction (16.6) fixes what the *reader* sees; it does not say whose margin moves when the real settlement differs. Decide it explicitly — platform absorbs, or the therapist does — and show it on the receipt. | major | review | open — **sprint 16** |
+| C77 | 20 | **A language that is authored but hidden is a half-state nothing else models.** Turning a live language off mid-visit, a page translated into Spanish while its buttons are not, a `content_pages` row in a language the site no longer offers — each needs a defined behaviour. Sprint 19 must not hardcode "two languages" anywhere or sprint 20 rewrites it. | major | review | open — **sprints 19–20** |
 | C69 | 16 | **"The session pays for itself out of your earnings" describes a mechanic that does not exist.** The platform never holds money (1.8, C6): Stripe Connect destination charges send the patient's payment to the clinician and the 15% to us, and the **session credit is a separate purchase**. Nothing nets one against the other. The requested framing is fair as economics — a $4 session fee against a $30 session you were paid for — but it must be written as arithmetic the reader can check, not as an automatic deduction, unless netting is actually built. | major | review of sprint 11 | open — **sprint 16 decides** |
 
 ---
@@ -286,12 +291,103 @@ tiers, included sessions, copilot limits, VAT per country, the cap.
 
 ---
 
+## §3b · IDENTITY IS A PHONE NUMBER
+
+Sprints 5–7 built the person layer around email, with the phone optional.
+That was wrong for this market. In Egypt and the Gulf the number is the
+identity and WhatsApp is the channel; the email often does not exist.
+
+**The invariant:**
+
+> **One phone number, one patient account.** A second account can never claim
+> a number that is already claimed. **Two therapists may hold the same
+> number** — two clinicians really do see the same person — and when that
+> person signs up they see *both* claim requests and answer each separately.
+
+**How a record becomes somebody's, end to end:**
+
+| | |
+|---|---|
+| 1 | The therapist adds a patient. **The phone number is mandatory**, and the form says why: *"so you can invite them to join by WhatsApp"* |
+| 2 | The therapist presses **invite**, on that record. A WhatsApp message goes to that number with a link |
+| 3 | The link opens signup with the number filled in and locked |
+| 4 | A verification code arrives on WhatsApp. Entering it **proves the number** |
+| 5 | 🔴 It does **not** prove which record is theirs. So, per record: *"Have you seen this therapist before?"* — yes or no |
+| 6 | Only on **yes**: *"What name did you give them?"* — checked against the record, never shown first |
+| 7 | Passing both claims that record. **No** ends it for that record and is remembered, so nobody is asked twice |
+| 8 | Two therapists, one number → **two** requests, answered one at a time. Claiming one never claims the other |
+| — | **Email is a complete fallback for all of it** — same invite, same code, same two questions |
+
+🔴 **The failure to design against is not a stranger attacking. It is a
+mis-match.** A recycled number, a shared household phone, a mistyped digit.
+Proving the phone is necessary and not sufficient, which is the entire reason
+for steps 5 and 6, and why the name is asked *after* the yes and is never
+displayed as a prompt.
+
+## §3c · MONEY — two entities, two rails, and one deliberate exception
+
+**1.8 said: never hold a therapist's money.** That rule was right and the
+reason has not changed — holding funds and paying them out later is money
+transmission, which in the US means licences in roughly 48 states with bonds
+from $50k, and in Egypt and the UAE means central-bank licensing.
+
+**The founder is changing that rule knowingly**, because the product cannot
+work in Egypt without it: an Egyptian therapist cannot hold a Stripe Connect
+account, and an Egyptian patient cannot pay one. So:
+
+| | International | Egypt |
+|---|---|---|
+| Patients pay | **USD via Stripe.** UAE and the rest of MENA included | **EGP** via a local collection provider |
+| Therapists are paid | **Stripe Connect**, destination charges — we never touch it | **Manually**, from the Egyptian entity, on request |
+| Payout methods | Whatever Connect supports | **InstaPay** or an **EGP mobile wallet**, plus the full name exactly as it appears on that account |
+| Fulfilled by | Stripe | A 24/7 team of three, from a queue |
+
+**Currency is a display choice.** Every screen with a session price carries an
+EGP/USD toggle over the same amount at a live rate. A therapist prices in
+either; a patient pays in either; the radar the same. The rate used is
+**frozen onto the transaction** so a receipt never changes value.
+
+**The four crossings:**
+
+| Patient pays | Therapist holds | What happens |
+|---|---|---|
+| USD, Stripe | Connect | Destination charge. Nothing is held |
+| EGP, local | No Stripe | Egyptian entity collects and pays out manually |
+| **USD, Stripe** | **No Stripe** | **We hold it.** Paid out in EGP on request |
+| **EGP, local** | **Connect** | **We hold it.** Appears on their balance at once; drawn in USD via Connect |
+
+🔴 **The two in bold are the exposure.** They are cross-border and they are
+the ones a regulator would look at first. The domestic Egyptian leg — EGP in
+from an Egyptian patient, EGP out to an Egyptian therapist, one entity, one
+country — is a different and much smaller question than the cross-border legs.
+**Take that distinction to counsel before sprint 16 ships, not after.**
+
+**What the code must guarantee whatever counsel says:** money held is money
+owed. Every held cent traces to one payment in and at most one payout out, in
+a real ledger rather than a number computed at read time; every transaction
+records which entity holds it; and a daily reconciliation balances to zero.
+
+---
+
 ## §4 · SPRINTS
 
-**Ordered by who is waiting.** Therapists are live on this product today, so
-their pain ships first — sprints 2 and 3 are fixes to things they use every day.
-Revenue comes next. The patient-side rebuild is foundation work with nothing
-visible until sprint 13, which is why it sits after the parts that pay for it.
+**Ordered by who is waiting.** Sprints 1–11R are built, merged and live.
+Sprints 12 onward were re-ordered and re-grouped after the founder's decisions
+in §3b, §3c and THE RESET below.
+
+| Group | Sprints | Why here |
+|---|---|---|
+| **Fix what the decisions changed** | 12 sweep · 13 claim by phone | Nothing later should carry an "except for" clause, and identity blocks the patient app |
+| **Finish the session** | 14 no-show · 15 patient app | The loop a real patient walks through |
+| **Money** | 16 two rails, two currencies | The biggest sprint in the plan, and the one with legal exposure |
+| **The storefront** | 17 pricing story · 18 revamp · 19 both languages | Needs 16 first, so a price can be shown in either currency |
+| **Control** | 20 admin — every number, every string, every language | Last, so it can be verified against everything that exists |
+| **Launch** | 21 purge, rotate, verify | Not code. The gate before a real patient is invited |
+
+**Marked incomplete until their sprint lands:** anything WhatsApp until you
+finish the Meta setup · every price in EGP until 16 · every public page's copy
+until 17–19 · every editable string and every extra language until 20 · the
+whole system until 21's purge and key rotation.
 
 Admin is **last**, on purpose: it exists to verify and correct everything else,
 and it cannot verify what does not yet exist.
@@ -688,84 +784,199 @@ start until `verify:sprint11r` is green and sprint 11 + 11R are merged.
 - **Accept:** every row in §2 raised against sprints 7–11 reads **resolved** or
       carries a sentence saying why it is deliberately still open.
 
-### Sprint 12 — No-show recovery · ~1 week
+### 🔴 THE RESET — read before any sprint below
 
-- [ ] **12.1** 0–5 min: *"joining shortly"*. No blame
-- [ ] **12.2** At 5 min: report, **and** the live radar inside the room
-- [ ] **12.3** Only therapists at **equal or lower** price are offered
-- [ ] **12.4** **Nobody suitable online → full refund and an apology.** Never
-      leave them in an empty room
-- [ ] **12.5** Reassign the session. Nothing transfers a session today
-- [ ] **12.6** Paid more than the replacement charges → difference becomes
-      patient credit, **expires 12 months**, applied after VAT
-- [ ] **12.7** Reliability score from no-shows, on the public profile
-- [ ] **12.8** Keep the existing warn → suspend ladder in `lib/data/feedback.ts`
+**Every row in the production database is test data.** The therapists and
+patients are real people who agreed to try it; the records are not clinical
+records anybody is keeping. Before launch the database is purged completely,
+admin is seeded fresh, and every key is rotated.
 
-### Sprint 13 — Patient app · ~1.5 weeks
+**What that changes.** Several decisions in sprints 1–11R were made to protect
+live rows, and every one of them is now void:
 
-- [ ] **13.1** Bottom nav, globe centre and highlighted
-- [ ] **13.2** Home: *"Welcome, name"* + globe, expanding to the full map
-- [ ] **13.3** Sessions labelled by type: **upcoming today · scheduled future ·
-      past scheduled · past instant from radar**
-- [ ] **13.4** Their own patient-version notes
-- [ ] **13.5** Homework, grouped by session, with reminders
-- [ ] **13.6** Billing — every session as a bill, VAT and platform cut shown,
-      plus credits
-- [ ] **13.7** Consent screen: who has access, which shape, revoke
-- [ ] **13.8** 🔴 **Server-side block: a patient never sees a transcript or a
-      clinical note**
+| Decision made to protect production | What it becomes |
+|---|---|
+| C46's gate grandfathered on a date, so 65 of 66 patients keep the copilot | **On for everyone.** No date, no grandfather |
+| C26's 20 sessions with no `feedback_token` excluded rather than backfilled | Irrelevant — those rows are deleted |
+| C39's duplicate emails across organisations left un-merged | Irrelevant |
+| `recording_started_at`, `scheduled_at`, homework, attribution: "deliberately not backfilled" | Irrelevant. Never backfill; the rows go |
+| C72's stale CMS copy on branch databases | Irrelevant once every database is seeded from `defaults.ts` |
 
-### Sprint 14 — Payments by country · ~1.5 weeks
-
-- [ ] **14.1** Provider registry per country, admin-managed. **Build the
-      abstraction so adding Paymob or Paymint is configuration, not code** — the
-      Egyptian entity and the provider contracts are being arranged in parallel
-- [ ] **14.2** A provider has many methods — Paymob → Instapay, Vodafone Cash
-- [ ] **14.3** Country locks currency: no USD in Egypt, no EGP in the US
-- [ ] **14.4** Keys as environment variables, presence checked at boot
-- [ ] **14.5** Payout preferences: country, then available methods
-- [ ] **14.6** Wallet screen — **display only**, showing what Connect will pay
-
-🔴 **Do not hold therapist balances.** Closed in sprint 1.8 — this sprint must
-not reopen it. Holding money and paying it out later makes this company a money
-transmitter: ~48 US state licences with bonds from
-$50k, Central Bank licensing in Egypt and the UAE. Stripe Connect exists so we
-never touch it. The wallet is a screen over Connect, or a licensed local partner
-is the payer of record. **Not our balance sheet.**
-
-### Sprint 15 — Admin · ~2 weeks · LAST
-
-Built last so it can be verified against everything that already exists.
-
-- [ ] **15.1** Edit every pricing figure — rates, tiers, included, copilot caps
-- [ ] **15.2** VAT and currency per country
-- [ ] **15.3** Payment providers per country, integration status, and which
-      countries have none
-- [ ] **15.4** 🆕 **Verification requirements per country** — authority name,
-      licence name, ID number format, sample photo. Hardcoded today
-- [ ] **15.5** Therapist credentials by country
-- [ ] **15.6** Margin per session from real usage
-- [ ] **15.7** Total View extended to everything above
-- **Accept:** every number in §3 is editable without a deploy, and admin can see
-      and correct anything built in sprints 1–14.
+**The rule going forward: never shape a product decision around a production
+row again.** If a change is right, make it. The migration still has to be
+additive because the *running deployment* must survive the gap (H16) — that is
+about uptime, not about the data.
 
 ---
 
-## §4b · THE PUBLIC SITE — sprints 16–19
+### Sprint 12 — The sweep · ~1 week · 🔴 FIRST
 
-Four sprints, in this order, each merged before the next begins. The order is
-the point: **revamp the site, then translate it, then make it editable.**
-Building the editor first means editing pages that are about to be rewritten,
-and translating first means translating copy that is about to change.
+Everything the reset and §3b change about work that already shipped. One
+sprint, so no later sprint has to carry an "except for" clause.
 
-### Sprint 16 — The pricing story · ~1 week · 💰 REVENUE
+- [ ] **12.1** `copilot.gateActiveFrom` deleted. The gate is a boolean and it
+      is **on**. `isGated` loses its date argument and its grandfather branch
+- [ ] **12.2** C26's exclusion removed — every session is ratable or the
+      reason is a live fact, not a historical accident
+- [ ] **12.3** C70 — the ~40 billing, audit and session timestamps that still
+      render without a zone go through `lib/scheduling/tz.ts`. Same defect as
+      C61, on staff screens
+- [ ] **12.4** `patients.phone` becomes **NOT NULL** for new records (§3b), and
+      every form that creates a patient asks for it with a country
+- [ ] **12.5** Sweep §2 and close every row whose only reason to stay open was
+      a production row
+- [ ] **12.6** `scripts/reset.ts` — purge every table, re-seed admin, re-seed
+      settings, re-publish CMS defaults, in one command with a confirmation
+      prompt. This is what sprint 21 runs
+- [ ] **12.7** `scripts/_fk.ts` deleted. It is a debug script somebody committed
+- **Accept:** no code path anywhere reads a value whose default was chosen to
+      avoid disturbing a live row.
 
-The offer is good and the site does not say it. Fix the framing everywhere it
-appears, and write the default CMS copy properly so `content_pages` has
-something worth publishing.
+### Sprint 13 — Claim by phone · ~1.5 weeks · 🔴 FOUNDATION
 
-**The framing, in the product's own words.** Every surface below tells the same
-story in the same order:
+The claim flow built in sprints 6–7 matched on email and treated the phone as
+optional. §3b replaces that. This sprint is the whole identity story and
+sprint 15's patient app depends on it.
+
+**The invariant, first, because everything else follows from it:**
+
+> **One phone number, one patient account.** A second account can never claim
+> the same number. But **two therapists may hold the same number**, because
+> two clinicians really do see the same person — and when that person signs up
+> they see *both* claim requests and must answer for each separately.
+
+- [ ] **13.1** `patient_accounts.phone` unique and NOT NULL. E.164, using
+      11R's `toE164` — a number with no country is refused, never guessed
+- [ ] **13.2** `patients.phone` mandatory when a therapist creates a record,
+      with the reason stated on the form: *"so you can invite them to join by
+      WhatsApp."* No silent requirement
+- [ ] **13.3** **The therapist invites their own patient.** One button on the
+      patient record. Sends a WhatsApp invite carrying a link
+- [ ] **13.4** The link opens signup with the number pre-filled and locked.
+      The verification code goes to that number by WhatsApp
+- [ ] **13.5** Confirming the code proves the number. It does **not** prove
+      which record is theirs — a household shares a phone, a number is
+      recycled, a therapist mistypes a digit
+- [ ] **13.6** 🔴 **So the challenge, per record, in this order:**
+      1. *"Have you seen this therapist before?"* — yes or no, plainly
+      2. Only on yes: *"What name did you give them?"* — matched against the
+         record, never shown first
+      A no ends it for that record and is remembered, so nobody is asked twice
+- [ ] **13.7** Two therapists holding the same number produce **two** claim
+      requests on the patient's screen, answered one at a time. Claiming one
+      never claims the other
+- [ ] **13.8** 🔴 **A mis-claim must be impossible, not unlikely.** The
+      verifier proves it: a second account cannot take a claimed number; a
+      patient who answers "no" cannot later be shown that record; a wrong name
+      does not partially reveal the right one; and no screen displays a
+      record's contents before the challenge is passed
+- [ ] **13.9** **Email is a complete fallback, same flow, same challenge** —
+      invite, code, yes/no, name. For a patient with no WhatsApp
+- [ ] **13.10** Sprint 7's consent step still runs after a successful claim.
+      Claiming is not consenting
+- ⚠️ **Incomplete until you finish the Meta setup.** Everything works by email
+      the moment this ships; the WhatsApp half is proven only when
+      `npm run whatsapp:check` prints a message id.
+- **Accept:** two therapists, one phone, one person — the person ends up with
+      one account and two decisions, and no wrong record was ever visible.
+
+### Sprint 14 — No-show recovery · ~1 week
+
+*(was sprint 12)*
+
+- [ ] **14.1** 0–5 min: *"joining shortly"*. No blame
+- [ ] **14.2** At 5 min: report, **and** the live radar inside the room
+- [ ] **14.3** Only therapists at **equal or lower** price are offered
+- [ ] **14.4** **Nobody suitable online → full refund and an apology.** Never
+      leave them in an empty room
+- [ ] **14.5** Reassign the session. Nothing transfers a session today
+- [ ] **14.6** Paid more than the replacement charges → difference becomes
+      patient credit, **expires 12 months**, applied after VAT
+- [ ] **14.7** Reliability score from no-shows, on the public profile
+- [ ] **14.8** Keep the existing warn → suspend ladder in `lib/data/feedback.ts`
+
+### Sprint 15 — Patient app · ~1.5 weeks
+
+*(was sprint 13. Depends on sprint 13's claim flow.)*
+
+- [ ] **15.1** Bottom nav, globe centre and highlighted
+- [ ] **15.2** Home: *"Welcome, name"* + globe, expanding to the full map
+- [ ] **15.3** Sessions labelled by type: **upcoming today · scheduled future ·
+      past scheduled · past instant from radar**
+- [ ] **15.4** Their own patient-version notes
+- [ ] **15.5** Homework, grouped by session, with reminders
+- [ ] **15.6** Billing — every session as a bill, VAT and platform cut shown,
+      plus credits, **in the currency they paid in** (sprint 16)
+- [ ] **15.7** Consent screen: who has access, which shape, revoke
+- [ ] **15.8** 🔴 **Server-side block: a patient never sees a transcript or a
+      clinical note**
+
+### Sprint 16 — Money: two rails, two currencies · ~3 weeks · 💰 THE BIG ONE
+
+*(was sprint 14, and it is roughly twice the sprint it was.)*
+
+🔴 **Read §3c before writing a line of this.** It carries a legal exposure the
+rest of the plan does not, and 1.8's rule against holding money is
+deliberately being changed by the founder, not accidentally broken.
+
+**Two settings groups in admin, and only two:**
+
+| | International | Egypt |
+|---|---|---|
+| Patients pay | **USD, Stripe.** Includes the UAE and the rest of MENA | **EGP**, a local collection provider |
+| Therapists are paid | **Stripe Connect**, destination charges | **Manual.** They request a payout |
+| Payout methods | Whatever Connect supports | **InstaPay bank transfer** or **EGP mobile wallet**, plus their full name *exactly as it appears on that account* |
+| Who fulfils it | Stripe | The 24/7 team, from the Egyptian entity |
+
+- [ ] **16.1** The two provider groups, admin-managed. Adding an Egyptian
+      collection provider is configuration, not code
+- [ ] **16.2** Payout request: method, account identifier, full name as
+      registered, and a status the therapist can watch — requested · approved ·
+      sent · confirmed. Every transition audited and attributable to a person
+- [ ] **16.3** 🔴 **A payout request is a promise. Nothing may quietly fail.**
+      A stuck request is visible to admin, to the therapist, and on a queue
+      screen the 24/7 team works from
+
+**Currency is a display choice, everywhere:**
+
+- [ ] **16.4** Every screen showing a session price carries an **EGP / USD
+      toggle over the same amount**, converted at a live or near-live rate.
+      Kills C37's hardcoded ~48
+- [ ] **16.5** A therapist prices a session link in **either** currency. A
+      patient pays in **either** currency. The radar price the same. What they
+      chose is stored — a receipt must reproduce it exactly
+- [ ] **16.6** The rate used for a transaction is **frozen on that
+      transaction**, with its timestamp. Never re-converted later, or last
+      month's invoice changes value while somebody is reading it
+
+**The four crossings, each of which must work:**
+
+| Patient pays | Therapist holds | What happens |
+|---|---|---|
+| USD, Stripe | Stripe Connect | Destination charge. Untouched, as today |
+| EGP, local | No Stripe | Collected in Egypt, paid out manually in EGP |
+| **USD, Stripe** | **No Stripe (Egyptian)** | **We hold it** and pay EGP manually on request |
+| **EGP, local** | **Stripe Connect (international)** | **We hold it**, it appears on their balance immediately, and they draw it in USD through Connect |
+
+- [ ] **16.7** The two crossings in bold are the new work and the legal
+      exposure. Build them explicitly, name them in the code, and make the
+      held balance a **first-class, reconcilable ledger** — not a number
+      derived at read time
+- [ ] **16.8** 🔴 **Money held is money owed.** Every held cent traces to one
+      payment in and at most one payout out. A reconciliation report the
+      finance team can run daily, and it must balance to zero
+- [ ] **16.9** Two entities, two bank accounts, Egypt and the USA. Every
+      transaction records **which entity holds it**. A cross-entity movement is
+      an explicit, audited event and never an accounting side effect
+- [ ] **16.10** Therapist earnings show held, requested, sent and available
+      separately. "Available" must never include money we cannot actually move
+- **Accept:** a therapist in Cairo with no Stripe account gets paid for a
+      patient in London who paid in dollars, the whole path is auditable, and
+      the ledger balances.
+
+### Sprint 17 — The pricing story · ~1 week · 💰 REVENUE
+
+*(was sprint 16. After 16 so prices can be shown in either currency.)*
 
 > **Joining is free.** No subscription, no seat fee, no setup fee.
 > **You pay per session, only when you run one** — $4, or less in a bundle —
@@ -774,106 +985,136 @@ story in the same order:
 > **Get booked on the Crisis Radar.** Patients find you and book you, and the
 > few dollars a session costs comes out of what that session paid you.
 
-- [ ] **16.1** 🔴 **Resolve C69 first.** Nothing nets the session fee against
-      Connect earnings today, and the platform must not start holding money
-      (1.8). So either build the netting or write the claim as arithmetic —
-      *"a $30 session pays you $25.50 after our 15%; the session itself costs
-      $4 of that"* — with the numbers read live from settings. **Do not ship a
-      sentence that describes a mechanic that does not exist.** Decide, and
-      write which you chose in the build log
-- [ ] **16.2** Pricing page reordered: **tier cards first, no hero section.**
-      The page opens on the three rates
-- [ ] **16.3** Under the cards, the free-to-use statement and the radar line
-- [ ] **16.4** **A slider on Growth.** Minimum 30, drag upward, live total at
-      $2 each. It is a slider and not a fixed pack because §3 says so — above
-      the minimum they buy as many as they like at the same rate
-- [ ] **16.5** The billing FAQ moves **below** all of that
-- [ ] **16.6** Call to action, everywhere, in this shape: **"Sign up free"**
-      primary · *"or buy a bundle"* secondary. Never "start your trial", never
-      "choose a plan" — there are no plans
-- [ ] **16.7** **The same three cards as a section on the homepage**, reading
-      the same live settings as the pricing page. One component, two pages —
-      not a copy, or C60 happens again in a new place
-- [ ] **16.8** Rewrite `lib/content/defaults.ts` for `pricing` and `home` so
-      the shipped defaults *are* the correct copy, then publish them to
-      `content_pages` for both locales and **bump `CACHE_VERSION`** (C60)
-- [ ] **16.9** Every figure in the copy comes from `platform_settings` at
-      render time. A number typed into a sentence is a number that will be
-      wrong after sprint 15 lets somebody edit it
-- **Accept:** no page states a price, a rate, a cut or a minimum that
-      disagrees with `platform_settings`, and `verify:sprint16` proves it by
-      changing a setting and re-reading both pages.
+- [ ] **17.1** 🔴 **Resolve C69.** Sprint 16 makes netting possible for the
+      first time, so decide it there and state it here. Do not ship a sentence
+      describing a mechanic that does not exist
+- [ ] **17.2** Pricing page reordered: **tier cards first, no hero section**
+- [ ] **17.3** Under the cards, the free-to-use statement and the radar line
+- [ ] **17.4** **A slider on Growth.** Minimum 30, drag upward, live total
+- [ ] **17.5** The billing FAQ moves **below** all of that
+- [ ] **17.6** Call to action everywhere: **"Sign up free"** primary, *"or buy
+      a bundle"* secondary. Never "choose a plan" — there are no plans
+- [ ] **17.7** **The same three cards as a section on the homepage.** One
+      component, two pages — not a copy, or C60 happens again
+- [ ] **17.8** Every price on both pages carries the EGP/USD toggle from 16.4
+- [ ] **17.9** Rewrite `lib/content/defaults.ts` for `pricing` and `home`,
+      publish to `content_pages` in both locales, **bump `CACHE_VERSION`**
+- [ ] **17.10** Every figure read from `platform_settings` at render time
+- **Accept:** no page states a price, rate, cut or minimum that disagrees with
+      `platform_settings`, in either currency.
 
-### Sprint 17 — Public site revamp, and a side for patients · ~1.5 weeks
+### Sprint 18 — Public site revamp, and a side for patients · ~1.5 weeks
 
-Today the public site is written for clinicians. Half the people arriving are
-patients, and there is nothing addressed to them.
+*(was sprint 17)*
 
-- [ ] **17.1** Full pass over every public page — structure, hierarchy, what
+- [ ] **18.1** Full pass over every public page — structure, hierarchy, what
       each page is *for*. Not a reskin
-- [ ] **17.2** A **patients** section in the navigation, and the pages under it:
-      how to find a therapist · what the Crisis Radar is and when to use it ·
-      what happens in a session · what your therapist can and cannot see ·
-      your record and how to claim it · what it costs you · getting help now
-- [ ] **17.3** 🔴 The crisis page is reachable in one tap from every patient
-      page, and never behind a signup
-- [ ] **17.4** Patient-side call to action separated from the clinician one.
-      A person in distress and a clinician evaluating software need different
-      first buttons on the same site
-- [ ] **17.5** Every new page is a `content_pages` row with a shipped default,
-      not a hardcoded route — so sprints 18 and 19 can reach it
-- [ ] **17.6** The blocks the CMS can render are extended to cover whatever the
-      revamp needs, and each new block type is documented where the editor can
-      see it
-- [ ] **17.7** Re-check the whole site against §6: nothing on a public page
-      names a patient, quotes a session, or implies we can read a record
-- **Accept:** a patient landing cold can find a therapist, understand what is
-      recorded, and reach crisis help without an account or a scroll.
+- [ ] **18.2** A **patients** section in the navigation: how to find a
+      therapist · what the Crisis Radar is and when to use it · what happens in
+      a session · what your therapist can and cannot see · your record and how
+      to claim it · what it costs you · getting help now
+- [ ] **18.3** 🔴 The crisis page is one tap from every patient page, and never
+      behind a signup
+- [ ] **18.4** Patient and clinician calls to action separated. A person in
+      distress and a clinician evaluating software need different first buttons
+- [ ] **18.5** Every new page is a `content_pages` row with a shipped default,
+      never a hardcoded route — so 19 and 20 can reach it
+- [ ] **18.6** New block types documented where the editor can see them
+- [ ] **18.7** Re-check the site against §6: nothing public names a patient,
+      quotes a session, or implies we can read a record
 
-### Sprint 18 — Arabic and English, everywhere · ~1.5 weeks
+### Sprint 19 — Arabic and English · ~1.5 weeks
 
-- [ ] **18.1** Every public page has an `ar` row **and** an `en` row in
-      `content_pages`. The pricing page has no `ar` row today, which is why
-      `/ar/pricing` silently serves English (found in sprint 11)
-- [ ] **18.2** Every interface string in both languages. The existing rule
-      holds: an English fallback for a UI string is banned and the type system
-      enforces it — a gap is a bug, not a graceful degradation
-- [ ] **18.3** Arabic is a **right-to-left** layout, not translated English in
-      a left-to-right frame. Navigation, cards, the slider, form fields, the
-      globe's controls
-- [ ] **18.4** Numerals, currency and dates in the reader's convention, and
-      the timezone work from 11R applies to both
-- [ ] **18.5** Sessions mix Arabic and English inside one sentence — the site
-      must not fight that. Nothing that force-transliterates a name
-- [ ] **18.6** A verifier that fails the build on any page or string present in
-      one language and missing in the other
-- **Accept:** `/ar` and `/en` are the same site, not one site and a summary.
+*(was sprint 18)*
 
-### Sprint 19 — Every string editable by admin · ~1.5 weeks · LAST
+- [ ] **19.1** Every public page has an `ar` row **and** an `en` row. `pricing`
+      has no `ar` row today, which is why `/ar/pricing` serves English
+- [ ] **19.2** Every interface string in both languages. An English fallback
+      for a UI string stays banned and type-enforced
+- [ ] **19.3** Arabic is **right-to-left as a layout**, not translated English
+      in a left-to-right frame
+- [ ] **19.4** Numerals, currency and dates in the reader's convention
+- [ ] **19.5** Mixed Arabic and English inside one sentence must survive
+- [ ] **19.6** A verifier that fails the build on any string present in one
+      language and missing in the other
+- [ ] **19.7** 🔴 **Nothing here may hardcode "two languages."** Sprint 20 adds
+      more. Every table, key and component is `(key, locale)` from the start
 
-Done last, after the copy has stopped moving.
+### Sprint 20 — Admin: every number, every string, every language · ~3 weeks · LAST
 
-- [ ] **19.1** A `ui_strings` table: `(key, locale, value, updated_by,
-      updated_at)`. The typed dictionary in the repository stays and remains
-      the default; a published row **overrides** it
-- [ ] **19.2** 🔴 **Every button label included.** "Sign up free", "Book",
-      "Join", "Publish", "Revoke" — the user asked for button text specifically
-      and it is the copy that changes most often
-- [ ] **19.3** Admin editor: search by key, filter by page, both locales side
-      by side, one save. Every write audited
-- [ ] **19.4** Cached like the CMS — one tag, no timer — and publishing
-      invalidates it. Any write from anything other than the editor bumps a
-      version key (C60, and the reason `CACHE_VERSION` exists)
-- [ ] **19.5** An empty override is **not** an empty string. Clearing a row
-      restores the shipped default rather than blanking a button
-- [ ] **19.6** A missing key renders the shipped default and reports itself —
-      never a raw key on screen, never blank
-- [ ] **19.7** Safety strings are marked and cannot be blanked: the crisis
-      copy, the recording notice, the consent wording. Admin may reword them;
-      admin may not delete them
-- **Accept:** a non-engineer changes any visible word on the public site, in
-      either language, and sees it live without a deploy — and cannot make a
-      button, a crisis instruction or a consent sentence disappear.
+*(was sprint 15 **and** sprint 19, merged at the founder's instruction. Built
+last so it can be verified against everything that already exists.)*
+
+**Every number**
+
+- [ ] **20.1** Edit every pricing figure — rates, tiers, minimums, copilot caps
+- [ ] **20.2** VAT and currency per country
+- [ ] **20.3** Both payment groups from sprint 16: providers, methods,
+      integration status, and which countries have neither
+- [ ] **20.4** **Verification requirements per country** — authority, licence
+      name, ID format, sample photo. Hardcoded today
+- [ ] **20.5** Therapist credentials by country
+- [ ] **20.6** Margin per session from real usage
+- [ ] **20.7** The payout queue the 24/7 team works from, and its reconciliation
+- [ ] **20.8** Total View extended to everything above
+
+**Every string**
+
+- [ ] **20.9** `ui_strings (key, locale, value, updated_by, updated_at)`. The
+      typed dictionary stays as the default; a published row overrides it
+- [ ] **20.10** 🔴 **Every button label included.** "Sign up free", "Book",
+      "Join", "Publish", "Revoke". Buttons are the copy that changes most
+- [ ] **20.11** Editor: search by key, filter by page, locales side by side,
+      one save, every write audited
+- [ ] **20.12** Cached like the CMS — one tag, no timer. Any write from
+      anything but the editor bumps `CACHE_VERSION` (C60)
+- [ ] **20.13** Clearing an override **restores the shipped default**. It does
+      not blank a button
+- [ ] **20.14** A missing key renders the default and reports itself. Never a
+      raw key on screen, never blank
+- [ ] **20.15** Safety strings marked and undeleteable: crisis copy, the
+      recording notice, consent wording. Rewordable, never removable
+
+**Every language**
+
+- [ ] **20.16** 🔴 **Admin can add a language.** Not a code change — a row.
+      Every page, section, block, label and button becomes translatable into it
+- [ ] **20.17** A translation workspace: pick a language, see what is missing,
+      fill it in, save. Partial translations are normal and are not published
+      by being saved
+- [ ] **20.18** 🔴 **A separate, bigger toggle decides which languages the
+      public site offers.** Adding Spanish and translating it does **not** show
+      it to anybody. Two switches, deliberately: one to *author*, one to
+      *publish*
+- [ ] **20.19** So the content team can translate Spanish and Chinese for weeks
+      while the site offers only Arabic and English, and the day it flips, the
+      whole site is already there
+- [ ] **20.20** Turning a live language **off** must not 404 anybody mid-visit.
+      Decide and state the behaviour: redirect to the default, or serve and
+      stop advertising
+- **Accept:** a non-engineer adds a language, translates any word on the site
+      into it, keeps it hidden, and later publishes it — with no deploy, and
+      without being able to delete a crisis instruction or a consent sentence.
+
+### Sprint 21 — Purge, rotate, launch · ~3 days · 🔴 THE GATE
+
+Nothing here is code. It is the checklist that turns a test system into a live
+one, and no real patient is invited before all of it is done.
+
+- [ ] **21.1** `scripts/reset.ts` (12.6) run against production. Every table
+      empty, admin re-seeded, settings re-seeded, CMS republished from defaults
+- [ ] **21.2** **Every key rotated** — OpenAI, Deepgram, Daily, Resend, Stripe,
+      the database, `CRON_SECRET`. The old ones were pasted into chats
+- [ ] **21.3** The Resend domain verified, and a real email proven to arrive
+- [ ] **21.4** Meta WhatsApp live: five templates approved,
+      `npm run whatsapp:check` printing a message id
+- [ ] **21.5** Decide **one** deploy: keep this Vercel project with the domain
+      verified and every key rotated, **or** a clean project. Either is fine;
+      running both is not
+- [ ] **21.6** Stripe out of test mode, both entities' bank accounts connected
+- [ ] **21.7** A full pass as a patient and as a therapist, on the real system,
+      with nothing seeded
+- [ ] **21.8** Legal review of the consent copy, and of §3c
 
 ## §5 · BUILD LOG
 
@@ -929,3 +1170,8 @@ Breaking one of these is a bug regardless of what any ticket says.
 | Every price, rate, cut and minimum on a public page is read from `platform_settings` at render time. Never typed into a sentence | Process |
 | Never describe a mechanic the product does not have, however fair the economics (C69) | Hard |
 | One constraint per `DO $$` block — a duplicate on the first silently skips the rest (C66) | Process |
+| **Never shape a product decision around a production row.** Every row is test data and is being purged (§4 · THE RESET). Migrations stay additive for *uptime*, not for the data | Process |
+| **A phone number proves a number, never a person.** Both questions in §3b's step 5–6 run before any record is claimed or shown | Hard |
+| **Money held is money owed.** Every held cent traces to one payment in and at most one payout out, in a ledger — never a number computed at read time (§3c) | Hard |
+| An exchange rate is **frozen onto the transaction** that used it. Never re-converted (C76) | Hard |
+| Nothing hardcodes "two languages". Every string is `(key, locale)` and admin can add a locale (C77) | Process |
