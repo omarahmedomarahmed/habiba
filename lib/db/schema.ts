@@ -1972,6 +1972,20 @@ export type ContentBlock =
     }
   | { type: "faq"; heading?: string; items: { q: string; a: string }[] }
   | {
+      /**
+       * The three rates, rendered from `platform_settings` at request time.
+       * 17.7 — one component on two pages, so a price can never be repriced in
+       * one place and left stale in the other (C60).
+       *
+       * It carries **no numbers of its own**, deliberately: an admin editing
+       * this block can move it or drop it, and cannot make it disagree with
+       * what the invoice charges. `compact` is the homepage form — the same
+       * cards without the feature lists.
+       */
+      type: "pricing";
+      compact?: boolean;
+    }
+  | {
       type: "cta";
       heading: string;
       body?: string;

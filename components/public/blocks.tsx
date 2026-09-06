@@ -4,12 +4,11 @@ import { ArrowRight, Check } from "lucide-react";
 import { ComponentShowcase } from "@/components/demo/component-showcase";
 import { SessionDemo } from "@/components/demo/session-demo";
 import { ContentIconMark } from "@/components/public/icons";
+import { PricingTiers } from "@/components/public/pricing-tiers";
 import { RadarHero } from "@/components/radar/radar-hero";
 import { Button } from "@/components/ui";
-import { formatUsd } from "@/lib/billing/plans";
 import { safeImageUrl } from "@/lib/content/url";
 import type { ContentBlock } from "@/lib/db/schema";
-import { getSettings } from "@/lib/settings";
 
 /**
  * Renders CMS content.
@@ -19,13 +18,12 @@ import { getSettings } from "@/lib/settings";
  * though they were validated on save — a value that reached the database some
  * other way still cannot reach the page.
  */
-export function BlockRenderer({ blocks, slug }: { blocks: ContentBlock[]; slug: string }) {
+export function BlockRenderer({ blocks }: { blocks: ContentBlock[]; slug?: string }) {
   return (
     <>
       {blocks.map((block, i) => (
         <Block key={i} block={block} first={i === 0} />
       ))}
-      {slug === "pricing" ? <PricingCards /> : null}
     </>
   );
 }
@@ -44,6 +42,17 @@ function Block({ block, first }: { block: ContentBlock; first: boolean }) {
       return <Cta block={block} />;
     case "prose":
       return <Prose block={block} />;
+    /*
+     * 17.7 — the prices are a block now, not a special case keyed on the slug.
+     *
+     * The old renderer appended `PricingCards` when `slug === "pricing"`,
+     * which is why the cards could only ever be at the bottom of one page.
+     * As a block they can be first (17.2), they can appear on the homepage,
+     * and sprint 21's admin can move them — without either page owning a
+     * second copy of a number.
+     */
+    case "pricing":
+      return <PricingTiers compact={block.compact} />;
     default:
       return null;
   }
@@ -281,89 +290,3 @@ function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
   );
 }
 
-/**
- * Pricing, read from `platform_settings` so the page cannot drift from billing.
- *
- * It used to read a `PLANS` constant in the code, which was the same guarantee
- * by a weaker mechanism: the page and the biller agreed because they shared a
- * literal, and both were wrong together the moment someone edited one. Now they
- * share a row, and an admin changing a rate changes this page on the next
- * request with no deploy.
- *
- * Async, and therefore a server component. This is a marketing page rendered on
- * the server anyway; making it read the same source as the invoice is the whole
- * point.
- */
-async function PricingCards() {
-  const settings = await getSettings();
-  const tiers = settings.pricing.tiers;
-
-  return (
-    <section className="px-4 pb-16 sm:px-6 sm:pb-24">
-      <div className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-3">
-        {tiers.map((tier) => (
-          <div
-            key={tier.key}
-            className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6"
-          >
-            <p className="text-sm font-semibold text-brand-600">{tier.name}</p>
-            <p className="mt-3 flex items-baseline gap-1.5">
-              <span className="text-4xl font-bold tracking-tight text-slate-900">
-                {formatUsd(tier.rateCents)}
-              </span>
-              <span className="text-sm text-slate-500">/ session</span>
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              {tier.minimumSessions === 0
-                ? "Pay for the sessions you actually run. Nothing up front."
-                : `Buy ${tier.minimumSessions} or more at once.`}
-            </p>
-
-            {/*
-              What the per-session price actually includes, stated at the price
-              rather than eleven bullets below it. A therapist comparing $4 with
-              a competitor's $4 is comparing the wrong thing if the copilot
-              allowance is invisible here.
-            */}
-            <p className="mt-3 rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-900">
-              The session <span className="font-semibold">and</span>{" "}
-              {settings.copilot.messagesPerPatientPerSession} copilot questions about that patient
-              — each answer citing the session and timestamp it came from.
-            </p>
-
-            <ul className="mt-6 flex-1 space-y-2.5">
-              {[
-                "Live transcription, Arabic and English",
-                "SOAP note in under a minute",
-                "Patient report by email",
-                "Video or in-person sessions",
-                "Crisis-language alerts",
-                "Get paid by patients — Crisis Radar and paid session links",
-                "HIPAA BAA included",
-              ].map((feature) => (
-                <li key={feature} className="flex gap-2.5 text-sm text-slate-700">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" aria-hidden />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <Link href="/signup" className="mt-6">
-              <Button full variant={tier.minimumSessions === 0 ? "secondary" : "primary"}>
-                {tier.minimumSessions === 0
-                  ? "Start — first session free"
-                  : `Buy ${tier.minimumSessions} sessions`}
-              </Button>
-            </Link>
-          </div>
-        ))}
-      </div>
-      <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-slate-500">
-        Credits last {settings.pricing.creditExpiryMonths} months and are always used before
-        anything is billed, so dropping to a smaller bundle never strands what you already paid
-        for. A HIPAA business associate agreement is included at every rate — we process protected
-        health information on your behalf, so that is an obligation rather than an upgrade.
-      </p>
-    </section>
-  );
-}

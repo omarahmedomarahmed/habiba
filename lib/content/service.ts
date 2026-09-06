@@ -52,7 +52,13 @@ export const CMS_TAG = "cms";
  *
  *   v2 — 2026-09-05, C60: pricing copy corrected in the row, not the editor.
  */
-const CACHE_VERSION = "v2";
+/*
+ * 17.9 — bumped for the sprint 17 pricing rewrite. The pricing page lost its
+ * hero and the homepage gained the cards; a cached copy of either would serve
+ * the old page for an hour after the deploy, which for a pricing page means
+ * serving prices that are no longer ours.
+ */
+const CACHE_VERSION = "v3";
 
 function cached<Args extends unknown[], Result>(
   keyParts: string[],

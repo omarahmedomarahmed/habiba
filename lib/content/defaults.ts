@@ -118,6 +118,15 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
         ],
       },
+      /*
+       * 17.7 — the same three cards as a section on the homepage.
+       *
+       * The same component, not a copy of it: `compact` drops the feature
+       * lists and keeps the prices, and the prices are still read from
+       * `platform_settings` at request time. A homepage that quoted its own
+       * figures is how C60 started.
+       */
+      { type: "pricing", compact: true },
       {
         type: "cta",
         heading: "Your first session is free",
@@ -230,23 +239,23 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "pricing",
     title: "Pricing",
     description:
-      "$4 a session, $3 from ten, $2 from thirty — each including 10 copilot questions per patient. Your first session is free.",
+      "Join free and pay per session, only when you run one — each session including its copilot questions about that patient. Your first session is free.",
     layout: "marketing",
     navLabel: "Pricing",
     navOrder: 2,
     blocks: [
+      /*
+       * 17.2 — the cards are the page. No hero above them.
+       *
+       * The old first block was a hero that restated $4 / $3 / $2 in prose,
+       * and that is precisely how C60 happened: a price written twice is a
+       * price that can be repriced once. Every figure now comes from
+       * `platform_settings` through the `pricing` block, and this page states
+       * no number of its own.
+       */
+      { type: "pricing" },
       {
-        type: "hero",
-        eyebrow: "Pricing",
-        heading: "Three rates. No seats, no setup fee.",
-        body: "$4 buys the session and ten copilot questions about that patient — not the session alone. Buy ten at once and the rate is $3; thirty and it is $2. Your first completed session is free at every rate.",
-        ctaLabel: "Start free",
-        ctaHref: "/signup",
-        demo: "none",
-        icon: "chart",
-        backgroundImage: "/backgrounds/contours.svg",
-      },
-      {
+        // 17.5 — the FAQ moves below the cards and the statements.
         type: "faq",
         heading: "Billing questions",
         items: [
@@ -256,7 +265,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "What does the session rate actually include?",
-            a: "The full session — live transcription, the SOAP note, the patient report and crisis alerts — plus ten copilot questions about that patient for every session you run with them, and unused ones roll over. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not.",
+            a: "The full session — live transcription, the SOAP note, the patient report and crisis alerts — plus the copilot questions about that patient shown on the cards above, for every session you run with them, and unused ones roll over. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not.",
           },
           {
             q: "What if a session was a mistake?",
@@ -264,15 +273,15 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "What do you take when a patient pays me?",
-            a: "15% of the session price, and nothing else. The money is a direct charge into your own Stripe account — we never hold it — and Stripe handles the payout to your bank. You see exactly what you keep before you set a price.",
+            a: "The percentage shown on the cards above, and nothing else. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not — Egypt, today — we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
           },
           {
             q: "Can I pay my 24Therapy bill out of my earnings?",
-            a: "Yes. If you take payments from patients, anything you owe us can be settled out of the next one instead of a card. It is never more than what you would have received from that session, and you can turn it off.",
+            a: "Yes. When we are holding your earnings the session fee comes out of them automatically. If your patients pay straight into your own Stripe account, anything you owe can instead be settled out of the next payment rather than a card — never more than what that session would have paid you, and you can turn it off.",
           },
           {
             q: "What happens to sessions I bought and did not use?",
-            a: "They last twelve months and are always spent before anything new is billed, so moving to a smaller bundle never strands what you already paid for.",
+            a: "They last as long as the cards above say, and are always spent before anything new is billed, so moving to a smaller bundle never strands what you already paid for.",
           },
         ],
       },
