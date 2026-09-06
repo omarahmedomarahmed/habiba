@@ -145,7 +145,7 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C82 | 20 | **Support attachments are clinical material arriving through a non-clinical door.** A patient uploading a photo of a prescription to a support ticket has just sent us a medical record. Same storage, same audit, same access control as sprint 8's documents — and 🔴 **they never enter any prompt.** Likewise the closing email is patient data leaving the building under §6: audited, and carrying the correspondence rather than the attachments. | major | review | **ruled — sprint 20.19, 20.22** |
 | C83 | 20 | **An overdue clock that runs while waiting on the patient measures the wrong person.** Staff would be marked down for a patient who replies in three days. The clock pauses when the ball is in the patient's court. Also: a ticket moved to WhatsApp leaves our record entirely — it is recorded as moved, with a written summary brought back, or the audit trail has a hole in exactly the conversations that mattered most. | minor | review | **ruled — sprint 20.20–20.21** |
 | C84 | 12 | 🔴 **12.3's guard checks a symbol, not a behaviour, and reports zero while six client components still do the thing.** `verify-sprint12.ts` scans `"use client"` files for `readerZone(`. Six others never used the helper — they inline the identical construct, `Intl.DateTimeFormat().resolvedOptions().timeZone`, read during render — or format dates and money straight off the runtime: `booking-calendar.tsx:60` (**the public booking page**, and C61 was exactly this), `rating-form.tsx:84` (the public feedback page), `availability-editor.tsx:65` (where a therapist publishes hours), `timezone-settings.tsx:28`, `radar-command.tsx:374,559` (`toLocaleDateString()` / `toLocaleTimeString()` bare), `presence.tsx:703` (`toLocaleString()` bare), and `pay-flow.tsx:79`, which formats currency with the runtime's *locale* — the same mismatch in the same place, on the payment screen sprint 16 rebuilds. **Ruling: the check is behavioural or it is theatre.** Ban the construct, not the helper: no `Intl.DateTimeFormat()`, `toLocaleDateString`, `toLocaleTimeString` or `toLocaleString` may be called during render in a `"use client"` file, zone and locale both, with `useReaderZone()` the single sanctioned exception. This is the fourth checker in this repository to pass by matching the wrong thing — the first three matched their own prose, this one matched its own helper. | major | review | **resolved 12.3, second correction** — the guard now bans the **construct**: `Intl.DateTimeFormat(`, `Intl.NumberFormat(`, `toLocaleDateString`, `toLocaleTimeString`, `toLocaleString` in any `"use client"` file, with `useReaderZone()` the single sanctioned reader. Proved to fire against **all six** offending shapes, one at a time, before being kept — the previous version was proved only against a `readerZone()` call it already caught. Seven files fixed: `booking-calendar` and `rating-form` (the public funnel) take the therapist's zone as the server-side fallback and the reader's after mount; `availability-editor`, `radar-command` and `presence` take a prop; `timezone-settings` uses the hook, since offering the browser's zone is that screen's whole job; `pay-flow`'s money is pinned to a named locale via a new `formatMoney`. The inline `Intl.DateTimeFormat` in the availability editor moved into `tz.ts` as `formatWeekday` — §6's one-formatter rule, which the wholesale ban now enforces rather than merely stating ⬛ **One blind spot left, same sprint:** the walk covers `components/` and `app/` only, and six `"use client"` files sit outside them — including `lib/i18n/client.tsx`, which sprints 19 and 21 will grow. Clean today; the gap is not. Walk `lib/` too. |
-| C86 | 13 | **A patient account still requires an email, and §3b says the email often does not exist.** 13.1 made the phone mandatory and unique; `patient_accounts.email` is still `NOT NULL` with its own unique index, and signup still asks for one. For the Egyptian caseload this is the wrong way round — the number is the identity and the address is the fallback — but making email nullable is a migration plus a rewrite of sign-in, password reset and `patient_accounts_email_unique`, none of which sprint 13 asked for. Flagged rather than silently done: **somebody with no email cannot create an account today**, which is a real exclusion in the market this product is for. | major | 13 | open — needs a ruling 🔴 **Ruled — sprint 15, and it is bigger than the email.** `password_hash` is `NOT NULL` too, so today an account needs an address *and* a chosen password while §3b says the identity is a phone number. The real ticket is a phone-first account: email optional, the WhatsApp code as the sign-in factor, password optional. That is sign-in, reset and the unique index rewritten — a sprint 15 piece, not a bolt-on to 13, and the sprint 22 purge means there are no live rows to migrate, only code. Correct call to flag it rather than do it quietly. |
+| C86 | 13R | **A patient account still requires an email, and §3b says the address often does not exist.** Today `email` and `password_hash` are both `NOT NULL`, so somebody with no address cannot create an account at all — a real exclusion in the exact market this is for — and "identity is a phone number" was built on an account that demands an address anyway. | major | sprint 13 | 🔴 **Ruled by the founder, 2026-09-06, and it settles the shape rather than deferring it.** Identity is the phone **and** the email, not the phone alone. The phone is required on every account; the email is optional on every account; a password is set either way and sign-in accepts either handle. Signing up by email still requires a number. §3b rewritten. Built in **sprint 13R** — same table, same migration as C87/C88, rather than a second pass over `patient_accounts` in sprint 15 |
 | C87 | 13 | 🔴 **The three-strike lock is per *claim*, not per *record*, so a new code request buys three more guesses — and 13.8 says a mis-claim must be impossible, not unlikely.** 0043's own comment states the intent: *"an attacker with a fresh IP must not get a fresh budget against it."* The implementation does not hold it. On the third wrong name `answerName` sets `status = 'expired'`; `person_claims_open_unique` is partial on `WHERE status = 'pending'`, so the locked row leaves the index, `startClaim`'s `onConflictDoUpdate` no longer finds a conflict, and the next "send me a code" **inserts a fresh row with `name_attempts` at its `DEFAULT 0`**. Anyone holding the number — the recycled-number case in C75, or a household member — gets three guesses per code request, unbounded, against a first name. **Ruling: count the attempts on the (account, patient record) pair across every claim, not on the row**, and give the lock its own `status = 'locked'` rather than reusing `expired`, which today makes a lockout indistinguishable from a code that timed out. | major | review | **ruled — sprint 13R** |
 | C88 | 13 | **Fixing C87 removes the only escape hatch there is.** The invite route is what C75 leans on today, and it works *because* a new claim resets the budget — close that and a patient who gave their therapist "Yasmine" and types "Yasmin" three times is locked out of their own record until sprint 20 builds the admin release. That is a support catastrophe traded for a security hole. **Ruling: the tightening and the release ship together.** The release lives with the therapist who owns the record — they created it, they know the person, and they are reachable today — as one audited action on the patient record. Admin gets the fuller tool in sprint 20; it must not be the *only* one. | major | review | **ruled — sprint 13R** |
 | C85 | 13 | **Nothing stores a patient's time zone, so `useReaderZone` is permanent rather than temporary.** The hook is the right answer for a screen the server knows nothing about, but every patient screen now flashes UTC before correcting — including the consent list, where the date is the legally meaningful part of the record. Nobody has ruled on this. **Recommended ruling: sprint 13 captures the zone at signup** — detected in the browser, shown, editable, stored on `patient_accounts` beside the phone. Patient screens then take it as a prop exactly like the clinician ones, and `useReaderZone()` is left only for genuinely anonymous pages. The identity sprint is where a person tells us who and where they are; adding a column later means a second migration and a second sweep. | minor | review | **resolved 13.11–13.13** — `patient_accounts.timezone` (0043), detected in the browser by `useReaderZone`, **shown and editable** on signup, stored. Precedence is `resolveZone`'s existing shape: the account's, then `patients.timezone`, then the therapist's, then UTC. 🔴 Claiming never copies the account's zone onto the patient row — asserted in `verify-sprint13.ts`, because that row records what the browser said the day the booking was made and one account may hold records from two therapists |
@@ -302,18 +302,41 @@ tiers, included sessions, copilot limits, VAT per country, the cap.
 
 ---
 
-## §3b · IDENTITY IS A PHONE NUMBER
+## §3b · IDENTITY IS A PHONE NUMBER, AND AN EMAIL WHEN THERE IS ONE
 
 Sprints 5–7 built the person layer around email, with the phone optional.
 That was wrong for this market. In Egypt and the Gulf the number is the
 identity and WhatsApp is the channel; the email often does not exist.
 
-**The invariant:**
+🔴 **Founder decision, 2026-09-06 — the number is required, the address is
+not, and neither one is the *only* way in.** Sprint 13 read "identity is a
+phone number" as "identity is a phone number and nothing else", and built an
+account that still demanded an email and a password anyway. Both halves were
+wrong. The rule is simpler than either:
+
+| Somebody signs up with… | Then… |
+|---|---|
+| **an email** | 🔴 **the phone number is required too.** No account exists without one |
+| **a phone number** | the email is **optional**. Adding it completes the profile and turns on email notification |
+| **both** | the ordinary case, and the one to design the form around |
+
+So: **the phone is mandatory on every account. The email is optional on every
+account.** A password is set either way, as normal. Sign-in accepts *either*
+handle plus that password — an address is a real way in, not a decoration —
+and every notification goes to WhatsApp, plus email when there is an address.
+Identity is not locked to the phone; the phone is only the one part that is
+never missing.
+
+**The invariants — one for each handle:**
 
 > **One phone number, one patient account.** A second account can never claim
 > a number that is already claimed. **Two therapists may hold the same
 > number** — two clinicians really do see the same person — and when that
 > person signs up they see *both* claim requests and answer each separately.
+
+> **One email address, one patient account — when there is an address.** Many
+> accounts legitimately have none, so the uniqueness holds only over the rows
+> that have one. NULLs do not collide and must not be made to.
 
 **How a record becomes somebody's, end to end:**
 
@@ -334,6 +357,15 @@ mis-match.** A recycled number, a shared household phone, a mistyped digit.
 Proving the phone is necessary and not sufficient, which is the entire reason
 for steps 5 and 6, and why the name is asked *after* the yes and is never
 displayed as a prompt.
+
+**What two handles costs, and where it is paid:**
+
+| | |
+|---|---|
+| **Password reset** | Must work for an account with **no email**, so the reset code goes over WhatsApp. ⚠️ That path is only proven once the Meta templates are approved — until then, an account with no address can be created but cannot recover a forgotten password. Say so on the form |
+| **Two ways in, two ways to lose it** | Sign-in by phone *or* email means a takeover of either handle is a takeover of the account. Changing **either** notifies **both**, always |
+| **Changing an email** | Not the phone's 90-day discipline (§3d 20.14). The phone is the identity that cannot be missing; the email is a contact detail. It notifies the old address and the phone, and it is refused if the new address is on another live account |
+| **Notification** | WhatsApp is the channel that always exists. Email is sent **as well**, never *instead*, whenever there is an address |
 
 ## §3c · MONEY — two entities, two rails, and one deliberate exception
 
@@ -1007,15 +1039,65 @@ sprint 15's patient app depends on it.
 - ⚠️ **Incomplete until you finish the Meta setup.** Everything works by email
       the moment this ships; the WhatsApp half is proven only when
       `npm run whatsapp:check` prints a message id.
+- 🔴 **Superseded in part by 13R.** This sprint built the claim flow on an
+      account that still required an email and a password. The claim flow
+      stands; the account shape does not. §3b's founder ruling of 2026-09-06
+      makes the email optional and lets sign-in accept either handle — see
+      13R.0 and 13R.6–13R.13.
 - **Accept:** two therapists, one phone, one person — the person ends up with
       one account and two decisions, and no wrong record was ever visible.
 
-### Sprint 13R — The lock, and the way out of it · ~3 days · 🔴 BEFORE 14
+### Sprint 13R — Two handles, one lock, and the way out of it · ~1 week · 🔴 BEFORE 14
 
 *(Sprint 13 is otherwise finished and verified: production ledger 45, all 45
 hashes reconciled against disk, 18 checks, `challengePassed` correctly gated on
-both questions. These two are one defect and its consequence, and they are
-worth three days now rather than a support queue later.)*
+both questions. Three things land here — the identity shape the founder ruled
+on (C86), the lock that resets (C87), and the release without which fixing the
+lock is worse than leaving it (C88). They share one table and one migration,
+which is why they share a sprint rather than being spread across 13R and 15.)*
+
+**Two handles — C86, §3b rewritten**
+
+- [ ] **13R.0** 🔴 **Read §3b again before writing anything.** It changed. The
+      phone is required on every account; the **email is optional on every
+      account**; a password is set either way; sign-in accepts **either**
+      handle plus that password. Signing up *by* email still requires a number.
+      Identity is not locked to the phone — the phone is only the part that is
+      never missing
+- [ ] **13R.6** `patient_accounts.email` becomes **nullable**. Its unique index
+      stays unique **only over rows that have an address** — Postgres's default
+      `NULLS DISTINCT` is exactly right here, so 🔴 **do not reach for
+      `NULLS NOT DISTINCT`**, which 0043 used correctly for a different problem
+      and would here collapse every address-less account into one
+- [ ] **13R.7** `patient_accounts.phone` becomes genuinely required: 0043's
+      `NOT VALID` check is the deploy-gap version, and sprint 22.9 validates it
+- [ ] **13R.8** **Signup, one form, two routes.** Email entered → the number
+      field is required, and the form says why. Number entered → the address is
+      optional and labelled as what it buys: *a complete profile and email
+      notification as well as WhatsApp*. Never a bare asterisk
+- [ ] **13R.9** **Sign-in by phone or by email**, same password. One failure
+      message for both, matching the existing wording — an error that says
+      which handle was wrong tells somebody with a list which of them is in
+      therapy
+- [ ] **13R.10** 🔴 **Password reset must work for an account with no
+      address**, so the reset code goes over WhatsApp. ⚠️ **Incomplete until
+      the Meta templates are approved** — until then an address-less account
+      can be created but cannot recover a password, and the signup form must
+      say so rather than discovering it later
+- [ ] **13R.11** **Changing either handle notifies both.** Two ways in is two
+      ways to lose it. An email change is *not* under the phone's 90-day lock
+      (§3d 20.14) — the phone is the identity that cannot be missing, the email
+      is a contact detail — but it is refused if the address is on another live
+      account, and the old address is told
+- [ ] **13R.12** Every notification path sends WhatsApp **and** email when an
+      address exists. Email is sent *as well*, never *instead*
+- [ ] **13R.13** The verifier proves the shape by attempting the write: an
+      account with a number and no address is **accepted**; a second account on
+      the same number is **refused**; two address-less accounts **coexist**; a
+      second account on the same address is **refused**; sign-in succeeds by
+      each handle and fails identically for both
+
+**The lock, and the way out of it**
 
 - [ ] **13R.1** 🔴 **Count name attempts on the (account, patient record) pair,
       across every claim** — not on the claim row (C87). Today the third wrong
@@ -1038,9 +1120,11 @@ worth three days now rather than a support queue later.)*
       names, then a fresh code request, then a fourth attempt — refused. And
       that the release restores exactly one budget, to one record, for one
       account
-- **Accept:** an attacker holding a recycled number cannot grind a first name
-      three guesses at a time, and a patient who mistyped their own name can be
-      let back in the same day by the person who wrote the record.
+- **Accept:** somebody with only a phone number can hold a complete account and
+      somebody with both can sign in either way; an attacker holding a recycled
+      number cannot grind a first name three guesses at a time; and a patient
+      who mistyped their own name can be let back in the same day by the person
+      who wrote the record.
 
 ### Sprint 14 — No-show recovery · ~1 week
 
@@ -1522,6 +1606,9 @@ Breaking one of these is a bug regardless of what any ticket says.
 | Anything a patient attaches anywhere is clinical material: stored, audited and access-controlled like a document, and **never in a prompt** (C82) | Hard |
 | A service clock **pauses while waiting on the other person.** Measure your own delay, not theirs (C83) | Process |
 | **A completeness rule may gate a launch, never a live thing.** Falling back and shouting beats going dark (C78) | Process |
+| **The phone is required on every patient account; the email is optional on every patient account.** Sign-in accepts either handle plus the password. Identity is never locked to one of them (§3b, 2026-09-06) | Hard |
+| **A uniqueness rule over an optional column is unique only over the rows that have a value.** Postgres's default `NULLS DISTINCT` is that rule; `NULLS NOT DISTINCT` collapses every empty row into one and is right only when the NULL genuinely means "the same thing" (C87's claim key, not C86's email) | Hard |
+| **Email is sent *as well* as WhatsApp, never *instead*.** WhatsApp is the channel that always exists | Hard |
 | **Anything rendered on both passes takes its zone as a prop from the server.** `readerZone()` answers with the *server's* zone during SSR, never null — reading it during render is a hydration mismatch on every date (C70) | Hard |
 | **No `"use client"` file calls `Intl.DateTimeFormat()`, `toLocaleDateString`, `toLocaleTimeString` or `toLocaleString` during render** — zone *and* locale, dates *and* money. `useReaderZone()` is the only sanctioned reader, because it runs in an effect (C84) | Hard |
 | **A guard bans the construct, not the helper.** A checker scoped to one function name passes while six files do the same thing by hand. Four checkers here have now passed by matching the wrong text — three matched their own prose, one matched its own helper. Prove a guard fires against a deliberate offender *of the shape it claims to catch* | Process |
