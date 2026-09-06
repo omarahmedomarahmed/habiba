@@ -45,15 +45,24 @@ export function resolveZone(
 }
 
 /**
- * The zone the browser is in, or null on the server. 12.3.
+ * The zone this *runtime* is in. 12.3.
  *
- * For client components, which have no `actor` to read a stored zone from and
- * for which the browser's answer is the right one anyway — it is the clock the
- * person reading the screen is actually living in.
+ * 🔴 **In the browser this is the reader's zone. On the server it is the
+ * server's, and on Vercel that is UTC** — `Intl` is defined in Node and
+ * answers, so there is no null to fall through on. An earlier version of this
+ * comment claimed otherwise and six client components were built on it: they
+ * called this at module scope, Next.js server-rendered them, and every date
+ * was emitted as UTC in the HTML and as local time after hydration. A React
+ * hydration mismatch on every timestamp, and a visible flash of the wrong day
+ * for anybody east of UTC.
  *
- * Returns null rather than "UTC" during server rendering, so `resolveZone` can
- * fall through to whatever the caller passes as a fallback instead of being
- * told, wrongly, that the reader is in UTC.
+ * So this is **never** safe to call during render. Two safe callers:
+ *
+ *   - `useReaderZone()` below, which returns null until after mount
+ *   - code that only ever runs from an event handler or an effect
+ *
+ * Anything rendered on both passes takes its zone as a **prop from the
+ * server**, so the two passes cannot disagree.
  */
 export function readerZone(): string | null {
   if (typeof Intl === "undefined") return null;

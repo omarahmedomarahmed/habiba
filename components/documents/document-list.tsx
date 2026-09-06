@@ -7,18 +7,6 @@ import { Badge, Card } from "@/components/ui";
 import { isImage, searchabilityLabel } from "@/lib/documents/formats";
 import { formatDate } from "@/lib/utils";
 
-import { readerZone } from "@/lib/scheduling/tz";
-
-/*
- * 12.3 / C70 — the zone this screen prints its dates in.
- *
- * A client component has no `actor` to read a stored zone from, and does not
- * need one: the browser is the clock the person reading this is living in.
- * Resolved once at module scope because it cannot change while the page is
- * open.
- */
-const zone = readerZone();
-
 /**
  * A person's documents, as a clinician or the person themselves sees them.
  * PLAN.md 8.4 / 8.7 / 8.8 / 8.10.
@@ -62,7 +50,25 @@ export function DocumentList({
   documents,
   watermark,
   onFlag,
+  zone,
 }: {
+  /**
+   * The zone every date on this screen is printed in. 12.3, corrected.
+   *
+   * 🔴 A **prop from the server**, never `readerZone()` at module scope.
+   *
+   * The first version of 12.3 read the browser's zone in a `const` at the top
+   * of this file. Next.js server-renders client components, and `Intl` is
+   * defined in Node — it answers "UTC" — so the server pass emitted UTC times
+   * and the browser pass emitted local ones. Every date was a React hydration
+   * mismatch: console errors, and a visible flash of the wrong day for anybody
+   * east of UTC. That is the same defect 12.3 exists to kill, one layer down:
+   * the type system forced a zone argument and the *value* was wrong on the
+   * server pass.
+   *
+   * One value, chosen on the server, used by both passes. They cannot disagree.
+   */
+  zone: string | null;
   documents: DocumentRow[];
   /** The line drawn across every image. Who is looking, and when. */
   watermark: string;
@@ -82,7 +88,7 @@ export function DocumentList({
   return (
     <ul className="space-y-3">
       {documents.map((document) => (
-        <DocumentCard key={document.id} document={document} watermark={watermark} onFlag={onFlag} />
+        <DocumentCard zone={zone} key={document.id} document={document} watermark={watermark} onFlag={onFlag} />
       ))}
     </ul>
   );
@@ -92,7 +98,10 @@ function DocumentCard({
   document,
   watermark,
   onFlag,
+  zone,
 }: {
+  /** Passed down, never read from the browser here. 12.3. */
+  zone: string | null;
   document: DocumentRow;
   watermark: string;
   onFlag?: (documentId: string, reason: "outdated" | "wrong" | "not_mine") => Promise<void>;

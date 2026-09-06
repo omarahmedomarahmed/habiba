@@ -2,6 +2,7 @@
 
 import { AddDocument } from "@/components/documents/add-document";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
+import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { addOwnFile, addOwnNote, flagOwnContent } from "@/app/(patient)/patient/profile/actions";
 
 /**
@@ -18,11 +19,19 @@ export function OwnProfilePanel({
   documents: DocumentRow[];
   watermark: string;
 }) {
+  /*
+   * 12.3 — the patient portal has no stored zone yet (§3b's signup, sprint 13),
+   * so both render passes start at UTC and the reader's own zone arrives after
+   * mount. Agreeing beats being right on only one of the two passes.
+   */
+  const zone = useReaderZone();
+
   return (
     <div className="space-y-3">
       <AddDocument onUpload={addOwnFile} onNote={addOwnNote} />
 
       <DocumentList
+        zone={zone}
         documents={documents}
         watermark={watermark}
         onFlag={async (documentId, reason) => {

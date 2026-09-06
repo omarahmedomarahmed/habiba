@@ -7,18 +7,6 @@ import { cancelInviteLink, createInviteLink } from "@/app/(app)/patients/actions
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
-import { readerZone } from "@/lib/scheduling/tz";
-
-/*
- * 12.3 / C70 — the zone this screen prints its dates in.
- *
- * A client component has no `actor` to read a stored zone from, and does not
- * need one: the browser is the clock the person reading this is living in.
- * Resolved once at module scope because it cannot change while the page is
- * open.
- */
-const zone = readerZone();
-
 /**
  * Handing a record to the person it describes. C19 / 6.10.
  *
@@ -42,7 +30,25 @@ export function RecordAccess({
   claimed,
   claimedAt,
   openInvite,
+  zone,
 }: {
+  /**
+   * The zone every date on this screen is printed in. 12.3, corrected.
+   *
+   * 🔴 A **prop from the server**, never `readerZone()` at module scope.
+   *
+   * The first version of 12.3 read the browser's zone in a `const` at the top
+   * of this file. Next.js server-renders client components, and `Intl` is
+   * defined in Node — it answers "UTC" — so the server pass emitted UTC times
+   * and the browser pass emitted local ones. Every date was a React hydration
+   * mismatch: console errors, and a visible flash of the wrong day for anybody
+   * east of UTC. That is the same defect 12.3 exists to kill, one layer down:
+   * the type system forced a zone argument and the *value* was wrong on the
+   * server pass.
+   *
+   * One value, chosen on the server, used by both passes. They cannot disagree.
+   */
+  zone: string | null;
   patientId: string;
   claimed: boolean;
   claimedAt: Date | null;

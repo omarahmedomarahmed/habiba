@@ -6,19 +6,8 @@ import { Clock, ShieldOff, UserCheck } from "lucide-react";
 import { answerRequest, revoke } from "@/app/(patient)/patient/consent/actions";
 import { Badge, Card } from "@/components/ui";
 import { REJECTION_REASONS } from "@/lib/access/state";
+import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { formatDate } from "@/lib/utils";
-
-import { readerZone } from "@/lib/scheduling/tz";
-
-/*
- * 12.3 / C70 — the zone this screen prints its dates in.
- *
- * A client component has no `actor` to read a stored zone from, and does not
- * need one: the browser is the clock the person reading this is living in.
- * Resolved once at module scope because it cannot change while the page is
- * open.
- */
-const zone = readerZone();
 
 /**
  * Who can read your history, and the one tap that ends it. PLAN.md 7.4 / 7.5.
@@ -56,6 +45,18 @@ export function ConsentList({
     revokedAt: Date | null;
   }[];
 }) {
+  /*
+   * 12.3, corrected — the only screen in the product where the server does not
+   * know the reader's zone.
+   *
+   * A patient account has no stored timezone yet; §3b's signup is sprint 13's
+   * work and will collect one. Until then this is the honest shape: UTC on the
+   * server pass and on first paint, the patient's own zone immediately after
+   * mount. Both passes agree, so there is no hydration mismatch — what there is
+   * instead is one deliberate re-render, which is the cost of not knowing.
+   */
+  const zone = useReaderZone();
+
   return (
     <div className="space-y-4">
       <section>
@@ -67,7 +68,7 @@ export function ConsentList({
         ) : (
           <ul className="space-y-3">
             {requests.map((request) => (
-              <RequestRow key={request.id} request={request} />
+              <RequestRow zone={zone} key={request.id} request={request} />
             ))}
           </ul>
         )}
@@ -85,7 +86,7 @@ export function ConsentList({
         ) : (
           <ul className="space-y-3">
             {grants.map((grant) => (
-              <GrantRow key={grant.id} grant={grant} />
+              <GrantRow zone={zone} key={grant.id} grant={grant} />
             ))}
           </ul>
         )}
@@ -96,7 +97,10 @@ export function ConsentList({
 
 function RequestRow({
   request,
+  zone,
 }: {
+  /** Passed down, never read from the browser here. 12.3. */
+  zone: string | null;
   request: {
     id: string;
     therapistName: string;
@@ -209,7 +213,10 @@ function RequestRow({
 
 function GrantRow({
   grant,
+  zone,
 }: {
+  /** Passed down, never read from the browser here. 12.3. */
+  zone: string | null;
   grant: {
     id: string;
     status: string;

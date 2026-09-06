@@ -107,6 +107,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         </Card>
 
         <RecordAccess
+          zone={actor.timezone}
           patientId={patient.id}
           claimed={access?.claimed ?? false}
           claimedAt={access?.claimedAt ?? null}

@@ -113,6 +113,7 @@ export default async function CopilotThreadPage({
         ) : null}
 
         <CopilotChat
+          zone={actor.timezone}
           patientId={patientId}
           patientName={found.patient.firstName}
           templates={PROMPT_TEMPLATES.map((t) => ({ label: t.label, text: t.text }))}

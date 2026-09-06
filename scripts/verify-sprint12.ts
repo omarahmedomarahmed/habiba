@@ -224,6 +224,47 @@ async function main() {
       relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati"),
     );
 
+    /*
+     * 🔴 12.3, corrected — no client component may read the zone during render.
+     *
+     * Comments are stripped before scanning: three previous checkers in this
+     * repository matched their own prose (sprint 10's import block, 11R's DO
+     * blocks, 12.6's ledger scan). The behavioural half of this lives in
+     * `tests/hydration.test.tsx`, which renders under two time zones in two
+     * processes and compares the strings; this is the cheap sweep that catches
+     * the *next* file somebody writes.
+     */
+    const { readdirSync, readFileSync: read } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else if (path.endsWith(".tsx") || path.endsWith(".ts")) {
+          const raw = read(path, "utf8");
+          if (!raw.includes('"use client"')) continue;
+
+          const code = raw
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+          // `useReaderZone()` is the sanctioned caller — it runs in an effect.
+          const bare = code.replace(/useReaderZone/g, "");
+          if (/\breaderZone\s*\(/.test(bare)) offenders.push(path);
+        }
+      }
+    };
+    walk("components");
+    walk("app");
+
+    check(
+      "🔴 12.3 no client component calls readerZone() during render — it answers UTC on the server pass",
+      offenders.length === 0,
+      offenders.join(", ") || "0 offenders",
+    );
+
     /* --------------------------------------------------- 12.6 the reset */
 
     const { existsSync } = await import("node:fs");

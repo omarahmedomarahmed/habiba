@@ -39,6 +39,7 @@
     "verify:sprint8": "node --import tsx --conditions=react-server scripts/verify-sprint8.ts",
     "test:documents": "node --import tsx --conditions=react-server --test tests/documents.test.ts",
     "test:extract": "node --import tsx --conditions=react-server --test tests/documents-extract.test.ts",
+    "test:hydration": "node --import tsx --test tests/hydration.test.tsx",
     "verify:sprint9": "node --import tsx --conditions=react-server scripts/verify-sprint9.ts",
     "test:memory": "node --import tsx --conditions=react-server --test tests/memory.test.ts",
     "verify:sprint10": "node --import tsx --conditions=react-server scripts/verify-sprint10.ts",

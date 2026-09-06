@@ -174,6 +174,7 @@ export default async function PatientDocumentsPage({
 
         {personId ? (
           <DocumentPanel
+            zone={actor.timezone}
             patientId={id}
             documents={rows}
             watermark={`${fullName(patient.firstName, patient.lastName)} · viewed by ${actor.email ?? actor.userId.slice(0, 8)}`}
@@ -188,6 +189,7 @@ export default async function PatientDocumentsPage({
         )}
 
         <ClinicianHomework
+          zone={actor.timezone}
           patientId={id}
           items={homework.map((item) => ({
             id: item.id,

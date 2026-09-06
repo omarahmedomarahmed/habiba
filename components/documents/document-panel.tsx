@@ -22,11 +22,14 @@ export function DocumentPanel({
   documents,
   watermark,
   canAdd,
+  zone,
 }: {
   patientId: string;
   documents: DocumentRow[];
   watermark: string;
   canAdd: boolean;
+  /** The clinician's zone, from the server. 12.3. */
+  zone: string | null;
 }) {
   return (
     <div className="space-y-3">
@@ -38,6 +41,7 @@ export function DocumentPanel({
       ) : null}
 
       <DocumentList
+        zone={zone}
         documents={documents}
         watermark={watermark}
         onFlag={async (documentId, reason) => {
