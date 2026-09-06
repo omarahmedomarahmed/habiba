@@ -5,6 +5,7 @@ import { PublicProfile } from "@/components/radar/public-profile";
 import { BookingCalendar } from "@/components/scheduling/booking-calendar";
 import { formatUsd } from "@/lib/billing/plans";
 import { publicProfile } from "@/lib/data/radar";
+import { reliabilityFor } from "@/lib/data/recovery";
 import { openHours } from "@/lib/data/scheduling";
 import { fullName } from "@/lib/utils";
 
@@ -57,11 +58,29 @@ export default async function TherapistProfilePage({
    * evening. The radar and the calendar answer two different needs and the
    * page now offers both.
    */
-  const slots = await openHours(id);
+  const [slots, reliability] = await Promise.all([openHours(id), reliabilityFor(id)]);
 
   return (
     <>
       <PublicProfile initial={profile} />
+
+      {/*
+        14.7 — the reliability score, where somebody deciding can see it.
+        ----------------------------------------------------------------
+        🔴 Absent below five sessions rather than shown as a small-sample
+        percentage. A clinician who has run three and missed one is not "67%
+        reliable"; that number punishes being new far harder than being
+        unreliable, and it is the same error C35 refused for straddled turns —
+        unknown beats a confident wrong answer.
+      */}
+      {reliability.rate !== null ? (
+        <div className="mx-auto max-w-2xl px-4 sm:px-6">
+          <p className="text-xs text-slate-500">
+            Turned up to {Math.round(reliability.rate * 100)}% of{" "}
+            {reliability.sessions} booked sessions.
+          </p>
+        </div>
+      ) : null}
       <div className="mx-auto max-w-2xl px-4 pb-10 sm:px-6">
         <BookingCalendar
           slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString() }))}

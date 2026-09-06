@@ -457,6 +457,32 @@ export const sessions = pgTable(
       .default("not_required"),
 
     patientJoinedAt: timestamp("patient_joined_at", { withTimezone: true }),
+
+    /* ------------------------------------------- sprint 14: the let-down -- */
+
+    /**
+     * When we decided nobody was coming. 14.2.
+     *
+     * Recorded rather than inferred: "the patient waited five minutes" has to
+     * be a fact somebody can check afterwards, not arithmetic done fresh on
+     * every read against a clock that has moved.
+     */
+    noShowAt: timestamp("no_show_at", { withTimezone: true }),
+    recoveryOfferedAt: timestamp("recovery_offered_at", { withTimezone: true }),
+    /** `reassigned` · `refunded` · `abandoned`. What actually happened to them. */
+    recoveryOutcome: text("recovery_outcome").$type<"reassigned" | "refunded" | "abandoned">(),
+
+    /**
+     * Who did not turn up, when the session was handed on. 14.5.
+     *
+     * The session **moves** rather than being cancelled and recreated: the
+     * booking, the payment and the fact that somebody was let down all live on
+     * this row, and a fresh session would start with none of it.
+     */
+    reassignedFromUserId: uuid("reassigned_from_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reassignedAt: timestamp("reassigned_at", { withTimezone: true }),
     /**
      * Null while the microphone is running; a timestamp while it is paused.
      *
@@ -2067,6 +2093,46 @@ export type CreditStatus = (typeof CREDIT_STATUSES)[number];
  * take a credit that is not there. A read-then-write here is two simultaneous
  * session completions both spending the last credit.
  */
+/**
+ * Money a patient is owed. 14.6.
+ *
+ * Not `session_credits`, which is the *therapist's* prepaid sessions. This is
+ * the other direction: a patient who paid $40 and was seen by a replacement
+ * charging $30 is owed $10, and refunding ten dollars to a card costs more in
+ * fees than it returns.
+ *
+ * 🔴 Applied **after VAT** (§3). The VAT went to a government that is not
+ * refunding it because a clinician overslept, so the credit is against the
+ * therapist's price and the next session's VAT is computed on what remains.
+ */
+export const patientCredits = pgTable(
+  "patient_credits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default("usd"),
+    spentCents: integer("spent_cents").notNull().default(0),
+
+    /** Every cent traces to one let-down. */
+    fromSessionId: uuid("from_session_id"),
+    reason: text("reason").notNull(),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("patient_credits_live_idx")
+      .on(t.personId, t.expiresAt)
+      .where(sql`spent_cents < amount_cents`),
+  ],
+);
+
+export type PatientCredit = typeof patientCredits.$inferSelect;
+
 export const sessionCredits = pgTable(
   "session_credits",
   {

@@ -8,6 +8,15 @@ import {
   assistantThreads,
   patients,
   sessionNotes,
+  /*
+   * 🔴 `sessions` is imported for **one** column: `scheduled_at`, in a
+   * correlated subquery, filtered to future rows. 10.2's guarantee is that
+   * this module cannot read a clinical record, and the verifier asserts it on
+   * this import block — so the import is here with its reason attached rather
+   * than looking like the wall coming down. Nothing selects a note, a
+   * transcript, a price or a status beyond "one exists".
+   */
+  sessions,
   users,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -99,6 +108,27 @@ export async function buildRoster(actor: {
          WHERE n.patient_id = ${patients}."id"
            AND n.status = 'draft'
       )`,
+
+      /*
+       * C57, ruled in sprint 14: **a scheduled time is not clinical.**
+       *
+       * 10.2 says this module structurally cannot read a clinical record, and
+       * that rule holds. The question was whether an appointment time is one.
+       * It is not: it is a fact about a diary, of the same kind as
+       * `lastSessionAt` which this roster has always carried. It says when, and
+       * nothing about why, what was discussed, how somebody is, or that they
+       * are unwell — a person can have an appointment with a physiotherapist.
+       *
+       * The line that would cross into clinical is the one this deliberately
+       * does not select: no `session_notes`, no `modality`, no price, no
+       * status beyond "there is one". A timestamp and nothing attached to it.
+       */
+      nextSessionAt: sql<Date | null>`(
+        SELECT MIN(s.scheduled_at) FROM ${sessions} s
+         WHERE s.patient_id = ${patients}."id"
+           AND s.scheduled_at > now()
+           AND s.status = 'scheduled'
+      )`,
     })
     .from(patients)
     .where(
@@ -115,15 +145,11 @@ export async function buildRoster(actor: {
     patientId: row.patientId,
     name: [row.firstName, row.lastName].filter(Boolean).join(" ").trim(),
     lastSessionAt: row.lastSessionAt,
-    /*
-     * C57 — "next appointment" cannot be answered yet. There is no
-     * `scheduled_for` column: `sessions` records what happened, not what is
-     * planned, and scheduling is sprint 11. Null rather than a guess, and the
-     * roster block below simply omits the phrase — a copilot that says
-     * "nothing booked" for a practice with no booking system is stating a fact
-     * about our schema as though it were a fact about their week.
-     */
-    nextSessionAt: null,
+    // C57, closed. See the note on the column above for why a time is not
+    // clinical. Still null when nothing is booked, and the roster block omits
+    // the phrase rather than saying "nothing booked" — which would be a claim
+    // about their week rather than about our data.
+    nextSessionAt: row.nextSessionAt ? new Date(row.nextSessionAt) : null,
     draftNotes: row.draftNotes,
   }));
 }

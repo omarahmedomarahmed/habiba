@@ -754,7 +754,15 @@ async function recordPaymentMethod(paymentId: string, paymentIntentId: string | 
 export async function refundSessionPayment(opts: {
   paymentId: string;
   reason: string;
-  adminUserId: string;
+  /**
+   * Who ordered it, or null when nothing human did. 14.4.
+   *
+   * Nullable since sprint 14: a no-show refund is issued by the clock, not by
+   * a person, and stamping it with a staff member's id would put a name
+   * against a decision they never made. `"automatic"` is written into Stripe's
+   * metadata instead, so the reason is legible in the dashboard too.
+   */
+  adminUserId: string | null;
 }): Promise<{ ok?: boolean; error?: string }> {
   const client = getStripe();
   if (!client) return { error: "Payments are not configured on this deployment." };
@@ -780,7 +788,10 @@ export async function refundSessionPayment(opts: {
       ...(payment.capture === "destination"
         ? { reverse_transfer: true, refund_application_fee: true }
         : {}),
-      metadata: { reason: opts.reason.slice(0, 200), refundedBy: opts.adminUserId },
+      metadata: {
+        reason: opts.reason.slice(0, 200),
+        refundedBy: opts.adminUserId ?? "automatic",
+      },
     });
   } catch (error) {
     log.error("refund failed", {
