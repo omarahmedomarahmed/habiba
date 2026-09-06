@@ -55,7 +55,9 @@ async function main() {
              WHERE table_schema='public' AND table_name='availability_slots'`,
       )
       .then((r) => r.rows);
-    check("11.1 availability_slots exists with 12 columns", cols?.n === 12, `${cols?.n}`);
+    // 13 since 11R.6, not 12: `reminded_at` (migration 0040) replaced the
+    // ` [reminded]` marker that used to be appended to the patient's own note.
+    check("11.1 availability_slots exists with 13 columns", cols?.n === 13, `${cols?.n}`);
 
     const [scheduled] = await db
       .execute<{ n: number }>(

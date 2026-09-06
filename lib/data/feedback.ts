@@ -369,6 +369,57 @@ export type Rating = { average: number; count: number };
  */
 export const RATINGS_VISIBLE_AFTER = 5;
 
+/* ------------------------------------------------ C26: unratable sessions -- */
+
+/**
+ * The sessions that can never be rated, and the rule about them. 11R.26 / C26.
+ *
+ * Twenty sessions predate the `feedback_token` column. Nobody was ever sent a
+ * link for them, so nobody could have rated them — and twelve of those twenty
+ * are completed, which is what makes them dangerous: a reliability score that
+ * counts completed-and-unrated as a signal reads those twelve as a therapist
+ * people declined to rate.
+ *
+ * **The ruling is exclude, never backfill.** Minting a token now would create a
+ * row asserting that a rating was possible, which is false. There is no
+ * timestamp we could put on it, no message that was ever sent, and no patient
+ * who ever saw a link. C26's own words: a fabricated token implies a rating was
+ * possible.
+ *
+ * So this predicate is the denominator for anything that measures "of the
+ * sessions that could have been rated, how many were". Sprint 12 must use it —
+ * it is exported and named rather than left as an `isNotNull` somebody has to
+ * remember to write.
+ */
+export const RATEABLE = isNotNull(sessions.feedbackToken);
+
+export type RateabilityCounts = {
+  completed: number;
+  /** Of those, the ones a patient could actually have rated. */
+  rateable: number;
+  /** The rest — excluded from every score, never counted as unrated. */
+  unratable: number;
+};
+
+/** How many sessions are excluded, so a screen can say so rather than imply zero. */
+export async function rateabilityCounts(therapistId?: string): Promise<RateabilityCounts> {
+  const [row] = await db
+    .select({
+      completed: count(),
+      rateable: sql<number>`COUNT(*) FILTER (WHERE ${sessions.feedbackToken} IS NOT NULL)::int`,
+    })
+    .from(sessions)
+    .where(
+      therapistId
+        ? and(eq(sessions.status, "completed"), eq(sessions.therapistId, therapistId))
+        : eq(sessions.status, "completed"),
+    );
+
+  const completed = Number(row?.completed ?? 0);
+  const rateable = Number(row?.rateable ?? 0);
+  return { completed, rateable, unratable: completed - rateable };
+}
+
 export async function therapistRatings(): Promise<Map<string, Rating>> {
   const rows = await db
     .select({

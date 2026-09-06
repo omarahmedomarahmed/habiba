@@ -45,6 +45,9 @@
     "test:assistant": "node --import tsx --conditions=react-server --test tests/assistant.test.ts",
     "verify:sprint11": "node --import tsx --conditions=react-server scripts/verify-sprint11.ts",
     "test:scheduling": "node --import tsx --conditions=react-server --test tests/scheduling.test.ts",
+    "test:timezones": "node --import tsx --conditions=react-server --test tests/timezones.test.ts",
+    "verify:sprint11r": "node --import tsx --conditions=react-server scripts/verify-sprint11r.ts",
+    "verify:migrations": "node --import tsx --conditions=react-server scripts/verify-migrations.ts",
     "whatsapp:check": "node --import tsx --conditions=react-server scripts/whatsapp-check.ts"
   },
   "dependencies": {
