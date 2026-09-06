@@ -118,7 +118,7 @@ export default async function PatientDocumentsPage({
     flags: document.flags,
   }));
 
-  const message = explain(access.state);
+  const message = explain(access.state, access.gated);
 
   return (
     <div className="mx-auto max-w-2xl">

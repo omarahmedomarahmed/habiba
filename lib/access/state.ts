@@ -75,9 +75,9 @@ export type AccessInput = {
   /**
    * §3's unlock: a diagnosis **and** a written or dictated history.
    *
-   * See C46 — there is nowhere to store a history yet, so today's callers pass
-   * whether a diagnosis exists. The state is reported truthfully so a screen
-   * can say what is missing; what it does not do is take the copilot away.
+   * Both halves are answerable now. Sprint 8 gave history a home — a `typed`
+   * or `dictated` document on the person — so C46's "the second half has
+   * nowhere to read from" no longer holds, and callers pass the conjunction.
    */
   documented: boolean;
   grant: GrantView | null;
@@ -96,7 +96,62 @@ export function accessStateFor(input: AccessInput): AccessState {
   return isLiveGrant(input.grant, input.now) ? "granted" : "revoked";
 }
 
-export function capabilitiesFor(state: AccessState): Capabilities {
+/**
+ * Does the five-credit unlock actually bite for this patient? 11R.24 / C46.
+ *
+ * Three things have to be true: the gate is switched on at all, this patient
+ * was created after it was, and nobody has documented them.
+ *
+ * ## The date, not a boolean
+ *
+ * Measured on production before this shipped: 65 of 66 patients have no
+ * diagnosis. A boolean gate would take the copilot away from all 65 tomorrow
+ * morning, for failing a rule that did not exist when their record was
+ * written — and the therapist would experience that as the product breaking.
+ * The date means the rule applies to records made under it and to nothing
+ * else. There is no path by which an existing patient becomes gated.
+ *
+ * An empty `gateActiveFrom` is "never", which is exactly how the gate has
+ * behaved since sprint 7. Turning it on is one date in `platform_settings`.
+ */
+export function isGated(input: {
+  state: AccessState;
+  /** When the therapist created this patient row. */
+  patientCreatedAt: Date | null;
+  /** `YYYY-MM-DD` from `platform_settings`, or "" for never. */
+  gateActiveFrom: string;
+}): boolean {
+  if (input.state !== "unclaimed_bare") return false;
+  if (!input.gateActiveFrom) return false;
+  if (!input.patientCreatedAt) return false;
+
+  const from = new Date(`${input.gateActiveFrom}T00:00:00.000Z`);
+  if (Number.isNaN(from.getTime())) return false;
+
+  return input.patientCreatedAt.getTime() >= from.getTime();
+}
+
+/**
+ * @param gated see `isGated`. Only `unclaimed_bare` can be gated, and a gated
+ * patient loses the copilot until they are documented — which is the whole
+ * mechanic §3 describes and the product has never actually had.
+ */
+export function capabilitiesFor(state: AccessState, gated = false): Capabilities {
+  if (state === "unclaimed_bare" && gated) {
+    return {
+      liveProfile: false,
+      patientFiles: false,
+      // Still editable: adding the diagnosis is *how* they get out of this
+      // state, so the gate must not remove the way through it.
+      diagnosisChanges: true,
+      ownTranscripts: true,
+      ownNotes: true,
+      oldChat: true,
+      copilot: false,
+      canRequestAccess: false,
+    };
+  }
+
   switch (state) {
     case "granted":
       return {
@@ -167,7 +222,11 @@ export function capabilitiesFor(state: AccessState): Capabilities {
 }
 
 /** What the therapist is told, in the banner. Never alarming about the patient. */
-export function explain(state: AccessState): string | null {
+export function explain(state: AccessState, gated = false): string | null {
+  if (state === "unclaimed_bare" && gated) {
+    return "The copilot is waiting on two things for this person: a diagnosis, and a history you type or dictate. Add both and it opens on this record.";
+  }
+
   switch (state) {
     case "revoked":
       return "This person has not granted you access to their profile. You can still see your own sessions, your own notes and your earlier copilot conversation — but not their live profile, their files, or their current diagnosis.";

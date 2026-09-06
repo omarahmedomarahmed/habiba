@@ -47,13 +47,17 @@ export async function askCopilot(patientId: string, question: string): Promise<A
    *
    * Before the quota rather than after: a refusal that has already consumed a
    * credit is a refusal the clinician pays for. `capabilities.copilot` is only
-   * false in the "no relationship" state, which `getOrCreateThread` already
-   * makes unreachable — so this is the belt to that braces, and the place the
-   * next state to lose the copilot will be handled.
+   * false in "no relationship", which `getOrCreateThread` already makes
+   * unreachable, and — since 11R.24 — in `unclaimed_bare` for a patient
+   * created after `copilot.gateActiveFrom`. That second one is the state this
+   * check now really does refuse, and the message says what to add.
    */
   const access = await accessFor(actor, patientId);
   if (!access.capabilities.copilot) {
-    return { error: explain(access.state) ?? "You cannot use the copilot for this patient." };
+    return {
+      error:
+        explain(access.state, access.gated) ?? "You cannot use the copilot for this patient.",
+    };
   }
 
   const quota = await checkQuota(actor, found.thread.id);

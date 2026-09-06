@@ -242,3 +242,66 @@ test("one minute reads as a minute, not 1 minutes", () => {
   })!;
   assert.match(stamp, /first 1 minute /);
 });
+
+/* -------------------------------------------- 11R.24 the grandfathered gate -- */
+
+test("the gate is off until a date is set, and then only forwards", async () => {
+  const { isGated } = await import("../lib/access/state");
+  const before = new Date("2026-01-01T00:00:00Z");
+  const after = new Date("2027-01-01T00:00:00Z");
+
+  // "" is never. This is how the gate has behaved since sprint 7, and it is
+  // still the default — turning it on is one date in platform_settings.
+  assert.equal(isGated({ state: "unclaimed_bare", patientCreatedAt: after, gateActiveFrom: "" }), false);
+
+  // 🔴 The grandfathering. 65 of 66 patients on production have no diagnosis;
+  // a boolean gate would take the copilot from all of them tomorrow morning
+  // for failing a rule that did not exist when their record was written.
+  assert.equal(
+    isGated({ state: "unclaimed_bare", patientCreatedAt: before, gateActiveFrom: "2026-06-01" }),
+    false,
+    "a patient created before the date is never gated",
+  );
+  assert.equal(
+    isGated({ state: "unclaimed_bare", patientCreatedAt: after, gateActiveFrom: "2026-06-01" }),
+    true,
+  );
+});
+
+test("only a bare unclaimed record can be gated", async () => {
+  const { isGated } = await import("../lib/access/state");
+  const after = new Date("2027-01-01T00:00:00Z");
+
+  for (const state of ["unclaimed_documented", "granted", "revoked", "no_relationship"] as const) {
+    assert.equal(
+      isGated({ state, patientCreatedAt: after, gateActiveFrom: "2026-06-01" }),
+      false,
+      `${state} must never be gated`,
+    );
+  }
+});
+
+test("a gated record keeps everything except the copilot, and keeps the way out", async () => {
+  const { capabilitiesFor, explain } = await import("../lib/access/state");
+  const gated = capabilitiesFor("unclaimed_bare", true);
+
+  assert.equal(gated.copilot, false);
+  assert.equal(gated.ownNotes, true);
+  assert.equal(gated.ownTranscripts, true);
+  // Adding the diagnosis is how they leave this state; the gate must not
+  // remove the door.
+  assert.equal(gated.diagnosisChanges, true);
+  assert.match(explain("unclaimed_bare", true) ?? "", /diagnosis, and a history/);
+
+  // Ungated is unchanged from sprint 7.
+  assert.equal(capabilitiesFor("unclaimed_bare").copilot, true);
+});
+
+test("a malformed gateActiveFrom means never, not always", async () => {
+  const { parseGroup } = await import("../lib/settings/defs");
+  const copilot = parseGroup("copilot", { gateActiveFrom: "next tuesday" });
+  assert.equal(copilot.gateActiveFrom, "");
+
+  assert.equal(parseGroup("copilot", { gateActiveFrom: "2026-02-31" }).gateActiveFrom, "");
+  assert.equal(parseGroup("copilot", { gateActiveFrom: "2026-06-01" }).gateActiveFrom, "2026-06-01");
+});

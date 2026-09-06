@@ -28,6 +28,23 @@ import { formatDate } from "@/lib/utils";
  * them, because the alternative is a page that silently rewrites what somebody
  * was paid.
  */
+/** The short phrase beside a session, or nothing when nothing is withheld. */
+function accessNote(row: RadarSessionRow): string | null {
+  if (row.accessGated) return "Copilot waiting on a diagnosis and a history";
+
+  switch (row.accessState) {
+    case "revoked":
+      return "Access revoked — your own notes only";
+    case "unclaimed_bare":
+      return "Unclaimed record — yours alone";
+    case "no_relationship":
+      return row.patientId ? null : "No record — this session's transcript only";
+    case "unclaimed_documented":
+    case "granted":
+      return null;
+  }
+}
+
 export function SessionHistory({ rows }: { rows: RadarSessionRow[] }) {
   if (rows.length === 0) {
     return (
@@ -80,6 +97,22 @@ export function SessionHistory({ rows }: { rows: RadarSessionRow[] }) {
                     ? ` · ${row.copilotAsked} copilot question${row.copilotAsked === 1 ? "" : "s"}`
                     : ""}
                 </p>
+
+                {/*
+                  C27 — the access column 2.5 asked for.
+                  ---------------------------------------
+                  Sprint 2 left it out rather than filling it with a
+                  placeholder that would read the same on every row, because
+                  `history_grants` did not exist yet. It does now, so this
+                  says which of §3's four states each session sits in.
+
+                  Absent on `granted` and on a documented unclaimed record: a
+                  badge on every row is a badge nobody reads, and those two are
+                  the states where nothing is being withheld.
+                */}
+                {accessNote(row) ? (
+                  <p className="mt-1 text-xs text-slate-500">{accessNote(row)}</p>
+                ) : null}
               </div>
 
               <div className="shrink-0 text-end">

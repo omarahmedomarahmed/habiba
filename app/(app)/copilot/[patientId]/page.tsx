@@ -67,12 +67,12 @@ export default async function CopilotThreadPage({
           beside it. A therapist who does not know the copilot has been
           degraded reads a thin answer as the copilot being unhelpful.
         */}
-        {explain(access.state) ? (
+        {explain(access.state, access.gated) ? (
           <div className="mb-4">
             <AccessBanner
               patientId={patientId}
               state={access.state}
-              message={explain(access.state)!}
+              message={explain(access.state, access.gated)!}
               canRequest={access.capabilities.canRequestAccess}
               pendingSince={access.grant?.status === "pending" ? access.grant.requestedAt : null}
             />

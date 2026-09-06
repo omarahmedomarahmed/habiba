@@ -43,7 +43,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   // page with the diagnosis field on it, and that field is the one the revoked
   // state actually refuses to save.
   const consent = await accessFor(actor, id);
-  const consentMessage = explain(consent.state);
+  const consentMessage = explain(consent.state, consent.gated);
 
   return (
     <div className="mx-auto max-w-2xl">

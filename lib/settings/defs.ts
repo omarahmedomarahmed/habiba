@@ -61,6 +61,22 @@ export type PlatformSettings = {
     unclaimedPatientCredits: number;
     /** The general chat, per calendar month, across every thread. */
     generalMessagesPerMonth: number;
+    /**
+     * When the five-credit unlock starts to bite. 11R.24 / C46.
+     *
+     * An ISO date (`YYYY-MM-DD`), or `""` meaning **never** — the gate is
+     * reported but takes nothing away, which is how it has behaved since
+     * sprint 7.
+     *
+     * Patients created *before* this date keep the copilot regardless of
+     * whether anybody documented them. That is the grandfathering, and it is a
+     * date rather than a boolean because the whole point is that switching it
+     * on must not reach backwards: 65 of 66 existing patients have no
+     * diagnosis, and turning a bare boolean on would take a tool out of their
+     * therapist's hands overnight for a rule that did not exist when the
+     * record was made.
+     */
+    gateActiveFrom: string;
   };
 };
 
@@ -94,6 +110,7 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     messagesPerPatientPerSession: 10,
     unclaimedPatientCredits: 5,
     generalMessagesPerMonth: 50,
+    gateActiveFrom: "",
   },
 };
 
@@ -119,6 +136,30 @@ function int(value: unknown, fallback: number, opts: { min?: number; max?: numbe
 
 function str(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : fallback;
+}
+
+/** `YYYY-MM-DD` and a date that exists, or the fallback. */
+function isoDate(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!match) return fallback;
+
+  /*
+   * Round-tripped, not just parsed. V8 accepts "2026-02-31T00:00:00.000Z" and
+   * rolls it over to 3 March rather than returning Invalid Date, so an
+   * `isNaN` check passes a date that does not exist — and the gate would then
+   * switch on two days after the admin thinks it does.
+   */
+  const [, year, month, date] = match;
+  const at = new Date(`${trimmed}T00:00:00.000Z`);
+  if (Number.isNaN(at.getTime())) return fallback;
+  if (at.getUTCFullYear() !== Number(year)) return fallback;
+  if (at.getUTCMonth() + 1 !== Number(month)) return fallback;
+  if (at.getUTCDate() !== Number(date)) return fallback;
+
+  return trimmed;
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -204,6 +245,14 @@ export function parseGroup<G extends SettingsGroup>(
           d.copilot.generalMessagesPerMonth,
           { min: 0, max: 100_000 },
         ),
+        /*
+         * Anything that is not a well-formed date falls back to "" — never
+         * gated. A typo in this field must not lock every patient out of the
+         * copilot, which is what a permissive parse would do the moment
+         * `new Date("yesterday")` produced an Invalid Date that compared
+         * false against everything.
+         */
+        gateActiveFrom: isoDate(v.gateActiveFrom, d.copilot.gateActiveFrom),
       } as PlatformSettings[G];
 
     default:

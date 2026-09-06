@@ -8,14 +8,18 @@ import { db } from "@/lib/db";
 import {
   availabilitySlots,
   copilotMessages,
+  historyGrants,
   invoices,
   notifications,
   patients,
+  people,
+  personDocuments,
   sessionPayments,
   sessions,
   therapistRadar,
   users,
 } from "@/lib/db/schema";
+import { accessStateFor, isGated, type AccessState } from "@/lib/access/state";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
 import { log, ref } from "@/lib/logger";
 
@@ -1065,6 +1069,16 @@ export type RadarSessionRow = {
   ownBill: { amountCents: number; status: string; description: string } | null;
   /** Copilot questions the clinician asked during this session. */
   copilotAsked: number;
+  /**
+   * C27 — what the copilot may see about this person, per session row.
+   *
+   * 2.5 asked for this column and sprint 2 could not build it: the four states
+   * are defined by `history_grants`, which arrived in sprint 7. Absent rather
+   * than faked with a placeholder that would always read the same.
+   */
+  accessState: AccessState;
+  /** Whether the five-credit unlock is withholding the copilot. 11R.24. */
+  accessGated: boolean;
 };
 
 export async function radarSessionHistory(actor: Actor, limit = 25): Promise<RadarSessionRow[]> {
@@ -1113,12 +1127,45 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
         SELECT COUNT(*)::int FROM ${copilotMessages} cm
         WHERE cm."session_id" = ${sessions}."id" AND cm."role" = 'therapist'
       )`,
+
+      /*
+       * C27 / 11R.25 — the access column 2.5 asked for and sprint 2 could not
+       * build, because `history_grants` did not exist yet. It does now.
+       *
+       * All four inputs are read here rather than by calling `accessFor` per
+       * row: twenty-five sessions would be twenty-five round trips for a
+       * column, and the decision itself is pure — `accessStateFor` is applied
+       * to these values below.
+       */
+      patientCreatedAt: patients.createdAt,
+      claimedAt: people.claimedAt,
+      diagnosisCount: sql<number>`COALESCE(jsonb_array_length(${patients.clinical} -> 'diagnoses'), 0)::int`,
+      hasWrittenHistory: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${personDocuments} pd
+        WHERE pd."person_id" = ${patients}."person_id"
+          AND pd."source" IN ('typed', 'dictated')
+      )`,
+      grantStatus: sql<string | null>`(
+        SELECT hg."status" FROM ${historyGrants} hg
+        WHERE hg."person_id" = ${patients}."person_id"
+          AND hg."therapist_user_id" = ${sessions}."therapist_id"
+        ORDER BY hg."created_at" DESC
+        LIMIT 1
+      )`,
+      grantExpiresAt: sql<Date | null>`(
+        SELECT hg."expires_at" FROM ${historyGrants} hg
+        WHERE hg."person_id" = ${patients}."person_id"
+          AND hg."therapist_user_id" = ${sessions}."therapist_id"
+        ORDER BY hg."created_at" DESC
+        LIMIT 1
+      )`,
     })
     .from(sessions)
     // Left joins throughout: a free session has no payment, an uncompleted one
     // has no invoice, and a join-link patient has no patient row until they
     // type a name. Any of those as an inner join silently drops real sessions.
     .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .leftJoin(people, eq(people.id, patients.personId))
     .leftJoin(sessionPayments, eq(sessionPayments.sessionId, sessions.id))
     .leftJoin(invoices, and(eq(invoices.sessionId, sessions.id), eq(invoices.kind, "session")))
     .where(
@@ -1132,7 +1179,30 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
     .orderBy(desc(sessions.createdAt))
     .limit(limit);
 
-  return rows.map((r) => ({
+  const { getSettings } = await import("@/lib/settings");
+  const gateActiveFrom = (await getSettings()).copilot.gateActiveFrom;
+  const now = new Date();
+
+  return rows.map((r) => {
+    /*
+     * One `sessions` row can have no patient at all — a join-link visitor who
+     * never typed a name. "No relationship" is the honest answer for those,
+     * and it is the same answer `accessFor` gives.
+     */
+    const state = accessStateFor({
+      hasPatientRow: r.patientId !== null,
+      claimed: r.claimedAt !== null,
+      documented: (r.diagnosisCount ?? 0) > 0 && Boolean(r.hasWrittenHistory),
+      grant: r.grantStatus
+        ? {
+            status: r.grantStatus as "pending" | "granted" | "rejected" | "revoked",
+            expiresAt: r.grantExpiresAt ? new Date(r.grantExpiresAt) : null,
+          }
+        : null,
+      now,
+    });
+
+    return {
     sessionId: r.sessionId,
     startedAt: r.startedAt,
     endedAt: r.endedAt ?? null,
@@ -1168,7 +1238,10 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
             description: r.billDescription ?? "Session",
           },
     copilotAsked: r.copilotAsked ?? 0,
-  }));
+    accessState: state,
+    accessGated: isGated({ state, patientCreatedAt: r.patientCreatedAt, gateActiveFrom }),
+    };
+  });
 }
 
 /**

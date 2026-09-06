@@ -19,6 +19,7 @@ import { consume, subjectKey } from "@/lib/rate-limit";
 import {
   accessStateFor,
   capabilitiesFor,
+  isGated,
   isRejectionReason,
   type AccessState,
   type Capabilities,
@@ -76,6 +77,8 @@ async function liveGrantRow(
 export type Access = {
   state: AccessState;
   capabilities: Capabilities;
+  /** Whether the five-credit unlock is actually withholding the copilot. 11R.24. */
+  gated: boolean;
   personId: string | null;
   /** Present whenever a row exists, live or not — the UI shows "requested" too. */
   grant: Pick<HistoryGrant, "id" | "status" | "shape" | "expiresAt" | "requestedAt"> | null;
@@ -96,6 +99,7 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
       personId: patients.personId,
       claimedAt: people.claimedAt,
       clinical: patients.clinical,
+      createdAt: patients.createdAt,
     })
     .from(patients)
     .leftJoin(people, eq(people.id, patients.personId))
@@ -117,29 +121,49 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
       grant: null,
       now: new Date(),
     });
-    return { state, capabilities: capabilitiesFor(state), personId: null, grant: null };
+    return {
+      state,
+      capabilities: capabilitiesFor(state),
+      gated: false,
+      personId: null,
+      grant: null,
+    };
   }
 
   const grant = row.personId ? await liveGrantRow(row.personId, actor.userId) : null;
 
+  /*
+   * 11R.24 — §3's unlock, both halves of it.
+   *
+   * "A diagnosis **and** written or dictated history." C46 recorded that the
+   * second half had nowhere to read from; sprint 8 gave history a home, so it
+   * is a `typed` or `dictated` document on this person. Only asked when the
+   * first half passes, because a patient with no diagnosis fails the
+   * conjunction whatever the documents say — and this is on the path of every
+   * patient page.
+   */
+  const hasDiagnosis = (row.clinical?.diagnoses?.length ?? 0) > 0;
+  const documented = hasDiagnosis && row.personId !== null && (await hasWrittenHistory(row.personId));
+
   const state = accessStateFor({
     hasPatientRow: true,
     claimed: row.claimedAt !== null,
-    /*
-     * C46: §3 unlocks the unclaimed allowance with "a diagnosis **and**
-     * written or dictated history". There is nowhere to store a history yet —
-     * `clinical` holds only `diagnoses` and `goals` — so this asks the half of
-     * the question the data model can answer, and the state is reported rather
-     * than used to take anything away.
-     */
-    documented: (row.clinical?.diagnoses?.length ?? 0) > 0,
+    documented,
     grant: grant ? { status: grant.status, expiresAt: grant.expiresAt } : null,
     now: new Date(),
   });
 
+  const { getSettings } = await import("@/lib/settings");
+  const gated = isGated({
+    state,
+    patientCreatedAt: row.createdAt,
+    gateActiveFrom: (await getSettings()).copilot.gateActiveFrom,
+  });
+
   return {
     state,
-    capabilities: capabilitiesFor(state),
+    capabilities: capabilitiesFor(state, gated),
+    gated,
     personId: row.personId,
     grant: grant
       ? {
@@ -151,6 +175,31 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
         }
       : null,
   };
+}
+
+/**
+ * The second half of §3's unlock: a history somebody wrote or spoke. 11R.24.
+ *
+ * `typed` and `dictated` only. An **upload** does not count, and that is the
+ * point of the distinction: a photographed discharge summary may be
+ * unreadable, and the unlock is supposed to mean the copilot has something to
+ * work from — not that a file exists.
+ */
+async function hasWrittenHistory(personId: string): Promise<boolean> {
+  const { personDocuments } = await import("@/lib/db/schema");
+
+  const [row] = await db
+    .select({ id: personDocuments.id })
+    .from(personDocuments)
+    .where(
+      and(
+        eq(personDocuments.personId, personId),
+        inArray(personDocuments.source, ["typed", "dictated"]),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(row);
 }
 
 /** Everything a person has been asked for, and everything they have given. 13.7 / 7.5. */
