@@ -1938,7 +1938,23 @@ export const CONTENT_ICONS = [
 export type ContentIcon = (typeof CONTENT_ICONS)[number];
 
 /** Which real product component to render beside a value. */
-export const CONTENT_DEMOS = ["transcript", "note", "risk", "copilot", "none"] as const;
+export const CONTENT_DEMOS = [
+  "transcript",
+  "note",
+  "risk",
+  "copilot",
+  /*
+   * 18.8–18.9 — the product built since those first four existed.
+   *
+   * Every one of them renders the component a real user touches, against the
+   * synthetic fixtures in `lib/content/demo.ts`. A screenshot would have been
+   * quicker and would have started rotting the same afternoon (C80).
+   */
+  "patient-sessions",
+  "homework",
+  "profile",
+  "none",
+] as const;
 export type ContentDemo = (typeof CONTENT_DEMOS)[number];
 
 export type ContentBlock =
@@ -1984,6 +2000,20 @@ export type ContentBlock =
        */
       type: "pricing";
       compact?: boolean;
+    }
+  | {
+      /**
+       * 🔴 18.3 — getting help now, never behind a signup.
+       *
+       * A block rather than a page so it can sit at the bottom of *every*
+       * patient-facing page: a person who has scrolled a page about what a
+       * session is like is exactly the person who may need this, and asking
+       * them to navigate is asking too much. It carries no editable numbers
+       * for the same reason a fire exit has no configurable location.
+       */
+      type: "crisis";
+      heading?: string;
+      body?: string;
     }
   | {
       type: "cta";

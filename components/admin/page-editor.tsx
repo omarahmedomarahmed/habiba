@@ -16,6 +16,35 @@ const BACKGROUNDS = [
   { label: "Grid", value: "/backgrounds/grid.svg" },
 ];
 
+/**
+ * 18.6 — what each block does, where the person editing can read it.
+ *
+ * Sprint 18 added two block types that carry no editable text of their own,
+ * which is confusing precisely because it is deliberate: `pricing` reads
+ * `platform_settings` so a price cannot be edited into disagreeing with the
+ * invoice (C60), and `crisis` has a fixed destination for the reason a fire
+ * exit does not move. Somebody who does not know that will assume the editor
+ * is broken and go looking for the numbers.
+ */
+const BLOCK_GUIDE: { type: string; what: string }[] = [
+  { type: "hero", what: "The top of a page. Headline, a paragraph, one button, optionally a live product component beside it." },
+  { type: "features", what: "A grid of short points with icons. Best at three or six." },
+  { type: "showcase", what: "One claim at a time, each paired with a live product component — the real transcript panel, the real note card, the patient's own session list." },
+  { type: "faq", what: "Questions and answers. Kept below everything that sells." },
+  { type: "cta", what: "A closing band with one button." },
+  { type: "prose", what: "A heading and body text. Legal pages are mostly these." },
+  {
+    type: "pricing",
+    what:
+      "The three rates. No numbers to edit here on purpose — every figure is read from platform settings at page load, so this page can never disagree with what a therapist is actually billed.",
+  },
+  {
+    type: "crisis",
+    what:
+      "The help-now panel. You can change the words; the buttons always go to the radar and never behind a signup. Put it at the bottom of anything a patient reads.",
+  },
+];
+
 const SELECT_CLASS =
   "h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none";
 import type { ContentBlock } from "@/lib/db/schema";
@@ -117,10 +146,27 @@ export function PageEditor({
         </Field>
       </Card>
 
+      <Card className="p-4">
+        <p className="text-sm font-semibold text-slate-900">The blocks you can use</p>
+        <dl className="mt-2 space-y-1.5">
+          {BLOCK_GUIDE.map((entry) => (
+            <div key={entry.type} className="text-xs leading-relaxed">
+              <dt className="inline font-bold tracking-wider text-slate-500 uppercase">
+                {entry.type}
+              </dt>
+              <dd className="ms-2 inline text-slate-600">{entry.what}</dd>
+            </div>
+          ))}
+        </dl>
+      </Card>
+
       {blocks.map((block, index) => (
         <Card key={index} className="space-y-3 p-4">
           <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
             {block.type}
+          </p>
+          <p className="-mt-2 text-xs leading-relaxed text-slate-500">
+            {BLOCK_GUIDE.find((entry) => entry.type === block.type)?.what}
           </p>
 
           {"eyebrow" in block ? (

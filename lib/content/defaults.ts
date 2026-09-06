@@ -127,6 +127,11 @@ export const DEFAULT_PAGES: DefaultPage[] = [
        * figures is how C60 started.
        */
       { type: "pricing", compact: true },
+      /*
+       * 🔴 18.3 — one tap to help, from the homepage too. It is the last thing
+       * on the page a person scrolls when they are not sure what they need.
+       */
+      { type: "crisis" },
       {
         type: "cta",
         heading: "Your first session is free",
@@ -135,6 +140,127 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         ctaHref: "/signup",
         backgroundImage: "/backgrounds/waves.svg",
       },
+    ],
+  },
+  {
+    /*
+     * 🔴 18.2 — the patients section.
+     *
+     * Half of this product is used by people who are not clinicians and have
+     * never been asked to evaluate software. Everything they need to decide
+     * whether to open the radar at 2am is on this page, in the order somebody
+     * in that state would ask it — what this is, how to find a person, what
+     * happens, what the person can and cannot see, what it costs — and the
+     * crisis block is at the bottom of it because a person who has read this
+     * far is exactly the person who may need it.
+     */
+    slug: "for-patients",
+    title: "For patients",
+    description:
+      "How to find a therapist, what the Crisis Radar is, what happens in a session, and exactly what your therapist can and cannot see.",
+    layout: "marketing",
+    navLabel: "For patients",
+    navOrder: 0,
+    blocks: [
+      {
+        type: "hero",
+        eyebrow: "For patients",
+        heading: "A real therapist, without the waiting list",
+        body: "You do not need an account to talk to somebody. Open the radar, see who is online this minute, pick a person, tell them what to call you — and you are in a session. Everything below is what happens next, in the order people ask about it.",
+        ctaLabel: "See who is online now",
+        ctaHref: "/radar",
+        demo: "none",
+        icon: "users",
+        backgroundImage: "/backgrounds/waves.svg",
+      },
+      {
+        type: "features",
+        heading: "Finding somebody",
+        items: [
+          {
+            title: "The Crisis Radar",
+            body: "A live map of clinicians who are online right now. Filter by language or by what you need help with. Nobody on it is a bot, a queue or a callback — they are people with a session open.",
+            icon: "zap",
+          },
+          {
+            title: "When to use it",
+            body: "When waiting until Tuesday is not the answer. It is not an emergency service and it is not a substitute for one, but it is minutes rather than weeks.",
+            icon: "clock",
+          },
+          {
+            title: "Booking an hour instead",
+            body: "If you are not in a hurry, every clinician has a calendar. Pick an hour that suits you and you will get a reminder before it.",
+            icon: "clock",
+          },
+        ],
+      },
+      {
+        type: "showcase",
+        heading: "What it actually looks like",
+        items: [
+          {
+            title: "Your sessions, in your own app",
+            body: "Once you claim your record you have your own screens: the sessions you have booked, the ones you found on the radar, and the note your therapist wrote to you after each. This is that screen.",
+            icon: "users",
+            demo: "patient-sessions",
+          },
+          {
+            title: "The steps you agreed, not homework marked out of ten",
+            body: "What you and your therapist agreed to try, written the way you agreed it. Nobody scores you, and nothing is shown to anybody else.",
+            icon: "check",
+            demo: "homework",
+          },
+        ],
+      },
+      {
+        type: "features",
+        heading: "What your therapist can and cannot see",
+        items: [
+          {
+            title: "They see the sessions they ran with you",
+            body: "Their own notes about their own sessions, exactly as any therapist keeps notes. Nothing about anybody else.",
+            icon: "fileText",
+          },
+          {
+            title: "A second therapist sees nothing until you say so",
+            body: "If you see two people, neither can read the other's notes. You can share your history with a new therapist, in one tap, and take it back in one tap.",
+            icon: "lock",
+          },
+          {
+            title: "You can be recorded, or not",
+            body: "Recording is asked for, not assumed, and you can stop it at any point in the session. The note says when recording started, so nothing pretends to a completeness it does not have.",
+            icon: "mic",
+          },
+          {
+            title: "Your record is yours to claim",
+            body: "If a therapist has already been seeing you, the record has your name on it and you can claim it with your phone number. We ask you two questions first — proving a phone number is not proving a person.",
+            icon: "shield",
+          },
+        ],
+      },
+      {
+        type: "faq",
+        heading: "What it costs you",
+        items: [
+          {
+            q: "Do I pay to use 24Therapy?",
+            a: "No. You pay the therapist for the session, at the price shown before you book. We take a share of that from them, not from you, and there is no fee for having an account.",
+          },
+          {
+            q: "Can I pay in Egyptian pounds?",
+            a: "Yes. The price is shown in both, at the rate of the day, and the rate you were shown is the rate you are charged — it is fixed onto the payment rather than recalculated later.",
+          },
+          {
+            q: "What if the therapist does not turn up?",
+            a: "After five minutes you are offered somebody else at the same price or less, or your money back. If the replacement costs less, the difference comes back to you as credit rather than disappearing.",
+          },
+          {
+            q: "Do I need an account?",
+            a: "Not to have a session. You need one to keep your history, see the notes written to you, and claim a record a therapist already keeps about you.",
+          },
+        ],
+      },
+      { type: "crisis" },
     ],
   },
   {

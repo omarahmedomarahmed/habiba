@@ -57,8 +57,23 @@ export default async function PublicLayout({ children }: { children: React.React
                 Sign in
               </Button>
             </Link>
+            {/*
+              🔴 18.4 — two audiences, two first buttons.
+
+              A person in distress and a clinician evaluating software want
+              opposite things from this header, and a single "Start free" made
+              the patient guess. "I need a therapist" goes to the patients
+              section, which has the radar one tap away on every page; "Start
+              free" is the clinician's signup and stays the primary action for
+              them. Neither is hidden behind the other.
+            */}
+            <Link href="/for-patients" className="hidden sm:block">
+              <Button variant="secondary" size="sm">
+                I need a therapist
+              </Button>
+            </Link>
             <Link href="/signup">
-              <Button size="sm">Start free</Button>
+              <Button size="sm">Start free — for therapists</Button>
             </Link>
           </div>
         </div>

@@ -20,3 +20,10 @@ demo-output/
 
 # Development-only credential uploads (see lib/uploads.ts)
 .uploads/
+
+# 18.12 — admin screenshots are swept on demand and never committed. An admin
+# console shows many patients at once and is a map of the whole system; treat
+# this repository as if it will be public one day.
+docs/screens/admin/
+# Playwright storage states for the screens sweep. Session cookies.
+.screens/

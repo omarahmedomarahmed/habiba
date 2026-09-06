@@ -5,6 +5,8 @@ import { Lightbulb } from "lucide-react";
 import { NoteCard } from "@/components/clinical/note-card";
 import { RiskBanner } from "@/components/clinical/risk-banner";
 import { TranscriptPanel } from "@/components/clinical/transcript-panel";
+import { PatientSessionList } from "@/components/patient/session-list";
+import type { DemoContent } from "@/lib/content/demo";
 import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
 
 /**
@@ -14,13 +16,13 @@ import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
  * synthetic fixtures. None of them fetch anything — that is what makes putting
  * them on an anonymous page safe rather than alarming.
  */
-export function ComponentShowcase({ demo }: { demo?: string }) {
+export function ComponentShowcase({ demo, content }: { demo?: string; content?: DemoContent }) {
   switch (demo) {
     case "transcript":
       return (
         <div className="overflow-hidden rounded-2xl border border-slate-800/60 bg-navy-500 shadow-lg">
           <TranscriptPanel
-            lines={DEMO_TRANSCRIPT.slice(0, 5)}
+            lines={content?.transcript ?? DEMO_TRANSCRIPT.slice(0, 5)}
             live
             autoScroll={false}
             className="h-56"
@@ -65,6 +67,63 @@ export function ComponentShowcase({ demo }: { demo?: string }) {
             </div>
           </div>
         </div>
+      );
+
+    /*
+     * 18.9 — the patient's own app, which is the half of this product nobody
+     * evaluating it has ever seen. The real component from sprint 15, against
+     * demo rows: it has no field that *could* hold a clinical sentence, which
+     * is the point being demonstrated as well as the safety property.
+     */
+    case "patient-sessions":
+      return (
+        <div className="no-scrollbar h-56 overflow-y-auto rounded-2xl bg-slate-50 p-3 shadow-lg">
+          <PatientSessionList
+            zone="UTC"
+            sessions={(content?.patientSessions ?? []).map((row, i) => ({
+              id: `demo-${i}`,
+              group: i === 0 ? "today" : "past_scheduled",
+              at: new Date(Date.UTC(2026, 2, 12 + (i === 0 ? 1 : -6), 18, 0)),
+              therapistName: row.therapist,
+              modality: "video",
+              priceCents: 0,
+              paymentStatus: "not_required",
+              brief: row.brief,
+              briefPending: false,
+            }))}
+          />
+        </div>
+      );
+
+    case "homework":
+      return (
+        <div className="no-scrollbar h-56 space-y-2 overflow-y-auto rounded-2xl bg-white p-3 shadow-lg">
+          {(content?.homework ?? []).map((item) => (
+            <div key={item.title} className="rounded-xl border border-slate-200 p-3">
+              <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      );
+
+    /*
+     * The rolling profile, shown as what it is: dated observations, each one
+     * traceable to the session it came from. Never a paragraph of AI prose
+     * about somebody — that is the thing sprint 9 refused to build.
+     */
+    case "profile":
+      return (
+        <ul className="no-scrollbar h-56 space-y-2 overflow-y-auto rounded-2xl bg-white p-3 shadow-lg">
+            {(content?.observations ?? []).map((row) => (
+              <li key={row.at} className="border-s-2 border-brand-200 ps-3">
+                <p className="text-[11px] font-semibold tracking-wide text-brand-600 uppercase">
+                  {row.at}
+                </p>
+                <p className="text-sm leading-snug text-slate-700">{row.text}</p>
+              </li>
+            ))}
+        </ul>
       );
 
     default:

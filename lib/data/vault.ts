@@ -59,7 +59,9 @@ export async function ledgerSummary(sinceDays?: number): Promise<LedgerSummary> 
     .where(since ? gte(invoices.issuedAt, since) : undefined);
 
   const [cost] = await db
-    .select({ total: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int` })
+    .select({
+      total: sql<number>`ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int`,
+    })
     .from(aiRequestLogs)
     .where(since ? gte(aiRequestLogs.createdAt, since) : undefined);
 
@@ -171,7 +173,7 @@ export async function monthlyLedger(months = 6) {
   const cost = await db
     .select({
       month: sql<string>`to_char(date_trunc('month', ${aiRequestLogs.createdAt}), 'YYYY-MM')`,
-      spent: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int`,
+      spent: sql<number>`ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int`,
     })
     .from(aiRequestLogs)
     .where(gte(aiRequestLogs.createdAt, since))
@@ -209,8 +211,8 @@ export async function therapistEconomics() {
         WHERE ${sessions.therapistId} = ${users.id} AND ${sessions.status} = 'completed'
       )`,
       aiCostCents: sql<number>`(
-        SELECT COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int FROM ${aiRequestLogs}
-        WHERE ${aiRequestLogs.userId} = ${users.id}
+        SELECT ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int
+        FROM ${aiRequestLogs} WHERE ${aiRequestLogs.userId} = ${users.id}
       )`,
       aiCalls: sql<number>`(
         SELECT COUNT(*)::int FROM ${aiRequestLogs}
@@ -228,7 +230,7 @@ export async function therapistEconomics() {
     .leftJoin(subscriptions, eq(subscriptions.organizationId, users.organizationId))
     .where(and(isNull(users.deletedAt), eq(users.role, "therapist")))
     .orderBy(desc(sql`(
-      SELECT COALESCE(SUM(${aiRequestLogs.costCents}), 0) FROM ${aiRequestLogs}
+      SELECT COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) FROM ${aiRequestLogs}
       WHERE ${aiRequestLogs.userId} = ${users.id}
     )`))
     .limit(100);
@@ -311,7 +313,9 @@ export async function tractionMetrics(): Promise<Traction> {
     .where(gte(invoices.issuedAt, day30));
 
   const [cost30] = await db
-    .select({ spent: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int` })
+    .select({
+      spent: sql<number>`ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int`,
+    })
     .from(aiRequestLogs)
     .where(gte(aiRequestLogs.createdAt, day30));
 
@@ -342,17 +346,27 @@ export async function tractionMetrics(): Promise<Traction> {
   };
 }
 
-/** Model spend split by what it was spent on. */
+/**
+ * Model spend split by what it was spent on.
+ *
+ * 🔴 C17, ruled in sprint 18: every cost figure in this file now sums
+ * `cost_microcents` and divides **once**, at the end. It used to sum
+ * `cost_cents`, which `lib/ai/client.ts` writes as `round(microcents / 1000)`
+ * — so 466 of production's 596 model calls were stored as **zero** while the
+ * handful of expensive ones rounded up, and the sum overstated real spend by
+ * 8.59¢ on 209.41¢, about 4%. Small money, systematic error, and it made two
+ * admin screens disagree: the usage page already read microcents.
+ */
 export async function costByKind(days = 30) {
   return db
     .select({
       kind: aiRequestLogs.kind,
       calls: sql<number>`COUNT(*)::int`,
-      costCents: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int`,
+      costCents: sql<number>`ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int`,
       errors: sql<number>`COUNT(*) FILTER (WHERE ${aiRequestLogs.status} = 'error')::int`,
     })
     .from(aiRequestLogs)
     .where(gte(aiRequestLogs.createdAt, new Date(Date.now() - days * 86_400_000)))
     .groupBy(aiRequestLogs.kind)
-    .orderBy(desc(sql`COALESCE(SUM(${aiRequestLogs.costCents}), 0)`));
+    .orderBy(desc(sql`COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0)`));
 }

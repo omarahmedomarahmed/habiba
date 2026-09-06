@@ -4,6 +4,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { ComponentShowcase } from "@/components/demo/component-showcase";
 import { SessionDemo } from "@/components/demo/session-demo";
 import { ContentIconMark } from "@/components/public/icons";
+import { getDemoContent, type DemoContent } from "@/lib/content/demo";
 import { PricingTiers } from "@/components/public/pricing-tiers";
 import { RadarHero } from "@/components/radar/radar-hero";
 import { Button } from "@/components/ui";
@@ -18,24 +19,41 @@ import type { ContentBlock } from "@/lib/db/schema";
  * though they were validated on save — a value that reached the database some
  * other way still cannot reach the page.
  */
-export function BlockRenderer({ blocks }: { blocks: ContentBlock[]; slug?: string }) {
+export async function BlockRenderer({ blocks }: { blocks: ContentBlock[]; slug?: string }) {
+  /*
+   * 18.13 — the words inside the live components are content too, read once
+   * here and handed down. One query for the whole page rather than one per
+   * showcase item, and the components stay props-only: nothing below this line
+   * can reach a database, which is what makes a real product component safe on
+   * an anonymous page.
+   */
+  const demo = await getDemoContent();
+
   return (
     <>
       {blocks.map((block, i) => (
-        <Block key={i} block={block} first={i === 0} />
+        <Block key={i} block={block} first={i === 0} demo={demo} />
       ))}
     </>
   );
 }
 
-function Block({ block, first }: { block: ContentBlock; first: boolean }) {
+function Block({
+  block,
+  first,
+  demo,
+}: {
+  block: ContentBlock;
+  first: boolean;
+  demo: DemoContent;
+}) {
   switch (block.type) {
     case "hero":
       return <Hero block={block} first={first} />;
     case "features":
       return <Features block={block} />;
     case "showcase":
-      return <Showcase block={block} />;
+      return <Showcase block={block} demo={demo} />;
     case "faq":
       return <Faq block={block} />;
     case "cta":
@@ -53,6 +71,9 @@ function Block({ block, first }: { block: ContentBlock; first: boolean }) {
      */
     case "pricing":
       return <PricingTiers compact={block.compact} />;
+    /* 🔴 18.3 — help now, on the page, never behind a signup. */
+    case "crisis":
+      return <Crisis block={block} />;
     default:
       return null;
   }
@@ -180,7 +201,13 @@ function Features({ block }: { block: Extract<ContentBlock, { type: "features" }
  *
  * Alternating sides so a long page does not read as a column of identical rows.
  */
-function Showcase({ block }: { block: Extract<ContentBlock, { type: "showcase" }> }) {
+function Showcase({
+  block,
+  demo,
+}: {
+  block: Extract<ContentBlock, { type: "showcase" }>;
+  demo: DemoContent;
+}) {
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
@@ -207,7 +234,7 @@ function Showcase({ block }: { block: Extract<ContentBlock, { type: "showcase" }
               </div>
 
               <div className={i % 2 === 1 ? "lg:order-1" : undefined}>
-                <ComponentShowcase demo={item.demo} />
+                <ComponentShowcase demo={item.demo} content={demo} />
               </div>
             </div>
           ))}
@@ -290,3 +317,42 @@ function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
   );
 }
 
+
+/**
+ * 🔴 18.3 — getting help now.
+ *
+ * Never behind a signup, never a link to a page that then asks for an account,
+ * and never softer than the thing it is for. Two routes out: the radar, which
+ * is a clinician in minutes, and the local emergency number, which is what to
+ * do when minutes are too long.
+ *
+ * The words are editable (they are wrong in some countries and a person who
+ * knows better must be able to fix them without a deploy) but the block itself
+ * carries no configurable *destination*: a fire exit does not move.
+ */
+function Crisis({ block }: { block: Extract<ContentBlock, { type: "crisis" }> }) {
+  return (
+    <section className="px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-3xl rounded-3xl border-2 border-rose-200 bg-rose-50 p-6">
+        <h2 className="text-lg font-bold tracking-tight text-rose-900">
+          {block.heading ?? "If you need help right now"}
+        </h2>
+        <p className="mt-2 text-[15px] leading-relaxed text-rose-900/90">
+          {block.body ??
+            "If you are in immediate danger, call your local emergency number now — this is not an emergency service and nobody here can reach you fast enough. If you can wait a few minutes, the radar has clinicians online this minute and you do not need an account to use it."}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2.5">
+          <Link href="/radar">
+            <Button>Find someone online now</Button>
+          </Link>
+          <Link href="/for-patients">
+            <Button variant="secondary">What happens in a session</Button>
+          </Link>
+        </div>
+        <p className="mt-3 text-xs text-rose-900/70">
+          No account, no card, no form. You give a first name and you are in a session.
+        </p>
+      </div>
+    </section>
+  );
+}

@@ -38,6 +38,8 @@ async function main() {
    * the page simply is not available in Arabic and inserting it is the point.
    */
   const arabic = argv.includes("--ar");
+  /** 18.5 — insert a row for a page that is genuinely new. See below. */
+  const create = argv.includes("--create");
   const wanted = argv.filter((arg) => !arg.startsWith("--"));
 
   if (!all && wanted.length === 0) {
@@ -65,7 +67,7 @@ async function main() {
       .where(and(eq(schema.contentPages.slug, page.slug), eq(schema.contentPages.locale, locale)))
       .limit(1);
 
-    if (!existing && arabic) {
+    if (!existing && (arabic || create)) {
       await db.insert(schema.contentPages).values({
         slug: page.slug,
         locale,
@@ -82,10 +84,20 @@ async function main() {
     }
 
     if (!existing) {
-      // Nothing in the database means the fallback is already serving this
-      // page, and the fallback is the file we just edited. Inserting a row
-      // here would only create the divergence this script exists to close.
-      console.log(`· ${page.slug} — no row, already served from defaults`);
+      /*
+       * Nothing in the database means the fallback is already serving this
+       * page, and the fallback is the file we just edited. Inserting a row
+       * here would only create the divergence this script exists to close.
+       *
+       * `--create` is the one exception, and it is for a page that is new in
+       * this sprint rather than one that has drifted: 18.5 requires every new
+       * page to be a real `content_pages` row, because a page that exists only
+       * in `defaults.ts` cannot be edited in admin or translated in 21 — it is
+       * invisible to both.
+       */
+      console.log(
+        `· ${page.slug} — no row, already served from defaults (pass --create to make one)`,
+      );
       continue;
     }
 
