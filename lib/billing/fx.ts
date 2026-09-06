@@ -4,6 +4,7 @@ import { and, desc, eq, gt } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { fxQuotes } from "@/lib/db/schema";
+import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 
 /**
@@ -24,14 +25,16 @@ import { log } from "@/lib/logger";
  *
  * That is a deliberate seam rather than a stub to be forgotten: `fetchRate` is
  * the one function to replace, the quote table and the hour do not change, and
- * the `source` column is what proves which rows came from where. Sprint 14
- * ("adding a provider is configuration, not code") is where a real feed
- * belongs, alongside the payment providers it has to agree with.
+ * the `source` column is what proves which rows came from where.
  *
- * 🔴 **A static rate must not be used to settle a real payment in production.**
- * `quoteFor` refuses a pair it has no rate for rather than inventing one, so
- * the failure is a country that cannot be paid in yet — visible — rather than a
- * patient charged at a wrong number.
+ * 🔴 **A static rate must not be used to settle a real payment in production —
+ * and that is now enforced here rather than asserted in this comment (C37,
+ * ruled in sprint 16).** `quoteFor` refuses to return a `static` quote when
+ * `NODE_ENV` is production. A refusal is a country that cannot be paid in yet,
+ * which is visible and fixable; a guessed rate is a patient charged the wrong
+ * number and nobody finding out. `PROVIDERS` below is the list of real feeds;
+ * adding one is configuration plus an adapter, and the moment one is
+ * configured the refusal stops firing on its own.
  */
 
 /** How long a quote is good for. §3/4.4: one hour. */
@@ -60,17 +63,64 @@ export type Quote = {
   source: string;
 };
 
+/** One rate feed. Adding one is an object in `PROVIDERS`, not a rewrite. */
+type Provider = {
+  key: string;
+  fetch: (base: string, quote: string) => Promise<number | null>;
+};
+
 /**
- * The seam. Replace this with a provider call and nothing else changes.
+ * Real rate feeds, in the order they are tried.
  *
- * Returns null for a pair we cannot price, which `quoteFor` turns into a
- * refusal rather than a guess.
+ * Empty until one is configured, and that is the honest state: there is no
+ * provider account yet. The array is the seam — a provider is an object with a
+ * key and one function, and `source` on the quote row records which one priced
+ * a given payment. Nothing else in this file changes when the first one lands.
  */
-async function fetchRate(base: string, quote: string): Promise<{ rateMicro: number; source: string } | null> {
+const PROVIDERS: Provider[] = [];
+
+/**
+ * A rate for this pair, from the best source available.
+ *
+ * 🔴 The static fallback is refused in production (C37). It is not a "last
+ * resort" there — a wrong rate that settles is worse than a refusal that does
+ * not, because the refusal is a bug report and the wrong rate is a receipt.
+ */
+async function fetchRate(
+  base: string,
+  quote: string,
+): Promise<{ rateMicro: number; source: string } | null> {
+  for (const provider of PROVIDERS) {
+    try {
+      const rate = await provider.fetch(base, quote);
+      if (rate && rate > 0) return { rateMicro: Math.round(rate), source: provider.key };
+    } catch (error) {
+      log.warn("rate provider failed", { provider: provider.key, error: String(error) });
+    }
+  }
+
   const from = STATIC_RATES[base];
   const to = STATIC_RATES[quote];
   if (from === undefined || to === undefined) return null;
+
+  if (env.isProduction) {
+    log.error("refusing a static exchange rate in production", { base, quote });
+    return null;
+  }
+
   return { rateMicro: Math.round((to / from) * 1_000_000), source: "static" };
+}
+
+/**
+ * Whether a stored quote may settle money now. C37.
+ *
+ * Separate from `fetchRate` because a quote can also be *read back* — an hour
+ * old, from the table, written before a provider was configured. A payment
+ * created from one of those in production is the same mistake one step later,
+ * so the guard is on the value rather than only on the fetch.
+ */
+export function quoteMaySettle(quote: { source: string }): boolean {
+  return !(env.isProduction && quote.source === "static");
 }
 
 /**
@@ -113,7 +163,7 @@ export async function quoteFor(base: string, quote: string): Promise<Quote | nul
     .orderBy(desc(fxQuotes.quotedAt))
     .limit(1);
 
-  if (live) {
+  if (live && quoteMaySettle(live)) {
     return {
       base: from,
       quote: to,

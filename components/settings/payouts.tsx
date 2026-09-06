@@ -21,6 +21,8 @@ export type PayoutState = {
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
   sessionRateCents: number;
+  /** 16.5 — the currency that number is denominated in. */
+  rateCurrency: string;
   autoSettleFromEarnings: boolean;
   availableCents: number | null;
   pendingCents: number | null;
@@ -54,6 +56,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
   const [rate, setRate] = useState(
     state.sessionRateCents > 0 ? String(state.sessionRateCents / 100) : "",
   );
+  const [currency, setCurrency] = useState(state.rateCurrency);
 
   const rateCents = Math.round((Number(rate) || 0) * 100);
   const cut = Math.floor((rateCents * state.feeBps) / 10_000);
@@ -178,22 +181,40 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           htmlFor="rateDollars"
           hint="Used as the default when you create a paid session link. Leave at 0 for free sessions."
         >
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-400">
-              $
-            </span>
-            <Input
-              id="rateDollars"
-              name="rateDollars"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={1}
-              value={rate}
-              onChange={(event) => setRate(event.target.value)}
-              className="ps-7"
-              placeholder="60"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-400">
+                {currency === "egp" ? "E£" : "$"}
+              </span>
+              <Input
+                id="rateDollars"
+                name="rateDollars"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={1}
+                value={rate}
+                onChange={(event) => setRate(event.target.value)}
+                className="ps-9"
+                placeholder="60"
+              />
+            </div>
+
+            {/*
+              16.5 — price in either currency. The number is stored in the
+              currency chosen, not converted: a rate meant to stay 1,500 EGP
+              must not drift because the market did.
+            */}
+            <select
+              name="rateCurrency"
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value)}
+              aria-label="Currency"
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            >
+              <option value="usd">USD</option>
+              <option value="egp">EGP</option>
+            </select>
           </div>
         </Field>
 

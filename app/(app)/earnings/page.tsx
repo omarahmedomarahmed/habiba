@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 
 import { EarningsCard } from "@/components/billing/earnings";
 import { PaymentHistory } from "@/components/billing/payment-history";
+import { Withdraw } from "@/components/billing/withdraw";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import {
@@ -12,9 +13,11 @@ import {
   getConnectAccount,
   recentPayments,
 } from "@/lib/billing/connect";
-import { transfersForTherapist } from "@/lib/billing/ledger";
+import { heldForTherapist, transfersForTherapist } from "@/lib/billing/ledger";
+import { defaultMethodFor, payoutsForTherapist } from "@/lib/billing/payouts";
 import { formatUsd } from "@/lib/billing/plans";
 import { features } from "@/lib/env";
+import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Earnings", robots: { index: false } };
@@ -32,13 +35,35 @@ export const dynamic = "force-dynamic";
 export default async function EarningsPage() {
   const actor = await requireUser();
 
-  const [connect, earnings, payments, balance, transfers] = await Promise.all([
-    getConnectAccount(actor.userId),
-    earningsSummary(actor.userId),
-    recentPayments(actor.userId, 50),
-    accountBalance(actor.userId),
-    transfersForTherapist(actor.userId),
-  ]);
+  const [connect, earnings, payments, balance, transfers, held, method, requests, settings] =
+    await Promise.all([
+      getConnectAccount(actor.userId),
+      earningsSummary(actor.userId),
+      recentPayments(actor.userId, 50),
+      accountBalance(actor.userId),
+      transfersForTherapist(actor.userId),
+      heldForTherapist(actor.userId),
+      defaultMethodFor(actor.userId),
+      payoutsForTherapist(actor.userId),
+      getSettings(),
+    ]);
+
+  /*
+   * 🔴 16.10 — "available" excludes money already on its way.
+   *
+   * Held is what the ledger says we owe them. Requested and sent are the parts
+   * of it that are somewhere in the queue. Available is what is left, and it
+   * is the only figure with a button next to it: showing a balance that
+   * includes money halfway out of the door invites a second request for money
+   * that is already gone.
+   */
+  const requestedCents = requests
+    .filter((r) => r.status === "requested" || r.status === "approved")
+    .reduce((total, r) => total + r.amountCents, 0);
+  const sentCents = requests
+    .filter((r) => r.status === "sent")
+    .reduce((total, r) => total + r.amountCents, 0);
+  const availableCents = Math.max(0, held - requestedCents - sentCents);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -89,6 +114,48 @@ export default async function EarningsPage() {
               <ChevronRight className="h-4 w-4" aria-hidden />
             </Link>
           </Card>
+        ) : null}
+
+        {/*
+          The manual rail (§3c). Shown to anybody we are holding money for, or
+          who has asked for a payout before — which is exactly the set of
+          clinicians Stripe cannot pay, and the reason this rail exists.
+        */}
+        {held > 0 || requests.length > 0 ? (
+          <Withdraw
+            heldCents={held}
+            requestedCents={requestedCents}
+            sentCents={sentCents}
+            availableCents={availableCents}
+            methods={settings.payouts.egyptPayoutMethods}
+            method={
+              method
+                ? {
+                    method: method.method,
+                    identifier: method.identifier,
+                    accountName: method.accountName,
+                  }
+                : null
+            }
+            history={requests.map((row) => ({
+              id: row.id,
+              amountCents: row.amountCents,
+              payoutAmountMinor: row.payoutAmountMinor,
+              payoutCurrency: row.payoutCurrency,
+              status: row.status,
+              requestedAtLabel: formatDate(row.requestedAt, actor.timezone),
+              movedAtLabel: row.confirmedAt
+                ? formatDate(row.confirmedAt, actor.timezone)
+                : row.sentAt
+                  ? formatDate(row.sentAt, actor.timezone)
+                  : row.approvedAt
+                    ? formatDate(row.approvedAt, actor.timezone)
+                    : null,
+              proofUrl: row.proofUrl,
+              rejectedReason: row.rejectedReason,
+              accountName: row.accountName,
+            }))}
+          />
         ) : null}
 
         <PaymentHistory

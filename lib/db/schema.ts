@@ -170,6 +170,16 @@ export const users = pgTable(
     /** What the therapist charges a patient for a 30-minute session, in cents. */
     sessionRateCents: integer("session_rate_cents").notNull().default(0),
     /**
+     * 16.5 — the currency the clinician **priced in**, not a display choice.
+     *
+     * A therapist in Cairo who types 1500 means 1500 EGP; a therapist in
+     * London who types 60 means $60. Storing the denomination beside the
+     * number is what lets 16.4 show either currency without ever having to
+     * guess which one the price was written in. Every existing row is `usd`,
+     * which is what every existing price actually was.
+     */
+    rateCurrency: text("rate_currency").notNull().default("usd"),
+    /**
      * Settle 24Therapy invoices out of the application fee on the next patient
      * payment, instead of asking for a card. Opt-out, disclosed at the point of
      * setting a rate.
@@ -445,6 +455,8 @@ export const sessions = pgTable(
      * caseload, where money changes hands outside this product entirely.
      */
     priceCents: integer("price_cents").notNull().default(0),
+    /** 16.5 — the currency this price was set in. Frozen on the session. */
+    priceCurrency: text("price_currency").notNull().default("usd"),
     /**
      * `not_required` when the price is zero. A priced session sits at `pending`
      * until Stripe confirms, and the join link refuses to hand out a meeting
@@ -1434,6 +1446,22 @@ export const invoices = pgTable(
     stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
 
+    /*
+     * 16.6a — **every** therapist chooses the currency they pay us in, not
+     * only Egyptian ones. The bill is denominated in USD and always was;
+     * these columns record what they were actually charged when they chose to
+     * settle it in EGP, and at what rate.
+     *
+     * 16.6b / C76: the therapist absorbs the difference, which is only fair if
+     * the number and the rate were on the screen with the button. They are —
+     * and they are here afterwards, so a receipt reproduces exactly what was
+     * shown rather than re-converting at today's rate.
+     */
+    settledCurrency: text("settled_currency"),
+    settledAmountMinor: integer("settled_amount_minor"),
+    fxRateMicro: integer("fx_rate_micro"),
+    fxQuotedAt: timestamp("fx_quoted_at", { withTimezone: true }),
+
     periodStart: timestamp("period_start", { withTimezone: true }),
     periodEnd: timestamp("period_end", { withTimezone: true }),
 
@@ -1569,6 +1597,19 @@ export const sessionPayments = pgTable(
      */
     capture: text("capture").$type<"destination" | "platform">().notNull().default("destination"),
 
+    /**
+     * 16.7 / 16.9 — which of §3c's four crossings this payment was, and which
+     * entity ended up holding it.
+     *
+     * Recorded rather than derived for the same reason `capture` is: the
+     * therapist's Stripe status and the patient's country are facts about
+     * *now*, and the question a year from now is what this payment was then.
+     * Every pre-sprint-16 row is a USD card payment on the US entity, which
+     * is exactly what the defaults say.
+     */
+    crossing: text("crossing").$type<Crossing>().notNull().default("usd_stripe_to_connect"),
+    entity: text("entity").$type<Entity>().notNull().default("us"),
+
     status: text("status").$type<PaymentStatus>().notNull().default("pending"),
     stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
@@ -1640,6 +1681,12 @@ export const LEDGER_TXN_KINDS = [
   "invoice_written_off",
   "earnings_transfer",
   "adjustment",
+  /** 16.2 — a manual EGP payout left the Egyptian entity's bank account. */
+  "manual_payout",
+  /** 16.9 — money moved between the two entities, explicitly and audited. */
+  "entity_transfer",
+  /** C69 / 17.1 — a session fee netted against what we already hold. */
+  "fee_netted",
 ] as const;
 export type LedgerTxnKind = (typeof LEDGER_TXN_KINDS)[number];
 
@@ -1689,6 +1736,14 @@ export const ledgerEntries = pgTable(
 
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull().default("usd"),
+
+    /**
+     * 16.9 — which entity holds this leg. Defaults to `us`, which is what
+     * every pre-sprint-16 leg actually was: one entity, one Stripe balance.
+     * A cross-entity movement is its own transaction (`entity_transfer`),
+     * never a side effect of some other posting.
+     */
+    entity: text("entity").$type<Entity>().notNull().default("us"),
 
     /** What this leg is about: a session payment, an invoice, a transfer. */
     refType: text("ref_type"),
@@ -3343,3 +3398,220 @@ export const availabilitySlots = pgTable(
 );
 
 export type AvailabilitySlot = typeof availabilitySlots.$inferSelect;
+
+/* ------------------------------------------------------- §3c · two rails -- */
+
+/**
+ * Which legal entity is holding a given cent. PLAN.md 16.9.
+ *
+ * Two entities, two bank accounts, two countries. A ledger that does not say
+ * which one holds a balance cannot answer the only question a regulator or an
+ * accountant will ask, and "we can work it out from the currency" is not an
+ * answer — an Egyptian patient paying in EGP for a therapist on Connect is
+ * money the *US* entity ends up owing.
+ */
+export const ENTITIES = ["us", "eg"] as const;
+export type Entity = (typeof ENTITIES)[number];
+
+/**
+ * The four crossings of §3c, named. 16.7.
+ *
+ * They are enumerated rather than derived so that the two we are exposed on
+ * are impossible to confuse with the two we are not — the names appear in the
+ * ledger memo, in the payout queue and in the reconciliation report, and a
+ * `grep` for `usd_stripe_to_manual` finds every place the risky path is taken.
+ */
+export const CROSSINGS = [
+  /** Patient pays USD by card, therapist has Connect. Nothing is held. */
+  "usd_stripe_to_connect",
+  /** Patient pays EGP locally, therapist is Egyptian. Held by the EG entity. */
+  "egp_local_to_manual",
+  /** 🔴 Patient pays USD by card, therapist has no Stripe. We hold it. */
+  "usd_stripe_to_manual",
+  /** 🔴 Patient pays EGP locally, therapist is on Connect. We hold it. */
+  "egp_local_to_connect",
+] as const;
+export type Crossing = (typeof CROSSINGS)[number];
+
+export const PAYOUT_METHODS = ["instapay", "wallet", "stripe"] as const;
+export type PayoutMethod = (typeof PAYOUT_METHODS)[number];
+
+/**
+ * Where a clinician's manual payout goes, and **who last touched it**.
+ *
+ * `editedByUserId` is not bookkeeping. C74: two-person approval above a
+ * threshold, *and never the person who edited the payout details*. Somebody
+ * who can change the destination account and then approve the payment to it is
+ * a one-person fraud path, and the second signature is worthless if it is the
+ * same signature. The column is what makes that rule checkable — by the
+ * database, on the request row, at the moment of approval.
+ *
+ * The full name is stored **exactly as it appears on the receiving account**
+ * (§3c). A transfer to "M. Ali" against an account registered to "Mohamed Ali
+ * Hassan" is a transfer that bounces after a person has already done the work.
+ */
+export const payoutMethods = pgTable(
+  "payout_methods",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    therapistId: uuid("therapist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    method: text("method").$type<PayoutMethod>().notNull(),
+    /** An IPA handle, a wallet number, or a Connect account id. */
+    identifier: text("identifier").notNull(),
+    /** The name on the receiving account, exactly. */
+    accountName: text("account_name").notNull(),
+    currency: text("currency").notNull().default("egp"),
+
+    /** 🔴 C74's other half — who last changed where the money goes. */
+    editedByUserId: uuid("edited_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    editedAt: timestamp("edited_at", { withTimezone: true }).defaultNow().notNull(),
+
+    isDefault: boolean("is_default").notNull().default(true),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("payout_methods_therapist_idx").on(t.therapistId),
+    uniqueIndex("payout_methods_default_unique")
+      .on(t.therapistId)
+      .where(sql`is_default AND deleted_at IS NULL`),
+  ],
+);
+
+export type PayoutMethodRow = typeof payoutMethods.$inferSelect;
+
+/**
+ * The statuses a therapist can watch. 16.2.
+ *
+ * Four forward states and one refusal. `requested` with no date is how trust
+ * is lost (C74), so every one of them carries its own timestamp and the person
+ * who caused it.
+ */
+export const PAYOUT_STATUSES = [
+  "requested",
+  "approved",
+  "sent",
+  "confirmed",
+  "rejected",
+] as const;
+export type PayoutStatus = (typeof PAYOUT_STATUSES)[number];
+
+/**
+ * A clinician asking for money we are holding. PLAN.md 16.2, 16.3, 16.3a–d.
+ *
+ * 🔴 **A payout request is a promise. Nothing may quietly fail.** That is why
+ * this is a row with an age rather than a job that either runs or does not:
+ * a stuck request is *visible* — to the therapist, to the queue, and to the
+ * alert that goes out on a phone and an email when it ages (16.3b).
+ */
+export const payoutRequests = pgTable(
+  "payout_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    therapistId: uuid("therapist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+
+    /** Always in the settlement currency of the held balance: cents of USD. */
+    amountCents: integer("amount_cents").notNull(),
+    /** What we will actually send, in the payout currency. */
+    payoutAmountMinor: integer("payout_amount_minor").notNull(),
+    payoutCurrency: text("payout_currency").notNull().default("egp"),
+    /** 16.6 — the rate is frozen here, with its timestamp. Never re-derived. */
+    fxRateMicro: integer("fx_rate_micro"),
+    fxQuotedAt: timestamp("fx_quoted_at", { withTimezone: true }),
+
+    /** 16.9 — which entity's bank account this leaves from. */
+    entity: text("entity").$type<Entity>().notNull().default("eg"),
+
+    /*
+     * The destination, **copied onto the request**.
+     *
+     * Not a foreign key alone: a payout is a photograph of where the money was
+     * going when it was approved. If the therapist edits their IPA handle
+     * between approval and sending, the sent transfer must still be auditable
+     * against what the approver actually saw.
+     */
+    methodId: uuid("method_id").references(() => payoutMethods.id, { onDelete: "set null" }),
+    method: text("method").$type<PayoutMethod>().notNull(),
+    identifier: text("identifier").notNull(),
+    accountName: text("account_name").notNull(),
+    /** 🔴 C74 — snapshot of who last edited those details, for the CHECK. */
+    detailsEditedByUserId: uuid("details_edited_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    status: text("status").$type<PayoutStatus>().notNull().default("requested"),
+
+    /** 16.3b — a named owner, so a stuck request belongs to somebody. */
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** When the ageing alert last went out. Null means it has not yet. */
+    alertedAt: timestamp("alerted_at", { withTimezone: true }),
+
+    requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    sentByUserId: uuid("sent_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    rejectedReason: text("rejected_reason"),
+
+    /** 16.3c — the transfer screenshot the therapist can see. */
+    proofUrl: text("proof_url"),
+    /** Set when the money left the books, so a reversal is traceable. */
+    ledgerTxnId: uuid("ledger_txn_id"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("payout_requests_therapist_idx").on(t.therapistId, t.requestedAt),
+    // The queue screen: open work, oldest first.
+    index("payout_requests_open_idx")
+      .on(t.requestedAt)
+      .where(sql`status IN ('requested', 'approved', 'sent')`),
+    index("payout_requests_status_idx").on(t.status, t.requestedAt),
+  ],
+);
+
+export type PayoutRequest = typeof payoutRequests.$inferSelect;
+
+/**
+ * Every transition, attributable to a person. 16.2.
+ *
+ * The status columns above say where a request *is*; this says how it got
+ * there and who moved it. A manual process is where the fraud is (C74), and a
+ * queue with no history is a queue where a state can be walked backwards by
+ * anybody with an UPDATE.
+ */
+export const payoutRequestEvents = pgTable(
+  "payout_request_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => payoutRequests.id, { onDelete: "cascade" }),
+    fromStatus: text("from_status").$type<PayoutStatus>(),
+    toStatus: text("to_status").$type<PayoutStatus>().notNull(),
+    /** Null only for the ageing alert, which the clock raises. */
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("payout_request_events_request_idx").on(t.requestId, t.createdAt)],
+);
+
+export type PayoutRequestEvent = typeof payoutRequestEvents.$inferSelect;

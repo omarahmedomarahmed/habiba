@@ -91,6 +91,8 @@ export type ConnectAccount = {
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
   sessionRateCents: number;
+  /** 16.5 — the currency that rate is denominated in. */
+  rateCurrency: string;
   autoSettleFromEarnings: boolean;
 };
 
@@ -101,6 +103,7 @@ export async function getConnectAccount(userId: string): Promise<ConnectAccount>
       chargesEnabled: users.chargesEnabled,
       payoutsEnabled: users.payoutsEnabled,
       sessionRateCents: users.sessionRateCents,
+      rateCurrency: users.rateCurrency,
       autoSettleFromEarnings: users.autoSettleFromEarnings,
     })
     .from(users)
@@ -113,6 +116,7 @@ export async function getConnectAccount(userId: string): Promise<ConnectAccount>
       chargesEnabled: false,
       payoutsEnabled: false,
       sessionRateCents: 0,
+      rateCurrency: "usd",
       autoSettleFromEarnings: true,
     }
   );

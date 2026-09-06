@@ -176,7 +176,24 @@ const JOBS = {
     const { releaseAllHeldEarnings } = await import("@/lib/billing/connect");
     const released = await releaseAllHeldEarnings();
 
-    return { reconciled, released: released.released, centsMoved: released.centsMoved };
+    /*
+     * 🔴 16.3b — the ageing payout alert.
+     *
+     * Here rather than on a schedule of its own for the reason at the top of
+     * this file: a job that wakes on its own costs a wake, and this one is
+     * cheap and belongs with the other money work. `alertAgedPayouts` sends
+     * through `notify()`, so it reaches a phone **and** an email — a dashboard
+     * nobody has open at 3am is not an alert.
+     */
+    const { alertAgedPayouts } = await import("@/lib/billing/payouts");
+    const aged = await alertAgedPayouts();
+
+    return {
+      reconciled,
+      released: released.released,
+      centsMoved: released.centsMoved,
+      payoutsAlerted: aged.alerted,
+    };
   },
 
   /**

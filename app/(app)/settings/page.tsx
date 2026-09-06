@@ -93,6 +93,7 @@ export default async function SettingsPage({
             chargesEnabled: connect.chargesEnabled,
             payoutsEnabled: connect.payoutsEnabled,
             sessionRateCents: connect.sessionRateCents,
+            rateCurrency: connect.rateCurrency,
             autoSettleFromEarnings: connect.autoSettleFromEarnings,
             availableCents: balance?.availableCents ?? null,
             pendingCents: balance?.pendingCents ?? null,

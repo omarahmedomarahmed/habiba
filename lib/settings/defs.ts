@@ -62,6 +62,46 @@ export type PlatformSettings = {
     /** The general chat, per calendar month, across every thread. */
     generalMessagesPerMonth: number;
   };
+  /**
+   * The two rails. PLAN.md 16.1 — *"adding an Egyptian collection provider is
+   * configuration, not code"*, which is only true if the configuration is
+   * here rather than in a constant somebody has to deploy.
+   */
+  payouts: {
+    /** Who collects EGP from patients. A key, resolved to an adapter. */
+    egyptCollectionProvider: string;
+    /** What a therapist may be paid by, in Egypt. */
+    egyptPayoutMethods: string[];
+    /**
+     * 🔴 16.3d / C74 — above this, a payout needs a second person. Set it to
+     * 0 and *every* payout needs two, which is the safe direction to be
+     * wrong in; there is deliberately no way to switch the rule off.
+     */
+    twoPersonThresholdCents: number;
+    /** 16.3b — a manual request older than this is overdue and alerts. */
+    alertAfterHours: number;
+    /**
+     * 🔴 C69 / 17.1 — netting, behind a setting because it is a business
+     * decision and not a technical one.
+     *
+     * On (the default): when we are already holding a clinician's money, the
+     * session fee is taken out of it rather than billed separately, and 17's
+     * "the session pays for itself out of your earnings" describes something
+     * that actually happens. Off: the fee is invoiced as it always was and
+     * that sentence must not be published.
+     */
+    netFeeFromHeldEarnings: boolean;
+    /**
+     * 🔴 C76 — the spread added to the mid-market rate when a therapist
+     * chooses to settle in EGP, in basis points.
+     *
+     * Zero by default: we take no margin on the convenience. The number
+     * exists so that a real settlement cost can be recovered *visibly* — it
+     * is shown on the screen with the button (16.6b), never discovered on a
+     * statement afterwards.
+     */
+    egpSpreadBps: number;
+  };
 };
 
 /**
@@ -95,6 +135,14 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     unclaimedPatientCredits: 5,
     generalMessagesPerMonth: 50,
   },
+  payouts: {
+    egyptCollectionProvider: "paymob",
+    egyptPayoutMethods: ["instapay", "wallet"],
+    twoPersonThresholdCents: 50_000,
+    alertAfterHours: 12,
+    netFeeFromHeldEarnings: true,
+    egpSpreadBps: 0,
+  },
 };
 
 export type SettingsGroup = keyof PlatformSettings;
@@ -119,6 +167,12 @@ function int(value: unknown, fallback: number, opts: { min?: number; max?: numbe
 
 function str(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : fallback;
+}
+
+function strings(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback;
+  const out = value.filter((v): v is string => typeof v === "string" && v.trim() !== "");
+  return out.length > 0 ? out.map((v) => v.trim()) : fallback;
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -204,6 +258,33 @@ export function parseGroup<G extends SettingsGroup>(
           d.copilot.generalMessagesPerMonth,
           { min: 0, max: 100_000 },
         ),
+      } as PlatformSettings[G];
+
+    case "payouts":
+      return {
+        egyptCollectionProvider: str(
+          v.egyptCollectionProvider,
+          d.payouts.egyptCollectionProvider,
+        ),
+        egyptPayoutMethods: strings(v.egyptPayoutMethods, d.payouts.egyptPayoutMethods),
+        // No ceiling below the price cap, and a floor of zero, because zero
+        // means "two people on everything" and that must stay reachable.
+        twoPersonThresholdCents: int(
+          v.twoPersonThresholdCents,
+          d.payouts.twoPersonThresholdCents,
+          { min: 0, max: 100_000_000 },
+        ),
+        alertAfterHours: int(v.alertAfterHours, d.payouts.alertAfterHours, {
+          min: 1,
+          max: 720,
+        }),
+        netFeeFromHeldEarnings:
+          typeof v.netFeeFromHeldEarnings === "boolean"
+            ? v.netFeeFromHeldEarnings
+            : d.payouts.netFeeFromHeldEarnings,
+        // 1000bps is 10% on top of the market rate. Anything beyond that is a
+        // margin being hidden in a rate, which is the thing C76 forbids.
+        egpSpreadBps: int(v.egpSpreadBps, d.payouts.egpSpreadBps, { min: 0, max: 1_000 }),
       } as PlatformSettings[G];
 
     default:

@@ -7,6 +7,7 @@ import {
   earningsTransfers,
   ledgerEntries,
   users,
+  type Entity,
   type LedgerAccount,
   type LedgerTxnKind,
 } from "@/lib/db/schema";
@@ -31,6 +32,12 @@ export type Leg = {
   amountCents: number;
   organizationId?: string | null;
   userId?: string | null;
+  /**
+   * 16.9 — which entity holds this leg. Defaults to `us`, which is what every
+   * pre-sprint-16 posting was: one entity, one Stripe balance. A leg that
+   * crosses entities is not a default, it is `postEntityTransfer`.
+   */
+  entity?: Entity;
   memo: string;
 };
 
@@ -73,6 +80,7 @@ export async function journal(input: {
       organizationId: leg.organizationId ?? null,
       userId: leg.userId ?? null,
       amountCents: leg.amountCents,
+      entity: leg.entity ?? "us",
       refType: input.refType ?? null,
       refId: input.refId ?? null,
       memo: leg.memo,
@@ -536,4 +544,269 @@ export async function transfersForTherapist(therapistId: string, limit = 20) {
     .where(eq(earningsTransfers.therapistId, therapistId))
     .orderBy(desc(earningsTransfers.createdAt))
     .limit(limit);
+}
+
+/* --------------------------------------------------- §3c · the two rails -- */
+
+/**
+ * A manual EGP payout actually left the Egyptian entity's bank account. 16.2.
+ *
+ * Posted at **sent**, not at approved and not at confirmed. Approval is a
+ * decision and confirmation is a receipt; the money leaves when somebody
+ * presses send at the bank, and the books have to say so on that day or the
+ * daily reconciliation is out by the size of the queue.
+ *
+ * The amount is in settlement cents (USD) — the same unit as the held balance
+ * it discharges. What was actually transferred in EGP, and at what frozen
+ * rate, is on the payout request, because that is the number a therapist
+ * disputes and it must not be re-derived from a rate that has since moved.
+ */
+export async function postManualPayout(input: {
+  requestId: string;
+  organizationId: string;
+  therapistId: string;
+  amountCents: number;
+  entity: Entity;
+  sentByUserId: string;
+}): Promise<string> {
+  return journal({
+    kind: "manual_payout",
+    refType: "payout_request",
+    refId: input.requestId,
+    createdBy: input.sentByUserId,
+    legs: [
+      {
+        account: "therapist_payable",
+        amountCents: input.amountCents,
+        organizationId: input.organizationId,
+        userId: input.therapistId,
+        entity: input.entity,
+        memo: "Manual payout sent",
+      },
+      {
+        account: "cash",
+        amountCents: -input.amountCents,
+        organizationId: input.organizationId,
+        entity: input.entity,
+        memo: "Manual payout sent",
+      },
+    ],
+  });
+}
+
+/**
+ * Money moved between the two entities. 16.9.
+ *
+ * 🔴 **Never an accounting side effect.** The two cross-border crossings of
+ * §3c end with one entity holding cash and the other owing the clinician, and
+ * the temptation is to net them at read time — which produces a balance that
+ * is correct on a screen and unsupportable in an audit. This is the explicit,
+ * audited event instead: cash leaves one entity and arrives at the other, in
+ * one transaction that cannot be half-applied.
+ */
+export async function postEntityTransfer(input: {
+  organizationId: string;
+  fromEntity: Entity;
+  toEntity: Entity;
+  amountCents: number;
+  reason: string;
+  adminUserId: string | null;
+}): Promise<{ ok?: boolean; error?: string; txnId?: string }> {
+  if (input.fromEntity === input.toEntity) {
+    return { error: "A transfer between one entity and itself moves nothing." };
+  }
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    return { error: "Enter a whole number of cents above zero." };
+  }
+  if (input.reason.trim().length < 5) return { error: "Say what this transfer is for." };
+
+  const txnId = await journal({
+    kind: "entity_transfer",
+    createdBy: input.adminUserId,
+    legs: [
+      {
+        account: "cash",
+        amountCents: -input.amountCents,
+        organizationId: input.organizationId,
+        entity: input.fromEntity,
+        memo: input.reason.trim(),
+      },
+      {
+        account: "cash",
+        amountCents: input.amountCents,
+        organizationId: input.organizationId,
+        entity: input.toEntity,
+        memo: input.reason.trim(),
+      },
+    ],
+  });
+
+  log.info("entity transfer posted", {
+    from: input.fromEntity,
+    to: input.toEntity,
+    amount: input.amountCents,
+  });
+  return { ok: true, txnId };
+}
+
+/**
+ * C69 / 17.1 — a session fee taken out of what we already hold.
+ *
+ * This is the posting that makes *"the session pays for itself out of your
+ * earnings"* a description of something that happens rather than a metaphor.
+ * We owe them less and they owe us nothing new; no money moves anywhere, and
+ * the two balances that meet here are the only two that ever should.
+ *
+ * Only reachable when `payouts.netFeeFromHeldEarnings` is on and there is
+ * actually a held balance to take it from — see `lib/billing/service.ts`.
+ */
+export async function postFeeNettedFromHeld(input: {
+  sessionId: string;
+  organizationId: string;
+  therapistId: string;
+  amountCents: number;
+  entity: Entity;
+}): Promise<void> {
+  if (input.amountCents <= 0) return;
+  await journal({
+    kind: "fee_netted",
+    refType: "session",
+    refId: input.sessionId,
+    legs: [
+      {
+        account: "therapist_payable",
+        amountCents: input.amountCents,
+        organizationId: input.organizationId,
+        userId: input.therapistId,
+        entity: input.entity,
+        memo: "Session fee taken from held earnings",
+      },
+      {
+        account: "platform_revenue",
+        amountCents: -input.amountCents,
+        organizationId: input.organizationId,
+        userId: input.therapistId,
+        entity: input.entity,
+        memo: "Session fee taken from held earnings",
+      },
+    ],
+  });
+}
+
+/* ------------------------------------------------------- 16.8 · the proof -- */
+
+/**
+ * 🔴 **Money held is money owed**, checked rather than asserted. 16.8.
+ *
+ * Four questions, each of which has a right answer of zero, and each of which
+ * is a different way the books can be wrong:
+ *
+ *   1. `outOfBalanceCents` — the whole journal nets to zero. A non-zero here
+ *      means a transaction exists that `journal()` did not write.
+ *   2. `unbalancedTxns` — the same failure, per transaction, so it can be
+ *      found rather than only detected.
+ *   3. `negativeHolds` — a clinician we owe a *negative* amount. That is money
+ *      paid out that was never received, and it is the shape a double payout
+ *      takes.
+ *   4. `unbackedEntity` — an entity holding negative cash: paying out of a
+ *      bank account that never took the money in, which is what the two
+ *      cross-border crossings turn into if the `entity_transfer` is forgotten.
+ *
+ * Run daily. It is deliberately a *report* and not an alarm: it returns the
+ * numbers and lets the caller decide, because an alarm nobody can interrogate
+ * is an alarm that gets muted.
+ */
+export async function reconcile() {
+  const balance = await trialBalance();
+  const unbalanced = await unbalancedTransactions();
+
+  const negativeHolds = await db
+    .select({
+      therapistId: ledgerEntries.userId,
+      heldCents: sql<number>`(-SUM(${ledgerEntries.amountCents}))::int`,
+    })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.account, "therapist_payable"))
+    .groupBy(ledgerEntries.userId)
+    .having(sql`SUM(${ledgerEntries.amountCents}) > 0`);
+
+  const byEntity = await db
+    .select({
+      entity: ledgerEntries.entity,
+      account: ledgerEntries.account,
+      totalCents: sql<number>`SUM(${ledgerEntries.amountCents})::int`,
+    })
+    .from(ledgerEntries)
+    .groupBy(ledgerEntries.entity, ledgerEntries.account);
+
+  const cashByEntity = byEntity.filter((r) => r.account === "cash");
+  const heldByEntity = byEntity
+    .filter((r) => r.account === "therapist_payable")
+    .map((r) => ({ entity: r.entity, heldCents: -r.totalCents }));
+
+  return {
+    ...balance,
+    unbalancedTxns: unbalanced,
+    negativeHolds,
+    cashByEntity: cashByEntity.map((r) => ({ entity: r.entity, cashCents: r.totalCents })),
+    heldByEntity,
+    /** An entity paying out of a bank account it never collected into. */
+    unbackedEntity: cashByEntity.filter((r) => r.totalCents < 0).map((r) => r.entity),
+    /**
+     * 🔴 The one line a finance team reads. Zero, or the books are wrong and
+     * this is by how much and in how many places.
+     */
+    balances:
+      balance.outOfBalanceCents === 0 &&
+      unbalanced.length === 0 &&
+      negativeHolds.length === 0 &&
+      cashByEntity.every((r) => r.totalCents >= 0),
+  };
+}
+
+/**
+ * Every held cent, traced. 16.8's other half.
+ *
+ * "Money held is money owed" is a claim about *provenance*, not only about a
+ * sum: each held cent must trace to one payment in and at most one payout
+ * out. This lists the transactions on one clinician's payable account with
+ * what each of them refers to, so the trace can be walked by a person.
+ */
+export async function traceHeld(therapistId: string) {
+  const rows = await db
+    .select({
+      txnId: ledgerEntries.txnId,
+      kind: ledgerEntries.txnKind,
+      refType: ledgerEntries.refType,
+      refId: ledgerEntries.refId,
+      amountCents: ledgerEntries.amountCents,
+      entity: ledgerEntries.entity,
+      createdAt: ledgerEntries.createdAt,
+    })
+    .from(ledgerEntries)
+    .where(
+      and(eq(ledgerEntries.account, "therapist_payable"), eq(ledgerEntries.userId, therapistId)),
+    )
+    .orderBy(ledgerEntries.createdAt);
+
+  const inCents = rows.filter((r) => r.amountCents < 0).reduce((t, r) => t - r.amountCents, 0);
+  const outCents = rows.filter((r) => r.amountCents > 0).reduce((t, r) => t + r.amountCents, 0);
+
+  return {
+    entries: rows,
+    inCents,
+    outCents,
+    heldCents: inCents - outCents,
+    /** More than one payout against the same request is the double-pay bug. */
+    duplicatePayouts: Object.entries(
+      rows
+        .filter((r) => r.kind === "manual_payout" && r.refId)
+        .reduce<Record<string, number>>((acc, r) => {
+          acc[r.refId!] = (acc[r.refId!] ?? 0) + 1;
+          return acc;
+        }, {}),
+    )
+      .filter(([, count]) => count > 1)
+      .map(([refId]) => refId),
+  };
 }

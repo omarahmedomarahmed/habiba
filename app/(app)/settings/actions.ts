@@ -12,6 +12,8 @@ import {
   requestPayout,
   startOnboarding,
 } from "@/lib/billing/connect";
+import { quoteFor } from "@/lib/billing/fx";
+import { convert } from "@/lib/billing/money";
 import { db } from "@/lib/db";
 import { writeTimezone } from "@/lib/data/timezone";
 import { getSettings } from "@/lib/settings";
@@ -193,13 +195,35 @@ export async function updatePaymentSettings(
 
   const dollars = Number(String(formData.get("rateDollars") ?? "0").trim() || "0");
   const cents = Math.round(dollars * 100);
-  const problem = priceProblem(cents, (await getSettings()).session);
+
+  /*
+   * 16.5 — a therapist prices in **either** currency, and the number they typed
+   * is stored in the currency they typed it in.
+   *
+   * The platform's floor and cap are USD figures (`platform_settings`), so an
+   * EGP price is converted to dollars **for the check only**. Converting the
+   * stored number instead would freeze today's rate into a price that is meant
+   * to stay 1,500 EGP whatever the market does — and would silently change
+   * what their patients see the next time the rate moved.
+   */
+  const currency = String(formData.get("rateCurrency") ?? "usd").trim().toLowerCase();
+  if (currency !== "usd" && currency !== "egp") return { error: "Choose a currency." };
+
+  let usdEquivalent = cents;
+  if (currency !== "usd" && cents > 0) {
+    const quote = await quoteFor(currency, "usd");
+    if (!quote) return { error: "We cannot price that currency right now. Try again shortly." };
+    usdEquivalent = convert(cents, quote.rateMicro);
+  }
+
+  const problem = priceProblem(usdEquivalent, (await getSettings()).session);
   if (problem) return { error: problem };
 
   await db
     .update(users)
     .set({
       sessionRateCents: cents,
+      rateCurrency: currency,
       autoSettleFromEarnings: formData.get("autoSettle") === "on",
       updatedAt: new Date(),
     })

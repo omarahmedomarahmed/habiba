@@ -111,6 +111,31 @@ export async function chargeForSession(opts: {
     // changes the rate changes what the *next* session bills; this invoice is
     // already a fact.
     const tier = await currentTier(opts.organizationId);
+
+    /*
+     * 🔴 C69 / 16.6a — netting, when we are already holding their money.
+     *
+     * Sprint 16 is the first sprint in which this is possible: before it the
+     * platform never held a clinician's funds, so "the session pays for itself
+     * out of your earnings" described a mechanic that did not exist and §6
+     * forbids publishing such a sentence. Now, when we hold enough, the fee
+     * comes out of the held balance in one ledger transaction — we owe them
+     * less, they owe us nothing new, and no money moves anywhere.
+     *
+     * Behind `payouts.netFeeFromHeldEarnings` (on by default) because whether
+     * to net is a business decision, not a technical one. Off, this branch
+     * never runs and the bill is raised exactly as it always was — and 17's
+     * pricing copy must not claim otherwise.
+     */
+    if (tier.rateCents > 0) {
+      const netted = await netFeeFromEarnings({
+        organizationId: opts.organizationId,
+        sessionId: opts.sessionId,
+        amountCents: tier.rateCents,
+      });
+      if (netted) return { status: "netted", amountCents: tier.rateCents };
+    }
+
     await raiseInvoice({
       organizationId: opts.organizationId,
       kind: "session",
@@ -131,6 +156,55 @@ export async function chargeForSession(opts: {
   }
 }
 
+/**
+ * Take a session fee out of what we are holding for this clinician. C69.
+ *
+ * Returns false — and changes nothing — when the setting is off, when we hold
+ * nothing, or when we hold *less than the fee*. A partial netting would leave
+ * a bill for the remainder, which is two charges for one session and a
+ * statement nobody can read; the whole fee comes out of earnings or none of it
+ * does.
+ */
+async function netFeeFromEarnings(input: {
+  organizationId: string;
+  sessionId: string;
+  amountCents: number;
+}): Promise<boolean> {
+  const settings = await getSettings();
+  if (!settings.payouts.netFeeFromHeldEarnings) return false;
+
+  const [session] = await db
+    .select({ therapistId: sessions.therapistId })
+    .from(sessions)
+    .where(eq(sessions.id, input.sessionId))
+    .limit(1);
+  if (!session?.therapistId) return false;
+
+  const { heldForTherapist, postFeeNettedFromHeld } = await import("./ledger");
+  const held = await heldForTherapist(session.therapistId);
+  if (held < input.amountCents) return false;
+
+  await raiseInvoice({
+    organizationId: input.organizationId,
+    kind: "session",
+    sessionId: input.sessionId,
+    amountCents: input.amountCents,
+    status: "paid",
+    description: "Completed session · taken from your earnings",
+    postToLedger: false,
+  });
+
+  await postFeeNettedFromHeld({
+    sessionId: input.sessionId,
+    organizationId: input.organizationId,
+    therapistId: session.therapistId,
+    amountCents: input.amountCents,
+    entity: "us",
+  });
+
+  return true;
+}
+
 async function raiseInvoice(input: {
   organizationId: string;
   kind: "session" | "subscription";
@@ -141,6 +215,12 @@ async function raiseInvoice(input: {
   periodStart?: Date | null;
   periodEnd?: Date | null;
   stripePaymentIntentId?: string | null;
+  /**
+   * False when the caller posts its own transaction. Netting is the one case:
+   * the money never arrives as cash, so the ordinary raised-then-paid pair
+   * would invent a cash receipt that never happened.
+   */
+  postToLedger?: boolean;
 }) {
   const [created] = await db
     .insert(invoices)
@@ -168,7 +248,7 @@ async function raiseInvoice(input: {
    * nothing at all — there is no revenue to recognise and no receivable to
    * chase.
    */
-  if (created && input.amountCents > 0) {
+  if (created && input.amountCents > 0 && input.postToLedger !== false) {
     const { postInvoiceRaised, postInvoicePaidByCard } = await import("./ledger");
     await postInvoiceRaised({
       id: created.id,

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { PublicProfile } from "@/components/radar/public-profile";
 import { BookingCalendar } from "@/components/scheduling/booking-calendar";
+import { PriceTag } from "@/components/money/price-tag";
+import { quoteFor } from "@/lib/billing/fx";
 import { formatUsd } from "@/lib/billing/plans";
 import { publicProfile } from "@/lib/data/radar";
 import { reliabilityFor } from "@/lib/data/recovery";
@@ -58,7 +60,12 @@ export default async function TherapistProfilePage({
    * evening. The radar and the calendar answer two different needs and the
    * page now offers both.
    */
-  const [slots, reliability] = await Promise.all([openHours(id), reliabilityFor(id)]);
+  const [slots, reliability, quote] = await Promise.all([
+    openHours(id),
+    reliabilityFor(id),
+    quoteFor("usd", "egp"),
+  ]);
+  const egpRate = quote?.rateMicro ?? null;
 
   return (
     <>
@@ -81,6 +88,22 @@ export default async function TherapistProfilePage({
           </p>
         </div>
       ) : null}
+      {/*
+        16.4 — every price shows USD with a small EGP toggle beside it.
+        The rate is quoted on the server and handed down as a number: a
+        component that fetched its own would show a figure the checkout does
+        not agree with, and C37 refuses a pair we cannot price rather than
+        guessing one.
+      */}
+      {profile.rateCents > 0 ? (
+        <div className="mx-auto max-w-2xl px-4 pt-2 sm:px-6">
+          <p className="flex items-center gap-2 text-sm text-slate-500">
+            One hour
+            <PriceTag usdCents={profile.rateCents} rateMicro={egpRate} />
+          </p>
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-2xl px-4 pb-10 sm:px-6">
         <BookingCalendar
           slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString() }))}

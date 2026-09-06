@@ -21,10 +21,13 @@ export const dynamic = "force-dynamic";
  * it was tax and $4.50 was ours — and a patient who discovers either later is
  * one who stops trusting the receipt.
  *
- * ⚠️ **Incomplete until sprint 16.** Every figure here is the settlement
- * currency, which today is always USD. 15.6 asks for "the currency they paid
- * in", and the EGP rail does not exist yet — so this shows what was actually
- * charged rather than inventing a conversion, and says so.
+ * ## The currency they paid in (16.4, 16.6 — closes sprint 15's caveat)
+ *
+ * Where a payment was presented in another currency, **that** is the headline
+ * figure, at the rate frozen onto the payment when it was made. Not today's
+ * rate: a receipt that changes value while somebody is reading it is not a
+ * receipt. The breakdown underneath stays in the settlement currency, because
+ * that is what the therapist was actually paid and what a refund would return.
  */
 export default async function PatientBillingPage() {
   const actor = await requirePatient();
@@ -38,6 +41,9 @@ export default async function PatientBillingPage() {
         vat: sessionPayments.vatCents,
         fee: sessionPayments.platformFeeCents,
         currency: sessionPayments.currency,
+        presented: sessionPayments.presentedCents,
+        presentedCurrency: sessionPayments.presentedCurrency,
+        rateMicro: sessionPayments.fxRateMicro,
         therapistFirst: users.firstName,
         therapistLast: users.lastName,
       })
@@ -107,11 +113,16 @@ export default async function PatientBillingPage() {
                     {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
                   </p>
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
-                    {formatMoney((row.gross ?? 0) + (row.vat ?? 0), row.currency ?? "usd")}
+                    {row.presented !== null && row.presentedCurrency
+                      ? formatMoney(row.presented, row.presentedCurrency)
+                      : formatMoney((row.gross ?? 0) + (row.vat ?? 0), row.currency ?? "usd")}
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {formatDate(row.at, actor.timezone)}
+                  {row.presented !== null && row.rateMicro
+                    ? ` · charged at ${(row.rateMicro / 1_000_000).toFixed(2)} ${(row.presentedCurrency ?? "").toUpperCase()} to the ${(row.currency ?? "usd").toUpperCase()}`
+                    : ""}
                 </p>
 
                 {/* Three lines, with reasons. Never one number. */}
@@ -133,8 +144,9 @@ export default async function PatientBillingPage() {
       )}
 
       <p className="text-xs leading-relaxed text-slate-400">
-        ⚠️ Amounts are shown in the currency each payment was settled in. Paying in Egyptian pounds
-        arrives in a later release.
+        The headline figure is what you were actually charged, in the currency you paid in, at the
+        rate quoted at the time. The breakdown is in the currency your therapist is paid in — that
+        is the amount a refund would return.
       </p>
     </main>
   );

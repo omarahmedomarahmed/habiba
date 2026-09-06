@@ -56,7 +56,12 @@ export type Message = {
     | "session.summary_ready"
     | "claim.code"
     /** 13.3 — the therapist hands their patient the link to their own record. */
-    | "claim.invite";
+    | "claim.invite"
+    /** 16.2 — the manual payout rail, which a person works by hand. */
+    | "payout.sent"
+    | "payout.rejected"
+    /** 🔴 16.3b — the ageing alert. A dashboard at 3am is not an alert. */
+    | "payout.overdue";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;
