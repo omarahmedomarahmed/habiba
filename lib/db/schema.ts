@@ -2425,6 +2425,14 @@ export const personClaims = pgTable(
     seenTherapist: boolean("seen_therapist"),
     nameAttempts: integer("name_attempts").notNull().default(0),
     challengedAt: timestamp("challenged_at", { withTimezone: true }),
+    /**
+     * Question two answered. 13.6 / 13.10.
+     *
+     * The state between passing the challenge and owning the record: consent
+     * still has to be asked, because claiming is not consenting. Without this
+     * the middle state has nowhere to live and the gate opens on question one.
+     */
+    nameConfirmedAt: timestamp("name_confirmed_at", { withTimezone: true }),
 
     /**
      * Which clinician's record this attempt is about.

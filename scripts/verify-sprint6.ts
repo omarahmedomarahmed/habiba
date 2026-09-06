@@ -74,9 +74,12 @@ async function main() {
     `);
     const byTable = new Map(cols.rows.map((r) => [r.table_name, r.n]));
     for (const [table, expected] of [
-      ["patient_accounts", 10],
+      // 11 since 13.1/13.11: `timezone` (0043) joined the ten sprint 6 built.
+      ["patient_accounts", 11],
       ["patient_auth_sessions", 8],
-      ["person_claims", 11],
+      // 16 since 13.5/13.6: seen_therapist, name_attempts, challenged_at,
+      // patient_id (0043) and name_confirmed_at (0044) carry the challenge.
+      ["person_claims", 16],
       ["person_invites", 9],
     ] as const) {
       check(
@@ -143,6 +146,8 @@ async function main() {
     const shared = email("shared");
 
     await db.insert(patientAccounts).values({
+        // 13.1 — the number is the identity; the database requires one.
+        phone: "+201300060001",
       personId: personA,
       email: shared,
       passwordHash: "x",
@@ -151,6 +156,8 @@ async function main() {
     let rejected = false;
     try {
       await db.insert(patientAccounts).values({
+        // 13.1 — the number is the identity; the database requires one.
+        phone: "+201300060002",
         personId: personB,
         email: shared,
         passwordHash: "x",
@@ -401,11 +408,25 @@ async function newPerson(db: ReturnType<typeof connect>["db"], label: string): P
   return row!.id;
 }
 
+/*
+ * 13.1 — every account needs its own number now, and `patient_accounts_phone_unique`
+ * means "its own" literally. A counter rather than a constant: this helper is
+ * called several times per run, and a fixed number made the second call fail on
+ * the index rather than on whatever the check was actually testing.
+ */
+let accountSeq = 0;
+
 async function newAccount(db: ReturnType<typeof connect>["db"], label: string): Promise<string> {
   const personId = await newPerson(db, label);
+  accountSeq += 1;
   const [row] = await db
     .insert(patientAccounts)
-    .values({ personId, email: email(label), passwordHash: "x" })
+    .values({
+      personId,
+      email: email(label),
+      passwordHash: "x",
+      phone: `+2013000601${String(accountSeq).padStart(2, "0")}`,
+    })
     .returning({ id: patientAccounts.id });
   return row!.id;
 }

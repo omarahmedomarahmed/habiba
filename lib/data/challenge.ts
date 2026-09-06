@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { patientAccounts, patients, people, personClaims, users } from "@/lib/db/schema";
@@ -244,6 +244,8 @@ export async function answerName(input: {
   patientId: string;
   name: string;
 }): Promise<AnswerResult> {
+  const now = new Date();
+
   const [row] = await db
     .select({
       claimId: personClaims.id,
@@ -316,15 +318,41 @@ export async function answerName(input: {
     return { ok: false, error: GENERIC };
   }
 
+  /*
+   * Stamped, not claimed. 13.10: sprint 7's consent step still runs, so the
+   * record becomes theirs when they answer it — this records only that the
+   * challenge is behind them.
+   */
+  await db
+    .update(personClaims)
+    .set({ nameConfirmedAt: now })
+    .where(and(eq(personClaims.id, row.claimId), eq(personClaims.status, "pending")));
+
+  log.info("challenge passed", { patient: ref(input.patientId) });
   return { ok: true, stage: "done", personId: row.personId };
 }
 
 /**
- * Has this account passed both questions on this record?
+ * Has this account passed **both** questions on this record?
  *
  * 🔴 The gate every screen consults before rendering anything about a record.
  * 13.8: *no screen displays a record's contents before the challenge is
- * passed.* Computed from the claim row rather than trusted from a session
+ * passed.*
+ *
+ * ## `status = 'verified'`, and nothing weaker
+ *
+ * The first version of this asked for `seen_therapist = true` and a status that
+ * was not `rejected` — which is true the moment somebody answers *yes to
+ * question one*. It would have opened a record to anybody willing to click
+ * "yes, I have seen them", with the name gate still standing but no longer
+ * guarding anything. Caught by a verifier check whose label ("still unpassed
+ * after two wrong answers") contradicted what it was asserting.
+ *
+ * So the gate is `name_confirmed_at`: **both** questions answered. Not
+ * `status = 'verified'` either — that is the *consent* step (13.10), which
+ * happens after, and a person who has proved who they are should not be locked
+ * out of their own record because they have not yet decided what their
+ * therapist may see. Computed from the row rather than trusted from a session
  * flag — a flag is something a client can be persuaded to send.
  */
 export async function challengePassed(accountId: string, patientId: string): Promise<boolean> {
@@ -336,7 +364,7 @@ export async function challengePassed(accountId: string, patientId: string): Pro
         eq(personClaims.patientAccountId, accountId),
         eq(personClaims.patientId, patientId),
         eq(personClaims.seenTherapist, true),
-        ne(personClaims.status, "rejected"),
+        isNotNull(personClaims.nameConfirmedAt),
       ),
     )
     .limit(1);

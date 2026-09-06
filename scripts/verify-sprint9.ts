@@ -329,6 +329,8 @@ async function newAccount(db: Db, personId: string): Promise<string> {
   const [row] = await db
     .insert(patientAccounts)
     .values({
+        // 13.1 — the number is the identity; the database requires one.
+        phone: "+201300090001",
       personId,
       email: `${TAG}-${randomUUID().slice(0, 6)}@example.invalid`,
       passwordHash: "x",

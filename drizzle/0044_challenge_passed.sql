@@ -1,0 +1,15 @@
+-- 13.6 / 13.10 — the state between "challenge passed" and "record claimed".
+--
+-- `answerName` matching is not the end of the flow: 13.10 keeps sprint 7's
+-- consent step after a successful claim, because claiming is not consenting.
+-- So there are three states, not two, and the middle one needs somewhere to
+-- live:
+--
+--   seen_therapist = true                        question one answered
+--   name_confirmed_at IS NOT NULL                question two answered
+--   status = 'verified'                          consent answered, record theirs
+--
+-- Without this column the middle state had nowhere to be recorded, so either
+-- `challengePassed` opened on question one alone — which is the defect the
+-- sprint 13 verifier caught — or the consent step had to be skipped.
+ALTER TABLE "person_claims" ADD COLUMN IF NOT EXISTS "name_confirmed_at" timestamp with time zone;

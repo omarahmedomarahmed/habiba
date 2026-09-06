@@ -4,7 +4,7 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { patients, people, personClaims, personInvites } from "@/lib/db/schema";
+import { patients, people, personClaims, personInvites, users } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
 import { applyClaimDecision } from "./grants";
@@ -144,7 +144,14 @@ export async function startClaim(input: {
       expiresAt,
     })
     .onConflictDoUpdate({
-      target: [personClaims.personId, personClaims.patientAccountId],
+      /*
+       * The arbiter must name the index exactly. 0043 widened
+       * `person_claims_open_unique` to (account, person, patient) with
+       * `NULLS NOT DISTINCT`, so this route — which has no `patient_id`,
+       * because it claims the person rather than one clinician's record —
+       * conflicts on the NULL, which is what NULLS NOT DISTINCT is for.
+       */
+      target: [personClaims.patientAccountId, personClaims.personId, personClaims.patientId],
       /*
        * `targetWhere`, not `setWhere`, and the difference is the whole
        * statement working or not.
@@ -363,6 +370,11 @@ export async function resolveInvite(token: string): Promise<{
   personId: string;
   redactedName: string;
   inviteId: string;
+  /** 13.4 — pre-filled and locked on signup. E.164 or null. */
+  phone: string | null;
+  email: string | null;
+  /** 13.8 — the only thing a pre-challenge screen may name. */
+  therapistName: string;
 } | null> {
   const [row] = await db
     .select({
@@ -370,10 +382,15 @@ export async function resolveInvite(token: string): Promise<{
       personId: personInvites.personId,
       firstName: people.firstName,
       lastName: people.lastName,
+      phone: people.phone,
+      email: people.email,
       claimedAt: people.claimedAt,
+      therapistFirst: users.firstName,
+      therapistLast: users.lastName,
     })
     .from(personInvites)
     .innerJoin(people, eq(people.id, personInvites.personId))
+    .innerJoin(users, eq(users.id, personInvites.issuedByUserId))
     .where(
       and(
         eq(personInvites.tokenHash, hash(token)),
@@ -390,6 +407,19 @@ export async function resolveInvite(token: string): Promise<{
     personId: row.personId,
     inviteId: row.id,
     redactedName: redactName(row.firstName, row.lastName),
+    /*
+     * 13.4 — the number the record already holds, so signup can pre-fill and
+     * lock it.
+     *
+     * 🔴 Locked, not merely pre-filled, and the reason is the invariant: this
+     * link was sent *to* that number. Letting the person edit it here would
+     * let whoever received a forwarded link register their own number against
+     * somebody else's record — which is precisely the collision §3b's unique
+     * index exists to prevent, arriving through the one door that bypasses it.
+     */
+    phone: row.phone,
+    email: row.email,
+    therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
   };
 }
 

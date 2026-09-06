@@ -54,7 +54,9 @@ export type Message = {
     | "booking.reminder"
     | "booking.cancelled"
     | "session.summary_ready"
-    | "claim.code";
+    | "claim.code"
+    /** 13.3 — the therapist hands their patient the link to their own record. */
+    | "claim.invite";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

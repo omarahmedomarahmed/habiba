@@ -64,6 +64,14 @@ const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: numb
    * be rejected — see `scripts/whatsapp-check.ts`.
    */
   "claim.code": { name: "claim_code", variables: 1 },
+  /*
+   * 13.3 — "{{1}} has invited you to set up your 24Therapy account."
+   *
+   * A utility template, not authentication: it carries a link and no code. The
+   * link goes to a page that asks for the number and sends a real code, so a
+   * forwarded message buys nothing.
+   */
+  "claim.invite": { name: "claim_invite", variables: 1 },
 };
 
 /** The language a template was approved in. Egypt's WhatsApp is largely Arabic. */

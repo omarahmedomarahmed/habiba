@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { patientAccounts, people } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
+import { usable } from "@/lib/scheduling/tz";
 import { log } from "@/lib/logger";
 import { callerKey, consume } from "@/lib/rate-limit";
 
@@ -48,13 +49,31 @@ export async function patientSignUp(
    * because the country it needs was never collected. Refusing at the door is
    * the only version where the stored number is reachable.
    */
+  /*
+   * 🔴 13.1 / §3b — the number is the identity, so it is required.
+   *
+   * It was optional through sprints 6–12, which is why `patient_accounts.phone`
+   * is a nullable column with a `NOT VALID` presence check (0043) rather than a
+   * plain NOT NULL. Nothing may create an account without one from here.
+   */
   const rawPhone = String(formData.get("phone") ?? "").trim();
-  let phone: string | null = null;
-  if (rawPhone) {
-    const parsed = toE164(rawPhone, String(formData.get("phoneCountry") ?? "") || null);
-    if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
-    phone = parsed.e164;
+  if (!rawPhone) {
+    return {
+      error: "A phone number is required — it is how you sign in and how your therapist finds you.",
+    };
   }
+
+  const parsed = toE164(rawPhone, String(formData.get("phoneCountry") ?? "") || null);
+  if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
+  const phone = parsed.e164;
+
+  /*
+   * 13.11 / 13.12 — where they are, as they confirmed it on the form. Refused
+   * rather than coerced if this runtime has never heard of it: a zone we cannot
+   * format in is a reminder sent at the wrong hour.
+   */
+  const rawZone = String(formData.get("timezone") ?? "").trim();
+  const timezone = rawZone && usable(rawZone) ? rawZone : null;
 
   if (!email) return { error: "Enter your email address." };
   if (!firstName) return { error: "Enter your first name." };
@@ -109,6 +128,7 @@ export async function patientSignUp(
         email,
         passwordHash: await hashPassword(password),
         phone,
+        timezone,
       })
       .returning({ id: patientAccounts.id });
 

@@ -52,17 +52,29 @@ export default async function InvitePage({
       <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-8">
         <Card className="p-5">
           <p className="text-sm font-semibold text-slate-900">Your therapist sent you this</p>
+          {/*
+            🔴 13.8 — the therapist's name, and nothing about the record.
+            -------------------------------------------------------------
+            This used to print the redacted name (`H••••• A•••••`) to anybody
+            holding the link. A link forwarded in a WhatsApp thread reaches
+            people it was not sent to, and initials beside a therapist's name
+            are enough to confirm a guess about who somebody is seeing.
+
+            The therapist's name is safe here for the same reason it is safe in
+            the challenge: answering "have you seen them?" needs something the
+            real patient already knows, and tells a stranger nothing they can
+            act on.
+          */}
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            It connects the notes they keep — under the name{" "}
-            <span className="font-mono font-semibold tracking-wider">{invite.redactedName}</span> —
-            to an account of your own.
+            <span className="font-semibold text-slate-800">{invite.therapistName}</span> has
+            invited you to take ownership of the record they keep for you.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
             Create an account or sign in, then open this link again.
           </p>
           <div className="mt-4 space-y-2">
             <Link
-              href={`/patient/signup?next=/patient/invite/${token}`}
+              href={`/patient/signup?invite=${token}`}
               className="flex h-11 w-full items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-white"
             >
               Create an account

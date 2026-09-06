@@ -15,6 +15,9 @@ import {
 import { ensurePersonForPatient } from "@/lib/data/people";
 import { env } from "@/lib/env";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
+import { notify } from "@/lib/notify";
+import { audit } from "@/lib/audit";
+import { fullName } from "@/lib/utils";
 
 export type PatientActionState = { error?: string; ok?: boolean };
 
@@ -156,7 +159,10 @@ export async function savePatient(
  */
 export async function createInviteLink(
   patientId: string,
-): Promise<{ url: string; expiresAt: string } | { error: string }> {
+): Promise<
+  | { url: string; expiresAt: string; sent: boolean; channel: "email" | "whatsapp" | null }
+  | { error: string }
+> {
   const actor = await requireUser();
 
   const patient = await getPatient(actor, patientId);
@@ -168,10 +174,49 @@ export async function createInviteLink(
   const issued = await issueInvite({ personId, issuedByUserId: actor.userId });
   if ("error" in issued) return issued;
 
+  const url = `${env.appUrl}/patient/invite/${issued.token}`;
+
+  /*
+   * 13.3 — **we send it**, rather than handing the clinician a string to copy.
+   *
+   * 6.10 built this route for a caseload with no contact details at all: the
+   * link came back on screen and the therapist read it out. §3b makes the
+   * number mandatory (12.4), so there is now somebody to send to, and a
+   * clinician retyping a 24-character token into WhatsApp is a transcription
+   * error waiting to hand the wrong person a record.
+   *
+   * The link is still returned either way. Whether it *arrived* is reported
+   * rather than assumed (§6): if nothing sent, the screen says so and shows
+   * the link to pass on by hand — which is exactly 6.10's original flow, kept
+   * as the fallback it should always have been.
+   *
+   * 🔴 No clinical content. A first name, a therapist's name and a link.
+   */
+  const delivery = await notify(
+    { email: patient.email, phone: patient.phone, timezone: patient.timezone },
+    {
+      kind: "claim.invite",
+      subject: `${fullName(actor.firstName, actor.lastName)} has invited you to 24Therapy`,
+      body: `${fullName(actor.firstName, actor.lastName)} would like to give you access to your own record on 24Therapy.\n\nOpen the link below to set up your account. It is yours, and you decide what happens to it.`,
+      link: { label: "Set up my account", url },
+      variables: [fullName(actor.firstName, actor.lastName)],
+    },
+  );
+
+  await audit({
+    actor,
+    category: "phi_access",
+    action: "patient.invite.send",
+    resourceType: "patient",
+    resourceId: patientId,
+  });
+
   revalidatePath(`/patients/${patientId}`);
   return {
-    url: `${env.appUrl}/patient/invite/${issued.token}`,
+    url,
     expiresAt: issued.expiresAt.toISOString(),
+    sent: delivery.sent,
+    channel: delivery.channel,
   };
 }
 
