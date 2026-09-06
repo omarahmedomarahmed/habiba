@@ -148,6 +148,9 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C86 | 13R | **A patient account still requires an email, and §3b says the address often does not exist.** Today `email` and `password_hash` are both `NOT NULL`, so somebody with no address cannot create an account at all — a real exclusion in the exact market this is for — and "identity is a phone number" was built on an account that demands an address anyway. | major | sprint 13 | **resolved 13R.6–13R.13** — §3b rewritten by the founder and built: the phone is required on every account, the email is optional on every account, a password is set either way, and sign-in accepts either handle. `patient_accounts.email` is nullable with its unique index rebuilt **`NULLS DISTINCT`** — the default, and the opposite of what 0043 correctly used one table away, because here that keyword would collapse every address-less account into one. Proved by attempting the write: **two** address-less accounts coexist, a second on the same address is refused, a second on the same number is refused, none at all is refused |
 | C87 | 13 | 🔴 **The three-strike lock is per *claim*, not per *record*, so a new code request buys three more guesses — and 13.8 says a mis-claim must be impossible, not unlikely.** 0043's own comment states the intent: *"an attacker with a fresh IP must not get a fresh budget against it."* The implementation does not hold it. On the third wrong name `answerName` sets `status = 'expired'`; `person_claims_open_unique` is partial on `WHERE status = 'pending'`, so the locked row leaves the index, `startClaim`'s `onConflictDoUpdate` no longer finds a conflict, and the next "send me a code" **inserts a fresh row with `name_attempts` at its `DEFAULT 0`**. Anyone holding the number — the recycled-number case in C75, or a household member — gets three guesses per code request, unbounded, against a first name. **Ruling: count the attempts on the (account, patient record) pair across every claim, not on the row**, and give the lock its own `status = 'locked'` rather than reusing `expired`, which today makes a lockout indistinguishable from a code that timed out. | major | review | **resolved 13R.1–13R.2** — the budget moved off `person_claims` and onto `claim_attempts`, keyed unique on (account, record). The hole was a sequence, not a step: the third wrong name set `status = 'expired'`, the row left the partial `WHERE status = 'pending'` index, `startClaim`'s upsert found nothing to conflict with, and a fresh claim arrived carrying `name_attempts DEFAULT 0`. Proved by replaying exactly that sequence — three wrong names, a fresh code, then the **correct** name — and requiring it to be refused. The lock also has its own status now (`locked`, not `expired`) so support can tell a lockout from a code that timed out |
 | C88 | 13 | **Fixing C87 removes the only escape hatch there is.** The invite route is what C75 leans on today, and it works *because* a new claim resets the budget — close that and a patient who gave their therapist "Yasmine" and types "Yasmin" three times is locked out of their own record until sprint 20 builds the admin release. That is a support catastrophe traded for a security hole. **Ruling: the tightening and the release ship together.** The release lives with the therapist who owns the record — they created it, they know the person, and they are reachable today — as one audited action on the patient record. Admin gets the fuller tool in sprint 20; it must not be the *only* one. | major | review | **resolved 13R.3–13R.5** — the release ships in the same sprint as the tightening, as one audited action on the therapist's own patient record: named actor, written reason, timestamp, scoped by `getPatient`'s tenancy check. It restores one budget on one record and reveals nothing — both questions still have to be answered. ⚠️ **A correction found while building it:** the release first set the locked claim back to `pending`, which collides with the claim a fresh code already created; it now retires the locked claim instead, which is also the truer record — that attempt ended in a lockout and the next one is a new attempt |
+| C89 | 17, 18 | 🔴 **Sprints 17 and 18 are code-complete and invisible.** Production's `content_pages` still holds the pre-sprint pages — an English `pricing` from 5 Sept that writes `$4 $3 $2. 15%` into the page itself, no Arabic pricing at all, and no `for-patients` row in either locale. So the live site today has the old pricing page, C72's Arabic fallback still broken, and no patients section. **The refusal to republish was correct** (a `pricing` block in the database before the code deploys serves a page with no prices, C60), but the consequence was not recorded: two sprints' user-visible outcome now depends entirely on 22.8b/22.8c, and nothing before then proves it works. **Ruling: publish to a staging locale or a draft row and prove the render there**, so the seed script that 22 runs is a thing that has been *executed*, not a thing that has been *written*. | major | review | **ruled — sprint 19 proves the render; 22.8b/22.8c publish it** |
+| C90 | 17, 18 | 🔴 **Two verifiers are permanently red and every later sprint will run them.** `verify:sprint17` fails 5 of 14 against production and `verify:sprint18` fails 5 of 15, all for one reason — they read published content that C89 says will not exist until sprint 22. The reported 14/14 and 15/15 were true against a seeded database and are not true against production. A gate that is red for a known reason is a gate everybody learns to ignore, and the next real failure hides inside it. **Ruling: a check that depends on content published in a later sprint is SKIPPED with its reason printed, not FAILED** — `-- 17.9 deferred to 22.8b: pricing content not yet published` — and sprint 22 flips them back on. "All verifiers pass" has to keep meaning something. | major | review | **ruled — fix in sprint 19** |
+| C91 | 18 | **The public site still has no way to contact anybody, and two companies now need to be reachable.** §3c gives the platform a US entity and an Egyptian one; the `contact` page is a static CMS row from August with no form, and nothing on it is per-entity. **Founder requirement, 2026-09-08:** a real contact form on the public site, plus contact details for **both** companies — each editable by admin, each translatable, and the form's messages landing somewhere a named person works from rather than an inbox nobody owns. | major | founder | **ruled — sprint 18R, and the queue is sprint 20's** |
 | C85 | 13 | **Nothing stores a patient's time zone, so `useReaderZone` is permanent rather than temporary.** The hook is the right answer for a screen the server knows nothing about, but every patient screen now flashes UTC before correcting — including the consent list, where the date is the legally meaningful part of the record. Nobody has ruled on this. **Recommended ruling: sprint 13 captures the zone at signup** — detected in the browser, shown, editable, stored on `patient_accounts` beside the phone. Patient screens then take it as a prop exactly like the clinician ones, and `useReaderZone()` is left only for genuinely anonymous pages. The identity sprint is where a person tells us who and where they are; adding a column later means a second migration and a second sweep. | minor | review | **resolved 13.11–13.13** — `patient_accounts.timezone` (0043), detected in the browser by `useReaderZone`, **shown and editable** on signup, stored. Precedence is `resolveZone`'s existing shape: the account's, then `patients.timezone`, then the therapist's, then UTC. 🔴 Claiming never copies the account's zone onto the patient row — asserted in `verify-sprint13.ts`, because that row records what the browser said the day the booking was made and one account may hold records from two therapists |
 | C73 | 16 | 🔴 **Holding money makes this a money transmitter, and that is now the plan.** §3c changes 1.8 deliberately, and the two cross-border crossings — USD collected for an Egyptian therapist, EGP collected for an international one — are the exposed ones. In the US that is licensing in roughly 48 states with bonds from $50k; in Egypt and the UAE it is central-bank licensing. The domestic Egyptian leg (EGP in, EGP out, one entity, one country) is a materially smaller question than the cross-border legs and should be separated when counsel is asked. | blocker | founder decision | **accepted, not resolved — 2026-09-06.** Founder's ruling: build it and ship it. The cross-border crossings may prove rare, and finding out is itself worth doing; counsel comes when there is traction to protect. **This row stays open permanently as a known, accepted risk** — it is not a blocker and it is not something anybody gets to be surprised by later. The code obligation is unconditional either way: a real ledger, one entity stamped per transaction, daily reconciliation to zero |
 | C74 | 16 | **Manual payouts are three people, and people sleep.** A payout request that nobody picks up is money a therapist is owed and cannot see moving. The queue needs an age, an alert, and an owner per request — and a therapist-visible status, because "requested" with no date is how trust is lost. Also: a manual process is where the fraud is. Two-person approval above a threshold, and never the same person who edited the payout details. | major | review | **RULED 2026-09-06, sprint 16 — built, and the two rules that matter live in the database.** Every requirement is implemented: `payout_requests` carries an age, a named owner, five states each with its own timestamp and person, a transfer receipt the clinician can see, and `payout_request_events` recording every transition. The ageing alert goes out through `notify()`, which sends on **every** channel (13R.12) — a phone and an email, never only the queue screen. **The fraud rules are CHECK constraints, not code paths:** `payout_requests_approver_not_payee`, `payout_requests_approver_not_editor` and `payout_requests_sent_was_approved`. Why there: a rule enforced only by the function that usually runs is one admin script away from not existing, and the verifier proves the point by writing the forbidden approval **straight to the table**, past every code path, and watching Postgres refuse it. **The threshold is a setting** (`payouts.twoPersonThresholdCents`, $500 by default) because a $20 wallet transfer does not need two signatures and a rule people work around is worse than none; setting it to 0 makes every payout need two, and there is deliberately no way to switch the rule off. **What it costs:** the second person is a real cost on a team of three at 3am, and above the threshold a payout can stall waiting for somebody to wake up. That is the intended trade — a stalled payout is visible and alerts; a fraudulent one is not. |
@@ -1344,6 +1347,50 @@ and cannot go stale. There is far more product now than when those were built.
       translatable like any other string. Sprint 21 must be able to translate
       the *mockups*, not only the paragraphs around them
 
+### Sprint 18R — Contact, and two companies · ~4 days · 🔴 BEFORE 19
+
+*(Founder requirement, 2026-09-08, C91. It lands here rather than in 20 because
+every string it creates has to exist before sprint 19 translates the site and
+before sprint 21 makes strings editable — adding a page after those two sprints
+means doing both again.)*
+
+- [ ] **18R.1** 🔴 **Finish the revamp on the pages the sprint did not reach.**
+      18.1–18.5 built the patients section and the showcases; the rest of the
+      public site is still the old one. Every remaining public page gets the
+      same treatment — the same components, the same CTA pair, the same crisis
+      block where it belongs, and no page left in the pre-revamp style
+- [ ] **18R.2** **A real contact form**, on a real page, in both locales. Name,
+      one handle (email *or* phone, per §3b), a subject from a **list**, and a
+      message. Not a `mailto:` link
+- [ ] **18R.3** ⚠️ **It is a support ticket, not an email.** It lands in the
+      same queue §3d builds in sprint 20, with a topic, an age and a named
+      owner — 20.18–20.22's rules apply to it unchanged. An inbox nobody owns
+      is how a person in distress gets ignored for a week
+- [ ] **18R.4** 🔴 **The submitter is not signed in and may be a patient.**
+      Whatever they type is treated as clinical material the moment it lands:
+      stored and audited like sprint 8's documents, never in a prompt (C82),
+      and the page says plainly *"do not send anything urgent here"* with the
+      crisis line beside it
+- [ ] **18R.5** Rate-limited and spam-resistant without a third-party widget
+      that watches the reader. The measure is that a bot cannot fill the
+      support queue, not that a human is inconvenienced
+- [ ] **18R.6** 🔴 **Contact details for BOTH companies** — the US entity and
+      the Egyptian one (§3c). Company name, address, phone, email, hours, and
+      which one to write to about what. **Every field admin-editable** and
+      **every field translatable**, so 19 and 21 reach them like any other
+      content. Never hardcoded, never a single "our office"
+- [ ] **18R.7** Which entity a reader is shown first follows the same rule as
+      the currency (§3c): the international one by default, the Egyptian one
+      when it is the relevant one — and **both are always visible**, because
+      the point of naming two companies is that a person can choose who they
+      are dealing with
+- [ ] **18R.8** The confirmation says what happens next and when, in the
+      reader's language. A form that says only *"thanks"* is a form nobody
+      trusts they have used
+- **Accept:** somebody can reach a named human at either company, in either
+      language, from any public page — and what they send is treated with the
+      same care as anything else a patient tells us.
+
 ### Sprint 19 — Arabic and English · ~1.5 weeks
 
 *(was sprint 18)*
@@ -1354,6 +1401,17 @@ and cannot go stale. There is far more product now than when those were built.
       for a UI string stays banned and type-enforced
 - [ ] **19.3** Arabic is **right-to-left as a layout**, not translated English
       in a left-to-right frame
+- [ ] **19.0** 🔴 **Fix the two red verifiers first (C90).** A check that
+      depends on content sprint 22 publishes is **SKIPPED with its reason
+      printed**, never FAILED: `-- 17.9 deferred to 22.8b: pricing content not
+      yet published`. Sprint 22 flips them back on. Right now
+      `verify:sprint17` is 5/14 red and `verify:sprint18` is 5/15 red against
+      production, and "all verifiers pass" has to keep meaning something
+- [ ] **19.0a** 🔴 **Prove the sprint 17 and 18 render somewhere (C89).**
+      Publish the new pages into a draft row or a staging locale and check the
+      real output, so what sprint 22 seeds is a script that has been *run*
+      rather than one that has been *written*. Two sprints' visible work is
+      currently unproven against a real page
 - [ ] **19.4** Numerals, currency and dates in the reader's convention — 🔴 **as
       a locale passed from the server, never read off the runtime.** C84 bans
       the runtime read, and `formatMoney` is pinned to `en-US` precisely so it
