@@ -3,6 +3,16 @@ import { AlertTriangle, Clock, FileText, MessageSquare } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A **prop**, not `readerZone()`: this renders on the server, where the
+ * browser's zone is not available and the server's own is UTC. The page passes
+ * `actor.timezone`, so a clinician who has set one in Settings sees their own
+ * days and one who has not is shown UTC rather than being quietly told the
+ * wrong thing.
+ */
+
 /**
  * The standing profile and the dated timeline. PLAN.md 9.1–9.4.
  *
@@ -23,7 +33,10 @@ export function StandingProfile({
   profile,
   timeline,
   stale,
+  zone,
 }: {
+  /** The reader's own zone. 12.3. */
+  zone: string | null;
   profile: {
     sections: { heading: string; body: string; refs: string[] }[];
     conflicts: { text: string; refs: string[] }[];
@@ -86,7 +99,7 @@ export function StandingProfile({
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-900">Standing profile</p>
             <p className="mt-0.5 text-xs text-slate-500">
-              Rebuilt {formatDate(profile.generatedAt)} from {profile.sessionCount} session
+              Rebuilt {formatDate(profile.generatedAt, zone)} from {profile.sessionCount} session
               {profile.sessionCount === 1 ? "" : "s"} and {profile.documentCount} document
               {profile.documentCount === 1 ? "" : "s"}. Not editable — it follows the record.
             </p>
@@ -133,7 +146,7 @@ export function StandingProfile({
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 text-xs text-slate-500">
                     <Clock className="h-3 w-3" aria-hidden />
-                    {formatDate(entry.observedAt)}
+                    {formatDate(entry.observedAt, zone)}
                     {entry.ref ? (
                       <span className="font-mono text-slate-400">{entry.ref}</span>
                     ) : null}

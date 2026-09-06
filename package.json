@@ -48,6 +48,8 @@
     "test:timezones": "node --import tsx --conditions=react-server --test tests/timezones.test.ts",
     "verify:sprint11r": "node --import tsx --conditions=react-server scripts/verify-sprint11r.ts",
     "verify:migrations": "node --import tsx --conditions=react-server scripts/verify-migrations.ts",
+    "verify:sprint12": "node --import tsx --conditions=react-server scripts/verify-sprint12.ts",
+    "db:reset": "node --import tsx --conditions=react-server scripts/reset.ts",
     "whatsapp:check": "node --import tsx --conditions=react-server scripts/whatsapp-check.ts"
   },
   "dependencies": {

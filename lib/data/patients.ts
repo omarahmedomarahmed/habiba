@@ -100,10 +100,29 @@ export async function getPatientHistory(actor: Actor, patientId: string) {
     .limit(50);
 }
 
+/**
+ * A therapist writes down a new patient. 12.4 / §3b.
+ *
+ * 🔴 **`phone` is required and must already be E.164.** The number is the
+ * identity in this market and it is the only way the therapist can invite this
+ * person to claim their own record — a patient row with no number is a record
+ * nobody can ever be handed. The caller expands it with `toE164` and the
+ * country the form asked for; this refuses anything else rather than storing a
+ * number that cannot be messaged.
+ *
+ * Migration 0042 says the same thing in the database, scoped to
+ * `source = 'therapist'`: a `join_link` patient may still arrive with only an
+ * email, which §3b allows.
+ */
 export async function createPatient(
   actor: Actor,
-  input: { firstName: string; lastName?: string; email?: string; phone?: string },
+  input: { firstName: string; lastName?: string; email?: string; phone: string },
 ) {
+  const phone = input.phone.trim();
+  if (!/^\+[1-9][0-9]{6,14}$/.test(phone)) {
+    throw new Error("createPatient requires an E.164 phone number");
+  }
+
   const [created] = await db
     .insert(patients)
     .values({
@@ -112,7 +131,7 @@ export async function createPatient(
       firstName: input.firstName.trim(),
       lastName: input.lastName?.trim() || null,
       email: input.email?.trim().toLowerCase() || null,
-      phone: input.phone?.trim() || null,
+      phone,
       source: "therapist",
     })
     .returning();

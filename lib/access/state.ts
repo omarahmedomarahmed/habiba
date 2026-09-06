@@ -97,38 +97,27 @@ export function accessStateFor(input: AccessInput): AccessState {
 }
 
 /**
- * Does the five-credit unlock actually bite for this patient? 11R.24 / C46.
+ * Does the five-credit unlock bite for this patient? C46, simplified in 12.1.
  *
- * Three things have to be true: the gate is switched on at all, this patient
- * was created after it was, and nobody has documented them.
+ * ## The date is gone
  *
- * ## The date, not a boolean
+ * 11R shipped this as `gateActiveFrom` — a date in `platform_settings`, so
+ * that turning the gate on could not reach the 65 of 66 existing patients with
+ * no diagnosis. **Every one of those rows is test data and is being purged**
+ * (§4 · THE RESET), so the reason for the date no longer exists, and a
+ * configurable switch nobody will ever turn off is a branch that only ever
+ * gets tested in one position.
  *
- * Measured on production before this shipped: 65 of 66 patients have no
- * diagnosis. A boolean gate would take the copilot away from all 65 tomorrow
- * morning, for failing a rule that did not exist when their record was
- * written — and the therapist would experience that as the product breaking.
- * The date means the rule applies to records made under it and to nothing
- * else. There is no path by which an existing patient becomes gated.
+ * So: the gate is on, for everybody, always. §3's unlock is a diagnosis **and**
+ * a typed-or-dictated history — meet both and the state is
+ * `unclaimed_documented`, which is not gated.
  *
- * An empty `gateActiveFrom` is "never", which is exactly how the gate has
- * behaved since sprint 7. Turning it on is one date in `platform_settings`.
+ * The function survives the simplification rather than being inlined, because
+ * "is the copilot being withheld" is a question three screens ask and one that
+ * the next state to lose the copilot will also answer.
  */
-export function isGated(input: {
-  state: AccessState;
-  /** When the therapist created this patient row. */
-  patientCreatedAt: Date | null;
-  /** `YYYY-MM-DD` from `platform_settings`, or "" for never. */
-  gateActiveFrom: string;
-}): boolean {
-  if (input.state !== "unclaimed_bare") return false;
-  if (!input.gateActiveFrom) return false;
-  if (!input.patientCreatedAt) return false;
-
-  const from = new Date(`${input.gateActiveFrom}T00:00:00.000Z`);
-  if (Number.isNaN(from.getTime())) return false;
-
-  return input.patientCreatedAt.getTime() >= from.getTime();
+export function isGated(state: AccessState): boolean {
+  return state === "unclaimed_bare";
 }
 
 /**

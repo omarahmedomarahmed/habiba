@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Site content", robots: { index: fals
 export const dynamic = "force-dynamic";
 
 export default async function AdminContentPage() {
-  await requireRole("super_admin");
+  const actor = await requireRole("super_admin");
   const pages = await listAllPages();
 
   return (
@@ -39,7 +39,7 @@ export default async function AdminContentPage() {
                 <p className="truncate text-sm font-semibold text-slate-900">{page.title}</p>
                 <p className="truncate text-xs text-slate-500">
                   /{page.slug === "home" ? "" : page.slug} · updated{" "}
-                  {formatDateTime(page.updatedAt)}
+                  {formatDateTime(page.updatedAt, actor.timezone)}
                 </p>
               </Link>
 

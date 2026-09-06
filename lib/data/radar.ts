@@ -1137,7 +1137,6 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
        * column, and the decision itself is pure — `accessStateFor` is applied
        * to these values below.
        */
-      patientCreatedAt: patients.createdAt,
       claimedAt: people.claimedAt,
       diagnosisCount: sql<number>`COALESCE(jsonb_array_length(${patients.clinical} -> 'diagnoses'), 0)::int`,
       hasWrittenHistory: sql<boolean>`EXISTS (
@@ -1179,8 +1178,6 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
     .orderBy(desc(sessions.createdAt))
     .limit(limit);
 
-  const { getSettings } = await import("@/lib/settings");
-  const gateActiveFrom = (await getSettings()).copilot.gateActiveFrom;
   const now = new Date();
 
   return rows.map((r) => {
@@ -1239,7 +1236,7 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
           },
     copilotAsked: r.copilotAsked ?? 0,
     accessState: state,
-    accessGated: isGated({ state, patientCreatedAt: r.patientCreatedAt, gateActiveFrom }),
+    accessGated: isGated(state),
     };
   });
 }

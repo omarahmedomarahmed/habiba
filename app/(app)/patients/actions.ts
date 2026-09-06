@@ -25,13 +25,29 @@ export async function addPatient(
   const actor = await requireUser();
 
   const firstName = String(formData.get("firstName") ?? "").trim();
-  if (!firstName) return { error: "A first name is the only thing we need." };
+  if (!firstName) return { error: "Enter their first name." };
+
+  /*
+   * 12.4 / §3b — the number is mandatory, and the form says why rather than
+   * just refusing. "A first name is the only thing we need" was the old
+   * wording, and it was true of a product where a record could never be handed
+   * to the person it describes.
+   */
+  const rawPhone = String(formData.get("phone") ?? "").trim();
+  if (!rawPhone) {
+    return {
+      error: "A phone number is required, so you can invite them to join by WhatsApp.",
+    };
+  }
+
+  const parsed = toE164(rawPhone, String(formData.get("phoneCountry") ?? "") || null);
+  if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
 
   const patient = await createPatient(actor, {
     firstName,
     lastName: String(formData.get("lastName") ?? "").trim() || undefined,
     email: String(formData.get("email") ?? "").trim() || undefined,
-    phone: String(formData.get("phone") ?? "").trim() || undefined,
+    phone: parsed.e164,
   });
 
   revalidatePath("/patients");

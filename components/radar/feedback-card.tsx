@@ -4,6 +4,16 @@ import { Card } from "@/components/ui";
 import { RATINGS_VISIBLE_AFTER } from "@/lib/data/feedback";
 import { cn, relativeDay } from "@/lib/utils";
 
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A **prop**, not `readerZone()`: this renders on the server, where the
+ * browser's zone is not available and the server's own is UTC. The page passes
+ * `actor.timezone`, so a clinician who has set one in Settings sees their own
+ * days and one who has not is shown UTC rather than being quietly told the
+ * wrong thing.
+ */
+
 /**
  * What patients said, shown to the clinician they said it about.
  *
@@ -21,7 +31,10 @@ export function FeedbackCard({
   serviceAverage,
   total,
   recent,
+  zone,
 }: {
+  /** The reader's own zone. 12.3. */
+  zone: string | null;
   therapistAverage: number;
   serviceAverage: number;
   total: number;
@@ -87,7 +100,7 @@ export function FeedbackCard({
                   />
                 ))}
               </span>
-              <span className="text-[11px] text-slate-400">{relativeDay(entry.createdAt)}</span>
+              <span className="text-[11px] text-slate-400">{relativeDay(entry.createdAt, zone)}</span>
             </div>
 
             {entry.tags.length > 0 ? (

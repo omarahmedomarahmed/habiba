@@ -129,7 +129,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-slate-900">
-                        {relativeDay(session.endedAt ?? session.createdAt)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
                         {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
                       </p>
                       {session.noteSummary?.summary ? (

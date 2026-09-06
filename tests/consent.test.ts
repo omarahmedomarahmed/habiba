@@ -243,41 +243,19 @@ test("one minute reads as a minute, not 1 minutes", () => {
   assert.match(stamp, /first 1 minute /);
 });
 
-/* -------------------------------------------- 11R.24 the grandfathered gate -- */
+/* ------------------------------------------------ 12.1 the gate, no date -- */
 
-test("the gate is off until a date is set, and then only forwards", async () => {
+test("🔴 the copilot gate is on for everybody, with no grandfather", async () => {
   const { isGated } = await import("../lib/access/state");
-  const before = new Date("2026-01-01T00:00:00Z");
-  const after = new Date("2027-01-01T00:00:00Z");
 
-  // "" is never. This is how the gate has behaved since sprint 7, and it is
-  // still the default — turning it on is one date in platform_settings.
-  assert.equal(isGated({ state: "unclaimed_bare", patientCreatedAt: after, gateActiveFrom: "" }), false);
-
-  // 🔴 The grandfathering. 65 of 66 patients on production have no diagnosis;
-  // a boolean gate would take the copilot from all of them tomorrow morning
-  // for failing a rule that did not exist when their record was written.
-  assert.equal(
-    isGated({ state: "unclaimed_bare", patientCreatedAt: before, gateActiveFrom: "2026-06-01" }),
-    false,
-    "a patient created before the date is never gated",
-  );
-  assert.equal(
-    isGated({ state: "unclaimed_bare", patientCreatedAt: after, gateActiveFrom: "2026-06-01" }),
-    true,
-  );
-});
-
-test("only a bare unclaimed record can be gated", async () => {
-  const { isGated } = await import("../lib/access/state");
-  const after = new Date("2027-01-01T00:00:00Z");
+  // 11R shipped this as a date in platform_settings so that switching it on
+  // could not reach 65 existing patients. Those rows are test data and are
+  // being purged (§4 · THE RESET), so the reason is gone — and a switch
+  // nobody will ever turn off is a branch only ever tested in one position.
+  assert.equal(isGated("unclaimed_bare"), true);
 
   for (const state of ["unclaimed_documented", "granted", "revoked", "no_relationship"] as const) {
-    assert.equal(
-      isGated({ state, patientCreatedAt: after, gateActiveFrom: "2026-06-01" }),
-      false,
-      `${state} must never be gated`,
-    );
+    assert.equal(isGated(state), false, `${state} is not gated`);
   }
 });
 
@@ -292,16 +270,15 @@ test("a gated record keeps everything except the copilot, and keeps the way out"
   // remove the door.
   assert.equal(gated.diagnosisChanges, true);
   assert.match(explain("unclaimed_bare", true) ?? "", /diagnosis, and a history/);
-
-  // Ungated is unchanged from sprint 7.
-  assert.equal(capabilitiesFor("unclaimed_bare").copilot, true);
 });
 
-test("a malformed gateActiveFrom means never, not always", async () => {
+test("copilot settings no longer carry a gate date at all", async () => {
   const { parseGroup } = await import("../lib/settings/defs");
-  const copilot = parseGroup("copilot", { gateActiveFrom: "next tuesday" });
-  assert.equal(copilot.gateActiveFrom, "");
+  const copilot = parseGroup("copilot", { gateActiveFrom: "2026-06-01" });
 
-  assert.equal(parseGroup("copilot", { gateActiveFrom: "2026-02-31" }).gateActiveFrom, "");
-  assert.equal(parseGroup("copilot", { gateActiveFrom: "2026-06-01" }).gateActiveFrom, "2026-06-01");
+  // A stale row in platform_settings must not reintroduce the field by the
+  // back door — `parseGroup` builds its result field by field, so anything
+  // the database still holds is simply not read.
+  assert.equal("gateActiveFrom" in copilot, false);
+  assert.equal(copilot.unclaimedPatientCredits, 5);
 });

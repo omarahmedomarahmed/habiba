@@ -7,6 +7,18 @@ import { Badge, Card } from "@/components/ui";
 import { isImage, searchabilityLabel } from "@/lib/documents/formats";
 import { formatDate } from "@/lib/utils";
 
+import { readerZone } from "@/lib/scheduling/tz";
+
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A client component has no `actor` to read a stored zone from, and does not
+ * need one: the browser is the clock the person reading this is living in.
+ * Resolved once at module scope because it cannot change while the page is
+ * open.
+ */
+const zone = readerZone();
+
 /**
  * A person's documents, as a clinician or the person themselves sees them.
  * PLAN.md 8.4 / 8.7 / 8.8 / 8.10.
@@ -133,7 +145,7 @@ function DocumentCard({
             </p>
             {/* 8.7 — provenance, on the face of the row rather than behind it. */}
             <p className="mt-0.5 text-xs text-slate-500">
-              {formatDate(new Date(document.documentDate ?? document.createdAt))} ·{" "}
+              {formatDate(new Date(document.documentDate ?? document.createdAt), zone)} ·{" "}
               {document.addedBy}
             </p>
 

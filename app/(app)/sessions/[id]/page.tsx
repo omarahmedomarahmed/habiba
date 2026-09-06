@@ -58,10 +58,9 @@ export default async function SessionDetailPage({
             {patientLabel}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDateTime(row.session.endedAt ?? row.session.createdAt)}
+            {formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone)}
             {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
             {row.session.modality === "video" ? " · Video" : " · In person"}
-            {row.session.extendedAt ? " · Extended" : ""}
           </p>
           {/*
             A session that ended by itself says so.
@@ -110,7 +109,7 @@ export default async function SessionDetailPage({
             noteStatus={row.session.noteStatus}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
-            dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt)}
+            dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone)}
             reportSent={Boolean(row.session.reportSentAt)}
           />
         )}

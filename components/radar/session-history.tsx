@@ -6,6 +6,16 @@ import { formatUsd } from "@/lib/billing/plans";
 import type { RadarSessionRow } from "@/lib/data/radar";
 import { formatDate } from "@/lib/utils";
 
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A **prop**, not `readerZone()`: this renders on the server, where the
+ * browser's zone is not available and the server's own is UTC. The page passes
+ * `actor.timezone`, so a clinician who has set one in Settings sees their own
+ * days and one who has not is shown UTC rather than being quietly told the
+ * wrong thing.
+ */
+
 /**
  * The clinician's own record of what each session was worth.
  *
@@ -45,7 +55,14 @@ function accessNote(row: RadarSessionRow): string | null {
   }
 }
 
-export function SessionHistory({ rows }: { rows: RadarSessionRow[] }) {
+export function SessionHistory({
+  rows,
+  zone,
+}: {
+  rows: RadarSessionRow[];
+  /** The reader's own zone. 12.3. */
+  zone: string | null;
+}) {
   if (rows.length === 0) {
     return (
       <Card>
@@ -91,7 +108,7 @@ export function SessionHistory({ rows }: { rows: RadarSessionRow[] }) {
                   )}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {formatDate(row.endedAt ?? row.startedAt ?? new Date())} ·{" "}
+                  {formatDate(row.endedAt ?? row.startedAt ?? new Date(), zone)} ·{" "}
                   {row.modality === "video" ? "Video" : "In person"}
                   {row.copilotAsked > 0
                     ? ` · ${row.copilotAsked} copilot question${row.copilotAsked === 1 ? "" : "s"}`

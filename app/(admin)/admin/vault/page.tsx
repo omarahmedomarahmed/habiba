@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Vault", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function VaultPage() {
-  await requireRole("super_admin");
+  const actor = await requireRole("super_admin");
 
   const [ledger, months, therapists, traction, kinds, invoices, payments, held, books] =
     await Promise.all([
@@ -297,7 +297,7 @@ export default async function VaultPage() {
               discountCents={invoice.discountCents}
               discountReason={invoice.discountReason}
               status={invoice.status}
-              issuedAt={formatDate(invoice.issuedAt)}
+              issuedAt={formatDate(invoice.issuedAt, actor.timezone)}
             />
           ))}
           {invoices.length === 0 ? (
@@ -329,7 +329,7 @@ export default async function VaultPage() {
               settledInvoiceCents={payment.settledInvoiceCents}
               therapistNetCents={payment.therapistNetCents}
               status={payment.status}
-              when={formatDate(payment.paidAt ?? payment.createdAt)}
+              when={formatDate(payment.paidAt ?? payment.createdAt, actor.timezone)}
             />
           ))}
           {payments.length === 0 ? (

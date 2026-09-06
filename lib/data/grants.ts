@@ -99,7 +99,6 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
       personId: patients.personId,
       claimedAt: people.claimedAt,
       clinical: patients.clinical,
-      createdAt: patients.createdAt,
     })
     .from(patients)
     .leftJoin(people, eq(people.id, patients.personId))
@@ -153,12 +152,8 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
     now: new Date(),
   });
 
-  const { getSettings } = await import("@/lib/settings");
-  const gated = isGated({
-    state,
-    patientCreatedAt: row.createdAt,
-    gateActiveFrom: (await getSettings()).copilot.gateActiveFrom,
-  });
+  // 12.1 — no date, no grandfather. The gate is on for everybody.
+  const gated = isGated(state);
 
   return {
     state,

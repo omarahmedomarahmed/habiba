@@ -62,7 +62,7 @@ export default async function NotesPage() {
                           "Unnamed patient"}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {relativeDay(note.sessionEndedAt ?? note.createdAt)}
+                        {relativeDay(note.sessionEndedAt ?? note.createdAt, actor.timezone)}
                       </p>
                     </div>
                     {note.status === "draft" ? (

@@ -103,15 +103,15 @@ export default async function EarningsPage() {
             paymentBrand: payment.paymentBrand,
             paymentLast4: payment.paymentLast4,
             receiptUrl: payment.receiptUrl,
-            createdAt: formatDate(payment.createdAt),
-            paidAt: payment.paidAt ? formatDate(payment.paidAt) : null,
+            createdAt: formatDate(payment.createdAt, actor.timezone),
+            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone) : null,
           }))}
           transfers={transfers.map((transfer) => ({
             id: transfer.id,
             amountCents: transfer.amountCents,
             status: transfer.status,
-            createdAt: formatDate(transfer.createdAt),
-            paidAt: transfer.paidAt ? formatDate(transfer.paidAt) : null,
+            createdAt: formatDate(transfer.createdAt, actor.timezone),
+            paidAt: transfer.paidAt ? formatDate(transfer.paidAt, actor.timezone) : null,
             failureReason: transfer.failureReason,
           }))}
         />

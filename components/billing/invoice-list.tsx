@@ -8,6 +8,18 @@ import { Badge, Button, Card } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn, formatDate } from "@/lib/utils";
 
+import { readerZone } from "@/lib/scheduling/tz";
+
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A client component has no `actor` to read a stored zone from, and does not
+ * need one: the browser is the clock the person reading this is living in.
+ * Resolved once at module scope because it cannot change while the page is
+ * open.
+ */
+const zone = readerZone();
+
 export type InvoiceRow = {
   id: string;
   kind: "session" | "subscription";
@@ -253,7 +265,7 @@ export function InvoiceList({
                         {invoice.description}
                       </span>
                       <span className="block text-xs text-slate-500">
-                        {formatDate(invoice.issuedAt)}
+                        {formatDate(invoice.issuedAt, zone)}
                         {invoice.discountCents > 0
                           ? ` · ${formatUsd(invoice.discountCents)} credit applied`
                           : ""}
@@ -310,7 +322,7 @@ export function InvoiceList({
                     {invoice.description}
                   </span>
                   <span className="block text-xs text-slate-500">
-                    {formatDate(invoice.issuedAt)}
+                    {formatDate(invoice.issuedAt, zone)}
                     {invoice.discountReason ? ` · ${invoice.discountReason}` : ""}
                   </span>
                 </span>

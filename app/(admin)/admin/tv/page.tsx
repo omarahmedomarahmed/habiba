@@ -62,7 +62,6 @@ export default async function Page({
       live={live.map((row) => ({
         id: row.id,
         startedAt: row.startedAt?.toISOString() ?? null,
-        extended: Boolean(row.extendedAt),
         modality: row.modality,
         person:
           [row.patientFirstName, row.patientLastName].filter(Boolean).join(" ") ||

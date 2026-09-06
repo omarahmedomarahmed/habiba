@@ -35,6 +35,15 @@ export type Actor = {
   firstName: string;
   lastName: string;
   verificationStatus: "unverified" | "pending" | "verified" | "rejected";
+  /**
+   * IANA, or null. 12.3 / C70.
+   *
+   * Carried on the actor so that every server-rendered screen can name the
+   * zone it is printing a timestamp in without a second query. Set in Settings
+   * (11R.2); null until the clinician has chosen one, which the formatters
+   * report as UTC rather than quietly using the server's clock.
+   */
+  timezone: string | null;
 };
 
 function hashToken(token: string): string {
@@ -93,6 +102,7 @@ export async function getActor(): Promise<Actor | null> {
       firstName: users.firstName,
       lastName: users.lastName,
       verificationStatus: users.verificationStatus,
+      timezone: users.timezone,
       status: users.status,
       deletedAt: users.deletedAt,
     })
@@ -143,6 +153,7 @@ export async function getActor(): Promise<Actor | null> {
     firstName: row.firstName,
     lastName: row.lastName,
     verificationStatus: row.verificationStatus,
+    timezone: row.timezone,
   };
 }
 

@@ -369,56 +369,21 @@ export type Rating = { average: number; count: number };
  */
 export const RATINGS_VISIBLE_AFTER = 5;
 
-/* ------------------------------------------------ C26: unratable sessions -- */
-
-/**
- * The sessions that can never be rated, and the rule about them. 11R.26 / C26.
+/*
+ * 12.2 — C26's `RATEABLE` predicate and `rateabilityCounts()` lived here.
  *
- * Twenty sessions predate the `feedback_token` column. Nobody was ever sent a
- * link for them, so nobody could have rated them — and twelve of those twenty
- * are completed, which is what makes them dangerous: a reliability score that
- * counts completed-and-unrated as a signal reads those twelve as a therapist
- * people declined to rate.
+ * They existed because twenty sessions predated the `feedback_token` column
+ * and could never be rated, so any score computed from feedback had to exclude
+ * them rather than read them as unrated. Both facts are gone: those rows are
+ * test data being purged (§4 · THE RESET), and `bookSlot` — which was still
+ * creating unratable sessions every time somebody booked from a public
+ * profile — now mints a token like every other path. Migration 0042 makes the
+ * database refuse a session without one.
  *
- * **The ruling is exclude, never backfill.** Minting a token now would create a
- * row asserting that a rating was possible, which is false. There is no
- * timestamp we could put on it, no message that was ever sent, and no patient
- * who ever saw a link. C26's own words: a fabricated token implies a rating was
- * possible.
- *
- * So this predicate is the denominator for anything that measures "of the
- * sessions that could have been rated, how many were". Sprint 12 must use it —
- * it is exported and named rather than left as an `isNotNull` somebody has to
- * remember to write.
+ * So there is no exclusion to maintain. A session that cannot be rated is now
+ * a live fact with a live reason — nobody has rated it yet — rather than a
+ * historical accident that a denominator had to remember.
  */
-export const RATEABLE = isNotNull(sessions.feedbackToken);
-
-export type RateabilityCounts = {
-  completed: number;
-  /** Of those, the ones a patient could actually have rated. */
-  rateable: number;
-  /** The rest — excluded from every score, never counted as unrated. */
-  unratable: number;
-};
-
-/** How many sessions are excluded, so a screen can say so rather than imply zero. */
-export async function rateabilityCounts(therapistId?: string): Promise<RateabilityCounts> {
-  const [row] = await db
-    .select({
-      completed: count(),
-      rateable: sql<number>`COUNT(*) FILTER (WHERE ${sessions.feedbackToken} IS NOT NULL)::int`,
-    })
-    .from(sessions)
-    .where(
-      therapistId
-        ? and(eq(sessions.status, "completed"), eq(sessions.therapistId, therapistId))
-        : eq(sessions.status, "completed"),
-    );
-
-  const completed = Number(row?.completed ?? 0);
-  const rateable = Number(row?.rateable ?? 0);
-  return { completed, rateable, unratable: completed - rateable };
-}
 
 export async function therapistRatings(): Promise<Map<string, Rating>> {
   const rows = await db

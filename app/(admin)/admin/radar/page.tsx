@@ -23,7 +23,7 @@ export default async function AdminRadarPage({
 }: {
   searchParams: Promise<{ reports?: string }>;
 }) {
-  await requireRole("super_admin");
+  const actor = await requireRole("super_admin");
   const { reports } = await searchParams;
 
   const bucket =
@@ -84,12 +84,12 @@ export default async function AdminRadarPage({
               patientEmail: row.patientEmail,
               status: row.status,
               resolution: row.resolution,
-              filedAt: formatDate(row.createdAt),
+              filedAt: formatDate(row.createdAt, actor.timezone),
               therapistId: row.therapistId,
               therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
               therapistEmail: row.therapistEmail,
               sessionId: row.sessionId,
-              sessionDate: row.sessionEndedAt ? formatDate(row.sessionEndedAt) : null,
+              sessionDate: row.sessionEndedAt ? formatDate(row.sessionEndedAt, actor.timezone) : null,
               durationMinutes: row.sessionDuration,
             }))}
           />

@@ -88,7 +88,7 @@ export default async function TherapistDetailPage({
             </h1>
             <p className="mt-1 text-sm text-slate-500">
               {therapist.email} · {therapist.organizationName} · joined{" "}
-              {formatDate(therapist.createdAt)}
+              {formatDate(therapist.createdAt, actor.timezone)}
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -158,11 +158,11 @@ export default async function TherapistDetailPage({
           source: p.source,
           sessionCount: p.sessionCount,
           copilotMessages: p.copilotMessages,
-          lastSessionAt: p.lastSessionAt ? formatDate(p.lastSessionAt) : null,
+          lastSessionAt: p.lastSessionAt ? formatDate(p.lastSessionAt, actor.timezone) : null,
         }))}
         sessions={sessions.map((s) => ({
           id: s.id,
-          when: formatDate(s.createdAt),
+          when: formatDate(s.createdAt, actor.timezone),
           status: s.status,
           modality: s.modality,
           noteStatus: s.noteStatus,
@@ -179,7 +179,7 @@ export default async function TherapistDetailPage({
           asked: c.asked,
           askedThisMonth: c.askedThisMonth,
           corrections: c.corrections,
-          lastMessageAt: c.lastMessageAt ? formatDate(c.lastMessageAt) : null,
+          lastMessageAt: c.lastMessageAt ? formatDate(c.lastMessageAt, actor.timezone) : null,
         }))}
         aiSpend={aiSpend.map((row) => ({
           kind: row.kind,
@@ -195,8 +195,8 @@ export default async function TherapistDetailPage({
           discountCents: i.discountCents,
           discountReason: i.discountReason,
           status: i.status,
-          issuedAt: formatDate(i.issuedAt),
-          paidAt: i.paidAt ? formatDate(i.paidAt) : null,
+          issuedAt: formatDate(i.issuedAt, actor.timezone),
+          paidAt: i.paidAt ? formatDate(i.paidAt, actor.timezone) : null,
         }))}
         payments={payments.map((p) => ({
           id: p.id,
@@ -205,7 +205,7 @@ export default async function TherapistDetailPage({
           therapistNetCents: p.therapistNetCents,
           settledInvoiceCents: p.settledInvoiceCents,
           status: p.status,
-          when: formatDate(p.paidAt ?? p.createdAt),
+          when: formatDate(p.paidAt ?? p.createdAt, actor.timezone),
         }))}
       />
     </div>

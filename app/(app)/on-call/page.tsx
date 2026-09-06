@@ -96,9 +96,10 @@ export default async function RadarConsolePage() {
           }))}
         />
 
-        <SessionHistory rows={history} />
+        <SessionHistory rows={history} zone={actor.timezone} />
 
         <FeedbackCard
+          zone={actor.timezone}
           therapistAverage={feedback.therapistAverage}
           serviceAverage={feedback.serviceAverage}
           total={feedback.total}

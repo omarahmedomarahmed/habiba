@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  * for the therapist but not for whoever runs the platform is not a promise.
  */
 export default async function RatingsPage() {
-  await requireRole("super_admin");
+  const actor = await requireRole("super_admin");
   const { rows, summary } = await allRatings();
 
   return (
@@ -69,7 +69,7 @@ export default async function RatingsPage() {
                   <Score label="therapist" value={row.therapistStars} />
                   <Score label="us" value={row.serviceStars} />
                   <span className="ms-auto text-[11px] text-slate-400">
-                    {relativeDay(row.createdAt)}
+                    {relativeDay(row.createdAt, actor.timezone)}
                   </span>
                 </div>
 

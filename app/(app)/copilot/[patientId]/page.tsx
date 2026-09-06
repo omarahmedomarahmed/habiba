@@ -96,7 +96,7 @@ export default async function CopilotThreadPage({
                       className="block px-4 py-3 active:bg-slate-50"
                     >
                       <p className="text-sm font-medium text-slate-900">
-                        {relativeDay(session.endedAt ?? session.createdAt)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
                         {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
                       </p>
                       {session.noteSummary?.summary ? (

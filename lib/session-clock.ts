@@ -28,9 +28,12 @@
  * and sends that patient the link. That is a deliberate friction: it makes the
  * decision to keep going explicit and, when it is a paid session, honest.
  *
- * `sessions.extendedAt` still exists and is still readable on historical rows,
- * because sessions that were extended under the old rules really were, and §6
- * does not let us rewrite what happened. Nothing writes it any more.
+ * `sessions.extendedAt` is still a column and nothing writes it. Sprint 12.5
+ * removed the last three screens that *read* it: they existed only to say
+ * "· Extended" on sessions run under the old rules, and every one of those rows
+ * is test data being purged (§4 · THE RESET). The column stays because dropping
+ * it is not additive (H16); it is dead, and labelled dead here so the next
+ * reader does not resurrect it.
  *
  * ## Where the numbers come from
  *

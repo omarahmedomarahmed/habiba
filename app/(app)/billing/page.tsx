@@ -72,7 +72,7 @@ export default async function BillingPage({
           currentTierKey={summary.tier.key}
           creditsRemaining={summary.credits.remaining}
           creditsExpireOn={
-            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt) : null
+            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone) : null
           }
           billingEnabled={features.billing}
           sessionsThisMonth={summary.sessionsThisMonth}
@@ -138,11 +138,11 @@ export default async function BillingPage({
             discountCents: invoice.discountCents,
             discountReason: invoice.discountReason,
             status: invoice.status,
-            issuedAt: formatDate(invoice.issuedAt),
+            issuedAt: formatDate(invoice.issuedAt, actor.timezone),
             sortAt: invoice.issuedAt.toISOString(),
-            paidAt: invoice.paidAt ? formatDate(invoice.paidAt) : null,
-            periodStart: invoice.periodStart ? formatDate(invoice.periodStart) : null,
-            periodEnd: invoice.periodEnd ? formatDate(invoice.periodEnd) : null,
+            paidAt: invoice.paidAt ? formatDate(invoice.paidAt, actor.timezone) : null,
+            periodStart: invoice.periodStart ? formatDate(invoice.periodStart, actor.timezone) : null,
+            periodEnd: invoice.periodEnd ? formatDate(invoice.periodEnd, actor.timezone) : null,
             usage: invoice.sessionId ? (usage.get(invoice.sessionId) ?? null) : null,
           }))}
           payments={payments.map((payment) => ({
@@ -154,9 +154,9 @@ export default async function BillingPage({
             therapistNetCents: payment.therapistNetCents,
             status: payment.status,
             capture: payment.capture,
-            createdAt: formatDate(payment.createdAt),
+            createdAt: formatDate(payment.createdAt, actor.timezone),
             sortAt: (payment.paidAt ?? payment.createdAt).toISOString(),
-            paidAt: payment.paidAt ? formatDate(payment.paidAt) : null,
+            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone) : null,
           }))}
         />
       </div>

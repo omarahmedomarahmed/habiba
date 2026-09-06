@@ -172,7 +172,7 @@ export default async function DashboardPage() {
                           "Unnamed patient"}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {relativeDay(session.endedAt ?? session.createdAt)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
                       </p>
                     </div>
                     {session.status === "in_progress" ? <Badge tone="red">Live</Badge> : null}

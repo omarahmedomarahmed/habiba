@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  * entries is the same as no list.
  */
 export default async function AdminErrorsPage() {
-  await requireRole("super_admin");
+  const actor = await requireRole("super_admin");
   const rows = await recentErrors(200);
 
   const groups = new Map<string, { rows: typeof rows; first: Date; last: Date }>();
@@ -69,8 +69,8 @@ export default async function AdminErrorsPage() {
                 {latest.method ?? "—"} {latest.route}
               </code>
               <span className="text-xs text-slate-400">
-                last {formatDateTime(group.last)}
-                {group.rows.length > 1 ? ` · first ${formatDateTime(group.first)}` : ""}
+                last {formatDateTime(group.last, actor.timezone)}
+                {group.rows.length > 1 ? ` · first ${formatDateTime(group.first, actor.timezone)}` : ""}
               </span>
             </div>
 

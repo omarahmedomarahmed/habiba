@@ -8,6 +8,18 @@ import { Badge, Card } from "@/components/ui";
 import { REJECTION_REASONS } from "@/lib/access/state";
 import { formatDate } from "@/lib/utils";
 
+import { readerZone } from "@/lib/scheduling/tz";
+
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A client component has no `actor` to read a stored zone from, and does not
+ * need one: the browser is the clock the person reading this is living in.
+ * Resolved once at module scope because it cannot change while the page is
+ * open.
+ */
+const zone = readerZone();
+
 /**
  * Who can read your history, and the one tap that ends it. PLAN.md 7.4 / 7.5.
  *
@@ -110,7 +122,7 @@ function RequestRow({
         <p className="text-sm font-semibold text-slate-900">{request.therapistName}</p>
         {request.requestedAt ? (
           <p className="mt-0.5 text-xs text-slate-500">
-            Asked on {formatDate(request.requestedAt)}
+            Asked on {formatDate(request.requestedAt, zone)}
           </p>
         ) : null}
 
@@ -230,12 +242,12 @@ function GrantRow({
               {live && grant.expiresAt ? (
                 <>
                   <Clock className="h-3 w-3" aria-hidden />
-                  Until {formatDate(grant.expiresAt)}
+                  Until {formatDate(grant.expiresAt, zone)}
                 </>
               ) : live ? (
                 "Until you change your mind"
               ) : grant.revokedAt ? (
-                `You ended this on ${formatDate(grant.revokedAt)}`
+                `You ended this on ${formatDate(grant.revokedAt, zone)}`
               ) : grant.status === "rejected" ? (
                 "You declined"
               ) : (

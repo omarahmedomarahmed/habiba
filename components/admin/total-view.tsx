@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 type Live = {
   id: string;
   startedAt: string | null;
-  extended: boolean;
   modality: string;
   person: string;
   personEmail: string | null;
@@ -311,7 +310,7 @@ function Now({
                     </span>
                     <span className="block truncate text-xs text-slate-500">
                       {row.startedAt ? formatElapsed(minutesSince(row.startedAt)) : "—"}
-                      {row.extended ? " · extended" : ""} · {row.segments} segments
+                      · {row.segments} segments
                       {row.lastActivityAt
                         ? ` · last words ${formatAgo(secondsSince(row.lastActivityAt))} ago`
                         : " · silent"}

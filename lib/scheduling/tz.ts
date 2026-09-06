@@ -44,6 +44,26 @@ export function resolveZone(
   return { name: "UTC", source: "utc" };
 }
 
+/**
+ * The zone the browser is in, or null on the server. 12.3.
+ *
+ * For client components, which have no `actor` to read a stored zone from and
+ * for which the browser's answer is the right one anyway — it is the clock the
+ * person reading the screen is actually living in.
+ *
+ * Returns null rather than "UTC" during server rendering, so `resolveZone` can
+ * fall through to whatever the caller passes as a fallback instead of being
+ * told, wrongly, that the reader is in UTC.
+ */
+export function readerZone(): string | null {
+  if (typeof Intl === "undefined") return null;
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Null, empty, or a name this runtime does not know are all unusable. */
 export function usable(zone: string | null | undefined): boolean {
   if (!zone) return false;

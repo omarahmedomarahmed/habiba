@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomBytes } from "node:crypto";
+
 import { and, asc, eq, gt, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
@@ -366,6 +368,17 @@ export async function bookSlot(input: {
       modality: "video",
       // 11.2 / C57. `startedAt` stays null until somebody actually joins.
       scheduledAt: slot.startsAt,
+      /*
+       * 12.2 — every session is ratable.
+       *
+       * This path did not mint one. `createSession` and `createRadarSession`
+       * both did, so the gap was invisible: a session booked from a public
+       * profile could never be rated and its patient could never receive a
+       * brief, and nothing on any screen would have said so. C26 was the same
+       * defect in historical rows; this was the same defect still being
+       * created. The database now refuses a session without one.
+       */
+      feedbackToken: randomBytes(24).toString("base64url"),
       priceCents: slot.rateCents ?? 0,
       paymentStatus: (slot.rateCents ?? 0) > 0 ? "pending" : "not_required",
     })

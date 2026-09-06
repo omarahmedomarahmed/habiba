@@ -7,6 +7,18 @@ import { removeStep, setStep } from "@/app/(app)/patients/[id]/homework/actions"
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
+import { readerZone } from "@/lib/scheduling/tz";
+
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A client component has no `actor` to read a stored zone from, and does not
+ * need one: the browser is the clock the person reading this is living in.
+ * Resolved once at module scope because it cannot change while the page is
+ * open.
+ */
+const zone = readerZone();
+
 /**
  * Homework, from the clinician's side. PLAN.md 9.5.
  *
@@ -172,9 +184,9 @@ export function ClinicianHomework({
                   ) : null}
                   <p className="mt-0.5 text-xs text-slate-400">
                     {item.source === "drafted" ? "From the note · " : ""}
-                    {formatDate(new Date(item.createdAt))}
+                    {formatDate(new Date(item.createdAt), zone)}
                     {item.completedAt
-                      ? ` · answered ${formatDate(new Date(item.completedAt))}`
+                      ? ` · answered ${formatDate(new Date(item.completedAt), zone)}`
                       : ""}
                   </p>
                   {item.patientNote ? (

@@ -180,62 +180,58 @@ async function main() {
     );
 
     /*
-     * The assertion the ticket asks for, run the only way that means anything:
-     * take every existing patient, set the gate live from *today*, and count
-     * how many of them it would lock out. The answer has to be zero.
+     * ⚠️ 11R asserted here that turning the gate on *today* would lock out 0
+     * of 66 existing patients — the grandfathering C46 asked for.
+     *
+     * Sprint 12.1 retired that claim rather than weakening it: every one of
+     * those rows is test data and is being purged (§4 · THE RESET), so the
+     * date the grandfathering hung on was deleted and the gate is on for
+     * everybody. This verifier now asserts the *superseding* fact, so it stays
+     * honest instead of certifying behaviour the product no longer has.
      */
     const { isGated } = await import("../lib/access/state");
-    const today = new Date().toISOString().slice(0, 10);
-
-    const existing = await db
-      .select({ createdAt: patients.createdAt })
-      .from(patients)
-      .where(sql`${patients.deletedAt} IS NULL`);
-
-    const wouldLock = existing.filter((row) =>
-      isGated({
-        // The worst case for each of them: bare, unclaimed, undocumented.
-        state: "unclaimed_bare",
-        patientCreatedAt: row.createdAt,
-        gateActiveFrom: today,
-      }),
-    ).length;
 
     check(
-      "🔴 11R.24 / C46 turning the gate on today locks out 0 existing patients",
-      wouldLock === 0,
-      `${wouldLock} of ${existing.length} would lose the copilot`,
+      "🔴 12.1 supersedes 11R.24 — the gate is on for everybody, no grandfather date",
+      isGated("unclaimed_bare") &&
+        !isGated("unclaimed_documented") &&
+        !isGated("granted") &&
+        !isGated("revoked"),
     );
 
     const { getSettings } = await import("../lib/settings");
-    const gateActiveFrom = (await getSettings()).copilot.gateActiveFrom;
+    const copilot = (await getSettings()).copilot;
     check(
-      "11R.24 the gate is a date in platform_settings, and defaults to never",
-      typeof gateActiveFrom === "string",
-      gateActiveFrom === "" ? "not switched on yet — reported, takes nothing away" : gateActiveFrom,
+      "12.1 platform_settings no longer carries a gate date",
+      !("gateActiveFrom" in copilot),
+      Object.keys(copilot).join(", "),
     );
 
     /* ------------------------------------------------------ 11R.26 / C26 */
 
-    const { rateabilityCounts } = await import("../lib/data/feedback");
-    const rateability = await rateabilityCounts();
-
-    note(
-      `C26: ${rateability.unratable} of ${rateability.completed} completed sessions have no feedback_token and never could be rated.`,
-    );
-    check(
-      "11R.26 / C26 the unratable sessions are counted, not backfilled",
-      rateability.rateable + rateability.unratable === rateability.completed,
-      JSON.stringify(rateability),
-    );
-
-    const tokens = await db.execute(sql`
-      SELECT COUNT(*)::int AS n FROM sessions WHERE feedback_token IS NULL
+    /*
+     * ⚠️ 11R asserted here that the unratable sessions were *counted and
+     * excluded*, via `RATEABLE` and `rateabilityCounts()`.
+     *
+     * Sprint 12.2 removed both. The twenty rows they existed for are test data
+     * being purged, and the live half of the same defect — `bookSlot` creating
+     * sessions with no token at all — is fixed rather than accounted for. So
+     * this now checks the thing that actually protects the product: the
+     * database refuses a session without a token.
+     */
+    const constraint = await db.execute(sql`
+      SELECT conname FROM pg_constraint WHERE conname = 'sessions_feedback_token_present'
     `);
     check(
-      "🔴 11R.26 no token was minted for a session nobody was ever sent a link for",
-      Number((tokens.rows[0] as { n: number }).n) > 0,
-      `${(tokens.rows[0] as { n: number }).n} sessions still have no token, deliberately`,
+      "🔴 12.2 supersedes 11R.26 — the database refuses a session with no feedback token",
+      (constraint.rows as unknown[]).length === 1,
+    );
+
+    const nulls = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM sessions WHERE feedback_token IS NULL
+    `);
+    note(
+      `${(nulls.rows[0] as { n: number }).n} historical sessions still have no token. Not backfilled — the purge removes them, and a token minted today would assert a rating had been possible.`,
     );
 
     /* ------------------------------------------------------ 11R.23 / C50 */

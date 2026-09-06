@@ -71,7 +71,7 @@ export default async function CopilotInboxPage() {
                       </span>
                       {thread.lastMessageAt ? (
                         <span className="shrink-0 text-xs text-slate-400">
-                          {relativeDay(thread.lastMessageAt)}
+                          {relativeDay(thread.lastMessageAt, actor.timezone)}
                         </span>
                       ) : null}
                     </span>

@@ -24,7 +24,7 @@ export default async function VerificationsPage({
 }: {
   searchParams: Promise<{ state?: string }>;
 }) {
-  await requireRole("super_admin");
+  const actor = await requireRole("super_admin");
   const { state } = await searchParams;
 
   const bucket =
@@ -94,7 +94,7 @@ export default async function VerificationsPage({
                 { label: "Licence", url: row.licenseDocUrl },
                 { label: "Headshot (public)", url: row.headshotUrl },
               ]}
-              submittedAt={row.submittedAt ? formatDate(row.submittedAt) : null}
+              submittedAt={row.submittedAt ? formatDate(row.submittedAt, actor.timezone) : null}
               reviewNote={row.reviewNote}
               decided={bucket !== "submitted"}
             />

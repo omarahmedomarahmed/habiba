@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Users } from "lucide-react";
 
+import { AddPatient } from "@/components/patients/add-patient";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { listPatients } from "@/lib/data/patients";
@@ -18,13 +19,16 @@ export default async function PatientsPage() {
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Patients" subtitle={`${patients.length} on your caseload`} />
 
-      <div className="px-4 pb-10 sm:px-6">
+      <div className="space-y-3 px-4 pb-10 sm:px-6">
+        {/* 12.4 — the first screen where a therapist can write somebody down. */}
+        <AddPatient />
+
         {patients.length === 0 ? (
           <Card>
             <EmptyState
               icon={<Users className="h-5 w-5" aria-hidden />}
               title="No patients yet"
-              body="A patient record is created automatically the first time you start a session with them."
+              body="Add one above, or a record is created the first time you start a session with somebody."
             />
           </Card>
         ) : (
@@ -44,7 +48,7 @@ export default async function PatientsPage() {
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
                       {patient.sessionCount} session{patient.sessionCount === 1 ? "" : "s"}
-                      {patient.lastSessionAt ? ` · last ${relativeDay(patient.lastSessionAt)}` : ""}
+                      {patient.lastSessionAt ? ` · last ${relativeDay(patient.lastSessionAt, actor.timezone)}` : ""}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />

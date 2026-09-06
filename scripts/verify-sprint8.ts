@@ -20,6 +20,8 @@ import { connect, schema } from "./db";
 
 const { auditLog, documentChunks, patientAccounts, patients, people } = schema;
 
+const PHONE = "+201000000008";
+
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
   console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
@@ -374,6 +376,10 @@ async function newPatient(
       therapistId,
       personId,
       firstName: "Verify",
+      // 12.4 — a therapist-created patient carries a phone number now, and the
+      // database enforces it. A fixed test number, distinct per script so two
+      // verifiers can run against the same database.
+      phone: PHONE,
       lastName: TAG,
       source: "therapist",
     })

@@ -29,6 +29,18 @@ import { SessionRecorder } from "@/lib/audio/recorder";
 import type { Citation } from "@/lib/db/schema";
 import { cn, formatDate, formatDuration } from "@/lib/utils";
 
+import { readerZone } from "@/lib/scheduling/tz";
+
+/*
+ * 12.3 / C70 — the zone this screen prints its dates in.
+ *
+ * A client component has no `actor` to read a stored zone from, and does not
+ * need one: the browser is the clock the person reading this is living in.
+ * Resolved once at module scope because it cannot change while the page is
+ * open.
+ */
+const zone = readerZone();
+
 export type ChatMessage = {
   id: string;
   role: "therapist" | "copilot" | "session_note" | "correction";
@@ -549,7 +561,7 @@ function MessageBubble({
             )}
           >
             <Info className="h-3 w-3" aria-hidden />
-            {formatDate(citation.sessionDate)} · {formatDuration(citation.atSeconds)}
+            {formatDate(citation.sessionDate, zone)} · {formatDuration(citation.atSeconds)}
           </button>
         ))}
 
@@ -580,7 +592,7 @@ function MessageBubble({
               : message.citations[openCitation]!.speaker === "therapist"
                 ? "You said"
                 : "Someone said"}{" "}
-            · {formatDate(message.citations[openCitation]!.sessionDate)} at{" "}
+            · {formatDate(message.citations[openCitation]!.sessionDate, zone)} at{" "}
             {formatDuration(message.citations[openCitation]!.atSeconds)}
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-700 italic">

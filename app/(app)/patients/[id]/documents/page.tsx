@@ -156,6 +156,7 @@ export default async function PatientDocumentsPage({
           before a session. Conflicts sit above even that.
         */}
         <StandingProfile
+          zone={actor.timezone}
           profile={
             profile
               ? {
