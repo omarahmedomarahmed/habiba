@@ -2003,6 +2003,41 @@ export type ContentBlock =
     }
   | {
       /**
+       * 🔴 18R.6 — the two companies, side by side.
+       *
+       * §3c gives this platform a US entity and an Egyptian one, and the point
+       * of naming two companies is that a person can see which one they are
+       * dealing with. So every field is content — name, address, phone, email,
+       * hours, and what to write to each about — editable by admin and
+       * translatable per locale like any other row. Never hardcoded, and never
+       * collapsed into one "our office", which is what a reader is told when
+       * somebody could not be bothered to say.
+       */
+      type: "companies";
+      heading?: string;
+      items: {
+        title: string;
+        /** `us` or `eg`. International sorts first, both always render. */
+        entity?: string;
+        address?: string;
+        phone?: string;
+        email?: string;
+        hours?: string;
+        /** Which one to write to about what. */
+        body?: string;
+      }[];
+    }
+  | {
+      /**
+       * 18R.2 — the contact form itself, as a block, so the page around it
+       * stays editable and the form can be moved or dropped without a deploy.
+       */
+      type: "contact_form";
+      heading?: string;
+      body?: string;
+    }
+  | {
+      /**
        * 🔴 18.3 — getting help now, never behind a signup.
        *
        * A block rather than a page so it can sit at the bottom of *every*
@@ -3659,3 +3694,137 @@ export const payoutRequestEvents = pgTable(
 );
 
 export type PayoutRequestEvent = typeof payoutRequestEvents.$inferSelect;
+
+/* ----------------------------------------------- §3d · support tickets -- */
+
+/**
+ * What a ticket is about. 20.18 — chosen from a list, so the queue sorts.
+ *
+ * A free-text subject line cannot be triaged, counted or routed, and "Other"
+ * with a paragraph under it is how the one urgent message in a hundred gets
+ * read on Thursday. Sprint 21 makes the labels editable; the keys are stable
+ * because a report that counts them has to survive a rename.
+ */
+export const TICKET_TOPICS = [
+  "account",
+  "billing",
+  "my_record",
+  "a_session",
+  "a_therapist",
+  "joining_as_a_therapist",
+  "something_else",
+] as const;
+export type TicketTopic = (typeof TICKET_TOPICS)[number];
+
+export const TICKET_STATUSES = ["open", "waiting_on_them", "closed"] as const;
+export type TicketStatus = (typeof TICKET_STATUSES)[number];
+
+/**
+ * A message from a person, in a queue somebody owns. PLAN.md 18R.3, 20.18–20.22.
+ *
+ * ## 🔴 Why this is not an inbox
+ *
+ * §3d: *"an inbox nobody owns is how somebody in distress gets ignored for a
+ * week."* Every row has a topic, an age, a named owner and a due time, for the
+ * same reason a payout request does (C74) — the failure mode of manual work is
+ * not "wrong", it is "nobody picked it up".
+ *
+ * ## 🔴 Why the message is clinical material
+ *
+ * 18R.4 and C82. The person filling in the contact form is not signed in and
+ * may well be a patient describing a session, a diagnosis or a crisis. The
+ * moment it lands it is health information arriving through a non-clinical
+ * door, so it is stored here — not emailed onward (§6), not summarised into a
+ * notification, and **never placed in a prompt**. `lib/data/support.ts` is the
+ * only module that reads `message`, and the copilot cannot import it.
+ */
+export const supportTickets = pgTable(
+  "support_tickets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** A short human reference to quote back. Not a UUID in an email. */
+    reference: text("reference").notNull(),
+
+    /** `contact_form` is the anonymous public door; the others are signed in. */
+    source: text("source")
+      .$type<"contact_form" | "patient" | "therapist">()
+      .notNull()
+      .default("contact_form"),
+
+    /*
+     * Who wrote it, as far as we know — which for the public form is only what
+     * they typed. Deliberately NOT resolved to a person or an account at
+     * intake: matching "ahmed@…" to a patient record would be exactly the
+     * auto-merge C39 measured and forbade, on weaker evidence.
+     */
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    /** Set only when the sender was signed in as one. Never inferred. */
+    patientAccountId: uuid("patient_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+
+    topic: text("topic").$type<TicketTopic>().notNull(),
+    message: text("message").notNull(),
+    /** The language they wrote in, so the reply comes back in it (18R.8). */
+    locale: text("locale").notNull().default("en"),
+    /** 18R.6 — which company they addressed. Both are always reachable. */
+    entity: text("entity").$type<Entity>().notNull().default("us"),
+
+    status: text("status").$type<TicketStatus>().notNull().default("open"),
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+
+    /*
+     * 20.20 — a 24-hour clock that **pauses while we are waiting on them**.
+     *
+     * `dueAt` is the deadline; `waitingSince` is when the clock stopped
+     * because the ball is in their court. Staff are measured on their own
+     * delay (C83), and a queue that counts a patient's four-day silence
+     * against the person who answered in ten minutes is a queue that teaches
+     * people to close tickets early.
+     */
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    waitingSince: timestamp("waiting_since", { withTimezone: true }),
+    extendedAt: timestamp("extended_at", { withTimezone: true }),
+    extensionReason: text("extension_reason"),
+
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closedByUserId: uuid("closed_by_user_id").references(() => users.id, { onDelete: "set null" }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("support_tickets_reference_unique").on(t.reference),
+    // The queue screen: open work, oldest first.
+    index("support_tickets_open_idx")
+      .on(t.dueAt)
+      .where(sql`status <> 'closed'`),
+    index("support_tickets_topic_idx").on(t.topic, t.createdAt),
+    index("support_tickets_owner_idx").on(t.ownerUserId, t.status),
+  ],
+);
+
+export type SupportTicket = typeof supportTickets.$inferSelect;
+
+/** Every move on a ticket, attributable. Same reason as `payout_request_events`. */
+export const supportTicketEvents = pgTable(
+  "support_ticket_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+    kind: text("kind")
+      .$type<"created" | "claimed" | "replied" | "waiting" | "extended" | "moved" | "closed">()
+      .notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("support_ticket_events_ticket_idx").on(t.ticketId, t.createdAt)],
+);
+
+export type SupportTicketEvent = typeof supportTicketEvents.$inferSelect;

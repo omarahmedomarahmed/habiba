@@ -276,9 +276,12 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "Features",
         heading: "The whole product is one screen",
-        body: "Most clinical software asks you to learn it. This asks you to press Start.",
-        ctaLabel: "See pricing",
-        ctaHref: "/pricing",
+        body: "Most clinical software asks you to learn it. This asks you to press Start. Everything below is the real component, running on invented data — not a picture of one.",
+        // 18R.1 — the same CTA pair as the header: the clinician's action is
+        // the button, and the patient's route is one line away rather than
+        // absent (18.4).
+        ctaLabel: "Start free — for therapists",
+        ctaHref: "/signup",
         demo: "session-room",
         backgroundImage: "/backgrounds/grid.svg",
       },
@@ -359,6 +362,39 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
         ],
       },
+      {
+        type: "showcase",
+        heading: "And the half nobody shows you",
+        items: [
+          {
+            title: "The patient has an app too",
+            body: "Their own sessions, the ones they booked and the ones they found on the radar, and the note you wrote to them once you signed it. It has no field that could hold your clinical note — that is a property of the query, not of the screen.",
+            icon: "users",
+            demo: "patient-sessions",
+          },
+          {
+            title: "What you agreed, on both phones",
+            body: "Homework as the steps you actually agreed, not a scoreboard. Nobody is marked, and nothing is shown to anybody else.",
+            icon: "check",
+            demo: "homework",
+          },
+          {
+            title: "A profile that is dated observations, not prose",
+            body: "Every line traceable to the session it came from. No paragraph of machine writing about a person.",
+            icon: "brain",
+            demo: "profile",
+          },
+        ],
+      },
+      {
+        type: "cta",
+        heading: "Start free — your first session is on us",
+        body: "Or if you are looking for a therapist rather than software, the radar has people online now.",
+        ctaLabel: "Sign up free",
+        ctaHref: "/signup",
+        backgroundImage: "/backgrounds/mesh.svg",
+      },
+      { type: "crisis" },
     ],
   },
   {
@@ -424,13 +460,39 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "hero",
         eyebrow: "Contact",
-        heading: "Talk to a human",
-        body: "Questions about the product, a BAA, or moving an existing practice across — write to us and we will answer.",
-        ctaLabel: "Email support@24therapy.ai",
-        ctaHref: "mailto:support@24therapy.ai",
+        heading: "Write to a person",
+        body: "Every message here goes into a queue somebody owns, with a name against it and a clock on it. Not an inbox.",
+        // 🔴 18R.2 — no `mailto:`. The old button opened an email client and
+        // the message went somewhere this system cannot see, which means
+        // nobody could be held to answering it.
         demo: "none",
         icon: "mail",
         backgroundImage: "/backgrounds/waves.svg",
+      },
+      { type: "contact_form", heading: "Send us a message" },
+      {
+        type: "companies",
+        heading: "Who you are dealing with",
+        items: [
+          {
+            title: "24Therapy Inc.",
+            entity: "us",
+            body: "The international entity. Card payments, Stripe payouts, and everything outside Egypt.",
+            address: "Set your registered address in admin → content → contact.",
+            phone: "",
+            email: "support@24therapy.ai",
+            hours: "Sunday to Thursday, 09:00–18:00 UTC",
+          },
+          {
+            title: "24Therapy Egypt",
+            entity: "eg",
+            body: "The Egyptian entity. Payments in Egyptian pounds, and payouts by InstaPay or wallet.",
+            address: "Set your registered address in admin → content → contact.",
+            phone: "",
+            email: "egypt@24therapy.ai",
+            hours: "Sunday to Thursday, 10:00–19:00 Cairo",
+          },
+        ],
       },
       {
         type: "features",
@@ -438,9 +500,10 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           { title: "Getting started", body: "Setting up your practice and running your first session.", icon: "zap" },
           { title: "Compliance", body: "BAAs, subprocessors and how patient data is handled.", icon: "shield" },
-          { title: "Billing", body: "Plans, invoices and anything that looks wrong on your bill.", icon: "chart" },
+          { title: "Billing", body: "Bundles, invoices, payouts and anything that looks wrong on your bill.", icon: "chart" },
         ],
       },
+      { type: "crisis" },
     ],
   },
   {

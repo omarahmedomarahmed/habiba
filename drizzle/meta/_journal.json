@@ -337,6 +337,13 @@
       "when": 1789600000013,
       "tag": "0047_two_rails",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1789600000014,
+      "tag": "0048_support_tickets",
+      "breakpoints": true
     }
   ]
 }

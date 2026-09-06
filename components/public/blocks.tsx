@@ -4,7 +4,9 @@ import { ArrowRight, Check } from "lucide-react";
 import { ComponentShowcase } from "@/components/demo/component-showcase";
 import { SessionDemo } from "@/components/demo/session-demo";
 import { ContentIconMark } from "@/components/public/icons";
+import { ContactForm } from "@/components/public/contact-form";
 import { getDemoContent, type DemoContent } from "@/lib/content/demo";
+import { getCountries } from "@/lib/settings";
 import { PricingTiers } from "@/components/public/pricing-tiers";
 import { RadarHero } from "@/components/radar/radar-hero";
 import { Button } from "@/components/ui";
@@ -74,6 +76,12 @@ function Block({
     /* 🔴 18.3 — help now, on the page, never behind a signup. */
     case "crisis":
       return <Crisis block={block} />;
+    /* 18R.6 — two companies, both always visible. */
+    case "companies":
+      return <Companies block={block} />;
+    /* 18R.2 — a real form, not a mailto: link. */
+    case "contact_form":
+      return <ContactBlock block={block} />;
     default:
       return null;
   }
@@ -352,6 +360,104 @@ function Crisis({ block }: { block: Extract<ContentBlock, { type: "crisis" }> })
         <p className="mt-3 text-xs text-rose-900/70">
           No account, no card, no form. You give a first name and you are in a session.
         </p>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * 🔴 18R.6–18R.7 — the two companies.
+ *
+ * Every field is content: name, address, phone, email, hours, and what to
+ * write to each about. Nothing here is hardcoded, so 19 translates it and 21
+ * lets an administrator correct an address without a deploy — which matters,
+ * because a wrong address on a page like this is the kind of error nobody
+ * files a ticket about, they just stop trusting the company.
+ *
+ * International sorts first, the same rule the currency follows (§3c), and
+ * **both always render**. A reader who cannot tell which entity they are
+ * dealing with has not been told, and the point of naming two companies is
+ * that they can choose.
+ */
+function Companies({ block }: { block: Extract<ContentBlock, { type: "companies" }> }) {
+  const ordered = [...block.items].sort((a, b) => {
+    if (a.entity === b.entity) return 0;
+    return a.entity === "eg" ? 1 : -1;
+  });
+
+  return (
+    <section className="px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-4xl">
+        {block.heading ? (
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{block.heading}</h2>
+        ) : null}
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {ordered.map((company) => (
+            <div key={company.title} className="rounded-3xl border border-slate-200 bg-white p-5">
+              <p className="text-sm font-bold text-slate-900">{company.title}</p>
+              {company.body ? (
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">{company.body}</p>
+              ) : null}
+
+              <dl className="mt-3 space-y-1.5 text-sm">
+                {company.address ? (
+                  <div>
+                    <dt className="text-xs text-slate-400">Address</dt>
+                    <dd className="whitespace-pre-line text-slate-700">{company.address}</dd>
+                  </div>
+                ) : null}
+                {company.phone ? (
+                  <div>
+                    <dt className="text-xs text-slate-400">Phone</dt>
+                    <dd>
+                      <a href={`tel:${company.phone.replace(/\s/g, "")}`} className="text-brand-600">
+                        {company.phone}
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
+                {company.email ? (
+                  <div>
+                    <dt className="text-xs text-slate-400">Email</dt>
+                    <dd>
+                      <a href={`mailto:${company.email}`} className="text-brand-600">
+                        {company.email}
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
+                {company.hours ? (
+                  <div>
+                    <dt className="text-xs text-slate-400">Hours</dt>
+                    <dd className="text-slate-700">{company.hours}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** 18R.2 — the form, with the country list the product actually supports. */
+async function ContactBlock({
+  block,
+}: {
+  block: Extract<ContentBlock, { type: "contact_form" }>;
+}) {
+  const countries = await getCountries();
+
+  return (
+    <section className="px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-2xl">
+        <ContactForm
+          heading={block.heading}
+          body={block.body}
+          countries={countries.map((country) => ({ code: country.code, name: country.name }))}
+        />
       </div>
     </section>
   );
