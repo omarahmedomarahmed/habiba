@@ -138,7 +138,13 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C70 | 11R | **Billing, audit and admin timestamps are still rendered without a zone.** `formatDate`/`formatDateTime` in `lib/utils.ts` call `toLocaleDateString(undefined)`, which is the *browser's* zone in a client component and the *server's* (UTC on Vercel) in a server component — and roughly forty call sites mix the two. 11R.1 was scoped to times a patient reads about their own appointment, and every one of those now goes through `lib/scheduling/tz.ts`. These do not: an invoice date, an audit line, "last seen", a CMS page's updated-at. Nobody misses an appointment because an audit line is an hour out, which is why this is minor and not major — but it is the same defect, unfixed, in about forty places. Fix: give `formatDate`/`formatDateTime` a required zone and let the type error find the call sites. | minor | 11R | open |
 | C71 | 11R | **The two-column heuristic refuses wide tables along with genuine columns.** `columnCount` marks a page multi-column when 40% of its lines carry a wide gap through the middle, and a medication table or a results panel looks exactly like that. Those documents are stored and honestly labelled *"Stored, but not searchable"*, so nothing is claimed falsely — but a clinician who uploads a results table gets no copilot help with it. Deliberate, and the right direction (C35: a wrong number behind a `[D7:3]` is worse than no citation), recorded so nobody later reads the false positives as a bug in the maths. Fix, if it matters: a table is a gap in the *same place on every line*; a two-column layout's gutter wanders. | minor | 11R | open — accepted |
 | C72 | 11R | **`/ar/pricing` still falls back to English, and a sprint branch can carry copy production has already had corrected.** Re-checked on **production** during 11R: all 11 published `content_pages` rows are free of the old `$6 / Unlimited / 10%` copy — C60 stayed closed. But the *branch* database still held the pre-C60 pricing row, because it was forked before the merge fix and CMS content is data rather than schema, so no migration carried the correction across. Republished on the branch; production untouched. The residue: `pricing` has **no `ar` row** on either, so an Arabic visitor reads the English page. Sprint 18 is the bilingual sprint and this is squarely its work. **The general lesson, beside C60:** a Neon branch is a snapshot of data too, and a content fix made on production does not travel to a branch cut before it. | minor | 11R | open — **sprint 18** |
-| C73 | 16 | 🔴 **Holding money makes this a money transmitter, and that is now the plan.** §3c changes 1.8 deliberately, and the two cross-border crossings — USD collected for an Egyptian therapist, EGP collected for an international one — are the exposed ones. In the US that is licensing in roughly 48 states with bonds from $50k; in Egypt and the UAE it is central-bank licensing. The domestic Egyptian leg (EGP in, EGP out, one entity, one country) is a materially smaller question than the cross-border legs and should be separated when counsel is asked. **This is not a reason to stop building — it is a reason to have the answer before sprint 16 ships rather than after.** The code obligation is unconditional either way: a real ledger, one entity stamped per transaction, daily reconciliation to zero. | blocker | founder decision | open — **counsel before sprint 16 ships** |
+| C78 | 21 | 🔴 **"No language goes live until it is 100% translated" is right at launch and wrong forever after.** The rule as stated means one new string added anywhere silently takes a live language offline — add a button to the homepage and Spanish drops, with nobody able to explain why. **Ruling: completeness gates the *launch* of a language, not its *life*.** Once live, a new untranslated string falls back to the default, the language stays up, and it is raised loudly as an alarm with a deadline. | major | review | **ruled — sprint 21.12** |
+| C79 | 21 | 🔴 **A machine translation published without a human is a clinical instruction nobody read.** Bulk AI translation is worth having and is in the plan; publishing straight from it is not. **Ruling: AI drafts, a human publishes.** A machine translation lands as a draft and counts as *missing* on the completeness checklist until somebody approves it — and crisis copy, consent wording and the recording notice can never be published from a draft at all, whatever a bulk action offers. | major | review | **ruled — sprint 21.17–21.19** |
+| C80 | 18 | **A screenshot in a repository is permanent in a way a database row is not.** The purge in sprint 22 will not reach `docs/screens/`. So the sweep runs only against a seeded demo organisation of invented people and refuses otherwise — and **admin screens are swept but gitignored**, because an admin console shows many patients at once and the repository should be treated as if it will be public one day. Live components remain the default; a screenshot is a promise that expires silently. | major | review | **ruled — sprint 18.10–18.12** |
+| C81 | 20 | **A 90-day lock on a mistyped phone number traps somebody for three months.** The lock is right — the number is the identity and changing it is how an account gets stolen. But a typo caught in the first hour is a correction, not a change. **Ruling: the lock starts 24 hours after the number is first confirmed.** | minor | review | **ruled — sprint 20.14** |
+| C82 | 20 | **Support attachments are clinical material arriving through a non-clinical door.** A patient uploading a photo of a prescription to a support ticket has just sent us a medical record. Same storage, same audit, same access control as sprint 8's documents — and 🔴 **they never enter any prompt.** Likewise the closing email is patient data leaving the building under §6: audited, and carrying the correspondence rather than the attachments. | major | review | **ruled — sprint 20.19, 20.22** |
+| C83 | 20 | **An overdue clock that runs while waiting on the patient measures the wrong person.** Staff would be marked down for a patient who replies in three days. The clock pauses when the ball is in the patient's court. Also: a ticket moved to WhatsApp leaves our record entirely — it is recorded as moved, with a written summary brought back, or the audit trail has a hole in exactly the conversations that mattered most. | minor | review | **ruled — sprint 20.20–20.21** |
+| C73 | 16 | 🔴 **Holding money makes this a money transmitter, and that is now the plan.** §3c changes 1.8 deliberately, and the two cross-border crossings — USD collected for an Egyptian therapist, EGP collected for an international one — are the exposed ones. In the US that is licensing in roughly 48 states with bonds from $50k; in Egypt and the UAE it is central-bank licensing. The domestic Egyptian leg (EGP in, EGP out, one entity, one country) is a materially smaller question than the cross-border legs and should be separated when counsel is asked. | blocker | founder decision | **accepted, not resolved — 2026-09-06.** Founder's ruling: build it and ship it. The cross-border crossings may prove rare, and finding out is itself worth doing; counsel comes when there is traction to protect. **This row stays open permanently as a known, accepted risk** — it is not a blocker and it is not something anybody gets to be surprised by later. The code obligation is unconditional either way: a real ledger, one entity stamped per transaction, daily reconciliation to zero |
 | C74 | 16 | **Manual payouts are three people, and people sleep.** A payout request that nobody picks up is money a therapist is owed and cannot see moving. The queue needs an age, an alert, and an owner per request — and a therapist-visible status, because "requested" with no date is how trust is lost. Also: a manual process is where the fraud is. Two-person approval above a threshold, and never the same person who edited the payout details. | major | review | open — **sprint 16** |
 | C75 | 13 | **One phone, one account excludes real people.** A mother and daughter sharing a handset, a shared clinic phone, a recycled number that used to belong to somebody else. The invariant is right for safety and it will lock somebody out. There must be an admin path to release a number from a dead account — audited, never self-service, and never a way to take over a live one. | major | review | open — **sprint 13** |
 | C76 | 16 | **Nobody has decided who absorbs the FX spread.** A price shown in EGP at a live rate and settled hours later at a different one leaves a difference. Freezing the rate on the transaction (16.6) fixes what the *reader* sees; it does not say whose margin moves when the real settlement differs. Decide it explicitly — platform absorbs, or the therapist does — and show it on the receipt. | major | review | open — **sprint 16** |
@@ -342,10 +348,22 @@ account, and an Egyptian patient cannot pay one. So:
 | Payout methods | Whatever Connect supports | **InstaPay** or an **EGP mobile wallet**, plus the full name exactly as it appears on that account |
 | Fulfilled by | Stripe | A 24/7 team of three, from a queue |
 
-**Currency is a display choice.** Every screen with a session price carries an
-EGP/USD toggle over the same amount at a live rate. A therapist prices in
-either; a patient pays in either; the radar the same. The rate used is
+**Currency is a display choice.** Every screen with a price or a balance —
+session prices, the radar, billing, earnings, invoices — shows **USD by
+default with a small EGP toggle beside it**. Same number, two currencies. A
+therapist prices in either; a patient pays in either. The rate used is
 **frozen onto the transaction** so a receipt never changes value.
+
+**Therapists pay us in either currency too, and every therapist chooses.** Not
+only Egyptian ones. Buying a bundle, buying single sessions, settling an
+outstanding pay-as-you-go bill — all of it can be paid by an Egyptian method
+in EGP or by card in USD, whichever the therapist picks at checkout.
+
+🔴 **Who absorbs the exchange difference: the therapist, when they choose to
+pay in EGP.** The USD figure is the price; EGP is a convenience at the rate of
+the day. **It must be shown before they pay, never discovered after** — the
+EGP screen states the rate used and the USD equivalent it settles, on the same
+screen as the button.
 
 **The four crossings:**
 
@@ -367,6 +385,90 @@ owed. Every held cent traces to one payment in and at most one payout out, in
 a real ledger rather than a number computed at read time; every transaction
 records which entity holds it; and a daily reconciliation balances to zero.
 
+**Founder's ruling on the licensing question (2026-09-06):** build it and ship
+it. The cross-border crossings may turn out to be rare, and whether they are
+is itself worth learning. Counsel comes when there is traction to protect.
+C73 stays open as a *known, accepted* risk with a date on it — not as a
+blocker, and not as something anybody gets to be surprised by later.
+
+---
+
+## §3d · THE BACK OFFICE
+
+Three things in this product are deliberately done by a person, not by code,
+because getting them wrong is worse than being slow. Each needs a queue, a
+clock, and somebody's name on it.
+
+### A patient changes their phone number
+
+The number is the identity (§3b), so changing it is the most dangerous thing a
+patient can ask for — it is also how an attacker would take over an account.
+So it is slow on purpose.
+
+| | |
+|---|---|
+| **Locked** | 90 days from the day the number is set, and 90 days between changes |
+| **The request** | New number · **a reason the patient writes** · a tick-box authorising us to call or message that number to check |
+| **Refused outright** | A number already on another account. The patient is told *that* is the reason — not whose |
+| **Then a person** | Staff call or WhatsApp the new number and satisfy themselves it is them |
+| **On approval** | A verification link goes to the **new** number. A code from it, entered in the app, completes the change |
+| **The window** | 24 hours to use it. Then the request lapses and they start again |
+| **Recorded** | Old number, new number, reason, who approved, when, and the verification |
+
+🔴 **Ruling — a first-week correction is not a change.** A typo caught in the
+first 24 hours after signup is a correction, and trapping somebody behind a
+90-day lock for a mistyped digit is a support ticket we will get anyway. The
+lock starts 24 hours after the number is first confirmed.
+
+### A patient asks for help
+
+| | |
+|---|---|
+| **Topics** | Chosen from a list, not free-text-only, so the queue can be sorted |
+| **Attachments** | Images and PDFs |
+| **Clock** | 24 hours. One extension of 24 more, with a reason. Past that it is **overdue** and shows as overdue |
+| **The clock pauses** | While waiting on the patient. Staff are measured on their own delay, not the patient's |
+| **May move to WhatsApp** | Recorded as having moved, with a written summary brought back into the ticket. A conversation we cannot see is not a record |
+| **On close** | The correspondence is emailed to the patient |
+
+🔴 **Attachments a patient sends are clinical material.** Same storage, same
+audit, same access rules as sprint 8's documents. **They never enter any
+prompt.** A support ticket is not a copilot input.
+
+🔴 **The closing email is patient data leaving the building.** §6 already says
+only admin sends patient data anywhere, audited. That applies here: the email
+is audited, and it carries the correspondence, **not the attachments**.
+
+### Staff roles
+
+All staff are not the same person. Two levels now, on top of the existing
+admin:
+
+| Role | Sees |
+|---|---|
+| **Staff** | Only their work: the payout queue, therapist ID verification, phone-change requests, patient support. The things a person has to do |
+| **Manager** | All of that, plus the performance overview — ticket ages, overdue counts, throughput, who owns what |
+
+**No admin impersonation. That rule does not bend for a support ticket.** A
+staff member helping a patient sees the ticket, not the patient's account.
+
+### The payout queue
+
+**Two views, and they are not the same job.**
+
+| View | What it is |
+|---|---|
+| **Automated** | Stripe Connect payouts, shown as completed. A record, not a task |
+| **Manual** | EGP payouts somebody has to send. This is the work |
+
+- A manual payout carries the method, the account identifier, the full name as
+  registered, and a status the therapist watches
+- Staff **upload a screenshot of the transfer** as confirmation, and the
+  therapist sees it
+- Age, alert, and a named owner on every request
+- 🔴 **Two-person approval above a threshold, and never the same person who
+  edited the payout details.** A manual payment queue is where fraud lives
+
 ---
 
 ## §4 · SPRINTS
@@ -380,14 +482,16 @@ in §3b, §3c and THE RESET below.
 | **Fix what the decisions changed** | 12 sweep · 13 claim by phone | Nothing later should carry an "except for" clause, and identity blocks the patient app |
 | **Finish the session** | 14 no-show · 15 patient app | The loop a real patient walks through |
 | **Money** | 16 two rails, two currencies | The biggest sprint in the plan, and the one with legal exposure |
-| **The storefront** | 17 pricing story · 18 revamp · 19 both languages | Needs 16 first, so a price can be shown in either currency |
-| **Control** | 20 admin — every number, every string, every language | Last, so it can be verified against everything that exists |
-| **Launch** | 21 purge, rotate, verify | Not code. The gate before a real patient is invited |
+| **The storefront** | 17 pricing story · 18 revamp and show the product · 19 both languages | Needs 16 first, so a price can be shown in either currency |
+| **Control** | 20 admin back office · 21 admin content, strings and languages | Last, so it can be verified against everything that exists |
+| **Launch** | 22 purge, rotate, verify | Not code. The gate before a real patient is invited |
 
-**Marked incomplete until their sprint lands:** anything WhatsApp until you
-finish the Meta setup · every price in EGP until 16 · every public page's copy
-until 17–19 · every editable string and every extra language until 20 · the
-whole system until 21's purge and key rotation.
+**Marked incomplete until their sprint lands:** anything WhatsApp until the
+Meta setup is done · every price in EGP and every therapist paying us in EGP
+until 16 · every public page's copy until 17–19 · the manual back office —
+payout queue, number changes, support tickets, staff roles — until 20 · every
+editable string, every extra language and every AI translation until 21 · the
+whole system until 22's purge and key rotation.
 
 Admin is **last**, on purpose: it exists to verify and correct everything else,
 and it cannot verify what does not yet exist.
@@ -936,18 +1040,34 @@ deliberately being changed by the founder, not accidentally broken.
 - [ ] **16.3** 🔴 **A payout request is a promise. Nothing may quietly fail.**
       A stuck request is visible to admin, to the therapist, and on a queue
       screen the 24/7 team works from
+- [ ] **16.3a** **Two queue views, because they are not the same job.**
+      *Automated* lists Stripe Connect payouts as completed — a record, not a
+      task. *Manual* is the EGP work somebody has to do
+- [ ] **16.3b** Every manual request carries an **age, an alert when it ages,
+      and a named owner**. Alerts go to admins, not into a log
+- [ ] **16.3c** Staff **upload a screenshot of the transfer** on completion,
+      and the therapist sees it on their earnings screen
+- [ ] **16.3d** 🔴 **Two-person approval above a threshold, and never the
+      person who edited the payout details** (C74)
 
 **Currency is a display choice, everywhere:**
 
-- [ ] **16.4** Every screen showing a session price carries an **EGP / USD
-      toggle over the same amount**, converted at a live or near-live rate.
-      Kills C37's hardcoded ~48
+- [ ] **16.4** Every screen showing a price or a balance — session prices, the
+      radar, billing, earnings, invoices — shows **USD by default with a small
+      EGP toggle beside it**. Live or near-live rate. Kills C37's hardcoded ~48
 - [ ] **16.5** A therapist prices a session link in **either** currency. A
       patient pays in **either** currency. The radar price the same. What they
       chose is stored — a receipt must reproduce it exactly
 - [ ] **16.6** The rate used for a transaction is **frozen on that
       transaction**, with its timestamp. Never re-converted later, or last
       month's invoice changes value while somebody is reading it
+- [ ] **16.6a** 🔴 **Therapists pay us in either currency, and every therapist
+      chooses** — not only Egyptian ones. Bundles, single sessions and an
+      outstanding pay-as-you-go bill can all be settled by an Egyptian method
+      in EGP or by card in USD, picked at checkout
+- [ ] **16.6b** **The therapist absorbs the exchange difference when they
+      choose EGP**, and the EGP screen says so *before* the button: the rate
+      used, and the USD amount it settles. Never discovered afterwards (C76)
 
 **The four crossings, each of which must work:**
 
@@ -1023,6 +1143,38 @@ deliberately being changed by the founder, not accidentally broken.
 - [ ] **18.7** Re-check the site against §6: nothing public names a patient,
       quotes a session, or implies we can read a record
 
+**Show the product, not a description of it.**
+
+The homepage already renders live components rather than pictures, and that is
+the right instinct — a live radar is more convincing than a screenshot of one
+and cannot go stale. There is far more product now than when those were built.
+
+- [ ] **18.8** 🔴 **Live components first, screenshots only where a live one
+      is impossible.** A screenshot is a promise that expires silently: the
+      product changes, the picture does not, and nobody notices until a visitor
+      does. Audit what the homepage renders live today and extend the same
+      pattern to what sprints 5–16 added
+- [ ] **18.9** Show the **radar**, the **patient app**, the room, the note, the
+      copilot, homework, the profile — the things that make this product
+      different, as the thing itself
+- [ ] **18.10** `scripts/screens.ts` — a sweep that logs in as a demo
+      therapist, patient and admin and captures **every page**, committed to
+      the repo under `docs/screens/`. Regenerated by command, never by hand, so
+      a stale picture is one run away from correct
+- [ ] **18.11** 🔴 **Synthetic demo data only, never a real record.** A
+      screenshot in a repository is permanent in a way a database row is not,
+      and the purge in sprint 22 will not reach it. One seeded demo
+      organisation, invented people, and the sweep refuses to run against a
+      database holding anything else
+- [ ] **18.12** ⚠️ **Admin screens are swept but not committed** with the rest.
+      An admin console shows many patients at once and is a map of the system;
+      treat the repository as if it will be public one day. `docs/screens/admin`
+      is gitignored and produced on demand
+- [ ] **18.13** Every live component's copy — labels, the demo transcript, the
+      demo note, the names on the demo cards — is **CMS content**, editable and
+      translatable like any other string. Sprint 21 must be able to translate
+      the *mockups*, not only the paragraphs around them
+
 ### Sprint 19 — Arabic and English · ~1.5 weeks
 
 *(was sprint 18)*
@@ -1040,10 +1192,10 @@ deliberately being changed by the founder, not accidentally broken.
 - [ ] **19.7** 🔴 **Nothing here may hardcode "two languages."** Sprint 20 adds
       more. Every table, key and component is `(key, locale)` from the start
 
-### Sprint 20 — Admin: every number, every string, every language · ~3 weeks · LAST
+### Sprint 20 — Admin: the back office · ~3 weeks
 
-*(was sprint 15 **and** sprint 19, merged at the founder's instruction. Built
-last so it can be verified against everything that already exists.)*
+*(was sprint 15. The numbers, the money operations, and the people who run
+them. §3d is the spec.)*
 
 **Every number**
 
@@ -1055,66 +1207,151 @@ last so it can be verified against everything that already exists.)*
       name, ID format, sample photo. Hardcoded today
 - [ ] **20.5** Therapist credentials by country
 - [ ] **20.6** Margin per session from real usage
-- [ ] **20.7** The payout queue the 24/7 team works from, and its reconciliation
-- [ ] **20.8** Total View extended to everything above
+- [ ] **20.7** Total View extended to everything above
+
+**Who can see what** — §3d
+
+- [ ] **20.8** 🔴 **Two roles on top of admin: staff and manager.** Staff see
+      only the work — payout queue, therapist ID verification, phone-change
+      requests, patient support. Managers see that plus the performance
+      overview: ticket ages, overdue counts, throughput, who owns what
+- [ ] **20.9** 🔴 **No admin impersonation. The rule does not bend for a
+      support ticket.** A staff member helping a patient sees the ticket, not
+      the patient's account
+- [ ] **20.10** Every staff action attributable to a named person, always
+
+**The payout queue** — the manual half of sprint 16
+
+- [ ] **20.11** The two views built in 16.3a, worked from here: automated
+      Connect payouts as a record, manual EGP payouts as the task
+- [ ] **20.12** Age, alert, owner, screenshot-on-completion, two-person
+      approval above a threshold (16.3b–d)
+
+**Phone-number changes** — §3d
+
+- [ ] **20.13** The request: new number, **the patient's written reason**, and
+      their tick-box authorising us to call or message that number
+- [ ] **20.14** 90-day lock from the day a number is confirmed, and 90 days
+      between changes. 🔴 **A correction inside the first 24 hours after signup
+      is not a change** — the lock starts then, or a mistyped digit traps
+      somebody for three months
+- [ ] **20.15** A number already on another account is **refused outright**,
+      and the patient is told that is the reason. Never whose
+- [ ] **20.16** Staff verify by calling or messaging the new number, then
+      approve. A verification link goes to the **new** number; a code from it,
+      entered in the app, completes the change. **24 hours** to use it
+- [ ] **20.17** Recorded whole: old number, new number, reason, approver, time,
+      and the verification itself
+
+**Patient support** — §3d
+
+- [ ] **20.18** Tickets with **topics chosen from a list**, so the queue sorts
+- [ ] **20.19** Attachments: images and PDFs. 🔴 **Stored, audited and access-
+      controlled exactly like sprint 8's documents, and they never enter any
+      prompt.** A support ticket is not a copilot input
+- [ ] **20.20** 24-hour clock, one 24-hour extension with a reason, then
+      **overdue** and visible as overdue. 🔴 **The clock pauses while waiting
+      on the patient** — staff are measured on their own delay
+- [ ] **20.21** A ticket may move to WhatsApp. It is **recorded as having
+      moved**, with a written summary brought back into the ticket. A
+      conversation we cannot see is not a record
+- [ ] **20.22** On close, the correspondence is emailed to the patient —
+      **audited as patient data leaving the building (§6), and carrying the
+      correspondence, not the attachments**
+- **Accept:** a staff member can do every manual job in this product without
+      ever seeing a patient's account, and a manager can tell who is behind.
+
+### Sprint 21 — Admin: content, strings and languages · ~3 weeks · LAST
+
+*(was sprint 19, folded into admin at the founder's instruction and then split
+back out because it is a sprint's worth on its own.)*
 
 **Every string**
 
-- [ ] **20.9** `ui_strings (key, locale, value, updated_by, updated_at)`. The
+- [ ] **21.1** `ui_strings (key, locale, value, updated_by, updated_at)`. The
       typed dictionary stays as the default; a published row overrides it
-- [ ] **20.10** 🔴 **Every button label included.** "Sign up free", "Book",
+- [ ] **21.2** 🔴 **Every button label included.** "Sign up free", "Book",
       "Join", "Publish", "Revoke". Buttons are the copy that changes most
-- [ ] **20.11** Editor: search by key, filter by page, locales side by side,
+- [ ] **21.3** Editor: search by key, filter by page, locales side by side,
       one save, every write audited
-- [ ] **20.12** Cached like the CMS — one tag, no timer. Any write from
+- [ ] **21.4** Cached like the CMS — one tag, no timer. Any write from
       anything but the editor bumps `CACHE_VERSION` (C60)
-- [ ] **20.13** Clearing an override **restores the shipped default**. It does
+- [ ] **21.5** Clearing an override **restores the shipped default**. It does
       not blank a button
-- [ ] **20.14** A missing key renders the default and reports itself. Never a
+- [ ] **21.6** A missing key renders the default and reports itself. Never a
       raw key on screen, never blank
-- [ ] **20.15** Safety strings marked and undeleteable: crisis copy, the
+- [ ] **21.7** Safety strings marked and undeleteable: crisis copy, the
       recording notice, consent wording. Rewordable, never removable
+- [ ] **21.8** **The live components and their mockups are content too** —
+      demo transcript lines, the demo note, labels on the demo cards, icons and
+      captions (18.13). A translator must be able to translate the *product
+      being shown*, not only the prose around it
 
 **Every language**
 
-- [ ] **20.16** 🔴 **Admin can add a language.** Not a code change — a row.
-      Every page, section, block, label and button becomes translatable into it
-- [ ] **20.17** A translation workspace: pick a language, see what is missing,
-      fill it in, save. Partial translations are normal and are not published
-      by being saved
-- [ ] **20.18** 🔴 **A separate, bigger toggle decides which languages the
+- [ ] **21.9** 🔴 **Admin can add a language.** Not a code change — a row.
+      Every page, section, block, label, button and mockup becomes translatable
+- [ ] **21.10** A translation workspace: pick a language, see what is missing,
+      fill it in, save. Saving is not publishing
+- [ ] **21.11** 🔴 **A completeness checklist per language, and nothing goes
+      live until it is 100%.** Every string, every label, every button, every
+      mockup — counted, with what is missing listed by page
+- [ ] **21.12** 🔴 **Ruling — completeness gates the *launch*, not the *life*,
+      of a language.** Once a language is live, one new string added anywhere
+      must not take it offline: that string falls back to the default, the
+      language stays up, and it is raised loudly as an untranslated-string
+      alarm with a deadline. Otherwise adding a button to the homepage silently
+      pulls Spanish down, and nobody will ever find out why
+- [ ] **21.13** 🔴 **A separate, bigger toggle decides which languages the
       public site offers.** Adding Spanish and translating it does **not** show
       it to anybody. Two switches, deliberately: one to *author*, one to
       *publish*
-- [ ] **20.19** So the content team can translate Spanish and Chinese for weeks
+- [ ] **21.14** So the content team can translate Spanish and Chinese for weeks
       while the site offers only Arabic and English, and the day it flips, the
       whole site is already there
-- [ ] **20.20** Turning a live language **off** must not 404 anybody mid-visit.
+- [ ] **21.15** Turning a live language **off** must not 404 anybody mid-visit.
       Decide and state the behaviour: redirect to the default, or serve and
       stop advertising
-- **Accept:** a non-engineer adds a language, translates any word on the site
-      into it, keeps it hidden, and later publishes it — with no deploy, and
-      without being able to delete a crisis instruction or a consent sentence.
 
-### Sprint 21 — Purge, rotate, launch · ~3 days · 🔴 THE GATE
+**AI translation**
+
+- [ ] **21.16** **Admin can machine-translate a language in one action** —
+      whole site, one page, or the untranslated remainder
+- [ ] **21.17** 🔴 **Ruling — AI drafts, a human publishes.** A machine
+      translation lands as a **draft** and counts as *missing* on 21.11's
+      checklist until a person approves it. The alternative is a language going
+      live on nobody's judgement, in a product where a mistranslated sentence
+      can be a clinical instruction
+- [ ] **21.18** 🔴 **Crisis copy, consent wording and the recording notice can
+      never be published from a machine draft without a named human approval,
+      whatever the bulk action says.** Those three are the strings where being
+      wrong is not a typo
+- [ ] **21.19** Every AI draft is marked as one, with the model and the date,
+      so a reviewer knows what they are reading and a bad batch can be found
+- **Accept:** a non-engineer adds a language, machine-translates it, reviews
+      it, keeps it hidden, publishes it when it is complete — with no deploy —
+      and cannot delete a crisis instruction, blank a button, or put an
+      unreviewed machine sentence in front of a patient.
+
+### Sprint 22 — Purge, rotate, launch · ~3 days · 🔴 THE GATE
 
 Nothing here is code. It is the checklist that turns a test system into a live
 one, and no real patient is invited before all of it is done.
 
-- [ ] **21.1** `scripts/reset.ts` (12.6) run against production. Every table
+- [ ] **22.1** `scripts/reset.ts` (12.6) run against production. Every table
       empty, admin re-seeded, settings re-seeded, CMS republished from defaults
-- [ ] **21.2** **Every key rotated** — OpenAI, Deepgram, Daily, Resend, Stripe,
+- [ ] **22.2** **Every key rotated** — OpenAI, Deepgram, Daily, Resend, Stripe,
       the database, `CRON_SECRET`. The old ones were pasted into chats
-- [ ] **21.3** The Resend domain verified, and a real email proven to arrive
-- [ ] **21.4** Meta WhatsApp live: five templates approved,
+- [ ] **22.3** The Resend domain verified, and a real email proven to arrive
+- [ ] **22.4** Meta WhatsApp live: five templates approved,
       `npm run whatsapp:check` printing a message id
-- [ ] **21.5** Decide **one** deploy: keep this Vercel project with the domain
+- [ ] **22.5** Decide **one** deploy: keep this Vercel project with the domain
       verified and every key rotated, **or** a clean project. Either is fine;
       running both is not
-- [ ] **21.6** Stripe out of test mode, both entities' bank accounts connected
-- [ ] **21.7** A full pass as a patient and as a therapist, on the real system,
+- [ ] **22.6** Stripe out of test mode, both entities' bank accounts connected
+- [ ] **22.7** A full pass as a patient and as a therapist, on the real system,
       with nothing seeded
-- [ ] **21.8** Legal review of the consent copy, and of §3c
+- [ ] **22.8** Legal review of the consent copy, and of §3c
 
 ## §5 · BUILD LOG
 
@@ -1175,3 +1412,8 @@ Breaking one of these is a bug regardless of what any ticket says.
 | **Money held is money owed.** Every held cent traces to one payment in and at most one payout out, in a ledger — never a number computed at read time (§3c) | Hard |
 | An exchange rate is **frozen onto the transaction** that used it. Never re-converted (C76) | Hard |
 | Nothing hardcodes "two languages". Every string is `(key, locale)` and admin can add a locale (C77) | Process |
+| **AI drafts a translation, a human publishes it.** Crisis, consent and recording copy never go live from a machine draft (C79) | Hard |
+| **A screenshot is a promise that expires silently.** Live components where possible; a committed screenshot is regenerated by command and never shows a real record (C80) | Process |
+| Anything a patient attaches anywhere is clinical material: stored, audited and access-controlled like a document, and **never in a prompt** (C82) | Hard |
+| A service clock **pauses while waiting on the other person.** Measure your own delay, not theirs (C83) | Process |
+| **A completeness rule may gate a launch, never a live thing.** Falling back and shouting beats going dark (C78) | Process |
