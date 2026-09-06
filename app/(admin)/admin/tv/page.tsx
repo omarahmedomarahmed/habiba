@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { TotalView } from "@/components/admin/total-view";
 import { Gate } from "@/components/admin/gate";
-import { requireRole } from "@/lib/auth/guard";
+import { requireManager } from "@/lib/auth/guard";
 import { elevated, keyState } from "@/lib/console/gate";
 import {
   auditStream,
@@ -28,7 +28,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ q?: string; person?: string; session?: string; hours?: string }>;
 }) {
-  await requireRole("super_admin");
+  await requireManager();
   const params = await searchParams;
 
   const state = await elevated();

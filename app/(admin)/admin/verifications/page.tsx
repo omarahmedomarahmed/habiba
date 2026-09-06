@@ -3,7 +3,7 @@ import { ShieldCheck } from "lucide-react";
 
 import { VerificationReview } from "@/components/admin/verification-review";
 import { Card } from "@/components/ui";
-import { requireRole } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
 import { reviewQueue } from "@/lib/data/verification";
 import { countryFlag, countryName } from "@/lib/geo";
 import { formatDate } from "@/lib/utils";
@@ -24,7 +24,7 @@ export default async function VerificationsPage({
 }: {
   searchParams: Promise<{ state?: string }>;
 }) {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const { state } = await searchParams;
 
   const bucket =

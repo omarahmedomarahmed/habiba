@@ -37,8 +37,33 @@ import {
  * own identity table and their own session; they are not a member of an
  * organisation and never become one. See C41.
  */
-export const ROLES = ["super_admin", "therapist"] as const;
+/**
+ * Who somebody is inside the product. PLAN.md 20.8, §3d.
+ *
+ * `staff` and `manager` are new in sprint 20 and they are **not** a hierarchy
+ * with `super_admin` at the top by accident — they exist because §3d's back
+ * office is worked by people who must never see a patient's account:
+ *
+ *   therapist    the clinician. Their own caseload, nothing else.
+ *   staff        the 24/7 team. The WORK — payouts, verifications, number
+ *                changes, support tickets. No patient accounts, no
+ *                impersonation, no clinical records (20.9).
+ *   manager      that, plus the performance overview: ticket ages, overdue
+ *                counts, throughput, who owns what.
+ *   super_admin  everything, including the settings that price the product.
+ *
+ * Ordered here from least to most, and `requireRole` still takes an explicit
+ * list rather than a level — an unknown role must fail closed, which is the
+ * bug the comment in `lib/auth/guard.ts` records.
+ */
+export const ROLES = ["therapist", "staff", "manager", "super_admin"] as const;
 export type Role = (typeof ROLES)[number];
+
+/** The roles that work the back office. Never a clinician, never a patient. */
+export const BACK_OFFICE_ROLES = ["staff", "manager", "super_admin"] as const;
+
+/** The roles that may see how the back office is *performing*. 20.8. */
+export const MANAGER_ROLES = ["manager", "super_admin"] as const;
 
 /**
  * The tiers a therapist can be on. Keys only — every *figure* lives in
@@ -3773,6 +3798,59 @@ export const supportTickets = pgTable(
     /** 18R.6 — which company they addressed. Both are always reachable. */
     entity: text("entity").$type<Entity>().notNull().default("us"),
 
+    /**
+     * 🔴 20.24 — which queue this belongs in, and they are not one queue.
+     *
+     * *"A therapist chasing a payout and a patient in distress are different
+     * jobs with different clocks, and one list sorted by age puts them in the
+     * wrong order."* Recorded on the row rather than derived from `source`,
+     * because a therapist can write in through the public form too and the
+     * queue must not depend on which door they happened to use.
+     */
+    audience: text("audience").$type<"patient" | "therapist">().notNull().default("patient"),
+
+    /*
+     * 20.25 — what the ticket is *about*, when it is about something.
+     *
+     * Staff should never have to work from "the payment did not arrive" with
+     * nothing attached. Nullable because most tickets reference nothing, and
+     * `set null` because deleting a payout request must not delete the
+     * conversation about it.
+     */
+    relatedSessionId: uuid("related_session_id").references(() => sessions.id, {
+      onDelete: "set null",
+    }),
+    relatedPayoutRequestId: uuid("related_payout_request_id").references(
+      () => payoutRequests.id,
+      { onDelete: "set null" },
+    ),
+
+    /**
+     * 🔴 20.21 — a ticket that moved to WhatsApp says so, and comes back.
+     *
+     * A conversation we cannot see is not a record. Moving is allowed — it is
+     * often the humane thing at 3am — but it is *recorded as having moved*,
+     * and a written summary has to be brought back before the ticket can
+     * close, which `closeTicket` enforces.
+     */
+    movedToWhatsappAt: timestamp("moved_to_whatsapp_at", { withTimezone: true }),
+    whatsappSummary: text("whatsapp_summary"),
+
+    /**
+     * 🔴 20.22 / 20.26 — the close link, and why it is a token and not a copy.
+     *
+     * On close the sender gets a **link to a page that authenticates**, never
+     * the correspondence in an email: an email carrying the conversation is
+     * patient data leaving the building (§6), and one carrying the
+     * conversation but not the attachments is the half-measure that drifts
+     * back to "just include the summary". The token identifies the ticket; the
+     * page still demands a code sent to the handle on the ticket before it
+     * shows anything.
+     */
+    accessToken: text("access_token"),
+    accessCodeHash: text("access_code_hash"),
+    accessCodeExpiresAt: timestamp("access_code_expires_at", { withTimezone: true }),
+
     status: text("status").$type<TicketStatus>().notNull().default("open"),
     ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
 
@@ -3804,6 +3882,11 @@ export const supportTickets = pgTable(
       .where(sql`status <> 'closed'`),
     index("support_tickets_topic_idx").on(t.topic, t.createdAt),
     index("support_tickets_owner_idx").on(t.ownerUserId, t.status),
+    // 20.24 — the two queues are two index scans, not one list filtered in JS.
+    index("support_tickets_audience_idx")
+      .on(t.audience, t.dueAt)
+      .where(sql`status <> 'closed'`),
+    uniqueIndex("support_tickets_access_token_unique").on(t.accessToken),
   ],
 );
 
@@ -3828,3 +3911,123 @@ export const supportTicketEvents = pgTable(
 );
 
 export type SupportTicketEvent = typeof supportTicketEvents.$inferSelect;
+
+/* --------------------------------------------- §3d · phone-number changes -- */
+
+export const PHONE_CHANGE_STATUSES = [
+  "requested",
+  "approved",
+  "verifying",
+  "done",
+  "refused",
+] as const;
+export type PhoneChangeStatus = (typeof PHONE_CHANGE_STATUSES)[number];
+
+/**
+ * A patient changing the number their whole identity hangs on. PLAN.md 20.13–20.17.
+ *
+ * ## 🔴 Why this is a queue and not a settings field
+ *
+ * §3b makes the phone number the identity. Letting somebody change it in the
+ * app is letting them move an account to a number they have proved nothing
+ * about — and the person who most wants to do that is not the account's owner.
+ * So it is a request, a human check, and a code sent to the **new** number.
+ *
+ * ## The 24-hour correction (20.14)
+ *
+ * A mistyped digit is not a change of number, and treating it as one traps
+ * somebody outside their own record for ninety days over a typo. The lock
+ * starts when a number is *confirmed*, and a correction inside the first day
+ * after signup is free.
+ */
+export const phoneChangeRequests = pgTable(
+  "phone_change_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientAccountId: uuid("patient_account_id")
+      .notNull()
+      .references(() => patientAccounts.id, { onDelete: "cascade" }),
+
+    oldPhone: text("old_phone").notNull(),
+    newPhone: text("new_phone").notNull(),
+    /** 20.13 — in the patient's own words. Never summarised by staff. */
+    reason: text("reason").notNull(),
+    /** 20.13 — their explicit permission to contact the new number. */
+    contactConsent: boolean("contact_consent").notNull().default(false),
+
+    status: text("status").$type<PhoneChangeStatus>().notNull().default("requested"),
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+
+    /*
+     * 20.16 — the code goes to the NEW number and is entered in the app.
+     *
+     * Hashed, like every other credential here: a staff member reading the
+     * table must not be able to complete a change they approved, which is the
+     * same two-person reasoning as C74's payouts one table away.
+     */
+    verificationHash: text("verification_hash"),
+    verificationSentAt: timestamp("verification_sent_at", { withTimezone: true }),
+    verificationExpiresAt: timestamp("verification_expires_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+
+    refusedReason: text("refused_reason"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("phone_change_open_idx")
+      .on(t.createdAt)
+      .where(sql`status IN ('requested', 'approved', 'verifying')`),
+    // One live request per account. Two in flight is two codes to two numbers.
+    uniqueIndex("phone_change_one_open")
+      .on(t.patientAccountId)
+      .where(sql`status IN ('requested', 'approved', 'verifying')`),
+  ],
+);
+
+export type PhoneChangeRequest = typeof phoneChangeRequests.$inferSelect;
+
+/* ------------------------------------------- §3d · support attachments -- */
+
+/**
+ * What somebody attached to a ticket. PLAN.md 20.19, C82.
+ *
+ * 🔴 **Stored, audited and access-controlled exactly like sprint 8's
+ * documents, and never in a prompt.** A patient photographing a prescription
+ * for a support agent has just sent a medical record through a non-clinical
+ * door; the door does not change what it is.
+ *
+ * The bytes live in blob storage and this row is the record of them — same
+ * arrangement as `person_documents`, so there is one story about where
+ * uploaded clinical material lives rather than two.
+ */
+export const supportAttachments = pgTable(
+  "support_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+
+    filename: text("filename").notNull(),
+    contentType: text("content_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    storageKey: text("storage_key").notNull(),
+
+    /** Null when the sender uploaded it; set when a staff member did. */
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("support_attachments_ticket_idx").on(t.ticketId, t.createdAt)],
+);
+
+export type SupportAttachment = typeof supportAttachments.$inferSelect;

@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { PayoutQueue } from "@/components/admin/payout-queue";
 import { Card, PageHeader } from "@/components/ui";
-import { requireRole } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
 import { reconcile } from "@/lib/billing/ledger";
 import { manualQueue } from "@/lib/billing/payouts";
 import { formatUsd } from "@/lib/billing/plans";
@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  * stops being read.
  */
 export default async function PayoutsPage() {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
 
   const [manual, books, automated] = await Promise.all([
     manualQueue(),

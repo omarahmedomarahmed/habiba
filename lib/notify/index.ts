@@ -61,7 +61,18 @@ export type Message = {
     | "payout.sent"
     | "payout.rejected"
     /** 🔴 16.3b — the ageing alert. A dashboard at 3am is not an alert. */
-    | "payout.overdue";
+    | "payout.overdue"
+    /**
+     * 🔴 20.22 — a closed support ticket.
+     *
+     * This message carries a **link and a code**, and not one word of the
+     * ticket: not the topic, not the reply, not their own message quoted back.
+     * An email carrying the conversation is patient data leaving the building
+     * (§6), and this is the only place that rule could be broken.
+     */
+    | "support.closed"
+    /** 20.16 — the code that proves somebody holds the NEW number. */
+    | "phone.verify";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

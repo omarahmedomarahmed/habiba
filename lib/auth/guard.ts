@@ -129,3 +129,33 @@ export async function assertSameOrigin(): Promise<void> {
 }
 
 export { clientIp, clientUserAgent } from "@/lib/request";
+
+/**
+ * The back office. PLAN.md 20.8–20.10, §3d.
+ *
+ * ## 🔴 Staff see the work, never the patient
+ *
+ * 20.9: *"No admin impersonation. The rule does not bend for a support
+ * ticket."* A staff member helping a patient sees the **ticket**, not the
+ * patient's account — and the way that is guaranteed is not a policy, it is
+ * that no screen behind this guard queries a clinical table. `requireStaff`
+ * marks those screens; the sprint 20 verifier asserts the import graph, the
+ * same technique as 10.2, 15.8 and 18R.4.
+ */
+export async function requireStaff(): Promise<Actor> {
+  const { BACK_OFFICE_ROLES } = await import("@/lib/db/schema");
+  return requireRole(...BACK_OFFICE_ROLES);
+}
+
+/**
+ * The performance overview. 20.8.
+ *
+ * Managers see ticket ages, overdue counts, throughput and who owns what.
+ * Staff do not — not because the numbers are secret but because a queue whose
+ * workers watch their own throughput all day is a queue that optimises for
+ * throughput, and the thing being counted here is people asking for help.
+ */
+export async function requireManager(): Promise<Actor> {
+  const { MANAGER_ROLES } = await import("@/lib/db/schema");
+  return requireRole(...MANAGER_ROLES);
+}

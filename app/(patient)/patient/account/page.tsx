@@ -2,9 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 
+import { eq } from "drizzle-orm";
+
+import { ChangeNumber } from "@/components/patient/change-number";
 import { Card } from "@/components/ui";
+import { db } from "@/lib/db";
+import { patientAccounts } from "@/lib/db/schema";
+import { lockUntil } from "@/lib/data/phone-change";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { zoneLabel } from "@/lib/scheduling/tz";
+import { getCountries } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Your account", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -12,12 +19,26 @@ export const dynamic = "force-dynamic";
 /**
  * Who they are, and the doors out. PLAN.md 15.1's fifth tab.
  *
- * Deliberately small. §3d gives phone changes a 90-day discipline and a
- * staff queue (20.13–20.17), so this screen shows the handles and points at
- * the things that *are* self-service — consent, and their own documents.
+ * Deliberately small. §3d gives phone changes a 90-day discipline and a staff
+ * queue (20.13–20.17), and sprint 20 puts the request *here* rather than
+ * behind a support ticket: the patient starts it, a person checks it, and a
+ * code to the new number finishes it. Everything else on this screen is either
+ * a handle or a door to something that is genuinely self-service.
  */
 export default async function PatientAccountPage() {
   const actor = await requirePatient();
+
+  const [account] = await db
+    .select({
+      phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
+      createdAt: patientAccounts.createdAt,
+    })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, actor.accountId))
+    .limit(1);
+
+  const countries = await getCountries();
+  const locked = account ? lockUntil(account) : null;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
@@ -27,6 +48,12 @@ export default async function PatientAccountPage() {
         </h1>
         <p className="mt-1 text-sm text-slate-500">Your account and who can see your record.</p>
       </div>
+
+      <ChangeNumber
+        current={actor.phone}
+        countries={countries.map((c) => ({ code: c.code, name: c.name }))}
+        lockedUntilLabel={locked ? locked.toISOString().slice(0, 10) : null}
+      />
 
       <Card className="p-4">
         <dl className="space-y-2 text-sm">

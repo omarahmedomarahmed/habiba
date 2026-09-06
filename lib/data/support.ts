@@ -4,15 +4,21 @@ import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
+import { hashPassword as hashCode, verifyPassword as verifyCode } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import {
   supportTicketEvents,
   supportTickets,
   TICKET_TOPICS,
+  users,
   type Entity,
+  type SupportTicket,
+  type SupportTicketEvent,
   type TicketTopic,
 } from "@/lib/db/schema";
+import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
+import { notify } from "@/lib/notify";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { callerKey, consume, globalCeiling } from "@/lib/rate-limit";
 
@@ -61,8 +67,17 @@ export type TicketInput = {
   locale: string;
   entity: Entity;
   source?: "contact_form" | "patient" | "therapist";
+  /**
+   * 🔴 20.24 — which queue. Recorded rather than derived from `source`,
+   * because a clinician can write in through the public contact form too and
+   * the queue must not depend on which door they used.
+   */
+  audience?: "patient" | "therapist";
   patientAccountId?: string | null;
   userId?: string | null;
+  /** 20.25 — what it is about, when it is about something. */
+  relatedSessionId?: string | null;
+  relatedPayoutRequestId?: string | null;
 };
 
 export type TicketResult =
@@ -159,8 +174,11 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
       name: name.slice(0, 120),
       email,
       phone,
+      audience: input.audience ?? "patient",
       patientAccountId: input.patientAccountId ?? null,
       userId: input.userId ?? null,
+      relatedSessionId: input.relatedSessionId ?? null,
+      relatedPayoutRequestId: input.relatedPayoutRequestId ?? null,
       topic,
       message,
       locale: input.locale,
@@ -306,4 +324,345 @@ export async function claimTicket(input: { ticketId: string; ownerUserId: string
     actorUserId: input.ownerUserId,
   });
   return { ok: true };
+}
+
+/* ------------------------------------------- 20.20 · the clock, and its pause -- */
+
+/** 20.20 — one extension, of one day, with a reason. Not two. */
+export const EXTENSION_HOURS = 24;
+
+/**
+ * Staff have answered and are now waiting on the other person. 20.20 / C83.
+ *
+ * 🔴 **The clock stops here.** Staff are measured on their own delay, and a
+ * queue that counts a patient's four-day silence against the person who
+ * replied in ten minutes is a queue that teaches people to close tickets
+ * early rather than answer them well.
+ */
+export async function awaitReply(input: {
+  ticketId: string;
+  actorUserId: string;
+  note: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  if (input.note.trim().length < 5) {
+    return { error: "Say what you asked them, so the next person can pick this up." };
+  }
+
+  const updated = await db
+    .update(supportTickets)
+    .set({ status: "waiting_on_them", waitingSince: new Date(), updatedAt: new Date() })
+    .where(and(eq(supportTickets.id, input.ticketId), eq(supportTickets.status, "open")))
+    .returning({ id: supportTickets.id });
+
+  if (updated.length === 0) return { error: "That ticket is not open." };
+
+  await db.insert(supportTicketEvents).values({
+    ticketId: input.ticketId,
+    kind: "waiting",
+    actorUserId: input.actorUserId,
+    note: input.note.trim(),
+  });
+  return { ok: true };
+}
+
+/**
+ * They came back. The clock restarts — and it restarts *from now*.
+ *
+ * Not "resumes with the remaining hours": the reply is new information and the
+ * person answering it deserves the same day anybody else gets. Carrying the
+ * old remainder forward would make a ticket that waited a week arrive already
+ * overdue, which is a queue punishing staff for somebody else's silence.
+ */
+export async function replyReceived(input: { ticketId: string }): Promise<void> {
+  await db
+    .update(supportTickets)
+    .set({
+      status: "open",
+      waitingSince: null,
+      dueAt: new Date(Date.now() + FIRST_REPLY_HOURS * 3_600_000),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(supportTickets.id, input.ticketId), eq(supportTickets.status, "waiting_on_them")),
+    );
+
+  await db.insert(supportTicketEvents).values({
+    ticketId: input.ticketId,
+    kind: "replied",
+    actorUserId: null,
+    note: "They replied — the clock restarts",
+  });
+}
+
+/**
+ * 20.20 — one extension, once, with a reason.
+ *
+ * Refused the second time by looking at `extendedAt`, so "extend it again" is
+ * a conversation with a manager rather than a button. An unlimited extension
+ * is not a deadline.
+ */
+export async function extendTicket(input: {
+  ticketId: string;
+  actorUserId: string;
+  reason: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const reason = input.reason.trim();
+  if (reason.length < 10) return { error: "Say why this needs another day." };
+
+  const updated = await db
+    .update(supportTickets)
+    .set({
+      dueAt: sql`${supportTickets.dueAt} + interval '${sql.raw(String(EXTENSION_HOURS))} hours'`,
+      extendedAt: new Date(),
+      extensionReason: reason,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(supportTickets.id, input.ticketId), isNull(supportTickets.extendedAt)))
+    .returning({ id: supportTickets.id });
+
+  if (updated.length === 0) {
+    return { error: "This ticket has already had its extension. Ask a manager." };
+  }
+
+  await db.insert(supportTicketEvents).values({
+    ticketId: input.ticketId,
+    kind: "extended",
+    actorUserId: input.actorUserId,
+    note: reason,
+  });
+  return { ok: true };
+}
+
+/**
+ * 🔴 20.21 — the ticket moved to WhatsApp, and says so.
+ *
+ * Moving is allowed and often the humane thing at three in the morning. What
+ * is not allowed is the conversation disappearing: the row records that it
+ * moved, and `closeTicket` refuses to close it until a written summary is
+ * brought back — enforced by a CHECK as well, because the busy night is
+ * exactly when a code path gets skipped.
+ */
+export async function movedToWhatsapp(input: {
+  ticketId: string;
+  actorUserId: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  await db
+    .update(supportTickets)
+    .set({ movedToWhatsappAt: new Date(), updatedAt: new Date() })
+    .where(eq(supportTickets.id, input.ticketId));
+
+  await db.insert(supportTicketEvents).values({
+    ticketId: input.ticketId,
+    kind: "moved",
+    actorUserId: input.actorUserId,
+    note: "Continued on WhatsApp — a summary has to come back before this closes",
+  });
+  return { ok: true };
+}
+
+/* -------------------------------------------- 20.22 / 20.26 · closing one -- */
+
+/**
+ * Close it, and send a **link to a page that authenticates**. 20.22, 20.26.
+ *
+ * 🔴 Never the correspondence in an email. The two halves of that rule are one
+ * rule: an email carrying the conversation is patient data leaving the
+ * building (§6), and an email that carries the conversation but cannot carry
+ * the attachments (20.19, C82) is a half-measure that drifts back to "just
+ * include the summary" the first time somebody finds the link inconvenient.
+ *
+ * The same rule covers a therapist's ticket (20.26) — theirs carries their
+ * earnings and their patients' names, which is not plaintext-email material
+ * either.
+ *
+ * The link carries a token that identifies the ticket and nothing else; the
+ * page then demands a code sent to the handle already on the ticket. Two
+ * factors, neither of them the message.
+ */
+export async function closeTicket(input: {
+  ticketId: string;
+  actorUserId: string;
+  summary: string;
+}): Promise<{ ok?: boolean; error?: string; link?: string }> {
+  const summary = input.summary.trim();
+  if (summary.length < 10) return { error: "Say what was done, for the record and for them." };
+
+  const [ticket] = await db
+    .select()
+    .from(supportTickets)
+    .where(eq(supportTickets.id, input.ticketId))
+    .limit(1);
+
+  if (!ticket) return { error: "That ticket no longer exists." };
+  if (ticket.status === "closed") return { error: "That ticket is already closed." };
+
+  if (ticket.movedToWhatsappAt && (ticket.whatsappSummary ?? "").trim().length < 20) {
+    return {
+      error:
+        "This one moved to WhatsApp. Write up what was agreed there before closing it — a conversation we cannot see is not a record.",
+    };
+  }
+
+  const token = randomBytes(24).toString("base64url");
+  const code = String(Math.floor(100_000 + Math.random() * 900_000));
+
+  await db
+    .update(supportTickets)
+    .set({
+      status: "closed",
+      closedAt: new Date(),
+      closedByUserId: input.actorUserId,
+      accessToken: token,
+      accessCodeHash: await hashCode(code),
+      accessCodeExpiresAt: new Date(Date.now() + 7 * 86_400_000),
+      updatedAt: new Date(),
+    })
+    .where(eq(supportTickets.id, input.ticketId));
+
+  await db.insert(supportTicketEvents).values({
+    ticketId: input.ticketId,
+    kind: "closed",
+    actorUserId: input.actorUserId,
+    note: summary,
+  });
+
+  const link = `${env.appUrl}/support/${token}`;
+
+  /*
+   * The message carries the link and the code — and **not one word of the
+   * ticket**. Not the topic, not the summary, not their own message quoted
+   * back. That is the rule, and this is the only place it could be broken.
+   */
+  await notify(
+    { email: ticket.email, phone: ticket.phone, timezone: null },
+    {
+      kind: "support.closed",
+      subject: "Your message to 24Therapy",
+      body: `We have answered your message (reference ${ticket.reference}). Open ${link} and enter the code ${code} to read the reply and anything attached to it. The code lasts seven days.`,
+      link: { label: "Read the reply", url: link },
+    },
+  );
+
+  return { ok: true, link };
+}
+
+/**
+ * The closed-ticket page, for the person who wrote it. 20.22.
+ *
+ * Two things are checked before a word is returned: the token identifies one
+ * ticket, and the code proves the reader holds the handle it was sent to.
+ * Every successful read is audited — the reader is not staff, but the material
+ * is the same material.
+ */
+export async function readByToken(input: {
+  token: string;
+  code: string;
+}): Promise<{ error?: string; ticket?: SupportTicket; events?: SupportTicketEvent[] }> {
+  const [ticket] = await db
+    .select()
+    .from(supportTickets)
+    .where(eq(supportTickets.accessToken, input.token))
+    .limit(1);
+
+  // One message for both failures: a token that exists and a token that does
+  // not must be indistinguishable, or this becomes an oracle for references.
+  const wrong = { error: "That link or code is not right." };
+  if (!ticket?.accessCodeHash) return wrong;
+  if (!ticket.accessCodeExpiresAt || ticket.accessCodeExpiresAt < new Date()) {
+    return { error: "That code has expired. Write to us again and we will send another." };
+  }
+  if (!(await verifyCode(input.code, ticket.accessCodeHash))) return wrong;
+
+  const events = await db
+    .select()
+    .from(supportTicketEvents)
+    .where(eq(supportTicketEvents.ticketId, ticket.id))
+    .orderBy(desc(supportTicketEvents.createdAt));
+
+  return { ticket, events };
+}
+
+/* ----------------------------------------------------------- the queues -- */
+
+/**
+ * 🔴 20.24 — two queues, because they are two jobs.
+ *
+ * `audience` is a column rather than a filter over `source`, so a therapist
+ * who writes in through the public contact form still lands in the therapist
+ * queue. One list sorted by age puts a payout chase above somebody in
+ * distress, which is the wrong order and the reason this parameter exists.
+ */
+export async function queueFor(audience: "patient" | "therapist", limit = 100) {
+  const now = Date.now();
+
+  const rows = await db
+    .select({
+      id: supportTickets.id,
+      reference: supportTickets.reference,
+      name: supportTickets.name,
+      topic: supportTickets.topic,
+      status: supportTickets.status,
+      locale: supportTickets.locale,
+      entity: supportTickets.entity,
+      ownerUserId: supportTickets.ownerUserId,
+      ownerFirst: users.firstName,
+      ownerLast: users.lastName,
+      createdAt: supportTickets.createdAt,
+      dueAt: supportTickets.dueAt,
+      waitingSince: supportTickets.waitingSince,
+      extendedAt: supportTickets.extendedAt,
+      movedToWhatsappAt: supportTickets.movedToWhatsappAt,
+      relatedSessionId: supportTickets.relatedSessionId,
+      relatedPayoutRequestId: supportTickets.relatedPayoutRequestId,
+    })
+    .from(supportTickets)
+    .leftJoin(users, eq(users.id, supportTickets.ownerUserId))
+    .where(
+      and(eq(supportTickets.audience, audience), sql`${supportTickets.status} <> 'closed'`),
+    )
+    .orderBy(asc(supportTickets.dueAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
+    ...row,
+    ownerName: [row.ownerFirst, row.ownerLast].filter(Boolean).join(" ") || null,
+    ageHours: Math.round(((now - row.createdAt.getTime()) / 3_600_000) * 10) / 10,
+    overdue: row.status !== "waiting_on_them" && row.dueAt.getTime() < now,
+    /** 20.25 — staff should never work from a complaint with nothing attached. */
+    hasContext: row.relatedSessionId !== null || row.relatedPayoutRequestId !== null,
+  }));
+}
+
+/**
+ * 20.8 — what a **manager** sees and staff do not: how the queue is doing.
+ *
+ * Counts and ages, never content. A performance overview that shows the
+ * messages is a performance overview that has become a second inbox.
+ */
+export async function queueHealth() {
+  const rows = await db
+    .select({
+      audience: supportTickets.audience,
+      open: sql<number>`COUNT(*) FILTER (WHERE ${supportTickets.status} = 'open')::int`,
+      waiting: sql<number>`COUNT(*) FILTER (WHERE ${supportTickets.status} = 'waiting_on_them')::int`,
+      overdue: sql<number>`COUNT(*) FILTER (WHERE ${supportTickets.status} = 'open' AND ${supportTickets.dueAt} < now())::int`,
+      unowned: sql<number>`COUNT(*) FILTER (WHERE ${supportTickets.status} <> 'closed' AND ${supportTickets.ownerUserId} IS NULL)::int`,
+      closedThisWeek: sql<number>`COUNT(*) FILTER (WHERE ${supportTickets.closedAt} > now() - interval '7 days')::int`,
+    })
+    .from(supportTickets)
+    .groupBy(supportTickets.audience);
+
+  const byOwner = await db
+    .select({
+      ownerUserId: supportTickets.ownerUserId,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      open: sql<number>`COUNT(*) FILTER (WHERE ${supportTickets.status} <> 'closed')::int`,
+      overdue: sql<number>`COUNT(*) FILTER (WHERE ${supportTickets.status} = 'open' AND ${supportTickets.dueAt} < now())::int`,
+    })
+    .from(supportTickets)
+    .innerJoin(users, eq(users.id, supportTickets.ownerUserId))
+    .groupBy(supportTickets.ownerUserId, users.firstName, users.lastName);
+
+  return { byAudience: rows, byOwner };
 }
