@@ -6,6 +6,7 @@ import { Check, Globe } from "lucide-react";
 import { saveTimezone } from "@/app/(app)/settings/actions";
 import { Card } from "@/components/ui";
 import { formatTime, zoneLabel } from "@/lib/scheduling/tz";
+import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 
 /**
  * The clinician's own time zone. PLAN.md 11R.2.
@@ -24,10 +25,17 @@ import { formatTime, zoneLabel } from "@/lib/scheduling/tz";
  * are in" would drift from it the first time somebody moves.
  */
 export function TimezoneSettings({ initial }: { initial: string | null }) {
-  const detected = useMemo(
-    () => (typeof Intl === "undefined" ? null : Intl.DateTimeFormat().resolvedOptions().timeZone),
-    [],
-  );
+  /*
+   * 12.3 / C84 — the genuine exception, still not read during render.
+   *
+   * Offering the browser's zone is the entire point of this screen, so unlike
+   * everywhere else there is no server value to prefer. But a `useMemo` runs on
+   * the SSR pass too: it returned the server's zone in the HTML and the
+   * clinician's a frame later, which on *this* screen means the suggestion
+   * flickers from UTC to their city. The hook returns null until mounted, so
+   * both passes agree and the suggestion simply appears.
+   */
+  const detected = useReaderZone();
 
   const [zone, setZone] = useState(initial ?? detected ?? "UTC");
   const [saved, setSaved] = useState(false);

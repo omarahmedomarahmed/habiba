@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronRight, Wallet } from "lucide-react";
 
 import { BillingLedger } from "@/components/billing/ledger";
-import { PlanCard } from "@/components/billing/invoice-list";
+import { PlanCard } from "@/components/billing/plan-card";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";

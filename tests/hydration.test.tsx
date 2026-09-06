@@ -41,6 +41,7 @@ const RENDER = String.raw`
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import { formatDate, formatDateTime, relativeDay } from "../lib/utils";
+import { formatMoney } from "../lib/billing/plans";
 import { readerZone } from "../lib/scheduling/tz";
 
 const AT = new Date("2026-09-12T23:30:00.000Z");
@@ -52,6 +53,7 @@ function AsProp({ zone }: { zone: string | null }) {
       <span>{formatDate(AT, zone)}</span>
       <span>{formatDateTime(AT, zone)}</span>
       <span>{relativeDay(AT, zone)}</span>
+      <span>{formatMoney(123450, "USD")}</span>
     </div>
   );
 }
@@ -63,6 +65,7 @@ function FromRuntime() {
     <div>
       <span>{formatDate(AT, zone)}</span>
       <span>{formatDateTime(AT, zone)}</span>
+      <span>{(1234.5).toLocaleString(undefined, { style: "currency", currency: "USD" })}</span>
     </div>
   );
 }
@@ -75,13 +78,13 @@ process.stdout.write(
 );
 `;
 
-function renderUnder(tz: string, which: "prop" | "runtime"): string {
+function renderUnder(tz: string, which: "prop" | "runtime", locale = "en-US"): string {
   const dir = mkdtempSync(join(tmpdir(), "hydration-"));
   const file = join(process.cwd(), "tests", `.hydration-render.${process.pid}.tsx`);
   try {
     writeFileSync(file, RENDER);
     return execFileSync("node", ["--import", "tsx", file, which], {
-      env: { ...process.env, TZ: tz },
+      env: { ...process.env, TZ: tz, LANG: locale, LC_ALL: locale },
       encoding: "utf8",
     });
   } finally {
@@ -119,6 +122,20 @@ test("…and the control: reading the zone from the runtime during render does d
   );
   assert.match(server, /12 Sept 2026/);
   assert.match(browser, /13 Sept 2026/);
+});
+
+test("🔴 money formats identically under two locales — C84 is not only about dates", () => {
+  /*
+   * `pay-flow` formatted money with `toLocaleString(undefined, …)`, which reads
+   * the *runtime's* locale: `$1,234.50` on the server, `1.234,50 $` in a German
+   * browser. Same mismatch, on the public payment screen, where the number is
+   * the entire point.
+   */
+  const server = renderUnder("UTC", "prop", "en-US");
+  const browser = renderUnder("UTC", "prop", "de-DE");
+
+  assert.equal(server, browser);
+  assert.match(server, /\$1,234\.50/);
 });
 
 test("readerZone() answers on the server — it does not return null there", () => {

@@ -6,7 +6,8 @@ import { CalendarDays, Trash2, X } from "lucide-react";
 
 import { cancel, publish, withdraw } from "@/app/(app)/on-call/schedule-actions";
 import { Badge, Card } from "@/components/ui";
-import { byDayIn, dayKey, formatTime, zoneLabel } from "@/lib/scheduling/tz";
+import { byDayIn, dayKey, formatTime, formatWeekday, zoneLabel } from "@/lib/scheduling/tz";
+import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 
 /**
  * Publishing bookable hours. PLAN.md 11.1.
@@ -61,9 +62,19 @@ export function AvailabilityEditor({
    * same name on screen, so the label never promises a zone the server is not
    * about to use.
    */
-  const browserZone =
-    typeof Intl === "undefined" ? "UTC" : Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const zone = timezone ?? adopted ?? browserZone;
+  /*
+   * 🔴 12.3 / C84 — the browser's zone, after mount only.
+   *
+   * This was read inline during render, so a clinician with no stored zone saw
+   * their published hours labelled UTC in the server HTML and their own city a
+   * frame later — on the screen where they decide what "18:00" means.
+   *
+   * `browserZone` is also what the server adopts on the first publish. That
+   * read happens inside the submit handler, which only ever runs in the
+   * browser, so it is a real answer by the time it matters.
+   */
+  const browserZone = useReaderZone();
+  const zone = timezone ?? adopted ?? browserZone ?? "UTC";
 
   const grouped = byDayIn(
     slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
@@ -143,7 +154,12 @@ export function AvailabilityEditor({
             onClick={() =>
               startTransition(async () => {
                 setError(null);
-                const result = await publish({ days, fromHour, toHour, browserZone });
+                const result = await publish({
+                  days,
+                  fromHour,
+                  toHour,
+                  browserZone: browserZone ?? undefined,
+                });
                 if (result.error) setError(result.error);
                 else {
                   setDays([]);
@@ -281,11 +297,7 @@ function upcomingDays(count: number, zone: string): { iso: string; label: string
 
     out.push({
       iso,
-      label: new Intl.DateTimeFormat("en-GB", {
-        weekday: "short",
-        day: "numeric",
-        timeZone: zone,
-      }).format(at),
+      label: formatWeekday(at, zone),
     });
   }
   return out;

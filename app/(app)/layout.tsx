@@ -198,6 +198,7 @@ export default async function AppLayout({
       {/* Presence and the booking alarm follow the clinician around the whole
           portal, not just the radar page — see the comment in the component. */}
       <RadarPresence
+        zone={actor.timezone}
         initialStatus={radar?.status ?? "offline"}
         // Both default on: a clinician who has never touched the setting should
         // hear that someone needs them.

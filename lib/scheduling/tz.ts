@@ -133,6 +133,15 @@ export function formatCalendarDate(at: Date, zone: string, locale = LOCALE): str
   return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: zone }).format(at);
 }
 
+/** `Thu 12` — the short label on a day chip. */
+export function formatWeekday(at: Date, zone: string): string {
+  return new Intl.DateTimeFormat(LOCALE, {
+    weekday: "short",
+    day: "numeric",
+    timeZone: zone,
+  }).format(at);
+}
+
 /**
  * The full rendering a person reads: `Thursday 12 September, 22:00 (Cairo)`.
  *

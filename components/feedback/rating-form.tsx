@@ -8,6 +8,7 @@ import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback-options";
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
+import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn } from "@/lib/utils";
 
 /**
@@ -78,12 +79,22 @@ export function RatingForm({
    * day, and the patient reading it could reasonably think the page was about
    * a different session.
    */
+  /*
+   * 12.3 / C84 — the reader's zone, but only after mount.
+   *
+   * This read `Intl.DateTimeFormat().resolvedOptions().timeZone` during render.
+   * On the SSR pass that is the *server's* zone, so the HTML said one day and
+   * the hydrated DOM said another — on the public feedback page, which is the
+   * first thing a patient sees after a session.
+   *
+   * The therapist's zone is the fallback rather than UTC: the server knows it,
+   * both passes agree on it, and it is a far better guess for this reader than
+   * UTC — they were in a session with that clinician an hour ago.
+   */
+  const detected = useReaderZone();
   const sessionDate = formatCalendarDate(
     new Date(sessionDateIso),
-    resolveZone(
-      typeof Intl === "undefined" ? null : Intl.DateTimeFormat().resolvedOptions().timeZone,
-      therapistTimezone,
-    ).name,
+    resolveZone(detected, therapistTimezone).name,
   );
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>

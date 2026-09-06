@@ -6,6 +6,7 @@ import { CalendarDays, Check, Clock } from "lucide-react";
 import { book } from "@/app/(public)/t/[id]/book/actions";
 import { Card } from "@/components/ui";
 import { byDayIn, formatTime, formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { PhoneField } from "@/components/forms/phone-field";
 import { countryFromLocale } from "@/lib/phone/e164";
 
@@ -29,10 +30,13 @@ import { countryFromLocale } from "@/lib/phone/e164";
 export function BookingCalendar({
   slots,
   therapistName,
+  therapistTimezone,
   rateLabel,
 }: {
   slots: { id: string; startsAt: string }[];
   therapistName: string;
+  /** The zone the first render uses, before the browser answers. 12.3 / C84. */
+  therapistTimezone: string | null;
   rateLabel: string;
 }) {
   const [picked, setPicked] = useState<{ id: string; startsAt: string } | null>(null);
@@ -48,17 +52,32 @@ export function BookingCalendar({
   const [pending, startTransition] = useTransition();
 
   /*
-   * 11R.1 / 11R.4 — the reader's own zone, resolved once and used for every
-   * time on this screen. `Intl.DateTimeFormat().resolvedOptions().timeZone` is
-   * the browser's own answer, which is the only clock this person lives in.
-   *
+   * 11R.1 / 11R.4 — the reader's own zone, used for every time on this screen.
    * The same string is sent to the server with the booking, so the
    * confirmation is rendered in it too — that is C61: the calendar said 22:00
    * and the email said 19:00 UTC.
+   *
+   * 🔴 12.3 / C84 — read **after mount**, not during render.
+   *
+   * This called `Intl.DateTimeFormat().resolvedOptions().timeZone` inline. On
+   * the SSR pass that is the server's zone, so this page — the one where a
+   * patient picks an appointment — shipped 22:00 UTC in the HTML and hydrated
+   * to 00:00 Cairo. C61 was that exact bug in the email; this was the same bug
+   * between the two render passes of the calendar itself.
+   *
+   * The therapist's zone is the fallback rather than UTC. The server knows it,
+   * both passes agree on it, and somebody looking at this profile is far more
+   * likely to be near that clinician than to be in UTC.
+   *
+   * `useReaderZone()` is called with **no fallback** deliberately: the fallback
+   * belongs in `resolveZone`, where it is recorded as `source: "clinician"`.
+   * Folding it into the hook would make `zone.source` read `"reader"` before
+   * the browser has said anything — and the booking below sends the zone to
+   * the server only when it really is the reader's, so a wrong `source` would
+   * file the therapist's zone as the patient's.
    */
-  const zone = resolveZone(
-    typeof Intl === "undefined" ? null : Intl.DateTimeFormat().resolvedOptions().timeZone,
-  );
+  const detected = useReaderZone();
+  const zone = resolveZone(detected, therapistTimezone);
 
   const days = byDayIn(
     slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),

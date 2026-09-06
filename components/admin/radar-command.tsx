@@ -21,6 +21,7 @@ import {
 import type { RadarEntry } from "@/components/radar/types";
 import { Button, Card, Input } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import type { CommandRow, CommandView } from "@/lib/data/radar-admin";
 import { countryFlag, countryName, languageFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
@@ -48,7 +49,14 @@ const REFRESH_MS = 3_000;
  * No clinical content anywhere on this screen. Availability, geography, money
  * and conduct: nothing anybody said to a therapist.
  */
-export function RadarCommand({ initial }: { initial: CommandView }) {
+export function RadarCommand({
+  initial,
+  zone,
+}: {
+  initial: CommandView;
+  /** The admin's own zone, from the server. 12.3 / C84 — never read here. */
+  zone: string | null;
+}) {
   const [view, setView] = useState(initial);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState<string | null>(null);
@@ -284,7 +292,7 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
                     )}
                   </Td>
                   <Td>
-                    <State row={row} />
+                    <State zone={zone} row={row} />
                   </Td>
                   <Td className="text-end tabular-nums">
                     {row.rating ? (
@@ -318,7 +326,7 @@ export function RadarCommand({ initial }: { initial: CommandView }) {
         </div>
       </Card>
 
-      {selected ? <Detail row={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? <Detail zone={zone} row={selected} onClose={() => setSelected(null)} /> : null}
     </div>
   );
 }
@@ -362,7 +370,7 @@ function Stat({
   );
 }
 
-function State({ row }: { row: CommandRow }) {
+function State({ row, zone }: { row: CommandRow; zone: string | null }) {
   if (row.suspendedUntil) {
     return (
       <span className="inline-flex flex-col">
@@ -371,7 +379,7 @@ function State({ row }: { row: CommandRow }) {
           suspended
         </span>
         <span className="mt-0.5 text-[10px] text-slate-400">
-          until {new Date(row.suspendedUntil).toLocaleDateString()}
+          until {formatDate(row.suspendedUntil, zone)}
         </span>
       </span>
     );
@@ -518,7 +526,16 @@ function Ban24({
 }
 
 /** One clinician's radar profile, editable. */
-function Detail({ row, onClose }: { row: CommandRow; onClose: () => void }) {
+function Detail({
+  row,
+  onClose,
+  zone,
+}: {
+  row: CommandRow;
+  onClose: () => void;
+  /** Passed down, never read from the runtime here. 12.3. */
+  zone: string | null;
+}) {
   const [pending, startTransition] = useTransition();
   const [headline, setHeadline] = useState(row.headline ?? "");
   const [country, setCountry] = useState(row.country ?? "");
@@ -556,7 +573,7 @@ function Detail({ row, onClose }: { row: CommandRow; onClose: () => void }) {
           <Row label="Our cut 30d">{formatUsd(row.feeCents30d)}</Row>
           <Row label="Walk-ins">{row.acceptsWalkIns ? "Yes" : "No"}</Row>
           <Row label="Last seen">
-            {row.lastSeenAt ? new Date(row.lastSeenAt).toLocaleTimeString() : "never"}
+            {row.lastSeenAt ? formatDateTime(row.lastSeenAt, zone) : "never"}
           </Row>
           <Row label="Languages">{row.languages.join(", ") || "—"}</Row>
         </dl>

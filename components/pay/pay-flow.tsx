@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Globe, Loader2, ShieldCheck } from "lucide-react";
 
 import { priceFor, startPayment, type Breakdown } from "@/app/pay/[token]/actions";
+import { formatMoney } from "@/lib/billing/plans";
 import { Button, Card, Field, Input } from "@/components/ui";
 
 /**
@@ -75,12 +76,15 @@ export function PayFlow({
       else if (result.payUrl) window.location.href = result.payUrl;
     });
 
-  const money = (cents: number, currency: string) =>
-    (cents / 100).toLocaleString(undefined, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    });
+  /*
+   * 12.3 / C84 — a named locale, not the runtime's.
+   *
+   * This was `toLocaleString(undefined, …)`, which reads the *runtime's*
+   * locale: `en-US` on the server and whatever the visitor's browser says in
+   * the client pass. Not a date, but exactly the same mismatch — on the public
+   * payment screen, where the number is the whole point.
+   */
+  const money = formatMoney;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">

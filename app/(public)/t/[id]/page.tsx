@@ -66,6 +66,7 @@ export default async function TherapistProfilePage({
         <BookingCalendar
           slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString() }))}
           therapistName={profile.firstName}
+          therapistTimezone={profile.timezone}
           rateLabel={profile.rateCents > 0 ? formatUsd(profile.rateCents) : "Free"}
         />
       </div>

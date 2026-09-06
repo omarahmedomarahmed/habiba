@@ -80,9 +80,26 @@ export function sessionCharge(input: {
 }
 
 export function formatUsd(cents: number): string {
+  return formatMoney(cents, "USD");
+}
+
+/**
+ * Money, in a **named** locale. 12.3 / C84.
+ *
+ * `toLocaleString(undefined, …)` uses the runtime's locale, which is the same
+ * server-vs-browser split as a time zone and produces the same hydration
+ * mismatch — `$1,234.50` on the server pass and `1.234,50 $` in a German
+ * browser. It is also not a formatting preference we have decided: sprint 16
+ * gives every price a USD figure with an EGP toggle, and both need to render
+ * identically on both passes.
+ *
+ * So the locale is pinned. `en-US` today; §3c's currency work is where a real
+ * per-reader locale is decided, and it will arrive as a prop like the zone did.
+ */
+export function formatMoney(cents: number, currency: string): string {
   return (cents / 100).toLocaleString("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: currency.toUpperCase(),
     minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
   });
 }

@@ -43,7 +43,7 @@ export default async function AdminRadarPage({
         </p>
       </div>
 
-      <RadarCommand initial={view} />
+      <RadarCommand initial={view} zone={actor.timezone} />
 
       <div>
         <h2 className="text-lg font-bold tracking-tight text-slate-900">

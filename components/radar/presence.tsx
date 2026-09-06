@@ -22,7 +22,7 @@ import {
   type AlarmState,
 } from "@/lib/alarm";
 import type { RadarAttention } from "@/lib/data/radar";
-import { cn } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 
 /**
  * Fast while they are on the board, slow while they are not.
@@ -76,7 +76,10 @@ export function RadarPresence({
   alertOnBooking,
   clinician,
   orb,
+  zone,
 }: {
+  /** The clinician's own zone, from the shell's actor. 12.3 / C84. */
+  zone: string | null;
   initialStatus: string;
   alertOnView: boolean;
   alertOnBooking: boolean;
@@ -422,7 +425,7 @@ export function RadarPresence({
 
       {!active ? null : (
         <>
-          <StatusPill
+          <StatusPill zone={zone}
             status={status}
             suspended={suspended}
             permission={permission}
@@ -688,7 +691,10 @@ function StatusPill({
   sound,
   onAskPermission,
   onEnableSound,
+  zone,
 }: {
+  /** Passed down, never read from the runtime here. 12.3. */
+  zone: string | null;
   status: Status;
   suspended: { until: string; reason: string | null } | null;
   permission: NotificationPermission | "unsupported";
@@ -700,7 +706,7 @@ function StatusPill({
     return (
       <div className="safe-top fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-2">
         <p className="rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg">
-          Off the radar until {new Date(suspended.until).toLocaleString()}
+          Off the radar until {formatDateTime(suspended.until, zone)}
           {suspended.reason ? ` · ${suspended.reason}` : ""}
         </p>
       </div>

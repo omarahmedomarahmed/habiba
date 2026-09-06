@@ -238,6 +238,10 @@ async function queryBoard() {
       lastName: users.lastName,
       profile: users.profile,
       rateCents: users.sessionRateCents,
+      // 12.3 / C84 — the zone the booking calendar renders in until the
+      // visitor's browser tells us its own. Better than UTC by a mile: an
+      // anonymous reader looking at this therapist is usually near them.
+      timezone: users.timezone,
       headline: therapistRadar.headline,
       photoUrl: therapistRadar.photoUrl,
       languages: therapistRadar.languages,
@@ -400,6 +404,8 @@ export type PublicProfile = Omit<RadarTherapist, "status"> & {
   status: RadarTherapist["status"] | "offline";
   /** Their own words. Longer than the one-line headline the board shows. */
   bio: string | null;
+  /** The zone the booking calendar renders in before the browser answers. 12.3. */
+  timezone: string | null;
 };
 
 export async function publicProfile(
@@ -417,6 +423,10 @@ export async function publicProfile(
       lastName: users.lastName,
       profile: users.profile,
       rateCents: users.sessionRateCents,
+      // 12.3 / C84 — the zone the booking calendar renders in until the
+      // visitor's browser tells us its own. Better than UTC by a mile: an
+      // anonymous reader looking at this therapist is usually near them.
+      timezone: users.timezone,
       headline: therapistRadar.headline,
       photoUrl: therapistRadar.photoUrl,
       languages: therapistRadar.languages,
@@ -471,6 +481,7 @@ export async function publicProfile(
     ...shaped,
     status: row.status === "offline" || stale ? "offline" : shaped.status,
     bio: row.profile?.bio ?? null,
+    timezone: row.timezone,
   };
 }
 

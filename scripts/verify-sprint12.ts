@@ -225,34 +225,52 @@ async function main() {
     );
 
     /*
-     * 🔴 12.3, corrected — no client component may read the zone during render.
+     * 🔴 12.3 / C84 — no `"use client"` file may read the runtime's zone or
+     * locale during render.
      *
-     * Comments are stripped before scanning: three previous checkers in this
-     * repository matched their own prose (sprint 10's import block, 11R's DO
-     * blocks, 12.6's ledger scan). The behavioural half of this lives in
-     * `tests/hydration.test.tsx`, which renders under two time zones in two
-     * processes and compares the strings; this is the cheap sweep that catches
-     * the *next* file somebody writes.
+     * ⚠️ The first version of this check scanned for `readerZone(` — the
+     * **helper**, not the defect. Seven files never used the helper: they
+     * inlined `Intl.DateTimeFormat().resolvedOptions().timeZone`, or called
+     * `toLocaleDateString()` / `toLocaleString()` straight off a Date, or
+     * formatted money with the runtime's locale. The scanner said "0
+     * offenders" over the public booking calendar, the public feedback page
+     * and the availability editor. That is the fourth checker in this
+     * repository to pass by matching the wrong thing, and the pattern each
+     * time was the same: **the check was written against the fix instead of
+     * against the defect.**
+     *
+     * So this bans the construct. `Intl.DateTimeFormat(`, `toLocaleDateString`,
+     * `toLocaleTimeString` and `toLocaleString` — zone and locale, dates and
+     * money — anywhere in a client file. Every legitimate use goes through
+     * `lib/scheduling/tz.ts` or `lib/utils.ts`, which take an explicit zone,
+     * or through `useReaderZone()`, which runs in an effect.
      */
     const { readdirSync, readFileSync: read } = await import("node:fs");
     const { join } = await import("node:path");
+
+    const BANNED = /\bIntl\s*\.\s*DateTimeFormat\s*\(|\bIntl\s*\.\s*NumberFormat\s*\(|\.toLocaleDateString\s*\(|\.toLocaleTimeString\s*\(|\.toLocaleString\s*\(/;
 
     const offenders: string[] = [];
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, entry.name);
-        if (entry.isDirectory()) walk(path);
-        else if (path.endsWith(".tsx") || path.endsWith(".ts")) {
-          const raw = read(path, "utf8");
-          if (!raw.includes('"use client"')) continue;
+        if (entry.isDirectory()) {
+          walk(path);
+          continue;
+        }
+        if (!path.endsWith(".tsx") && !path.endsWith(".ts")) continue;
 
-          const code = raw
-            .replace(/\/\*[\s\S]*?\*\//g, "")
-            .replace(/(^|[^:])\/\/.*$/gm, "$1");
+        const raw = read(path, "utf8");
+        if (!raw.includes('"use client"')) continue;
 
-          // `useReaderZone()` is the sanctioned caller — it runs in an effect.
-          const bare = code.replace(/useReaderZone/g, "");
-          if (/\breaderZone\s*\(/.test(bare)) offenders.push(path);
+        // Comments stripped first: three earlier checkers here matched their
+        // own prose, and this file's own explanation names every banned call.
+        const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+        // `useReaderZone` is the sanctioned reader — it runs in an effect.
+        const bare = code.replace(/useReaderZone/g, "").replace(/\breaderZone\s*\(/g, "");
+        if (BANNED.test(bare) || /\breaderZone\s*\(/.test(code.replace(/useReaderZone/g, ""))) {
+          offenders.push(path);
         }
       }
     };
@@ -260,7 +278,7 @@ async function main() {
     walk("app");
 
     check(
-      "🔴 12.3 no client component calls readerZone() during render — it answers UTC on the server pass",
+      "🔴 12.3 / C84 no client file formats a date, time or amount off the runtime's zone or locale",
       offenders.length === 0,
       offenders.join(", ") || "0 offenders",
     );
