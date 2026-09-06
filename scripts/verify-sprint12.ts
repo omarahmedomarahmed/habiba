@@ -260,6 +260,14 @@ async function main() {
         }
         if (!path.endsWith(".tsx") && !path.endsWith(".ts")) continue;
 
+        /*
+         * The hook module is the one sanctioned caller — it exists precisely to
+         * read the runtime's zone, and it does it in an effect. Exempted by
+         * **path**, not by pattern: a pattern-shaped exemption is how the last
+         * version of this guard let seven files through.
+         */
+        if (path.replace(/\\/g, "/").endsWith("lib/scheduling/use-reader-zone.ts")) continue;
+
         const raw = read(path, "utf8");
         if (!raw.includes('"use client"')) continue;
 
@@ -276,6 +284,14 @@ async function main() {
     };
     walk("components");
     walk("app");
+    /*
+     * 🔴 And `lib/`. Four `"use client"` files live outside the two directories
+     * this originally walked — `lib/i18n/client.tsx` among them, which is the
+     * file sprints 19 and 21 grow and the single most likely place somebody
+     * reaches for `toLocaleString` next. A guard that stops at a directory
+     * boundary is a guard with a documented hole in it.
+     */
+    walk("lib");
 
     check(
       "🔴 12.3 / C84 no client file formats a date, time or amount off the runtime's zone or locale",
