@@ -14,6 +14,7 @@ import {
 } from "@/lib/data/patients";
 import { ensurePersonForPatient } from "@/lib/data/people";
 import { env } from "@/lib/env";
+import { e164Problem, toE164 } from "@/lib/phone/e164";
 
 export type PatientActionState = { error?: string; ok?: boolean };
 
@@ -44,6 +45,8 @@ export async function savePatient(
     lastName: string;
     email: string;
     phone: string;
+    /** ISO-3166 alpha-2 from the selector beside the number. 11R.12. */
+    phoneCountry?: string;
     diagnoses: string[];
     goals: string[];
   },
@@ -51,12 +54,27 @@ export async function savePatient(
   const actor = await requireUser();
   if (!input.firstName.trim()) return { error: "A first name is required." };
 
+  /*
+   * 11R.12 — a number this record holds must be one we can actually reach.
+   *
+   * Refused rather than stored half-formed: the clinician is looking at the
+   * screen right now and can pick the country, which is the one moment the
+   * information is available. Nothing later in the product can supply it.
+   */
+  let phone: string | null = null;
+  const rawPhone = input.phone.trim();
+  if (rawPhone) {
+    const parsed = toE164(rawPhone, input.phoneCountry ?? null);
+    if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
+    phone = parsed.e164;
+  }
+
   try {
     await updatePatient(actor, patientId, {
       firstName: input.firstName,
       lastName: input.lastName || null,
       email: input.email || null,
-      phone: input.phone || null,
+      phone,
       clinical: {
         diagnoses: input.diagnoses.filter(Boolean),
         goals: input.goals.filter(Boolean),

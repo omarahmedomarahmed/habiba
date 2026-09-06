@@ -30,12 +30,31 @@
  * That the templates say something sensible in Arabic. Read them.
  */
 import { sendWhatsapp, whatsappConfigured } from "../lib/notify/whatsapp";
+import { e164Problem, isE164, toE164 } from "../lib/phone/e164";
 
 async function main() {
   const to = process.argv[2];
 
   if (!to) {
     console.error("Usage: scripts/whatsapp-check.ts +201234567890");
+    process.exit(1);
+  }
+
+  /*
+   * 11R.13 — refuse anything that is not already E.164, and say what is wrong.
+   *
+   * `sendWhatsapp` now refuses these too and falls back to email, which is the
+   * right behaviour in the product and the wrong one here: a check that
+   * quietly reports "not sent" when the argument was malformed teaches you
+   * nothing about whether WhatsApp works. `toE164` is called only to produce
+   * the sentence explaining the refusal — the script never guesses a country.
+   */
+  if (!isE164(to)) {
+    const parsed = toE164(to, null);
+    console.error(
+      `"${to}" is not an E.164 number. ${e164Problem(parsed) ?? ""}\n` +
+        "Pass it the way Meta needs it: a plus, the country code, then the number — +201001234567.",
+    );
     process.exit(1);
   }
 

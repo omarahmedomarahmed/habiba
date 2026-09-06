@@ -1,10 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { patientSignIn, patientSignUp } from "@/lib/patient-auth/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { PhoneField } from "@/components/forms/phone-field";
+import { countryFromLocale } from "@/lib/phone/e164";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -28,6 +30,14 @@ export function PatientAuthForm({ mode }: { mode: "signin" | "signup" }) {
   const action = mode === "signup" ? patientSignUp : patientSignIn;
   const [state, formAction] = useActionState(action, {});
 
+  // 11R.12 — a number with no country beside it is one we can never send a
+  // verification code to. The locale picks the default; the person picks the
+  // answer.
+  const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState(
+    () => countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
+  );
+
   return (
     <Card className="p-5">
       <form action={formAction} className="space-y-4">
@@ -48,7 +58,15 @@ export function PatientAuthForm({ mode }: { mode: "signin" | "signup" }) {
 
         {mode === "signup" ? (
           <Field label="Phone (optional)" htmlFor="phone">
-            <Input id="phone" name="phone" type="tel" autoComplete="tel" />
+            <PhoneField
+              value={phone}
+              country={phoneCountry}
+              onValueChange={setPhone}
+              onCountryChange={setPhoneCountry}
+              name="phone"
+              countryName="phoneCountry"
+              placeholder="Phone or WhatsApp"
+            />
             <p className="mt-1 text-xs text-slate-500">
               We can send your verification code here instead of by email.
             </p>

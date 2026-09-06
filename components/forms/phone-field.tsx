@@ -56,6 +56,8 @@ export function PhoneField({
   onCountryChange,
   placeholder = "Phone or WhatsApp number",
   id = "phone",
+  name,
+  countryName,
 }: {
   value: string;
   country: string;
@@ -63,6 +65,9 @@ export function PhoneField({
   onCountryChange: (next: string) => void;
   placeholder?: string;
   id?: string;
+  /** Set both when the field sits inside a plain `<form action={…}>`. */
+  name?: string;
+  countryName?: string;
 }) {
   const [touched, setTouched] = useState(false);
 
@@ -71,6 +76,7 @@ export function PhoneField({
       <div className="flex gap-2">
         <select
           aria-label="Country"
+          name={countryName}
           value={country}
           onChange={(e) => onCountryChange(e.target.value)}
           className="h-11 w-32 shrink-0 rounded-xl border border-slate-200 px-2 text-sm"
@@ -86,6 +92,7 @@ export function PhoneField({
 
         <input
           id={id}
+          name={name}
           type="tel"
           inputMode="tel"
           autoComplete="tel"

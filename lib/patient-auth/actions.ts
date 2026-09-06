@@ -6,7 +6,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import { patientAccounts, people } from "@/lib/db/schema";
-import { normaliseEmail, normalisePhone } from "@/lib/data/people";
+import { normaliseEmail } from "@/lib/data/people";
+import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { log } from "@/lib/logger";
 import { callerKey, consume } from "@/lib/rate-limit";
 
@@ -39,7 +40,21 @@ export async function patientSignUp(
   const password = String(formData.get("password") ?? "");
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim() || null;
-  const phone = normalisePhone(String(formData.get("phone") ?? ""));
+  /*
+   * 11R.12 — expanded with the country the form asked for, or refused.
+   *
+   * `normalisePhone` stored `01001234567` as typed, which is a number nobody
+   * can send anything to: WhatsApp bounces it and nothing can repair it later,
+   * because the country it needs was never collected. Refusing at the door is
+   * the only version where the stored number is reachable.
+   */
+  const rawPhone = String(formData.get("phone") ?? "").trim();
+  let phone: string | null = null;
+  if (rawPhone) {
+    const parsed = toE164(rawPhone, String(formData.get("phoneCountry") ?? "") || null);
+    if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
+    phone = parsed.e164;
+  }
 
   if (!email) return { error: "Enter your email address." };
   if (!firstName) return { error: "Enter your first name." };

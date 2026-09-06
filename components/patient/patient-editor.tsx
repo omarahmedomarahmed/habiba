@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 
 import { savePatient } from "@/app/(app)/patients/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { PhoneField } from "@/components/forms/phone-field";
+import { countryFromLocale } from "@/lib/phone/e164";
 
 type Initial = {
   firstName: string;
@@ -26,13 +28,26 @@ export function PatientEditor({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * 11R.12 — the country this number is read with.
+   *
+   * `toE164` ignores it when the field already starts with `+`, so a record
+   * holding `+201001234567` survives a save that never touched the selector.
+   * Measured before shipping this: 0 of the patient, people and
+   * patient_accounts rows hold a phone number at all, so there is no legacy
+   * national number for the default country to expand wrongly.
+   */
+  const [phoneCountry, setPhoneCountry] = useState(
+    () => countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
+  );
+
   const set = <K extends keyof Initial>(key: K, value: Initial[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
   const handleSave = () =>
     startTransition(async () => {
       setError(null);
-      const result = await savePatient(patientId, form);
+      const result = await savePatient(patientId, { ...form, phoneCountry });
       if (result.error) setError(result.error);
       else setFeedback("Saved");
     });
@@ -75,12 +90,11 @@ export function PatientEditor({
       </Field>
 
       <Field label="Phone" htmlFor="phone">
-        <Input
-          id="phone"
-          type="tel"
-          inputMode="tel"
+        <PhoneField
           value={form.phone}
-          onChange={(e) => set("phone", e.target.value)}
+          country={phoneCountry}
+          onValueChange={(v) => set("phone", v)}
+          onCountryChange={setPhoneCountry}
         />
       </Field>
 
