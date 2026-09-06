@@ -33,12 +33,15 @@ export function BundleSlider({
   minimum,
   paygRateCents,
   egpRateMicro,
+  locale,
 }: {
   name: string;
   rateCents: number;
   minimum: number;
   paygRateCents: number;
   egpRateMicro: number | null;
+  /** 19.4 — the reader's locale, from the server. */
+  locale: string;
 }) {
   const [quantity, setQuantity] = useState(minimum);
   const [egp, setEgp] = useState(false);
@@ -49,8 +52,8 @@ export function BundleSlider({
 
   const show = (cents: number) =>
     egp && egpRateMicro !== null
-      ? formatMoney(convert(cents, egpRateMicro), "EGP")
-      : formatMoney(cents, "USD");
+      ? formatMoney(convert(cents, egpRateMicro), "EGP", locale)
+      : formatMoney(cents, "USD", locale);
 
   return (
     <div className="mx-auto mt-8 max-w-2xl rounded-3xl border border-slate-200 bg-slate-50 p-6">
@@ -88,7 +91,7 @@ export function BundleSlider({
           <span className="text-2xl font-bold text-slate-900">{quantity}</span> sessions at{" "}
           {show(rateCents)} each
         </p>
-        <p className="text-right">
+        <p className="text-end">
           <span className="text-2xl font-bold text-slate-900">{show(totalCents)}</span>
           <span className="block text-xs text-slate-500">paid once, used over 12 months</span>
         </p>

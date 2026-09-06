@@ -10,7 +10,8 @@ import {
   type EarningsState,
 } from "@/app/(app)/earnings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
-import { formatMoney } from "@/lib/billing/plans";
+// 19.4 — an English-only surface, so the English shorthand, named as such.
+import { formatMoney, formatUsd } from "@/lib/billing/plans";
 import type { PayoutStatus } from "@/lib/db/schema";
 
 const INITIAL: EarningsState = {};
@@ -193,9 +194,9 @@ export function Withdraw({
                 <li key={row.id} className="py-2.5">
                   <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
                     <Icon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-                    {formatMoney(row.amountCents, "USD")}
+                    {formatUsd(row.amountCents)}
                     <span className="text-slate-400">→</span>
-                    {formatMoney(row.payoutAmountMinor, row.payoutCurrency.toUpperCase())}
+                    {formatMoney(row.payoutAmountMinor, row.payoutCurrency.toUpperCase(), "en-US")}
                     <span className="ml-auto text-xs font-normal text-slate-500">
                       {state.label}
                     </span>
@@ -236,7 +237,7 @@ function Figure({ label, cents, strong }: { label: string; cents: number; strong
           strong ? "text-lg font-semibold text-slate-900" : "text-lg font-medium text-slate-700"
         }
       >
-        {formatMoney(cents, "USD")}
+        {formatUsd(cents)}
       </dd>
     </div>
   );

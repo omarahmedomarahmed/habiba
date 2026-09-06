@@ -27,3 +27,4 @@ demo-output/
 docs/screens/admin/
 # Playwright storage states for the screens sweep. Session cookies.
 .screens/
+.render/

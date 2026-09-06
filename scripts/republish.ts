@@ -23,7 +23,7 @@ import { and, eq } from "drizzle-orm";
 
 import { connect, schema } from "./db";
 import { DEFAULT_PAGES } from "../lib/content/defaults";
-import { DEFAULT_PAGES_AR } from "../lib/content/defaults-ar";
+import { defaultsFor, localesWithDefaults } from "../lib/content/registry";
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -37,9 +37,29 @@ async function main() {
    * case: there is no Arabic fallback in defaults.ts, so a missing row means
    * the page simply is not available in Arabic and inserting it is the point.
    */
-  const arabic = argv.includes("--ar");
+  /*
+   * 19.7 / C77 — the language is a value, not a flag.
+   *
+   * `--ar` was a boolean, and a boolean cannot express a third language. It is
+   * still accepted because it is in muscle memory and in the build log, but it
+   * is now shorthand for `--locale=ar`, and everything below reads the locale.
+   */
+  const localeArg = argv.find((arg) => arg.startsWith("--locale="))?.split("=")[1];
+  const arabic = argv.includes("--ar") || localeArg === "ar";
   /** 18.5 — insert a row for a page that is genuinely new. See below. */
   const create = argv.includes("--create");
+  /*
+   * 🔴 19.0a / C89 — write into a STAGING LOCALE instead of the live one.
+   *
+   * Sprints 17 and 18 are code-complete and invisible: their content cannot be
+   * published to production until the code that renders it is deployed
+   * (22.8b), so nothing has ever proved the new pages render at all. A staging
+   * locale fixes that without touching a served page — `getPublicPage` only
+   * ever asks for the reader's locale or `en`, so `en-x-staging` is reachable
+   * by a script and by nobody else. What 22 finally runs is then a script that
+   * has been *executed against production*, not one that has been written.
+   */
+  const staging = argv.includes("--staging");
   const wanted = argv.filter((arg) => !arg.startsWith("--"));
 
   if (!all && wanted.length === 0) {
@@ -48,8 +68,15 @@ async function main() {
     process.exit(1);
   }
 
-  const source = arabic ? DEFAULT_PAGES_AR : DEFAULT_PAGES;
-  const locale = arabic ? "ar" : "en";
+  const base = localeArg ?? (arabic ? "ar" : "en");
+  if (!localesWithDefaults().includes(base as never)) {
+    console.error(
+      `No built-in content for "${base}". Shipped languages: ${localesWithDefaults().join(", ")}.`,
+    );
+    process.exit(1);
+  }
+  const source = defaultsFor(base);
+  const locale = staging ? `${base}-x-staging` : base;
   const pages = all ? source : source.filter((page) => wanted.includes(page.slug));
 
   const missing = wanted.filter((slug) => !source.some((page) => page.slug === slug));
@@ -67,15 +94,23 @@ async function main() {
       .where(and(eq(schema.contentPages.slug, page.slug), eq(schema.contentPages.locale, locale)))
       .limit(1);
 
-    if (!existing && (arabic || create)) {
+    if (!existing && (arabic || create || staging)) {
       await db.insert(schema.contentPages).values({
         slug: page.slug,
         locale,
         title: page.title,
         description: page.description,
         layout: page.layout,
-        navLabel: page.navLabel,
-        navOrder: page.navOrder,
+        /*
+         * 🔴 A staging row is never in the navigation.
+         *
+         * `readNav` reads every locale and collapses by slug, so a staged page
+         * carrying a nav label would appear in the live menu of the *running*
+         * deployment — before the code that renders it exists. The service
+         * also excludes staging locales outright; this is the other lock.
+         */
+        navLabel: staging ? null : page.navLabel,
+        navOrder: staging ? null : page.navOrder,
         blocks: page.blocks,
         status: "published",
       });
@@ -108,8 +143,8 @@ async function main() {
         title: page.title,
         description: page.description,
         layout: page.layout,
-        navLabel: page.navLabel,
-        navOrder: page.navOrder,
+        navLabel: staging ? null : page.navLabel,
+        navOrder: staging ? null : page.navOrder,
         blocks: page.blocks,
         status: "published",
         updatedAt: new Date(),

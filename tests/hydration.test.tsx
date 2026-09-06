@@ -37,6 +37,16 @@ import { join } from "node:path";
  * first test proves only that the harness runs.
  */
 
+/*
+ * 🔴 19.4's control lives in the money line below, and it is two calls.
+ *
+ * The first passes a locale, which is the shape every component uses now. The
+ * second omits it — which TypeScript forbids and JavaScript permits — and must
+ * still produce the same bytes under both `TZ`/`LANG` environments, because
+ * `toLocaleString(undefined, …)` means "ask the machine" and that is the whole
+ * of C84 in one argument. This test caught exactly that on the day the
+ * parameter was made required.
+ */
 const RENDER = String.raw`
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
@@ -53,7 +63,8 @@ function AsProp({ zone }: { zone: string | null }) {
       <span>{formatDate(AT, zone)}</span>
       <span>{formatDateTime(AT, zone)}</span>
       <span>{relativeDay(AT, zone)}</span>
-      <span>{formatMoney(123450, "USD")}</span>
+      <span>{formatMoney(123450, "USD", "en-US")}</span>
+      <span>{formatMoney(123450, "USD", undefined)}</span>
     </div>
   );
 }

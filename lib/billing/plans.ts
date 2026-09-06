@@ -79,25 +79,57 @@ export function sessionCharge(input: {
   return { source: "rate", amountCents: tier.rateCents, tier };
 }
 
+/**
+ * Money on an **English** surface. 19.4.
+ *
+ * The clinician portal and the admin console are English-only today, and this
+ * is the shorthand for them: it says `en-US` out loud rather than defaulting
+ * to it silently, so a screen that ought to be bilingual cannot use it by
+ * accident and look correct.
+ *
+ * 🔴 Anything a **patient or a visitor** reads takes the locale as a
+ * parameter instead — `formatMoney(cents, currency, locale)` — fed from the
+ * page's chosen language exactly as the zone is (C84). Translating the
+ * clinician portal is a later job; using this there is a decision, not a gap
+ * that nobody noticed.
+ */
 export function formatUsd(cents: number): string {
-  return formatMoney(cents, "USD");
+  return formatMoney(cents, "USD", "en-US");
 }
 
 /**
- * Money, in a **named** locale. 12.3 / C84.
+ * Money, in a **named** locale. 12.3 / C84, and now 19.4.
  *
  * `toLocaleString(undefined, …)` uses the runtime's locale, which is the same
  * server-vs-browser split as a time zone and produces the same hydration
  * mismatch — `$1,234.50` on the server pass and `1.234,50 $` in a German
- * browser. It is also not a formatting preference we have decided: sprint 16
- * gives every price a USD figure with an EGP toggle, and both need to render
- * identically on both passes.
+ * browser.
  *
- * So the locale is pinned. `en-US` today; §3c's currency work is where a real
- * per-reader locale is decided, and it will arrive as a prop like the zone did.
+ * 🔴 **The locale is a required argument, exactly as the zone became one in
+ * 12.3.** Not because a default would be wrong today, but because a default is
+ * invisible: `formatMoney(cents, "USD")` on an Arabic page looks like working
+ * code and renders English formatting for ever. Making the parameter required
+ * turns every such site into a type error, which is how 12.3 found all 56
+ * places that needed a zone.
+ *
+ * Pass a BCP 47 tag from `localeTag()`, which pins the numbering system —
+ * Western digits in Arabic, deliberately (see `lib/i18n/config.ts`).
  */
-export function formatMoney(cents: number, currency: string): string {
-  return (cents / 100).toLocaleString("en-US", {
+export function formatMoney(cents: number, currency: string, locale: string): string {
+  /*
+   * 🔴 An absent locale is `en-US`, never the runtime's.
+   *
+   * The type makes the argument required, and TypeScript found all 26 call
+   * sites — but a *type* is not present at runtime, and
+   * `toLocaleString(undefined, …)` silently means "ask the machine". That is
+   * the C84 bug wearing a different hat, and the hydration test caught it
+   * here: with the parameter merely required, the test's own two-line call
+   * rendered `$1,234.50` on one machine and `1.234,50 $` on another.
+   *
+   * So the fallback is pinned rather than absent. Wrong language, right bytes,
+   * on both passes — and the type still says what to pass.
+   */
+  return (cents / 100).toLocaleString(locale || "en-US", {
     style: "currency",
     currency: currency.toUpperCase(),
     minimumFractionDigits: cents % 100 === 0 ? 0 : 2,

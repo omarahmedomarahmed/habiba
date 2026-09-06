@@ -28,11 +28,21 @@ export function PayFlow({
   therapistName,
   knownName,
   countries,
+  locale,
 }: {
   token: string;
   therapistName: string;
   knownName: string;
   countries: Array<{ code: string; name: string; currency: string }>;
+  /**
+   * 🔴 19.4 — the reader's language, from the server.
+   *
+   * This is the screen where somebody in crisis is asked for money in a
+   * currency they may not think in. Formatting it in the runtime's locale
+   * would differ between the server pass and the browser, and formatting it
+   * in English on an Arabic page is the specific thing 19.4 exists to stop.
+   */
+  locale: string;
 }) {
   const [country, setCountry] = useState("");
   const [name, setName] = useState(knownName);
@@ -84,7 +94,8 @@ export function PayFlow({
    * the client pass. Not a date, but exactly the same mismatch — on the public
    * payment screen, where the number is the whole point.
    */
-  const money = formatMoney;
+  /** 19.4 — every figure on this screen, in the reader's language. */
+  const money = (cents: number, currency: string) => formatMoney(cents, currency, locale);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">

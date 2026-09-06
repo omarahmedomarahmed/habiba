@@ -5,6 +5,8 @@ import { BundleSlider } from "@/components/public/bundle-slider";
 import { PriceTag } from "@/components/money/price-tag";
 import { Button } from "@/components/ui";
 import { quoteFor } from "@/lib/billing/fx";
+import { localeTag } from "@/lib/i18n/config";
+import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 
 /**
@@ -36,6 +38,13 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
   const quote = await quoteFor("usd", "egp");
   const egpRate = quote?.rateMicro ?? null;
 
+  /*
+   * 19.4 — the reader's language, resolved once on the server and handed to
+   * every price below. Nothing under here asks the runtime what locale it is.
+   */
+  const { locale } = await getI18n();
+  const tag = localeTag(locale);
+
   const tiers = settings.pricing.tiers;
   const bundles = tiers.filter((tier) => tier.minimumSessions > 0);
   const best = bundles[bundles.length - 1];
@@ -63,7 +72,7 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
             <p className="text-sm font-semibold text-brand-600">{tier.name}</p>
 
             <p className="mt-3 flex items-baseline gap-1.5">
-              <PriceTag usdCents={tier.rateCents} rateMicro={egpRate} size="lg" />
+              <PriceTag usdCents={tier.rateCents} rateMicro={egpRate} locale={tag} size="lg" />
               <span className="text-sm text-slate-500">/ session</span>
             </p>
 
@@ -138,6 +147,7 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
           minimum={best.minimumSessions}
           paygRateCents={tiers[0]?.rateCents ?? best.rateCents}
           egpRateMicro={egpRate}
+          locale={tag}
         />
       ) : null}
 

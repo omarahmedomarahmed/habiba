@@ -30,12 +30,21 @@ import { cn } from "@/lib/utils";
 export function PriceTag({
   usdCents,
   rateMicro,
+  locale,
   className,
   size = "base",
 }: {
   usdCents: number;
   /** EGP per USD, x1e6. Null when we cannot price the pair — then no toggle. */
   rateMicro: number | null;
+  /**
+   * 🔴 19.4 — a BCP 47 tag from the server, never read off the runtime.
+   *
+   * Same argument as the zone (C70/C84): the browser's locale and the
+   * server's differ, and a component that asks the runtime renders one thing
+   * on the server pass and another after hydration.
+   */
+  locale: string;
   className?: string;
   size?: "base" | "lg";
 }) {
@@ -45,7 +54,9 @@ export function PriceTag({
   return (
     <span className={cn("inline-flex items-baseline gap-1.5", className)}>
       <span className={cn("font-semibold text-slate-900", size === "lg" && "text-2xl")}>
-        {showEgp ? formatMoney(convert(usdCents, rateMicro!), "EGP") : formatMoney(usdCents, "USD")}
+        {showEgp
+          ? formatMoney(convert(usdCents, rateMicro!), "EGP", locale)
+          : formatMoney(usdCents, "USD", locale)}
       </span>
 
       {rateMicro !== null ? (
@@ -79,6 +90,7 @@ export function EgpDisclosure({
   rateMicro,
   spreadBps,
   quotedAtLabel,
+  locale,
 }: {
   payMinor: number;
   settlesCents: number;
@@ -86,14 +98,16 @@ export function EgpDisclosure({
   spreadBps: number;
   /** Formatted on the server, in the reader's zone. C84 — never a Date here. */
   quotedAtLabel: string;
+  /** 19.4 — from the server, like the zone. */
+  locale: string;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
       <p className="font-semibold text-slate-900">
-        You pay {formatMoney(payMinor, "EGP")}
+        You pay {formatMoney(payMinor, "EGP", locale)}
       </p>
       <p className="mt-1 leading-relaxed">
-        That settles {formatMoney(settlesCents, "USD")} at{" "}
+        That settles {formatMoney(settlesCents, "USD", locale)} at{" "}
         {(rateMicro / 1_000_000).toFixed(2)} EGP to the dollar, quoted {quotedAtLabel}.
         {spreadBps > 0
           ? ` Includes a ${(spreadBps / 100).toFixed(2)}% conversion charge.`

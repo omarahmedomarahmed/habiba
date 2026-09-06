@@ -5,6 +5,8 @@ import { Card } from "@/components/ui";
 import { db } from "@/lib/db";
 import { patientCredits, patients, sessionPayments, sessions, users } from "@/lib/db/schema";
 import { formatMoney } from "@/lib/billing/plans";
+import { localeTag } from "@/lib/i18n/config";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDate } from "@/lib/utils";
 
@@ -31,6 +33,9 @@ export const dynamic = "force-dynamic";
  */
 export default async function PatientBillingPage() {
   const actor = await requirePatient();
+  // 19.4 — the reader's language, once, on the server.
+  const { locale } = await getI18n();
+  const tag = localeTag(locale);
 
   const [paid, credits] = await Promise.all([
     db
@@ -87,7 +92,7 @@ export default async function PatientBillingPage() {
       {creditCents > 0 ? (
         <Card className="border-teal-200 bg-teal-50 p-4">
           <p className="text-sm font-semibold text-teal-900">
-            {formatMoney(creditCents, "USD")} in credit
+            {formatMoney(creditCents, "USD", tag)} in credit
           </p>
           <p className="mt-1 text-xs leading-relaxed text-teal-800">
             {credits[0]?.reason} It comes off your next session automatically, and it lasts until{" "}
@@ -114,8 +119,8 @@ export default async function PatientBillingPage() {
                   </p>
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
                     {row.presented !== null && row.presentedCurrency
-                      ? formatMoney(row.presented, row.presentedCurrency)
-                      : formatMoney((row.gross ?? 0) + (row.vat ?? 0), row.currency ?? "usd")}
+                      ? formatMoney(row.presented, row.presentedCurrency, tag)
+                      : formatMoney((row.gross ?? 0) + (row.vat ?? 0), row.currency ?? "usd", tag)}
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
@@ -128,13 +133,13 @@ export default async function PatientBillingPage() {
                 {/* Three lines, with reasons. Never one number. */}
                 <dl className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs">
                   <Row label="Your therapist's fee">
-                    {formatMoney(row.gross ?? 0, row.currency ?? "usd")}
+                    {formatMoney(row.gross ?? 0, row.currency ?? "usd", tag)}
                   </Row>
                   <Row label="VAT, paid to the government">
-                    {formatMoney(row.vat ?? 0, row.currency ?? "usd")}
+                    {formatMoney(row.vat ?? 0, row.currency ?? "usd", tag)}
                   </Row>
                   <Row label="24Therapy's share of the fee">
-                    {formatMoney(row.fee ?? 0, row.currency ?? "usd")}
+                    {formatMoney(row.fee ?? 0, row.currency ?? "usd", tag)}
                   </Row>
                 </dl>
               </Card>

@@ -15,19 +15,13 @@
  * the scan can see one.
  */
 import React from "react";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, notLike } from "drizzle-orm";
 
 import { db } from "../lib/db";
 import { contentPages, type ContentBlock } from "../lib/db/schema";
+import { reporter } from "./_verify";
 
-let failures = 0;
-let checks = 0;
-
-function check(label: string, ok: boolean, detail = "") {
-  checks += 1;
-  if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
-}
+const { check, skipUnless, finish } = reporter();
 
 /* ---------------------------------------------------------------- tree -- */
 
@@ -148,9 +142,31 @@ async function main() {
       blocks: contentPages.blocks,
     })
     .from(contentPages)
-    .where(inArray(contentPages.slug, ["home", "pricing"]));
+    .where(
+      and(
+        inArray(contentPages.slug, ["home", "pricing"]),
+        // Staging rows are scaffolding, not pages. See verify-sprint18.
+        notLike(contentPages.locale, "%-x-staging"),
+      ),
+    );
 
   const pricingPages = pages.filter((p) => p.slug === "pricing" && p.status === "published");
+
+  /*
+   * 🔴 19.0 / C90 — the precondition for every content check below.
+   *
+   * Sprint 17 moved the prices out of the page and into a `pricing` block.
+   * A database that has not had that content published yet cannot pass these,
+   * and failing them would make this gate permanently red for a reason
+   * everybody already knows — which is how the next real failure gets skimmed
+   * past. When 22.8b publishes, this flips to true and they run again with no
+   * file edited.
+   */
+  const contentPublished = pricingPages.some((p) => p.blocks.some((b) => b.type === "pricing"));
+  const AWAITS = "22.8b";
+  const WHY = "the sprint 17 pricing content is not published in this database";
+
+  await skipUnless(contentPublished, AWAITS, `17.9 — ${WHY}`, () => {
   check(
     "17.9 the pricing page is published in BOTH locales",
     pricingPages.some((p) => p.locale === "en") && pricingPages.some((p) => p.locale === "ar"),
@@ -178,18 +194,32 @@ async function main() {
     homePages.length > 0 && homePages.every((p) => p.blocks.some((b) => b.type === "pricing")),
     homePages.map((p) => p.locale).join(", "),
   );
+  });
 
   /* ------------------------- 🔴 the acceptance criterion, on real content */
 
   const published = await db
     .select({ slug: contentPages.slug, locale: contentPages.locale, blocks: contentPages.blocks })
     .from(contentPages)
-    .where(eq(contentPages.status, "published"));
+    .where(
+      and(
+        eq(contentPages.status, "published"),
+        /*
+         * Staging rows are not pages. 19.0a writes `en-x-staging` copies so a
+         * page can be rendered and checked before its code deploys; they carry
+         * no navigation and no reader ever sees them, so counting them here
+         * makes a verifier fail on its own scaffolding — which it did, on
+         * 18.5, the first time this ran after the staging rows existed.
+         */
+        notLike(contentPages.locale, "%-x-staging"),
+      ),
+    );
 
   const offenders = published
     .map((page) => ({ page, hits: moneyIn(page.blocks) }))
     .filter((row) => row.hits.length > 0);
 
+  await skipUnless(contentPublished, AWAITS, `17.10 — ${WHY}`, () => {
   check(
     "🔴 17.10 NO published page states a price, rate, cut or minimum of its own, in any locale",
     offenders.length === 0,
@@ -197,9 +227,17 @@ async function main() {
       ? `${published.length} pages scanned, every figure comes from platform_settings`
       : offenders.map((o) => `${o.page.slug}[${o.page.locale}]: ${o.hits.join(" ")}`).join(" · "),
   );
+  });
 
   /*
-   * 🔴 The control. A scan that has never found anything has not been shown to
+   * 🔴 The control runs ALWAYS, published content or not.
+   *
+   * A skip is allowed to defer a claim about the database; it is never allowed
+   * to defer the proof that the scan works. If the scanner were blind, the
+   * deferred check above would pass the day sprint 22 publishes and nobody
+   * would ever know it had not been tested.
+   *
+   * The control. A scan that has never found anything has not been shown to
    * work — and this is C60's scan, so it had better work. A draft page with
    * the exact sentence the old pricing hero carried is planted, scanned, and
    * removed.
@@ -333,10 +371,7 @@ async function main() {
     }
   }
 
-  console.log(
-    `\n${failures === 0 ? "sprint 17: PASS" : `sprint 17: ${failures} FAILED`} (${checks} checks)`,
-  );
-  process.exit(failures === 0 ? 0 : 1);
+  finish("sprint 17");
 }
 
 main().catch((error) => {

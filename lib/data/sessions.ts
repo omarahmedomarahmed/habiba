@@ -680,6 +680,16 @@ export async function resolveJoinToken(token: string) {
       priceCents: sessions.priceCents,
       paymentStatus: sessions.paymentStatus,
       guestName: sessions.guestName,
+      /*
+       * 14.1's clock, on the page the patient is actually waiting on.
+       *
+       * `startedAt` is null until the clinician arrives, and `scheduledAt` is
+       * when they said they would. Both are facts about a diary rather than
+       * clinical material (C57), and without them the no-show recovery built
+       * in sprint 14 had no screen to appear on.
+       */
+      startedAt: sessions.startedAt,
+      scheduledAt: sessions.scheduledAt,
     })
     .from(sessions)
     .where(and(eq(sessions.joinToken, token), isNull(sessions.endedAt)))

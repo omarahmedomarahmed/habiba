@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { JoinFlow } from "@/components/join/join-flow";
+import { NoShowRecovery } from "@/components/session/no-show-recovery";
+import { localeTag } from "@/lib/i18n/config";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
@@ -118,6 +120,30 @@ export default async function JoinPage({
         }
         cancelled={checkout === "cancelled"}
       />
+
+      {/*
+        🔴 Sprint 14's recovery, on the screen where the waiting happens.
+        --------------------------------------------------------------
+        `NoShowRecovery` was built in sprint 14 and rendered **nowhere** — the
+        same defect as `InvoiceList` in sprint 12, found the same way, by a
+        type error asking who passes the new locale. A component nobody
+        renders is a feature nobody has.
+
+        It appears only once there is something to recover from: a session with
+        a scheduled time that has passed and a clinician who has not started.
+        The five-minute rule and the offer itself live in `lib/data/recovery.ts`
+        — this decides whether the patient is in a position to need them.
+      */}
+      {session.scheduledAt && !session.startedAt && session.scheduledAt < new Date() ? (
+        <div className="mx-auto w-full max-w-md px-4 pb-8">
+          <NoShowRecovery
+            sessionId={session.id}
+            startedAt={null}
+            waitMinutes={Math.floor((Date.now() - session.scheduledAt.getTime()) / 60_000)}
+            locale={localeTag((await getI18n()).locale)}
+          />
+        </div>
+      ) : null}
     </Shell>
   );
 }

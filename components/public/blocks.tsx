@@ -118,11 +118,11 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
 
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-40 -right-32 h-96 w-96 rounded-full bg-brand-500/20 blur-3xl"
+        className="pointer-events-none absolute -top-40 -end-32 h-96 w-96 rounded-full bg-brand-500/20 blur-3xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-teal-500/15 blur-3xl"
+        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-teal-500/15 blur-3xl"
       />
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">

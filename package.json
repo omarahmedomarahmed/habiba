@@ -43,6 +43,8 @@
     "test:challenge": "node --import tsx --test tests/challenge.test.ts",
     "test:money": "node --import tsx --conditions=react-server --test tests/money.test.ts",
     "screens": "node --import tsx scripts/screens.ts",
+    "verify:sprint19": "node --import tsx --conditions=react-server scripts/verify-sprint19.ts",
+    "render:check": "node --import tsx scripts/render-check.ts",
     "verify:sprint18r": "node --import tsx --conditions=react-server scripts/verify-sprint18r.ts",
     "verify:sprint18": "node --import tsx --conditions=react-server scripts/verify-sprint18.ts",
     "verify:sprint17": "node --import tsx --conditions=react-server scripts/verify-sprint17.ts",

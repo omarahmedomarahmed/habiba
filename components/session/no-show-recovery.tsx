@@ -33,12 +33,19 @@ export function NoShowRecovery({
   sessionId,
   startedAt,
   waitMinutes,
+  locale = "en-US",
 }: {
   sessionId: string;
   /** Non-null once the therapist joined — this component then never appears. */
   startedAt: string | null;
   /** How long they have been here. Server-computed, so the clock is one clock. */
   waitMinutes: number;
+  /**
+   * 19.4 — the reader's language. This screen is shown to a patient whose
+   * therapist has not turned up, and it quotes money at them; formatting it in
+   * the runtime's locale would differ between the server pass and the browser.
+   */
+  locale?: string;
 }) {
   const [view, setView] = useState<RecoveryView>({ state: "waiting" });
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +95,7 @@ export function NoShowRecovery({
             ? "They have been told and are joining now."
             : "The full amount is on its way back, including our fee. We are sorry."}
           {view.creditCents
-            ? ` They charge less, so ${formatMoney(view.creditCents, "USD")} is waiting as credit on your next session.`
+            ? ` They charge less, so ${formatMoney(view.creditCents, "USD", locale)} is waiting as credit on your next session.`
             : ""}
         </p>
       </Card>
@@ -159,7 +166,7 @@ export function NoShowRecovery({
                 ) : null}
               </span>
               <span className="shrink-0 text-xs font-medium text-slate-500">
-                {formatMoney(person.rateCents, "USD")}
+                {formatMoney(person.rateCents, "USD", locale)}
               </span>
             </button>
           </li>

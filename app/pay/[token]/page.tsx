@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { PayFlow } from "@/components/pay/pay-flow";
 import { resolveJoinToken } from "@/lib/data/sessions";
+import { localeTag } from "@/lib/i18n/config";
+import { getI18n } from "@/lib/i18n/server";
 import { getCountries } from "@/lib/settings";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -51,8 +53,13 @@ export default async function PayPage({
     getCountries(),
   ]);
 
+  // 19.4 — resolved on the server, handed down, never read from the runtime.
+  const { locale } = await getI18n();
+  const tag = localeTag(locale);
+
   return (
     <PayFlow
+      locale={tag}
       token={token}
       therapistName={[therapist?.firstName, therapist?.lastName].filter(Boolean).join(" ")}
       knownName={session.guestName ?? ""}

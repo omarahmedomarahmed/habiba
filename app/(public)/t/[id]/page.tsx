@@ -5,6 +5,8 @@ import { PublicProfile } from "@/components/radar/public-profile";
 import { BookingCalendar } from "@/components/scheduling/booking-calendar";
 import { PriceTag } from "@/components/money/price-tag";
 import { quoteFor } from "@/lib/billing/fx";
+import { localeTag } from "@/lib/i18n/config";
+import { getI18n } from "@/lib/i18n/server";
 import { formatUsd } from "@/lib/billing/plans";
 import { publicProfile } from "@/lib/data/radar";
 import { reliabilityFor } from "@/lib/data/recovery";
@@ -66,6 +68,9 @@ export default async function TherapistProfilePage({
     quoteFor("usd", "egp"),
   ]);
   const egpRate = quote?.rateMicro ?? null;
+  // 19.4 — resolved on the server and passed down, exactly like the zone.
+  const { locale } = await getI18n();
+  const tag = localeTag(locale);
 
   return (
     <>
@@ -99,7 +104,7 @@ export default async function TherapistProfilePage({
         <div className="mx-auto max-w-2xl px-4 pt-2 sm:px-6">
           <p className="flex items-center gap-2 text-sm text-slate-500">
             One hour
-            <PriceTag usdCents={profile.rateCents} rateMicro={egpRate} />
+            <PriceTag usdCents={profile.rateCents} rateMicro={egpRate} locale={tag} />
           </p>
         </div>
       ) : null}

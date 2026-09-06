@@ -24,16 +24,40 @@ import { DICTIONARIES, type MessageKey } from "./messages";
  * an Arabic phone meant it.
  */
 export async function getLocale(): Promise<Locale> {
-  const chosen = (await cookies()).get(LOCALE_COOKIE)?.value;
+  /*
+   * 🔴 No request, no crash — the default language instead.
+   *
+   * `cookies()` and `headers()` throw outside a request: at build time, in a
+   * verifier, in the render check that proves a page renders at all (19.0a).
+   * A marketing page that cannot be *rendered by a script* is a page nobody
+   * can check before deploying, and "English" is the honest answer where
+   * there is no reader to ask.
+   *
+   * Deliberately not a silent catch around the whole function body: only the
+   * request accessors are guarded, so a genuine failure inside the locale
+   * logic still surfaces. And it is a `try`, not a `.catch()` — `cookies()`
+   * throws **synchronously** outside a request, so the promise the first
+   * version chained onto never existed.
+   */
+  const chosen = await read(async () => (await cookies()).get(LOCALE_COOKIE)?.value, undefined);
   if (isLocale(chosen)) return chosen;
 
-  const header = (await headers()).get("accept-language") ?? "";
+  const header = await read(async () => (await headers()).get("accept-language") ?? "", "");
   // Deliberately crude: the first tag wins and only Arabic is looked for.
   // Weighted q-value parsing would be more correct and would change the answer
   // for approximately nobody.
   if (/(^|,)\s*ar\b/i.test(header)) return "ar";
 
   return DEFAULT_LOCALE;
+}
+
+/** One request accessor, or the fallback when there is no request. */
+async function read<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch {
+    return fallback;
+  }
 }
 
 /** `{name}` only. No plurals, no conditionals — see the note in messages.ts. */

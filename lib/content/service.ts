@@ -1,7 +1,7 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
-import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, notLike } from "drizzle-orm";
 
 import { db, isDatabaseUnavailable } from "@/lib/db";
 import { contentPages, type ContentBlock } from "@/lib/db/schema";
@@ -176,7 +176,24 @@ async function readNav(locale: string): Promise<NavItem[]> {
         navOrder: contentPages.navOrder,
       })
       .from(contentPages)
-      .where(isNotNull(contentPages.navLabel))
+      .where(
+        and(
+          isNotNull(contentPages.navLabel),
+          /*
+           * 🔴 Staging locales are invisible to every reader path.
+           *
+           * 19.0a writes `en-x-staging` rows so a page can be rendered and
+           * checked before its code is deployed (C89). `getPublicPage` was
+           * already safe — it asks for the reader's locale or `en` and nothing
+           * else — but this query reads **every** locale and collapses by
+           * slug, so a staged page would have appeared in the live navigation
+           * of the running deployment the moment it was written. Found while
+           * writing the staging rows to production; the rows also carry no
+           * `nav_label`, so this is the second of two locks on the same door.
+           */
+          notLike(contentPages.locale, "%-x-staging"),
+        ),
+      )
       .orderBy(asc(contentPages.navOrder));
 
     /*

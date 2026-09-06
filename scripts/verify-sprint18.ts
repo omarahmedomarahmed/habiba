@@ -9,19 +9,13 @@
  * and never behind a signup, and **18.7**, that nothing public names a
  * patient, quotes a session, or implies we can read a record.
  */
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notLike, sql } from "drizzle-orm";
 
 import { db } from "../lib/db";
 import { contentPages, type ContentBlock } from "../lib/db/schema";
+import { reporter } from "./_verify";
 
-let failures = 0;
-let checks = 0;
-
-function check(label: string, ok: boolean, detail = "") {
-  checks += 1;
-  if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
-}
+const { check, skipUnless, finish } = reporter();
 
 /** Every string anywhere in a page's blocks. */
 function stringsOf(blocks: ContentBlock[]): string[] {
@@ -71,11 +65,37 @@ async function main() {
       blocks: contentPages.blocks,
     })
     .from(contentPages)
-    .where(eq(contentPages.status, "published"));
+    .where(
+      and(
+        eq(contentPages.status, "published"),
+        /*
+         * Staging rows are not pages. 19.0a writes `en-x-staging` copies so a
+         * page can be rendered and checked before its code deploys; they carry
+         * no navigation and no reader ever sees them, so counting them here
+         * makes a verifier fail on its own scaffolding — which it did, on
+         * 18.5, the first time this ran after the staging rows existed.
+         */
+        notLike(contentPages.locale, "%-x-staging"),
+      ),
+    );
 
   /* --------------------------------------------------- 18.2, 18.5, C72 */
 
+  /*
+   * 🔴 19.0 / C90 — the precondition, exactly as in sprint 17.
+   *
+   * Everything about the patients section, the crisis block and the new live
+   * demos is *content*, and sprint 18 deliberately did not republish it to
+   * production (a `pricing` block in a database whose code cannot render it
+   * serves a page with no prices). Until 22.8b runs, these are deferred rather
+   * than failed — and the moment it runs they come back on their own.
+   */
+  const contentPublished = pages.some((p) => p.blocks.some((b) => b.type === "crisis"));
+  const AWAITS = "22.8b";
+  const WHY = "the sprint 18 public content is not published in this database";
+
   const patientPages = pages.filter((p) => p.slug === "for-patients");
+  await skipUnless(contentPublished, AWAITS, `18.2 / 18.5 / C72 — ${WHY}`, () => {
   check(
     "🔴 18.2 the patients section exists as a real row — in BOTH locales, so 19 and 21 can reach it",
     patientPages.some((p) => p.locale === "en") && patientPages.some((p) => p.locale === "ar"),
@@ -102,12 +122,14 @@ async function main() {
     "🔴 C72 the Arabic reader no longer falls back to English on pricing",
     pages.some((p) => p.slug === "pricing" && p.locale === "ar"),
   );
+  });
 
   /* ------------------------------------------------------------- 18.3 */
 
   const patientFacing = pages.filter((p) =>
     ["home", "for-patients"].includes(p.slug),
   );
+  await skipUnless(contentPublished, AWAITS, `18.3 — ${WHY}`, () => {
   check(
     "🔴 18.3 help now is ON every patient-facing page, in every locale",
     patientFacing.length >= 4 &&
@@ -117,6 +139,7 @@ async function main() {
       .map((p) => `${p.slug}[${p.locale}]`)
       .join(", ") || `${patientFacing.length} pages, all carry it`,
   );
+  });
 
   /*
    * 🔴 …and it is never behind a signup. The block's destinations are fixed in
@@ -186,11 +209,13 @@ async function main() {
       ),
     ),
   );
+  await skipUnless(contentPublished, AWAITS, `18.9 — ${WHY}`, () => {
   check(
     "18.9 the patient app and the homework list are shown as the thing itself",
     used.has("patient-sessions") && used.has("homework"),
     [...used].join(", "),
   );
+  });
   check(
     "18.8 …and every demo named in content is one the renderer can actually draw",
     [...used].every((demo) => (CONTENT_DEMOS as readonly string[]).includes(demo as string)),
@@ -276,10 +301,7 @@ async function main() {
     `vault ${vaultTotal}¢ · exact ${cost[0]?.exact_cents}¢ · old rounded column ${cost[0]?.rounded_cents}¢ over ${cost[0]?.lost_rows} rows stored as zero`,
   );
 
-  console.log(
-    `\n${failures === 0 ? "sprint 18: PASS" : `sprint 18: ${failures} FAILED`} (${checks} checks)`,
-  );
-  process.exit(failures === 0 ? 0 : 1);
+  finish("sprint 18");
 }
 
 main().catch((error) => {

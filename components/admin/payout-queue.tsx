@@ -13,7 +13,8 @@ import {
   type QueueState,
 } from "@/app/(admin)/admin/payouts/actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
-import { formatMoney } from "@/lib/billing/plans";
+// 19.4 — an English-only surface, so the English shorthand, named as such.
+import { formatMoney, formatUsd } from "@/lib/billing/plans";
 import type { PayoutStatus } from "@/lib/db/schema";
 
 const INITIAL: QueueState = {};
@@ -120,7 +121,7 @@ export function PayoutQueue({
             {automated.map((row) => (
               <li key={row.id} className="flex items-center gap-3 py-2 text-sm">
                 <span className="font-medium text-slate-900">{row.therapistName}</span>
-                <span className="text-slate-500">{formatMoney(row.amountCents, "USD")}</span>
+                <span className="text-slate-500">{formatUsd(row.amountCents)}</span>
                 <span className="ml-auto text-xs text-slate-400">
                   {row.status} · {row.createdAtLabel}
                 </span>
@@ -209,9 +210,9 @@ function ManualRow({ row }: { row: QueueRow }) {
         </div>
 
         <p className="mt-2 text-sm text-slate-700">
-          {formatMoney(row.amountCents, "USD")} →{" "}
+          {formatUsd(row.amountCents)} →{" "}
           <span className="font-semibold">
-            {formatMoney(row.payoutAmountMinor, row.payoutCurrency.toUpperCase())}
+            {formatMoney(row.payoutAmountMinor, row.payoutCurrency.toUpperCase(), "en-US")}
           </span>{" "}
           by {row.method === "instapay" ? "InstaPay" : "wallet"} to {row.identifier}
         </p>

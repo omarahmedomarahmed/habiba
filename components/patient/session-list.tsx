@@ -38,10 +38,17 @@ const ORDER: SessionGroup[] = ["today", "upcoming", "past_scheduled", "past_inst
 export function PatientSessionList({
   sessions,
   zone,
+  locale = "en-US",
 }: {
   sessions: PatientSession[];
   /** The account's own zone, from the server. 13.13 precedence, C84's rule. */
   zone: string | null;
+  /**
+   * 19.4 — the reader's language, from the server, for the same reason as the
+   * zone. Defaulted only because the public demo renders this component with
+   * invented rows and no reader; every real screen passes it.
+   */
+  locale?: string;
 }) {
   if (sessions.length === 0) {
     return (
@@ -82,7 +89,7 @@ export function PatientSessionList({
                     <p className="mt-0.5 text-xs text-slate-500">
                       {formatWhen(session.at, resolved)}
                       {session.priceCents > 0
-                        ? ` · ${formatMoney(session.priceCents, "USD")}`
+                        ? ` · ${formatMoney(session.priceCents, "USD", locale)}`
                         : " · Free"}
                     </p>
 
