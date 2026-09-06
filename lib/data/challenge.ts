@@ -135,8 +135,19 @@ export async function openChallenges(accountId: string): Promise<Challenge[]> {
       therapistLast: users.lastName,
       claimId: personClaims.id,
       seenTherapist: personClaims.seenTherapist,
-      nameAttempts: personClaims.nameAttempts,
       claimStatus: personClaims.status,
+
+      /*
+       * 🔴 The budget comes from `claim_attempts`, not from the claim row.
+       *
+       * 13R moved it there precisely because a claim row is disposable — ask
+       * for a fresh code and a new one is created, carrying a zeroed counter
+       * with it. Reading `person_claims.name_attempts` here (as this query did
+       * until sprint 15 re-ran the sprint 13 verifier) means a locked record
+       * reappears in the queue the moment a new code is requested, which is
+       * C87 all over again by a different door.
+       */
+      spent: claimAttempts.attempts,
     })
     .from(patients)
     .innerJoin(people, eq(people.id, patients.personId))
@@ -146,6 +157,13 @@ export async function openChallenges(accountId: string): Promise<Challenge[]> {
       and(
         eq(personClaims.patientId, patients.id),
         eq(personClaims.patientAccountId, accountId),
+      ),
+    )
+    .leftJoin(
+      claimAttempts,
+      and(
+        eq(claimAttempts.patientId, patients.id),
+        eq(claimAttempts.patientAccountId, accountId),
       ),
     )
     .where(
@@ -166,14 +184,15 @@ export async function openChallenges(accountId: string): Promise<Challenge[]> {
   for (const row of rows) {
     // A no is remembered; a yes that finished is done. Neither is asked again.
     if (row.claimStatus === "rejected" || row.claimStatus === "verified") continue;
-    if (row.nameAttempts !== null && row.nameAttempts >= MAX_NAME_ATTEMPTS) continue;
+    const spent = row.spent ?? 0;
+    if (spent >= MAX_NAME_ATTEMPTS) continue;
 
     out.push({
       claimId: row.claimId ?? "",
       patientId: row.patientId,
       therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
       stage: row.seenTherapist === true ? "name" : "seen",
-      attemptsLeft: MAX_NAME_ATTEMPTS - (row.nameAttempts ?? 0),
+      attemptsLeft: MAX_NAME_ATTEMPTS - spent,
     });
   }
 

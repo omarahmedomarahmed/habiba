@@ -75,6 +75,18 @@ export type PatientActor = {
   firstName: string;
   lastName: string | null;
   emailVerified: boolean;
+  /**
+   * Where they are. 13.11–13.13, and the reason `useReaderZone` is no longer
+   * the patient app's answer.
+   *
+   * Carried on the actor so every patient screen takes its zone as a **prop
+   * from the server** — the same shape the clinician screens have had since
+   * 12.3 — instead of rendering UTC and correcting a frame later.
+   *
+   * Null for accounts made before 13.11 shipped, or for somebody who cleared
+   * it. `resolveZone` treats that as UTC and says so.
+   */
+  timezone: string | null;
 };
 
 function hashToken(token: string): string {
@@ -127,6 +139,7 @@ export async function getPatientActor(): Promise<PatientActor | null> {
       personId: patientAccounts.personId,
       email: patientAccounts.email,
       phone: patientAccounts.phone,
+      timezone: patientAccounts.timezone,
       emailVerifiedAt: patientAccounts.emailVerifiedAt,
       firstName: people.firstName,
       lastName: people.lastName,
@@ -161,6 +174,7 @@ export async function getPatientActor(): Promise<PatientActor | null> {
     personId: row.personId,
     email: row.email,
     phone: row.phone,
+    timezone: row.timezone,
     firstName: row.firstName,
     lastName: row.lastName,
     emailVerified: row.emailVerifiedAt !== null,

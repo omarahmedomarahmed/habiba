@@ -41,6 +41,7 @@
     "test:extract": "node --import tsx --conditions=react-server --test tests/documents-extract.test.ts",
     "test:hydration": "node --import tsx --test tests/hydration.test.tsx",
     "test:challenge": "node --import tsx --test tests/challenge.test.ts",
+    "verify:sprint15": "node --import tsx --conditions=react-server scripts/verify-sprint15.ts",
     "verify:sprint14": "node --import tsx --conditions=react-server scripts/verify-sprint14.ts",
     "verify:sprint13r": "node --import tsx --conditions=react-server scripts/verify-sprint13r.ts",
     "verify:sprint13": "node --import tsx --conditions=react-server scripts/verify-sprint13.ts",

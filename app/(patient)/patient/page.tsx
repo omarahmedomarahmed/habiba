@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Globe2 } from "lucide-react";
+
 import { Badge, Card } from "@/components/ui";
 import { pendingRequestsFor } from "@/lib/data/grants";
 import { nextStepFor } from "@/lib/data/homework";
+import { sessionsForPatient } from "@/lib/data/patient-view";
+import { PatientSessionList } from "@/components/patient/session-list";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { db } from "@/lib/db";
 import { patients, people } from "@/lib/db/schema";
@@ -40,6 +44,12 @@ export default async function PatientHomePage() {
    */
   const next = await nextStepFor(actor.personId);
 
+  /*
+   * 15.3 — their own sessions, in the four groups. One query, in
+   * `lib/data/patient-view.ts`, whose select list is the 15.8 enforcement.
+   */
+  const sessions = await sessionsForPatient(actor.personId);
+
   const [person] = await db
     .select({
       claimedAt: people.claimedAt,
@@ -51,12 +61,35 @@ export default async function PatientHomePage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+      {/*
+        15.2 — their name, and the globe. The globe is the one thing on this
+        app somebody might need urgently, so it is on the home screen as well
+        as under the thumb in the nav, not only in a menu.
+
+        `actor.email` is nullable since 13R.6 — an account may have only a
+        number — so the subtitle falls back rather than rendering an empty line.
+      */}
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
           Welcome, {actor.firstName}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">{actor.email}</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {actor.email ?? "Signed in with your phone number"}
+        </p>
       </div>
+
+      <Link
+        href="/radar"
+        className="flex items-center gap-3 rounded-2xl bg-brand-500 px-4 py-3.5 text-white shadow-sm active:scale-[0.99]"
+      >
+        <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold">Find someone now</span>
+          <span className="block text-xs text-white/80">
+            Therapists who are online and free this minute.
+          </span>
+        </span>
+      </Link>
 
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3">
@@ -139,6 +172,8 @@ export default async function PatientHomePage() {
           Your sessions, your homework and your billing appear here.
         </p>
       </Card>
+
+      <PatientSessionList sessions={sessions} zone={actor.timezone} />
     </main>
   );
 }
