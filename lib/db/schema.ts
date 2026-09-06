@@ -138,6 +138,16 @@ export const users = pgTable(
     /** License details etc. Collected lazily in settings, never at signup. */
     profile: jsonb("profile").$type<TherapistProfile>().default({}).notNull(),
     /** Soft signal only — it must never gate the clinical loop. */
+    /**
+     * IANA zone, e.g. `Africa/Cairo`. PLAN.md 11R.2.
+     *
+     * Nullable, and null means **we have not asked** — which is a different
+     * fact from UTC. `lib/scheduling/tz.ts` falls back explicitly and says so
+     * rather than defaulting silently, because a clinician who publishes
+     * 18:00 and gets 20:00 has been lied to by a default.
+     */
+    timezone: text("timezone"),
+
     verificationStatus: text("verification_status")
       .$type<"unverified" | "pending" | "verified" | "rejected">()
       .notNull()
@@ -340,6 +350,14 @@ export const patients = pgTable(
     lastName: text("last_name"),
     email: text("email"),
     phone: text("phone"),
+    /**
+     * IANA zone, for anything they read. PLAN.md 11R.3.
+     *
+     * Null falls back to the clinician's zone, then to UTC — and the message
+     * says which, because "22:00" with no zone is a time somebody will get
+     * wrong by three hours.
+     */
+    timezone: text("timezone"),
 
     /**
      * The person this file is about, once there is one (5.1).
@@ -3085,8 +3103,18 @@ export const availabilitySlots = pgTable(
     bookedByAccountId: uuid("booked_by_account_id").references(() => patientAccounts.id, {
       onDelete: "set null",
     }),
-    /** What the patient said when booking. Shown to the clinician, never required. */
+    /**
+     * What the patient said when booking. Shown to the clinician.
+     *
+     * 🔴 §6: **never edit text a patient wrote.** Nothing appends to this
+     * column — not a marker, not a flag, not a suffix. `markReminded` writes
+     * `remindedAt` instead, which is what C63 was: our bookkeeping glued into
+     * a sentence somebody wrote about their own distress.
+     */
     note: text("note"),
+
+    /** 11R.6 — when the reminder went out. Replaces the ' [reminded]' marker. */
+    remindedAt: timestamp("reminded_at", { withTimezone: true }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -3096,6 +3124,10 @@ export const availabilitySlots = pgTable(
     index("availability_slots_therapist_idx").on(t.therapistUserId, t.startsAt),
     // The public calendar's query: open slots in the future, by clinician.
     index("availability_slots_open_idx").on(t.startsAt).where(sql`status = 'open'`),
+    // The reminder sweep: booked, soon, not yet reminded.
+    index("availability_slots_reminder_idx")
+      .on(t.startsAt)
+      .where(sql`status = 'booked' AND reminded_at IS NULL`),
   ],
 );
 

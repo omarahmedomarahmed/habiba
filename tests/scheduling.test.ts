@@ -3,9 +3,7 @@ import { test } from "node:test";
 
 import {
   bookingWarning,
-  byDay,
   floorToHour,
-  hoursOn,
   isBookable,
   isWholeHour,
   nextHour,
@@ -46,25 +44,6 @@ test("flooring and stepping stay on the hour", () => {
   // Exactly on the hour steps forward, never returns itself — otherwise
   // "the next bookable hour" is the one already in progress.
   assert.equal(nextHour(at("2026-10-01T19:00:00.000Z")).toISOString(), "2026-10-01T20:00:00.000Z");
-});
-
-test("a published range is whole hours, end exclusive", () => {
-  const hours = hoursOn(at("2026-10-01T00:00:00Z"), 18, 21);
-  assert.deepEqual(
-    hours.map((h) => h.toISOString()),
-    ["2026-10-01T18:00:00.000Z", "2026-10-01T19:00:00.000Z", "2026-10-01T20:00:00.000Z"],
-  );
-  assert.ok(hours.every(isWholeHour));
-});
-
-test("🔴 an inverted range yields nothing rather than wrapping past midnight", () => {
-  // A clinician who types 21→18 has made a mistake. Silently offering them a
-  // night shift is not a kindness.
-  assert.deepEqual(hoursOn(at("2026-10-01T00:00:00Z"), 21, 18), []);
-  assert.deepEqual(hoursOn(at("2026-10-01T00:00:00Z"), 18, 18), []);
-  assert.deepEqual(hoursOn(at("2026-10-01T00:00:00Z"), -1, 5), []);
-  assert.deepEqual(hoursOn(at("2026-10-01T00:00:00Z"), 20, 25), []);
-  assert.deepEqual(hoursOn(at("2026-10-01T00:00:00Z"), 18.5, 21), []);
 });
 
 /* ------------------------------------------------------------ bookability -- */
@@ -161,24 +140,3 @@ test("the soonest booking wins when several are close", () => {
   assert.equal(bookingWarning([later, sooner], now)?.minutes, 3);
 });
 
-/* ----------------------------------------------------------------- grouping -- */
-
-test("slots group by day, in order, and empty days are absent", () => {
-  const grouped = byDay([
-    { startsAt: at("2026-10-02T19:00:00Z") },
-    { startsAt: at("2026-10-01T20:00:00Z") },
-    { startsAt: at("2026-10-01T18:00:00Z") },
-  ]);
-
-  assert.deepEqual(
-    grouped.map((g) => g.day),
-    ["2026-10-01", "2026-10-02"],
-  );
-  assert.deepEqual(
-    grouped[0]!.slots.map((s) => s.startsAt.getUTCHours()),
-    [18, 20],
-  );
-  // 2026-10-03 has nothing in it and does not appear — a calendar of empty
-  // days is a calendar nobody scrolls.
-  assert.equal(grouped.length, 2);
-});

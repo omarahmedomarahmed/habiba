@@ -127,9 +127,10 @@ async function main() {
 
       const published = await publishHours({
         actor: actor as never,
-        days: [new Date("2031-03-04T00:00:00.000Z")],
+        days: ["2031-03-04"],
         fromHour: 18,
         toHour: 21,
+        zone: "UTC",
       });
       check(
         "11.1 three hours publish",
@@ -140,9 +141,10 @@ async function main() {
       // Republishing an overlapping range must not disturb anything.
       const again = await publishHours({
         actor: actor as never,
-        days: [new Date("2031-03-04T00:00:00.000Z")],
+        days: ["2031-03-04"],
         fromHour: 19,
         toHour: 22,
+        zone: "UTC",
       });
       check(
         "11.1 republishing adds only what is new and leaves existing hours alone",
@@ -152,9 +154,10 @@ async function main() {
 
       const inverted = await publishHours({
         actor: actor as never,
-        days: [new Date("2031-03-04T00:00:00.000Z")],
+        days: ["2031-03-04"],
         fromHour: 21,
         toHour: 18,
+        zone: "UTC",
       });
       check(
         "11.1 an inverted range is refused rather than wrapping midnight",

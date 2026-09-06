@@ -2,7 +2,7 @@
   "name": "24therapy",
   "version": "2.0.0",
   "private": true,
-  "description": "24Therapy \u2014 AI clinical documentation for therapists. Single mobile-first Next.js app.",
+  "description": "24Therapy — AI clinical documentation for therapists. Single mobile-first Next.js app.",
   "engines": {
     "node": ">=20"
   },
@@ -54,6 +54,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.38.3",
     "lucide-react": "^0.469.0",
+    "mammoth": "^1.12.2",
     "next": "^15.5.4",
     "openai": "^4.77.0",
     "playwright": "^1.62.1",
@@ -63,6 +64,7 @@
     "server-only": "^0.0.1",
     "stripe": "^17.5.0",
     "tailwind-merge": "^2.6.0",
+    "unpdf": "^1.8.1",
     "ws": "^8.21.3",
     "zod": "^3.24.1"
   },

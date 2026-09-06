@@ -54,6 +54,16 @@ const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: numb
   "booking.cancelled": { name: "session_cancelled", variables: 2 },
   // "Your summary from {{1}} is ready. Open it here: {{2}}"
   "session.summary_ready": { name: "summary_ready", variables: 2 },
+  /*
+   * 11R.10 — the claim code. "{{1}} is your 24Therapy verification code."
+   *
+   * ⚠️ Meta's **authentication** category, which is a different and stricter
+   * approval track from the utility templates above: one variable, no URLs, no
+   * marketing language, and the body is largely fixed by Meta's own form. It
+   * also bills differently. Create it as an authentication template or it will
+   * be rejected — see `scripts/whatsapp-check.ts`.
+   */
+  "claim.code": { name: "claim_code", variables: 1 },
 };
 
 /** The language a template was approved in. Egypt's WhatsApp is largely Arabic. */
@@ -94,8 +104,23 @@ export async function sendWhatsapp(phone: string, message: Message): Promise<boo
     return false;
   }
 
-  const to = phone.replace(/[^\d]/g, "");
-  if (to.length < 8) return false;
+  /*
+   * 11R.13 — refuse a number we cannot prove is E.164 rather than sending
+   * something Meta will bounce.
+   *
+   * The old line was `phone.replace(/[^\d]/g, "")`, which turned an Egyptian
+   * `0100 123 4567` into `01001234567` — a string Meta rejects, and one that
+   * cannot be repaired here because expanding it needs a country nobody asked
+   * for (C64). Numbers are stored E.164 now; anything that is not is a bug
+   * upstream, and falling back to email is the right response to it.
+   */
+  const { isE164 } = await import("@/lib/phone/e164");
+  if (!isE164(phone)) {
+    log.warn("whatsapp refused a number that is not E.164", { kind: message.kind });
+    return false;
+  }
+
+  const to = phone.slice(1);
 
   const url = `https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 

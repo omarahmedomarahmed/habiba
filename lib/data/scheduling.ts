@@ -14,7 +14,8 @@ import {
   type AvailabilitySlot,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { HOLD_MS, hoursOn, isWholeHour, shouldAutoOffline } from "@/lib/scheduling/hours";
+import { HOLD_MS, isWholeHour, shouldAutoOffline } from "@/lib/scheduling/hours";
+import { parseDayKey, usable, zonedHourToUtc } from "@/lib/scheduling/tz";
 
 /**
  * Bookable hours, and what happens when somebody takes one. PLAN.md 11.1–11.6.
@@ -31,10 +32,25 @@ import { HOLD_MS, hoursOn, isWholeHour, shouldAutoOffline } from "@/lib/scheduli
 /* ------------------------------------------------------------- publishing -- */
 
 export type PublishResult =
-  { ok: true; added: number; skipped: number } | { ok: false; error: string };
+  | { ok: true; added: number; skipped: number; impossible: number }
+  | { ok: false; error: string };
 
 /**
- * A clinician opens hours. 11.1.
+ * A clinician opens hours. 11.1, rewritten for 11R.2.
+ *
+ * ## The hours are theirs, not the server's
+ *
+ * `days` are calendar days as `YYYY-MM-DD` and `fromHour`/`toHour` are
+ * wall-clock hours **in `zone`** — the clinician's own. A therapist in Cairo
+ * publishing 18:00–21:00 means their evening, which is 15:00Z in summer and
+ * 16:00Z in winter; the old version stored 18:00Z both times, so half the year
+ * their evening appeared at 20:00 Cairo and the other half at 19:00. The
+ * clinician had no way to see that from this screen, because the screen
+ * rendered the same UTC number back at them.
+ *
+ * `zonedHourToUtc` returns null for an hour that does not exist in that zone
+ * (the spring-forward gap). Those are counted and reported rather than
+ * silently dropped or coerced to the hour next door.
  *
  * `onConflictDoNothing` on the (therapist, hour) unique index, so republishing
  * an overlapping range adds the new hours and leaves the booked ones alone —
@@ -42,16 +58,47 @@ export type PublishResult =
  */
 export async function publishHours(input: {
   actor: Actor;
-  days: Date[];
+  /** `YYYY-MM-DD`, as picked. A calendar day, not an instant. */
+  days: string[];
   fromHour: number;
   toHour: number;
+  /** IANA. Required: there is no "publish in whatever zone the server is in". */
+  zone: string;
 }): Promise<PublishResult> {
   if (input.days.length === 0) return { ok: false, error: "Pick at least one day." };
   if (input.days.length > 60) return { ok: false, error: "Publish up to 60 days at a time." };
+  if (!usable(input.zone)) return { ok: false, error: "We do not recognise that time zone." };
 
-  const wanted = input.days.flatMap((day) => hoursOn(day, input.fromHour, input.toHour));
-  if (wanted.length === 0) {
+  const from = Math.trunc(input.fromHour);
+  const to = Math.trunc(input.toHour);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > 24 || from >= to) {
     return { ok: false, error: "That is not a range of hours — the end must be after the start." };
+  }
+
+  const parsed = input.days.map(parseDayKey);
+  if (parsed.some((day) => day === null)) {
+    return { ok: false, error: "One of those dates is not a date." };
+  }
+
+  const wanted: Date[] = [];
+  let impossible = 0;
+
+  for (const day of parsed as { year: number; month: number; date: number }[]) {
+    for (let hour = from; hour < to; hour += 1) {
+      const at = zonedHourToUtc(day, hour, input.zone);
+      if (at) wanted.push(at);
+      else impossible += 1;
+    }
+  }
+
+  if (wanted.length === 0) {
+    return {
+      ok: false,
+      error:
+        impossible > 0
+          ? "Those hours do not exist where you are — the clocks go forward that morning."
+          : "That is not a range of hours — the end must be after the start.",
+    };
   }
 
   const now = new Date();
@@ -78,7 +125,7 @@ export async function publishHours(input: {
     })
     .returning({ id: availabilitySlots.id });
 
-  return { ok: true, added: inserted.length, skipped };
+  return { ok: true, added: inserted.length, skipped, impossible };
 }
 
 /**
@@ -240,7 +287,14 @@ export async function holdSlot(slotId: string): Promise<HoldResult> {
 }
 
 export type BookResult =
-  | { ok: true; sessionId: string; startsAt: Date; therapistName: string }
+  | {
+      ok: true;
+      sessionId: string;
+      startsAt: Date;
+      therapistName: string;
+      /** For the confirmation's zone fallback. 11R.3. */
+      therapistTimezone: string | null;
+    }
   | { ok: false; error: string };
 
 /**
@@ -254,7 +308,9 @@ export async function bookSlot(input: {
   slotId: string;
   patientName: string;
   patientEmail?: string | null;
+  /** E.164 only. `toE164` is the one way a number gets here. 11R.12. */
   patientPhone?: string | null;
+  patientTimezone?: string | null;
   accountId?: string | null;
   note?: string | null;
 }): Promise<BookResult> {
@@ -270,6 +326,7 @@ export async function bookSlot(input: {
       organizationId: availabilitySlots.organizationId,
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
+      therapistTimezone: users.timezone,
       rateCents: users.sessionRateCents,
     })
     .from(availabilitySlots)
@@ -296,6 +353,7 @@ export async function bookSlot(input: {
     name,
     email: input.patientEmail ?? null,
     phone: input.patientPhone ?? null,
+    timezone: input.patientTimezone ?? null,
   });
 
   const [created] = await db
@@ -354,6 +412,7 @@ export async function bookSlot(input: {
     sessionId: created.id,
     startsAt: slot.startsAt,
     therapistName: [slot.therapistFirstName, slot.therapistLastName].filter(Boolean).join(" "),
+    therapistTimezone: slot.therapistTimezone,
   };
 }
 
@@ -416,6 +475,7 @@ async function findOrCreatePatient(input: {
   name: string;
   email: string | null;
   phone: string | null;
+  timezone: string | null;
 }): Promise<string> {
   const email = input.email?.trim().toLowerCase() || null;
 
@@ -447,6 +507,7 @@ async function findOrCreatePatient(input: {
       lastName: rest.join(" ") || null,
       email,
       phone: input.phone?.trim() || null,
+      timezone: input.timezone,
       source: "join_link",
     })
     .returning({ id: patients.id });
@@ -468,16 +529,27 @@ async function findOrCreatePatient(input: {
 /* ------------------------------------------------------------- reminders -- */
 
 /**
- * Bookings starting inside the next window that have not been reminded.
+ * Bookings inside the reminder window that have not been reminded. 11R.15.
  *
- * "Not reminded" is derived from the note column rather than a flag, so the
- * cron is idempotent without another migration: a slot whose note already
- * carries the marker is skipped. Crude, and honest about being crude — a
- * dedicated column is the right shape once there is a second kind of reminder.
+ * ## The window, not a single daily pass
+ *
+ * The old job ran once at 03:20 UTC looking 24 hours ahead, which missed
+ * everything booked after 03:20 for later the same day — C65 — and landed at
+ * 05:20 in Cairo. This runs hourly and takes bookings **20 to 24 hours out**,
+ * so each one is caught by exactly one run of the sweep. Anything booked
+ * inside that window is picked up by `sameDayNeedingReminder` instead.
+ *
+ * ## "Not reminded" is a column now
+ *
+ * 🔴 It used to be derived from a ` [reminded]` marker appended to
+ * `note` — the column holding the **patient's own words** about why they are
+ * seeking help. §6: never edit text a patient wrote. `reminded_at` is the
+ * flag; nothing appends to `note` ever again.
  */
-export async function bookingsNeedingReminder(withinHours = 24) {
+export async function bookingsNeedingReminder(fromHours = 20, toHours = 24) {
   const now = new Date();
-  const until = new Date(now.getTime() + withinHours * 3_600_000);
+  const from = new Date(now.getTime() + fromHours * 3_600_000);
+  const until = new Date(now.getTime() + toHours * 3_600_000);
 
   return db
     .select({
@@ -486,9 +558,11 @@ export async function bookingsNeedingReminder(withinHours = 24) {
       sessionId: availabilitySlots.sessionId,
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
+      therapistTimezone: users.timezone,
       patientEmail: patients.email,
       patientPhone: patients.phone,
       patientFirstName: patients.firstName,
+      patientTimezone: patients.timezone,
       practice: organizations.name,
     })
     .from(availabilitySlots)
@@ -499,19 +573,66 @@ export async function bookingsNeedingReminder(withinHours = 24) {
     .where(
       and(
         eq(availabilitySlots.status, "booked"),
-        gt(availabilitySlots.startsAt, now),
+        gte(availabilitySlots.startsAt, from),
         lt(availabilitySlots.startsAt, until),
-        or(isNull(availabilitySlots.note), sql`${availabilitySlots.note} NOT LIKE '%[reminded]%'`),
+        isNull(availabilitySlots.remindedAt),
       ),
     )
     .limit(100);
 }
 
-/** Stamp a slot as reminded. See the note above about the marker. */
+/**
+ * 11R.15 — anything booked *inside* the window, which the sweep above misses.
+ *
+ * A patient who books at 4pm for 7pm the same evening never enters the 20–24
+ * hour band at all. They get one reminder as soon as the next hourly run sees
+ * them, which is at most an hour later and usually much less.
+ */
+export async function sameDayNeedingReminder() {
+  const now = new Date();
+  const soon = new Date(now.getTime() + 20 * 3_600_000);
+
+  return db
+    .select({
+      slotId: availabilitySlots.id,
+      startsAt: availabilitySlots.startsAt,
+      sessionId: availabilitySlots.sessionId,
+      therapistFirstName: users.firstName,
+      therapistLastName: users.lastName,
+      therapistTimezone: users.timezone,
+      patientEmail: patients.email,
+      patientPhone: patients.phone,
+      patientFirstName: patients.firstName,
+      patientTimezone: patients.timezone,
+      practice: organizations.name,
+    })
+    .from(availabilitySlots)
+    .innerJoin(users, eq(users.id, availabilitySlots.therapistUserId))
+    .innerJoin(organizations, eq(organizations.id, availabilitySlots.organizationId))
+    .leftJoin(sessions, eq(sessions.id, availabilitySlots.sessionId))
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .where(
+      and(
+        eq(availabilitySlots.status, "booked"),
+        gt(availabilitySlots.startsAt, new Date(now.getTime() + 30 * 60_000)),
+        lt(availabilitySlots.startsAt, soon),
+        isNull(availabilitySlots.remindedAt),
+      ),
+    )
+    .limit(100);
+}
+
+/**
+ * Stamp a slot as reminded. 11R.6.
+ *
+ * 🔴 Writes `reminded_at`. It does **not** touch `note` — that column holds the
+ * patient's own words, and §6 forbids editing them. This function replacing an
+ * append is the whole of C63.
+ */
 export async function markReminded(slotId: string): Promise<void> {
   await db
     .update(availabilitySlots)
-    .set({ note: sql`COALESCE(${availabilitySlots.note}, '') || ' [reminded]'` })
+    .set({ remindedAt: new Date() })
     .where(eq(availabilitySlots.id, slotId));
 }
 

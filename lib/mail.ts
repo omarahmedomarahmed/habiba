@@ -5,6 +5,7 @@ import { Resend } from "resend";
 import { env, features } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
 import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
+import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 
 let resend: Resend | null = null;
 
@@ -173,6 +174,12 @@ export async function sendSessionReport(opts: {
   therapistName: string;
   note: NoteContent;
   sessionDate: Date;
+  /**
+   * The patient's zone, then the clinician's. 11R.1 — a 23:00 Cairo session is
+   * the previous day in UTC, and "your session on the 11th" about a session
+   * the patient remembers having on the 12th reads as somebody else's email.
+   */
+  timezone?: string | null;
   /** The language the session was held in; the email follows it. */
   language?: string;
 }): Promise<boolean> {
@@ -219,7 +226,7 @@ export async function sendSessionReport(opts: {
     `<div dir="${rtl ? "rtl" : "ltr"}" style="text-align:${align};">
        <p style="margin:0 0 4px;font-size:20px;font-weight:700;letter-spacing:-0.02em;">${esc(t.greeting(opts.patientName))}</p>
        <p style="margin:0 0 18px;color:#64748b;font-size:14px;">
-         ${esc(t.intro(opts.sessionDate.toLocaleDateString(lang, { dateStyle: "long" }), opts.therapistName))}
+         ${esc(t.intro(formatCalendarDate(opts.sessionDate, resolveZone(opts.timezone).name, lang), opts.therapistName))}
        </p>
        ${
          /*
@@ -274,13 +281,15 @@ export async function sendRatingReminder(opts: {
   therapistFirstName: string;
   url: string;
   sessionDate: Date;
+  /** The patient's zone, then the clinician's. 11R.1. */
+  timezone?: string | null;
 }): Promise<boolean> {
   const html = layout(
     "Your session summary is ready",
     `<p style="margin:0 0 4px;font-size:20px;font-weight:700;letter-spacing:-0.02em;">Your summary is ready</p>
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.7;">
        ${esc(opts.therapistFirstName)} has finished writing up your session on ${esc(
-         opts.sessionDate.toLocaleDateString("en", { dateStyle: "long" }),
+         formatCalendarDate(opts.sessionDate, resolveZone(opts.timezone).name, "en"),
        )}. It is a short summary written for you — what you talked about and what you agreed to try — and it is waiting on the same link you used to join.
      </p>
      <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open my summary</a>

@@ -16,7 +16,18 @@ import { eq } from "drizzle-orm";
 import { sendClaimCode as mailClaimCode } from "@/lib/mail";
 import { log } from "@/lib/logger";
 
-export type ClaimState = { error?: string; sent?: boolean; claimId?: string; done?: boolean };
+export type ClaimState = {
+  error?: string;
+  sent?: boolean;
+  claimId?: string;
+  done?: boolean;
+  /**
+   * 11R.11 — which channel the code actually went by, and whether that was
+   * what they asked for. Carried to the screen, never left in a server log.
+   */
+  channel?: "email" | "whatsapp" | null;
+  fellBack?: boolean;
+};
 
 /** Steps 2–4: which records might be theirs, shown redacted. */
 export async function mySuggestions(): Promise<ClaimSuggestion[]> {
@@ -49,13 +60,60 @@ export async function sendClaimCode(
   const result = await startClaim({ personId, accountId: actor.accountId, channel });
   if (!result.ok) return { error: result.error };
 
-  if (channel === "whatsapp") {
-    log.warn("whatsapp verification requested but no provider is configured");
+  /*
+   * 11R.9 — through `notify()`, not `mailClaimCode`.
+   *
+   * C68: sprint 11 built a real channel seam and a real Meta Cloud API client,
+   * and the claim path — the one place a patient *chooses* a channel — went on
+   * calling the mailer directly and writing a server-log warning when they
+   * picked WhatsApp. A log line is not a fallback; it is a record that we
+   * ignored them.
+   */
+  const { notify } = await import("@/lib/notify");
+
+  const delivery = await notify(
+    {
+      email: actor.email,
+      phone: actor.phone ?? null,
+      // 11R.11 — their choice is honoured where it can be, and reported where
+      // it cannot.
+      prefers: channel,
+    },
+    {
+      kind: "claim.code",
+      subject: "Your 24Therapy verification code",
+      /*
+       * 🔴 Says nothing about who holds the record, or that a record exists.
+       * Somebody who mistyped an address must not learn from this message that
+       * a person by that name is in therapy.
+       */
+      body: `${result.code} is your 24Therapy verification code. It expires in 30 minutes.\n\nIf you did not ask for it, ignore this message.`,
+      variables: [result.code],
+    },
+  );
+
+  /*
+   * 11R.11 — the patient is told which channel it actually went to, on screen.
+   *
+   * Choosing WhatsApp and silently getting an email is the defect. Somebody
+   * who then watches WhatsApp for thirty minutes has been failed by a product
+   * that knew the answer and kept it in a log file.
+   */
+  if (!delivery.sent) {
+    return {
+      error:
+        "We could not send your code. Check the email address on your account, or ask your therapist for an invite link instead.",
+    };
   }
 
-  await mailClaimCode({ to: actor.email, code: result.code });
-
-  return { sent: true, claimId: result.claimId };
+  return {
+    sent: true,
+    claimId: result.claimId,
+    channel: delivery.channel,
+    // True when they asked for one thing and got another, so the screen can
+    // say so rather than the server log.
+    fellBack: delivery.channel !== channel,
+  };
 }
 
 /** Steps 6–8. `therapistKeepsAccess` is passed explicitly; there is no default. */

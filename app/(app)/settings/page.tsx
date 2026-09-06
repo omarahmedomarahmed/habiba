@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { PayoutSettings } from "@/components/settings/payouts";
 import { SettingsForms } from "@/components/settings/settings-forms";
+import { TimezoneSettings } from "@/components/settings/timezone-settings";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { getSettings } from "@/lib/settings";
@@ -69,6 +70,13 @@ export default async function SettingsPage({
           }}
           isAdmin={actor.role === "super_admin"}
         />
+
+        {/*
+          11R.2 — above the copilot preferences because more depends on it:
+          the hours this clinician publishes and the hour we are willing to
+          message their patients at.
+        */}
+        <TimezoneSettings initial={user?.timezone ?? null} />
 
         {/* 10.6's second half — the "editable later" that sprint 10 left as [~]. */}
         <AssistantPrefsSettings

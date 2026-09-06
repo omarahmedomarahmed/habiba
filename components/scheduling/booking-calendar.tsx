@@ -5,7 +5,9 @@ import { CalendarDays, Check, Clock } from "lucide-react";
 
 import { book } from "@/app/(public)/t/[id]/book/actions";
 import { Card } from "@/components/ui";
-import { byDay } from "@/lib/scheduling/hours";
+import { byDayIn, formatTime, formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { PhoneField } from "@/components/forms/phone-field";
+import { countryFromLocale } from "@/lib/phone/e164";
 
 /**
  * The booking calendar on a public profile. PLAN.md 11.3.
@@ -37,12 +39,31 @@ export function BookingCalendar({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState(
+    () => countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
+  );
   const [note, setNote] = useState("");
-  const [done, setDone] = useState<{ startsAt: string; sent: boolean } | null>(null);
+  const [done, setDone] = useState<{ when: string; sent: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const days = byDay(slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })));
+  /*
+   * 11R.1 / 11R.4 — the reader's own zone, resolved once and used for every
+   * time on this screen. `Intl.DateTimeFormat().resolvedOptions().timeZone` is
+   * the browser's own answer, which is the only clock this person lives in.
+   *
+   * The same string is sent to the server with the booking, so the
+   * confirmation is rendered in it too — that is C61: the calendar said 22:00
+   * and the email said 19:00 UTC.
+   */
+  const zone = resolveZone(
+    typeof Intl === "undefined" ? null : Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
+
+  const days = byDayIn(
+    slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
+    zone.name,
+  );
 
   if (done) {
     return (
@@ -51,7 +72,7 @@ export function BookingCalendar({
           <Check className="h-4 w-4 text-teal-500" aria-hidden />
           Booked with {therapistName}
         </p>
-        <p className="mt-1 text-sm text-slate-700">{longWhen(new Date(done.startsAt))}</p>
+        <p className="mt-1 text-sm text-slate-700">{done.when}</p>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           {done.sent
             ? "We have sent you a confirmation with the link to join."
@@ -89,7 +110,7 @@ export function BookingCalendar({
       {picked ? (
         <div className="mt-3 space-y-2">
           <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800">
-            {longWhen(new Date(picked.startsAt))}
+            {formatWhen(new Date(picked.startsAt), zone)}
           </p>
 
           <input
@@ -102,16 +123,30 @@ export function BookingCalendar({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            placeholder="Email (so we can send the link)"
+            placeholder="Email"
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
-          <input
+
+          {/*
+            11R.12 — a country beside the number, because expanding a national
+            number without one is guessing which country's human being to
+            message.
+          */}
+          <PhoneField
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            type="tel"
-            placeholder="WhatsApp number (optional)"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            country={phoneCountry}
+            onValueChange={setPhone}
+            onCountryChange={setPhoneCountry}
+            placeholder="Phone or WhatsApp"
           />
+
+          {/*
+            11R.21 — one of the two, required. Said before they type, not after
+            they submit: a booking nobody can be told about is not a booking.
+          */}
+          <p className="text-xs leading-relaxed text-slate-500">
+            Give us one of these so we can send you the link and tell you if anything changes.
+          </p>
           <textarea
             rows={2}
             value={note}
@@ -123,7 +158,7 @@ export function BookingCalendar({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={pending || !name.trim()}
+              disabled={pending || !name.trim() || (!email.trim() && !phone.trim())}
               onClick={() =>
                 startTransition(async () => {
                   setError(null);
@@ -132,12 +167,17 @@ export function BookingCalendar({
                     name,
                     email,
                     phone,
+                    phoneCountry,
                     note,
+                    timezone: zone.source === "reader" ? zone.name : undefined,
                   });
                   if (result.error) setError(result.error);
                   else if (result.booked) {
+                    // The server rendered this string, in this zone. The screen
+                    // and the message cannot disagree because there is one of
+                    // them.
                     setDone({
-                      startsAt: result.booked.startsAt,
+                      when: result.booked.when,
                       sent: Boolean(result.confirmationSent),
                     });
                   }
@@ -159,9 +199,9 @@ export function BookingCalendar({
       ) : (
         <div className="mt-3 space-y-3">
           {days.slice(0, 10).map((day) => (
-            <div key={day.day}>
+            <div key={day.key}>
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                {longDay(new Date(`${day.day}T12:00:00Z`))}
+                {day.label}
               </p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {day.slots.map((slot) => (
@@ -174,7 +214,7 @@ export function BookingCalendar({
                     className="tap-target flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-sm font-medium text-slate-700 hover:border-slate-900 hover:bg-slate-50"
                   >
                     <Clock className="h-3 w-3 text-slate-400" aria-hidden />
-                    {shortTime(slot.startsAt)}
+                    {formatTime(slot.startsAt, zone.name)}
                   </button>
                 ))}
               </div>
@@ -191,13 +231,3 @@ export function BookingCalendar({
     </Card>
   );
 }
-
-/* Formatted in the reader's own zone — see the note at the top. */
-const shortTime = (at: Date) =>
-  at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-
-const longDay = (at: Date) =>
-  at.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-
-const longWhen = (at: Date) =>
-  `${at.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })} at ${shortTime(at)}`;

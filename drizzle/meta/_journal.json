@@ -281,6 +281,13 @@
       "when": 1789600000005,
       "tag": "0039_scheduling",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1789600000006,
+      "tag": "0040_repair",
+      "breakpoints": true
     }
   ]
 }

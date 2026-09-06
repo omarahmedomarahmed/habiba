@@ -37,6 +37,14 @@ export type Recipient = {
   phone: string | null;
   /** Their own preference, when they have expressed one. */
   prefers?: Channel | null;
+  /**
+   * IANA zone, for anything time-shaped in the body. 11R.3.
+   *
+   * Carried on the recipient rather than baked into the body by the caller, so
+   * a future channel that formats its own payload has the zone available
+   * instead of parsing it back out of a sentence.
+   */
+  timezone?: string | null;
 };
 
 export type Message = {

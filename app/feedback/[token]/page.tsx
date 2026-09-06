@@ -51,7 +51,8 @@ export default async function FeedbackPage({
         heading is client state now, so the heading has to be too.
       */}
       <RatingForm
-        sessionDate={context.sessionDate.toLocaleDateString(undefined, { dateStyle: "long" })}
+        sessionDateIso={context.sessionDate.toISOString()}
+        therapistTimezone={context.therapistTimezone}
         token={token}
         therapistFirstName={context.therapistFirstName}
         brief={context.brief}

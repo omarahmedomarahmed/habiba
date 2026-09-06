@@ -36,6 +36,8 @@ export type FeedbackContext = {
   therapistFirstName: string;
   therapistName: string;
   sessionDate: Date;
+  /** The zone the date is rendered in when the reader's browser cannot say. */
+  therapistTimezone: string | null;
   /** Already given — the page shows the brief instead of the form. */
   done: boolean;
   brief: string | null;
@@ -93,6 +95,7 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
       paymentStatus: sessions.paymentStatus,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
+      therapistZone: users.timezone,
       noteContent: sessionNotes.content,
       noteLanguage: sessionNotes.language,
       noteStatus: sessionNotes.patientStatus,
@@ -128,6 +131,9 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     therapistFirstName: row.therapistFirst,
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
     sessionDate: ended,
+    // The fallback zone for the heading, used only when the reader's browser
+    // cannot tell us its own. 11R.1.
+    therapistTimezone: row.therapistZone,
     // "Done" means the session was rated, not that a row exists — an arrival
     // rating creates the row long before the session is over.
     done: row.therapistStars !== null,
@@ -538,10 +544,14 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
       createdAt: sessions.createdAt,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
+      // 11R.1 — the zone the date in this email is rendered in.
+      patientZone: patients.timezone,
+      therapistZone: users.timezone,
     })
     .from(sessionFeedback)
     .innerJoin(sessions, eq(sessions.id, sessionFeedback.sessionId))
     .innerJoin(users, eq(users.id, sessionFeedback.therapistId))
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
     .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessionFeedback.sessionId))
     .where(eq(sessionFeedback.sessionId, sessionId))
     .limit(1);
@@ -574,6 +584,7 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
     },
     language: row.language ?? "en",
     sessionDate: row.endedAt ?? row.createdAt,
+    timezone: row.patientZone ?? row.therapistZone,
   });
 
   if (sent) {
@@ -630,6 +641,8 @@ export async function sweepUnratedSessions(
       email: sql<string | null>`COALESCE(${sessionFeedback.patientEmail}, ${sessions.guestEmail}, ${patients.email})`,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
+      patientZone: patients.timezone,
+      therapistZone: users.timezone,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.therapistId))
@@ -672,6 +685,7 @@ export async function sweepUnratedSessions(
       therapistFirstName: row.therapistFirst,
       url: `${(await import("@/lib/env")).env.appUrl}/feedback/${row.token}`,
       sessionDate: row.endedAt ?? new Date(),
+      timezone: row.patientZone ?? row.therapistZone,
     });
     if (sent) reminded += 1;
   }

@@ -240,57 +240,126 @@ const JOBS = {
    * not the work.
    */
   /**
-   * Appointment reminders. PLAN.md 11.7.
+   * Appointment reminders. PLAN.md 11.7, rebuilt by 11R.15–11R.17. C65.
    *
-   * One pass a day, covering the next 24 hours — which for a 03:00 job means
-   * everybody booked for tomorrow gets told this morning. A tighter window
-   * would need a tighter schedule, and the billing note at the top of this
-   * file is why that trade has not been made: the reminder is worth a day's
-   * notice, not an hour's precision.
+   * ## Hourly, and why that is affordable
    *
-   * 🔴 The message is a time, a name and a link. No clinical content — it lands
-   * in an inbox or a WhatsApp backup, and §6's rule about what a patient sees
-   * does not stop at our own screens.
+   * The note at the top of this file is about Neon billing for the time the
+   * compute is *awake*, not the work done — so the cost of a cron is the idle
+   * timeout it resets, not its runtime. The arithmetic, recorded as 11R.17
+   * asks:
+   *
+   *   Neon's "scale to zero" on this project is 0 seconds (`suspend_timeout_
+   *   seconds: 0` on every endpoint), so a wake costs the seconds it runs and
+   *   nothing after. Twenty-four wakes a day at ~2s each is ~48s of compute,
+   *   against 0.25 CU minimum — call it 0.003 CU-hours a day, roughly a cent
+   *   a month at Neon's $0.16/CU-hour. The daily job it replaces cost a
+   *   twenty-fourth of that.
+   *
+   *   That is the whole price. It buys: a same-day booking getting a reminder
+   *   at all, and nobody being messaged at 05:20 because 03:20 UTC happened to
+   *   be the slot. A cent a month against a patient missing their appointment
+   *   is not a close call.
+   *
+   * ## Two passes, one message
+   *
+   *   `bookingsNeedingReminder(20, 24)` — the ordinary case, caught by exactly
+   *   one hourly run because the band is four hours wide and the runs are an
+   *   hour apart.
+   *   `sameDayNeedingReminder()` — anything booked *inside* that band, which
+   *   the first pass structurally cannot see (C65's actual defect).
+   *
+   * Both are gated on `reminded_at IS NULL`, so a slot gets one reminder
+   * whichever pass finds it first.
+   *
+   * ## 🔴 Nothing goes out in the middle of the night
+   *
+   * 11R.16: quiet between 22:00 and 07:00 **where the recipient is**. A slot
+   * inside the quiet window is left for the next run, which is an hour away —
+   * so a Cairo patient booked for tomorrow evening is told at 07:xx their
+   * time, not 05:20. A reminder that wakes somebody at dawn is the product
+   * being useful at the patient's expense, and they turn notifications off.
+   *
+   * ## And no ISO strings
+   *
+   * §6 / C61: the time in the message is rendered by `formatWhenWithCaveat` in
+   * the recipient's own zone, and says which zone it fell back to. The old
+   * body said "19:00 UTC" while the booking screen said "22:00".
    */
   async reminders() {
-    const { bookingsNeedingReminder, markReminded } = await import("@/lib/data/scheduling");
+    const { bookingsNeedingReminder, sameDayNeedingReminder, markReminded } = await import(
+      "@/lib/data/scheduling"
+    );
     const { notify } = await import("@/lib/notify");
+    const { formatWhenWithCaveat, isQuietHour, resolveZone } = await import(
+      "@/lib/scheduling/tz"
+    );
 
-    const due = await bookingsNeedingReminder(24);
+    const now = new Date();
+    const ahead = await bookingsNeedingReminder(20, 24);
+    const sameDay = await sameDayNeedingReminder();
+
+    // A slot can satisfy both queries at a boundary; `reminded_at` makes the
+    // second send a no-op, but deduplicating here saves the wasted call.
+    const seen = new Set<string>();
+    const due = [...ahead, ...sameDay].filter((booking) => {
+      if (seen.has(booking.slotId)) return false;
+      seen.add(booking.slotId);
+      return true;
+    });
+
     let sent = 0;
     let unreachable = 0;
+    let heldForMorning = 0;
 
     for (const booking of due) {
+      const zone = resolveZone(booking.patientTimezone, booking.therapistTimezone);
+
+      // 11R.16 — leave it for the next hourly run.
+      if (isQuietHour(now, zone.name)) {
+        heldForMorning += 1;
+        continue;
+      }
+
       const therapist = [booking.therapistFirstName, booking.therapistLastName]
         .filter(Boolean)
         .join(" ");
-      const when = booking.startsAt.toISOString().replace("T", " ").slice(0, 16);
+      const when = formatWhenWithCaveat(booking.startsAt, zone);
 
       const delivery = await notify(
-        { email: booking.patientEmail, phone: booking.patientPhone },
+        {
+          email: booking.patientEmail,
+          phone: booking.patientPhone,
+          timezone: booking.patientTimezone,
+        },
         {
           kind: "booking.reminder",
-          subject: `Tomorrow: your session with ${therapist}`,
-          body: `A reminder that your session with ${therapist} is at ${when} UTC.\n\nIf you cannot make it, tell them as early as you can — the hour goes back on their calendar for somebody else.`,
+          subject: `Your session with ${therapist}`,
+          body: `A reminder that your session with ${therapist} is ${when}.\n\nIf you cannot make it, tell them as early as you can — the hour goes back on their calendar for somebody else.`,
           link: booking.sessionId
             ? { label: "Open your session", url: `${env.appUrl}/sessions/${booking.sessionId}` }
             : null,
-          variables: [therapist, `${when} UTC`],
+          variables: [therapist, when],
         },
       );
 
       /*
-       * Marked whatever happened. A reminder that could not be delivered will
-       * not be delivered by trying again tomorrow either — the patient has no
-       * address — and re-sending on every run would turn one unreachable
-       * booking into a daily log entry forever.
+       * Stamped whatever happened. A reminder that could not be delivered will
+       * not be delivered by trying again next hour either — the patient has no
+       * address — and re-sending every hour would turn one unreachable booking
+       * into a daily log storm.
        */
       await markReminded(booking.slotId);
       if (delivery.sent) sent += 1;
       else unreachable += 1;
     }
 
-    return { remindersDue: due.length, remindersSent: sent, unreachable };
+    return {
+      remindersDue: due.length,
+      remindersSent: sent,
+      unreachable,
+      heldForMorning,
+    };
   },
 
   async extract() {

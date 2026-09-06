@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { CalendarDays, Trash2, X } from "lucide-react";
 
 import { cancel, publish, withdraw } from "@/app/(app)/on-call/schedule-actions";
 import { Badge, Card } from "@/components/ui";
-import { byDay } from "@/lib/scheduling/hours";
+import { byDayIn, dayKey, formatTime, zoneLabel } from "@/lib/scheduling/tz";
 
 /**
  * Publishing bookable hours. PLAN.md 11.1.
@@ -24,9 +25,19 @@ import { byDay } from "@/lib/scheduling/hours";
  * behalf, that the patient does not need telling. So the bin is absent on a
  * booked hour and a "cancel" button takes its place, which is a different act
  * with a message attached.
+ *
+ * ## 11R.2 — the hours are theirs
+ *
+ * Every time on this screen is rendered in the clinician's own zone, and the
+ * From/Until they pick are read in it. The line this replaced said "Hours are
+ * set in UTC. Patients see them in their own time zone." — which is a correct
+ * sentence describing a defect: a Cairo therapist publishing an 18:00 evening
+ * got a 20:00 one, and the screen showed 18:00 back at them so there was
+ * nothing to notice.
  */
 export function AvailabilityEditor({
   slots,
+  timezone,
 }: {
   slots: {
     id: string;
@@ -34,15 +45,31 @@ export function AvailabilityEditor({
     status: "open" | "held" | "booked" | "blocked";
     note: string | null;
   }[];
+  /** `users.timezone`, or null when they have never set one. */
+  timezone: string | null;
 }) {
   const [fromHour, setFromHour] = useState(18);
   const [toHour, setToHour] = useState(21);
   const [days, setDays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [adopted, setAdopted] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const grouped = byDay(slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })));
-  const nextTwoWeeks = upcomingDays(14);
+  /*
+   * The stored zone if there is one; otherwise the browser's, which is what
+   * the server will adopt and save on the first publish. Both paths show the
+   * same name on screen, so the label never promises a zone the server is not
+   * about to use.
+   */
+  const browserZone =
+    typeof Intl === "undefined" ? "UTC" : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zone = timezone ?? adopted ?? browserZone;
+
+  const grouped = byDayIn(
+    slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
+    zone,
+  );
+  const nextTwoWeeks = upcomingDays(14, zone);
 
   return (
     <Card>
@@ -116,9 +143,20 @@ export function AvailabilityEditor({
             onClick={() =>
               startTransition(async () => {
                 setError(null);
-                const result = await publish({ days, fromHour, toHour });
+                const result = await publish({ days, fromHour, toHour, browserZone });
                 if (result.error) setError(result.error);
-                else setDays([]);
+                else {
+                  setDays([]);
+                  if (result.zone) setAdopted(result.zone);
+                  // 🔴 An hour that does not exist is said out loud. The
+                  // clocks going forward is not a reason to quietly publish
+                  // fewer hours than the clinician asked for.
+                  if (result.impossible) {
+                    setError(
+                      `${result.impossible} of those hours do not exist — the clocks go forward that morning. Everything else is published.`,
+                    );
+                  }
+                }
               })
             }
             className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
@@ -127,10 +165,18 @@ export function AvailabilityEditor({
           </button>
         </div>
 
-        {/* Times are UTC on the server; said out loud rather than left to be
-            discovered by a clinician whose evening slot appears at lunchtime. */}
-        <p className="text-xs text-slate-400">
-          Hours are set in UTC. Patients see them in their own time zone.
+        {/*
+          Which zone these hours mean, named as a city rather than an offset.
+          When nothing is stored yet it says so and points at Settings — the
+          server is about to adopt this same value, so the sentence is true
+          before and after the first publish.
+        */}
+        <p className="text-xs text-slate-500">
+          These are <strong className="font-semibold">{zoneLabel(zone)}</strong> hours
+          {timezone ? "" : " — from this browser"}. Patients see them in their own time zone.{" "}
+          <Link href="/settings" className="font-medium text-brand-600">
+            {timezone ? "Change" : "Set your time zone"}
+          </Link>
         </p>
 
         {error ? (
@@ -146,13 +192,9 @@ export function AvailabilityEditor({
       ) : (
         <div className="divide-y divide-slate-100">
           {grouped.map((day) => (
-            <div key={day.day} className="px-4 py-3">
+            <div key={day.key} className="px-4 py-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                {new Date(`${day.day}T12:00:00Z`).toLocaleDateString(undefined, {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
+                {day.label}
               </p>
               <ul className="mt-1.5 flex flex-wrap gap-1.5">
                 {day.slots.map((slot) => (
@@ -164,10 +206,7 @@ export function AvailabilityEditor({
                           : "border border-slate-200 text-slate-700"
                       }`}
                     >
-                      {slot.startsAt.toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatTime(slot.startsAt, zone)}
                       {slot.status === "booked" ? (
                         <Badge tone="teal" className="ms-1.5">
                           Booked
@@ -219,15 +258,34 @@ export function AvailabilityEditor({
   );
 }
 
-function upcomingDays(count: number): { iso: string; label: string }[] {
+/**
+ * The next `count` calendar days **in the clinician's zone**.
+ *
+ * Stepping by 24 hours and asking `Intl` which day that lands on, rather than
+ * incrementing a UTC date: at 23:30 in Cairo the UTC date is still yesterday,
+ * so the old version offered a first chip labelled with a day that had already
+ * ended where the clinician was sitting.
+ */
+function upcomingDays(count: number, zone: string): { iso: string; label: string }[] {
   const out: { iso: string; label: string }[] = [];
-  const now = new Date();
+  const seen = new Set<string>();
+  const start = Date.now();
 
-  for (let i = 0; i < count; i += 1) {
-    const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + i));
+  // Two extra steps and a dedupe, because a 24-hour step across a
+  // clocks-go-back boundary can land on the day it started on.
+  for (let i = 0; i < count + 2 && out.length < count; i += 1) {
+    const at = new Date(start + i * 24 * 3_600_000);
+    const iso = dayKey(at, zone);
+    if (seen.has(iso)) continue;
+    seen.add(iso);
+
     out.push({
-      iso: day.toISOString().slice(0, 10),
-      label: day.toLocaleDateString(undefined, { weekday: "short", day: "numeric" }),
+      iso,
+      label: new Intl.DateTimeFormat("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        timeZone: zone,
+      }).format(at),
     });
   }
   return out;

@@ -29,6 +29,15 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
   const [step, setStep] = useState<"list" | "code" | "done">("list");
   const [active, setActive] = useState<ClaimSuggestion | null>(null);
   const [claimId, setClaimId] = useState<string | null>(null);
+  /**
+   * 11R.11 — which channel the code actually went by, and whether that was
+   * what they asked for.
+   *
+   * Held here and rendered below, because C68 was exactly this being written
+   * to a server log instead. Somebody who chose WhatsApp and then watches
+   * WhatsApp for thirty minutes has been failed by a product that knew.
+   */
+  const [sentBy, setSentBy] = useState<{ channel: string | null; fellBack: boolean } | null>(null);
   const [code, setCode] = useState("");
   // Step 7: OFF until they say otherwise.
   const [keepsAccess, setKeepsAccess] = useState(false);
@@ -79,10 +88,17 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
     return (
       <Card className="space-y-4 p-5">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Check your email</p>
+          <p className="text-sm font-semibold text-slate-900">
+            {sentBy?.channel === "whatsapp" ? "Check WhatsApp" : "Check your email"}
+          </p>
           <p className="mt-1 text-sm text-slate-600">
             We sent a six-digit code. It expires in thirty minutes.
           </p>
+          {sentBy?.fellBack ? (
+            <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+              We could not reach you on WhatsApp, so the code went to your email instead.
+            </p>
+          ) : null}
         </div>
 
         <Field label="Your code" htmlFor="claim-code">
@@ -195,6 +211,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
                 startTransition(async () => {
                   setError(null);
                   const r = await sendClaimCode(s.personId, "email");
+                  if (r.sent) setSentBy({ channel: r.channel ?? null, fellBack: Boolean(r.fellBack) });
                   if (r.error) setError(r.error);
                   else {
                     setActive(s);

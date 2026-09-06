@@ -19,7 +19,7 @@
     },
     {
       "path": "/api/cron/reminders",
-      "schedule": "20 3 * * *"
+      "schedule": "20 * * * *"
     }
   ]
 }

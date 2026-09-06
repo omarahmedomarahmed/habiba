@@ -56,6 +56,14 @@ export type PatientActor = {
   accountId: string;
   personId: string;
   email: string;
+  /**
+   * E.164, or null. 11R.12.
+   *
+   * Here so the claim flow can offer WhatsApp without a second query, and so
+   * `notify()` can reach them at all. Always E.164 — `toE164` is the only way
+   * a number gets into the column.
+   */
+  phone: string | null;
   firstName: string;
   lastName: string | null;
   emailVerified: boolean;
@@ -110,6 +118,7 @@ export async function getPatientActor(): Promise<PatientActor | null> {
       accountId: patientAccounts.id,
       personId: patientAccounts.personId,
       email: patientAccounts.email,
+      phone: patientAccounts.phone,
       emailVerifiedAt: patientAccounts.emailVerifiedAt,
       firstName: people.firstName,
       lastName: people.lastName,
@@ -143,6 +152,7 @@ export async function getPatientActor(): Promise<PatientActor | null> {
     accountId: row.accountId,
     personId: row.personId,
     email: row.email,
+    phone: row.phone,
     firstName: row.firstName,
     lastName: row.lastName,
     emailVerified: row.emailVerifiedAt !== null,

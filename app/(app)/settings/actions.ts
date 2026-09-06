@@ -13,6 +13,7 @@ import {
   startOnboarding,
 } from "@/lib/billing/connect";
 import { db } from "@/lib/db";
+import { writeTimezone } from "@/lib/data/timezone";
 import { getSettings } from "@/lib/settings";
 import { users, type TherapistProfile } from "@/lib/db/schema";
 
@@ -103,6 +104,32 @@ export async function saveVoicePreference(
     })
     .where(eq(users.id, actor.userId));
 
+  return { ok: true };
+}
+
+/**
+ * Where the clinician is. 11R.2.
+ *
+ * This is the zone their published hours are read in and the zone the reminder
+ * cron checks before messaging anybody at five in the morning, so it is a
+ * deliberate setting rather than a browser reading — see `lib/data/timezone.ts`.
+ */
+export async function saveTimezone(zone: string): Promise<SettingsState> {
+  const actor = await requireUser();
+
+  const saved = await writeTimezone(actor.userId, zone.trim());
+  if (!saved) return { error: "We do not recognise that time zone." };
+
+  await audit({
+    actor,
+    category: "auth",
+    action: "profile.timezone",
+    resourceType: "user",
+    resourceId: actor.userId,
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/on-call");
   return { ok: true };
 }
 

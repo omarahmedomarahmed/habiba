@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { ensureRadarProfile, radarSessionHistory } from "@/lib/data/radar";
 import { myHours } from "@/lib/data/scheduling";
+import { readTimezone } from "@/lib/data/timezone";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { feedbackForTherapist } from "@/lib/data/feedback";
@@ -31,6 +32,7 @@ export default async function RadarConsolePage() {
     feedback,
     history,
     slots,
+    timezone,
   ] = await Promise.all([
     ensureRadarProfile(actor),
     db
@@ -48,6 +50,7 @@ export default async function RadarConsolePage() {
     feedbackForTherapist(actor.userId),
     radarSessionHistory(actor),
     myHours(actor),
+    readTimezone(actor.userId),
   ]);
 
   return (
@@ -84,6 +87,7 @@ export default async function RadarConsolePage() {
           the calendar is what a patient uses when they are not in crisis.
         */}
         <AvailabilityEditor
+          timezone={timezone}
           slots={slots.map((slot) => ({
             id: slot.id,
             startsAt: slot.startsAt.toISOString(),

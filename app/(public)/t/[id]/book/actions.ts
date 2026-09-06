@@ -1,6 +1,8 @@
 "use server";
 
 import { bookSlot, holdSlot } from "@/lib/data/scheduling";
+import { e164Problem, toE164 } from "@/lib/phone/e164";
+import { formatWhenWithCaveat, resolveZone } from "@/lib/scheduling/tz";
 import { notify } from "@/lib/notify";
 import { env } from "@/lib/env";
 import { callerKey, consume } from "@/lib/rate-limit";
@@ -8,9 +10,10 @@ import { log } from "@/lib/logger";
 
 export type BookState = {
   error?: string;
-  booked?: { startsAt: string; therapistName: string };
-  /** Whether we could actually tell them. Reported, never assumed. */
+  booked?: { startsAt: string; therapistName: string; when: string };
+  /** Whether we could actually tell them, and by what. Reported, never assumed. */
   confirmationSent?: boolean;
+  channel?: "email" | "whatsapp" | null;
 };
 
 /**
@@ -24,7 +27,11 @@ export async function book(input: {
   name: string;
   email?: string;
   phone?: string;
+  /** ISO-3166 alpha-2, from the selector beside the phone field. 11R.12. */
+  phoneCountry?: string;
   note?: string;
+  /** The reader's own zone, so the confirmation is rendered in it. 11R.3. */
+  timezone?: string;
 }): Promise<BookState> {
   /*
    * Throttled on the caller. The side effects are real — each accepted booking
@@ -42,6 +49,37 @@ export async function book(input: {
   if (name.length > 80) return { error: "That name is a little long." };
 
   /*
+   * 11R.21 — one contact method, required.
+   *
+   * C67: a stranger could book with a first name and nothing else, six an
+   * hour, each creating a patient row and a session row. But the reason this
+   * is a *product* rule rather than an anti-abuse one is simpler: a booking
+   * nobody can be told about is not a booking. There is no confirmation, no
+   * reminder, and no way to tell them when the clinician cancels.
+   */
+  const email = input.email?.trim() || null;
+  const rawPhone = input.phone?.trim() || null;
+
+  if (!email && !rawPhone) {
+    return {
+      error:
+        "We need an email or a phone number — otherwise we cannot send you the link or tell you if anything changes.",
+    };
+  }
+
+  /*
+   * 11R.12 — expanded to E.164 with the country the form asked for, or
+   * refused. Never guessed: `0100 123 4567` is a real number in Egypt, Italy
+   * and Kenya, and picking one would send a stranger somebody's appointment.
+   */
+  let phone: string | null = null;
+  if (rawPhone) {
+    const parsed = toE164(rawPhone, input.phoneCountry ?? null);
+    if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
+    phone = parsed.e164;
+  }
+
+  /*
    * Hold first, then book. The hold is a conditional UPDATE, so two people
    * pressing the same Tuesday at the same moment produce one winner and one
    * honest refusal — decided by the database rather than by whichever request
@@ -53,8 +91,9 @@ export async function book(input: {
   const result = await bookSlot({
     slotId: input.slotId,
     patientName: name,
-    patientEmail: input.email?.trim() || null,
-    patientPhone: input.phone?.trim() || null,
+    patientEmail: email,
+    patientPhone: phone,
+    patientTimezone: input.timezone ?? null,
     note: input.note?.trim() || null,
   });
 
@@ -73,22 +112,37 @@ export async function book(input: {
    * emailed you" when nothing was sent is worse than one that says to write
    * the time down.
    */
-  const when = result.startsAt.toISOString().replace("T", " ").slice(0, 16);
+  /*
+   * 🔴 §6 / C61 — rendered in the reader's zone by the one formatter, never
+   * `toISOString()`. The defect this replaces: the calendar said "22:00" and
+   * this email said "19:00 UTC", and the patient had to work out which to
+   * trust while deciding when to leave the house.
+   */
+  const zone = resolveZone(input.timezone, result.therapistTimezone);
+  const when = formatWhenWithCaveat(result.startsAt, zone);
+
   const delivery = await notify(
-    { email: input.email?.trim() || null, phone: input.phone?.trim() || null },
+    { email, phone, timezone: input.timezone ?? null },
     {
       kind: "booking.confirmed",
       subject: `Your session with ${result.therapistName}`,
-      body: `Your session with ${result.therapistName} is booked for ${when} UTC.\n\nJoin from the link below a few minutes before. If you need to cancel, reply to this message or tell your therapist.`,
+      body: `Your session with ${result.therapistName} is booked for ${when}.\n\nJoin from the link below a few minutes before. If you need to cancel, tell your therapist as early as you can.`,
       link: { label: "Open your session", url: `${env.appUrl}/sessions/${result.sessionId}` },
-      variables: [result.therapistName, `${when} UTC`],
+      variables: [result.therapistName, when],
     },
   );
 
   log.info("booking confirmed", { sent: delivery.sent, channel: delivery.channel ?? "none" });
 
   return {
-    booked: { startsAt: result.startsAt.toISOString(), therapistName: result.therapistName },
+    booked: {
+      startsAt: result.startsAt.toISOString(),
+      therapistName: result.therapistName,
+      // Rendered once, on the server, in the reader's zone — so the screen and
+      // the message cannot disagree.
+      when,
+    },
     confirmationSent: delivery.sent,
+    channel: delivery.channel,
   };
 }

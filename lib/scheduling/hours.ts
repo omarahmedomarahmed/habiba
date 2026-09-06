@@ -122,39 +122,14 @@ export function bookingWarning(
   };
 }
 
-/**
- * The hours a clinician offers on a given day, as whole-hour timestamps.
+/*
+ * 11R.2 — `hoursOn` and `byDay` used to live here. Both worked in UTC:
+ * `hoursOn(day, 18, 21)` built 18:00Z regardless of where the clinician was,
+ * and `byDay` bucketed on `toISOString().slice(0, 10)`.
  *
- * `from` and `to` are hours of the day in UTC, `to` exclusive: 18→21 is
- * 18:00, 19:00 and 20:00. An inverted or empty range yields nothing rather
- * than wrapping around midnight — a clinician who types 21→18 has made a
- * mistake, and silently offering them a night shift is not a kindness.
+ * They are **deleted rather than deprecated**. A second way to turn an hour
+ * into an instant is the bug, not a convenience: whichever of the two a future
+ * caller reaches for decides whether a Cairo therapist's evening lands at
+ * 18:00 or 21:00. `zonedHourToUtc` and `byDayIn` in `lib/scheduling/tz.ts`
+ * take a zone and have no overload that omits it.
  */
-export function hoursOn(day: Date, from: number, to: number): Date[] {
-  if (!Number.isInteger(from) || !Number.isInteger(to)) return [];
-  if (from < 0 || to > 24 || from >= to) return [];
-
-  const midnight = new Date(
-    Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), 0, 0, 0, 0),
-  );
-
-  const out: Date[] = [];
-  for (let hour = from; hour < to; hour += 1) {
-    out.push(new Date(midnight.getTime() + hour * HOUR_MS));
-  }
-  return out;
-}
-
-/** Group slots by UTC day, for a calendar. Days with nothing in them are absent. */
-export function byDay<T extends { startsAt: Date }>(slots: T[]): { day: string; slots: T[] }[] {
-  const map = new Map<string, T[]>();
-
-  for (const slot of [...slots].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())) {
-    const day = slot.startsAt.toISOString().slice(0, 10);
-    const list = map.get(day);
-    if (list) list.push(slot);
-    else map.set(day, [slot]);
-  }
-
-  return [...map.entries()].map(([day, list]) => ({ day, slots: list }));
-}

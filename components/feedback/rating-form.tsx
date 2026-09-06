@@ -7,6 +7,7 @@ import { rateSession, reportSession } from "@/app/feedback/[token]/actions";
 import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback-options";
+import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,7 +25,8 @@ import { cn } from "@/lib/utils";
  */
 export function RatingForm({
   token,
-  sessionDate,
+  sessionDateIso,
+  therapistTimezone,
   therapistFirstName,
   brief,
   briefSteps,
@@ -37,7 +39,9 @@ export function RatingForm({
   ratedApp,
 }: {
   token: string;
-  sessionDate: string;
+  /** The instant, not a rendering — 11R.1 formats it in the reader's own zone. */
+  sessionDateIso: string;
+  therapistTimezone: string | null;
   therapistFirstName: string;
   brief: string | null;
   briefSteps: string[];
@@ -65,6 +69,22 @@ export function RatingForm({
   const [reporting, setReporting] = useState<null | "no_show" | "abuse">(null);
   const [reportDetail, setReportDetail] = useState("");
   const [reported, setReported] = useState<string | null>(null);
+
+  /*
+   * 11R.1 — the day this session happened, in the reader's own zone.
+   *
+   * The server used to render this string with `toLocaleDateString(undefined)`,
+   * which on Vercel is UTC: a 01:00 Cairo session was headed with the previous
+   * day, and the patient reading it could reasonably think the page was about
+   * a different session.
+   */
+  const sessionDate = formatCalendarDate(
+    new Date(sessionDateIso),
+    resolveZone(
+      typeof Intl === "undefined" ? null : Intl.DateTimeFormat().resolvedOptions().timeZone,
+      therapistTimezone,
+    ).name,
+  );
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
