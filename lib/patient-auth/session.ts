@@ -55,7 +55,15 @@ const TOUCH_THROTTLE_MS = 60 * 1000;
 export type PatientActor = {
   accountId: string;
   personId: string;
-  email: string;
+  /**
+   * Null when they signed up by phone alone. 13R.6 / §3b.
+   *
+   * Every screen that greets somebody by address, or offers to email them
+   * something, has to cope with its absence — which is why this is typed
+   * `string | null` rather than defaulted to "": an empty string in a `mailto:`
+   * is a broken link, and `null` is a branch the compiler makes you take.
+   */
+  email: string | null;
   /**
    * E.164, or null. 11R.12.
    *

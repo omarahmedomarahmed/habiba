@@ -68,35 +68,48 @@ export type Message = {
 
 export type Delivery = {
   sent: boolean;
+  /** The first channel that worked. `channels` has the whole story. */
   channel: Channel | null;
+  /** Every channel that accepted it. 13R.12 — both, not one. */
+  channels: Channel[];
   /** Why nothing went out, when nothing did. Never a stack trace. */
   reason?: string;
 };
 
 /**
- * Send one message by the best channel available.
+ * Send one message on **every** channel that can carry it. 13R.12 / §3b.
  *
- * The order is: their stated preference, then WhatsApp if we can, then email.
- * WhatsApp before email is not a guess — it is where this product's patients
- * are — but it is only reachable when a provider is configured *and* we hold a
- * number, and both are false today.
+ * ## Both, not one
+ *
+ * This used to stop at the first channel that worked, which made email a
+ * *fallback*. §3b makes it an addition: WhatsApp is the channel that always
+ * exists, and email is sent **as well** whenever there is an address, never
+ * instead. A patient who reads their email and not their WhatsApp — or the
+ * reverse, which is most of them — should not have to have picked the right one
+ * in advance.
+ *
+ * The cost is two messages for people who have both handles, and that is the
+ * intended trade: a duplicate appointment reminder is a mild annoyance, a
+ * missed one is a missed appointment.
+ *
+ * `channel` still reports the first that worked, because every existing caller
+ * reads it; `channels` is the whole answer.
  */
 export async function notify(to: Recipient, message: Message): Promise<Delivery> {
-  const channels = order(to);
+  const sent: Channel[] = [];
 
-  for (const channel of channels) {
+  for (const channel of order(to)) {
     if (channel === "whatsapp") {
       const { whatsappConfigured, sendWhatsapp } = await import("./whatsapp");
       if (!whatsappConfigured() || !to.phone) continue;
 
       try {
-        const ok = await sendWhatsapp(to.phone, message);
-        if (ok) return { sent: true, channel: "whatsapp" };
+        if (await sendWhatsapp(to.phone, message)) sent.push("whatsapp");
       } catch (error) {
-        // Fall through to email. A failed WhatsApp send must not lose the
-        // message — a reminder that silently did not arrive is worse than one
-        // that arrived by the wrong route.
-        log.warn("whatsapp send failed, falling back", {
+        // Logged, not thrown, and email still goes. A failed WhatsApp send must
+        // not lose the message — a reminder that silently did not arrive is
+        // worse than one that arrived by the other route.
+        log.warn("whatsapp send failed", {
           kind: message.kind,
           reason: safeErrorMessage(error),
         });
@@ -105,9 +118,12 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
 
     if (channel === "email" && to.email) {
       const { sendNotificationEmail } = await import("./email");
-      const ok = await sendNotificationEmail(to.email, message);
-      if (ok) return { sent: true, channel: "email" };
+      if (await sendNotificationEmail(to.email, message)) sent.push("email");
     }
+  }
+
+  if (sent.length > 0) {
+    return { sent: true, channel: sent[0]!, channels: sent };
   }
 
   /*
@@ -120,7 +136,7 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
    */
   const reason = !to.email && !to.phone ? "no contact details on file" : "no channel available";
   log.info("notification not sent", { kind: message.kind, reason });
-  return { sent: false, channel: null, reason };
+  return { sent: false, channel: null, channels: [], reason };
 }
 
 function order(to: Recipient): Channel[] {

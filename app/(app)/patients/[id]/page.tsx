@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { PatientEditor } from "@/components/patient/patient-editor";
 import { AccessBanner } from "@/components/patient/access-banner";
 import { RecordAccess } from "@/components/patient/record-access";
+import { lockedOn } from "@/lib/data/challenge";
 import { Badge, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { explain } from "@/lib/access/state";
@@ -107,6 +108,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         </Card>
 
         <RecordAccess
+          locked={await lockedOn(id)}
           zone={actor.timezone}
           patientId={patient.id}
           claimed={access?.claimed ?? false}

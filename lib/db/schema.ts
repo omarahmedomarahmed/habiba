@@ -2282,7 +2282,15 @@ export const patientAccounts = pgTable(
       .notNull()
       .references(() => people.id, { onDelete: "restrict" }),
 
-    email: text("email").notNull(),
+    /**
+     * Optional since 13R.6 / C86. §3b: the phone is the handle that is never
+     * missing; the address is a real second way in when there is one, not a
+     * requirement. Sprint 13 demanded one, which excluded exactly the people
+     * this product is for.
+     *
+     * Unique **only over rows that have one** — see the index below.
+     */
+    email: text("email"),
     passwordHash: text("password_hash").notNull(),
     /** Null until they follow the link. Nothing is shared before this. */
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
@@ -2323,9 +2331,17 @@ export const patientAccounts = pgTable(
   (t) => [
     // One account per email — and unlike `users`, no organisation to make the
     // constraint conditional on. This is the index 6.2 exists to protect.
+    /*
+     * 🔴 Unique only over rows that HAVE an address. 13R.6.
+     *
+     * Postgres's default is `NULLS DISTINCT`, which is exactly the rule §3b
+     * needs: many accounts legitimately have no email and must not collide.
+     * `person_claims_open_unique` one table away uses `NULLS NOT DISTINCT` and
+     * is right to — same keyword, opposite meaning.
+     */
     uniqueIndex("patient_accounts_email_unique")
       .on(t.email)
-      .where(sql`deleted_at IS NULL`),
+      .where(sql`deleted_at IS NULL AND email IS NOT NULL`),
     uniqueIndex("patient_accounts_person_unique")
       .on(t.personId)
       .where(sql`deleted_at IS NULL`),
@@ -2362,7 +2378,15 @@ export const patientAuthSessions = pgTable(
   ],
 );
 
-export const CLAIM_STATUSES = ["pending", "verified", "rejected", "expired"] as const;
+/**
+ * `locked` is 13R.2's, and it is not `expired`.
+ *
+ * A code that timed out and a record whose name budget ran out are different
+ * events with different remedies — one is "ask for another code", the other
+ * needs a person to open the door (13R.4). Support could not tell them apart
+ * while both read `expired`, and the release path needs something to target.
+ */
+export const CLAIM_STATUSES = ["pending", "verified", "rejected", "expired", "locked"] as const;
 export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
 
 export const CLAIM_ROUTES = ["match", "invite"] as const;
@@ -2475,6 +2499,63 @@ export const personClaims = pgTable(
  * Single use and revocable. The token is stored hashed for the same reason a
  * session token is: a leaked database row must not be a leaked medical record.
  */
+/**
+ * How many names have been offered against one record, by one account. C87.
+ *
+ * ## Why this is not a column on `person_claims`
+ *
+ * It was, and the budget reset. `answerName` set `status = 'expired'` on the
+ * third wrong name; `person_claims_open_unique` is partial on
+ * `WHERE status = 'pending'`, so the locked row left the index, the next code
+ * request found no conflict to upsert against, and a **fresh** claim arrived
+ * carrying `name_attempts DEFAULT 0`. Three guesses per code request,
+ * unbounded, against somebody's first name.
+ *
+ * The budget belongs to the pair it protects — this account, this record — and
+ * never to a row that can be replaced. A new claim inherits what has been
+ * spent because the spending was never the claim's.
+ *
+ * ## And the way out (C88)
+ *
+ * Closing that hole without a release converts a security bug into a permanent
+ * lockout for a patient who mistyped their own name. `released_*` is that door:
+ * one audited action by the therapist who wrote the record down.
+ */
+export const claimAttempts = pgTable(
+  "claim_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientAccountId: uuid("patient_account_id")
+      .notNull()
+      .references(() => patientAccounts.id, { onDelete: "cascade" }),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+
+    attempts: integer("attempts").notNull().default(0),
+    /** 13R.2 — its own state. A lockout and a timed-out code are different events. */
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    releasedByUserId: uuid("released_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    releaseReason: text("release_reason"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // The constraint that makes the budget un-resettable.
+    uniqueIndex("claim_attempts_pair_unique").on(t.patientAccountId, t.patientId),
+    index("claim_attempts_locked_idx")
+      .on(t.patientId)
+      .where(sql`locked_at IS NOT NULL AND released_at IS NULL`),
+  ],
+);
+
+export type ClaimAttempts = typeof claimAttempts.$inferSelect;
+
 export const personInvites = pgTable(
   "person_invites",
   {

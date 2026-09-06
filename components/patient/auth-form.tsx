@@ -75,15 +75,19 @@ export function PatientAuthForm({
           </>
         ) : null}
 
-        <Field label="Email" htmlFor="email">
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-          />
-        </Field>
+        {mode === "signin" ? (
+          /*
+           * 13R.9 — one field, either handle.
+           *
+           * Asking somebody to remember *which* handle they signed up with is
+           * asking them to remember a decision they made once on a form months
+           * ago. The server decides by shape and fails identically either way.
+           */
+          <Field label="Phone number or email" htmlFor="handle">
+            <Input id="handle" name="handle" autoComplete="username" required />
+            <input type="hidden" name="handleCountry" value={phoneCountry} />
+          </Field>
+        ) : null}
 
         {mode === "signup" ? (
           <>

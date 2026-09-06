@@ -3,7 +3,14 @@ import "server-only";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { patientAccounts, patients, people, personClaims, users } from "@/lib/db/schema";
+import {
+  claimAttempts,
+  patientAccounts,
+  patients,
+  people,
+  personClaims,
+  users,
+} from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
 import { nameMatches } from "./name-match";
@@ -50,6 +57,29 @@ import { nameMatches } from "./name-match";
 
 /** How many names may be offered against one record before it locks. */
 export const MAX_NAME_ATTEMPTS = 3;
+
+/**
+ * Names already offered against this record by this account. C87.
+ *
+ * Zero once a therapist has released it (13R.4): the release stamps
+ * `released_at` and zeroes the count, so a person who mistyped their own name
+ * gets a fresh budget from somebody who knows who they are — and nobody else
+ * does.
+ */
+export async function spentOn(accountId: string, patientId: string): Promise<number> {
+  const [row] = await db
+    .select({ attempts: claimAttempts.attempts })
+    .from(claimAttempts)
+    .where(
+      and(
+        eq(claimAttempts.patientAccountId, accountId),
+        eq(claimAttempts.patientId, patientId),
+      ),
+    )
+    .limit(1);
+
+  return row?.attempts ?? 0;
+}
 
 export type Challenge = {
   claimId: string;
@@ -276,9 +306,13 @@ export async function answerName(input: {
    */
   if (!row) return { ok: false, error: GENERIC };
 
-  if ((row.attempts ?? 0) >= MAX_NAME_ATTEMPTS) {
-    return { ok: false, error: LOCKED, locked: true };
-  }
+  /*
+   * 🔴 C87 — the budget is read from the (account, record) pair, not the claim.
+   *
+   * A claim row can be replaced; the pair cannot. See `claimAttempts`.
+   */
+  const budget = await spentOn(input.accountId, input.patientId);
+  if (budget >= MAX_NAME_ATTEMPTS) return { ok: false, error: LOCKED, locked: true };
 
   /*
    * Either name on the record. `patients.firstName` is what this clinician
@@ -293,24 +327,49 @@ export async function answerName(input: {
 
   if (!matches) {
     /*
-     * Counted in the database, atomically, before the answer goes back. A
-     * counter incremented after a successful response is a counter two
-     * concurrent guesses share.
+     * Counted in the database, atomically, on the pair. A counter incremented
+     * after a successful response is a counter two concurrent guesses share,
+     * and one that lives on a replaceable row is a counter that resets.
      */
     const [after] = await db
-      .update(personClaims)
-      .set({ nameAttempts: sql`${personClaims.nameAttempts} + 1` })
-      .where(eq(personClaims.id, row.claimId))
-      .returning({ attempts: personClaims.nameAttempts });
+      .insert(claimAttempts)
+      .values({
+        patientAccountId: input.accountId,
+        patientId: input.patientId,
+        attempts: 1,
+      })
+      .onConflictDoUpdate({
+        target: [claimAttempts.patientAccountId, claimAttempts.patientId],
+        set: { attempts: sql`${claimAttempts.attempts} + 1`, updatedAt: now },
+      })
+      .returning({ attempts: claimAttempts.attempts });
 
     const spent = after?.attempts ?? MAX_NAME_ATTEMPTS;
+
     if (spent >= MAX_NAME_ATTEMPTS) {
-      // Locked, and the claim is closed rather than left dangling — a pending
-      // row with no attempts left is a state every reader has to special-case.
+      /*
+       * 13R.2 — locked, and it says so in its own words.
+       *
+       * The claim goes to `locked`, not `expired`. A lockout and a code that
+       * timed out are different events, support could not tell them apart, and
+       * 13R.4's release needs something to target.
+       */
+      await db
+        .update(claimAttempts)
+        .set({ lockedAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(claimAttempts.patientAccountId, input.accountId),
+            eq(claimAttempts.patientId, input.patientId),
+            isNull(claimAttempts.lockedAt),
+          ),
+        );
+
       await db
         .update(personClaims)
-        .set({ status: "expired", tokenHash: null })
+        .set({ status: "locked", tokenHash: null })
         .where(eq(personClaims.id, row.claimId));
+
       log.warn("claim locked after name attempts", { patient: ref(input.patientId) });
       return { ok: false, error: LOCKED, locked: true };
     }
@@ -365,6 +424,109 @@ export async function challengePassed(accountId: string, patientId: string): Pro
         eq(personClaims.patientId, patientId),
         eq(personClaims.seenTherapist, true),
         isNotNull(personClaims.nameConfirmedAt),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(row);
+}
+
+/* --------------------------------------------------- 13R.3–13R.4 the release -- */
+
+export type ReleaseResult = { ok: true; released: number } | { ok: false; error: string };
+
+/**
+ * Let a locked-out patient try again. C88, 13R.4.
+ *
+ * ## Why this ships in the same sprint as the lock
+ *
+ * Before C87 the escape hatch existed by accident: the budget reset on every
+ * code request, so nobody stayed locked out. Closing that without building a
+ * door would have converted a security hole into a permanent lockout for a
+ * patient who mistyped their own name — which is a worse outcome than the hole,
+ * because it is silent and it lands on the honest case.
+ *
+ * ## Why the therapist, and not only an admin
+ *
+ * They wrote the record down, they know the person, and they are reachable
+ * today. Sprint 20 adds the staff tool; it must not be the only one, or a
+ * lockout on a Friday is a lockout until Monday. Scoped to **their own**
+ * record — `getPatient` does the tenancy check — so this cannot open somebody
+ * else's caseload.
+ *
+ * ## What it does not do
+ *
+ * It does not claim the record, reveal the name, or say who was trying. It
+ * restores exactly one budget, for one account, on one record, and writes down
+ * who did it and why. The two questions still have to be answered.
+ */
+export async function releaseLock(input: {
+  patientId: string;
+  releasedByUserId: string;
+  reason: string;
+}): Promise<ReleaseResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) {
+    return { ok: false, error: "Write a short reason — it goes on the record." };
+  }
+
+  const now = new Date();
+
+  const rows = await db
+    .update(claimAttempts)
+    .set({
+      attempts: 0,
+      lockedAt: null,
+      releasedAt: now,
+      releasedByUserId: input.releasedByUserId,
+      releaseReason: reason.slice(0, 300),
+      updatedAt: now,
+    })
+    .where(
+      and(eq(claimAttempts.patientId, input.patientId), isNotNull(claimAttempts.lockedAt)),
+    )
+    .returning({ id: claimAttempts.id });
+
+  /*
+   * The locked claim is retired, not revived.
+   *
+   * ⚠️ The first version set it back to `pending`, which collides: a patient
+   * who requested a fresh code after being locked out already has a pending
+   * claim for the same (account, person, record) triple, and
+   * `person_claims_open_unique` refuses the second. The verifier hit it
+   * immediately.
+   *
+   * Retiring it is also the truer record. That attempt is over — it ended in a
+   * lockout — and the next one is a new attempt. The budget lives in
+   * `claim_attempts`, which is what the release actually restores, and
+   * `answerSeen` creates a fresh claim when the person tries again.
+   *
+   * Conditional on `locked`: a claim that is `rejected` was answered "no" by a
+   * person, and no clinician gets to undo that.
+   */
+  if (rows.length > 0) {
+    await db
+      .update(personClaims)
+      .set({ status: "expired", tokenHash: null })
+      .where(
+        and(eq(personClaims.patientId, input.patientId), eq(personClaims.status, "locked")),
+      );
+  }
+
+  log.info("claim lock released", { patient: ref(input.patientId), count: rows.length });
+  return { ok: true, released: rows.length };
+}
+
+/** Is anybody locked out of this record right now? For the therapist's screen. */
+export async function lockedOn(patientId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: claimAttempts.id })
+    .from(claimAttempts)
+    .where(
+      and(
+        eq(claimAttempts.patientId, patientId),
+        isNotNull(claimAttempts.lockedAt),
+        isNull(claimAttempts.releasedAt),
       ),
     )
     .limit(1);

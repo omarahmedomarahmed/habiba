@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
@@ -37,6 +37,13 @@ export async function patientSignUp(
   _prev: PatientAuthState,
   formData: FormData,
 ): Promise<PatientAuthState> {
+  /*
+   * 13R.6 / §3b — the address is optional now. The number below is not.
+   *
+   * Sprint 13 required both and called the phone "the identity", which is half
+   * the rule: the phone is the handle that is never *missing*, and the address
+   * is a second real way in for the people who have one.
+   */
   const email = normaliseEmail(String(formData.get("email") ?? ""));
   const password = String(formData.get("password") ?? "");
   const firstName = String(formData.get("firstName") ?? "").trim();
@@ -75,7 +82,6 @@ export async function patientSignUp(
   const rawZone = String(formData.get("timezone") ?? "").trim();
   const timezone = rawZone && usable(rawZone) ? rawZone : null;
 
-  if (!email) return { error: "Enter your email address." };
   if (!firstName) return { error: "Enter your first name." };
 
   const problem = validatePassword(password);
@@ -88,10 +94,25 @@ export async function patientSignUp(
     return { error: "Too many attempts. Try again in an hour." };
   }
 
+  /*
+   * Both handles checked, and refused with the same sentence.
+   *
+   * "That email is already registered" tells anybody with a list of addresses
+   * which of them are in therapy; the same is true of a number, and more so —
+   * a number is guessable in a way an address is not.
+   */
   const existing = await db
     .select({ id: patientAccounts.id })
     .from(patientAccounts)
-    .where(and(eq(patientAccounts.email, email), isNull(patientAccounts.deletedAt)))
+    .where(
+      and(
+        isNull(patientAccounts.deletedAt),
+        or(
+          email ? eq(patientAccounts.email, email) : sql`false`,
+          eq(patientAccounts.phone, phone),
+        ),
+      ),
+    )
     .limit(1);
 
   if (existing.length > 0) {
@@ -142,33 +163,66 @@ export async function patientSignUp(
   redirect("/patient/claim");
 }
 
+/**
+ * Sign in by **either** handle. 13R.9 / §3b.
+ *
+ * One field, labelled "phone number or email", because asking somebody to
+ * remember which one they signed up with is asking them to remember a decision
+ * they made once, months ago, on a form.
+ *
+ * 🔴 One failure message for every outcome — no such account, wrong password,
+ * and the handle being an address rather than a number. An error that named
+ * which handle was wrong would tell somebody holding a list of addresses which
+ * of them belongs to a person in therapy.
+ */
 export async function patientSignIn(
   _prev: PatientAuthState,
   formData: FormData,
 ): Promise<PatientAuthState> {
-  const email = normaliseEmail(String(formData.get("email") ?? ""));
+  const handle = String(formData.get("handle") ?? formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  if (!email || !password) return { error: "Enter your email and password." };
+  if (!handle || !password) {
+    return { error: "Enter your phone number or email, and your password." };
+  }
 
   const verdict = await consume(await callerKey("patient:signin"), 10, 15 * 60);
   if (!verdict.allowed) return { error: "Too many attempts. Try again shortly." };
 
+  /*
+   * Which handle is this? Decided by shape, not by asking.
+   *
+   * A number is expanded with the country the form offers; an address is
+   * lower-cased. A string that is neither still runs the timing-safe path
+   * below rather than returning early, because an early return on "that is not
+   * a handle" is itself an oracle.
+   */
+  const asPhone = toE164(handle, String(formData.get("handleCountry") ?? "") || null);
+  const asEmail = handle.includes("@") ? normaliseEmail(handle) : null;
+
   const [account] = await db
     .select({ id: patientAccounts.id, passwordHash: patientAccounts.passwordHash })
     .from(patientAccounts)
-    .where(and(eq(patientAccounts.email, email), isNull(patientAccounts.deletedAt)))
+    .where(
+      and(
+        isNull(patientAccounts.deletedAt),
+        or(
+          asEmail ? eq(patientAccounts.email, asEmail) : sql`false`,
+          asPhone.ok ? eq(patientAccounts.phone, asPhone.e164) : sql`false`,
+        ),
+      ),
+    )
     .limit(1);
 
   /*
    * One message for "no such account" and "wrong password", and the hash is
    * verified even when there is no account — otherwise the response time tells
-   * an attacker which addresses exist.
+   * an attacker which handles exist.
    */
   const ok = account
     ? await verifyPassword(password, account.passwordHash)
     : await verifyPassword(password, "$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali");
 
-  if (!account || !ok) return { error: "That email and password do not match." };
+  if (!account || !ok) return { error: "That does not match an account. Check and try again." };
 
   await createPatientSession(account.id);
   redirect("/patient");

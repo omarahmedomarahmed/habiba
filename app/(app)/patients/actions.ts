@@ -16,6 +16,7 @@ import { ensurePersonForPatient } from "@/lib/data/people";
 import { env } from "@/lib/env";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { notify } from "@/lib/notify";
+import { releaseLock } from "@/lib/data/challenge";
 import { audit } from "@/lib/audit";
 import { fullName } from "@/lib/utils";
 
@@ -218,6 +219,42 @@ export async function createInviteLink(
     sent: delivery.sent,
     channel: delivery.channel,
   };
+}
+
+/**
+ * Let a locked-out patient try again. 13R.4 / C88.
+ *
+ * Scoped by `getPatient`, which enforces tenancy — a clinician can only open
+ * the door on a record they hold. Audited with a named actor and their written
+ * reason, because "somebody unlocked this" with no name is how a release
+ * becomes a habit nobody reviews.
+ */
+export async function releaseClaimLock(
+  patientId: string,
+  reason: string,
+): Promise<PatientActionState> {
+  const actor = await requireUser();
+
+  const patient = await getPatient(actor, patientId);
+  if (!patient) return { error: "That patient is not in your practice." };
+
+  const result = await releaseLock({
+    patientId,
+    releasedByUserId: actor.userId,
+    reason,
+  });
+  if (!result.ok) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "phi_access",
+    action: "claim.lock.release",
+    resourceType: "patient",
+    resourceId: patientId,
+  });
+
+  revalidatePath(`/patients/${patientId}`);
+  return { ok: true };
 }
 
 /**
