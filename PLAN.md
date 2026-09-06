@@ -925,6 +925,30 @@ start until `verify:sprint11r` is green and sprint 11 + 11R are merged.
 - **Accept:** every row in §2 raised against sprints 7–11 reads **resolved** or
       carries a sentence saying why it is deliberately still open.
 
+### 🔴 THE OPEN CONCERNS, AND WHO RULES ON THEM
+
+Eighteen rows in §2 are still open. **Every one is now the build session's to
+rule on, inside the sprint that owns it**, rather than something to raise and
+wait on. Nothing in this list blocks a sprint; each one is a decision that
+sprint is entitled to make.
+
+| Sprint | Rules on |
+|---|---|
+| **13R** | C75 — a recycled number locking somebody out. 13R.4's therapist release is the interim answer; say whether it is enough until sprint 20 |
+| **14** | C57 — a next-appointment in the general copilot's roster, which 10.2 says structurally cannot read a clinical record. Rule whether a scheduled time is clinical |
+| **15** | C16 — twelve admin pages already exist and §3d adds a back office. Rule what the patient app reuses and what it must not |
+| **16** | C37 (`STATIC_RATES` must never settle real money), C69 (the "pays for itself out of your earnings" framing describes netting that does not exist), C74, C76 — all four are money, all four are this sprint's to decide |
+| **17** | C25 — unscheduled, and pricing is where it lands or dies |
+| **18** | C72 — and C34, C39, C20, C7–C9, C17, which are old public-site rows nobody has revisited since the revamp was specified. Either they are real on the new site or they are void; say which and why |
+| **19–20** | C77 |
+| **20** | C71 — accepted, but say what accepting it costs the people running the back office |
+
+**How to rule.** In the row itself, in §2, and in one paragraph: what was
+decided, **why**, what it costs, and the date. A ruling that only says
+"resolved" is not a ruling. If the honest answer is *this is a risk we are
+taking*, write **"accepted, not resolved"** with the reasoning — a deliberate
+decision must never later read as an oversight.
+
 ### 🔴 THE RESET — read before any sprint below
 
 **Every row in the production database is test data.** The therapists and
@@ -1606,6 +1630,8 @@ Breaking one of these is a bug regardless of what any ticket says.
 | Anything a patient attaches anywhere is clinical material: stored, audited and access-controlled like a document, and **never in a prompt** (C82) | Hard |
 | A service clock **pauses while waiting on the other person.** Measure your own delay, not theirs (C83) | Process |
 | **A completeness rule may gate a launch, never a live thing.** Falling back and shouting beats going dark (C78) | Process |
+| **A ruling is a paragraph, not a word.** What was decided, why, what it costs, and the date. "Accepted, not resolved" is a legitimate outcome and must be written as one — a deliberate decision must never later read as an oversight | Process |
+| **Do not stop to ask when the plan already says who decides.** A concern pointed at a sprint is that sprint's to rule on. Build, decide, record, keep going | Process |
 | **The phone is required on every patient account; the email is optional on every patient account.** Sign-in accepts either handle plus the password. Identity is never locked to one of them (§3b, 2026-09-06) | Hard |
 | **A uniqueness rule over an optional column is unique only over the rows that have a value.** Postgres's default `NULLS DISTINCT` is that rule; `NULLS NOT DISTINCT` collapses every empty row into one and is right only when the NULL genuinely means "the same thing" (C87's claim key, not C86's email) | Hard |
 | **Email is sent *as well* as WhatsApp, never *instead*.** WhatsApp is the channel that always exists | Hard |
