@@ -16,10 +16,31 @@ export default function PatientLoginPage() {
         </p>
       </div>
       <PatientAuthForm mode="signin" />
+
+      {/*
+        🔴 21R.5 / C94 — every door carries the way back in.
+
+        A reset that exists and is not linked is a reset nobody has, which is
+        how this one went eight sprints without being noticed at all.
+      */}
+      <p className="text-center text-sm text-slate-500">
+        <Link href="/patient/forgot-password" className="hover:text-slate-800">
+          Forgot your password?
+        </Link>
+      </p>
+
       <p className="text-center text-sm text-slate-500">
         New here?{" "}
         <Link href="/patient/signup" className="font-semibold text-brand-600 hover:underline">
           Create an account
+        </Link>
+      </p>
+
+      {/* 21R.2 — somebody at the wrong door is told where their own one is. */}
+      <p className="text-center text-sm text-slate-500">
+        Are you a therapist?{" "}
+        <Link href="/login" className="font-semibold text-brand-600 hover:underline">
+          Sign in to your practice
         </Link>
       </p>
     </main>

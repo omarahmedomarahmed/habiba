@@ -35,8 +35,23 @@ export const AUTH_ROUTES = ["/login", "/signup"];
 
 /** Everything a signed-in patient reaches. Guarded properly by `requirePatient`. */
 export const PATIENT_PREFIXES = ["/patient"];
-/** The patient's own sign-in pages, which a signed-in patient has no use for. */
-export const PATIENT_AUTH_ROUTES = ["/patient/login", "/patient/signup"];
+/**
+ * The patient's own sign-in pages, which a signed-in patient has no use for.
+ *
+ * 🔴 21R.4 — `/patient/forgot-password` belongs here, and the reason is the
+ * whole bug: a person who cannot sign in has no patient cookie, so any patient
+ * path that is not on this list bounces them to `/patient/login` — the page
+ * they are on because they cannot use it. A reset route missing from this list
+ * is a reset route nobody can reach.
+ */
+export const PATIENT_AUTH_ROUTES = [
+  "/patient/login",
+  "/patient/signup",
+  "/patient/forgot-password",
+];
+
+/** 21R.1 / C94 — where an unauthenticated caller at an admin route is sent. */
+export const STAFF_SIGN_IN = "/staff/sign-in";
 
 export type RouteDecision =
   /** Carry on, with `x-pathname` set for the server components. */
@@ -68,7 +83,13 @@ export function routeDecision(
   }
 
   if (!cookies.clinician && PROTECTED_PREFIXES.some((p) => isUnder(pathname, p))) {
-    return { kind: "redirect", to: "/login", keepNext: true };
+    /*
+     * 21R.1 — the admin console has its own door, and the staff form refuses a
+     * clinician's credentials. Sending somebody bounced off /admin to /login
+     * would send them to a form that will turn them away.
+     */
+    const to = isUnder(pathname, "/admin") ? STAFF_SIGN_IN : "/login";
+    return { kind: "redirect", to, keepNext: true };
   }
 
   if (cookies.clinician && !cookies.expired && AUTH_ROUTES.includes(pathname)) {

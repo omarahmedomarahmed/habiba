@@ -6,7 +6,13 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
-import { authTokens, organizations, subscriptions, users } from "@/lib/db/schema";
+import {
+  authTokens,
+  BACK_OFFICE_ROLES,
+  organizations,
+  subscriptions,
+  users,
+} from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendPasswordReset } from "@/lib/mail";
@@ -139,10 +145,30 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
   redirect("/onboarding?welcome=1");
 }
 
+/**
+ * 🔴 21R.1 / C94 — which door this is.
+ *
+ * An admin console, a clinician's caseload and a patient's own record are three
+ * different risks, and until 21R they shared one form. `audience` is how the
+ * form says which of them it is, so the two staff routes can be separated
+ * without a second copy of the sign-in logic — the lockout, the per-address
+ * throttle and the timing-equal failure path are the parts that must never
+ * exist twice.
+ *
+ * The role check happens **after** the password is verified, deliberately. A
+ * refusal before it would tell an anonymous caller which addresses are admins,
+ * which is precisely the disclosure separate doors exist to avoid; after it,
+ * the only person who learns anything already knows the password, and what
+ * they get is the sentence that sends them to the right page instead of a
+ * dead end.
+ */
+export type Audience = "practice" | "staff";
+
 export async function signIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "");
+  const audience: Audience = formData.get("audience") === "staff" ? "staff" : "practice";
 
   if (!email || !password) return { error: "Enter your email and password." };
 
@@ -205,6 +231,21 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     .set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() })
     .where(eq(users.id, user.id));
 
+  /* 🔴 21R.1 — the right person, at the wrong door. No session is created. */
+  const backOffice = (BACK_OFFICE_ROLES as readonly string[]).includes(user.role);
+
+  if (audience === "staff" && !backOffice) {
+    return {
+      error: "That is a practice account. Sign in at /login to reach your caseload.",
+    };
+  }
+  if (audience === "practice" && backOffice) {
+    return {
+      error:
+        "That is a back-office account. The staff console signs in at /staff/sign-in.",
+    };
+  }
+
   await createSession(user.id);
   await audit({
     actor: { userId: user.id, organizationId: user.organizationId },
@@ -219,6 +260,15 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
    * and letting the app shell bounce the unverified ones. See the comment in
    * `signUp` — a layout redirect during an action navigation renders nothing.
    */
+  /*
+   * Back-office people do not have a practice to verify, so the onboarding
+   * gate below is not theirs to pass: they go to the console.
+   */
+  if (backOffice) {
+    const wantedByStaff = next.startsWith("/admin") ? next : "/admin";
+    redirect(wantedByStaff);
+  }
+
   const { practiceState, isCleared } = await import("@/lib/data/verification");
   const cleared = isCleared(
     { userId: user.id, organizationId: user.organizationId, role: user.role } as never,

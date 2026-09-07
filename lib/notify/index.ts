@@ -72,7 +72,15 @@ export type Message = {
      */
     | "support.closed"
     /** 20.16 — the code that proves somebody holds the NEW number. */
-    | "phone.verify";
+    | "phone.verify"
+    /**
+     * 🔴 21R.4 — the code that lets a patient back into their own record.
+     *
+     * WhatsApp first and email as well, because most patients in this database
+     * have no address (§3b, C43): a reset that can only be emailed is a reset
+     * most of the people who need it cannot use.
+     */
+    | "password.reset_code";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

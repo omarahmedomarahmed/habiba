@@ -72,6 +72,16 @@ const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: numb
    * forwarded message buys nothing.
    */
   "claim.invite": { name: "claim_invite", variables: 1 },
+  /*
+   * 🔴 21R.4 — "{{1}} is your code to set a new password."
+   *
+   * ⚠️ **Incomplete until Meta approves it.** Authentication category, like
+   * `claim.code`: one variable, no URL, no marketing language. Until it is
+   * approved `sendWhatsapp` refuses, nothing arrives, and the reset page says
+   * so in those words rather than telling somebody to check a phone that is
+   * never going to buzz.
+   */
+  "password.reset_code": { name: "password_reset_code", variables: 1 },
 };
 
 /** The language a template was approved in. Egypt's WhatsApp is largely Arabic. */

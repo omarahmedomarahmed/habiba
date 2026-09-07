@@ -33,6 +33,26 @@ function ErrorNote({ message }: { message?: string }) {
   );
 }
 
+/**
+ * 🔴 21R.2 / C94 — the other door, named from the reader's side.
+ *
+ * These four pages are the *clinician's* door. A patient who lands here is
+ * looking for their own notes, their homework and the list of who can read
+ * their record — not for a practice account — and "Sign in" on a page headed
+ * "your practice" tells them nothing. So every one of them carries the way
+ * out, in the words the person would use about themselves.
+ */
+function PatientDoor() {
+  return (
+    <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
+      Looking for your own sessions?{" "}
+      <Link href="/patient/login" className="font-medium text-brand-600 hover:text-brand-700">
+        Sign in as a patient
+      </Link>
+    </p>
+  );
+}
+
 export function SignInForm({ next, notice }: { next?: string; notice?: string }) {
   const [state, action] = useActionState(signIn, INITIAL);
 
@@ -76,6 +96,80 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
           Create account
         </Link>
       </div>
+
+      <PatientDoor />
+    </form>
+  );
+}
+
+/**
+ * 🔴 21R.1 / C94 — the back office has its own door.
+ *
+ * Same action, same lockout, same timing-equal failure; a different audience,
+ * a different landing page, and — the part that matters — **no link to it from
+ * the public site**. A console that can suspend a clinician or read the payout
+ * queue should not be one tab away from the marketing homepage for anybody who
+ * has never worked here.
+ *
+ * It is not a secret, and nothing here pretends it is: knowing the URL buys an
+ * attacker nothing that /login did not already offer. What it buys us is that
+ * the admin form is not the form a hundred thousand strangers a month are
+ * looking at, and that a phishing page copying our sign-in gets the wrong one.
+ */
+export function StaffSignInForm({ next, notice }: { next?: string; notice?: string }) {
+  const [state, action] = useActionState(signIn, INITIAL);
+
+  return (
+    <form action={action} className="space-y-4">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Staff console</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          For the 24Therapy team. Clinicians sign in at{" "}
+          <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
+            /login
+          </Link>
+          .
+        </p>
+      </div>
+
+      {notice ? (
+        <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">{notice}</p>
+      ) : null}
+      <ErrorNote message={state.error} />
+
+      <input type="hidden" name="audience" value="staff" />
+      <input type="hidden" name="next" value={next ?? ""} />
+
+      <Field label="Work email" htmlFor="email">
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          autoCapitalize="none"
+          required
+        />
+      </Field>
+
+      <Field label="Password" htmlFor="password">
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
+      </Field>
+
+      <Submit>Sign in</Submit>
+
+      {/* 21R.5 — this door carries its reset too. It is the same one. */}
+      <p className="pt-1 text-center text-sm">
+        <Link href="/forgot-password" className="text-slate-500 hover:text-slate-800">
+          Forgot password?
+        </Link>
+      </p>
     </form>
   );
 }
@@ -129,6 +223,8 @@ export function SignUpForm() {
           Sign in
         </Link>
       </p>
+
+      <PatientDoor />
 
       <p className="text-center text-xs leading-relaxed text-slate-400">
         By creating an account you agree to our{" "}
@@ -185,6 +281,8 @@ export function ForgotPasswordForm() {
           Back to sign in
         </Link>
       </p>
+
+      <PatientDoor />
     </form>
   );
 }
@@ -210,6 +308,14 @@ export function ResetPasswordForm({ token }: { token: string }) {
       </Field>
 
       <Submit>Update password</Submit>
+
+      <p className="pt-1 text-center text-sm">
+        <Link href="/login" className="text-slate-500 hover:text-slate-800">
+          Back to sign in
+        </Link>
+      </p>
+
+      <PatientDoor />
     </form>
   );
 }

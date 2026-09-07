@@ -43,6 +43,18 @@ export default async function PatientSignupPage({
         Already have one?{" "}
         <Link href="/patient/login" className="font-semibold text-brand-600 hover:underline">
           Sign in
+        </Link>{" "}
+        ·{" "}
+        <Link href="/patient/forgot-password" className="hover:text-slate-800">
+          Forgot your password?
+        </Link>
+      </p>
+
+      {/* 21R.2 — three audiences, three doors, each pointing at the others. */}
+      <p className="text-center text-sm text-slate-500">
+        Are you a therapist?{" "}
+        <Link href="/signup" className="font-semibold text-brand-600 hover:underline">
+          Create a practice account
         </Link>
       </p>
     </main>

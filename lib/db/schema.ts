@@ -2651,6 +2651,57 @@ export const patientAuthSessions = pgTable(
 );
 
 /**
+ * A patient who cannot get back in. PLAN.md 21R.4, C94, §3b.
+ *
+ * ## 🔴 Why this table exists at all
+ *
+ * There was no patient password reset. Not a broken one — none: `auth_tokens`
+ * hangs off `users`, which is the clinician table, and nothing anywhere let
+ * somebody who signed up at `/patient/signup` back in. A person locked out of
+ * their own clinical record, with no route back to it, is the worst version of
+ * this product's failure mode, and it survived eight sprints because every
+ * check we had asserted about therapists.
+ *
+ * ## Why a code and not only a link
+ *
+ * §3b: the phone is the handle that is never missing and the email is a real
+ * second way in *when there is one*. Most patients in this database have no
+ * address at all, so a reset that emails a link is a reset most of them cannot
+ * use. The code goes over WhatsApp, and `channel` records which door it went
+ * out of — a reset that arrived by a channel the person does not read is a
+ * different failure from one that was never sent.
+ *
+ * `attempts` is bounded **by the database** rather than by the code path that
+ * increments it: a six-digit code with unlimited guesses is a four-hour brute
+ * force, and the ceiling belongs where no future caller can forget it.
+ */
+export const patientAuthTokens = pgTable(
+  "patient_auth_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientAccountId: uuid("patient_account_id")
+      .notNull()
+      .references(() => patientAccounts.id, { onDelete: "cascade" }),
+    purpose: text("purpose").$type<"password_reset">().notNull().default("password_reset"),
+    /** SHA-256 of the code or link token. The raw value is never stored. */
+    tokenHash: text("token_hash").notNull(),
+    /** Which door it went out of — 'whatsapp' or 'email'. */
+    channel: text("channel").$type<"whatsapp" | "email">().notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("patient_auth_tokens_hash_unique").on(t.tokenHash),
+    index("patient_auth_tokens_account_idx").on(t.patientAccountId, t.usedAt),
+  ],
+);
+
+/** How many wrong codes a reset survives. Enforced by a CHECK, not by hope. */
+export const RESET_CODE_ATTEMPTS = 5;
+
+/**
  * `locked` is 13R.2's, and it is not `expired`.
  *
  * A code that timed out and a record whose name budget ran out are different

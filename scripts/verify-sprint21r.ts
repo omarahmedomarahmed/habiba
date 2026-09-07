@@ -14,7 +14,8 @@
  *     construction*, because the rows only exist inside the callback that
  *     skips itself when they are absent.
  */
-import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 
 import React from "react";
 
@@ -30,6 +31,19 @@ import { stripComments, undeferredContentReads } from "./_scan-deferrals";
 import type { LivePage } from "./_content-ready";
 
 const { check, skipUnless, finish } = reporter();
+
+/** Every .ts/.tsx file under a directory, one level of nesting at a time. */
+async function walkFiles(dir: string): Promise<string[]> {
+  if (!existsSync(dir)) return [];
+  const { readdirSync: read } = await import("node:fs");
+  return read(dir, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? []
+      : /\.tsx?$/.test(entry.name)
+        ? [`${dir}/${entry.name}`]
+        : [],
+  );
+}
 
 const VERIFIERS = readdirSync("scripts").filter(
   (name) => name.startsWith("verify-") && name.endsWith(".ts"),
@@ -307,6 +321,7 @@ async function main() {
    * for a hero with an icon and no eyebrow, which is the arrangement that put
    * it alone.
    */
+  const { whatsappConfigured } = await import("../lib/notify/whatsapp");
   const { BlockRenderer } = await import("../components/public/blocks");
 
   const heroWith = (extra: Record<string, unknown>) =>
@@ -408,6 +423,284 @@ async function main() {
       ? "THE READER IS BLIND"
       : "the icon alone in its row is reported",
   );
+
+  /* ------------------------------------------- 21R.1–21R.5 · C94, the doors */
+
+  const { db } = await import("../lib/db");
+  const schema = await import("../lib/db/schema");
+  const { eq, desc, and } = await import("drizzle-orm");
+
+  const pages = {
+    therapistIn: "app/(auth)/login/page.tsx",
+    therapistUp: "app/(auth)/signup/page.tsx",
+    therapistReset: "app/(auth)/forgot-password/page.tsx",
+    staffIn: "app/(auth)/staff/sign-in/page.tsx",
+    patientIn: "app/(patient)/patient/login/page.tsx",
+    patientUp: "app/(patient)/patient/signup/page.tsx",
+    patientReset: "app/(patient)/patient/forgot-password/page.tsx",
+  };
+
+  const missingPages = Object.entries(pages).filter(([, path]) => !existsSync(path));
+  check(
+    "🔴 21R.1–21R.4 / C94 three kinds of person have three doors, and each of them has a way back in",
+    missingPages.length === 0,
+    missingPages.map(([name]) => name).join(", ") || Object.keys(pages).join(", "),
+  );
+
+  /*
+   * 🔴 21R.5 — every one of those pages carries the reset link.
+   *
+   * A reset that exists and is not linked is a reset nobody has, which is how
+   * the patient one went eight sprints without anybody noticing it was missing
+   * entirely. Checked on the rendered *forms* as well as the pages, because
+   * that is where the links actually live.
+   */
+  const authSources = [
+    readFileSync("components/auth/forms.tsx", "utf8"),
+    readFileSync("components/patient/reset-form.tsx", "utf8"),
+    readFileSync(pages.patientIn, "utf8"),
+    readFileSync(pages.patientUp, "utf8"),
+  ].join("\n");
+
+  check(
+    "🔴 21R.5 every door carries its reset link — one that is not linked is one nobody has",
+    /href="\/forgot-password"/.test(authSources) &&
+      /href="\/patient\/forgot-password"/.test(authSources),
+    "clinician and patient resets are both linked from their own pages",
+  );
+
+  check(
+    "21R.2 …and each door names the others — 'looking for your own sessions?'",
+    /Looking for your own sessions/i.test(authSources) &&
+      /Are you a therapist/i.test(authSources),
+  );
+
+  /*
+   * 🔴 21R.1 — the staff door is not linked from the public site.
+   *
+   * Not a secret: knowing the URL buys an attacker nothing that /login did not
+   * already give them. What it buys us is that the console's form is not the
+   * one a hundred thousand strangers a month are looking at. "Not linked" is
+   * exactly the kind of property that decays the first time somebody adds a
+   * helpful shortcut, so it is asserted rather than remembered.
+   */
+  const publicSurfaces = [
+    ...(await walkFiles("components/public")),
+    ...(await walkFiles("app/(public)")),
+    "app/(public)/layout.tsx",
+    "lib/content/defaults.ts",
+    "lib/content/defaults-ar.ts",
+  ].filter((path) => existsSync(path));
+
+  const linkingStaff = publicSurfaces.filter((path) =>
+    stripComments(readFileSync(path, "utf8")).includes("/staff/sign-in"),
+  );
+
+  check(
+    "🔴 21R.1 the staff console's sign-in is NOT linked from the public site",
+    linkingStaff.length === 0,
+    linkingStaff.join(", ") || `${publicSurfaces.length} public files scanned`,
+  );
+
+  check(
+    "🔴 21R.1 CONTROL — the same scan FINDS a link planted in a public file",
+    stripComments(
+      `export const Footer = () => <a href="/staff/sign-in">Admin</a>;`,
+    ).includes("/staff/sign-in"),
+  );
+
+  /* --------------------------- 🔴 21R.4 · a patient with NO email, resetting */
+
+  const { requestPatientReset, completePatientReset } = await import(
+    "../lib/patient-auth/reset"
+  );
+  const { hashPassword, verifyPassword } = await import("../lib/auth/password");
+
+  const PHONE = "+201000000021";
+  let personId: string | null = null;
+  let accountId: string | null = null;
+
+  try {
+    await db
+      .delete(schema.patientAccounts)
+      .where(eq(schema.patientAccounts.phone, PHONE));
+
+    const [person] = await db
+      .insert(schema.people)
+      .values({ firstName: "Verify21R", phone: PHONE })
+      .returning({ id: schema.people.id });
+    personId = person!.id;
+
+    const [account] = await db
+      .insert(schema.patientAccounts)
+      .values({
+        personId: person!.id,
+        // 🔴 No email. That is the case this whole route exists for.
+        email: null,
+        phone: PHONE,
+        passwordHash: await hashPassword("the-old-password-1"),
+      })
+      .returning({ id: schema.patientAccounts.id });
+    accountId = account!.id;
+
+    const asked = new FormData();
+    asked.set("handle", PHONE);
+    asked.set("handleCountry", "EG");
+    const request = await requestPatientReset({}, asked);
+
+    const [token] = await db
+      .select()
+      .from(schema.patientAuthTokens)
+      .where(eq(schema.patientAuthTokens.patientAccountId, account!.id))
+      .orderBy(desc(schema.patientAuthTokens.createdAt))
+      .limit(1);
+
+    check(
+      "🔴 21R.4 / C94 a patient with NO EMAIL can ask for a reset — the code goes to their phone",
+      request.sent === true && token?.channel === "whatsapp",
+      token ? `code issued over ${token.channel}` : "NO TOKEN WAS ISSUED",
+    );
+
+    check(
+      "⚠️ 21R.4 …and the page SAYS the WhatsApp code cannot arrive until Meta approves the template",
+      request.channelDown === !whatsappConfigured() &&
+        /still waiting for\s+approval|not switched on yet/i.test(
+          readFileSync("components/patient/reset-form.tsx", "utf8"),
+        ),
+      whatsappConfigured()
+        ? "the channel is configured; the notice is written for when it is not"
+        : "channel down, and the page says so",
+    );
+
+    /*
+     * 🔴 The code that was sent is the code that works.
+     *
+     * Recovered by hashing every six-digit string until one matches the stored
+     * hash — a second of work here, and the only way to assert end to end that
+     * what `notify` carried is what `completePatientReset` accepts. Anything
+     * less tests a token this script wrote, which proves the script.
+     */
+    const wanted = token?.tokenHash ?? "";
+    let code: string | null = null;
+    for (let n = 0; n < 1_000_000 && code === null; n += 1) {
+      const candidate = String(n).padStart(6, "0");
+      if (createHash("sha256").update(candidate).digest("hex") === wanted) code = candidate;
+    }
+
+    check(
+      "🔴 21R.4 the code is six digits, stored ONLY as a hash, and the sent value is the one that works",
+      code !== null && token!.tokenHash !== code,
+      code ? `recovered ${code[0]}····· by exhaustion, so the stored value is a hash of it` : "NOT A SIX-DIGIT CODE",
+    );
+
+    const wrongTry = new FormData();
+    wrongTry.set("handle", PHONE);
+    wrongTry.set("handleCountry", "EG");
+    wrongTry.set("code", code === "000000" ? "000001" : "000000");
+    wrongTry.set("password", "a-brand-new-password-1");
+    const wrong = await completePatientReset({}, wrongTry);
+
+    check(
+      "21R.4 a wrong code changes nothing and says so",
+      wrong.error !== undefined && wrong.sent === undefined,
+      wrong.error ?? "ACCEPTED A WRONG CODE",
+    );
+
+    /*
+     * 🔴 …and the guess budget is enforced BY THE DATABASE, proved by writing
+     * past it. A ceiling that lives only in the caller is a ceiling the next
+     * caller forgets.
+     */
+    let refused = "";
+    try {
+      await db
+        .update(schema.patientAuthTokens)
+        .set({ attempts: 6 })
+        .where(eq(schema.patientAuthTokens.id, token!.id));
+    } catch (error) {
+      refused = (error as Error).message;
+    }
+
+    check(
+      "🔴 21R.4 six wrong guesses is refused BY THE DATABASE, not by the code path that counts them",
+      refused.includes("patient_auth_tokens_attempts_bounded"),
+      refused.split("\n")[0] || "THE WRITE WAS ACCEPTED",
+    );
+
+    const right = new FormData();
+    right.set("handle", PHONE);
+    right.set("handleCountry", "EG");
+    right.set("code", code ?? "");
+    right.set("password", "a-brand-new-password-1");
+    const done = await completePatientReset({}, right);
+
+    const [after] = await db
+      .select({ passwordHash: schema.patientAccounts.passwordHash })
+      .from(schema.patientAccounts)
+      .where(eq(schema.patientAccounts.id, account!.id))
+      .limit(1);
+
+    check(
+      "🔴 21R.4 the right code sets the new password — a patient locked out of their own record can get back in",
+      done.sent === true && (await verifyPassword("a-brand-new-password-1", after!.passwordHash)),
+      done.error ?? "signed in with the new password",
+    );
+
+    const [spent] = await db
+      .select({ usedAt: schema.patientAuthTokens.usedAt })
+      .from(schema.patientAuthTokens)
+      .where(eq(schema.patientAuthTokens.id, token!.id))
+      .limit(1);
+
+    const replay = await completePatientReset({}, right);
+    check(
+      "🔴 21R.4 …and the code works ONCE — a message forwarded to somebody else buys them nothing",
+      spent?.usedAt !== null && replay.error !== undefined,
+      replay.error ?? "THE SAME CODE WORKED TWICE",
+    );
+
+    /* ------------------------------------- 21R.1 · the wrong door, both ways */
+
+    const [therapist] = await db
+      .select({ id: schema.users.id, email: schema.users.email, role: schema.users.role })
+      .from(schema.users)
+      .where(eq(schema.users.role, "therapist"))
+      .limit(1);
+
+    const [admin] = await db
+      .select({ id: schema.users.id, email: schema.users.email, role: schema.users.role })
+      .from(schema.users)
+      .where(and(eq(schema.users.role, "super_admin")))
+      .limit(1);
+
+    check(
+      "🔴 21R.1 the sign-in action knows which door it is — one form, two audiences, one lockout",
+      /audience: Audience =/.test(readFileSync("lib/auth/actions.ts", "utf8")) &&
+        /name="audience" value="staff"/.test(readFileSync("components/auth/forms.tsx", "utf8")),
+      `${therapist ? "therapists" : "no therapist"} and ${admin ? "back office" : "no admin"} in this database`,
+    );
+
+    /*
+     * 🔴 …and the role check happens AFTER the password is verified. Before it,
+     * the staff form would answer "wrong door" to a stranger typing an admin's
+     * address, which is the disclosure separate doors exist to prevent.
+     */
+    const actions = stripComments(readFileSync("lib/auth/actions.ts", "utf8"));
+    check(
+      "🔴 21R.1 …and it refuses the wrong audience only AFTER the password is verified — never before",
+      actions.indexOf("const valid = await verifyPassword") <
+        actions.indexOf('audience === "staff" && !backOffice'),
+      "a refusal before the password check would enumerate the admins",
+    );
+  } finally {
+    if (accountId) {
+      await db
+        .delete(schema.patientAuthTokens)
+        .where(eq(schema.patientAuthTokens.patientAccountId, accountId));
+      await db.delete(schema.patientAccounts).where(eq(schema.patientAccounts.id, accountId));
+    }
+    if (personId) await db.delete(schema.people).where(eq(schema.people.id, personId));
+  }
 
   finish("sprint 21R");
 }
