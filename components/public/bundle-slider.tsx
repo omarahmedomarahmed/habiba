@@ -27,6 +27,14 @@ import { convert } from "@/lib/billing/money";
  * EGP rate arrives as a prop for the reason in `PriceTag`: a component that
  * fetched its own rate would disagree with the checkout.
  */
+/** The server left `{count}` and friends in place; the numbers live here. */
+function fill(template: string, values: Record<string, string>): string {
+  return template.replace(
+    /\{(\w+)\}/g,
+    (whole, key: string) => values[key] ?? whole,
+  );
+}
+
 export function BundleSlider({
   name,
   rateCents,
@@ -34,6 +42,7 @@ export function BundleSlider({
   paygRateCents,
   egpRateMicro,
   locale,
+  strings,
 }: {
   name: string;
   rateCents: number;
@@ -42,6 +51,22 @@ export function BundleSlider({
   egpRateMicro: number | null;
   /** 19.4 — the reader's locale, from the server. */
   locale: string;
+  /**
+   * 🔴 21R.8 / C84 — the words arrive as props, resolved on the server.
+   *
+   * A client component cannot call `getI18n()`, and one that reaches for the
+   * runtime renders one language on the server pass and another after
+   * hydration. The strings that still carry `{count}` and friends are
+   * substituted below, where the numbers exist.
+   */
+  strings: {
+    label: string;
+    showEgp: string;
+    showUsd: string;
+    at: string;
+    once: string;
+    saved: string;
+  };
 }) {
   const [quantity, setQuantity] = useState(minimum);
   const [egp, setEgp] = useState(false);
@@ -58,8 +83,11 @@ export function BundleSlider({
   return (
     <div className="mx-auto mt-8 max-w-2xl rounded-3xl border border-slate-200 bg-slate-50 p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <label htmlFor="bundle" className="text-sm font-semibold text-slate-900">
-          {name}: how many sessions?
+        <label
+          htmlFor="bundle"
+          className="text-sm font-semibold text-slate-900"
+        >
+          {strings.label}
         </label>
 
         {egpRateMicro !== null ? (
@@ -69,7 +97,7 @@ export function BundleSlider({
             aria-pressed={egp}
             className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-500"
           >
-            {egp ? "Show USD" : "Show EGP"}
+            {egp ? strings.showUsd : strings.showEgp}
           </button>
         ) : null}
       </div>
@@ -88,19 +116,26 @@ export function BundleSlider({
 
       <div className="mt-3 flex flex-wrap items-baseline justify-between gap-3">
         <p className="text-sm text-slate-600">
-          <span className="text-2xl font-bold text-slate-900">{quantity}</span> sessions at{" "}
-          {show(rateCents)} each
+          {fill(strings.at, {
+            count: String(quantity),
+            price: show(rateCents),
+          })}
         </p>
         <p className="text-end">
-          <span className="text-2xl font-bold text-slate-900">{show(totalCents)}</span>
-          <span className="block text-xs text-slate-500">paid once, used over 12 months</span>
+          <span className="text-2xl font-bold text-slate-900">
+            {show(totalCents)}
+          </span>
+          <span className="block text-xs text-slate-500">{strings.once}</span>
         </p>
       </div>
 
       {savedCents > 0 ? (
         <p className="mt-2 text-xs text-slate-500">
-          The same {quantity} sessions pay-as-you-go would be {show(paygCents)}. You keep{" "}
-          {show(savedCents)}.
+          {fill(strings.saved, {
+            count: String(quantity),
+            payg: show(paygCents),
+            saved: show(savedCents),
+          })}
         </p>
       ) : null}
     </div>

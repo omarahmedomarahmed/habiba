@@ -338,16 +338,34 @@ async function main() {
       ),
     );
 
+    /*
+     * 21R.8 moved these sentences out of the component and into the
+     * dictionary, so an Arabic reader gets the warning in Arabic. The check
+     * follows the words rather than the file, and gains something on the way:
+     * the Arabic must be its OWN sentence, not the English copied across.
+     */
+    const { en, ar } = await import("../lib/i18n/messages");
+
     check(
       "🔴 18R.4 the page says plainly not to send anything urgent, with the crisis route beside it",
-      /do not send anything urgent/i.test(contactForm) &&
+      /do not send anything urgent/i.test(en["contact.urgentLead"]) &&
         contactForm.includes('href="/radar"'),
+      "warning in the dictionary, radar link in the form",
+    );
+
+    check(
+      "🔴 18R.4 …and it says it in ARABIC too, in its own words",
+      ar["contact.urgentLead"] !== en["contact.urgentLead"] &&
+        /[\u0600-\u06FF]/.test(ar["contact.urgentBody"]) &&
+        /[\u0600-\u06FF]/.test(ar["contact.urgentLead"]),
+      ar["contact.urgentLead"],
     );
 
     check(
       "18R.8 the confirmation says what happens next and when, not just thanks",
-      /reference/i.test(contactForm) &&
-        /within \{state\.ok\.hours\} hours/.test(contactForm),
+      /\{reference\}/.test(en["contact.reference"]) &&
+        /within \{hours\} hours/.test(en["contact.reference"]) &&
+        /\{hours\}/.test(ar["contact.reference"]),
     );
 
     /* ------------------------------------------------------------ 18R.1 */

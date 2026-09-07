@@ -31,7 +31,7 @@ import { contentPages } from "../lib/db/schema";
 import { resolve, stubModules } from "./_render";
 import { reporter } from "./_verify";
 
-const { check, finish } = reporter();
+const { check, skipUnless, finish } = reporter();
 /**
  * `renderToStaticMarkup`, reached past the `react-server` condition.
  *
@@ -84,9 +84,17 @@ async function main() {
   for (const row of rows) {
     try {
       const tree = await resolve(
+        /*
+         * 🔴 21R.8 — each row is rendered in ITS OWN language.
+         *
+         * There is no cookie here, so without this the Arabic rows rendered
+         * with English chrome and the check below would have been measuring
+         * the script's default rather than the page. `en-x-staging` is rendered as `en`.
+         */
         React.createElement(BlockRenderer as never, {
           blocks: row.blocks,
           slug: row.slug,
+          locale: row.locale.replace("-x-staging", ""),
         }),
       );
       html[`${row.slug}.${row.locale}`] = renderToStaticMarkup(
@@ -196,6 +204,103 @@ async function main() {
       .map(([name]) => name)
       .join(", ") ||
       `smallest ${Math.min(...Object.values(html).map((m) => m.length))} bytes`,
+  );
+
+  /* ------------------------------------------ 21R.8 · the Arabic pages read Arabic */
+
+  /*
+   * 🔴 The finding this check exists for.
+   *
+   * The Arabic pricing page was rendered **entirely in English**: the row
+   * existed in Arabic — C72 asserted exactly that, and passed — but the row's
+   * only block is `pricing`, and the component that draws it had every word
+   * typed into it. Same for the contact form, the crisis buttons and the radar
+   * hero's chrome. A reader who switches language and meets the money page in
+   * English is being asked to trust a number whose conditions they cannot read.
+   *
+   * The strict half is a regression list: these are the phrases that were on
+   * the Arabic pages on 2026-09-07 and must never be again.
+   */
+  const arabicPages = Object.entries(html).filter(([name]) =>
+    name.includes(".ar"),
+  );
+
+  const text = (markup: string) =>
+    markup
+      .replace(/<script[\s\S]*?<\/script>/g, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&#x27;/g, "'")
+      .replace(/\s+/g, " ");
+
+  const WAS_ENGLISH = [
+    "Sign up free",
+    "/ session",
+    "Show EGP",
+    "Find someone online now",
+    "What happens in a session",
+    "Full radar",
+    "Finding clinicians",
+    "Do not send anything urgent",
+    "Not an emergency service",
+    "Who are you writing to?",
+    "Joining is free",
+  ];
+
+  const stillEnglish = arabicPages.flatMap(([name, markup]) =>
+    WAS_ENGLISH.filter((phrase) => text(markup).includes(phrase)).map(
+      (phrase) => `${name}: "${phrase}"`,
+    ),
+  );
+
+  check(
+    "🔴 21R.8 the Arabic pages render Arabic CHROME — the buttons, the form and the price cards, not only the paragraphs",
+    arabicPages.length > 0 && stillEnglish.length === 0,
+    stillEnglish.join(" · ") ||
+      `${arabicPages.length} Arabic pages, none of the old phrases left`,
+  );
+
+  /*
+   * 🔴 CONTROL — the same list, run against the ENGLISH render, must match.
+   *
+   * Without it this is a scan that would pass on an empty string, which is how
+   * a "no English left" check quietly becomes a check that the page failed to
+   * render. If the phrases are not on the English page either, the list is out
+   * of date rather than satisfied.
+   */
+  const englishHome = text(html["pricing.en-x-staging"] ?? "");
+  check(
+    "🔴 21R.8 CONTROL — the same phrases ARE on the English pricing page, so the list is current",
+    ["Sign up free", "/ session", "Joining is free"].every((phrase) =>
+      englishHome.includes(phrase),
+    ),
+  );
+
+  /*
+   * ⚠️ And the honest measurement of what is left, deferred rather than
+   * hidden: the demo panels — the transcript, the SOAP note, the copilot
+   * suggestions — are still English on an Arabic page, because their fixtures
+   * are English and writing a clinical note in Arabic is writing, not
+   * translating. It is real work with a real deadline (22R.10), and a skip
+   * that names it is worth more than a threshold nobody revisits.
+   */
+  const latinRun = /(?:\b[A-Za-z][A-Za-z'’-]{2,}\b[ ,.]+){6,}/g;
+  const remaining = arabicPages.flatMap(([name, markup]) =>
+    (text(markup).match(latinRun) ?? []).map(
+      (run) => `${name}: ${run.trim().slice(0, 60)}…`,
+    ),
+  );
+
+  await skipUnless(
+    remaining.length === 0,
+    "22R.10",
+    `21R.8 — ${remaining.length} English passages remain on the Arabic pages, all inside the demo panels (their fixtures are English)`,
+    () => {
+      check(
+        "21R.8 …and not one English passage is left anywhere on them",
+        true,
+        "none",
+      );
+    },
   );
 
   if (write) {

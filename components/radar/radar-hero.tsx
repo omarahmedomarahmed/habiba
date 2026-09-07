@@ -6,7 +6,12 @@ import Link from "next/link";
 import { ArrowRight, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
-import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components/radar/filters";
+import {
+  matches,
+  NO_FILTER,
+  RadarFilters,
+  type RadarFilter,
+} from "@/components/radar/filters";
 import { TherapistCard } from "@/components/radar/therapist-card";
 
 /**
@@ -16,9 +21,12 @@ import { TherapistCard } from "@/components/radar/therapist-card";
  * not the content — so a slow connection gets the headline and the booking
  * board immediately and the world fades in behind them.
  */
-const Globe = dynamic(() => import("@/components/radar/globe").then((m) => m.Globe), {
-  ssr: false,
-});
+const Globe = dynamic(
+  () => import("@/components/radar/globe").then((m) => m.Globe),
+  {
+    ssr: false,
+  },
+);
 import type { RadarEntry } from "@/components/radar/types";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
@@ -39,14 +47,45 @@ const REFRESH_MS = 4_000;
  * and an hour-old radar is a lie. The map renders immediately at a fixed size
  * and fills in, so nothing below it ever moves.
  */
+export type RadarStrings = {
+  checking: string;
+  online: string;
+  private: string;
+  noAccount: string;
+  fromPrice: string;
+  free: string;
+  goOnRadar: string;
+  full: string;
+  finding: string;
+  nobody: string;
+  nobodyMatching: string;
+  appearWhenOnline: string;
+  othersAvailable: string;
+  showEveryone: string;
+  /** 🔴 Safety copy. The Arabic names no US number — 988 is not dialable here. */
+  notEmergency: string;
+};
+
 export function RadarHero({
   heading,
   body,
   eyebrow,
+  strings,
 }: {
   heading?: string;
   body?: string;
   eyebrow?: string;
+  /**
+   * 🔴 21R.8 / C84 — the chrome, in the reader's language, from the server.
+   *
+   * The heading and body have come from the CMS since sprint 18, so an Arabic
+   * reader got an Arabic headline surrounded by English: "Private and
+   * encrypted", "Full radar", "Finding clinicians…", and the line saying this
+   * is not an emergency service — which is the one on the page that most
+   * needs to be read. A client component cannot resolve them itself without
+   * rendering one language on the server pass and another after hydration.
+   */
+  strings: RadarStrings;
 }) {
   const [entries, setEntries] = useState<RadarEntry[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -59,9 +98,12 @@ export function RadarHero({
     const load = async () => {
       if (document.visibilityState !== "visible") return;
       try {
-        const response = await fetch(`/api/radar?v=${encodeURIComponent(viewer)}`, {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          `/api/radar?v=${encodeURIComponent(viewer)}`,
+          {
+            cache: "no-store",
+          },
+        );
         if (!response.ok || cancelled) return;
         setEntries((await response.json()).therapists as RadarEntry[]);
       } catch {
@@ -79,12 +121,16 @@ export function RadarHero({
 
   const all = entries ?? [];
 
-  const visible = useMemo(() => all.filter((entry) => matches(entry, filter)), [all, filter]);
+  const visible = useMemo(
+    () => all.filter((entry) => matches(entry, filter)),
+    [all, filter],
+  );
 
   const online = all.filter((entry) => entry.status === "online");
   const bookable = visible.filter((entry) => entry.status === "online");
   const cheapest = bookable.reduce<number | null>(
-    (low, entry) => (low === null || entry.rateCents < low ? entry.rateCents : low),
+    (low, entry) =>
+      low === null || entry.rateCents < low ? entry.rateCents : low,
     null,
   );
   const selected = all.find((entry) => entry.userId === selectedId) ?? null;
@@ -106,7 +152,9 @@ export function RadarHero({
           <Globe
             entries={visible}
             selected={filter.country || null}
-            onSelect={(code) => setFilter((f) => ({ ...f, country: code ?? "", region: "" }))}
+            onSelect={(code) =>
+              setFilter((f) => ({ ...f, country: code ?? "", region: "" }))
+            }
             onPick={(entry) => setSelectedId(entry.userId)}
             className="h-full w-full"
           />
@@ -131,9 +179,9 @@ export function RadarHero({
               )}
             />
             {entries === null
-              ? "Checking who is on shift…"
+              ? strings.checking
               : online.length > 0
-                ? `${online.length} therapist${online.length === 1 ? "" : "s"} online right now`
+                ? strings.online.replace("{count}", String(online.length))
                 : eyebrow || "Crisis Radar"}
           </span>
 
@@ -149,13 +197,16 @@ export function RadarHero({
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/55">
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-teal-400" aria-hidden />
-              Private and encrypted
+              {strings.private}
             </span>
             <span className="flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-teal-400" aria-hidden />
               {cheapest === null
-                ? "No account needed"
-                : `From ${cheapest > 0 ? formatUsd(cheapest) : "free"} for 30 minutes`}
+                ? strings.noAccount
+                : strings.fromPrice.replace(
+                    "{price}",
+                    cheapest > 0 ? formatUsd(cheapest) : strings.free,
+                  )}
             </span>
           </div>
 
@@ -164,14 +215,14 @@ export function RadarHero({
               href="/signup"
               className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-base font-semibold text-navy-600 hover:bg-white/90"
             >
-              I&apos;m a therapist — go on the radar
+              {strings.goOnRadar}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
             <Link
               href="/radar"
               className="inline-flex h-13 items-center justify-center rounded-2xl border border-white/20 px-5 text-base font-semibold text-white hover:bg-white/10"
             >
-              Full radar
+              {strings.full}
             </Link>
           </div>
         </div>
@@ -179,26 +230,32 @@ export function RadarHero({
         {/* ------------------------------------------------- the live board */}
         <div className="rounded-3xl border border-white/10 bg-navy-500/70 p-3 backdrop-blur-md lg:sticky lg:top-20 lg:self-start">
           <div className="px-1 pb-2">
-            <RadarFilters entries={all} value={filter} onChange={setFilter} tone="dark" />
+            <RadarFilters
+              entries={all}
+              value={filter}
+              onChange={setFilter}
+              tone="dark"
+            />
           </div>
 
           <div className="max-h-[22rem] space-y-2 overflow-y-auto pe-0.5">
             {entries === null ? (
               <div className="flex h-32 items-center justify-center gap-2 text-sm text-white/50">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Finding clinicians…
+                {strings.finding}
               </div>
             ) : visible.length === 0 ? (
               <div className="px-3 py-8 text-center">
                 <p className="text-sm font-semibold text-white">
-                  {all.length === 0
-                    ? "Nobody is on the radar this minute"
-                    : "Nobody matching that is on shift"}
+                  {all.length === 0 ? strings.nobody : strings.nobodyMatching}
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-white/55">
                   {all.length === 0
-                    ? "Clinicians appear the moment they go online. If you need help now, call or text 988."
-                    : `${online.length} other ${online.length === 1 ? "clinician is" : "clinicians are"} available.`}
+                    ? strings.appearWhenOnline
+                    : strings.othersAvailable.replace(
+                        "{count}",
+                        String(online.length),
+                      )}
                 </p>
                 {all.length > 0 ? (
                   <button
@@ -206,7 +263,7 @@ export function RadarHero({
                     onClick={() => setFilter(NO_FILTER)}
                     className="mt-3 text-sm font-semibold text-teal-300"
                   >
-                    Show everyone
+                    {strings.showEveryone}
                   </button>
                 ) : null}
               </div>
@@ -223,8 +280,7 @@ export function RadarHero({
           </div>
 
           <p className="px-3 pt-2 pb-1 text-[11px] leading-relaxed text-white/40">
-            Not an emergency service. If you are in immediate danger, call 988 or your local
-            emergency number.
+            {strings.notEmergency}
           </p>
         </div>
       </div>

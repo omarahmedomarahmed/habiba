@@ -138,14 +138,15 @@ export async function bookFromRadar(
     return {
       error: `Too many booking attempts. Try again in ${Math.ceil(attempt.retryAfter / 60)} minute${
         attempt.retryAfter > 60 ? "s" : ""
-      }, or call 988 if you need help right now.`,
+      }, or call your local emergency number if you need help right now.`,
     };
   }
 
   const ceiling = await globalCeiling("radar:book", GLOBAL_BOOKINGS_PER_MINUTE);
   if (!ceiling.allowed) {
     return {
-      error: "The radar is unusually busy. Please try again in a minute, or call 988 for help now.",
+      error:
+        "The radar is unusually busy. Please try again in a minute, or call your local emergency number if you need help now.",
     };
   }
 

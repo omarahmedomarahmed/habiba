@@ -33,7 +33,18 @@ import { getSettings } from "@/lib/settings";
  * checkout is worse than a price shown only in dollars — and C37 refuses a
  * pair it cannot price, in which case the toggle simply does not appear.
  */
-export async function PricingTiers({ compact = false }: { compact?: boolean }) {
+export async function PricingTiers({
+  compact = false,
+  locale: given,
+}: {
+  compact?: boolean;
+  /**
+   * 21R.8 — the language, when the caller already resolved it. Unset in the
+   * app, where the reader's cookie decides; set by the render check, which has
+   * no cookie and picks its row by locale.
+   */
+  locale?: string;
+}) {
   const settings = await getSettings();
   const quote = await quoteFor("usd", "egp");
   const egpRate = quote?.rateMicro ?? null;
@@ -42,7 +53,28 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
    * 19.4 — the reader's language, resolved once on the server and handed to
    * every price below. Nothing under here asks the runtime what locale it is.
    */
-  const { locale } = await getI18n();
+  const resolved = given
+    ? await (async () => {
+        const { stringsFor } = await import("@/lib/i18n/strings");
+        const { t } = await stringsFor(given);
+        const { isLocale } = await import("@/lib/i18n/config");
+        // A locale the product does not ship still formats money as English
+        // rather than asking the runtime — C84's rule, one level down.
+        return { locale: isLocale(given) ? given : "en", t };
+      })()
+    : await getI18n();
+  const { locale, t } = resolved;
+
+  /*
+   * The three tiers this product ships are named in the dictionary; anything
+   * an admin adds later keeps the name they typed. Falling back to their
+   * English beats inventing an Arabic name for a tier nobody translated.
+   */
+  const SHIPPED = ["payg", "starter", "growth"] as const;
+  const tierName = (tier: { key: string; name: string }) =>
+    (SHIPPED as readonly string[]).includes(tier.key)
+      ? t(`pricing.tier.${tier.key}` as "pricing.tier.payg")
+      : tier.name;
   const tag = localeTag(locale);
 
   const tiers = settings.pricing.tiers;
@@ -54,10 +86,10 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
       {compact ? (
         <div className="mx-auto mb-8 max-w-2xl text-center">
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Joining is free. You pay per session.
+            {t("pricing.free")}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            No subscription, no seat fee, no setup fee — and your first completed session is on us.
+            {t("pricing.freeBody")}
           </p>
         </div>
       ) : null}
@@ -69,17 +101,32 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
             key={tier.key}
             className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6"
           >
-            <p className="text-sm font-semibold text-brand-600">{tier.name}</p>
+            {/*
+              🔴 21R.8 — a tier's name is a *setting*, stored once in English,
+              and an Arabic reader should not meet the word "Growth" on the
+              money page. The dictionary answers for the three tiers this
+              product ships; anything an admin adds later falls back to the
+              name they typed, which is the honest behaviour — better their
+              English than our guess at their Arabic.
+            */}
+            <p className="text-sm font-semibold text-brand-600">
+              {tierName(tier)}
+            </p>
 
             <p className="mt-3 flex items-baseline gap-1.5">
-              <PriceTag usdCents={tier.rateCents} rateMicro={egpRate} locale={tag} size="lg" />
-              <span className="text-sm text-slate-500">/ session</span>
+              <PriceTag
+                usdCents={tier.rateCents}
+                rateMicro={egpRate}
+                locale={tag}
+                size="lg"
+                unit={t("pricing.perSession")}
+              />
             </p>
 
             <p className="mt-2 text-sm text-slate-600">
               {tier.minimumSessions === 0
-                ? "Pay for the sessions you actually run. Nothing up front."
-                : `Buy ${tier.minimumSessions} or more at once.`}
+                ? t("pricing.payg")
+                : t("pricing.bundle", { count: tier.minimumSessions })}
             </p>
 
             {/*
@@ -89,24 +136,30 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
               allowance is invisible here.
             */}
             <p className="mt-3 rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-900">
-              The session <span className="font-semibold">and</span>{" "}
-              {settings.copilot.messagesPerPatientPerSession} copilot questions about that patient
-              — each answer citing the session and timestamp it came from.
+              {t("pricing.includes", {
+                count: settings.copilot.messagesPerPatientPerSession,
+              })}
             </p>
 
             {!compact ? (
               <ul className="mt-6 flex-1 space-y-2.5">
                 {[
-                  "Live transcription, Arabic and English",
-                  "SOAP note in under a minute",
-                  "Patient report by email",
-                  "Video or in-person sessions",
-                  "Crisis-language alerts",
-                  "Get paid by patients — Crisis Radar and paid session links",
-                  "HIPAA BAA included",
+                  t("pricing.feature.transcription"),
+                  t("pricing.feature.note"),
+                  t("pricing.feature.report"),
+                  t("pricing.feature.video"),
+                  t("pricing.feature.alerts"),
+                  t("pricing.feature.getPaid"),
+                  t("pricing.feature.baa"),
                 ].map((feature) => (
-                  <li key={feature} className="flex gap-2.5 text-sm text-slate-700">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" aria-hidden />
+                  <li
+                    key={feature}
+                    className="flex gap-2.5 text-sm text-slate-700"
+                  >
+                    <Check
+                      className="mt-0.5 h-4 w-4 shrink-0 text-teal-500"
+                      aria-hidden
+                    />
                     {feature}
                   </li>
                 ))}
@@ -122,8 +175,11 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
               a false statement.
             */}
             <Link href="/signup" className="mt-6">
-              <Button full variant={tier.minimumSessions === 0 ? "primary" : "secondary"}>
-                Sign up free
+              <Button
+                full
+                variant={tier.minimumSessions === 0 ? "primary" : "secondary"}
+              >
+                {t("pricing.signUp")}
               </Button>
             </Link>
 
@@ -132,7 +188,7 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
                 href="/billing"
                 className="mt-2 text-center text-xs font-medium text-slate-500 underline underline-offset-2"
               >
-                or buy a bundle of {tier.minimumSessions}
+                {t("pricing.orBundle", { count: tier.minimumSessions })}
               </Link>
             ) : null}
           </div>
@@ -142,12 +198,26 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
       {/* 17.4 — the slider, on the cheapest bundle. */}
       {best ? (
         <BundleSlider
-          name={best.name}
+          name={tierName(best)}
           rateCents={best.rateCents}
           minimum={best.minimumSessions}
           paygRateCents={tiers[0]?.rateCents ?? best.rateCents}
           egpRateMicro={egpRate}
           locale={tag}
+          strings={{
+            label: t("pricing.sliderLabel", { name: tierName(best) }),
+            showEgp: t("pricing.showEgp"),
+            showUsd: t("pricing.showUsd"),
+            at: t("pricing.sliderAt", { count: "{count}", price: "{price}" }),
+            once: t("pricing.sliderOnce", {
+              months: settings.pricing.creditExpiryMonths,
+            }),
+            saved: t("pricing.sliderSaved", {
+              count: "{count}",
+              payg: "{payg}",
+              saved: "{saved}",
+            }),
+          }}
         />
       ) : null}
 
@@ -157,18 +227,20 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
       */}
       <div className="mx-auto mt-10 max-w-2xl space-y-3 text-center">
         <p className="text-base font-semibold text-slate-900">
-          Joining is free. No subscription, no seat fee, no setup fee.
+          {t("pricing.noFees")}
         </p>
         <p className="text-sm leading-relaxed text-slate-600">
-          You pay per session, only when you run one, and your first completed session is free.
-          Credits last {settings.pricing.creditExpiryMonths} months and are always spent before
-          anything new is billed, so moving to a smaller bundle never strands what you paid for.
+          {t("pricing.credits", {
+            months: settings.pricing.creditExpiryMonths,
+          })}
         </p>
         <p className="text-sm leading-relaxed text-slate-600">
-          <span className="font-semibold text-slate-900">Get booked on the Crisis Radar.</span>{" "}
-          Patients find you and book you, and we take{" "}
-          {(settings.session.platformFeeBps / 100).toFixed(0)}% of what that session paid you —
-          nothing else.
+          <span className="font-semibold text-slate-900">
+            {t("pricing.radarLead")}
+          </span>{" "}
+          {t("pricing.radarBody", {
+            percent: (settings.session.platformFeeBps / 100).toFixed(0),
+          })}
         </p>
 
         {/*
@@ -182,9 +254,7 @@ export async function PricingTiers({ compact = false }: { compact?: boolean }) {
         */}
         {settings.payouts.netFeeFromHeldEarnings ? (
           <p className="text-sm leading-relaxed text-slate-600">
-            When we are holding your earnings, the session fee comes out of them automatically —
-            nothing to pay by card. If your patients pay straight into your own Stripe account, we
-            bill you for it instead.
+            {t("pricing.netting")}
           </p>
         ) : null}
       </div>

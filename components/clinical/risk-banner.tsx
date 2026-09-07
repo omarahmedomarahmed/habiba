@@ -3,6 +3,7 @@
 import { AlertTriangle, Phone, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import type { CrisisLine } from "@/lib/crisis/line";
 
 /**
  * Clinician-facing risk alert. Shows the level and, optionally, the phrases
@@ -18,11 +19,21 @@ export function RiskBanner({
   indicators = [],
   onDismiss,
   className,
+  line = null,
 }: {
   level: "moderate" | "elevated" | "high" | "critical";
   indicators?: string[];
   onDismiss?: () => void;
   className?: string;
+  /**
+   * 🔴 21R.8 / C98 — the crisis line for **this reader's country**, or null.
+   *
+   * This used to be `tel:988` for everybody. 988 is the United States
+   * lifeline; dialled from Cairo it reaches nothing, and a button that looks
+   * like help and is not is worse than no button. Null renders the sentence
+   * instead of the number, which is true everywhere.
+   */
+  line?: CrisisLine | null;
 }) {
   return (
     <div
@@ -41,21 +52,29 @@ export function RiskBanner({
             Risk language detected · {level}
           </p>
           <p className="mt-0.5 text-sm leading-relaxed text-red-800">
-            Pause and assess directly. If there is imminent risk, follow your local
-            emergency protocol.
+            Pause and assess directly. If there is imminent risk, follow your
+            local emergency protocol.
           </p>
           {indicators.length > 0 ? (
             <p className="mt-2 text-xs text-red-700">
-              Matched: <span className="font-medium">{indicators.join(", ")}</span>
+              Matched:{" "}
+              <span className="font-medium">{indicators.join(", ")}</span>
             </p>
           ) : null}
-          <a
-            href="tel:988"
-            className="tap-target mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white"
-          >
-            <Phone className="h-3.5 w-3.5" aria-hidden />
-            Call 988
-          </a>
+          {line ? (
+            <a
+              href={`tel:${line.tel}`}
+              className="tap-target mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white"
+            >
+              <Phone className="h-3.5 w-3.5" aria-hidden />
+              Call {line.label}
+            </a>
+          ) : (
+            <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-red-900">
+              <Phone className="h-3.5 w-3.5" aria-hidden />
+              If there is imminent risk, call your local emergency number.
+            </p>
+          )}
         </div>
         {onDismiss ? (
           <button
@@ -77,16 +96,34 @@ export function RiskBanner({
  * level, no matched phrases, no clinical framing. This is a product safety
  * invariant, and it is asserted by a test.
  */
-export function PatientSupportNotice({ className }: { className?: string }) {
+export function PatientSupportNotice({
+  className,
+  line = null,
+}: {
+  className?: string;
+  /** 🔴 C98 — the same rule, on the surface where it matters most. */
+  line?: CrisisLine | null;
+}) {
   return (
-    <div className={cn("rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3.5", className)}>
+    <div
+      className={cn(
+        "rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3.5",
+        className,
+      )}
+    >
       <p className="text-sm leading-relaxed text-teal-900">
-        Your therapist is here with you. If you need immediate help right now, you can
-        call or text{" "}
-        <a href="tel:988" className="font-semibold underline">
-          988
-        </a>{" "}
-        at any time.
+        Your therapist is here with you. If you need immediate help right now,{" "}
+        {line ? (
+          <>
+            you can call or text{" "}
+            <a href={`tel:${line.tel}`} className="font-semibold underline">
+              {line.label}
+            </a>{" "}
+            at any time.
+          </>
+        ) : (
+          <>call your local emergency number — it is free from any phone.</>
+        )}
       </p>
     </div>
   );

@@ -335,7 +335,7 @@ export function BookingSheet({
             <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               No account needed. Payment goes to your therapist through Stripe — we never see your
-              card. If you are in immediate danger, call your local emergency number or text 988.
+              card. If you are in immediate danger, call your local emergency number.
             </p>
           </form>
         ) : (

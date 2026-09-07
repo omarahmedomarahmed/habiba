@@ -129,7 +129,7 @@ const REPORT_STRINGS: Record<
     before: "Before we next meet",
     next: "Next session",
     closing:
-      "Questions about anything here? Bring them to your next session — that is exactly what it is for. If you are in crisis and need help now, call or text 988.",
+      "Questions about anything here? Bring them to your next session — that is exactly what it is for. If you are in crisis and need help now, call your local emergency number.",
     footer:
       "This message was sent by your therapist through 24Therapy.<br>If you were not expecting it, you can safely ignore it.",
   },

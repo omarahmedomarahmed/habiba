@@ -1,5 +1,7 @@
 import "server-only";
 
+import { crisisLine } from "@/lib/crisis/line";
+
 import { and, desc, eq, gt } from "drizzle-orm";
 
 import { db } from "@/lib/db";
@@ -179,7 +181,9 @@ export async function sweepUndeliveredAlerts(): Promise<number> {
         .where(eq(riskAssessments.id, row.id));
       delivered += 1;
     } catch (error) {
-      log.error("crisis sweeper delivery failed", { reason: safeErrorMessage(error) });
+      log.error("crisis sweeper delivery failed", {
+        reason: safeErrorMessage(error),
+      });
     }
   }
   return delivered;
@@ -190,10 +194,26 @@ export async function sweepUndeliveredAlerts(): Promise<number> {
  * clinical detail — only support and a number to call. This shape is asserted
  * by a test so it cannot quietly grow a `level` field.
  */
-export function patientFacingCrisisMessage(): { message: string; helpline: string } {
+export function patientFacingCrisisMessage(country?: string | null): {
+  message: string;
+  helpline: string | null;
+} {
+  /*
+   * 🔴 21R.8 / C98 — the number depends on where they are, and is null when we
+   * do not know a verified one.
+   *
+   * This returned `988` to everybody. It is the United States lifeline, this
+   * product's first market is Egypt, and a patient in crisis given a number
+   * that does not dial has been handed something worse than nothing. Where
+   * there is no verified line the message names the local emergency number,
+   * which is true from any phone in any country.
+   */
+  const line = crisisLine(country);
+
   return {
-    message:
-      "Your therapist has been notified and is here with you. If you need immediate help right now, you can call or text 988 at any time.",
-    helpline: "988",
+    message: line
+      ? `Your therapist has been notified and is here with you. If you need immediate help right now, you can call or text ${line.label} at any time.`
+      : "Your therapist has been notified and is here with you. If you need immediate help right now, call your local emergency number — it is free from any phone.",
+    helpline: line?.label ?? null,
   };
 }

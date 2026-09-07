@@ -134,8 +134,8 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
         <Card className="p-6 text-center">
           <p className="text-sm font-semibold text-slate-900">Nobody is on the radar yet</p>
           <p className="mt-1.5 text-sm text-slate-600">
-            Clinicians appear here the moment they go online. If you need help right now, call or
-            text 988.
+            Clinicians appear here the moment they go online. If you need help right now, call
+            your local emergency number.
           </p>
         </Card>
       ) : visible.length === 0 ? (

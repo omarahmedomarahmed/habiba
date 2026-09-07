@@ -60,7 +60,21 @@ test("patient-facing crisis message exposes no clinical detail", () => {
   const message = patientFacingCrisisMessage();
 
   assert.deepEqual(Object.keys(message).sort(), ["helpline", "message"]);
-  assert.equal(message.helpline, "988");
+
+  /*
+   * 🔴 C98 — no number unless we know one for that country.
+   *
+   * This asserted `helpline === "988"` for every patient in the world. 988 is
+   * the United States lifeline; dialled from Cairo it reaches nothing, so the
+   * test was pinning a defect in place. With no country there is no verified
+   * line, and the message says "your local emergency number" instead.
+   */
+  assert.equal(message.helpline, null);
+  assert.ok(message.message.includes("local emergency number"));
+
+  const american = patientFacingCrisisMessage("US");
+  assert.equal(american.helpline, "988");
+  assert.ok(american.message.includes("988"));
 
   const serialised = JSON.stringify(message).toLowerCase();
   for (const forbidden of ["risk", "level", "indicator", "critical", "high", "assessment"]) {
