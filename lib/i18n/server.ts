@@ -23,6 +23,19 @@ import { DICTIONARIES, type MessageKey } from "./messages";
  * choice always beats a browser default — somebody who switched to English on
  * an Arabic phone meant it.
  */
+/**
+ * 🔴 21.15 — a language turned off must not 404 anybody mid-visit.
+ *
+ * The behaviour, decided: **serve and stop advertising.** A reader whose
+ * cookie names a language that is no longer public keeps reading it for the
+ * rest of their visit; the switcher stops offering it, and the next person is
+ * never sent there. The alternative — redirecting mid-visit — throws somebody
+ * out of the page they were reading into a language they may not read, which
+ * on a crisis page is the worst possible moment to do it.
+ *
+ * The cookie is not cleared either: a language switched off for a fortnight
+ * and back on should find its readers where it left them.
+ */
 export async function getLocale(): Promise<Locale> {
   /*
    * 🔴 No request, no crash — the default language instead.
@@ -86,5 +99,21 @@ export function translator(locale: Locale): Translate {
 export async function getI18n(): Promise<{ locale: Locale; t: Translate; dir: "rtl" | "ltr" }> {
   const { dirFor } = await import("./config");
   const locale = await getLocale();
-  return { locale, t: translator(locale), dir: dirFor(locale) };
+
+  /*
+   * 21.1 / 21.4 / 21.6 — an admin override wins, the shipped dictionary is the
+   * default, and English is the floor.
+   *
+   * Read through `stringsFor`, which is cached by tag: a save invalidates it
+   * and nothing serves last hour's wording because a timer had not fired. If
+   * the override table is unreachable the dictionary answers on its own — the
+   * interface never goes blank because a query failed.
+   */
+  try {
+    const { stringsFor } = await import("./strings");
+    const { t } = await stringsFor(locale);
+    return { locale, t: t as Translate, dir: dirFor(locale) };
+  } catch {
+    return { locale, t: translator(locale), dir: dirFor(locale) };
+  }
 }

@@ -22,7 +22,25 @@ import { cn } from "@/lib/utils";
  * middle of a session would drop a patient out of a video call to change a
  * label.
  */
-export function LanguageSwitch({ className }: { className?: string }) {
+/**
+ * 🔴 21.13 / 21.15 — what a reader is *offered*.
+ *
+ * `offered` comes from the server: the languages whose public switch is on. A
+ * language being translated does not appear here, and a language switched off
+ * disappears from the switcher while anybody already reading it keeps reading
+ * it (21.15 — serve and stop advertising).
+ *
+ * Defaulted to the shipped pair so that a component rendered without the prop
+ * — a test, a demo, a page nobody has updated — still offers something rather
+ * than nothing.
+ */
+export function LanguageSwitch({
+  className,
+  offered,
+}: {
+  className?: string;
+  offered?: { code: string; nativeName: string }[];
+}) {
   const current = useLocale();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -40,7 +58,7 @@ export function LanguageSwitch({ className }: { className?: string }) {
       aria-label={current === "ar" ? "اللغة" : "Language"}
     >
       <Languages className="ms-2 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-      {LOCALES.map((locale) => (
+      {(offered?.map((row) => row.code as Locale) ?? LOCALES).map((locale) => (
         <button
           key={locale}
           type="button"

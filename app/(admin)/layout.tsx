@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Banknote,
   FileEdit,
+  Languages,
   LifeBuoy,
   PhoneCall,
   Globe2,
@@ -110,6 +111,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {isOwner ? <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/settings" icon={SlidersHorizontal}>Settings</AdminLink> : null}
+          {isOwner ? <AdminLink href="/admin/strings" icon={Languages}>Strings</AdminLink> : null}
           {isManager ? <AdminLink href="/admin/audit" icon={ScrollText}>Audit log</AdminLink> : null}
         </nav>
       </header>

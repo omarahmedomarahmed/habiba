@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -1922,6 +1923,21 @@ export const auditLog = pgTable(
     action: text("action").notNull(),
     resourceType: text("resource_type"),
     resourceId: uuid("resource_id"),
+    /**
+     * 🔴 The resource that is **not** a row with a UUID.
+     *
+     * A settings group ("pricing"), a taxonomy entry ("language:ar"), a string
+     * override ("common.continue:ar"). Those are real resources with real
+     * audit trails and no UUID, and writing one into `resource_id` throws —
+     * which, because `audit()` deliberately does not swallow, means the whole
+     * action fails. Found in sprint 21 while auditing a string save; the
+     * taxonomy editor from sprint 1 had the same bug and every edit through it
+     * was failing at the audit write.
+     *
+     * `audit()` routes the value to whichever column can hold it, so no caller
+     * changes and both are queryable.
+     */
+    resourceKey: text("resource_key"),
     patientId: uuid("patient_id"),
     reason: text("reason"),
     ipAddress: text("ip_address"),
@@ -4062,3 +4078,89 @@ export const supportAttachments = pgTable(
 );
 
 export type SupportAttachment = typeof supportAttachments.$inferSelect;
+
+/* ------------------------------------------- §21 · strings and languages -- */
+
+/**
+ * A language the product can be authored in, and separately, offered in.
+ * PLAN.md 21.9, 21.13.
+ *
+ * ## 🔴 Two switches, deliberately
+ *
+ * `authoringEnabled` lets a content team start translating; `publicEnabled`
+ * decides whether a reader is ever offered it. They are separate because the
+ * whole point of 21.14 is that Spanish can be translated for six weeks while
+ * the site offers only Arabic and English, and the day it flips the site is
+ * already there. One switch would mean either publishing a half-translated
+ * language or having nowhere to put the work.
+ *
+ * The shipped `LOCALES` constant stays as the fallback for a database that has
+ * not been seeded, and as the compile-time key set that makes a missing
+ * Arabic string a type error (19.2). A row here can add a language; it cannot
+ * remove the guarantee.
+ */
+export const locales = pgTable("locales", {
+  /** BCP 47-ish: `en`, `ar`, `es`. Lower case. */
+  code: text("code").primaryKey(),
+  /** In English, for the admin list. */
+  name: text("name").notNull(),
+  /** In itself, for the switcher. A language is named in its own words. */
+  nativeName: text("native_name").notNull(),
+  direction: text("direction").$type<"ltr" | "rtl">().notNull().default("ltr"),
+
+  /** 21.9 — a content team may write in it. */
+  authoringEnabled: boolean("authoring_enabled").notNull().default(true),
+  /** 🔴 21.13 — a reader may be offered it. The bigger switch. */
+  publicEnabled: boolean("public_enabled").notNull().default(false),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type LocaleRow = typeof locales.$inferSelect;
+
+export const STRING_STATUSES = ["draft", "published"] as const;
+export type StringStatus = (typeof STRING_STATUSES)[number];
+
+/**
+ * One interface string, in one language. PLAN.md 21.1–21.8.
+ *
+ * ## The dictionary is still the default
+ *
+ * `lib/i18n/messages.ts` ships every string and is what `tsc` checks. A row
+ * here **overrides** it for one (key, locale) — and clearing the row restores
+ * the shipped wording rather than blanking a button (21.5). That is why the
+ * value column is not nullable: "no override" is the absence of a row, which
+ * is a state the editor can produce and cannot get wrong.
+ *
+ * ## 🔴 AI drafts, a human publishes (21.17)
+ *
+ * A machine translation lands as `status = 'draft'` and counts as *missing* on
+ * the completeness checklist until somebody approves it. `source` and `model`
+ * record what a reviewer is reading, so a bad batch can be found by its model
+ * name rather than by re-reading everything.
+ */
+export const uiStrings = pgTable(
+  "ui_strings",
+  {
+    key: text("key").notNull(),
+    locale: text("locale").notNull(),
+    value: text("value").notNull(),
+
+    status: text("status").$type<StringStatus>().notNull().default("published"),
+    /** `human` or a machine draft. 21.19. */
+    source: text("source").$type<"human" | "machine">().notNull().default("human"),
+    /** Which model produced a draft, so a bad batch is findable. */
+    model: text("model"),
+
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.key, t.locale] }),
+    index("ui_strings_locale_idx").on(t.locale, t.status),
+  ],
+);
+
+export type UiString = typeof uiStrings.$inferSelect;

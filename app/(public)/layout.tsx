@@ -3,9 +3,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getFooterLinks, getPublicNav } from "@/lib/content/service";
+import { publicLanguages } from "@/lib/i18n/strings";
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [nav, footer] = await Promise.all([getPublicNav(), getFooterLinks()]);
+  const [nav, footer, offered] = await Promise.all([
+    getPublicNav(),
+    getFooterLinks(),
+    // 21.13 — only the languages whose public switch is on.
+    publicLanguages(),
+  ]);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -46,7 +52,10 @@ export default async function PublicLayout({ children }: { children: React.React
               browser does not already ask for Arabic — which is most people
               testing it, on a phone set to English.
             */}
-            <LanguageSwitch className="hidden sm:inline-flex" />
+            <LanguageSwitch
+              className="hidden sm:inline-flex"
+              offered={offered.map((row) => ({ code: row.code, nativeName: row.nativeName }))}
+            />
             <Link href="/radar" className="sm:hidden">
               <Button variant="ghost" size="sm" className="text-teal-700">
                 Talk now
