@@ -1,0 +1,17 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn, clickButton } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "t");
+await signIn(p, BASE, "yasmin@clinic.test", "walkthrough-therapist-1");
+await p.goto(`${BASE}/sessions/c4b60d09-37fe-4c55-a530-c8b023d57a90`, { waitUntil: "networkidle" });
+await clickButton(p, "Their summary");
+await clickButton(p, "Approve and send");
+await p.waitForTimeout(3500);
+const t = await text(p);
+console.log(t.slice(0, 800));
+await shot(p, "35-report-sent");
+console.log("\n--- billing ---");
+await p.goto(`${BASE}/billing`, { waitUntil: "networkidle" });
+console.log((await text(p)).slice(0, 900));
+await shot(p, "36-therapist-billing");
+await b.close();

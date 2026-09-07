@@ -1,0 +1,12 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn, clickButton } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "t");
+await signIn(p, BASE, "yasmin@clinic.test", "walkthrough-therapist-1");
+await p.goto(`${BASE}/sessions/new`, { waitUntil: "networkidle" });
+console.log("--- new session ---");
+console.log((await text(p)).slice(0, 900));
+console.log("fields:", await p.locator("input,select,textarea").evaluateAll(e => e.map(x => `${x.tagName.toLowerCase()}:${x.name||x.id}`)));
+console.log("buttons:", (await p.locator("button").allTextContents()).map(s=>s.trim()).filter(Boolean));
+await shot(p, "28-new-session");
+await b.close();

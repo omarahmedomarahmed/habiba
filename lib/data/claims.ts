@@ -4,7 +4,14 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { patients, people, personClaims, personInvites, users } from "@/lib/db/schema";
+import {
+  patientAccounts,
+  patients,
+  people,
+  personClaims,
+  personInvites,
+  users,
+} from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
 import { applyClaimDecision } from "./grants";
@@ -101,6 +108,62 @@ export async function suggestionsFor(input: {
     redactedName: redactName(c.firstName, c.lastName),
     matchedOn: c.matchedOn,
   }));
+}
+
+
+/**
+ * 🔴 22R — the account follows the record it just claimed.
+ *
+ * Signing up creates a `people` row of your own; claiming attaches a
+ * *different* one — the therapist's. Nothing moved the account onto it, and
+ * `patient_accounts.person_id` is what every patient screen reads. So a
+ * patient who claimed their record was told, on their own home screen, "Your
+ * record — not claimed yet. No therapist files are attached to your account",
+ * with their session, their note and their summary sitting in the record they
+ * had just taken ownership of.
+ *
+ * Everything else about the claim was right: `people.claimed_at`, the
+ * `person_claims` row, the grant decision, the audit entry. It took signing up
+ * as the patient, claiming, and then looking at the screen.
+ *
+ * The old row is left in place rather than deleted: it is a fresh signup row
+ * with nothing attached, and `people` is referenced from enough places that
+ * deleting one inside a claim is a bigger promise than this fix needs to make.
+ * It is only re-pointed when the account's current person has no clinical
+ * record of its own — where it does, two people would have to be merged, and
+ * merging is exactly what sprint 5 ruled we never do silently.
+ */
+async function bindAccountToPerson(
+  tx: {
+    select: typeof db.select;
+    update: typeof db.update;
+  },
+  accountId: string,
+  personId: string,
+): Promise<"moved" | "already" | "kept"> {
+  const [account] = await tx
+    .select({ personId: patientAccounts.personId })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, accountId))
+    .limit(1);
+
+  if (!account) return "kept";
+  if (account.personId === personId) return "already";
+
+  const [existing] = await tx
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(patients)
+    .where(eq(patients.personId, account.personId));
+
+  // Their own row carries a clinical record too — that is a merge, not a move.
+  if ((existing?.n ?? 0) > 0) return "kept";
+
+  await tx
+    .update(patientAccounts)
+    .set({ personId, updatedAt: new Date() })
+    .where(eq(patientAccounts.id, accountId));
+
+  return "moved";
 }
 
 /* ------------------------------------------------- step 5: send a code -- */
@@ -296,6 +359,9 @@ export async function verifyClaim(input: {
       .update(personClaims)
       .set({ status: "expired", tokenHash: null })
       .where(and(eq(personClaims.personId, claim.personId), eq(personClaims.status, "pending")));
+
+    /* 🔴 22R — the same move, on the matching route. */
+    await bindAccountToPerson(tx as never, claim.accountId, claim.personId);
   });
 
   /*
@@ -502,6 +568,9 @@ export async function redeemInvite(input: {
       .from(patients)
       .where(eq(patients.personId, resolved.personId));
     patientsMoved = moved[0]?.n ?? 0;
+
+    /* 🔴 22R — and the account moves onto the record it just claimed. */
+    await bindAccountToPerson(tx as never, input.accountId, resolved.personId);
   });
 
   if (!claimed) return { ok: false, error: "That link has already been used." };

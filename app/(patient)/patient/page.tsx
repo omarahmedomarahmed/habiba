@@ -66,13 +66,26 @@ export default async function PatientHomePage({
   const sessions = await sessionsForPatient(actor.personId);
 
   const [person] = await db
-    .select({
-      claimedAt: people.claimedAt,
-      records: sql<number>`(SELECT COUNT(*)::int FROM ${patients} WHERE ${patients.personId} = ${people.id})`,
-    })
+    .select({ claimedAt: people.claimedAt })
     .from(people)
     .where(eq(people.id, actor.personId))
     .limit(1);
+
+  /*
+   * 🔴 22R — counted in its own query, because the correlated one returned 0.
+   *
+   * This was a `sql<number>` subquery inside the `select()` above, and on a
+   * record with one file attached the screen said "No therapist files are
+   * attached to your account yet" — while the database, asked the same
+   * question directly, said one. A patient reading that has just been told
+   * their record is empty on the day they claimed it.
+   */
+  const [attached] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(patients)
+    .where(eq(patients.personId, actor.personId));
+
+  const records = Number(attached?.n ?? 0);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
@@ -127,8 +140,8 @@ export default async function PatientHomePage({
           )}
         </div>
         <p className="mt-1 text-sm text-slate-600">
-          {person?.records
-            ? `${person.records} therapist file${person.records === 1 ? "" : "s"} attached.`
+          {records
+            ? `${records} therapist file${records === 1 ? "" : "s"} attached.`
             : "No therapist files are attached to your account yet."}
         </p>
         <Link

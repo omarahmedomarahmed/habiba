@@ -143,7 +143,7 @@ async function main() {
       .values({
         organizationId: therapistA.organizationId,
         therapistId: therapistA.id,
-        firstName: "Yasmin",
+        firstName: "verify13-patient",
         personId: personOne!.id,
         phone: PHONE_A,
         source: "therapist",
@@ -156,7 +156,7 @@ async function main() {
           .values({
             organizationId: therapistB.organizationId,
             therapistId: therapistB.id,
-            firstName: "Yasmin",
+            firstName: "verify13-patient",
             personId: personOne!.id,
             phone: PHONE_A,
             source: "therapist",
@@ -183,9 +183,17 @@ async function main() {
       keys.join(",") === "attemptsLeft,claimId,patientId,stage,therapistName",
       keys.join(", "),
     );
+    /*
+     * 22R — the fixture's patient is named for the fixture, not with a common
+     * first name. This asserted on "Yasmin" and went red the day a real
+     * therapist called Yasmin existed in the database: `therapistName` is
+     * *supposed* to be in this payload, so the check was reading the right
+     * field and calling it the wrong thing.
+     */
     check(
       "13.8 …and no patient name appears anywhere in it",
-      !JSON.stringify(offered).includes("Yasmin"),
+      !JSON.stringify(offered).includes("verify13-"),
+      JSON.stringify(offered).slice(0, 80),
     );
 
     /* --------------------------------------------- a "no" is remembered */

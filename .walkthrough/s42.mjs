@@ -1,0 +1,16 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn, clickButton } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "t");
+await signIn(p, BASE, "yasmin@clinic.test", "walkthrough-therapist-1");
+await p.goto(`${BASE}/sessions/new`, { waitUntil: "networkidle" });
+const options = await p.locator("select[name=patientId] option").allTextContents();
+console.log("patients on the dropdown:", options);
+await p.selectOption("select[name=patientId]", { index: 1 }).catch(e => console.log("select failed"));
+await clickButton(p, "Start session now");
+await p.waitForTimeout(4000);
+console.log("url:", p.url());
+const t = await text(p);
+console.log(t.slice(0, 900));
+await shot(p, "29-session-room");
+await b.close();
