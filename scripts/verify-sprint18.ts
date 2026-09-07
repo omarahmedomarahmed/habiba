@@ -9,10 +9,11 @@
  * and never behind a signup, and **18.7**, that nothing public names a
  * patient, quotes a session, or implies we can read a record.
  */
-import { and, eq, inArray, notLike, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { db } from "../lib/db";
-import { contentPages, type ContentBlock } from "../lib/db/schema";
+import { type ContentBlock } from "../lib/db/schema";
+import { withPublishedContent } from "./_content-ready";
 import { reporter } from "./_verify";
 
 const { check, skipUnless, finish } = reporter();
@@ -23,7 +24,8 @@ function stringsOf(blocks: ContentBlock[]): string[] {
   const walk = (value: unknown) => {
     if (typeof value === "string") out.push(value);
     else if (Array.isArray(value)) value.forEach(walk);
-    else if (value && typeof value === "object") Object.values(value).forEach(walk);
+    else if (value && typeof value === "object")
+      Object.values(value).forEach(walk);
   };
   walk(blocks);
   return out;
@@ -38,46 +40,38 @@ function stringsOf(blocks: ContentBlock[]): string[] {
  * name one.
  */
 const FORBIDDEN: { pattern: RegExp; why: string }[] = [
-  { pattern: /\bwe (can |could )?(read|see|review|access) (your|their|a) (record|notes?|chart|transcript)/i, why: "implies we read records" },
+  {
+    pattern:
+      /\bwe (can |could )?(read|see|review|access) (your|their|a) (record|notes?|chart|transcript)/i,
+    why: "implies we read records",
+  },
   {
     // "Our team can read your notes" is the shape a real marketing writer
     // produces, so the modal verbs are part of the rule rather than an
     // afterthought — the first draft of this scan missed exactly that
     // sentence, which is what the control below is for.
-    pattern: /\bour (clinicians|team|staff)[^.]{0,20}\b(read|review|see|access)s?\b[^.]{0,20}(notes?|records?|transcripts?)/i,
+    pattern:
+      /\bour (clinicians|team|staff)[^.]{0,20}\b(read|review|see|access)s?\b[^.]{0,20}(notes?|records?|transcripts?)/i,
     why: "implies staff read notes",
   },
-  { pattern: /\b(one|a) (patient|client) (told us|said to us|wrote)\b/i, why: "quotes a patient" },
-  { pattern: /["“][^"”]{40,}["”]\s*[—-]\s*[A-Z][a-z]+,?\s+(patient|client)/i, why: "a testimonial attributed to a patient" },
-  { pattern: /\breal (patient|session) (transcript|note)\b/i, why: "claims a real record is being shown" },
+  {
+    pattern: /\b(one|a) (patient|client) (told us|said to us|wrote)\b/i,
+    why: "quotes a patient",
+  },
+  {
+    pattern: /["“][^"”]{40,}["”]\s*[—-]\s*[A-Z][a-z]+,?\s+(patient|client)/i,
+    why: "a testimonial attributed to a patient",
+  },
+  {
+    pattern: /\breal (patient|session) (transcript|note)\b/i,
+    why: "claims a real record is being shown",
+  },
 ];
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
-
-  const pages = await db
-    .select({
-      slug: contentPages.slug,
-      locale: contentPages.locale,
-      status: contentPages.status,
-      navLabel: contentPages.navLabel,
-      navOrder: contentPages.navOrder,
-      blocks: contentPages.blocks,
-    })
-    .from(contentPages)
-    .where(
-      and(
-        eq(contentPages.status, "published"),
-        /*
-         * Staging rows are not pages. 19.0a writes `en-x-staging` copies so a
-         * page can be rendered and checked before its code deploys; they carry
-         * no navigation and no reader ever sees them, so counting them here
-         * makes a verifier fail on its own scaffolding — which it did, on
-         * 18.5, the first time this ran after the staging rows existed.
-         */
-        notLike(contentPages.locale, "%-x-staging"),
-      ),
-    );
+  console.log(
+    `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
+  );
 
   /* --------------------------------------------------- 18.2, 18.5, C72 */
 
@@ -90,56 +84,77 @@ async function main() {
    * serves a page with no prices). Until 22.8b runs, these are deferred rather
    * than failed — and the moment it runs they come back on their own.
    */
-  const contentPublished = pages.some((p) => p.blocks.some((b) => b.type === "crisis"));
-  const AWAITS = "22.8b";
-  const WHY = "the sprint 18 public content is not published in this database";
+  const NEED = {
+    what: "the sprint 18 public content",
+    block: { slug: "for-patients", type: "crisis" },
+  };
 
-  const patientPages = pages.filter((p) => p.slug === "for-patients");
-  await skipUnless(contentPublished, AWAITS, `18.2 / 18.5 / C72 — ${WHY}`, () => {
-  check(
-    "🔴 18.2 the patients section exists as a real row — in BOTH locales, so 19 and 21 can reach it",
-    patientPages.some((p) => p.locale === "en") && patientPages.some((p) => p.locale === "ar"),
-    patientPages.map((p) => p.locale).join(", ") || "none",
-  );
-  check(
-    "18.5 …and it is in the navigation rather than an orphan route",
-    patientPages.every((p) => p.navLabel !== null && (p.navOrder ?? 99) < 10),
-    patientPages.map((p) => `${p.locale}:${p.navLabel}`).join(", "),
-  );
+  await withPublishedContent(
+    skipUnless,
+    { for: "18.2 / 18.5 / C72", ...NEED },
+    (content) => {
+      const pages = content.published;
+      const patientPages = pages.filter((p) => p.slug === "for-patients");
+      check(
+        "🔴 18.2 the patients section exists as a real row — in BOTH locales, so 19 and 21 can reach it",
+        patientPages.some((p) => p.locale === "en") &&
+          patientPages.some((p) => p.locale === "ar"),
+        patientPages.map((p) => p.locale).join(", ") || "none",
+      );
+      check(
+        "18.5 …and it is in the navigation rather than an orphan route",
+        patientPages.every(
+          (p) => p.navLabel !== null && (p.navOrder ?? 99) < 10,
+        ),
+        patientPages.map((p) => `${p.locale}:${p.navLabel}`).join(", "),
+      );
 
-  const topics = stringsOf(patientPages.find((p) => p.locale === "en")?.blocks ?? []).join(" ");
-  check(
-    "18.2 …and it answers the seven questions the ticket names",
-    ["Radar", "book", "session", "cannot see", "claim", "cost", "help"].every((topic) =>
-      new RegExp(topic, "i").test(topics),
-    ),
-    ["Radar", "book", "session", "cannot see", "claim", "cost", "help"]
-      .filter((t) => !new RegExp(t, "i").test(topics))
-      .join(", ") || "all seven",
-  );
+      const topics = stringsOf(
+        patientPages.find((p) => p.locale === "en")?.blocks ?? [],
+      ).join(" ");
+      check(
+        "18.2 …and it answers the seven questions the ticket names",
+        [
+          "Radar",
+          "book",
+          "session",
+          "cannot see",
+          "claim",
+          "cost",
+          "help",
+        ].every((topic) => new RegExp(topic, "i").test(topics)),
+        ["Radar", "book", "session", "cannot see", "claim", "cost", "help"]
+          .filter((t) => !new RegExp(t, "i").test(topics))
+          .join(", ") || "all seven",
+      );
 
-  check(
-    "🔴 C72 the Arabic reader no longer falls back to English on pricing",
-    pages.some((p) => p.slug === "pricing" && p.locale === "ar"),
+      check(
+        "🔴 C72 the Arabic reader no longer falls back to English on pricing",
+        pages.some((p) => p.slug === "pricing" && p.locale === "ar"),
+      );
+    },
   );
-  });
 
   /* ------------------------------------------------------------- 18.3 */
 
-  const patientFacing = pages.filter((p) =>
-    ["home", "for-patients"].includes(p.slug),
+  await withPublishedContent(
+    skipUnless,
+    { for: "18.3", ...NEED },
+    (content) => {
+      const patientFacing = content.published.filter((p) =>
+        ["home", "for-patients"].includes(p.slug),
+      );
+      check(
+        "🔴 18.3 help now is ON every patient-facing page, in every locale",
+        patientFacing.length >= 4 &&
+          patientFacing.every((p) => p.blocks.some((b) => b.type === "crisis")),
+        patientFacing
+          .filter((p) => !p.blocks.some((b) => b.type === "crisis"))
+          .map((p) => `${p.slug}[${p.locale}]`)
+          .join(", ") || `${patientFacing.length} pages, all carry it`,
+      );
+    },
   );
-  await skipUnless(contentPublished, AWAITS, `18.3 — ${WHY}`, () => {
-  check(
-    "🔴 18.3 help now is ON every patient-facing page, in every locale",
-    patientFacing.length >= 4 &&
-      patientFacing.every((p) => p.blocks.some((b) => b.type === "crisis")),
-    patientFacing
-      .filter((p) => !p.blocks.some((b) => b.type === "crisis"))
-      .map((p) => `${p.slug}[${p.locale}]`)
-      .join(", ") || `${patientFacing.length} pages, all carry it`,
-  );
-  });
 
   /*
    * 🔴 …and it is never behind a signup. The block's destinations are fixed in
@@ -159,20 +174,27 @@ async function main() {
 
   /* ------------------------------------------------------------- 18.7 */
 
-  const violations: string[] = [];
-  for (const page of pages) {
-    for (const text of stringsOf(page.blocks)) {
-      for (const rule of FORBIDDEN) {
-        if (rule.pattern.test(text)) {
-          violations.push(`${page.slug}[${page.locale}]: ${rule.why}`);
+  await withPublishedContent(
+    skipUnless,
+    { for: "18.7", what: "the page corpus" },
+    (content) => {
+      const violations: string[] = [];
+      for (const page of content.published) {
+        for (const text of stringsOf(page.blocks)) {
+          for (const rule of FORBIDDEN) {
+            if (rule.pattern.test(text)) {
+              violations.push(`${page.slug}[${page.locale}]: ${rule.why}`);
+            }
+          }
         }
       }
-    }
-  }
-  check(
-    "🔴 18.7 nothing public names a patient, quotes a session, or implies we can read a record",
-    violations.length === 0,
-    violations.join(" · ") || `${pages.length} published pages swept`,
+      check(
+        "🔴 18.7 nothing public names a patient, quotes a session, or implies we can read a record",
+        violations.length === 0,
+        violations.join(" · ") ||
+          `${content.published.length} published pages swept`,
+      );
+    },
   );
 
   /*
@@ -200,30 +222,49 @@ async function main() {
   /* ------------------------------------------------------ 18.8, 18.9, 18.13 */
 
   const { CONTENT_DEMOS } = await import("../lib/db/schema");
-  const used = new Set(
-    pages.flatMap((p) =>
-      p.blocks.flatMap((b) =>
-        "items" in b
-          ? (b.items as { demo?: string }[]).map((i) => i.demo).filter(Boolean)
-          : [],
-      ),
-    ),
-  );
-  await skipUnless(contentPublished, AWAITS, `18.9 — ${WHY}`, () => {
-  check(
-    "18.9 the patient app and the homework list are shown as the thing itself",
-    used.has("patient-sessions") && used.has("homework"),
-    [...used].join(", "),
-  );
-  });
-  check(
-    "18.8 …and every demo named in content is one the renderer can actually draw",
-    [...used].every((demo) => (CONTENT_DEMOS as readonly string[]).includes(demo as string)),
-    [...used].filter((d) => !(CONTENT_DEMOS as readonly string[]).includes(d as string)).join(", ") ||
-      "all known",
+  await withPublishedContent(
+    skipUnless,
+    { for: "18.8 / 18.9", ...NEED },
+    (content) => {
+      const used = new Set(
+        content.published.flatMap((p) =>
+          p.blocks.flatMap((b) =>
+            "items" in b
+              ? (b.items as { demo?: string }[])
+                  .map((i) => i.demo)
+                  .filter(Boolean)
+              : [],
+          ),
+        ),
+      );
+      check(
+        "18.9 the patient app and the homework list are shown as the thing itself",
+        used.has("patient-sessions") && used.has("homework"),
+        [...used].join(", "),
+      );
+      /*
+       * 🔴 21R.9 — this one used to sit outside the deferral, and it PASSED on an
+       * empty database: every demo named in no content is trivially drawable. A
+       * green that measured nothing is worse than an honest skip.
+       */
+      check(
+        "18.8 …and every demo named in content is one the renderer can actually draw",
+        [...used].every((demo) =>
+          (CONTENT_DEMOS as readonly string[]).includes(demo as string),
+        ),
+        [...used]
+          .filter(
+            (d) => !(CONTENT_DEMOS as readonly string[]).includes(d as string),
+          )
+          .join(", ") || "all known",
+      );
+    },
   );
 
-  const showcase = readFileSync("components/demo/component-showcase.tsx", "utf8");
+  const showcase = readFileSync(
+    "components/demo/component-showcase.tsx",
+    "utf8",
+  );
   check(
     "🔴 18.8 no screenshot stands in for a product surface — the showcase renders components, not images",
     !/<img|\.png|\.jpg|next\/image/i.test(showcase),
@@ -240,7 +281,8 @@ async function main() {
     "🔴 18.11 …and that fallback is synthetic — it reaches no clinical table",
     !readFileSync("lib/content/demo.ts", "utf8").match(
       /sessionNotes|transcriptSegments|sessionInsights|patients\b/,
-    ) && DEMO_FALLBACK.patientSessions.every((s) => s.therapist.startsWith("Dr ")),
+    ) &&
+      DEMO_FALLBACK.patientSessions.every((s) => s.therapist.startsWith("Dr ")),
   );
 
   /* --------------------------------------------------- 🔴 18.11 the refusal */
@@ -268,7 +310,9 @@ async function main() {
   check(
     "🔴 18.11 CONTROL — the sweep's own query SEES a patient outside a demo organisation",
     org !== undefined && (await countReal()) > 0,
-    org ? `${await countReal()} on "${org.name}"` : "no organisation to test against",
+    org
+      ? `${await countReal()} on "${org.name}"`
+      : "no organisation to test against",
   );
 
   /* ------------------------------------------------------------- C17 */

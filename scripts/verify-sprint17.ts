@@ -15,10 +15,11 @@
  * the scan can see one.
  */
 import React from "react";
-import { and, eq, inArray, notLike } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "../lib/db";
 import { contentPages, type ContentBlock } from "../lib/db/schema";
+import { withPublishedContent } from "./_content-ready";
 import { reporter } from "./_verify";
 
 const { check, skipUnless, finish } = reporter();
@@ -28,8 +29,12 @@ const { check, skipUnless, finish } = reporter();
 type Node = { type: unknown; props: Record<string, unknown> } | unknown;
 
 /** Every element in a rendered tree, flattened. Server components included. */
-async function flatten(node: Node, out: { name: string; props: Record<string, unknown> }[] = []) {
-  if (node === null || node === undefined || typeof node === "boolean") return out;
+async function flatten(
+  node: Node,
+  out: { name: string; props: Record<string, unknown> }[] = [],
+) {
+  if (node === null || node === undefined || typeof node === "boolean")
+    return out;
 
   if (Array.isArray(node)) {
     for (const child of node) await flatten(child, out);
@@ -53,9 +58,15 @@ async function flatten(node: Node, out: { name: string; props: Record<string, un
      * rather than a look at the outermost layer, and it is how the slider's
      * props get read at all.
      */
-    if (typeof element.type === "function" && name !== "PriceTag" && name !== "BundleSlider") {
+    if (
+      typeof element.type === "function" &&
+      name !== "PriceTag" &&
+      name !== "BundleSlider"
+    ) {
       try {
-        const rendered = await (element.type as (p: unknown) => unknown)(element.props);
+        const rendered = await (element.type as (p: unknown) => unknown)(
+          element.props,
+        );
         await flatten(rendered, out);
       } catch {
         /* A client component that cannot run here is fine — its props are already recorded. */
@@ -87,9 +98,11 @@ function moneyIn(blocks: ContentBlock[]): string[] {
   const found: string[] = [];
   const walk = (value: unknown) => {
     if (typeof value === "string") {
-      for (const hit of value.matchAll(new RegExp(MONEY, "g"))) found.push(hit[0]);
+      for (const hit of value.matchAll(new RegExp(MONEY, "g")))
+        found.push(hit[0]);
     } else if (Array.isArray(value)) value.forEach(walk);
-    else if (value && typeof value === "object") Object.values(value).forEach(walk);
+    else if (value && typeof value === "object")
+      Object.values(value).forEach(walk);
   };
   walk(blocks);
   return found;
@@ -127,107 +140,97 @@ async function main() {
    */
   (globalThis as { React?: unknown }).React = React;
   await stubNextLink();
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  console.log(
+    `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
+  );
 
   const { getSettings } = await import("../lib/settings");
   const settings = await getSettings();
 
   /* ------------------------------------------------- 17.2, 17.5, 17.7 */
 
-  const pages = await db
-    .select({
-      slug: contentPages.slug,
-      locale: contentPages.locale,
-      status: contentPages.status,
-      blocks: contentPages.blocks,
-    })
-    .from(contentPages)
-    .where(
-      and(
-        inArray(contentPages.slug, ["home", "pricing"]),
-        // Staging rows are scaffolding, not pages. See verify-sprint18.
-        notLike(contentPages.locale, "%-x-staging"),
-      ),
-    );
-
-  const pricingPages = pages.filter((p) => p.slug === "pricing" && p.status === "published");
-
   /*
-   * 🔴 19.0 / C90 — the precondition for every content check below.
+   * 🔴 19.0 / C90 / 21R.9 — the precondition for every content check below,
+   * and since 21R it is structural: the pages exist only inside this callback,
+   * so a check that reads them cannot be written outside a deferral.
    *
-   * Sprint 17 moved the prices out of the page and into a `pricing` block.
-   * A database that has not had that content published yet cannot pass these,
+   * Sprint 17 moved the prices out of the page and into a `pricing` block. A
+   * database that has not had that content published yet cannot pass these,
    * and failing them would make this gate permanently red for a reason
    * everybody already knows — which is how the next real failure gets skimmed
-   * past. When 22.8b publishes, this flips to true and they run again with no
-   * file edited.
+   * past. When 22.8b publishes, this flips on with no file edited.
    */
-  const contentPublished = pricingPages.some((p) => p.blocks.some((b) => b.type === "pricing"));
-  const AWAITS = "22.8b";
-  const WHY = "the sprint 17 pricing content is not published in this database";
+  await withPublishedContent(
+    skipUnless,
+    {
+      for: "17.9",
+      what: "the sprint 17 pricing content",
+      block: { slug: "pricing", type: "pricing" },
+    },
+    (content) => {
+      const pricingPages = content.published.filter(
+        (p) => p.slug === "pricing",
+      );
+      check(
+        "17.9 the pricing page is published in BOTH locales",
+        pricingPages.some((p) => p.locale === "en") &&
+          pricingPages.some((p) => p.locale === "ar"),
+        pricingPages.map((p) => p.locale).join(", "),
+      );
 
-  await skipUnless(contentPublished, AWAITS, `17.9 — ${WHY}`, () => {
-  check(
-    "17.9 the pricing page is published in BOTH locales",
-    pricingPages.some((p) => p.locale === "en") && pricingPages.some((p) => p.locale === "ar"),
-    pricingPages.map((p) => p.locale).join(", "),
-  );
+      check(
+        "🔴 17.2 the tier cards are the FIRST block on the pricing page — no hero above them",
+        pricingPages.every((p) => p.blocks[0]?.type === "pricing"),
+        pricingPages.map((p) => `${p.locale}:${p.blocks[0]?.type}`).join(", "),
+      );
 
-  check(
-    "🔴 17.2 the tier cards are the FIRST block on the pricing page — no hero above them",
-    pricingPages.every((p) => p.blocks[0]?.type === "pricing"),
-    pricingPages.map((p) => `${p.locale}:${p.blocks[0]?.type}`).join(", "),
-  );
+      check(
+        "17.5 …and the billing FAQ is below them",
+        pricingPages.every((p) => {
+          const faq = p.blocks.findIndex((b) => b.type === "faq");
+          const cards = p.blocks.findIndex((b) => b.type === "pricing");
+          return faq > cards && cards >= 0;
+        }),
+      );
 
-  check(
-    "17.5 …and the billing FAQ is below them",
-    pricingPages.every((p) => {
-      const faq = p.blocks.findIndex((b) => b.type === "faq");
-      const cards = p.blocks.findIndex((b) => b.type === "pricing");
-      return faq > cards && cards >= 0;
-    }),
+      const homePages = content.published.filter((p) => p.slug === "home");
+      check(
+        "🔴 17.7 the homepage carries THE SAME BLOCK, not a copy of the numbers",
+        homePages.length > 0 &&
+          homePages.every((p) => p.blocks.some((b) => b.type === "pricing")),
+        homePages.map((p) => p.locale).join(", "),
+      );
+    },
   );
-
-  const homePages = pages.filter((p) => p.slug === "home" && p.status === "published");
-  check(
-    "🔴 17.7 the homepage carries THE SAME BLOCK, not a copy of the numbers",
-    homePages.length > 0 && homePages.every((p) => p.blocks.some((b) => b.type === "pricing")),
-    homePages.map((p) => p.locale).join(", "),
-  );
-  });
 
   /* ------------------------- 🔴 the acceptance criterion, on real content */
 
-  const published = await db
-    .select({ slug: contentPages.slug, locale: contentPages.locale, blocks: contentPages.blocks })
-    .from(contentPages)
-    .where(
-      and(
-        eq(contentPages.status, "published"),
-        /*
-         * Staging rows are not pages. 19.0a writes `en-x-staging` copies so a
-         * page can be rendered and checked before its code deploys; they carry
-         * no navigation and no reader ever sees them, so counting them here
-         * makes a verifier fail on its own scaffolding — which it did, on
-         * 18.5, the first time this ran after the staging rows existed.
-         */
-        notLike(contentPages.locale, "%-x-staging"),
-      ),
-    );
+  await withPublishedContent(
+    skipUnless,
+    {
+      for: "17.10",
+      what: "the sprint 17 pricing content",
+      block: { slug: "pricing", type: "pricing" },
+    },
+    (content) => {
+      const published = content.published;
+      const offenders = published
+        .map((page) => ({ page, hits: moneyIn(page.blocks) }))
+        .filter((row) => row.hits.length > 0);
 
-  const offenders = published
-    .map((page) => ({ page, hits: moneyIn(page.blocks) }))
-    .filter((row) => row.hits.length > 0);
-
-  await skipUnless(contentPublished, AWAITS, `17.10 — ${WHY}`, () => {
-  check(
-    "🔴 17.10 NO published page states a price, rate, cut or minimum of its own, in any locale",
-    offenders.length === 0,
-    offenders.length === 0
-      ? `${published.length} pages scanned, every figure comes from platform_settings`
-      : offenders.map((o) => `${o.page.slug}[${o.page.locale}]: ${o.hits.join(" ")}`).join(" · "),
+      check(
+        "🔴 17.10 NO published page states a price, rate, cut or minimum of its own, in any locale",
+        offenders.length === 0,
+        offenders.length === 0
+          ? `${published.length} pages scanned, every figure comes from platform_settings`
+          : offenders
+              .map(
+                (o) => `${o.page.slug}[${o.page.locale}]: ${o.hits.join(" ")}`,
+              )
+              .join(" · "),
+      );
+    },
   );
-  });
 
   /*
    * 🔴 The control runs ALWAYS, published content or not.
@@ -250,7 +253,10 @@ async function main() {
       title: "control",
       status: "draft",
       blocks: [
-        { type: "prose", body: "Three rates. $6 a session, or 15% of what you charge." },
+        {
+          type: "prose",
+          body: "Three rates. $6 a session, or 15% of what you charge.",
+        },
       ],
     })
     .onConflictDoNothing();
@@ -259,7 +265,10 @@ async function main() {
     .select({ blocks: contentPages.blocks })
     .from(contentPages)
     .where(
-      and(eq(contentPages.slug, "verify17-control"), eq(contentPages.locale, "en")),
+      and(
+        eq(contentPages.slug, "verify17-control"),
+        eq(contentPages.locale, "en"),
+      ),
     )
     .limit(1);
 
@@ -269,7 +278,9 @@ async function main() {
     moneyIn(planted?.blocks ?? []).join(" ") || "THE SCAN IS BLIND",
   );
 
-  await db.delete(contentPages).where(eq(contentPages.slug, "verify17-control"));
+  await db
+    .delete(contentPages)
+    .where(eq(contentPages.slug, "verify17-control"));
 
   /* ------------------------------- the component, actually rendered */
 
@@ -277,17 +288,23 @@ async function main() {
   const nodes = await flatten(await PricingTiers({}));
   const text = textOf(nodes);
 
-  const prices = nodes.filter((n) => n.name === "PriceTag").map((n) => n.props.usdCents as number);
+  const prices = nodes
+    .filter((n) => n.name === "PriceTag")
+    .map((n) => n.props.usdCents as number);
   check(
     "🔴 17.10 every price the page renders IS a rate from platform_settings",
     prices.length === settings.pricing.tiers.length &&
-      prices.every((cents) => settings.pricing.tiers.some((t) => t.rateCents === cents)),
+      prices.every((cents) =>
+        settings.pricing.tiers.some((t) => t.rateCents === cents),
+      ),
     `rendered ${prices.join(", ")} · settings ${settings.pricing.tiers.map((t) => t.rateCents).join(", ")}`,
   );
 
   check(
     "17.8 …and each of them carries the EGP toggle, with a rate quoted on the server",
-    nodes.filter((n) => n.name === "PriceTag").every((n) => "rateMicro" in n.props),
+    nodes
+      .filter((n) => n.name === "PriceTag")
+      .every((n) => "rateMicro" in n.props),
   );
 
   const slider = nodes.find((n) => n.name === "BundleSlider");
@@ -320,9 +337,12 @@ async function main() {
   check(
     "🔴 C69 the netting sentence is published — and written conditionally, not as a universal",
     settings.payouts.netFeeFromHeldEarnings
-      ? text.includes("holding your earnings") && text.includes("own Stripe account")
+      ? text.includes("holding your earnings") &&
+          text.includes("own Stripe account")
       : !text.includes("holding your earnings"),
-    settings.payouts.netFeeFromHeldEarnings ? "netting on, sentence present and hedged" : "netting off, sentence absent",
+    settings.payouts.netFeeFromHeldEarnings
+      ? "netting on, sentence present and hedged"
+      : "netting off, sentence absent",
   );
 
   /*
@@ -344,16 +364,24 @@ async function main() {
       .values({ key: "payouts", value: { netFeeFromHeldEarnings: false } })
       .onConflictDoUpdate({
         target: platformSettings.key,
-        set: { value: { ...(stored?.value as object), netFeeFromHeldEarnings: false } },
+        set: {
+          value: {
+            ...(stored?.value as object),
+            netFeeFromHeldEarnings: false,
+          },
+        },
       });
 
-    const { getSettings: fresh } = await import(`../lib/settings/index.ts?off=${Date.now()}`);
+    const { getSettings: fresh } = await import(
+      `../lib/settings/index.ts?off=${Date.now()}`
+    );
     const off = await fresh();
     const offText = textOf(await flatten(await PricingTiers({})));
 
     check(
       "🔴 C69 CONTROL — switch netting off and the sentence is GONE from the page",
-      off.payouts.netFeeFromHeldEarnings === false && !offText.includes("holding your earnings"),
+      off.payouts.netFeeFromHeldEarnings === false &&
+        !offText.includes("holding your earnings"),
       off.payouts.netFeeFromHeldEarnings === false
         ? offText.includes("holding your earnings")
           ? "STILL THERE — the page describes a mechanic that is switched off"
@@ -367,7 +395,9 @@ async function main() {
         .set({ value: stored.value })
         .where(eq(platformSettings.key, "payouts"));
     } else {
-      await db.delete(platformSettings).where(eq(platformSettings.key, "payouts"));
+      await db
+        .delete(platformSettings)
+        .where(eq(platformSettings.key, "payouts"));
     }
   }
 
