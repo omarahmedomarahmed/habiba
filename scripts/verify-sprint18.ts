@@ -293,11 +293,6 @@ async function main() {
    * and somebody's session, so it is proved by **running the query it runs**
    * against a planted non-demo patient — and then removing it.
    */
-  const [org] = await db
-    .select({ id: sql<string>`id`, name: sql<string>`name` })
-    .from(sql`organizations`)
-    .limit(1);
-
   const countReal = async () => {
     const { rows } = (await db.execute(sql`
       SELECT (SELECT COUNT(*) FROM patients p
@@ -307,43 +302,118 @@ async function main() {
     return Number(rows[0]?.real_patients ?? 0);
   };
 
-  check(
-    "🔴 18.11 CONTROL — the sweep's own query SEES a patient outside a demo organisation",
-    org !== undefined && (await countReal()) > 0,
-    org
-      ? `${await countReal()} on "${org.name}"`
-      : "no organisation to test against",
-  );
+  /*
+   * 🔴 22.1 — the control plants its own offender now.
+   *
+   * It used to read whatever happened to be in the database, which made it a
+   * measurement of the seed rather than a test of the query: on the purged
+   * database it reported "0 on 24Therapy" and failed, having proved nothing
+   * either way. A control that only works on a full database is a control that
+   * stops working the day it matters most — the day before launch.
+   */
+  const schema = await import("../lib/db/schema");
+  const before = await countReal();
+  let planted = 0;
+
+  const [realOrg] = await db
+    .insert(schema.organizations)
+    .values({ name: "Verify18 Clinic", slug: `verify18-${Date.now()}` })
+    .returning({ id: schema.organizations.id, name: schema.organizations.name });
+
+  try {
+    const [person] = await db
+      .insert(schema.people)
+      .values({ firstName: "Verify18" })
+      .returning({ id: schema.people.id });
+
+    await db.insert(schema.patients).values({
+      organizationId: realOrg!.id,
+      personId: person!.id,
+      firstName: "Verify18",
+      // §3b / 0042 — a therapist-created record must carry an E.164 number.
+      phone: "+201000000018",
+    });
+
+    planted = await countReal();
+
+    check(
+      "🔴 18.11 CONTROL — the sweep's own query SEES a patient outside a demo organisation",
+      before === 0 && planted === 1,
+      `${before} before, ${planted} with one planted in "${realOrg!.name}"`,
+    );
+  } finally {
+    await db.execute(
+      sql`DELETE FROM patients WHERE organization_id = ${realOrg!.id}`,
+    );
+    await db.execute(sql`DELETE FROM people WHERE first_name = 'Verify18'`);
+    await db.execute(sql`DELETE FROM organizations WHERE id = ${realOrg!.id}`);
+  }
 
   /* ------------------------------------------------------------- C17 */
 
-  const { rows: cost } = (await db.execute(sql`
-    SELECT ROUND(SUM(cost_microcents) / 1000.0)::int AS exact_cents,
-           SUM(cost_cents)::int AS rounded_cents,
-           COUNT(*) FILTER (WHERE cost_cents = 0 AND cost_microcents > 0)::int AS lost_rows
-    FROM ai_request_logs
-  `)) as unknown as {
-    rows: { exact_cents: number; rounded_cents: number; lost_rows: number }[];
-  };
-
-  const vault = await import("../lib/data/vault");
-  const kinds = await vault.costByKind(3650);
-  const vaultTotal = kinds.reduce((total, row) => total + row.costCents, 0);
-
   /*
-   * The tolerance is one cent, and it is a real one rather than slack: the
-   * vault rounds **per kind** because each kind is a row somebody reads, so
-   * five rows can round to a cent more or less than the single exact total.
-   * Rounding once per displayed figure is the rule; rounding once per *stored
-   * row*, which is what `cost_cents` did, is the bug.
+   * 🔴 The founder's correction, applied: the METHOD, not the figures.
+   *
+   * This used to sum whatever `ai_request_logs` happened to hold, and the
+   * numbers in the build log ("212 → 204") drifted the week after they were
+   * written — and on the purged database there were no rows at all, so it
+   * failed while proving nothing. It plants three calls whose cost is real and
+   * **smaller than one cent**, which is the exact case that made the old
+   * `cost_cents` column record zero for 91% of calls, and asserts that the
+   * vault reports them.
    */
-  check(
-    "🔴 C17 the vault's cost figures are summed from MICROCENTS, not from the rounded column",
-    Math.abs(vaultTotal - (cost[0]?.exact_cents ?? 0)) <= 1 &&
-      (cost[0]?.lost_rows ?? 0) > 0 &&
-      vaultTotal !== cost[0]?.rounded_cents,
-    `vault ${vaultTotal}¢ · exact ${cost[0]?.exact_cents}¢ · old rounded column ${cost[0]?.rounded_cents}¢ over ${cost[0]?.lost_rows} rows stored as zero`,
-  );
+  const [costOrg] = await db
+    .insert(schema.organizations)
+    .values({ name: "Verify18 Costs", slug: `verify18-cost-${Date.now()}` })
+    .returning({ id: schema.organizations.id });
+
+  try {
+    await db.insert(schema.aiRequestLogs).values(
+      // 0.4¢, 0.3¢ and 0.25¢ — every one of them rounds to zero on write.
+      [400, 300, 250].map((microcents) => ({
+        organizationId: costOrg!.id,
+        kind: "note" as const,
+        model: "verify18-model",
+        // 🔴 The defect in one row: real cost, recorded as nothing.
+        costCents: 0,
+        costMicrocents: microcents,
+        status: "success" as const,
+      })),
+    );
+
+    const { rows: cost } = (await db.execute(sql`
+      SELECT ROUND(SUM(cost_microcents) / 1000.0)::int AS exact_cents,
+             SUM(cost_cents)::int AS rounded_cents,
+             COUNT(*) FILTER (WHERE cost_cents = 0 AND cost_microcents > 0)::int AS lost_rows
+      FROM ai_request_logs
+    `)) as unknown as {
+      rows: { exact_cents: number; rounded_cents: number; lost_rows: number }[];
+    };
+
+    const vault = await import("../lib/data/vault");
+    const kinds = await vault.costByKind(3650);
+    const vaultTotal = kinds.reduce((total, row) => total + row.costCents, 0);
+
+    /*
+     * The tolerance is one cent, and it is a real one rather than slack: the
+     * vault rounds **per kind** because each kind is a row somebody reads, so
+     * five rows can round to a cent more or less than the single exact total.
+     * Rounding once per displayed figure is the rule; rounding once per
+     * *stored row*, which is what `cost_cents` did, is the bug.
+     */
+    check(
+      "🔴 C17 the vault's cost figures are summed from MICROCENTS, not from the rounded column",
+      Math.abs(vaultTotal - (cost[0]?.exact_cents ?? 0)) <= 1 &&
+        (cost[0]?.lost_rows ?? 0) === 3 &&
+        vaultTotal !== cost[0]?.rounded_cents,
+      `vault ${vaultTotal}¢ · exact ${cost[0]?.exact_cents}¢ · the old rounded column ${cost[0]?.rounded_cents}¢ over ${cost[0]?.lost_rows} sub-cent calls`,
+    );
+  } finally {
+    await db.execute(
+      sql`DELETE FROM ai_request_logs WHERE organization_id = ${costOrg!.id}`,
+    );
+    await db.execute(sql`DELETE FROM organizations WHERE id = ${costOrg!.id}`);
+  }
 
   finish("sprint 18");
 }

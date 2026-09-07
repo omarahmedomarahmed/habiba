@@ -210,6 +210,45 @@ async function main() {
       absent.length === 0,
       absent.length ? `missing: ${absent.join(", ")}` : `${present.size} tables`,
     );
+
+    /*
+     * 🔴 22.9 — no CHECK is left `NOT VALID`.
+     *
+     * `NOT VALID` binds new writes and skips the scan, which is the right
+     * trade the day a rule arrives after the data. As a resting state it
+     * records a rule the schema does not assert: the planner will not use it,
+     * and "does every row obey this?" has no answer but "nobody looked". The
+     * purge made every scan free, 0054 validated all fifteen, and this is what
+     * stops the next one being added and left that way.
+     */
+    const unvalidated = await db
+      .execute<{ tbl: string; conname: string }>(
+        sql`SELECT conrelid::regclass::text AS tbl, conname
+              FROM pg_constraint
+             WHERE contype = 'c' AND NOT convalidated
+             ORDER BY 1, 2`,
+      )
+      .then((r) => r.rows);
+
+    check(
+      "🔴 22.9 every CHECK constraint is VALIDATED — none is a rule the schema does not assert",
+      unvalidated.length === 0,
+      unvalidated.map((row) => `${row.tbl}.${row.conname}`).join(", ") ||
+        "all validated, scanned against real rows",
+    );
+
+    const [feedback] = await db
+      .execute<{ is_nullable: string }>(
+        sql`SELECT is_nullable FROM information_schema.columns
+             WHERE table_name = 'sessions' AND column_name = 'feedback_token'`,
+      )
+      .then((r) => r.rows);
+
+    check(
+      "22.9 …and sessions.feedback_token is NOT NULL, not a CHECK standing in for a column type",
+      feedback?.is_nullable === "NO",
+      `is_nullable=${feedback?.is_nullable}`,
+    );
   } finally {
     await pool.end();
   }

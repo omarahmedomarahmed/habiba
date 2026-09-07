@@ -48,12 +48,46 @@ async function main() {
   console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
 
   try {
-    const [org] = await db.select({ id: organizations.id }).from(organizations).limit(1);
-    const staff = await db.select({ id: users.id }).from(users).limit(3);
-    if (!org || staff.length < 3) {
-      check("16 an organisation and three users exist", false);
-      return;
-    }
+    /*
+     * 🔴 22.1 — the fixtures are PLANTED, not borrowed.
+     *
+     * This used to take the first organisation and the first three users it
+     * found, which meant it only ran on a database somebody else had filled.
+     * After the purge there was one user — the seeded admin — and the whole
+     * verifier stopped at its first line, reporting a missing fixture as a
+     * failure and checking none of the twenty-nine things it exists to check.
+     * A gate that only works on a full database is a gate that stops working
+     * the week before launch.
+     */
+    const [org] =
+      (await db.select({ id: organizations.id }).from(organizations).limit(1)).length > 0
+        ? await db.select({ id: organizations.id }).from(organizations).limit(1)
+        : await db
+            .insert(organizations)
+            .values({ name: `${TAG} clinic`, slug: `${TAG}-${Date.now()}` })
+            .returning({ id: organizations.id });
+
+    const existing = await db.select({ id: users.id }).from(users).limit(3);
+    const wanted = 3 - existing.length;
+
+    const planted =
+      wanted > 0
+        ? await db
+            .insert(users)
+            .values(
+              Array.from({ length: wanted }, (_, index) => ({
+                organizationId: org!.id,
+                email: `${TAG}-${index}-${Date.now()}@example.test`,
+                passwordHash: "x".repeat(60),
+                firstName: `${TAG}`,
+                lastName: `${index}`,
+                role: "therapist" as const,
+              })),
+            )
+            .returning({ id: users.id })
+        : [];
+
+    const staff = [...existing, ...planted];
     const [payee, alice, bob] = staff as [{ id: string }, { id: string }, { id: string }];
 
     /* ------------------------------------------------ 16.9 · the entity */
@@ -563,6 +597,13 @@ async function main() {
     await db.delete(payoutRequests).where(like(payoutRequests.identifier, `${TAG}%`));
     await db.delete(payoutMethods).where(like(payoutMethods.identifier, `${TAG}%`));
     await db.delete(ledgerEntries).where(like(ledgerEntries.memo, `${TAG}%`));
+    /*
+     * Last, because everything above refers to them: the users and the
+     * organisation this run planted, and never one it found.
+     */
+    await db.delete(users).where(like(users.email, `${TAG}-%`));
+    await db.delete(organizations).where(like(organizations.name, `${TAG} clinic`));
+
   }
 
   console.log(

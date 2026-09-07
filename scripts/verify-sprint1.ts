@@ -45,9 +45,15 @@ async function main() {
 
     const groups = await db.select().from(platformSettings);
     const keys = groups.map((g) => g.key).sort();
+    /*
+     * Present, not equal. Sprint 16 added `payouts` and this check asserted the
+     * exact list, so it went red on a correctly seeded database — a gate that
+     * fails when a later sprint does its job is a gate people learn to ignore.
+     * Sprint 1's claim is that its four groups exist.
+     */
     check(
-      "1.1 platform_settings holds all four groups",
-      keys.join(",") === "clock,copilot,pricing,session",
+      "1.1 platform_settings holds all four of sprint 1's groups",
+      ["clock", "copilot", "pricing", "session"].every((key) => keys.includes(key)),
       keys.join(","),
     );
 

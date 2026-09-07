@@ -94,11 +94,24 @@ async function main() {
             status: "scheduled",
             modality: "video",
             guestName: "verify12-no-token",
-            feedbackToken: null,
+            // 🔴 Deliberately absent, past the type, to prove the DATABASE
+            // refuses it — a rule the compiler enforces is not the same rule.
+            feedbackToken: null as unknown as string,
           }),
-        "sessions_feedback_token_present",
+        /*
+         * 22.9 made the column `NOT NULL`, so the refusal now comes from the
+         * column rather than from the CHECK beside it. The claim under test is
+         * that the DATABASE refuses it — either message is that claim, and
+         * pinning the constraint's name would have made a strengthening of the
+         * rule look like a regression.
+         */
+        "feedback_token",
       );
-      check("🔴 12.2 the database refuses a session with no feedback token", tokenRefused);
+      check(
+        "🔴 12.2 the database refuses a session with no feedback token",
+        tokenRefused,
+        "refused by the NOT NULL column (0054) or the CHECK beside it",
+      );
 
       const [ok] = await db
         .insert(sessions)

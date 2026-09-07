@@ -470,7 +470,13 @@ export const sessions = pgTable(
      * days forced the room key to stay valid for days. They have different
      * lifetimes and different audiences, so they are different secrets.
      */
-    feedbackToken: text("feedback_token"),
+    /**
+     * 🔴 22.9 — `NOT NULL` since 0054, once the purge made the scan free.
+     *
+     * All three functions that create a session mint one; the nullable column
+     * was a fact about the rows that existed in August, not about the rule.
+     */
+    feedbackToken: text("feedback_token").notNull(),
 
     videoRoomUrl: text("video_room_url"),
     videoRoomName: text("video_room_name"),
