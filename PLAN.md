@@ -151,6 +151,12 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C89 | 17, 18 | 🔴 **Sprints 17 and 18 are code-complete and invisible.** Production's `content_pages` still holds the pre-sprint pages — an English `pricing` from 5 Sept that writes `$4 $3 $2. 15%` into the page itself, no Arabic pricing at all, and no `for-patients` row in either locale. So the live site today has the old pricing page, C72's Arabic fallback still broken, and no patients section. **The refusal to republish was correct** (a `pricing` block in the database before the code deploys serves a page with no prices, C60), but the consequence was not recorded: two sprints' user-visible outcome now depends entirely on 22.8b/22.8c, and nothing before then proves it works. **Ruling: publish to a staging locale or a draft row and prove the render there**, so the seed script that 22 runs is a thing that has been *executed*, not a thing that has been *written*. | major | review | **RULED 2026-09-08, sprint 19.0a — proved by rendering, against production.** `republish.ts --staging` writes each page into a **staging locale** (`en-x-staging`, `ar-x-staging`) — a locale no reader path asks for, so nothing served changes — and `scripts/render-check.ts` renders those rows through the **real `BlockRenderer`** and asserts on the HTML that comes out: the rates from `platform_settings` present on the pricing page *and* the homepage, the slider at the bundle minimum, the crisis panel pointing at `/radar`, the contact form with both companies, and 1,859 Arabic characters on the Arabic patients page. Run against **production**: 14 staged rows, 13 checks, PASS. So what 22.8b runs is now a script that has been executed against the real database, not one that has been written. **A defect this found, in itself:** `readNav` reads **every** locale and collapses by slug, so a staged page would have appeared in the live navigation of the *running* deployment the moment it was written — caught minutes after the first staging write, fixed with two locks (staging rows carry no `nav_label`; the query excludes staging locales outright), and the live nav re-checked against the deployed code's own query. **A second one:** `getLocale()` threw outside a request, so any page with a price could not be rendered by a script at all — now the request accessors fall back to the default language, in a `try` rather than a `.catch()`, because `cookies()` throws *synchronously* and the first fix chained onto a promise that never existed. |
 | C90 | 17, 18 | 🔴 **Two verifiers are permanently red and every later sprint will run them.** `verify:sprint17` fails 5 of 14 against production and `verify:sprint18` fails 5 of 15, all for one reason — they read published content that C89 says will not exist until sprint 22. The reported 14/14 and 15/15 were true against a seeded database and are not true against production. A gate that is red for a known reason is a gate everybody learns to ignore, and the next real failure hides inside it. **Ruling: a check that depends on content published in a later sprint is SKIPPED with its reason printed, not FAILED** — `-- 17.9 deferred to 22.8b: pricing content not yet published` — and sprint 22 flips them back on. "All verifiers pass" has to keep meaning something. | major | review | **RULED 2026-09-08, sprint 19.0 — a skip, with its reason printed, and a precondition rather than a flag.** `scripts/_verify.ts` is now the shared reporter for every acceptance script: `skipUnless(ready, deferredTo, reason, fn)` runs the checks when the content is there and otherwise prints `--  deferred to 22.8b: …` and counts it. The summary can never read as clean — `sprint 17: PASS (9 checks, 2 deferred)`. **Proved against the database that was red:** production now reports 9 checks / 2 deferred for sprint 17 and 9 / 3 for sprint 18, and the seeded branch reports 14 and 15 with **zero** deferred, from the same file with nothing edited. Three rules keep it honest: a skip must name what it waits for; skips are counted in the summary; and **the controls never skip** — the proof that a scan can see an offender runs whether or not the content exists, because a deferred check that was never tested would pass the day 22 publishes and nobody would know. |
 | C91 | 18 | **The public site still has no way to contact anybody, and two companies now need to be reachable.** §3c gives the platform a US entity and an Egyptian one; the `contact` page is a static CMS row from August with no form, and nothing on it is per-entity. **Founder requirement, 2026-09-08:** a real contact form on the public site, plus contact details for **both** companies — each editable by admin, each translatable, and the form's messages landing somewhere a named person works from rather than an inbox nobody owns. | major | founder | **RULED 2026-09-08, sprint 18R — built as a support ticket, not as an email.** `support_tickets` and `support_ticket_events` (migration 0048, applied to production first): a topic from a list, a 24-hour clock that **pauses while we are waiting on them** (20.20 / C83), a named owner, and every move recorded. The queue query deliberately **cannot carry a message body** — triage is topic, age and owner, and a list view that renders a hundred people's health information on one screen is the failure this table exists to prevent. **What made this the sprint's real decision:** 18R.4 says what a stranger types is clinical material the moment it lands, so it is audited under **`phi_access`** rather than under a new "support" category — a separate category would make "who read patient material this month" answerable and wrong. C82's *never in a prompt* is enforced as an **import-graph ban** proved with an offender file planted in `lib/ai` and then deleted, not as a regex tested against a string in the verifier. **Both companies are content, every field:** name, address, phone, email, hours, and what to write to each about, per locale, with the international entity sorted first and both always rendered; the renderer contains no company name or address at all, which the verifier asserts. Spam resistance is a honeypot plus the platform's own two-tier rate limit, and **no third-party widget** — a tracker on the page somebody uses to ask for help contradicts the product on the page where it matters most. **What it costs:** a ticket cannot be answered from an email client; somebody has to open the queue sprint 20 builds. Until then the messages are stored, safe and unanswered, and that is the honest state — the alternative was an inbox nobody owns. |
+| C92 | 17, 22 | 🔴 **The live pricing page has no tiers, no slider, no currency toggle — and it states something the founder reversed.** Verified on `24t.vercel.app/pricing` today: the page is a paragraph with `$4 / $3 / $2` written into it, then the FAQ. Sprint 17 built the cards; production content overrides them (C89, C60). Worse than missing: the page still says *"we never hold it — the money is a direct charge into your own Stripe account"*, which §3c **deliberately reversed** on 2026-09-06. A live page is making a factual claim about where money sits that the product no longer honours. **Ruling: this is not a content-refresh nicety, it is a correctness bug on a public page.** The seed content must be published — into staging first, then live at the purge — and 22 cannot close while any published page contradicts §3c. | major | founder | **ruled — 21R and 22** |
+| C93 | 18R, 19 | **C90's ruling was applied to the two red verifiers and not to the rule.** `verify:sprint18r` now fails 4 of 20 and `verify:sprint19` fails 1 of 17, all for C89's single cause — content that will not be published until 22. The skip-with-reason mechanism exists; the new checks did not use it. **Ruling: skip-with-reason is the pattern for every check that reads published content, not a patch applied to two files.** Any sprint that adds such a check adds it as deferrable from the start. | minor | review | **ruled — 21R** |
+| C94 | 21R | 🔴 **Sign-in is one door for three kinds of person.** `/login` serves therapists and admins together; `/patient/login` and `/patient/signup` exist and link to each other, but there is **no patient password reset at all** and the patient pages do not offer one. Three audiences with different risks share one surface: an admin console, a clinician's caseload, and a patient's own record. **Founder requirement, 2026-09-07:** separate admin sign-in, separate patient sign-in and sign-up, each cross-linked, each with its own reset — and the patient's reset must work for an account with no email (§3b, 13R.10). | major | founder | **ruled — 21R** |
+| C95 | 21R | **The hero puts its icon on its own line.** Reported by the founder on the live site: the icon should sit inline with the hero text, not break to a new row. Small, and the sort of thing that only a person looking at the page finds — which is the argument for the walkthrough in 22R. | minor | founder | **ruled — 21R** |
+| C96 | 22R | 🔴 **Nobody has ever used this product as a person.** Every verifier asserts against the database or the import graph; no sprint has clicked from a signed-out browser to a finished session. The founder found C92, C94 and C95 in minutes by looking. That is not a gap in any one sprint, it is a missing kind of test. **Ruling: a full human walkthrough on a freshly purged database is its own sprint (22R), before beta** — every user type, every route, screenshotted, with the reviewer writing down what was hard to find as well as what was broken. | major | founder | **ruled — sprint 22R** |
+| C97 | 22R | **Six-hourly check-ins to every patient.** Founder requirement, 2026-09-07: a personalised, very short, differently-worded message asking how somebody is, carrying their name. ⚠️ **The cadence is the part to prove rather than assume** — four unprompted messages a day is a great deal for somebody in distress, and a patient who mutes the channel is worse off than one who was messaged less. **Ruling: build it, ship it with an admin-controlled rate, an opt-out and an overnight quiet window, and measure the mute rate.** And 🔴 a check-in is not a clinical assessment: it asks, it never interprets, and a worrying reply goes to the crisis path rather than to a copilot. | major | founder | **ruled — 22R.11–22R.12** |
 | C85 | 13 | **Nothing stores a patient's time zone, so `useReaderZone` is permanent rather than temporary.** The hook is the right answer for a screen the server knows nothing about, but every patient screen now flashes UTC before correcting — including the consent list, where the date is the legally meaningful part of the record. Nobody has ruled on this. **Recommended ruling: sprint 13 captures the zone at signup** — detected in the browser, shown, editable, stored on `patient_accounts` beside the phone. Patient screens then take it as a prop exactly like the clinician ones, and `useReaderZone()` is left only for genuinely anonymous pages. The identity sprint is where a person tells us who and where they are; adding a column later means a second migration and a second sweep. | minor | review | **resolved 13.11–13.13** — `patient_accounts.timezone` (0043), detected in the browser by `useReaderZone`, **shown and editable** on signup, stored. Precedence is `resolveZone`'s existing shape: the account's, then `patients.timezone`, then the therapist's, then UTC. 🔴 Claiming never copies the account's zone onto the patient row — asserted in `verify-sprint13.ts`, because that row records what the browser said the day the booking was made and one account may hold records from two therapists |
 | C73 | 16 | 🔴 **Holding money makes this a money transmitter, and that is now the plan.** §3c changes 1.8 deliberately, and the two cross-border crossings — USD collected for an Egyptian therapist, EGP collected for an international one — are the exposed ones. In the US that is licensing in roughly 48 states with bonds from $50k; in Egypt and the UAE it is central-bank licensing. The domestic Egyptian leg (EGP in, EGP out, one entity, one country) is a materially smaller question than the cross-border legs and should be separated when counsel is asked. | blocker | founder decision | **accepted, not resolved — 2026-09-06.** Founder's ruling: build it and ship it. The cross-border crossings may prove rare, and finding out is itself worth doing; counsel comes when there is traction to protect. **This row stays open permanently as a known, accepted risk** — it is not a blocker and it is not something anybody gets to be surprised by later. The code obligation is unconditional either way: a real ledger, one entity stamped per transaction, daily reconciliation to zero |
 | C74 | 16 | **Manual payouts are three people, and people sleep.** A payout request that nobody picks up is money a therapist is owed and cannot see moving. The queue needs an age, an alert, and an owner per request — and a therapist-visible status, because "requested" with no date is how trust is lost. Also: a manual process is where the fraud is. Two-person approval above a threshold, and never the same person who edited the payout details. | major | review | **RULED 2026-09-06, sprint 16 — built, and the two rules that matter live in the database.** Every requirement is implemented: `payout_requests` carries an age, a named owner, five states each with its own timestamp and person, a transfer receipt the clinician can see, and `payout_request_events` recording every transition. The ageing alert goes out through `notify()`, which sends on **every** channel (13R.12) — a phone and an email, never only the queue screen. **The fraud rules are CHECK constraints, not code paths:** `payout_requests_approver_not_payee`, `payout_requests_approver_not_editor` and `payout_requests_sent_was_approved`. Why there: a rule enforced only by the function that usually runs is one admin script away from not existing, and the verifier proves the point by writing the forbidden approval **straight to the table**, past every code path, and watching Postgres refuse it. **The threshold is a setting** (`payouts.twoPersonThresholdCents`, $500 by default) because a $20 wallet transfer does not need two signatures and a rule people work around is worse than none; setting it to 0 makes every payout need two, and there is deliberately no way to switch the rule off. **What it costs:** the second person is a real cost on a team of three at 3am, and above the threshold a payout can stall waiting for somebody to wake up. That is the intended trade — a stalled payout is visible and alerts; a fraudulent one is not. |
@@ -1588,6 +1594,116 @@ back out because it is a sprint's worth on its own.)*
       it, keeps it hidden, publishes it when it is complete — with no deploy —
       and cannot delete a crisis instruction, blank a button, or put an
       unreviewed machine sentence in front of a patient.
+
+### Sprint 21R — The loose ends a person found · ~1 week · 🔴 AFTER 21, BEFORE 22
+
+*(Everything in this sprint was found by the founder opening the live site,
+not by a verifier. That is the point of it, and the argument for 22R.)*
+
+**Three doors, not one — C94**
+
+- [ ] **21R.1** 🔴 **A separate admin sign-in.** An admin console, a
+      clinician's caseload and a patient's own record are three different
+      risks; they do not share a form. Admin sign-in is not linked from the
+      public site
+- [ ] **21R.2** **Therapist sign-in and sign-up**, cross-linked to each other,
+      and to the patient pages — *"Looking for your own sessions?"*
+- [ ] **21R.3** **Patient sign-in and sign-up**, cross-linked the same way
+      back. Both already exist; they need the links and the third page below
+- [ ] **21R.4** 🔴 **Password reset for every one of them, and none exists for
+      patients today.** The patient's reset must work for an account with **no
+      email address** (§3b, 13R.10) — the code goes over WhatsApp. ⚠️
+      Incomplete until the Meta templates are approved, and the page says so
+- [ ] **21R.5** Every one of these pages carries the reset link. A reset that
+      exists and is not linked is a reset nobody has
+
+**The pricing page is wrong, not just plain — C92**
+
+- [ ] **21R.6** 🔴 **The live pricing page contradicts §3c.** It still says
+      *"we never hold it — the money is a direct charge into your own Stripe
+      account"*, which the founder reversed on 2026-09-06. A public page is
+      making a claim about where money sits that the product no longer
+      honours. This is a correctness bug, not a copy refresh
+- [ ] **21R.7** Publish the sprint 17 pricing block and the sprint 18 pages
+      into **staging**, render them, read them, and fix what reads badly —
+      then the same content is what 22 seeds. Cards first, slider, FAQ below,
+      currency toggle, no prices written into prose
+- [ ] **21R.8** **A full written content pass, English and Arabic**, over
+      every public page — not translation, *writing*. The Arabic is written as
+      Arabic, not rendered from the English. Both read by somebody after 21's
+      editor exists, so what is fixed is fixed as content
+
+**The rest — C93, C95**
+
+- [ ] **21R.9** Every check that reads published content is **deferrable from
+      the start** (C93). The skip-with-reason mechanism exists; apply it as a
+      rule, not as a patch to two files. `verify:sprint18r` is 4/20 red and
+      `verify:sprint19` is 1/17 red today for exactly C89's reason
+- [ ] **21R.10** The hero icon sits **inline with the hero text**, not on its
+      own line (C95). Check every hero, both languages, both directions — RTL
+      is where this kind of thing hides
+- **Accept:** three kinds of person can each get in, get back in, and read a
+      pricing page that is true.
+
+### Sprint 22R — The walkthrough · ~1.5 weeks · 🔴 AFTER THE PURGE, BEFORE BETA
+
+*(C96. Every verifier so far asserts against the database or the import graph.
+Nobody has ever used this product as a person. The founder found three real
+defects in minutes by looking at it, which is the whole argument.)*
+
+- [ ] **22R.1** 🔴 **On a freshly purged database with seeded admin only.**
+      Nothing carried over. Every account created through the real forms
+- [ ] **22R.2** **The whole clinical arc, as a human, in order:** therapist
+      signs up → admin approves them → therapist adds a patient record →
+      invites them → **patient signs up and claims it** → session invite →
+      patient joins → session runs → transcript → note → patient report →
+      invoice raised and paid
+- [ ] **22R.3** **Then the hard part, which nothing has ever exercised:** a
+      **second** therapist adds the *same* patient → the claim request reaches
+      that patient → they claim it → the second therapist sees the documents
+      the first uploaded → a session with the second therapist → **it appears
+      in the first therapist's history, because access has not been revoked**
+      → the patient **revokes the first therapist** → confirm it is gone from
+      that side and intact on the other
+- [ ] **22R.4** **Documents and copilot:** upload real history files, ask the
+      copilot about them, confirm the citations resolve and that a revoked
+      clinician gets nothing
+- [ ] **22R.5** **The patient's own side:** progress, homework, session notes,
+      billing, account, both handles, reset
+- [ ] **22R.6** **Everything else a therapist can do:** copilot message limit
+      reached and refused · going on the radar · on-call · requesting a payout
+      · EGP and USD · buying a bundle · **upgrading, then downgrading while
+      holding 30 unused sessions — prove exactly how the balance rolls over,
+      because that is the case somebody will complain about**
+- [ ] **22R.7** **Everything an admin, a manager and a staff member can do**,
+      each signed in as themselves, each seeing only what their role allows
+- [ ] **22R.8** 🔴 **Screenshot every page for every user type** and save the
+      sweep. Now legitimate: the database is synthetic (C80)
+- [ ] **22R.9** 🔴 **Write down what was hard, not only what was broken.**
+      Buttons that were difficult to find, controls hidden behind a modal or a
+      popup, a step where it was unclear what happens next, anything that
+      needed the plan to understand. **A verifier cannot report this and no
+      sprint so far has looked for it**
+- [ ] **22R.10** Fill the gaps that sweep finds, then **a second purge**, then
+      beta with the legal disclaimers in place
+- **Accept:** every route, for every kind of person, has been walked by
+      somebody reasoning as a user — and what was awkward is written down
+      beside what was broken.
+
+**Notifications, while the walkthrough is running — C97**
+
+- [ ] **22R.11** **A personalised check-in to every patient.** Their name,
+      very short, differently worded each time — never a template everybody
+      recognises. Sent on a schedule the founder set at six-hourly; ⚠️ **that
+      cadence is the thing to prove rather than assume** — four unprompted
+      messages a day is a lot for somebody in distress, and a person who mutes
+      it is worse off than one who was messaged less. Ship it with a **rate
+      the admin controls**, an opt-out, and a **quiet window overnight**
+- [ ] **22R.12** Every notification the product sends carries the person's
+      name and is rewritten so no two read the same. Very short. 🔴 **A
+      check-in is not a clinical assessment** — it asks how somebody is, it
+      never interprets the answer, and a reply that suggests risk goes to the
+      crisis path, not to a copilot
 
 ### Sprint 22 — Purge, rotate, launch · ~3 days · 🔴 THE GATE
 
