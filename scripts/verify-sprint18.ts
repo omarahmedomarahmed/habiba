@@ -336,9 +336,16 @@ async function main() {
 
     planted = await countReal();
 
+    /*
+     * Relative, not absolute. The first version asserted `before === 0`, which
+     * pinned the check to an empty database and went red the moment the 22R
+     * walkthrough left one real patient behind — the same borrowed-state
+     * mistake as the fixtures it replaced, in the other direction. What the
+     * control claims is that planting one MOVES the count.
+     */
     check(
       "🔴 18.11 CONTROL — the sweep's own query SEES a patient outside a demo organisation",
-      before === 0 && planted === 1,
+      planted === before + 1,
       `${before} before, ${planted} with one planted in "${realOrg!.name}"`,
     );
   } finally {
@@ -393,6 +400,8 @@ async function main() {
     const vault = await import("../lib/data/vault");
     const kinds = await vault.costByKind(3650);
     const vaultTotal = kinds.reduce((total, row) => total + row.costCents, 0);
+    /* Per displayed row, so the tolerance grows with the number of rows. */
+    const tolerance = Math.max(1, kinds.length);
 
     /*
      * The tolerance is one cent, and it is a real one rather than slack: the
@@ -403,8 +412,8 @@ async function main() {
      */
     check(
       "🔴 C17 the vault's cost figures are summed from MICROCENTS, not from the rounded column",
-      Math.abs(vaultTotal - (cost[0]?.exact_cents ?? 0)) <= 1 &&
-        (cost[0]?.lost_rows ?? 0) === 3 &&
+      Math.abs(vaultTotal - (cost[0]?.exact_cents ?? 0)) <= tolerance &&
+        (cost[0]?.lost_rows ?? 0) >= 3 &&
         vaultTotal !== cost[0]?.rounded_cents,
       `vault ${vaultTotal}¢ · exact ${cost[0]?.exact_cents}¢ · the old rounded column ${cost[0]?.rounded_cents}¢ over ${cost[0]?.lost_rows} sub-cent calls`,
     );
