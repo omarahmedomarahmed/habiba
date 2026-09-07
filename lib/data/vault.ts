@@ -249,6 +249,23 @@ export type Traction = {
   arpuCents: number;
   costPerSessionCents: number;
   revenuePerSessionCents: number;
+  /**
+   * 🔴 20.6 — margin per session, from real usage rather than from the price
+   * list.
+   *
+   * Revenue per session minus what the models actually cost to produce it, in
+   * cents, over the last 30 days — and the percentage that is of revenue. The
+   * figure that matters is not "what do we charge" but "what is left after
+   * transcribing an hour of speech and writing a note about it", and the only
+   * honest source for the second half is `ai_request_logs`.
+   *
+   * `marginBps` is null when nothing was collected: a margin on zero revenue
+   * is a division by zero dressed up as a percentage, and 0% would read as
+   * "we make nothing" rather than "there is nothing to measure yet" — the
+   * same refusal 14.7 makes about a reliability score below five sessions.
+   */
+  marginPerSessionCents: number;
+  marginBps: number | null;
 };
 
 /**
@@ -343,6 +360,9 @@ export async function tractionMetrics(): Promise<Traction> {
     arpuCents: activated > 0 ? Math.round(collected30 / activated) : 0,
     costPerSessionCents: sessions30 > 0 ? Math.round(spent30 / sessions30) : 0,
     revenuePerSessionCents: sessions30 > 0 ? Math.round(collected30 / sessions30) : 0,
+    marginPerSessionCents:
+      sessions30 > 0 ? Math.round((collected30 - spent30) / sessions30) : 0,
+    marginBps: collected30 > 0 ? Math.round(((collected30 - spent30) / collected30) * 10_000) : null,
   };
 }
 

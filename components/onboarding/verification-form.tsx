@@ -12,7 +12,11 @@ import {
   type OnboardingState,
 } from "@/app/(app)/onboarding/actions";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
-import { documentRequirements, regulatorsFor } from "@/lib/regulators";
+import {
+  documentRequirements,
+  regulatorsFor,
+  type RequirementOverrides,
+} from "@/lib/regulators";
 import { cn } from "@/lib/utils";
 
 const INITIAL: OnboardingState = {};
@@ -52,8 +56,16 @@ export function VerificationForm({
   languageOptions,
   specialtyOptions,
   uploadsEnabled,
+  requirements,
 }: {
   state: "draft" | "submitted" | "approved" | "rejected";
+  /**
+   * 20.4 / 20.5 — what an administrator has configured per country: which
+   * regulators to offer, and what to call the documents we ask for. A country
+   * with nothing configured falls through to the shipped constants, field by
+   * field, so a half-filled row is better than none rather than worse.
+   */
+  requirements: RequirementOverrides;
   missing: string[];
   reviewNote: string | null;
   initial: {
@@ -85,7 +97,7 @@ export function VerificationForm({
    */
   const [country, setCountry] = useState(initial.country);
   const [licenseBody, setLicenseBody] = useState(initial.licenseBody);
-  const regulators = regulatorsFor(country);
+  const regulators = regulatorsFor(country, requirements);
 
   /*
    * Prefill the regulator, and replace our own prefill when the country
@@ -111,7 +123,7 @@ export function VerificationForm({
   }
 
   /* Slots keep any URL already uploaded; only the wording follows the country. */
-  const slots: DocSlot[] = documentRequirements(country || null).map((requirement) => ({
+  const slots: DocSlot[] = documentRequirements(country || null, requirements).map((requirement) => ({
     ...requirement,
     url: documents.find((doc) => doc.key === requirement.key)?.url ?? null,
   }));

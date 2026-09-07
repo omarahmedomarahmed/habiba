@@ -318,8 +318,35 @@ export type CountrySettings = {
   currency: string;
   /** Payment method keys offered in this country. */
   paymentMethods: string[];
+
+  /**
+   * 20.3 — the two rails, per country.
+   *
+   * `collectionProvider` is how a patient here pays us; `payoutMethods` is how
+   * a clinician here is paid. **Both empty is the interesting case**: a
+   * country we can name and cannot transact in, which the admin screen lists
+   * by itself, because a clinician who signed up somewhere with no rail is a
+   * person we cannot pay rather than a row in a spreadsheet.
+   */
+  collectionProvider: string | null;
+  payoutMethods: string[];
+  /** Which entity collects here (§3c). */
+  entity: "us" | "eg";
+
+  /** 20.4 / 20.5 — what we ask for here, and who licenses it. */
+  regulators: string[];
+  idLabelFront: string | null;
+  idLabelBack: string | null;
+  licenceLabel: string | null;
+  sampleImageUrl: string | null;
+
   enabled: boolean;
 };
+
+/** 20.3 — a country nobody can pay into or out of. */
+export function hasNoRail(country: CountrySettings): boolean {
+  return !country.collectionProvider && country.payoutMethods.length === 0;
+}
 
 /**
  * Seeded countries.
@@ -338,6 +365,20 @@ export const COUNTRY_SEED: CountrySettings[] = [
     vatBps: 1400,
     currency: "egp",
     paymentMethods: ["card"],
+    /*
+     * 20.3 — Egypt is the local rail: an Egyptian collector takes the money
+     * in, the Egyptian entity holds it, and a clinician here is paid by
+     * InstaPay or a wallet. §3c, made data.
+     */
+    collectionProvider: "paymob",
+    payoutMethods: ["instapay", "wallet"],
+    entity: "eg",
+    /* 20.4 / 20.5 — seeded from `lib/regulators.ts`, editable from admin. */
+    regulators: ["Egyptian Ministry of Health and Population"],
+    idLabelFront: "National ID (البطاقة) — front",
+    idLabelBack: "National ID (البطاقة) — back",
+    licenceLabel: "Practising licence or syndicate card",
+    sampleImageUrl: null,
     enabled: true,
   },
   {
@@ -346,6 +387,14 @@ export const COUNTRY_SEED: CountrySettings[] = [
     vatBps: 0,
     currency: "usd",
     paymentMethods: ["card"],
+    collectionProvider: "stripe",
+    payoutMethods: ["stripe"],
+    entity: "us",
+    regulators: [],
+    idLabelFront: "Driver's licence or passport — front",
+    idLabelBack: "Driver's licence or passport — back",
+    licenceLabel: "State licence",
+    sampleImageUrl: null,
     enabled: true,
   },
 ];
@@ -356,16 +405,39 @@ export function parseCountry(row: {
   vatBps: number;
   currency: string;
   paymentMethods: unknown;
+  collectionProvider?: string | null;
+  payoutMethods?: unknown;
+  entity?: string | null;
+  regulators?: unknown;
+  idLabelFront?: string | null;
+  idLabelBack?: string | null;
+  licenceLabel?: string | null;
+  sampleImageUrl?: string | null;
   enabled: boolean;
 }): CountrySettings {
+  const list = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+
   return {
     code: row.code.toUpperCase(),
     name: row.name,
     vatBps: int(row.vatBps, 0, { min: 0, max: 9_000 }),
     currency: str(row.currency, "usd").toLowerCase(),
-    paymentMethods: Array.isArray(row.paymentMethods)
-      ? row.paymentMethods.filter((m): m is string => typeof m === "string")
-      : [],
+    paymentMethods: list(row.paymentMethods),
+    collectionProvider: row.collectionProvider?.trim() || null,
+    payoutMethods: list(row.payoutMethods),
+    entity: row.entity === "eg" ? "eg" : "us",
+    regulators: list(row.regulators),
+    /*
+     * Empty means "not configured", which the accessor turns into the shipped
+     * fallback in `lib/regulators.ts` — an empty string here would instead
+     * mean "we ask for a document with no name", and a clinician staring at a
+     * blank label is exactly the support ticket 20.4 is trying to remove.
+     */
+    idLabelFront: row.idLabelFront?.trim() || null,
+    idLabelBack: row.idLabelBack?.trim() || null,
+    licenceLabel: row.licenceLabel?.trim() || null,
+    sampleImageUrl: row.sampleImageUrl?.trim() || null,
     enabled: row.enabled,
   };
 }

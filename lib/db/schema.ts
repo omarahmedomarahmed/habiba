@@ -2199,6 +2199,37 @@ export const countrySettings = pgTable("country_settings", {
   /** ISO 4217, lowercase, as Stripe wants it. */
   currency: text("currency").notNull(),
   paymentMethods: jsonb("payment_methods").$type<string[]>().notNull().default([]),
+
+  /*
+   * 20.3 — which rail this country is on, and whether it has one at all.
+   *
+   * `collectionProvider` is how patients here pay (Stripe, or an Egyptian
+   * collector by key); `payoutMethods` is how a clinician here is paid.
+   * Both empty means a country we can name and cannot transact in, and the
+   * admin screen lists exactly those — a country with neither rail is not a
+   * gap in a spreadsheet, it is a clinician who signed up and cannot be paid.
+   */
+  collectionProvider: text("collection_provider"),
+  payoutMethods: jsonb("payout_methods").$type<string[]>().notNull().default([]),
+  /** 16.9 — which entity collects here. Follows the money in, per §3c. */
+  entity: text("entity").$type<Entity>().notNull().default("us"),
+
+  /*
+   * 20.4 / 20.5 — what we ask a clinician here to prove, and to whom.
+   *
+   * These were hardcoded in `lib/regulators.ts` as a nested ternary per
+   * country, which meant adding a country was a deploy and correcting the
+   * name of an ID document was a deploy. They are data now; the constants
+   * stay as the fallback for a country with no row, because inventing a
+   * plausible-sounding regulator is worse than offering none.
+   */
+  regulators: jsonb("regulators").$type<string[]>().notNull().default([]),
+  idLabelFront: text("id_label_front"),
+  idLabelBack: text("id_label_back"),
+  licenceLabel: text("licence_label"),
+  /** A photograph of an acceptable document. Shown beside the upload. */
+  sampleImageUrl: text("sample_image_url"),
+
   /** A country switched off stops accepting new paid sessions immediately. */
   enabled: boolean("enabled").notNull().default(true),
   updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),

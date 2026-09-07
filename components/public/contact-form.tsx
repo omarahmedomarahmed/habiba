@@ -82,6 +82,11 @@ export function ContactForm({
           person picks this up and answers within {state.ok.hours} hours — by email or by message,
           whichever you left us. If it is urgent, do not wait for us: use the radar.
         </p>
+        {state.ok.attachmentNote ? (
+          <p className="mt-2 text-sm text-amber-800">
+            Your message is safe, but the attachment did not go through: {state.ok.attachmentNote}
+          </p>
+        ) : null}
       </Card>
     );
   }
@@ -176,6 +181,26 @@ export function ContactForm({
 
         <Field label="Your message" htmlFor="message">
           <Textarea id="message" name="message" rows={6} required minLength={10} />
+        </Field>
+
+        {/*
+          20.19 — one photo or PDF. Kept and access-controlled exactly like a
+          clinical document, and never read by a model. A prescription
+          photographed for a support agent is a medical record whichever door
+          it came through.
+        */}
+        <Field
+          label="Attach a photo or PDF"
+          htmlFor="attachment"
+          hint="Optional. Up to 25 MB. Only the person answering you sees it."
+        >
+          <input
+            id="attachment"
+            name="attachment"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+            className="w-full text-sm text-slate-600 file:me-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium"
+          />
         </Field>
 
         {state.error ? (

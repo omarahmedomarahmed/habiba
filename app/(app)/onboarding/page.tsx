@@ -7,6 +7,7 @@ import { Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import {
   documentRequirements,
+  requirementOverrides,
   ensureVerification,
   missingFrom,
 } from "@/lib/data/verification";
@@ -29,7 +30,13 @@ export default async function OnboardingPage() {
     activeTaxonomy("specialty"),
   ]);
   const missing = missingFrom(verification);
-  const requirements = documentRequirements(verification.country);
+  /*
+   * 20.4 / 20.5 — the labels and regulators an administrator has configured,
+   * with the shipped constants underneath. Read on the server; the form needs
+   * the whole map because it relabels the moment a country is picked.
+   */
+  const overrides = await requirementOverrides();
+  const requirements = documentRequirements(verification.country, overrides);
 
   const urls: Record<string, string | null> = {
     idFront: verification.idFrontUrl,
@@ -103,6 +110,7 @@ export default async function OnboardingPage() {
           countryOptions={countryOptions.map((o) => ({ code: o.code, name: o.label, flag: o.flag }))}
           languageOptions={languageOptions.map((o) => o.label)}
           specialtyOptions={specialtyOptions.map((o) => o.label)}
+          requirements={overrides}
           uploadsEnabled={uploadsConfigured()}
         />
       </div>

@@ -105,6 +105,68 @@ async function show(db: Db) {
   console.log(`subscriptions: ${[...byPlan].map(([p, n]) => `${p}=${n}`).join(" ") || "none"}`);
 }
 
+/**
+ * Fill in the country rails, and **only where nothing is there**. 20.3–20.5.
+ *
+ * Sprint 20R added nine columns to `country_settings` — which rail a country
+ * is on, which entity collects there, and what a clinician there is asked to
+ * photograph. The existing rows predate them, so Egypt reads as a country with
+ * no way to pay and no way to be paid, which is worse than wrong: it is the
+ * product's actual configuration.
+ *
+ * This is not a backfill of history — nothing here touches a patient, a
+ * session or a payment. It is a **configuration** step, and it is written so
+ * that it cannot undo an administrator's edit: every field is filled only when
+ * the stored value is empty (`COALESCE`-shaped, per field), so running it
+ * twice changes nothing the second time and running it after somebody has
+ * corrected a label leaves the correction alone.
+ */
+async function rails(db: ReturnType<typeof connect>["db"]) {
+  const { COUNTRY_SEED } = await import("../lib/settings/defs");
+  const { countrySettings } = schema;
+  const { eq } = await import("drizzle-orm");
+
+  let filled = 0;
+  for (const seedRow of COUNTRY_SEED) {
+    const [existing] = await db
+      .select()
+      .from(countrySettings)
+      .where(eq(countrySettings.code, seedRow.code))
+      .limit(1);
+
+    if (!existing) continue;
+
+    const patch: Record<string, unknown> = {};
+    if (!existing.collectionProvider && seedRow.collectionProvider) {
+      patch.collectionProvider = seedRow.collectionProvider;
+    }
+    if ((existing.payoutMethods?.length ?? 0) === 0 && seedRow.payoutMethods.length > 0) {
+      patch.payoutMethods = seedRow.payoutMethods;
+    }
+    if ((existing.regulators?.length ?? 0) === 0 && seedRow.regulators.length > 0) {
+      patch.regulators = seedRow.regulators;
+    }
+    if (!existing.idLabelFront && seedRow.idLabelFront) patch.idLabelFront = seedRow.idLabelFront;
+    if (!existing.idLabelBack && seedRow.idLabelBack) patch.idLabelBack = seedRow.idLabelBack;
+    if (!existing.licenceLabel && seedRow.licenceLabel) patch.licenceLabel = seedRow.licenceLabel;
+    // `entity` has a NOT NULL default of 'us', so "unset" and "deliberately US"
+    // are indistinguishable — it is only ever moved when the seed says EG and
+    // the stored value is still the default.
+    if (existing.entity === "us" && seedRow.entity === "eg") patch.entity = "eg";
+
+    if (Object.keys(patch).length === 0) {
+      console.log(`· ${seedRow.code} — already configured, left alone`);
+      continue;
+    }
+
+    await db.update(countrySettings).set(patch).where(eq(countrySettings.code, seedRow.code));
+    filled += 1;
+    console.log(`✓ ${seedRow.code} — filled ${Object.keys(patch).join(", ")}`);
+  }
+
+  console.log(`\n${filled} countries configured. Empty fields only; nothing was overwritten.`);
+}
+
 async function main() {
   const verb = process.argv[2] ?? "seed";
   const { pool, db } = connect();
@@ -112,8 +174,9 @@ async function main() {
     if (verb === "seed") await seed(db);
     else if (verb === "reprice") await reprice(db);
     else if (verb === "show") await show(db);
+    else if (verb === "rails") await rails(db);
     else {
-      console.error(`unknown verb "${verb}". Use seed, reprice or show.`);
+      console.error(`unknown verb "${verb}". Use seed, reprice, rails or show.`);
       process.exitCode = 1;
     }
   } catch (error) {

@@ -29,6 +29,33 @@ import { organizations, therapistVerifications, users } from "@/lib/db/schema";
 export { documentRequirements, type DocumentRequirement } from "@/lib/regulators";
 
 /**
+ * 20.4 / 20.5 — the per-country requirements an administrator has configured.
+ *
+ * Read once on the server and handed to the onboarding form as a map, because
+ * the form has to relabel the instant a country is picked and a round trip
+ * there means a clinician photographing the wrong document.
+ */
+export async function requirementOverrides(): Promise<
+  import("@/lib/regulators").RequirementOverrides
+> {
+  const { getCountries } = await import("@/lib/settings");
+  const countries = await getCountries();
+
+  return Object.fromEntries(
+    countries.map((country) => [
+      country.code,
+      {
+        regulators: country.regulators,
+        idLabelFront: country.idLabelFront,
+        idLabelBack: country.idLabelBack,
+        licenceLabel: country.licenceLabel,
+        sampleImageUrl: country.sampleImageUrl,
+      },
+    ]),
+  );
+}
+
+/**
  * Where a clinician stands, as one answer.
  *
  * There were two sources of truth and they disagreed: an administrator

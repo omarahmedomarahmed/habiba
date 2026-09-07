@@ -28,6 +28,7 @@
     "test:transcribe": "node --import tsx --conditions=react-server --test tests/transcribe.test.ts",
     "settings:seed": "tsx scripts/settings.ts seed",
     "settings:show": "tsx scripts/settings.ts show",
+    "settings:rails": "tsx scripts/settings.ts rails",
     "settings:reprice": "tsx scripts/settings.ts reprice",
     "verify:sprint1": "tsx scripts/verify-sprint1.ts",
     "test:attribution": "node --import tsx --conditions=react-server --test tests/attribution.test.ts",

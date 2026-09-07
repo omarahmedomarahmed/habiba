@@ -91,7 +91,37 @@ export const REGULATORS: Record<string, string[]> = {
   CN: ["Chinese Psychological Society"],
 };
 
-export function regulatorsFor(country: string | null | undefined): string[] {
+/**
+ * 20.4 / 20.5 — what an administrator has configured for a country, if
+ * anything.
+ *
+ * Passed into the onboarding form from the server as a plain map, because the
+ * form relabels the moment somebody picks a country and cannot wait for a
+ * round trip. An empty or missing entry falls through to the constants below,
+ * which is why those stay: a country nobody has configured gets a shipped
+ * answer rather than a blank label, and inventing a plausible regulator is
+ * worse than offering none.
+ */
+export type CountryRequirements = {
+  regulators?: string[];
+  idLabelFront?: string | null;
+  idLabelBack?: string | null;
+  licenceLabel?: string | null;
+  sampleImageUrl?: string | null;
+};
+
+export type RequirementOverrides = Record<string, CountryRequirements>;
+
+export function regulatorsFor(
+  country: string | null | undefined,
+  overrides?: RequirementOverrides,
+): string[] {
+  const configured = overrides?.[(country ?? "").toUpperCase()]?.regulators ?? [];
+  if (configured.length > 0) return configured;
+  return regulatorsFromConstants(country);
+}
+
+function regulatorsFromConstants(country: string | null | undefined): string[] {
   return (country && REGULATORS[country]) || [];
 }
 
@@ -103,7 +133,36 @@ export function regulatorsFor(country: string | null | undefined): string[] {
  * they are holding is البطاقة. Naming the actual document is the difference
  * between a correct upload and a support ticket.
  */
-export function documentRequirements(country: string | null): DocumentRequirement[] {
+export function documentRequirements(
+  country: string | null,
+  overrides?: RequirementOverrides,
+): DocumentRequirement[] {
+  const configured = overrides?.[(country ?? "").toUpperCase()];
+  const built = documentRequirementsFromConstants(country);
+
+  if (!configured) return built;
+
+  /*
+   * Field by field, not all-or-nothing: an administrator who has named the
+   * licence document but not the ID gets their licence label and the shipped
+   * ID labels, rather than a form that reverts everything because one field
+   * was left blank.
+   */
+  return built.map((slot) => {
+    if (slot.key === "idFront" && configured.idLabelFront) {
+      return { ...slot, label: configured.idLabelFront };
+    }
+    if (slot.key === "idBack" && configured.idLabelBack) {
+      return { ...slot, label: configured.idLabelBack };
+    }
+    if (slot.key === "licenseDoc" && configured.licenceLabel) {
+      return { ...slot, label: configured.licenceLabel };
+    }
+    return slot;
+  });
+}
+
+function documentRequirementsFromConstants(country: string | null): DocumentRequirement[] {
   const idFront =
     country === "EG"
       ? "National ID (البطاقة) — front"

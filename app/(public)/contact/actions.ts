@@ -7,7 +7,7 @@ import type { Entity } from "@/lib/db/schema";
 export type ContactState = {
   error?: string;
   /** 18R.8 — what happens next, and when. Never just "thanks". */
-  ok?: { reference: string; hours: number };
+  ok?: { reference: string; hours: number; attachmentNote?: string };
 };
 
 /**
@@ -55,10 +55,26 @@ export async function submitContact(
 
   if (!result.ok) return { error: result.error };
 
+  /*
+   * 20.19 — an optional attachment, uploaded only after the ticket exists.
+   *
+   * Deliberately not fatal: somebody who has just described a problem and
+   * attached a 30 MB video should be told the file did not attach, not lose
+   * the message. The ticket is the thing that must survive.
+   */
+  const file = formData.get("attachment");
+  let attachmentNote: string | undefined;
+  if (file instanceof File && file.size > 0) {
+    const { attachToTicket } = await import("@/lib/data/support");
+    const attached = await attachToTicket({ ticketId: result.id!, file });
+    if (attached.error) attachmentNote = attached.error;
+  }
+
   return {
     ok: {
       reference: result.reference,
       hours: Math.max(1, Math.round((result.dueAt.getTime() - Date.now()) / 3_600_000)),
+      attachmentNote,
     },
   };
 }

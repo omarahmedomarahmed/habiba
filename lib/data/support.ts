@@ -7,6 +7,7 @@ import { audit } from "@/lib/audit";
 import { hashPassword as hashCode, verifyPassword as verifyCode } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import {
+  supportAttachments,
   supportTicketEvents,
   supportTickets,
   TICKET_TOPICS,
@@ -81,7 +82,7 @@ export type TicketInput = {
 };
 
 export type TicketResult =
-  | { ok: true; reference: string; dueAt: Date }
+  | { ok: true; reference: string; dueAt: Date; id: string }
   | { ok: false; error: string };
 
 /**
@@ -204,7 +205,7 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
    */
   log.info("support ticket filed", { ticket: ref(row?.id ?? ""), topic, entity: input.entity });
 
-  return { ok: true, reference, dueAt };
+  return { ok: true, reference, dueAt, id: row?.id ?? "" };
 }
 
 /* ------------------------------------------------------------- the queue -- */
@@ -665,4 +666,91 @@ export async function queueHealth() {
     .groupBy(supportTickets.ownerUserId, users.firstName, users.lastName);
 
   return { byAudience: rows, byOwner };
+}
+
+/* ------------------------------------------------- 20.19 · attachments -- */
+
+/**
+ * Attach a photo or a PDF to a ticket. PLAN.md 20.19, C82.
+ *
+ * 🔴 **Stored, audited and access-controlled exactly like sprint 8's
+ * documents, and never in a prompt.** The same uploader, the same opaque
+ * random path, the same ceiling. Nothing here extracts text, chunks it or
+ * indexes it — a support attachment is evidence for a person, not material
+ * for a model, and the only way to keep that true is for no code to exist
+ * that would do it.
+ */
+export async function attachToTicket(input: {
+  ticketId: string;
+  file: File;
+  uploadedByUserId?: string | null;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const { supportUploadProblem, uploadDocument } = await import("@/lib/uploads");
+
+  const problem = supportUploadProblem(input.file);
+  if (problem) return { error: problem };
+
+  const [ticket] = await db
+    .select({ id: supportTickets.id, status: supportTickets.status })
+    .from(supportTickets)
+    .where(eq(supportTickets.id, input.ticketId))
+    .limit(1);
+
+  if (!ticket) return { error: "That ticket no longer exists." };
+  if (ticket.status === "closed") {
+    return { error: "That ticket is closed. Write to us again and we will reopen it." };
+  }
+
+  const stored = await uploadDocument({
+    kind: "support",
+    // The *ticket* is the owner, not a user: the sender of a public-form
+    // ticket has no account, and putting a made-up id in the path would be a
+    // lie in an operational trail.
+    userId: input.ticketId,
+    label: "attachment",
+    file: input.file,
+  });
+
+  if (stored.error || !stored.url) return { error: stored.error ?? "The upload did not go through." };
+
+  await db.insert(supportAttachments).values({
+    ticketId: input.ticketId,
+    filename: input.file.name.slice(0, 200),
+    contentType: input.file.type,
+    byteSize: input.file.size,
+    storageKey: stored.url,
+    uploadedByUserId: input.uploadedByUserId ?? null,
+  });
+
+  await db.insert(supportTicketEvents).values({
+    ticketId: input.ticketId,
+    kind: "replied",
+    actorUserId: input.uploadedByUserId ?? null,
+    note: `Attached ${input.file.name.slice(0, 80)}`,
+  });
+
+  return { ok: true };
+}
+
+/**
+ * What is attached to one ticket.
+ *
+ * Only ever called from a screen that has already established who is asking —
+ * `readTicket` for staff, `readByToken` for the sender. There is no
+ * "attachments by id" path, deliberately: an attachment is reachable through
+ * its ticket or not at all.
+ */
+export async function attachmentsFor(ticketId: string) {
+  return db
+    .select({
+      id: supportAttachments.id,
+      filename: supportAttachments.filename,
+      contentType: supportAttachments.contentType,
+      byteSize: supportAttachments.byteSize,
+      storageKey: supportAttachments.storageKey,
+      createdAt: supportAttachments.createdAt,
+    })
+    .from(supportAttachments)
+    .where(eq(supportAttachments.ticketId, ticketId))
+    .orderBy(asc(supportAttachments.createdAt));
 }

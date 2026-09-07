@@ -38,13 +38,32 @@ export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
  */
 export const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 
-export type UploadKind = "credential" | "headshot";
+/**
+ * `support` is new in sprint 20 (20.19). It is deliberately the same uploader,
+ * the same opaque path and the same 25 MB ceiling as a clinical document,
+ * because a patient photographing a prescription for a support agent has sent
+ * us a medical record and the door it arrived through does not change that.
+ */
+export type UploadKind = "credential" | "headshot" | "support";
 
 export function uploadProblem(file: { size: number; type: string } | null): string | null {
   if (!file || file.size === 0) return "Choose a file.";
   if (file.size > MAX_UPLOAD_BYTES) return "That image is over 8 MB — try a photo from your phone.";
   if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) {
     return "Upload a photo (JPEG, PNG, WebP or HEIC).";
+  }
+  return null;
+}
+
+/** 20.19 — a support attachment: the same images, plus a PDF. 25 MB. */
+export const SUPPORT_TYPES = [...ALLOWED_UPLOAD_TYPES, "application/pdf"];
+export const SUPPORT_MAX_BYTES = 25 * 1024 * 1024;
+
+export function supportUploadProblem(file: { size: number; type: string } | null): string | null {
+  if (!file || file.size === 0) return "Choose a file.";
+  if (file.size > SUPPORT_MAX_BYTES) return "That file is over 25 MB.";
+  if (!SUPPORT_TYPES.includes(file.type)) {
+    return "Attach a photo or a PDF.";
   }
   return null;
 }
@@ -97,7 +116,8 @@ export async function uploadDocument(opts: {
     return { error: "File uploads are not configured on this deployment." };
   }
 
-  const problem = uploadProblem(opts.file);
+  const problem =
+    opts.kind === "support" ? supportUploadProblem(opts.file) : uploadProblem(opts.file);
   if (problem) return { error: problem };
 
   const extension = extensionFor(opts.file.type);
@@ -160,6 +180,7 @@ export async function deleteDocument(url: string | null | undefined): Promise<vo
 }
 
 function extensionFor(type: string): string {
+  if (type === "application/pdf") return "pdf";
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
   if (type === "image/heic") return "heic";

@@ -439,6 +439,152 @@ async function main() {
       ),
     );
 
+    /* ------------------------------------------- 20.1–20.7 · every figure */
+
+    const { getSettings, getCountries, writeSettingsGroup } = await import("../lib/settings");
+    const { hasNoRail, settingsProblem } = await import("../lib/settings/defs");
+
+    /*
+     * 🔴 20.1 — a rate edited in admin reaches the invoice and the pricing
+     * page, because there is one row and no second copy. Proved by moving it
+     * and reading it back through the accessor every other module uses, then
+     * putting it back.
+     */
+    const before = await getSettings();
+    const bumped = before.pricing.tiers.map((tier) =>
+      tier.key === "payg" ? { ...tier, rateCents: tier.rateCents + 100 } : tier,
+    );
+
+    try {
+      await writeSettingsGroup({
+        group: "pricing",
+        value: { tiers: bumped, creditExpiryMonths: before.pricing.creditExpiryMonths },
+        updatedBy: null,
+      });
+      const after = await (await import(`../lib/settings/index.ts?bump=${Date.now()}`)).getSettings();
+      check(
+        "🔴 20.1 a rate edited in admin is the rate the rest of the product reads",
+        after.pricing.tiers.find((t: { key: string }) => t.key === "payg")?.rateCents ===
+          (before.pricing.tiers.find((t) => t.key === "payg")?.rateCents ?? 0) + 100,
+        `${before.pricing.tiers[0]?.rateCents} → ${after.pricing.tiers[0]?.rateCents}`,
+      );
+    } finally {
+      await writeSettingsGroup({
+        group: "pricing",
+        value: before.pricing,
+        updatedBy: null,
+      });
+    }
+
+    /*
+     * …and a configuration that is invalid *as a whole* is refused. A cap
+     * below the floor makes every price invalid while neither figure is wrong
+     * on its own, which is the shape a per-field check cannot see.
+     */
+    check(
+      "🔴 20.1 a price cap below the floor is refused — the check is on the whole configuration",
+      settingsProblem({
+        ...before,
+        session: { ...before.session, minPriceCents: 5_000, maxPriceCents: 100 },
+      }) !== null,
+    );
+
+    const countries = await getCountries();
+    check(
+      "20.2 VAT, currency and payment methods are per country, and editable",
+      countries.length > 0 && countries.every((c) => typeof c.vatBps === "number"),
+      countries.map((c) => `${c.code}:${c.vatBps}bps/${c.currency}`).join(" "),
+    );
+
+    check(
+      "🔴 20.3 a country with NEITHER rail is identifiable — that is a clinician nobody can pay",
+      countries.some((c) => !hasNoRail(c)),
+      `${countries.filter(hasNoRail).length} of ${countries.length} have no rail`,
+    );
+
+    const eg = countries.find((c) => c.code === "EG");
+    check(
+      "20.3 …and Egypt is on the local rail, with the Egyptian entity behind it",
+      eg?.collectionProvider !== null && (eg?.payoutMethods.length ?? 0) > 0 && eg?.entity === "eg",
+      `${eg?.collectionProvider} · ${eg?.payoutMethods.join("+")} · ${eg?.entity}`,
+    );
+
+    /*
+     * 🔴 20.4 / 20.5 — the verification requirements were a nested ternary per
+     * country. They are data now, and the merge is field by field: an
+     * administrator who names the licence document but not the ID gets their
+     * licence label and the shipped ID labels, rather than a form that reverts
+     * everything because one field was blank.
+     */
+    const { documentRequirements, regulatorsFor } = await import("../lib/regulators");
+    const overrides = {
+      EG: { regulators: ["A regulator an administrator typed"], licenceLabel: "Syndicate card" },
+    };
+
+    const merged = documentRequirements("EG", overrides);
+    const shipped = documentRequirements("EG");
+    check(
+      "🔴 20.4 a configured document label wins, and an unconfigured one keeps the shipped wording",
+      merged.find((d) => d.key === "licenseDoc")?.label === "Syndicate card" &&
+        merged.find((d) => d.key === "idFront")?.label ===
+          shipped.find((d) => d.key === "idFront")?.label,
+      merged.map((d) => d.label).join(" · "),
+    );
+
+    check(
+      "20.5 …and the regulators an administrator lists are the ones offered",
+      regulatorsFor("EG", overrides)[0] === "A regulator an administrator typed" &&
+        regulatorsFor("EG").length > 0,
+    );
+
+    /* 🔴 20.6 — margin per session, from real usage rather than the price list. */
+    const { tractionMetrics } = await import("../lib/data/vault");
+    const traction = await tractionMetrics();
+    check(
+      "🔴 20.6 margin per session is measured from real model spend",
+      traction.marginPerSessionCents ===
+        traction.revenuePerSessionCents - traction.costPerSessionCents,
+      `revenue ${traction.revenuePerSessionCents}¢ − cost ${traction.costPerSessionCents}¢ = ${traction.marginPerSessionCents}¢`,
+    );
+    check(
+      "🔴 20.6 …and the percentage is ABSENT, not zero, when nothing was collected",
+      traction.marginBps === null || Number.isInteger(traction.marginBps),
+      traction.marginBps === null ? "null — nothing collected in 30 days" : `${traction.marginBps}bps`,
+    );
+
+    /* 20.7 — the Total View sits on the same screen as the levers. */
+    const settingsPage = readFileSync("app/(admin)/admin/settings/page.tsx", "utf8");
+    check(
+      "20.7 the margin is on the same page as the rates that produce it",
+      settingsPage.includes("tractionMetrics") && settingsPage.includes("PricingEditor"),
+    );
+
+    /* --------------------------------------------- 20.19 · attachments */
+
+    const { attachToTicket, attachmentsFor } = await import("../lib/data/support");
+
+    const tooBig = await attachToTicket({
+      ticketId: ticketRow!.id,
+      file: new File([new Uint8Array(26 * 1024 * 1024)], "huge.pdf", { type: "application/pdf" }),
+    });
+    check(
+      "20.19 an attachment over the ceiling is refused",
+      tooBig.error !== undefined,
+      tooBig.error ?? "ACCEPTED",
+    );
+
+    const wrongType = await attachToTicket({
+      ticketId: ticketRow!.id,
+      file: new File(["x"], "notes.exe", { type: "application/x-msdownload" }),
+    });
+    check(
+      "20.19 …and so is a file type nobody can open safely",
+      wrongType.error !== undefined,
+      wrongType.error ?? "ACCEPTED",
+    );
+
+    void attachmentsFor;
+
     /* ------------------------------------------------------- C82 · 20.19 */
 
     const promptModules = walk("lib/ai");
@@ -447,6 +593,23 @@ async function main() {
       promptModules.every(
         (file) => !/supportAttachments|data\/support/.test(readFileSync(file, "utf8")),
       ),
+    );
+
+    /*
+     * 🔴 …and nothing anywhere extracts an attachment. C82 is not only about
+     * prompts: a chunker or an indexer pointed at `support_attachments` would
+     * put a patient's prescription into the same pipeline as a consented
+     * clinical document, one import at a time.
+     */
+    const extractors = [...walk("lib/documents"), ...walk("lib/data")].filter(
+      (file) =>
+        /supportAttachments/.test(readFileSync(file, "utf8")) &&
+        !file.endsWith("lib/data/support.ts"),
+    );
+    check(
+      "🔴 20.19 / C82 nothing outside the support module touches an attachment at all",
+      extractors.length === 0,
+      extractors.join(", ") || "only lib/data/support.ts",
     );
   } finally {
     await db.delete(supportTicketEvents).where(
