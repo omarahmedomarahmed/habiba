@@ -55,17 +55,31 @@ export function NoteCard({
           <p className="text-[15px] leading-relaxed text-slate-700">{note.summary}</p>
         ) : null}
 
+        {/*
+          🔴 22R — a missing SOAP section says so rather than disappearing.
+          
+          A note came back with Subjective, Objective and Plan and no
+          Assessment, and the heading simply was not rendered. A clinician
+          skimming a shape they know does not notice a section that is absent;
+          they notice one that is wrong. Saying "the model did not produce
+          this" is both true and the prompt to write it themselves — this is a
+          draft with their name going on it.
+        */}
         <div className="space-y-3.5">
-          {sections.map((section) =>
-            section.body ? (
-              <div key={section.key}>
-                <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-                  {section.label}
-                </p>
+          {sections.map((section) => (
+            <div key={section.key}>
+              <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                {section.label}
+              </p>
+              {section.body ? (
                 <p className="mt-1 text-sm leading-relaxed text-slate-700">{section.body}</p>
-              </div>
-            ) : null,
-          )}
+              ) : (
+                <p className="mt-1 text-sm leading-relaxed text-amber-700">
+                  Not written. Add it before you sign this note.
+                </p>
+              )}
+            </div>
+          ))}
         </div>
 
         {!compact && note.talkingPoints.length > 0 ? (

@@ -182,7 +182,19 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
    */
   const attempts = await consume(await callerKey("login"), LOGINS_PER_WINDOW, LOGIN_WINDOW_SECONDS);
   if (!attempts.allowed) {
-    return { error: "Too many sign-in attempts from this connection. Try again shortly." };
+    /*
+     * 🔴 22R — the wait, in minutes, because the limiter knows it.
+     *
+     * This said "try again shortly". A person locked out with no number
+     * retries, fails, and cannot tell a lockout from a wrong password — the
+     * radar's booking action has printed the real figure since sprint 11 and
+     * this one threw it away. Rounded up, so "1 minute" never means ninety
+     * seconds.
+     */
+    const minutes = Math.max(1, Math.ceil(attempts.retryAfter / 60));
+    return {
+      error: `Too many sign-in attempts from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    };
   }
 
   const [user] = await db

@@ -206,7 +206,13 @@ export async function patientSignIn(
   }
 
   const verdict = await consume(await callerKey("patient:signin"), 10, 15 * 60);
-  if (!verdict.allowed) return { error: "Too many attempts. Try again shortly." };
+  if (!verdict.allowed) {
+    /* 22R — the wait in minutes, for the same reason as the clinician's door. */
+    const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
+    return {
+      error: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    };
+  }
 
   /*
    * Which handle is this? Decided by shape, not by asking.

@@ -108,7 +108,10 @@ export async function requestPatientReset(
    */
   const verdict = await consume(await callerKey("patient:reset"), 5, 15 * 60);
   if (!verdict.allowed) {
-    return { error: "Too many requests from this connection. Try again shortly." };
+    const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
+    return {
+      error: `Too many requests from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    };
   }
 
   const account = await findAccount(handle, country);
@@ -168,7 +171,10 @@ export async function completePatientReset(
 
   const verdict = await consume(await callerKey("patient:reset-confirm"), 10, 15 * 60);
   if (!verdict.allowed) {
-    return { error: "Too many attempts from this connection. Try again shortly." };
+    const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
+    return {
+      error: `Too many attempts from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    };
   }
 
   const account = await findAccount(handle, country);
