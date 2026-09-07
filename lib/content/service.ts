@@ -35,30 +35,46 @@ export const CMS_TAG = "cms";
  * once per invalidation rather than once per visitor, which takes the database
  * out of the request path without giving up the cookie.
  *
- * `revalidate: false` means it never expires on a timer. The only thing that
- * refreshes it is `revalidateTag(CMS_TAG)`, which is what publishing does —
- * so a marketing page view stops waking the database at all.
+ * `revalidateTag(CMS_TAG)` still refreshes it the instant somebody publishes,
+ * which is what the editor and the republish script do.
  *
- * `CACHE_VERSION` is the escape hatch for the failure that trade allows. The
- * data cache lives outside any one deployment, so an entry written before a
- * deploy is still served after it: when the pricing copy was rewritten in the
- * database (C60), the corrected row sat there unread while the site went on
- * quoting "$6" and "Unlimited" through two deploys. Bumping this retires every
- * entry at once by changing the key, which is the only lever that does not
- * require the production `CRON_SECRET` or a click in the admin editor.
+ * 🔴 **21R.6 / C92 — but it also expires on a timer now, and that is the whole
+ * ticket.** It used to be `revalidate: false`: an entry never expired, and the
+ * only things that could retire one were a click in the editor, a script
+ * holding the production `CRON_SECRET`, or a bump of `CACHE_VERSION` below.
+ * On 2026-09-07 the founder opened `/pricing` and found the page the site had
+ * been serving since before the sprint 17 rewrite — prices written into prose,
+ * no cards, no slider, and a sentence saying the money is *"a direct charge
+ * into your own Stripe account — we never hold it"*, which §3c reversed on
+ * 2026-09-06.
  *
- * Bump it whenever content is written by anything other than the editor —
- * a migration, a script, a direct SQL fix — and note the reason.
+ * **The database was right the whole time.** Every one of those pages was
+ * correct in `content_pages`; a verifier reading the database passed while the
+ * live site contradicted it. What was wrong was the delivery: a cache that
+ * only a human action can retire will, sooner or later, outlive the content —
+ * and the failure is silent, unbounded, and invisible to every check that
+ * reads the database rather than the page.
+ *
+ * So staleness is **bounded** instead of trusted away. Five minutes costs
+ * twelve database reads an hour per region, which is nothing next to a public
+ * page making a false claim about where somebody's money sits for two days.
+ * Tag invalidation stays, and is still what makes an edit appear immediately;
+ * the timer is what happens when the invalidation does not arrive.
+ *
+ * `CACHE_VERSION` remains the lever for retiring every entry at once — bump it
+ * when content is written by anything other than the editor and note why:
  *
  *   v2 — 2026-09-05, C60: pricing copy corrected in the row, not the editor.
+ *   v3 — 2026-09-06, 17.9: the pricing rewrite — cards in, hero out.
+ *   v4 — 2026-09-07, C92: the entries that outlived both of those.
  */
-/*
- * 17.9 — bumped for the sprint 17 pricing rewrite. The pricing page lost its
- * hero and the homepage gained the cards; a cached copy of either would serve
- * the old page for an hour after the deploy, which for a pricing page means
- * serving prices that are no longer ours.
+export const CACHE_VERSION = "v4";
+
+/**
+ * Long enough that the database is out of the request path, short enough that
+ * a missed invalidation is an inconvenience rather than a false statement.
  */
-const CACHE_VERSION = "v3";
+const CACHE_SECONDS = 300;
 
 function cached<Args extends unknown[], Result>(
   keyParts: string[],
@@ -66,7 +82,7 @@ function cached<Args extends unknown[], Result>(
 ) {
   return unstable_cache(fn, [...keyParts, CACHE_VERSION], {
     tags: [CMS_TAG],
-    revalidate: false,
+    revalidate: CACHE_SECONDS,
   });
 }
 
@@ -100,7 +116,10 @@ export async function getPublicPage(slug: string): Promise<PublicPage | null> {
   return cached(["cms", "page"], readPage)(slug, locale);
 }
 
-async function readPage(slug: string, locale: string): Promise<PublicPage | null> {
+async function readPage(
+  slug: string,
+  locale: string,
+): Promise<PublicPage | null> {
   {
     // Kept as a block so the try/catch below reads unchanged.
   }
@@ -124,13 +143,18 @@ async function readPage(slug: string, locale: string): Promise<PublicPage | null
       .where(
         and(
           eq(contentPages.slug, slug),
-          inArray(contentPages.locale, locale === "en" ? ["en"] : [locale, "en"]),
+          inArray(
+            contentPages.locale,
+            locale === "en" ? ["en"] : [locale, "en"],
+          ),
         ),
       );
 
     const row =
-      rows.find((candidate) => candidate.locale === locale && candidate.status === "published") ??
-      rows.find((candidate) => candidate.locale === "en");
+      rows.find(
+        (candidate) =>
+          candidate.locale === locale && candidate.status === "published",
+      ) ?? rows.find((candidate) => candidate.locale === "en");
 
     if (row && row.status === "published") {
       return {
@@ -224,10 +248,12 @@ async function readNav(locale: string): Promise<NavItem[]> {
     if (!isDatabaseUnavailable(error)) throw error;
   }
 
-  return DEFAULT_PAGES.filter((p) => p.navLabel && (p.navOrder ?? 99) < 10).map((p) => ({
-    slug: p.slug,
-    label: p.navLabel!,
-  }));
+  return DEFAULT_PAGES.filter((p) => p.navLabel && (p.navOrder ?? 99) < 10).map(
+    (p) => ({
+      slug: p.slug,
+      label: p.navLabel!,
+    }),
+  );
 }
 
 export async function getFooterLinks(): Promise<NavItem[]> {
@@ -266,19 +292,24 @@ async function readFooter(locale: string): Promise<NavItem[]> {
     const legal = [...bySlug.values()]
       .filter((r) => r.navLabel && (r.navOrder ?? 0) >= 10)
       .sort((a, b) => (a.navOrder ?? 0) - (b.navOrder ?? 0));
-    if (legal.length > 0) return legal.map((r) => ({ slug: r.slug, label: r.navLabel! }));
+    if (legal.length > 0)
+      return legal.map((r) => ({ slug: r.slug, label: r.navLabel! }));
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
   }
 
-  return DEFAULT_PAGES.filter((p) => p.navLabel && (p.navOrder ?? 0) >= 10).map((p) => ({
-    slug: p.slug,
-    label: p.navLabel!,
-  }));
+  return DEFAULT_PAGES.filter((p) => p.navLabel && (p.navOrder ?? 0) >= 10).map(
+    (p) => ({
+      slug: p.slug,
+      label: p.navLabel!,
+    }),
+  );
 }
 
 /** Every published page, for the sitemap. Falls back to the shipped defaults. */
-export async function publishedSlugs(): Promise<{ slug: string; updatedAt: Date }[]> {
+export async function publishedSlugs(): Promise<
+  { slug: string; updatedAt: Date }[]
+> {
   try {
     const rows = await db
       .select({ slug: contentPages.slug, updatedAt: contentPages.updatedAt })
@@ -289,15 +320,25 @@ export async function publishedSlugs(): Promise<{ slug: string; updatedAt: Date 
     if (!isDatabaseUnavailable(error)) throw error;
   }
 
-  return DEFAULT_PAGES.map((page) => ({ slug: page.slug, updatedAt: new Date() }));
+  return DEFAULT_PAGES.map((page) => ({
+    slug: page.slug,
+    updatedAt: new Date(),
+  }));
 }
 
 /** Admin view: every page, drafts included. */
 export async function listAllPages() {
-  return db.select().from(contentPages).orderBy(asc(contentPages.navOrder), asc(contentPages.slug));
+  return db
+    .select()
+    .from(contentPages)
+    .orderBy(asc(contentPages.navOrder), asc(contentPages.slug));
 }
 
 export async function getPageById(id: string) {
-  const [row] = await db.select().from(contentPages).where(eq(contentPages.id, id)).limit(1);
+  const [row] = await db
+    .select()
+    .from(contentPages)
+    .where(eq(contentPages.id, id))
+    .limit(1);
   return row ?? null;
 }

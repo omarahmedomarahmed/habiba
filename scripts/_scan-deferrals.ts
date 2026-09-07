@@ -61,11 +61,17 @@ export function contentReads(rawSource: string): ContentRead[] {
     );
     const semicolon = source.indexOf(";", match.index);
     const statement = source
-      .slice(start === -1 ? match.index : start, semicolon === -1 ? match.index + 200 : semicolon)
+      .slice(
+        start === -1 ? match.index : start,
+        semicolon === -1 ? match.index + 200 : semicolon,
+      )
       .replace(/\s+/g, " ")
       .trim();
 
-    reads.push({ statement, control: /verify\d*-?control|"verify/i.test(statement) });
+    reads.push({
+      statement,
+      control: /verify\d*-?control|"verify/i.test(statement),
+    });
   }
 
   return reads;

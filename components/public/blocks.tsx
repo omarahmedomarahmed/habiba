@@ -21,7 +21,12 @@ import type { ContentBlock } from "@/lib/db/schema";
  * though they were validated on save — a value that reached the database some
  * other way still cannot reach the page.
  */
-export async function BlockRenderer({ blocks }: { blocks: ContentBlock[]; slug?: string }) {
+export async function BlockRenderer({
+  blocks,
+}: {
+  blocks: ContentBlock[];
+  slug?: string;
+}) {
   /*
    * 18.13 — the words inside the live components are content too, read once
    * here and handed down. One query for the whole page rather than one per
@@ -87,14 +92,26 @@ function Block({
   }
 }
 
-function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>; first: boolean }) {
+function Hero({
+  block,
+  first,
+}: {
+  block: Extract<ContentBlock, { type: "hero" }>;
+  first: boolean;
+}) {
   /*
    * The radar hero is not a panel beside some copy — the live map is the
    * background of the whole fold and the clinicians on it are clickable. So it
    * owns its own <section> rather than being slotted into this one.
    */
   if (block.demo === "radar") {
-    return <RadarHero heading={block.heading} body={block.body} eyebrow={block.eyebrow} />;
+    return (
+      <RadarHero
+        heading={block.heading}
+        body={block.body}
+        eyebrow={block.eyebrow}
+      />
+    );
   }
 
   const image = safeImageUrl(block.backgroundImage);
@@ -127,27 +144,55 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div>
+          {/*
+            🔴 C95 / 21R.10 — the icon sits WITH the text, never on a line of
+            its own.
+
+            It used to render as a block between the eyebrow and the heading,
+            so every hero opened with a floating square: the founder found it
+            by looking at the live site, which is the whole argument for 22R.
+            It now shares a row with the eyebrow, and when there is no eyebrow
+            it shares one with the heading itself — so there is no arrangement
+            of hero content that puts it alone.
+
+            The row is `flex`, not a margin: `gap` and `items-center` are
+            direction-agnostic, so Arabic gets the icon on the right of the
+            text without a second rule. Anything using `ms-`/`me-` would have
+            been correct too; anything using `ml-`/`mr-` would have looked
+            fixed in English and wrong in Arabic, which is where this kind of
+            thing hides (19.3).
+          */}
           {block.eyebrow ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
-              {block.eyebrow}
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {block.icon ? (
+                <ContentIconMark name={block.icon} tone="light" />
+              ) : null}
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
+                <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+                {block.eyebrow}
+              </span>
+            </div>
           ) : null}
 
-          {block.icon ? <ContentIconMark name={block.icon} tone="light" className="mt-5" /> : null}
-
-          {first ? (
-            <h1 className="mt-5 text-balance text-[2.1rem] leading-[1.1] font-bold tracking-tight text-white sm:text-5xl">
-              {block.heading}
-            </h1>
-          ) : (
-            <h2 className="mt-5 text-balance text-3xl leading-tight font-bold tracking-tight text-white sm:text-4xl">
-              {block.heading}
-            </h2>
-          )}
+          <div className="mt-5 flex items-center gap-3">
+            {block.icon && !block.eyebrow ? (
+              <ContentIconMark name={block.icon} tone="light" />
+            ) : null}
+            {first ? (
+              <h1 className="text-balance text-[2.1rem] leading-[1.1] font-bold tracking-tight text-white sm:text-5xl">
+                {block.heading}
+              </h1>
+            ) : (
+              <h2 className="text-balance text-3xl leading-tight font-bold tracking-tight text-white sm:text-4xl">
+                {block.heading}
+              </h2>
+            )}
+          </div>
 
           {block.body ? (
-            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-white/65">{block.body}</p>
+            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-white/65">
+              {block.body}
+            </p>
           ) : null}
 
           {block.ctaLabel && block.ctaHref ? (
@@ -178,7 +223,11 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
   );
 }
 
-function Features({ block }: { block: Extract<ContentBlock, { type: "features" }> }) {
+function Features({
+  block,
+}: {
+  block: Extract<ContentBlock, { type: "features" }>;
+}) {
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
@@ -194,8 +243,12 @@ function Features({ block }: { block: Extract<ContentBlock, { type: "features" }
               className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-sm"
             >
               <ContentIconMark name={item.icon} />
-              <p className="mt-3.5 text-base font-semibold text-slate-900">{item.title}</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{item.body}</p>
+              <p className="mt-3.5 text-base font-semibold text-slate-900">
+                {item.title}
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                {item.body}
+              </p>
             </div>
           ))}
         </div>
@@ -232,7 +285,10 @@ function Showcase({
               className="grid items-center gap-6 lg:grid-cols-2 lg:gap-14"
             >
               <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
-                <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "teal" : "brand"} />
+                <ContentIconMark
+                  name={item.icon}
+                  tone={i % 2 === 1 ? "teal" : "brand"}
+                />
                 <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                   {item.title}
                 </h3>
@@ -264,8 +320,12 @@ function Faq({ block }: { block: Extract<ContentBlock, { type: "faq" }> }) {
         <dl className="mt-8 divide-y divide-slate-200 border-t border-slate-200">
           {block.items.map((item, i) => (
             <div key={i} className="py-5">
-              <dt className="text-base font-semibold text-slate-900">{item.q}</dt>
-              <dd className="mt-1.5 text-sm leading-relaxed text-slate-600">{item.a}</dd>
+              <dt className="text-base font-semibold text-slate-900">
+                {item.q}
+              </dt>
+              <dd className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                {item.a}
+              </dd>
             </div>
           ))}
         </dl>
@@ -317,14 +377,17 @@ function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
     <section className="px-4 sm:px-6">
       <div className="mx-auto max-w-3xl py-5">
         {block.heading ? (
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900">{block.heading}</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+            {block.heading}
+          </h2>
         ) : null}
-        <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{block.body}</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
+          {block.body}
+        </p>
       </div>
     </section>
   );
 }
-
 
 /**
  * 🔴 18.3 — getting help now.
@@ -338,7 +401,11 @@ function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
  * knows better must be able to fix them without a deploy) but the block itself
  * carries no configurable *destination*: a fire exit does not move.
  */
-function Crisis({ block }: { block: Extract<ContentBlock, { type: "crisis" }> }) {
+function Crisis({
+  block,
+}: {
+  block: Extract<ContentBlock, { type: "crisis" }>;
+}) {
   return (
     <section className="px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-3xl rounded-3xl border-2 border-rose-200 bg-rose-50 p-6">
@@ -358,7 +425,8 @@ function Crisis({ block }: { block: Extract<ContentBlock, { type: "crisis" }> })
           </Link>
         </div>
         <p className="mt-3 text-xs text-rose-900/70">
-          No account, no card, no form. You give a first name and you are in a session.
+          No account, no card, no form. You give a first name and you are in a
+          session.
         </p>
       </div>
     </section>
@@ -379,7 +447,11 @@ function Crisis({ block }: { block: Extract<ContentBlock, { type: "crisis" }> })
  * dealing with has not been told, and the point of naming two companies is
  * that they can choose.
  */
-function Companies({ block }: { block: Extract<ContentBlock, { type: "companies" }> }) {
+function Companies({
+  block,
+}: {
+  block: Extract<ContentBlock, { type: "companies" }>;
+}) {
   const ordered = [...block.items].sort((a, b) => {
     if (a.entity === b.entity) return 0;
     return a.entity === "eg" ? 1 : -1;
@@ -389,29 +461,43 @@ function Companies({ block }: { block: Extract<ContentBlock, { type: "companies"
     <section className="px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-4xl">
         {block.heading ? (
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{block.heading}</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            {block.heading}
+          </h2>
         ) : null}
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {ordered.map((company) => (
-            <div key={company.title} className="rounded-3xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-bold text-slate-900">{company.title}</p>
+            <div
+              key={company.title}
+              className="rounded-3xl border border-slate-200 bg-white p-5"
+            >
+              <p className="text-sm font-bold text-slate-900">
+                {company.title}
+              </p>
               {company.body ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">{company.body}</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {company.body}
+                </p>
               ) : null}
 
               <dl className="mt-3 space-y-1.5 text-sm">
                 {company.address ? (
                   <div>
                     <dt className="text-xs text-slate-400">Address</dt>
-                    <dd className="whitespace-pre-line text-slate-700">{company.address}</dd>
+                    <dd className="whitespace-pre-line text-slate-700">
+                      {company.address}
+                    </dd>
                   </div>
                 ) : null}
                 {company.phone ? (
                   <div>
                     <dt className="text-xs text-slate-400">Phone</dt>
                     <dd>
-                      <a href={`tel:${company.phone.replace(/\s/g, "")}`} className="text-brand-600">
+                      <a
+                        href={`tel:${company.phone.replace(/\s/g, "")}`}
+                        className="text-brand-600"
+                      >
                         {company.phone}
                       </a>
                     </dd>
@@ -421,7 +507,10 @@ function Companies({ block }: { block: Extract<ContentBlock, { type: "companies"
                   <div>
                     <dt className="text-xs text-slate-400">Email</dt>
                     <dd>
-                      <a href={`mailto:${company.email}`} className="text-brand-600">
+                      <a
+                        href={`mailto:${company.email}`}
+                        className="text-brand-600"
+                      >
                         {company.email}
                       </a>
                     </dd>
@@ -456,7 +545,10 @@ async function ContactBlock({
         <ContactForm
           heading={block.heading}
           body={block.body}
-          countries={countries.map((country) => ({ code: country.code, name: country.name }))}
+          countries={countries.map((country) => ({
+            code: country.code,
+            name: country.name,
+          }))}
         />
       </div>
     </section>

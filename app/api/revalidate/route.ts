@@ -1,12 +1,25 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { CMS_TAG } from "@/lib/content/service";
+import { CACHE_VERSION, CMS_TAG } from "@/lib/content/service";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/**
+ * What is deployed. 21R.6.
+ *
+ * Unauthenticated and deliberately tiny: the cache version, which changes only
+ * when this file's neighbours do. It exists so a check can tell "the live site
+ * is wrong" apart from "the live site has not been redeployed yet" — the
+ * difference between a finding and a false alarm, and the reason C90 exists.
+ * It names no commit, no environment and no secret.
+ */
+export async function GET() {
+  return NextResponse.json({ cacheVersion: CACHE_VERSION });
+}
 
 /**
  * Refresh the public site's cached content.
@@ -17,11 +30,12 @@ export const dynamic = "force-dynamic";
  * changed and would go on serving cached pages indefinitely, since nothing
  * expires on a timer any more.
  *
- * That is the trade this endpoint pays for. Removing the one-hour revalidation
- * took the database out of the request path, and the cost is that every writer
- * now has to say when it wrote. A script that edits content and forgets to
- * call this leaves the site stale forever rather than for an hour, which is a
- * sharper failure — so it is worth stating plainly rather than discovering.
+ * Since 21R/C92 a cached entry also expires on a five-minute timer, so a
+ * script that forgets to call this leaves the site stale for minutes rather
+ * than for ever — which is what actually happened: the live pricing page
+ * served pre-sprint-17 copy for two days, contradicting §3c, while every
+ * verifier reading the database passed. This endpoint is still how a publish
+ * becomes visible *immediately*; the timer is the floor under it.
  *
  * Same shared secret as the cron endpoints. It is not destructive, but it is
  * free work an anonymous caller could make the platform do repeatedly, and
@@ -47,5 +61,8 @@ export async function POST(request: Request) {
   revalidateTag(CMS_TAG);
   log.info("cms cache invalidated");
 
-  return NextResponse.json({ revalidated: CMS_TAG, at: new Date().toISOString() });
+  return NextResponse.json({
+    revalidated: CMS_TAG,
+    at: new Date().toISOString(),
+  });
 }
