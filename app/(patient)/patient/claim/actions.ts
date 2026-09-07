@@ -33,13 +33,22 @@ export type ClaimState = {
 export async function mySuggestions(): Promise<ClaimSuggestion[]> {
   const actor = await requirePatient();
   const [account] = await db
-    .select({ email: patientAccounts.email, phone: patientAccounts.phone })
+    .select({
+      email: patientAccounts.email,
+      phone: patientAccounts.phone,
+      personId: patientAccounts.personId,
+    })
     .from(patientAccounts)
     .where(eq(patientAccounts.id, actor.accountId))
     .limit(1);
 
   if (!account) return [];
-  return suggestionsFor({ email: account.email, phone: account.phone });
+  return suggestionsFor({
+    email: account.email,
+    phone: account.phone,
+    /* 22R — never offer somebody their own record as a therapist's. */
+    excludePersonId: account.personId,
+  });
 }
 
 /**

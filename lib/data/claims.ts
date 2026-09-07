@@ -75,10 +75,27 @@ export type ClaimSuggestion = {
 export async function suggestionsFor(input: {
   email?: string | null;
   phone?: string | null;
+  /**
+   * 🔴 22R — the person this account already owns, which is never a suggestion.
+   *
+   * Signing up creates a `people` row of your own (sprint 6), carrying the
+   * number you signed up with. `findMatches` matches on that number, so the
+   * claim screen offered the patient **their own row back**, worded as "a
+   * therapist keeps notes for someone with your phone number" — twice on the
+   * screen, once for the therapist's record and once for their own. Claiming
+   * it would have bound a claim to an empty record they already had, while
+   * they believed they had taken ownership of their therapist's notes.
+   *
+   * Found by signing up as the patient and reading the screen. Nothing about
+   * the query, the redaction or the claim machinery is wrong — only the set.
+   */
+  excludePersonId?: string | null;
 }): Promise<ClaimSuggestion[]> {
   const candidates = await findMatches(input);
 
-  const unclaimed = candidates.filter((c) => !c.claimed);
+  const unclaimed = candidates.filter(
+    (c) => !c.claimed && c.personId !== input.excludePersonId,
+  );
   return unclaimed.map((c) => ({
     personId: c.personId,
     redactedName: redactName(c.firstName, c.lastName),

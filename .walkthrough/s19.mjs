@@ -1,0 +1,11 @@
+import { BASE, browser, page, text } from "./lib.mjs";
+import { signIn } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "t");
+const landed = await signIn(p, BASE, "yasmin@clinic.test", "walkthrough-therapist-1");
+console.log("landed:", landed);
+const cookies = await p.context().cookies();
+console.log("cookies:", cookies.map(c => `${c.name}=${c.value.slice(0,8)}… exp=${c.expires}`));
+await p.goto(`${BASE}/patients`, { waitUntil: "networkidle" });
+console.log("after /patients:", p.url());
+await b.close();

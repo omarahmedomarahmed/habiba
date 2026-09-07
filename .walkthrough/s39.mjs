@@ -1,0 +1,16 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { clearLimits, clickButton } from "./lib2.mjs";
+await clearLimits();
+const b = await browser();
+const p = await page(b, "patient");
+await p.goto(`${BASE}/patient/login`, { waitUntil: "networkidle" });
+await p.fill("#handle", "+201001234567");
+await p.fill("#password", "walkthrough-patient-1");
+await p.click("button[type=submit]");
+await p.waitForTimeout(2500);
+await p.goto(`${BASE}/patient/invite/P10UHNmjg2XXFuwbZx1CngTu2-rU4mY7`, { waitUntil: "networkidle" });
+console.log("--- invite, signed in ---");
+console.log((await text(p)).slice(0, 900));
+console.log("buttons:", (await p.locator("button").allTextContents()).map(s=>s.trim()).filter(Boolean));
+await shot(p, "26-invite-signed-in");
+await b.close();

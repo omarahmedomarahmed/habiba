@@ -1,0 +1,12 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn, clickButton } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "admin");
+await signIn(p, BASE, "admin@24therapy.ai", "Purge22-Walkthrough-Admin", "/staff/sign-in");
+await p.goto(`${BASE}/admin/verifications`, { waitUntil: "networkidle" });
+await clickButton(p, "Approve");
+await p.waitForTimeout(1500);
+const t = await text(p);
+console.log(t.slice(0, 400));
+await shot(p, "12-admin-approved");
+await b.close();

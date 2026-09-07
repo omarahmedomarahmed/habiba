@@ -160,7 +160,27 @@ export async function patientSignUp(
 
   await createPatientSession(accountId);
   log.info("patient account created");
-  redirect("/patient/claim");
+
+  /*
+   * 🔴 22R — the invite the form carried is not dropped on the floor.
+   *
+   * `/patient/signup?invite=<token>` renders the token as a hidden field, and
+   * this function never read it: a patient who followed the link their
+   * therapist handed them was dropped into the *matching* route instead, which
+   * asks for a code by email or WhatsApp. Most patients here have no email
+   * (§3b, C43) and WhatsApp is waiting on Meta, so the screen they reached said
+   * "we could not send your code — check the email address on your account",
+   * to somebody who has no email and is holding the very invite it then
+   * suggests they ask for. That is a dead end on the primary way into this
+   * product, and it took signing up as a patient to see it.
+   *
+   * The redirect goes to the invite page rather than redeeming here on
+   * purpose: §3 step 7 asks whether the therapist keeps access, the default is
+   * OFF, and the patient chooses. Claiming silently at signup would answer a
+   * consent question on their behalf.
+   */
+  const inviteToken = String(formData.get("inviteToken") ?? "").trim();
+  redirect(inviteToken ? `/patient/invite/${encodeURIComponent(inviteToken)}` : "/patient/claim");
 }
 
 /**

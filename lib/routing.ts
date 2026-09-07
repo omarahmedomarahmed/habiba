@@ -50,6 +50,24 @@ export const PATIENT_AUTH_ROUTES = [
   "/patient/forgot-password",
 ];
 
+/**
+ * 🔴 22R — patient routes that work signed in AND signed out.
+ *
+ * The invite link is the one a therapist hands over in the room, and for most
+ * of this book it is the *only* claim route that can work (§3b: 56 of 66
+ * patients have no email). The page itself is written for both cases — it says
+ * "create an account or sign in, then open this link again" — and the
+ * middleware never let an anonymous person reach it: with no patient cookie,
+ * `/patient/invite/<token>` was redirected to `/patient/login`, so a patient
+ * opening the link their therapist just gave them met a sign-in form for an
+ * account they do not have, with no mention of the invite.
+ *
+ * Found by opening the link as the patient, in a browser with no cookies. No
+ * verifier could have found it: the route exists, the page renders, the token
+ * resolves, and every check about all three passes.
+ */
+export const PATIENT_OPEN_ROUTES = ["/patient/invite"];
+
 /** 21R.1 / C94 — where an unauthenticated caller at an admin route is sent. */
 export const STAFF_SIGN_IN = "/staff/sign-in";
 
@@ -69,6 +87,9 @@ export function routeDecision(
    * the two differ by a single character.
    */
   if (PATIENT_PREFIXES.some((p) => isUnder(pathname, p))) {
+    /* Reachable either way — see PATIENT_OPEN_ROUTES. */
+    if (PATIENT_OPEN_ROUTES.some((p) => isUnder(pathname, p))) return { kind: "pass" };
+
     const isPatientAuthRoute = PATIENT_AUTH_ROUTES.some((p) => isUnder(pathname, p));
 
     if (!cookies.patient && !isPatientAuthRoute) {

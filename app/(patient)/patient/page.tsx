@@ -31,8 +31,21 @@ export const dynamic = "force-dynamic";
  * counts and a name; the notes written *for* the patient arrive in 13.4 and go
  * through their own query.
  */
-export default async function PatientHomePage() {
+export default async function PatientHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ claimed?: string }>;
+}) {
   const actor = await requirePatient();
+  /*
+   * 🔴 22R — the confirmation the invite page could not show.
+   *
+   * Claiming through an invite worked and ended on "this link is no longer
+   * valid", because a single-use token stops resolving the moment it is used
+   * and the page re-rendered on the server. The claim now lands here, where
+   * the record it produced is on the screen behind the sentence.
+   */
+  const { claimed } = await searchParams;
 
   // 7.4 — an unanswered request is the one thing on this page that is waiting
   // on them, so it is counted here rather than discovered by navigating.
@@ -71,6 +84,17 @@ export default async function PatientHomePage() {
         `actor.email` is nullable since 13R.6 — an account may have only a
         number — so the subtitle falls back rather than rendering an empty line.
       */}
+      {claimed ? (
+        <Card className="border-teal-200 bg-teal-50 p-4">
+          <p className="text-sm font-semibold text-teal-900">That record is yours now</p>
+          <p className="mt-1 text-sm leading-relaxed text-teal-900/90">
+            {claimed === "kept"
+              ? "Your therapist can still see your profile. You can change that whenever you like, under who can read your history."
+              : "Your therapist keeps the notes they already wrote, and can no longer see your live profile. You can give access back at any time."}
+          </p>
+        </Card>
+      ) : null}
+
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
           Welcome, {actor.firstName}

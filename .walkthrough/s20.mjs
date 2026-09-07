@@ -1,0 +1,11 @@
+import { BASE, browser, page, text } from "./lib.mjs";
+const b = await browser();
+const p = await page(b, "t");
+await p.goto(`${BASE}/login`, { waitUntil: "networkidle" });
+await p.fill("#email", "yasmin@clinic.test");
+await p.fill("#password", "walkthrough-therapist-1");
+await p.click("button[type=submit]");
+await p.waitForTimeout(3000);
+console.log("url:", p.url());
+console.log((await text(p)).split("\n").slice(0, 8).join("\n"));
+await b.close();

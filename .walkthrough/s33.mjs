@@ -1,0 +1,16 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { clearLimits, clickButton } from "./lib2.mjs";
+await clearLimits();
+const b = await browser();
+const p = await page(b, "patient");
+const TOKEN = "P10UHNmjg2XXFuwbZx1CngTu2-rU4mY7";
+await p.goto(`${BASE}/patient/invite/${TOKEN}`, { waitUntil: "networkidle" });
+await p.locator("a", { hasText: "Create an account" }).first().click();
+await p.waitForURL(/signup/, { timeout: 20000 }).catch(() => console.log("   ⚠️ the link did not navigate within 20s"));
+await p.waitForLoadState("networkidle");
+console.log("signup url:", p.url());
+const t = await text(p);
+console.log(t.slice(0, 800));
+console.log("fields:", await p.locator("input,select").evaluateAll(e => e.map(x => `${x.name||x.id}=${(x.value||"").slice(0,18)}`)));
+await shot(p, "21-patient-signup-invited");
+await b.close();

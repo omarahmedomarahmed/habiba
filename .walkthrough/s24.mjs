@@ -1,0 +1,14 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn, clickButton } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "t");
+await signIn(p, BASE, "yasmin@clinic.test", "walkthrough-therapist-1");
+await p.goto(`${BASE}/patients`, { waitUntil: "networkidle" });
+await p.locator("a[href^='/patients/']").first().click();
+await p.waitForLoadState("networkidle");
+console.log("patient record:", p.url());
+const t = await text(p);
+console.log(t.slice(0, 1200));
+console.log("\nbuttons:", (await p.locator("button").allTextContents()).map(s=>s.trim()).filter(Boolean).slice(0, 20));
+await shot(p, "18-patient-record");
+await b.close();

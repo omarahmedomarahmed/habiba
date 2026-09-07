@@ -1,0 +1,11 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "t");
+await signIn(p, BASE, "yasmin@clinic.test", "walkthrough-therapist-1");
+await p.goto(`${BASE}/patients`, { waitUntil: "networkidle" });
+await p.waitForTimeout(1500);
+console.log("TEXT:\n" + (await text(p)));
+console.log("\nLINKS:", await p.evaluate(() => [...document.querySelectorAll("a")].map(a => `${a.getAttribute("href")}|${(a.textContent||"").trim().slice(0,30)}`)));
+await shot(p, "14-patients-empty");
+await b.close();

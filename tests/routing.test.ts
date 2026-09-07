@@ -169,3 +169,22 @@ test("the admin console bounces to the staff sign-in, not the clinician's", () =
     keepNext: true,
   });
 });
+
+/**
+ * 🔴 22R — the invite link works before there is an account.
+ *
+ * Found by opening it as the patient: with no cookie the middleware sent
+ * `/patient/invite/<token>` to `/patient/login`, so somebody handed a link in
+ * the room met a sign-in form for an account they do not have. The page is
+ * written for both cases; the router was not. It must pass either way — a
+ * signed-in patient opening the same link is how the claim completes.
+ */
+test("the invite link is reachable with and without a patient cookie", () => {
+  for (const cookies of [nobody, patient, clinician, both]) {
+    assert.deepEqual(
+      routeDecision("/patient/invite/abc123", { ...cookies, expired: false }),
+      { kind: "pass" },
+      JSON.stringify(cookies),
+    );
+  }
+});

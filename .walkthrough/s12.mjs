@@ -1,0 +1,10 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn, clickButton } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b, "admin");
+await signIn(p, BASE, "admin@24therapy.ai", "Purge22-Walkthrough-Admin", "/staff/sign-in");
+await p.goto(`${BASE}/admin/verifications`, { waitUntil: "networkidle" });
+await shot(p, "11-admin-verifications");
+console.log((await text(p)).slice(0, 800));
+console.log("--- buttons ---", (await p.locator("button").allTextContents()).map(s=>s.trim()).filter(Boolean).slice(0,12));
+await b.close();

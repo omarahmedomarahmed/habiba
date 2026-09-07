@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
@@ -20,6 +22,7 @@ import { Button, Card } from "@/components/ui";
  * not change that.
  */
 export function InviteFlow({ token, redactedName }: { token: string; redactedName: string }) {
+  const router = useRouter();
   const [keepsAccess, setKeepsAccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -88,8 +91,26 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
           startTransition(async () => {
             setError(null);
             const r = await acceptInvite({ token, therapistKeepsAccess: keepsAccess });
-            if (r.error) setError(r.error);
-            else setDone(true);
+            if (r.error) {
+              setError(r.error);
+              return;
+            }
+            setDone(true);
+            /*
+             * 🔴 22R — leave the invite page immediately.
+             *
+             * The success card below used to appear and be replaced, within
+             * the same second, by "This link is no longer valid — it may have
+             * been used already": the action revalidates, the page re-runs on
+             * the server, and a single-use token that has just been used no
+             * longer resolves. Everything worked, and the last thing the
+             * patient saw was an error page.
+             *
+             * Found by claiming a record as the patient and looking at the
+             * screen. No verifier could have: the claim, the grant and the
+             * audit row were all exactly right.
+             */
+            router.replace(`/patient?claimed=${keepsAccess ? "kept" : "1"}`);
           })
         }
       >
