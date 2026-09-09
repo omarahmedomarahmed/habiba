@@ -3,7 +3,8 @@ import Link from "next/link";
 import { and, eq, sql } from "drizzle-orm";
 
 import { PayoutSettings } from "@/components/settings/payouts";
-import { SettingsForms } from "@/components/settings/settings-forms";
+import { SettingsNav, SettingsSection } from "@/components/settings/section";
+import { PasswordForm, ProfileForm } from "@/components/settings/settings-forms";
 import { TimezoneSettings } from "@/components/settings/timezone-settings";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
@@ -13,6 +14,7 @@ import { heldForTherapist } from "@/lib/billing/ledger";
 import { db } from "@/lib/db";
 import { AssistantPrefsSettings } from "@/components/assistant/prefs-settings";
 import { assistantPrefs } from "@/lib/ai/assistant";
+import { practiceState } from "@/lib/data/verification";
 import { invoices, users } from "@/lib/db/schema";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
@@ -35,7 +37,7 @@ export default async function SettingsPage({
       ? await refreshAccountStatus(actor.userId)
       : await getConnectAccount(actor.userId);
 
-  const [[user], balance, [outstanding], settings, prefs] = await Promise.all([
+  const [[user], balance, [outstanding], settings, prefs, practice] = await Promise.all([
     db.select().from(users).where(eq(users.id, actor.userId)).limit(1),
     accountBalance(actor.userId),
     db
@@ -46,76 +48,155 @@ export default async function SettingsPage({
       .where(and(eq(invoices.organizationId, actor.organizationId), eq(invoices.status, "due"))),
     getSettings(),
     assistantPrefs(actor.userId),
+    practiceState(actor.userId),
   ]);
+
+  /*
+   * 24.4 — the sections, in the order somebody arrives looking for them.
+   *
+   * Getting paid is second rather than last because it is the reason most
+   * people open this page at all; the copilot's voice is fourth because
+   * nobody has ever opened settings in a hurry to change it.
+   */
+  const sections = [
+    { id: "you", title: "You" },
+    { id: "paid", title: "Getting paid" },
+    { id: "when", title: "Your hours" },
+    { id: "copilot", title: "The copilot" },
+    { id: "security", title: "Security" },
+    ...(actor.role === "super_admin" ? [{ id: "admin", title: "Admin" }] : []),
+  ];
+
+  const held = await heldForTherapist(actor.userId);
 
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Settings" subtitle={actor.email} />
 
-      <div className="space-y-4 px-4 pb-10 sm:px-6">
+      <div className="space-y-8 px-4 pb-10 sm:px-6">
+        <SettingsNav sections={sections} />
+
         {payouts === "refresh" ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
             That Stripe link expired before you finished. Start it again below. Nothing was lost.
           </p>
         ) : null}
 
-        <SettingsForms
-          initial={{
-            firstName: user?.firstName ?? "",
-            lastName: user?.lastName ?? "",
-            credentials: user?.profile?.credentials ?? "",
-            licenseType: user?.profile?.licenseType ?? "",
-            licenseNumber: user?.profile?.licenseNumber ?? "",
-            licenseState: user?.profile?.licenseState ?? "",
-          }}
-          isAdmin={actor.role === "super_admin"}
-        />
+        <SettingsSection
+          id="you"
+          title="You"
+          why="Your name and credentials as a patient sees them, and the licence our compliance team checked."
+        >
+          {/*
+            24.4 — the verification state belongs here, and it was on no screen
+            a verified clinician ever visits again. "Am I approved?" is a
+            question people ask support, and the answer was only ever on the
+            onboarding page they are redirected away from once they pass.
+          */}
+          <Card className="p-4">
+            <p className="text-sm font-semibold text-slate-900">Your practice</p>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              {practice === "approved"
+                ? "Approved. Your licence has been checked and you can see patients."
+                : practice === "submitted"
+                  ? "With our compliance team. You will hear from us, and nothing else is needed from you right now."
+                  : practice === "rejected"
+                    ? "Not approved. Open verification to see what we need and send it again."
+                    : "Not submitted yet. You cannot start a session until your licence has been checked."}
+            </p>
+            {practice !== "approved" ? (
+              <Link
+                href="/onboarding"
+                className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+              >
+                Open verification
+              </Link>
+            ) : null}
+          </Card>
 
-        {/*
-          11R.2 — above the copilot preferences because more depends on it:
-          the hours this clinician publishes and the hour we are willing to
-          message their patients at.
-        */}
-        <TimezoneSettings initial={user?.timezone ?? null} />
+          <ProfileForm
+            initial={{
+              firstName: user?.firstName ?? "",
+              lastName: user?.lastName ?? "",
+              credentials: user?.profile?.credentials ?? "",
+              licenseType: user?.profile?.licenseType ?? "",
+              licenseNumber: user?.profile?.licenseNumber ?? "",
+              licenseState: user?.profile?.licenseState ?? "",
+            }}
+          />
+        </SettingsSection>
 
-        {/* 10.6's second half — the "editable later" that sprint 10 left as [~]. */}
-        <AssistantPrefsSettings
-          initial={{
-            language: prefs.language,
-            voice: prefs.voice,
-            voiceSpeed: prefs.voiceSpeed,
-          }}
-        />
+        <SettingsSection
+          id="paid"
+          title="Getting paid"
+          why="Where a patient's payment lands, what we are holding for you, and what you owe us."
+        >
+          <PayoutSettings
+            state={{
+              connected: Boolean(connect.accountId),
+              chargesEnabled: connect.chargesEnabled,
+              payoutsEnabled: connect.payoutsEnabled,
+              sessionRateCents: connect.sessionRateCents,
+              rateCurrency: connect.rateCurrency,
+              autoSettleFromEarnings: connect.autoSettleFromEarnings,
+              availableCents: balance?.availableCents ?? null,
+              pendingCents: balance?.pendingCents ?? null,
+              outstandingCents: outstanding?.cents ?? 0,
+              feeBps: settings.session.platformFeeBps,
+              heldCents: held,
+            }}
+          />
+        </SettingsSection>
 
-        <PayoutSettings
-          state={{
-            connected: Boolean(connect.accountId),
-            chargesEnabled: connect.chargesEnabled,
-            payoutsEnabled: connect.payoutsEnabled,
-            sessionRateCents: connect.sessionRateCents,
-            rateCurrency: connect.rateCurrency,
-            autoSettleFromEarnings: connect.autoSettleFromEarnings,
-            availableCents: balance?.availableCents ?? null,
-            pendingCents: balance?.pendingCents ?? null,
-            outstandingCents: outstanding?.cents ?? 0,
-            feeBps: settings.session.platformFeeBps,
-            heldCents: await heldForTherapist(actor.userId),
-          }}
-        />
+        <SettingsSection
+          id="when"
+          title="Your hours"
+          why="The zone every time in this product is shown in, and the hour we are willing to message your patients at."
+        >
+          <TimezoneSettings initial={user?.timezone ?? null} />
+        </SettingsSection>
+
+        <SettingsSection
+          id="copilot"
+          title="The copilot"
+          why="How it talks back to you. It never talks to a patient."
+        >
+          <AssistantPrefsSettings
+            initial={{
+              language: prefs.language,
+              voice: prefs.voice,
+              voiceSpeed: prefs.voiceSpeed,
+            }}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          id="security"
+          title="Security"
+          why="Your password, and the way out."
+        >
+          <PasswordForm />
+        </SettingsSection>
 
         {actor.role === "super_admin" ? (
-          <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">Admin console</p>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Manage clinicians, review the audit log and edit the public site.
-            </p>
-            <Link
-              href="/admin"
-              className="mt-3 inline-flex h-10 items-center rounded-xl bg-navy-500 px-4 text-sm font-semibold text-white"
-            >
-              Open admin
-            </Link>
-          </Card>
+          <SettingsSection
+            id="admin"
+            title="Admin"
+            why="The back office. Only people with a role here can open it."
+          >
+            <Card className="p-4">
+              <p className="text-sm font-semibold text-slate-900">Admin console</p>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Manage clinicians, review the audit log and edit the public site.
+              </p>
+              <Link
+                href="/admin"
+                className="mt-3 inline-flex h-10 items-center rounded-xl bg-navy-500 px-4 text-sm font-semibold text-white"
+              >
+                Open admin
+              </Link>
+            </Card>
+          </SettingsSection>
         ) : null}
       </div>
     </div>

@@ -19,9 +19,16 @@ function Submit({ label }: { label: string }) {
   );
 }
 
-export function SettingsForms({
+/**
+ * 24.4 — three separate things, three separate components.
+ *
+ * These were one component rendering three cards in a row: your details, your
+ * password, and a sign-out button. That made them one block on the page, which
+ * is why the settings screen could not be organised by what somebody came to
+ * do. They are exported separately now and placed into sections by the page.
+ */
+export function ProfileForm({
   initial,
-  isAdmin,
 }: {
   initial: {
     firstName: string;
@@ -31,10 +38,8 @@ export function SettingsForms({
     licenseNumber: string;
     licenseState: string;
   };
-  isAdmin: boolean;
 }) {
   const [profileState, profileAction] = useActionState(updateProfile, INITIAL_SETTINGS);
-  const [passwordState, passwordAction] = useActionState(changePassword, INITIAL_AUTH);
 
   return (
     <>
@@ -92,6 +97,15 @@ export function SettingsForms({
         </form>
       </Card>
 
+    </>
+  );
+}
+
+export function PasswordForm() {
+  const [passwordState, passwordAction] = useActionState(changePassword, INITIAL_AUTH);
+
+  return (
+    <>
       <Card className="p-4">
         <form action={passwordAction} className="space-y-4">
           <p className="text-sm font-semibold text-slate-900">Password</p>
@@ -132,9 +146,13 @@ export function SettingsForms({
       <Card className="p-4">
         <form action={signOut}>
           <Button type="submit" variant="secondary" full>
-            Sign out{isAdmin ? " of admin" : ""}
+            Sign out
           </Button>
         </form>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          Signing out here signs you out on this device. Changing your password above signs you
+          out everywhere.
+        </p>
       </Card>
     </>
   );

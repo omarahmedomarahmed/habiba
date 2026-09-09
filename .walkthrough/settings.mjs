@@ -1,0 +1,10 @@
+import { BASE, browser, page, shot, text } from "./lib.mjs";
+import { signIn } from "./lib2.mjs";
+const b = await browser();
+const p = await page(b);
+await signIn(p, BASE, "yasmin@clinic.test", "walkthrough-therapist-1");
+await p.goto(`${BASE}/settings`, { waitUntil: "networkidle" });
+await p.waitForTimeout(800);
+console.log((await text(p)).slice(0, 900));
+await shot(p, "40-settings-rebuilt");
+await b.close();

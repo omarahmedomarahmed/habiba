@@ -524,6 +524,31 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       },
       {
         type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
+      },
+      {
+        type: "features",
+        heading: "The short version",
+        items: [
+          {
+            title: "Your notes are yours",
+            body: "A clinician sees the patients they treat. Nobody else at 24Therapy reads a note unless you ask us to look at something.",
+            icon: "lock",
+          },
+          {
+            title: "Nothing trains a model",
+            body: "Session audio and text go to our AI provider so the note can be written, and are never used to train anything.",
+            icon: "shield",
+          },
+          {
+            title: "You can take it or delete it",
+            body: "A patient can export their record or ask us to erase it, and we do both rather than pointing at a clinician.",
+            icon: "check",
+          },
+        ],
+      },
+      {
+        type: "prose",
         body: "This page is a starting point maintained by your administrator, not legal advice. Review it with counsel before you accept a real patient.",
       },
       {
@@ -563,6 +588,10 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         demo: "none",
         icon: "fileText",
         backgroundImage: "/backgrounds/grid.svg",
+      },
+      {
+        type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
       },
       {
         type: "prose",
@@ -629,6 +658,10 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       },
       {
         type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
+      },
+      {
+        type: "prose",
         heading: "Where we are today",
         body: "24Therapy is in closed beta and is not yet HIPAA compliant. We are incorporating in the United States, and business associate agreements with each of our infrastructure providers are the next step after that, a BAA is a contract, and a contract needs a legal entity to sign it. Until every row in the table below reads signed, do not put protected health information into this product. We will tell you the day that changes rather than leaving you to check.",
       },
@@ -674,6 +707,31 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         demo: "none",
         icon: "lock",
         backgroundImage: "/backgrounds/contours.svg",
+      },
+      {
+        type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
+      },
+      {
+        type: "features",
+        heading: "The short version",
+        items: [
+          {
+            title: "Every read is written down",
+            body: "Opening a chart appends a row to a log nobody can edit, including us.",
+            icon: "shield",
+          },
+          {
+            title: "A role is a list, not a rank",
+            body: "An unrecognised role is denied rather than quietly allowed, and every clinical query is scoped to one practice.",
+            icon: "lock",
+          },
+          {
+            title: "We say what is not finished",
+            body: "The compliance work still in progress is named on this page rather than implied to be done.",
+            icon: "alert",
+          },
+        ],
       },
       {
         type: "prose",
