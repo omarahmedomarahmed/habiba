@@ -983,6 +983,37 @@ live rows, and every one of them is now void:
 | C103 | 19 | 🔴 **Arabic has no URL.** The language switch is a cookie (`24t_locale`) set by a server action; `/ar/pricing` and `/ar/for-patients` are **404**. The Arabic pages render well — 482 Arabic words against 30 Latin on pricing — but nobody can link to one, share one, or find one in a search engine, in the market this product is built for. **Ruling: the Arabic site needs its own paths** (`/ar/...`), with the cookie kept as the preference and `hreflang` on both. Until then "the site is in Arabic" is true for a visitor and false for Google. | major | review | **ruled — new sprint 23R** |
 | C104 | 22 | **Two verifiers pinned themselves to the state before the purge.** `19.0a` asserts staging rows exist and now reports *0 staged rows across 0 locales* — the purge correctly removed the scaffolding it was checking. `21R.6` fetches the live pricing page by URL and reports `ar:PROSE` because there is no Arabic URL to fetch (C103). Same family as the two the build session already caught. **Ruling: a check that asserts on scaffolding must delete itself with the scaffolding**, and a check that fetches a locale must fetch it the way a reader reaches it. | minor | review | **ruled — sprint 23R** |
 | C105 | 22 | 🔴 **The report said ledger 55 and a purged production; production was at 53 with 38 users and 56 patients.** `0053_patient_reset` and `0054_validate` had never been applied, so the patient password-reset table did not exist on production — C94's headline fix was not live — and 0054 would have failed outright, because `VALIDATE CONSTRAINT` scans, and the rows it would have scanned were still there. The purge and both migrations were run from this session on 2026-09-07: 61 tables emptied, ledger 55, **0 `NOT VALID` constraints remaining**, 1 seeded admin, content reseeded across 14 pages. **Ruling: H16 is not "apply before pushing main", it is "prove it against `information_schema` and say the number you read".** A sprint report that states a ledger number nobody queried is the same defect as a checker that matches its own prose. | major | review | **resolved — applied and verified from this session** |
+| C102b | 27 | 🔴 **The portability pitch has no mechanism.** `requestGrant` takes a *clinician* actor and writes `status: "pending"`; the patient answers. There is no patient-initiated share anywhere in `lib/data/grants.ts`. "Take your record to your next therapist" is a promise the product cannot keep. **Ruling: keep therapist-initiated as the mechanism**, because it means the requester holds an account and is verified before anything moves, **and add a patient-side invite**: the patient generates a code, the new therapist redeems it, which creates the request, which the patient approves in one tap. The patient gets the initiative and nobody gets a back door. Copy says "invite your therapist", never "send your record". | major | founder | **ruled — sprint 27** |
+| C106 | 27 | 🔴 **A grant to an unverified account.** Nothing in the database stops `history_grants.status` reaching `granted` for a clinician whose verification is not `approved`. The whole "only certified therapists" claim rests on it. **Ruling: a hard invariant, in the database, asserted by attempting the write.** | major | review | **ruled — sprint 27** |
+| C107 | 27 | **Coercion.** Someone pressured into granting access: an abusive partner who is also a clinician, a family member holding the phone. **Ruling: a grant needs the patient's own authenticated action and can never come from a therapist flow that ends in access.** Plus a permanent "who can read my record" screen with one-tap revoke, a notification on every new grant, and revocation that never asks why. | major | review | **ruled — sprint 27** |
+| C108 | 27 | **The old therapist refuses, has left, or wants paying.** We cannot promise cooperation. **Ruling: copy says "ask", never "get", and the request is explicit** — the patient asks, the therapist sees it, and uploads or declines with a reason the patient reads. A silent request is worse than a refusal. | minor | review | **ruled — sprint 27** |
+| C109 | 28 | 🔴 **"Paid sessions cover our fee" is arithmetically false.** At 15%, a session must be about 27 dollars before the cut covers a 4 dollar fee. At Egyptian prices it does not. This is C69 in a new costume and it would be a false claim on a public page. **Ruling: say what is true, which is netting** — what you owe comes out of what you earn, before it reaches your account. And state plainly that on a free session the therapist pays the fee. | major | founder | **ruled — sprint 28** |
+| C110 | 28 | **Never promise earnings.** "Get booked on the radar" is fine. "Earn enough to offset the cost" is a forecast about somebody else's business. | minor | review | **ruled — sprint 28, copy rule + check** |
+| C111 | 26 | **Two therapists, one clinical summary.** The summary belongs to the **patient**, not to a clinician. **Ruling: versioned and append-only**, each version stamped with the clinician who approved it and the date. Therapist B never overwrites therapist A. The patient sees both, with authors. And revoking therapist A does **not** retract a version the patient has already read; what the patient holds is theirs. | major | review | **ruled — sprint 26** |
+| C112 | 26 | **Approval fatigue.** Three approvals per session is how approvals become rubber stamps. **Ruling: one screen, one action, all three shown together, and the summary defaults to *not published* if the clinician does not act.** Silence publishes nothing. | major | review | **ruled — sprint 26** |
+| C113 | 24 | 🔴 **The patient-facing summary is model output reaching a patient.** The rule has to be exact: **a patient never converses with a model, and no model output reaches a patient without a named clinician approving that exact text.** True today — nothing under `app/(patient)` imports `lib/ai/*`. **Ruling: make it an import-graph guard**, proved against a planted offender, so it cannot quietly stop being true. | major | review | **ruled — sprint 24** |
+| C114 | 25 | 🔴 **Name editing versus the claim challenge.** The challenge asks what name the patient gave their therapist. If it compared against the patient's own editable profile, somebody holding the phone could fail, edit their profile, and retry. **Ruling: the comparison is always against the therapist's record, never the patient's profile.** One rule, one test. | major | review | **ruled — sprint 25** |
+| C115 | 25 | **Patient profile picture.** A new upload surface with no verification, shown to a clinician. **Ruling: images only, size capped, stored private, served through an authenticated route like documents, never a public object, and admin can remove.** | minor | review | **ruled — sprint 25** |
+| C116 | 25 | **Mobile app banners for an app that does not exist.** App Store badges for software nobody can install is a false claim on a live page. **Ruling: a PWA "add to home screen" prompt, which is honest and works today, or the words "coming soon". Never a badge.** | minor | founder | **ruled — sprint 25** |
+| C117 | 24 | 🔴 **The em dash.** U+2014 and U+2013 read as machine-written and are banned in every CMS default, every `ui_strings` row, every rendered public page, every email and every WhatsApp template. **Ruling: a verifier that scans all of them and fires against a planted offender**, same standard as every other guard here. | minor | founder | **ruled — sprint 24** |
+| C118 | 30 | 🔴 **Egyptian counsel says Egyptian data must sit in Egypt.** Neon has no Egyptian region, so this is a second database, not a setting. The realistic provider is **Huawei Cloud Egypt**, the only public-cloud region in the country, with a second Cairo AZ due 2026; the alternatives are Cairo colocation (Link Data Center, Tier IV, runs Postgres) or the telco clouds. **Ruling: build the region seam now and point Egypt at the US instance until Cairo is live**, so going live is an environment variable rather than a migration. Enforcement lands October 2026. | blocker | founder | **ruled — sprint 30** |
+| C119 | 25 | 🔴 **A guest with only a phone number has no password, and 13R made a password mandatory.** **Ruling: the password becomes optional.** A code to the phone or the email is always a valid sign-in; a password is a convenience, never the only door. This edits 13R rather than extending it. | major | founder | **ruled — sprint 25** |
+| C120 | 25 | 🔴 **A printed QR code on a clinic wall is public.** Anyone can scan it. **Ruling: the QR carries the therapist's identity only, never a patient's.** Scanning opens signup saying which practice they are joining; matching still runs on phone or email plus the full challenge. The code is short and revocable, so a poster left up after a clinician leaves can be killed. | major | founder | **ruled — sprint 25** |
+| C121 | 25 | 🔴 **Showing the therapist's name and photo before the handle is proven leaks.** Type a stranger's number, see "Dr Nadia Farouk" and a photo, and you have learned that number belongs to one of her patients. **Ruling: the code comes first, always.** Nothing about any record appears until the handle is proven: handle, then code, then therapist name and photo, then "have you seen them", then the name with a first-letter hint that spends one of three attempts. | major | founder | **ruled — sprint 25** |
+| C122 | 25 | **Lookup by email as well as phone, and never by name alone.** Many people share a first and last name, and some records carry only a first name. **Ruling: a record is found by a proven phone or a proven email. A name is only ever a challenge answer, never a lookup key.** | minor | founder | **ruled — sprint 25, standing rule** |
+| C123 | 26 | 🔴 **Journals are a three in the morning crisis surface.** A patient writes "I want to die" into a journal at 3am. **Ruling: journals are scanned like a transcript, and a high-risk journal alerts the therapist who holds a grant. But the page never says or implies that anyone is watching**, and the crisis line is always on screen. Promising monitoring we cannot staff is the most dangerous thing this product could do. | major | founder | **ruled — sprint 26** |
+| C124 | 26 | **Dictated journals are patient-authored audio.** A new ingestion path from an unverified author. **Ruling: same auth, same audit, same private storage as documents.** | minor | review | **ruled — sprint 26** |
+| C125 | 25 | 🔴 **The SOS orb with almost no verified numbers.** C98 left exactly one verified crisis line. **Ruling: the orb shows only numbers we have verified, plus "call your local emergency number" and the practice number if the clinician set one. We never invent a number.** It is a plain `tel:` link, never behind a modal, and it must work when our API does not. | major | founder | **ruled — sprint 25** |
+| C126 | 25 | **The orb over a live session.** **Ruling: it stays, reduced opacity, snapped to an edge.** A person in crisis during a session is the case it exists for. | minor | review | **ruled — sprint 25** |
+| C127 | 26 | 🔴 **"Proof for court" is a legal representation.** We can attest what our records contain and when. We cannot attest that a diagnosis is correct. **Ruling: the export is a record *extract*, never a certificate.** A cover page saying exactly what it is and is not; every note stamped with the approving clinician's name, licence body and number; a verification code a third party can check on a public page. The words "certified" and "proof of diagnosis" never appear. | major | founder | **ruled — sprint 26** |
+| C128 | 26 | **Export by secure email link only, never WhatsApp — but some patients have no email.** **Ruling: they add one to export, and the button says so before it is pressed, not after.** Every export raises an admin alert. | minor | founder | **ruled — sprint 26** |
+| C129 | 25 | **Bottom nav during a live session lets a patient wander off mid-session.** **Ruling: the nav is present, the session tab is locked active, and leaving asks first.** | minor | review | **ruled — sprint 25** |
+| C130 | 25 | **Asking a guest to sign in "to save your notes" implies the record would otherwise vanish.** It would not; the clinician holds it either way. **Ruling: honest copy — signing in lets *you* see it.** | minor | review | **ruled — sprint 25** |
+| C131 | 27 | **A patient invite to an unverified clinician waits forever.** **Ruling: the invite creates a pending grant that cannot activate until that clinician is approved, the patient sees exactly why it is waiting, and it expires after thirty days.** | minor | review | **ruled — sprint 27** |
+| C132 | 41 | 🔴 **Calendar auto-join would eventually record a supervision call or an accountant.** **Ruling: the bot joins meetings 24Therapy created for a session. Nothing else. Ever.** No calendar is ever read. | major | founder | **ruled — sprint 41** |
+| C133 | 41 | 🔴 **A Zoom link we create bypasses our consent screen.** **Ruling: the link the patient receives is always ours** — it takes consent, then forwards. The raw meeting link is never handed out. Declining consent still admits them to the session; the bot simply does not transcribe. | major | founder | **ruled — sprint 41** |
+| C134 | 41 | 🔴 **Never map a person from a meeting display name.** "Omar Ahmed" resolving to patient 184 is how patient A's transcript reaches patient B's chart. **Ruling: identity comes from the session we created, never from the meeting. An unrecognised voice is "Speaker 3", never a guess.** | major | review | **ruled — sprint 41, hard invariant + test** |
+| C135 | 36 | **A mixed meeting stream lands on the weakest attribution path.** Video is accurate because it captures two tracks; a bot delivers one mixed stream. **Ruling: acoustic diarisation is a blocking dependency of the meeting bot, not an in-person nicety.** Sprint 37 ships before sprint 41. | major | review | **ruled — sprints 37, 41** |
 
 **The rule going forward: never shape a product decision around a production
 row again.** If a change is right, make it. The migration still has to be
@@ -1775,6 +1806,358 @@ existing.*
       the room, and the allowance, the citations and the audit trail are
       indistinguishable from having asked them at `/copilot`.
 
+### Sprint 24 — Content law, and every page that never got the revamp · ~1 week
+
+*Everything after this writes copy, so the rules come first.*
+
+- [ ] **24.1** 🔴 **Ban U+2014 and U+2013** in every CMS default, every
+      `ui_strings` row, every rendered public page, every email body and every
+      WhatsApp template (C117). A verifier that scans all of them and is
+      **proved against a planted offender**
+- [ ] **24.2** 🔴 **Import-graph guard: nothing under `app/(patient)` may
+      import `lib/ai/*`** (C113). True today. Make it impossible to stop being
+      true, proved against a planted offender file
+- [ ] **24.3** Rename `lib/ai/patient-copilot.ts` to `case-copilot.ts`. It is
+      the clinician's copilot scoped to one patient, and the name has already
+      misled one careful reader into thinking patients chat with a model
+- [ ] **24.4** **The therapist settings page, rebuilt.** It is the oldest
+      screen in the product and it looks it
+- [ ] **24.5** Every remaining pre-revamp page brought to the sprint 18
+      components: no page left in the old style, both languages
+- [ ] **24.6** **New content defaults throughout**, written not translated,
+      English and Arabic, under the copy rules above
+- **Accept:** no page written before sprint 18 survives, and not one dash of
+      either banned kind exists anywhere a person can read.
+
+### Sprint 25 — The patient app, as an app · ~2 weeks · 🔴 THE ONE PEOPLE SEE
+
+*The patient app works and looks like scaffolding. It is the surface the whole
+patient story is sold on, so it gets a design sprint, not a tidy-up.*
+
+**How it looks**
+
+- [ ] **25.1** 🔴 **A real mobile home**: cards, banners, sections,
+      categories, search, recent sessions, top-rated therapists. Not a list of
+      links
+- [ ] **25.2** 🔴 **Every patient screen lives inside the app chrome**,
+      including the radar and including a **live session** (C129, ruling 15).
+      A patient never falls out into the public site's top nav
+- [ ] **25.3** The radar renders **inside** the app with real controls and
+      filters, and the bottom nav is a client component so the public radar
+      stays cacheable and carries no user data in its HTML
+- [ ] **25.4** During a live session the nav is present, the session tab is
+      **locked active**, and leaving asks first (C129)
+- [ ] **25.5** 🔴 **The SOS orb** (C125, C126): a draggable red dot on every
+      patient screen. Tapping opens big click-to-call buttons side by side,
+      one per country, with the word for help written in that country's
+      language above each number, and a flag beside each. **Only verified
+      numbers.** Where we have none: "call your local emergency number", plus
+      the practice number if the clinician set one. Plain `tel:` links, never
+      behind a modal, and it works when our API does not
+- [ ] **25.6** 🔴 **PWA "add to home screen", or the words "coming soon".
+      Never an App Store badge** for software nobody can install (C116)
+
+**Profile and tabs**
+
+- [ ] **25.7** Profile with **name and picture** (C115): images only, size
+      capped, private storage, authenticated route, admin can remove
+- [ ] **25.8** **Sessions** tab with sub-tabs **All · Upcoming · Past**
+- [ ] **25.9** **Billing and credit** tab
+- [ ] **25.10** **Clinical summary** tab, built in sprint 26
+
+**Getting in**
+
+- [ ] **25.11** 🔴 **The password becomes optional** (C119). A code to the
+      phone or the email is always a valid sign-in. This edits 13R
+- [ ] **25.12** 🔴 **A guest needs one handle and nothing else.** A phone, or
+      an email, and they are a full patient user missing only the other one
+- [ ] **25.13** At the end of a session a guest is asked to sign in. 🔴 **The
+      copy is honest** (C130): the clinician holds this record either way;
+      signing in lets *you* see it
+- [ ] **25.14** 🔴 **Lookup by proven phone or proven email, never by name**
+      (C122). A name is only ever a challenge answer
+- [ ] **25.15** 🔴 **The claim order, corrected** (C121): handle, then code,
+      then the therapist's name and photo, then "have you seen them", then the
+      name with a first-letter hint that **spends one of three attempts**.
+      Nothing about any record appears before the handle is proven
+- [ ] **25.16** 🔴 **The name is compared against the therapist's record,
+      never the patient's editable profile** (C114). One rule, one test
+- [ ] **25.17** 🔴 **A therapist QR code** (C120), for the clinic wall or the
+      end of an in-person session. It carries **the therapist's identity
+      only**. Scanning opens signup saying which practice, matching runs on
+      phone or email plus the full challenge, and the code is short and
+      **revocable** so a stale poster can be killed
+- [ ] **25.18** **New session, new patient, one step**: name and **mobile
+      number**, and the WhatsApp invite goes immediately. Both halves already
+      exist and are two screens apart
+- **Accept:** somebody's mother could use this, in Arabic, on a four-year-old
+      Android, and reach an emergency number in two taps from any screen.
+
+### Sprint 26 — The record the patient owns · ~2 weeks
+
+- [ ] **26.1** 🔴 **The clinical summary belongs to the patient** (C111):
+      versioned, append-only, each version stamped with the clinician who
+      approved it and the date. Therapist B never overwrites therapist A, and
+      the patient sees both with authors
+- [ ] **26.2** Revoking a clinician **does not retract a version the patient
+      has already read**. What the patient holds is theirs
+- [ ] **26.3** 🔴 **One approval screen, one action, three items** (C112):
+      clinical note, patient note, summary. **Silence publishes nothing**
+- [ ] **26.4** Summary copy obeys the `patientBrief` constraints: no
+      diagnosis, no impressions, no risk language, no other clinician's words
+- [ ] **26.5** 🔴 **Journals replace patient uploads.** Patients stop adding
+      files and dictating clinical history; they write or dictate journals
+- [ ] **26.6** Journals are visible to clinicians holding a grant, feed the
+      intelligence layer, and are **cited like a document** in the copilot
+- [ ] **26.7** 🔴 **Journals are scanned for risk** (C123) and a high-risk
+      journal alerts the clinician who holds a grant. **The page never says or
+      implies anyone is watching**, and the crisis line is always on screen
+- [ ] **26.8** Dictated journals: same auth, audit and private storage as
+      documents (C124)
+- [ ] **26.9** 🔴 **The export, rebuilt as the most complete record of
+      themselves a person can hold** (C127) — every session, every approved
+      note, every summary version, diagnoses, journals, homework, dates and
+      the clinician behind each. **A record extract, never a certificate.** A
+      cover page saying exactly what it is and is not; each note stamped with
+      the approving clinician's name, licence body and number; a verification
+      code a third party can check on a public page. The words "certified" and
+      "proof of diagnosis" never appear
+- [ ] **26.10** 🔴 **Export by secure email link only, never WhatsApp**
+      (C128). No email on file means adding one, said on the button. Every
+      export raises an **admin alert** and is audited as patient data leaving
+- **Accept:** a patient can hold, read and hand to a lawyer the complete
+      record of their own therapy, and nothing in it claims more than we know.
+
+### Sprint 27 — Portability, which is the whole pitch · ~1.5 weeks
+
+- [ ] **27.1** 🔴 **A grant can only be held by a clinician whose verification
+      is `approved`** (C106). In the database, asserted by attempting the write
+- [ ] **27.2** 🔴 **The patient invite** (C102b): the patient generates a code,
+      a clinician redeems it, which **creates a request** the patient then
+      approves in one tap. The patient gets the initiative; nobody gets a back
+      door. Copy says "invite your therapist", never "send your record"
+- [ ] **27.3** An invite to a clinician with no account still works: they sign
+      up, and 🔴 **the grant cannot activate until they are verified** (C131).
+      The patient sees exactly why it is waiting. Thirty-day expiry
+- [ ] **27.4** 🔴 **A grant needs the patient's own authenticated action** and
+      can never come from a clinician flow that ends in access (C107)
+- [ ] **27.5** **"Who can read my record"**, permanently in the app: every
+      grant, when it was given, one-tap revoke, **no reason ever asked**
+- [ ] **27.6** A notification to the patient on **every** new grant
+- [ ] **27.7** 🔴 **"Ask my previous therapist to add my history"** (C108): the
+      patient asks, the clinician sees it in their queue, and either uploads or
+      **declines with a reason the patient reads**. Copy says "ask", never
+      "get"
+- [ ] **27.8** Unchanged and confirmed: two requests per day, the 24-hour
+      grant window, the open grant a holding clinician gets on claim, and a new
+      request permitted after a revocation
+- **Accept:** a patient can move between clinicians without telling the story
+      twice, and cannot be walked into sharing by anybody but themselves.
+
+### Sprint 28 — The site talks to patients, honestly · ~1 week
+
+- [ ] **28.1** Repositioned around **patient intelligence and portability**,
+      speaking to patients directly, in both languages
+- [ ] **28.2** 🔴 **"Paid sessions cover our fee" never appears** (C109). What
+      appears is netting: what you owe comes out of what you earn, before it
+      reaches your account. And on a free session the therapist pays the fee
+- [ ] **28.3** 🔴 **No earnings promises** (C110), checked
+- [ ] **28.4** The patient page says plainly: **you never talk to the AI.** It
+      learns from your sessions and your journals, it shows you your progress,
+      and only a clinician you have granted access can ask it anything
+- [ ] **28.5** New public pages: `/integrations`, `/integrations/[slug]`,
+      `/for-clinics`, `/developers` and its docs, `/verify/[code]` for an
+      export's verification code
+- [ ] **28.6** 🔴 **Live components, invented people, never a screenshot** —
+      the New session screen with the Where picker switching between Zoom and
+      Meet; the consent screen a patient sees before a Zoom session; the widget
+      inside a mock chart, recording and filing; a real request beside a real
+      webhook payload; the note landing in a mock partner UI
+- **Accept:** every claim on the public site is a screen somebody can open.
+
+### Sprint 29 — Identity documents, private · ~1 day
+
+- [ ] **29.1** An `/api/uploads/[id]` route mirroring `/api/documents/[id]`:
+      who is asking, may they now, audited before the bytes. Licences and
+      passports stop depending on an unguessable URL
+
+### Sprint 30 — Egypt sits in Egypt · ~1.5 weeks · 🔴 BEFORE ANY PARTNER
+
+- [ ] **30.1** 🔴 **The region seam**: every data call routes on the entity
+      (C118), with Egypt pointed at the US instance until Cairo is live, so
+      going live is `DATABASE_URL_EG` and not a migration
+- [ ] **30.2** Provider decision. **Huawei Cloud Egypt** is the only public
+      cloud region in the country, second Cairo AZ due 2026; the alternatives
+      are Cairo colocation (Link Data Center, Tier IV, runs Postgres) or the
+      telco clouds. Neon has no Egyptian region
+- [ ] **30.3** Cross-border consent wording, a record of processing, and the
+      dated decision. Enforcement lands October 2026
+- [ ] **30.4** ⚠️ **Incomplete until the founder signs a provider.** The seam
+      ships regardless
+
+### Sprint 31 — Arabic URLs · ~2 days
+
+- [ ] **31.1** `/ar/*` real paths with `hreflang`, cookie kept as preference
+      (C103). Today `/ar/pricing` is a 404 and no Arabic page can be shared or
+      indexed, in the market this product is for
+
+### Sprint 32 — AI evaluation · ~1.5 weeks · 🔴 BEFORE 33
+
+- [ ] **32.1** `evals/` on synthetic cases: transcription WER, attribution
+      DER, unsupported-claim rate, required-section coverage, risk sensitivity
+      and false positives, Arabic semantic preservation
+- [ ] **32.2** Every AI change after this reports its numbers. There are 21
+      tests and 25 verifiers today and **zero AI quality measurement**
+
+### Sprint 33 — The clinical evidence layer · ~3 weeks · 🔴 THE MOAT
+
+*Not a key-value table. A fact with a history.*
+
+- [ ] **33.1** `patient_clinical_facts`: `person_id, domain, field, value`,
+      `source_type + source_id`, `evidence_ref`, `confidence`,
+      `source_priority` (clinician · document · AI · patient),
+      `status` (active · resolved · historical · disputed),
+      `first_observed_at`, `last_observed_at`, `effective_at`,
+      `supersedes_id`, `verified_by`, `verified_at`, `sensitivity`
+- [ ] **33.2** 🔴 **AI inference is never a confirmed fact.** Confidence is not
+      truth, and a clinician-entered diagnosis outranks a model
+- [ ] **33.3** **Temporal reasoning**: ideation eight months ago is not
+      ideation now. Every fact carries when it was true, not only when it was
+      written
+- [ ] **33.4** **Conflict**: session 17 may contradict session 4. Both are
+      kept, one supersedes, and the clinician can see why
+- [ ] **33.5** **Deletion**: removing a source must not leave a fact standing
+      with nothing behind it
+- [ ] **33.6** An **evidence screen**: why the system believes something, back
+      to the transcript line or document passage
+- **Accept:** every clinical fact the system holds can be traced to the exact
+      sentence that produced it, and a clinician can disagree with it in place.
+
+### Sprint 34 — Note generation reads the evidence layer · ~3 days
+
+- [ ] **34.1** `notes.ts` builds context from two lines today: diagnoses and
+      goals. Point it at sprint 33. This one edit turns an isolated SOAP
+      generator into longitudinal documentation
+
+### Sprint 35 — Risk intelligence · ~2 weeks
+
+- [ ] **35.1** `raiseCrisisAlert` **already takes `source: "model"` and has
+      never received it.** Fill the seam: a classifier producing structured
+      indicators — ideation, intent, plan, means, timeframe, protective
+      factors, previous attempt, self-harm, homicidal ideation, psychosis,
+      abuse — with evidence and confidence
+- [ ] **35.2** The keyword pass stays as an always-on floor
+- [ ] **35.3** 🔴 **The AI flags and structures. It never adjudicates risk.**
+      Persistence, dedup, notification and cron retry all survive untouched
+
+### Sprint 36 — Session sources, design only · ~1 week
+
+- [ ] **36.1** `session_sources`: 24Therapy room · Google Meet · Zoom · Teams
+      · in person · uploaded recording
+- [ ] **36.2** 🔴 **A third auth door on ingestion**: a session-scoped
+      ingestion token. `POST /api/sessions/[id]/transcribe` is already source
+      agnostic; what blocks a bot is `requireUserApi()` and
+      `assertSameOrigin()`, which exist for good reasons
+- [ ] **36.3** **No bots ship in this sprint.** The shape only
+
+### Sprint 37 — Acoustic diarisation · ~2 weeks · 🔴 BLOCKS 41
+
+- [ ] **37.1** VAD, diarisation, speaker embeddings, alignment. The existing
+      LLM attribution becomes the semantic correction layer
+- [ ] **37.2** 🔴 **An unrecognised voice is "Speaker 3", never a guess**
+- [ ] **37.3** Group and couples: N speakers, no invented identities
+
+### Sprint 38 — Note templates · ~3 weeks
+
+- [ ] **38.1** `note_templates(key, name, schema, prompt, sections)`, a
+      validator per schema, a renderer. `session_notes` gains `template_key`
+- [ ] **38.2** Additive migration: existing notes become `template_key='soap'`
+- [ ] **38.3** SOAP · DAP · BIRP · GIRP · PIRP · SIRP · PIE · intake ·
+      treatment plan · discharge · MSE · couples · family · group · child ·
+      EMDR · CBT · DBT · ACT · trauma-focused. Templates are content
+
+### Sprint 39 — Before and after the session · ~2 weeks
+
+- [ ] **39.1** **Session prep**: what happened, what is unresolved, which
+      goals have not been touched, homework completion, risk changes
+- [ ] **39.2** **The golden thread**: diagnosis to problem to goal to
+      objective to intervention to response to progress, on one screen
+- [ ] **39.3** **Compliance checker** before signing
+- [ ] **39.4** Therapist voice profile: tone, length, terminology, adaptive
+
+### Sprint 40 — Verification adapters · ~1 week
+
+- [ ] **40.1** `verification_sources` as a **registry, not an enum**. Vezeeta
+      is adapter one, the Syndicate is adapter two, manual is always there
+- [ ] **40.2** `roster_snapshots`, `roster_entries`, `verification_matches`
+      with a named matcher and a date
+- [ ] **40.3** 🔴 **A partner never flips the approval bit.** `isCleared()`
+      does not change. A bad match is a named person's mistake, never an
+      unexplained approval
+- [ ] **40.4** `roster_entries` is PII about people who never signed up:
+      retention rule, lawful basis, and **no therapist can ever search it**
+
+### Sprint 41 — Meeting bots · ~3 weeks · AFTER 37
+
+- [ ] **41.1** 🔴 **The bot joins meetings 24Therapy created for a session.
+      Nothing else. Ever.** No calendar is read (C132)
+- [ ] **41.2** One new field on New session: **Where** — 24Therapy room ·
+      Zoom · Meet · Teams · in person — and a **Record** tick. We create the
+      meeting inside their connected account
+- [ ] **41.3** Connect by OAuth on `/settings/integrations`. 🔴 **A therapist
+      never sees an API key**
+- [ ] **41.4** 🔴 **The patient always receives our link** (C133), which takes
+      consent then forwards. The raw meeting link is never handed out.
+      Declining consent still admits them; the bot simply does not transcribe
+- [ ] **41.5** 🔴 **Identity comes from the session we created, never from a
+      meeting display name** (C134). Hard invariant, and a test
+- [ ] **41.6** Recall.ai for v1. Our differentiation is not that we worked out
+      how to join Zoom
+- [ ] **41.7** Edge cases, each with a stated behaviour: consent refused ·
+      patient joins first · therapist joins late · consent revoked mid-session
+      · AI paused with the timestamp kept · bot disconnects · bot reconnects
+      without duplicating · multiple patients · couples · group · unknown
+      speaker · device change · link change · **bot in the wrong meeting is a
+      hard stop** · two simultaneous sessions never cross · recording without
+      consent is refused processing · out-of-order transcript reconciled
+
+### Sprint 42 — The partner plane · ~3 weeks
+
+- [ ] **42.1** `partners`, `partner_api_keys` (hashed, scoped, rotatable),
+      `partner_webhooks`, `partner_webhook_deliveries`
+- [ ] **42.2** 🔴 `partner_subjects` unique on `(partner_id, external_ref)`.
+      Two partners will both send `"P123"`
+- [ ] **42.3** 🔴 **A launch mints a short-lived `auth_sessions` row** with
+      `partner_id` and `created_via`, so every existing screen works unchanged
+      and the audit names the partner. There stays exactly one way to be
+      signed in
+- [ ] **42.4** 🔴 **A webhook carries an event and an id, never content.** A
+      leaked webhook URL then leaks nothing
+- [ ] **42.5** The embedded widget: **no video by default**, our room optional
+- [ ] **42.6** `organizations.partner_id`, `billing_mode = 'partner_billed'`,
+      monthly aggregate invoice to the partner
+- [ ] **42.7** `audit_log` gains `partner_id` and `via`, so "who read this"
+      answers "their server, on behalf of Dr X"
+- [ ] **42.8** **A patient CSV importer.** A clinician leaving another
+      platform is the sales motion; make the migration a button
+
+### Sprint 43 — SMART on FHIR · ~10 weeks
+
+- [ ] **43.1** `ehr_connections`, `ehr_launches`, `ehr_writebacks`
+- [ ] **43.2** We are the OAuth **client**. FHIR R4 / US Core 6.1.0, pinned
+- [ ] **43.3** The note files back as a `DocumentReference`
+- [ ] **43.4** 🔴 **In an EHR the chart is their system of record, not ours.**
+      Decide and write down what a shadow copy holds and for how long
+
+### Sprint 44 — Check-ins · ~1 week
+
+- [ ] **44.1** C97, still unbuilt: personalised, very short, differently
+      worded, their name, admin-controlled rate, opt-out, overnight quiet
+      window
+- [ ] **44.2** 🔴 **A check-in asks. It never interprets.** A worrying reply
+      goes to the crisis path, never to a copilot
+
+
 ## §5 · BUILD LOG
 
 | Date | Sprint | What | Commit | Verified how |
@@ -1857,9 +2240,120 @@ Breaking one of these is a bug regardless of what any ticket says.
 | **A completeness rule may gate a launch, never a live thing.** Falling back and shouting beats going dark (C78) | Process |
 | **A ruling is a paragraph, not a word.** What was decided, why, what it costs, and the date. "Accepted, not resolved" is a legitimate outcome and must be written as one — a deliberate decision must never later read as an oversight | Process |
 | **Do not stop to ask when the plan already says who decides.** A concern pointed at a sprint is that sprint's to rule on. Build, decide, record, keep going | Process |
+| **No em dash and no en dash in any product copy.** U+2014 and U+2013 read as machine-written. CMS defaults, `ui_strings`, public pages, emails, WhatsApp templates (C117) | Hard |
+| **A patient never converses with a model, and no model output reaches a patient without a named clinician approving that exact text.** Enforced as an import-graph guard, not a convention (C113) | Hard |
+| **A grant can only ever be held by a clinician whose verification is `approved`.** In the database (C106) | Hard |
+| **Nothing about any record is shown before the handle is proven.** Not a clinician's name, not a photo, not an initial (C121) | Hard |
+| **A record is found by a proven phone or a proven email. Never by a name.** A name is only ever a challenge answer, and it is compared against the clinician's record, never the patient's editable profile (C114, C122) | Hard |
+| **We never invent an emergency number.** Only verified lines appear; everywhere else says "call your local emergency number" (C125) | Hard |
+| **The meeting bot joins meetings 24Therapy created for a session. Nothing else. Ever.** No calendar is read (C132) | Hard |
+| **Identity comes from the session we created, never from a meeting display name** (C134) | Hard |
+| **A partner never flips an approval bit, and a webhook carries an event and an id, never content** | Hard |
+| **Never promise earnings, and never claim a paid session covers our fee.** Netting is what is true (C109, C110) | Hard |
 | **The phone is required on every patient account; the email is optional on every patient account.** Sign-in accepts either handle plus the password. Identity is never locked to one of them (§3b, 2026-09-06) | Hard |
 | **A uniqueness rule over an optional column is unique only over the rows that have a value.** Postgres's default `NULLS DISTINCT` is that rule; `NULLS NOT DISTINCT` collapses every empty row into one and is right only when the NULL genuinely means "the same thing" (C87's claim key, not C86's email) | Hard |
 | **Email is sent *as well* as WhatsApp, never *instead*.** WhatsApp is the channel that always exists | Hard |
 | **Anything rendered on both passes takes its zone as a prop from the server.** `readerZone()` answers with the *server's* zone during SSR, never null — reading it during render is a hydration mismatch on every date (C70) | Hard |
 | **No `"use client"` file calls `Intl.DateTimeFormat()`, `toLocaleDateString`, `toLocaleTimeString` or `toLocaleString` during render** — zone *and* locale, dates *and* money. `useReaderZone()` is the only sanctioned reader, because it runs in an effect (C84) | Hard |
 | **A guard bans the construct, not the helper.** A checker scoped to one function name passes while six files do the same thing by hand. Four checkers here have now passed by matching the wrong text — three matched their own prose, one matched its own helper. Prove a guard fires against a deliberate offender *of the shape it claims to catch* | Process |
+
+---
+
+## §7 · WHERE THIS IS GOING — read before sprint 24
+
+Sprints 1 to 22R built a product. Sprints 24 to 44 turn it into a position.
+Read this whole section before the first ticket, because several sprints only
+make sense as steps toward something further out, and building them without
+the destination produces the right code in the wrong shape.
+
+**The one-sentence position:**
+
+> **24Therapy is the clinical record layer above whatever a therapist already
+> uses.** Not a scribe, not an EHR. The layer that makes every session, held
+> anywhere, part of one patient's story that the patient owns and carries.
+
+### The three audiences, and the three doors
+
+Everything in §7 is one of three products. Keeping them separate is the whole
+trick, because conflating them is what makes the roadmap unreadable.
+
+| Product | Who touches it | What that person sees |
+|---|---|---|
+| **The meeting bot** | A therapist | A **Connect** button. 🔴 Never an API key |
+| **The embedded widget** | A clinic's IT, or a platform like Shezlong | An install, once. Their clinician just sees a panel appear |
+| **The partner API** | A developer at another company | Keys, docs, webhooks. 🔴 A therapist never sees this |
+
+🔴 **There is no self-serve API key for therapists in v1.** A therapist holding
+an API key is a therapist who got lost in our product.
+
+### The patient story, which is the go-to-market
+
+The therapist pays. The patient is the reason the therapist stays. So the
+patient has to want this, and what they want is **portability**:
+
+> Years of what you told one person do not have to be told again. Ask your
+> therapist to write it down. Claim it. Take it with you. Your next therapist
+> can ask about your history without you reliving it.
+
+Which sets three hard rules that every sprint below inherits:
+
+1. 🔴 **A patient never converses with a model, and no model output reaches a
+   patient without a named clinician approving that exact text.** True today.
+   Sprint 24 makes it structurally impossible to stop being true.
+2. 🔴 **A grant can only ever be held by a clinician whose verification is
+   `approved`.** In the database, not in a service. This is what makes "only
+   certified therapists" a fact rather than a policy.
+3. 🔴 **Nothing about any record is shown before the handle is proven.** Not a
+   therapist's name, not a photo, not an initial.
+
+### The economics, stated correctly
+
+Sprint 28 puts this on a public page, so it has to be true:
+
+- The platform is free. A session costs the therapist, first one free.
+- 🔴 **"Paid sessions cover our fee" is arithmetically false** at typical
+  Egyptian prices: 15% of a 20 dollar session is 3 dollars against a 4 dollar
+  fee. What is true is **netting**: what you owe comes out of what you earn
+  before it reaches your account. Say that.
+- On a free session the therapist pays the fee themselves. Not a footnote.
+- 🔴 **Never promise earnings.** "Get booked" is fine. "Earn enough to cover
+  it" is a forecast about somebody else's business.
+
+### What is coming that today's code should not fight
+
+Do not build these yet. Do not make them expensive later either.
+
+| Coming | What to avoid doing now |
+|---|---|
+| **Egypt-resident database** (sprint 30) | Any query that assumes one connection. Every data call goes through a region seam from sprint 30 on, pointed at the US instance until Cairo is live |
+| **Session sources** (36) | A second transcription path. 🔴 `POST /api/sessions/[id]/transcribe` is **already source agnostic**: it takes a multipart file. What it lacks is a third auth door, because it calls `requireUserApi()` and `assertSameOrigin()`, which exist to stop exactly what a bot does |
+| **The clinical evidence layer** (33) | Any new derived clinical fact stored without provenance. From 33 on, a fact carries where it came from, when, who verified it, and what it replaced |
+| **The partner plane** (42) | Accepting a foreign id as one of ours. `partner_subjects` maps them. Two partners will both send `"P123"` |
+| **Meeting bots** (41) | Calendar auto-join, ever. See below |
+
+### 🔴 The rule the meeting bot exists under
+
+> **The bot joins meetings 24Therapy created for a session. Nothing else. Ever.**
+
+Fireflies watches a calendar and joins everything. For therapy that is not a
+feature, it is a catastrophe waiting for a supervision call or an accountant.
+Tying the bot to a session instead of a calendar settles four problems at once:
+their other calls are untouched because we never read a calendar; a therapy
+session they do not want recorded simply has the box unticked; billing is
+unambiguous because a charge exists when a session exists; and accidental
+recording is structurally impossible rather than forbidden.
+
+And the trap inside it: if we create the Zoom meeting, the patient would get a
+Zoom link and never see our consent screen. So 🔴 **the link the patient
+receives is always ours**, which takes consent and then forwards. We never hand
+out the raw meeting link. Declining consent still lets them into the session;
+the bot simply does not transcribe.
+
+### The em dash
+
+🔴 **U+2014 and U+2013 are banned in all product copy** — CMS defaults,
+`ui_strings`, every rendered public page, every email, every WhatsApp template.
+They read as machine-written. Sprint 24 adds the check and proves it against a
+planted offender. This paragraph is the last place in this repository that may
+contain one, and only because it is naming the character.
+
