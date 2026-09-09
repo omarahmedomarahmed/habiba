@@ -65,7 +65,7 @@ async function main() {
     await clearString({ key: sample, locale: "en", actor });
     const { stringsFor: afterClear } = await import(`../lib/i18n/strings.ts?b=${Date.now()}`);
     check(
-      "🔴 21.5 clearing an override RESTORES the shipped wording — it never blanks a button",
+      "🔴 21.5 clearing an override RESTORES the shipped wording, it never blanks a button",
       (await afterClear("en")).t(sample) === before,
       `${(await afterClear("en")).t(sample)}`,
     );
@@ -118,7 +118,7 @@ async function main() {
       publicEnabled: false,
       actor,
     });
-    check("🔴 21.9 an admin adds a language — a row, not a deploy", added.ok === true, added.error ?? "");
+    check("🔴 21.9 an admin adds a language, a row, not a deploy", added.ok === true, added.error ?? "");
 
     const empty2 = await completeness(TEST_LOCALE);
     check(
@@ -197,7 +197,7 @@ async function main() {
         actor,
       });
       check(
-        "🔴 21.18 a bulk approval containing a CRISIS string is refused — those are read one at a time",
+        "🔴 21.18 a bulk approval containing a CRISIS string is refused, those are read one at a time",
         bulk.error !== undefined,
         bulk.error ?? "APPROVED IN BULK",
       );
@@ -243,7 +243,7 @@ async function main() {
     const { t } = await stringsFor("ar");
     const rendered = t("common.continue");
     check(
-      "🔴 21.12 a live language renders every key — a new string falls back, it does not take the language down",
+      "🔴 21.12 a live language renders every key, a new string falls back, it does not take the language down",
       rendered.length > 0 && !rendered.includes("."),
       `ar renders "${rendered}"`,
     );

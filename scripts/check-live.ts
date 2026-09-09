@@ -106,7 +106,7 @@ async function main() {
   const pages = await readLiveSite();
 
   if (pages.length === 0) {
-    console.log("  the live site did not answer — nothing checked");
+    console.log("  the live site did not answer, nothing checked");
     process.exit(0);
   }
 
@@ -127,7 +127,7 @@ async function main() {
     bad += problems.length > 0 ? 1 : 0;
     console.log(
       `  ${problems.length === 0 ? "ok " : "BAD"}  ${page.path} [${page.locale}]${
-        problems.length ? ` — ${problems.join("; ")}` : ""
+        problems.length ? `, ${problems.join("; ")}` : ""
       }`,
     );
   }

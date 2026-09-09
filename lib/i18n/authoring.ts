@@ -127,7 +127,7 @@ export async function saveLanguage(input: {
     return { error: "A language code looks like `es` or `pt-br`." };
   }
   if (!input.name.trim() || !input.nativeName.trim()) {
-    return { error: "Name it in English and in its own language — a switcher shows the second." };
+    return { error: "Name it in English and in its own language, a switcher shows the second." };
   }
 
   /*
@@ -142,7 +142,7 @@ export async function saveLanguage(input: {
     const state = await completeness(code);
     if (state.percent < 100) {
       return {
-        error: `${input.name} is ${state.percent}% translated — ${state.missingKeys.length} strings still missing${state.drafts > 0 ? `, and ${state.drafts} machine drafts nobody has approved` : ""}. A language goes live complete or not at all.`,
+        error: `${input.name} is ${state.percent}% translated, ${state.missingKeys.length} strings still missing${state.drafts > 0 ? `, and ${state.drafts} machine drafts nobody has approved` : ""}. A language goes live complete or not at all.`,
       };
     }
   }

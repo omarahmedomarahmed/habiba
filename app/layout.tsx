@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
   title: {
-    default: "24Therapy — your session notes, written for you",
+    default: "24Therapy, your session notes, written for you",
     template: "%s · 24Therapy",
   },
   description:

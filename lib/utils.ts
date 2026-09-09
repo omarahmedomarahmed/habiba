@@ -50,7 +50,7 @@ export function formatDate(
   date: Date | string | null | undefined,
   zone: string | null,
 ): string {
-  if (!date) return "—";
+  if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
@@ -64,7 +64,7 @@ export function formatDateTime(
   date: Date | string | null | undefined,
   zone: string | null,
 ): string {
-  if (!date) return "—";
+  if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
   const resolved = resolveZone(zone).name;
   return `${new Intl.DateTimeFormat("en-GB", {
@@ -85,7 +85,7 @@ export function relativeDay(
   date: Date | string | null | undefined,
   zone: string | null,
 ): string {
-  if (!date) return "—";
+  if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
   const resolved = resolveZone(zone).name;
 
@@ -105,7 +105,7 @@ export function formatLongDate(
   date: Date | string | null | undefined,
   zone: string | null,
 ): string {
-  if (!date) return "—";
+  if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
   return formatCalendarDate(d, resolveZone(zone).name);
 }

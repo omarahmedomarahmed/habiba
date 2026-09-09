@@ -138,7 +138,7 @@ export function VerificationForm({
         </span>
         <p className="mt-4 text-lg font-bold tracking-tight text-slate-900">With us for review</p>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-          A person is checking your documents — usually within a working day. We will email you the
+          A person is checking your documents, usually within a working day. We will email you the
           moment it is done. You can look around the product in the meantime; sessions unlock as
           soon as you are approved.
         </p>
@@ -153,7 +153,7 @@ export function VerificationForm({
           <p className="text-sm font-semibold text-red-900">We could not verify you yet</p>
           <p className="mt-1 text-sm leading-relaxed text-red-800">{reviewNote}</p>
           <p className="mt-2 text-xs text-red-700">
-            Fix what is described above and submit again — it goes back to the front of the queue.
+            Fix what is described above and submit again. It goes back to the front of the queue.
           </p>
         </Card>
       ) : null}
@@ -283,7 +283,7 @@ export function VerificationForm({
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">Documents</p>
         <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
-          Photos are fine — take them with your phone. Everything except the headshot is private
+          Photos are fine, take them with your phone. Everything except the headshot is private
           to our compliance team and is never shown to patients or other clinicians.
         </p>
 

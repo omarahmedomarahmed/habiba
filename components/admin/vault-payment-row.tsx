@@ -44,7 +44,7 @@ export function VaultPaymentRow(props: {
             {props.payerName ?? "Patient"} → {props.therapistName ?? "Clinician"}
           </span>
           <span className="block truncate text-xs text-slate-500">
-            {props.organizationName ?? "—"} · {props.when} · we kept {formatUsd(ourCut)}
+            {props.organizationName ?? "-"} · {props.when} · we kept {formatUsd(ourCut)}
             {props.settledInvoiceCents > 0
               ? ` · ${formatUsd(props.settledInvoiceCents)} of their bill settled`
               : ""}

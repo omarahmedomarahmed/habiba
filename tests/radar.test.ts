@@ -376,7 +376,7 @@ test("the holder of a reservation can still book; nobody else can", async () => 
   assert.equal(
     await claimTherapist({ therapistUserId: therapistId, sessionId: mine, viewer: me }),
     true,
-    "I can book the clinician I am holding — this is the regression",
+    "I can book the clinician I am holding. This is the regression",
   );
 
   const state = await currentStatus();

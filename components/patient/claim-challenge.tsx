@@ -69,7 +69,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
             <span className="font-semibold">{current.therapistName}</span> before?
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Your number matched a record they keep. If you have never seen them, say no — nothing
+            Your number matched a record they keep. If you have never seen them, say no. Nothing
             is shown to you either way.
           </p>
 

@@ -147,7 +147,7 @@ test("every note is scheduled ahead of now, never behind it", async () => {
     assert.equal(note.state, "running", "scheduled against a context that was not running");
     assert.ok(
       note.when > note.at,
-      `note scheduled ${(note.at - note.when).toFixed(4)}s in the past — it will be dropped`,
+      `note scheduled ${(note.at - note.when).toFixed(4)}s in the past. It will be dropped`,
     );
   }
 });

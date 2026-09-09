@@ -49,7 +49,7 @@ export default async function ConsentPage() {
           Who can read your history
         </h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Your history is yours. A therapist can ask to read it, and you can stop them at any time —
+          Your history is yours. A therapist can ask to read it, and you can stop them at any time -
           they do not have to agree and you do not have to explain.
         </p>
       </div>
@@ -80,7 +80,7 @@ export default async function ConsentPage() {
       */}
       <p className="px-1 pb-4 text-xs leading-relaxed text-slate-500">
         Stopping access stops any further reading straight away. It does not erase what a therapist
-        already read or the notes they wrote — those are their own clinical records, which they are
+        already read or the notes they wrote, those are their own clinical records, which they are
         required to keep.
       </p>
     </main>

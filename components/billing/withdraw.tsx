@@ -103,7 +103,7 @@ export function Withdraw({
         </dl>
 
         <p className="mt-3 text-xs leading-relaxed text-slate-500">
-          Available is what you can withdraw today. It excludes anything already requested — that
+          Available is what you can withdraw today. It excludes anything already requested, that
           money is on its way and cannot be asked for twice.
         </p>
       </Card>
@@ -178,7 +178,7 @@ export function Withdraw({
           ) : null}
           <p className="mt-2 text-xs text-slate-500">
             We send Egyptian pounds at the rate quoted when you request, and that rate is fixed on
-            your request — it does not move while you wait.
+            your request. It does not move while you wait.
           </p>
         </Card>
       ) : null}

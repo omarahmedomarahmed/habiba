@@ -179,7 +179,7 @@ async function main() {
       );
 
       check(
-        "🔴 17.2 the tier cards are the FIRST block on the pricing page — no hero above them",
+        "🔴 17.2 the tier cards are the FIRST block on the pricing page, no hero above them",
         pricingPages.every((p) => p.blocks[0]?.type === "pricing"),
         pricingPages.map((p) => `${p.locale}:${p.blocks[0]?.type}`).join(", "),
       );
@@ -273,7 +273,7 @@ async function main() {
     .limit(1);
 
   check(
-    "🔴 17.10 CONTROL — the same scan CATCHES the sentence C60 shipped",
+    "🔴 17.10 CONTROL, the same scan CATCHES the sentence C60 shipped",
     moneyIn(planted?.blocks ?? []).length >= 2,
     moneyIn(planted?.blocks ?? []).join(" ") || "THE SCAN IS BLIND",
   );
@@ -335,7 +335,7 @@ async function main() {
   /* ------------------------------------------------------------- C69 */
 
   check(
-    "🔴 C69 the netting sentence is published — and written conditionally, not as a universal",
+    "🔴 C69 the netting sentence is published, and written conditionally, not as a universal",
     settings.payouts.netFeeFromHeldEarnings
       ? text.includes("holding your earnings") &&
           text.includes("own Stripe account")
@@ -379,12 +379,12 @@ async function main() {
     const offText = textOf(await flatten(await PricingTiers({})));
 
     check(
-      "🔴 C69 CONTROL — switch netting off and the sentence is GONE from the page",
+      "🔴 C69 CONTROL, switch netting off and the sentence is GONE from the page",
       off.payouts.netFeeFromHeldEarnings === false &&
         !offText.includes("holding your earnings"),
       off.payouts.netFeeFromHeldEarnings === false
         ? offText.includes("holding your earnings")
-          ? "STILL THERE — the page describes a mechanic that is switched off"
+          ? "STILL THERE, the page describes a mechanic that is switched off"
           : "gone"
         : "the setting did not take effect, so this proves nothing",
     );

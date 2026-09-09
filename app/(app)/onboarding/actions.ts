@@ -43,7 +43,7 @@ export async function saveVerificationDetails(
 
   const current = await getVerification(actor.userId);
   if (current?.state === "submitted") {
-    return { error: "This is already with us for review — you cannot change it right now." };
+    return { error: "This is already with us for review, you cannot change it right now." };
   }
 
   // What they already picked is always still valid — a list an admin retired
@@ -103,7 +103,7 @@ export async function uploadVerificationDocument(
 
   const current = await ensureVerification(actor);
   if (current.state === "submitted") {
-    return { error: "This is already with us for review — you cannot change it right now." };
+    return { error: "This is already with us for review, you cannot change it right now." };
   }
 
   const file = formData.get("file");

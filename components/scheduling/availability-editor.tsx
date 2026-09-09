@@ -169,7 +169,7 @@ export function AvailabilityEditor({
                   // fewer hours than the clinician asked for.
                   if (result.impossible) {
                     setError(
-                      `${result.impossible} of those hours do not exist — the clocks go forward that morning. Everything else is published.`,
+                      `${result.impossible} of those hours do not exist, the clocks go forward that morning. Everything else is published.`,
                     );
                   }
                 }
@@ -189,7 +189,7 @@ export function AvailabilityEditor({
         */}
         <p className="text-xs text-slate-500">
           These are <strong className="font-semibold">{zoneLabel(zone)}</strong> hours
-          {timezone ? "" : " — from this browser"}. Patients see them in their own time zone.{" "}
+          {timezone ? "" : ", from this browser"}. Patients see them in their own time zone.{" "}
           <Link href="/settings" className="font-medium text-brand-600">
             {timezone ? "Change" : "Set your time zone"}
           </Link>

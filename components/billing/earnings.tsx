@@ -70,7 +70,7 @@ export function EarningsCard(props: EarningsProps) {
                 </p>
                 <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
                   Your patients have paid. We are holding your share because Stripe has not
-                  verified you yet — it goes to your account automatically the moment they do,
+                  verified you yet. It goes to your account automatically the moment they do,
                   and there is nothing to claim.
                 </p>
               </div>
@@ -92,7 +92,7 @@ export function EarningsCard(props: EarningsProps) {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">Charge for your sessions</p>
                 <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
-                  Set a price and the patient pays before they join. You can start today — if
+                  Set a price and the patient pays before they join. You can start today, if
                   Stripe has not verified you yet we hold your share and send it on when they do.
                 </p>
               </div>
@@ -120,11 +120,11 @@ export function EarningsCard(props: EarningsProps) {
           </span>
 
           <p className="mt-3 text-3xl font-bold tracking-tight">
-            {props.availableCents === null ? "—" : formatUsd(props.availableCents)}
+            {props.availableCents === null ? "-" : formatUsd(props.availableCents)}
           </p>
           <p className="mt-0.5 text-sm text-white/70">
             {props.availableCents === null
-              ? "Balance unavailable — check your Stripe dashboard."
+              ? "Balance unavailable, check your Stripe dashboard."
               : `available now${
                   props.pendingCents ? ` · ${formatUsd(props.pendingCents)} clearing` : ""
                 }`}
@@ -155,7 +155,7 @@ export function EarningsCard(props: EarningsProps) {
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-white/70">
                   Taken on your behalf before Stripe finished verifying you. It moves to your
-                  account by itself — you do not have to ask.
+                  account by itself. You do not have to ask.
                 </p>
               </div>
             </div>

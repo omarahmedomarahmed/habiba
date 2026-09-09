@@ -178,10 +178,10 @@ function Patients({ rows }: { rows: Patient[] }) {
   return (
     <Card>
       <div className="border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900">Caseload — identifiers only</p>
+        <p className="text-sm font-semibold text-slate-900">Caseload, identifiers only</p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
           If one of these people asks us for their data, send it to them from here. You will never
-          see it — the link goes to their address and the clinician is told it happened.
+          see it. The link goes to their address and the clinician is told it happened.
         </p>
       </div>
       {rows.length === 0 ? (
@@ -204,7 +204,7 @@ function Patients({ rows }: { rows: Patient[] }) {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <Td className="font-medium text-slate-900">{row.name}</Td>
-                  <Td className="text-slate-600">{row.email ?? "—"}</Td>
+                  <Td className="text-slate-600">{row.email ?? "-"}</Td>
                   <Td>
                     <Badge tone={row.source === "join_link" ? "teal" : "slate"}>
                       {row.source === "join_link" ? "self-joined" : "added"}
@@ -268,7 +268,7 @@ function SendRecord({ patientId, hasEmail }: { patientId: string; hasEmail: bool
         aria-label="Why this record is being sent"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        placeholder="Ticket #123 — patient asked"
+        placeholder="Ticket #123, patient asked"
         className="h-9 text-xs"
       />
       <div className="flex gap-1.5">
@@ -302,7 +302,7 @@ function Sessions({ rows }: { rows: SessionRow[] }) {
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="text-sm font-semibold text-slate-900">Session history</p>
         <p className="mt-0.5 text-xs text-slate-500">
-          Metadata only. &ldquo;Lines&rdquo; is the transcript segment count — the number, not the
+          Metadata only. &ldquo;Lines&rdquo; is the transcript segment count, the number, not the
           text.
         </p>
       </div>
@@ -330,7 +330,7 @@ function Sessions({ rows }: { rows: SessionRow[] }) {
                   <Td className="text-slate-500">
                     {row.modality === "video" ? "Video" : "In person"}
                   </Td>
-                  <Td className="text-end tabular-nums">{row.durationMinutes ?? "—"}</Td>
+                  <Td className="text-end tabular-nums">{row.durationMinutes ?? "-"}</Td>
                   <Td className="text-end tabular-nums">{row.segmentCount}</Td>
                   <Td>
                     <Badge
@@ -441,7 +441,7 @@ function Copilot({
                       </span>
                     </Td>
                     <Td className="text-end tabular-nums">{row.corrections}</Td>
-                    <Td className="text-slate-500">{row.lastMessageAt ?? "—"}</Td>
+                    <Td className="text-slate-500">{row.lastMessageAt ?? "-"}</Td>
                   </tr>
                 ))}
               </tbody>
@@ -491,7 +491,7 @@ function Billing({
 
       <Card>
         <div className="border-b border-slate-100 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-900">Invoices — what they owe us</p>
+          <p className="text-sm font-semibold text-slate-900">Invoices, what they owe us</p>
           <p className="mt-0.5 text-xs text-slate-500">
             Open a row to discount, re-price or void it.
           </p>
@@ -513,7 +513,7 @@ function Billing({
 
       <Card>
         <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-          Patient payments — what they received
+          Patient payments, what they received
         </p>
         {payments.length === 0 ? (
           <p className="px-4 py-6 text-sm text-slate-500">Nobody has paid them yet.</p>
@@ -833,7 +833,7 @@ function Manage({
           Email {therapistName}
         </p>
         <p className="mt-0.5 text-sm text-slate-500">
-          Plain text. It goes out from 24Therapy, not from a patient — no links are rendered, so it
+          Plain text. It goes out from 24Therapy, not from a patient, no links are rendered, so it
           cannot be turned into a phishing template.
         </p>
 
@@ -852,7 +852,7 @@ function Manage({
               rows={6}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder={"Hi — quick note about…\n\nBlank lines become paragraphs."}
+              placeholder={"Hi, quick note about…\n\nBlank lines become paragraphs."}
             />
           </Field>
           <Button

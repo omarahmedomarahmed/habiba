@@ -6,7 +6,7 @@ import { ArrowLeft, FileText } from "lucide-react";
 import { CopilotChat } from "@/components/copilot/chat";
 import { AccessBanner } from "@/components/patient/access-banner";
 import { Card } from "@/components/ui";
-import { PROMPT_TEMPLATES } from "@/lib/ai/patient-copilot";
+import { PROMPT_TEMPLATES } from "@/lib/ai/case-copilot";
 import { requireUser } from "@/lib/auth/guard";
 import { explain } from "@/lib/access/state";
 import { checkQuota, getMessages, getOrCreateThread } from "@/lib/data/copilot";

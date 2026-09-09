@@ -106,7 +106,7 @@ export async function requestPatientExport(
     return {
       ok: false,
       error:
-        "No email address on file for this patient. Add one to their record first — the link only ever goes to them.",
+        "No email address on file for this patient. Add one to their record first, the link only ever goes to them.",
     };
   }
 
@@ -153,7 +153,7 @@ export async function requestPatientExport(
       userId: patient.therapistId,
       kind: "system",
       title: "A patient asked us for their record",
-      body: `We sent ${[patient.firstName, patient.lastName].filter(Boolean).join(" ")} a copy of their full record — sessions, notes and transcripts — to the address on their chart. Nobody here read it. It was done at their request or yours; if that is a surprise, reply to this and we will look into it.`,
+      body: `We sent ${[patient.firstName, patient.lastName].filter(Boolean).join(" ")} a copy of their full record, sessions, notes and transcripts, to the address on their chart. Nobody here read it. It was done at their request or yours; if that is a surprise, reply to this and we will look into it.`,
       actionUrl: `/patients/${patient.id}`,
     });
   }
@@ -342,7 +342,7 @@ function esc(value: unknown): string {
 }
 
 function when(value: Date | string | null): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const date = typeof value === "string" ? new Date(value) : value;
   return date.toLocaleDateString("en-GB", {
     day: "numeric",
@@ -399,7 +399,7 @@ export function renderExportHtml(
     .map((session) => {
       const languageLabel = NOTE_LANGUAGES[session.noteLanguage] ?? session.noteLanguage;
       const transcript = session.transcript.length
-        ? `<details><summary>Transcript — ${session.transcript.length} lines</summary>
+        ? `<details><summary>Transcript, ${session.transcript.length} lines</summary>
            <div class="tx">${session.transcript
              .map(
                (line) =>
@@ -454,7 +454,7 @@ export function renderExportHtml(
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Your record — ${esc(record.patient.name)}</title>
+<title>Your record, ${esc(record.patient.name)}</title>
 <style>
   :root { color-scheme: light; }
   body { margin:0; background:#f1f5f9; color:#0f172a;
@@ -506,7 +506,7 @@ export function renderExportHtml(
       }: your details, every session, every note, and the transcript of anything
       that was recorded.</p>
     <p class="muted">The one thing not included is your clinician's own working
-      conversation with their assistant tool — their thinking-out-loud about your
+      conversation with their assistant tool, their thinking-out-loud about your
       care, which is a professional aid rather than part of your record. Everything
       that assistant wrote <em>during</em> a session is in the notes below.</p>
     <p class="muted">This link stops working on ${when(record.linkExpiresAt)}.
@@ -518,10 +518,10 @@ export function renderExportHtml(
     <h2>You</h2>
     <dl>
       <dt>Name</dt><dd>${esc(record.patient.name)}</dd>
-      <dt>Email</dt><dd>${esc(record.patient.email ?? "—")}</dd>
-      <dt>Phone</dt><dd>${esc(record.patient.phone ?? "—")}</dd>
+      <dt>Email</dt><dd>${esc(record.patient.email ?? "-")}</dd>
+      <dt>Phone</dt><dd>${esc(record.patient.phone ?? "-")}</dd>
       <dt>Record opened</dt><dd>${when(record.patient.recordOpened)}</dd>
-      <dt>Clinician</dt><dd>${esc(record.clinician.name ?? "—")}${
+      <dt>Clinician</dt><dd>${esc(record.clinician.name ?? "-")}${
         record.clinician.email ? ` · ${esc(record.clinician.email)}` : ""
       }</dd>
     </dl>
@@ -555,7 +555,7 @@ export function renderExportHtml(
   </section>
 
   <section>
-    <h2>Sessions — ${record.sessions.length}</h2>
+    <h2>Sessions, ${record.sessions.length}</h2>
     ${
       record.sessions.length === 0
         ? `<p class="muted">No sessions on record.</p>`
@@ -567,7 +567,7 @@ export function renderExportHtml(
 
   <footer>
     Prepared by 24Therapy at the request of the person named above.<br>
-    If anything here looks wrong, tell your clinician — corrections belong in the
+    If anything here looks wrong, tell your clinician, corrections belong in the
     record alongside the original, not instead of it.
   </footer>
 </main></body></html>`;

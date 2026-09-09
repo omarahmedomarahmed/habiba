@@ -84,7 +84,7 @@ export function ConsentControls({
         does nothing and drawing their own conclusion about why.
       */}
       <p className="mt-3 text-[11px] leading-relaxed text-white/40">
-        Changed your mind about recording? It cannot be switched off part-way — anything already
+        Changed your mind about recording? It cannot be switched off part-way, anything already
         recorded exists. Ask your therapist to end the session, and answer no next time.
       </p>
     </div>

@@ -99,7 +99,7 @@ export function NoteReview(props: Props) {
         <Sparkles className="h-6 w-6 animate-pulse text-brand-500" aria-hidden />
         <p className="text-base font-semibold text-slate-900">Writing your note</p>
         <p className="max-w-xs text-sm text-slate-500">
-          This usually takes under half a minute. You can leave this page — it will be here when
+          This usually takes under half a minute. You can leave this page. It will be here when
           you get back.
         </p>
       </Card>
@@ -111,7 +111,7 @@ export function NoteReview(props: Props) {
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
         <p className="text-base font-semibold text-slate-900">The note could not be written</p>
         <p className="max-w-sm text-sm text-slate-500">
-          This usually means very little was captured — check the transcript below. You can try
+          This usually means very little was captured, check the transcript below. You can try
           again without re-running the session.
         </p>
         <Button
@@ -203,7 +203,7 @@ export function NoteReview(props: Props) {
       else {
         setPatientStatus("approved");
         setEditingBrief(false);
-        setFeedback("Approved — their summary is released");
+        setFeedback("Approved. Their summary is released");
       }
     });
 
@@ -326,7 +326,7 @@ export function NoteReview(props: Props) {
           {showEnglish ? (
             <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs leading-relaxed text-slate-600">
               A machine translation of the note above, for a supervisor or an insurer. The record
-              you sign is the {props.languageLabel} one — switch back to edit or approve it.
+              you sign is the {props.languageLabel} one, switch back to edit or approve it.
             </p>
           ) : null}
 
@@ -351,7 +351,7 @@ export function NoteReview(props: Props) {
 
           {status === "approved" ? (
             <p className="px-1 text-xs leading-relaxed text-slate-500">
-              Signed. This stays in the chart — nothing on this tab is ever sent to a patient.
+              Signed. This stays in the chart, nothing on this tab is ever sent to a patient.
             </p>
           ) : null}
         </>
@@ -466,13 +466,13 @@ export function NoteReview(props: Props) {
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 {props.patientEmail
-                  ? `${props.patientEmail} gets exactly what is above — not the clinical note — the moment they complete their session rating, or straight away if they already have. If they have not, we email them once to say it is waiting.`
-                  : "Your patient receives exactly what is above — not the clinical note — when they rate the session and give us an address. Nothing is sent until they ask for it."}
+                  ? `${props.patientEmail} gets exactly what is above, not the clinical note, the moment they complete their session rating, or straight away if they already have. If they have not, we email them once to say it is waiting.`
+                  : "Your patient receives exactly what is above, not the clinical note, when they rate the session and give us an address. Nothing is sent until they ask for it."}
               </p>
             </Card>
           ) : (
             <p className="px-1 text-xs leading-relaxed text-slate-500">
-              Nothing has been sent. Approving this is what releases it — the clinical note is
+              Nothing has been sent. Approving this is what releases it, the clinical note is
               never part of it, whether or not it is signed.
             </p>
           )}

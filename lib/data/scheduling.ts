@@ -74,7 +74,7 @@ export async function publishHours(input: {
   const from = Math.trunc(input.fromHour);
   const to = Math.trunc(input.toHour);
   if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > 24 || from >= to) {
-    return { ok: false, error: "That is not a range of hours — the end must be after the start." };
+    return { ok: false, error: "That is not a range of hours. The end must be after the start." };
   }
 
   const parsed = input.days.map(parseDayKey);
@@ -98,8 +98,8 @@ export async function publishHours(input: {
       ok: false,
       error:
         impossible > 0
-          ? "Those hours do not exist where you are — the clocks go forward that morning."
-          : "That is not a range of hours — the end must be after the start.",
+          ? "Those hours do not exist where you are, the clocks go forward that morning."
+          : "That is not a range of hours. The end must be after the start.",
     };
   }
 
@@ -805,7 +805,7 @@ export async function markReminded(slotId: string): Promise<void> {
 
 /** Guard used by the actions. The DB has the same CHECK; this is the message. */
 export function hourProblem(at: Date): string | null {
-  if (!isWholeHour(at)) return "Sessions start on the hour — 19:00, not 19:15.";
+  if (!isWholeHour(at)) return "Sessions start on the hour, 19:00, not 19:15.";
   if (at.getTime() <= Date.now()) return "That time has already passed.";
   return null;
 }

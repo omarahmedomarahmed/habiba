@@ -68,7 +68,7 @@ async function main() {
       .limit(1);
 
     check(
-      "🔴 18R.3 …with a topic, an age and a deadline — a queue, not an inbox",
+      "🔴 18R.3 …with a topic, an age and a deadline, a queue, not an inbox",
       row?.topic === "my_record" &&
         row?.status === "open" &&
         row?.dueAt !== null &&
@@ -122,7 +122,7 @@ async function main() {
     );
 
     check(
-      "18R.3 a ticket closed with no date on it is refused — 'closed' with no time cannot be reported",
+      "18R.3 a ticket closed with no date on it is refused, 'closed' with no time cannot be reported",
       await refused(
         () =>
           db.insert(supportTickets).values({
@@ -145,7 +145,7 @@ async function main() {
       (t) => t.reference === (filed.ok ? filed.reference : ""),
     );
     check(
-      "🔴 18R.4 the QUEUE cannot carry a message body — triage is topic, age and owner",
+      "🔴 18R.4 the QUEUE cannot carry a message body, triage is topic, age and owner",
       mine !== undefined && !("message" in mine),
       mine ? Object.keys(mine).sort().join(",") : "not in the queue",
     );
@@ -210,7 +210,7 @@ async function main() {
     }
 
     check(
-      "🔴 C82 CONTROL — the same walk FINDS a deliberate offender planted in lib/ai",
+      "🔴 C82 CONTROL, the same walk FINDS a deliberate offender planted in lib/ai",
       caughtPlanted,
       caughtPlanted ? "planted, caught, removed" : "THE SCAN IS BLIND",
     );
@@ -324,7 +324,7 @@ async function main() {
     );
 
     check(
-      "🔴 18R.6 …and every field of them is CONTENT — nothing about a company is hardcoded",
+      "🔴 18R.6 …and every field of them is CONTENT, nothing about a company is hardcoded",
       !readFileSync("components/public/blocks.tsx", "utf8").match(
         /24Therapy (Inc|Egypt)|support@24therapy|egypt@24therapy/,
       ),
@@ -391,7 +391,7 @@ async function main() {
           ),
         );
         check(
-          "18R.1 every marketing page carries at least one of the revamp's blocks — none left in the old style",
+          "18R.1 every marketing page carries at least one of the revamp's blocks, none left in the old style",
           revamped.length === publicPages.length,
           publicPages
             .filter((p) => !revamped.includes(p))

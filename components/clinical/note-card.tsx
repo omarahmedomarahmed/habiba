@@ -42,7 +42,7 @@ export function NoteCard({
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-slate-900">
-              {patientLabel ? `Session note — ${patientLabel}` : "Session note"}
+              {patientLabel ? `Session note, ${patientLabel}` : "Session note"}
             </p>
             {dateLabel ? <p className="text-xs text-slate-500">{dateLabel}</p> : null}
           </div>
@@ -101,7 +101,7 @@ export function NoteCard({
         {!compact && note.impressions ? (
           <div className="rounded-xl bg-amber-50/70 px-3.5 py-3">
             <p className="text-[11px] font-bold tracking-wider text-amber-700 uppercase">
-              Clinical impressions — for your review
+              Clinical impressions, for your review
             </p>
             <p className="mt-1 text-sm leading-relaxed text-amber-900">{note.impressions}</p>
           </div>

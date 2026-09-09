@@ -79,7 +79,7 @@ test("claimed with a live grant is full access", () => {
   assert.equal(explain(state), null, "nothing to explain when nothing is missing");
 });
 
-test("claimed with no grant at all is the degraded state — the default is OFF", () => {
+test("claimed with no grant at all is the degraded state. The default is OFF", () => {
   // The step-7 default, expressed as arithmetic: the *absence* of a grant is
   // the revoked state. That is what makes "default off" real rather than a
   // checkbox somebody could flip.

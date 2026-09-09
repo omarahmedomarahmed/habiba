@@ -139,7 +139,7 @@ export function PaymentHistory({
                   <p className="text-sm text-slate-800">{transfer.paidAt ?? transfer.createdAt}</p>
                   {transfer.status === "failed" ? (
                     <p className="mt-0.5 text-xs leading-relaxed text-red-600">
-                      Did not go through — we will try again.
+                      Did not go through. We will try again.
                       {transfer.failureReason ? ` ${transfer.failureReason}` : ""}
                     </p>
                   ) : transfer.status === "pending" ? (

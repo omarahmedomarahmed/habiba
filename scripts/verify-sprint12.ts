@@ -21,7 +21,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 function note(text: string) {
@@ -48,7 +48,7 @@ async function main() {
 
     const { isGated } = await import("../lib/access/state");
     check(
-      "🔴 12.1 the copilot gate is on for everybody — no date, no grandfather",
+      "🔴 12.1 the copilot gate is on for everybody, no date, no grandfather",
       isGated("unclaimed_bare") &&
         !isGated("unclaimed_documented") &&
         !isGated("granted") &&
@@ -131,7 +131,7 @@ async function main() {
         SELECT COUNT(*)::int AS n FROM sessions WHERE feedback_token IS NULL
       `);
       note(
-        `${(nulls.rows[0] as { n: number }).n} historical sessions still have no token. Never backfilled — a token minted today would assert a rating had been possible. The purge removes them.`,
+        `${(nulls.rows[0] as { n: number }).n} historical sessions still have no token. Never backfilled, a token minted today would assert a rating had been possible. The purge removes them.`,
       );
 
       /* ------------------------------------------- 12.4 the phone number */
@@ -166,7 +166,7 @@ async function main() {
       check(
         "12.4 …and so is a national number nobody could send a message to",
         shapeRefused,
-        "01001234567 — real in Egypt, Italy and Kenya, and a different person in each",
+        "01001234567, real in Egypt, Italy and Kenya, and a different person in each",
       );
 
       /*
@@ -186,7 +186,7 @@ async function main() {
         })
         .returning({ id: patients.id });
       check(
-        "12.4 §3b's fallback survives — a join-link patient may still arrive with only an email",
+        "12.4 §3b's fallback survives, a join-link patient may still arrive with only an email",
         Boolean(guest),
       );
       if (guest) {
@@ -334,7 +334,7 @@ async function main() {
     const targets = await tableNames(db as never);
 
     check(
-      "🔴 12.6 the reset's table list is public tables only — drizzle's ledger is unreachable",
+      "🔴 12.6 the reset's table list is public tables only, drizzle's ledger is unreachable",
       targets.length > 0 && targets.every((name) => !name.includes("drizzle_migrations")),
       `${targets.length} tables`,
     );

@@ -160,7 +160,7 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
   if (!verdict.allowed) {
     return {
       ok: false,
-      error: "You have sent us a few messages already. We have them — give us a little time to reply.",
+      error: "You have sent us a few messages already. We have them, give us a little time to reply.",
     };
   }
 
@@ -391,7 +391,7 @@ export async function replyReceived(input: { ticketId: string }): Promise<void> 
     ticketId: input.ticketId,
     kind: "replied",
     actorUserId: null,
-    note: "They replied — the clock restarts",
+    note: "They replied, the clock restarts",
   });
 }
 
@@ -456,7 +456,7 @@ export async function movedToWhatsapp(input: {
     ticketId: input.ticketId,
     kind: "moved",
     actorUserId: input.actorUserId,
-    note: "Continued on WhatsApp — a summary has to come back before this closes",
+    note: "Continued on WhatsApp, a summary has to come back before this closes",
   });
   return { ok: true };
 }
@@ -500,7 +500,7 @@ export async function closeTicket(input: {
   if (ticket.movedToWhatsappAt && (ticket.whatsappSummary ?? "").trim().length < 20) {
     return {
       error:
-        "This one moved to WhatsApp. Write up what was agreed there before closing it — a conversation we cannot see is not a record.",
+        "This one moved to WhatsApp. Write up what was agreed there before closing it, a conversation we cannot see is not a record.",
     };
   }
 

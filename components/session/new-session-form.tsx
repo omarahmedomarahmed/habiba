@@ -71,7 +71,7 @@ export function NewSessionForm({
         <div className="rounded-2xl bg-teal-50 px-4 py-3.5">
           <p className="text-sm font-semibold text-teal-900">You are in.</p>
           <p className="mt-0.5 text-sm text-teal-800">
-            Start a session below — the first one is on us. Everything else can wait.
+            Start a session below, the first one is on us. Everything else can wait.
           </p>
         </div>
       ) : null}
@@ -218,7 +218,7 @@ export function NewSessionForm({
                  */
                 <p className="flex items-center gap-1.5 text-xs text-slate-600">
                   <DollarSign className="h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
-                  You keep {formatUsd(priceCents - cut)} — 24Therapy takes {formatUsd(cut)} (
+                  You keep {formatUsd(priceCents - cut)}, 24Therapy takes {formatUsd(cut)} (
                   {payments.feeBps / 100}%). Your patient also pays VAT on top, set by their
                   country.
                 </p>
@@ -231,7 +231,7 @@ export function NewSessionForm({
       {modality === "video" ? (
         <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
           <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          Your patient joins from a private link — no account, no download. The link expires in 12
+          Your patient joins from a private link, no account, no download. The link expires in 12
           hours and stops working the moment the session ends.
         </p>
       ) : null}

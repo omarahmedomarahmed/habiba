@@ -47,7 +47,7 @@ export default async function DashboardPage() {
             <span className="flex-1">
               <span className="block text-[15px] font-semibold">Start a session</span>
               <span className="block text-xs text-white/70">
-                In person or video — recording begins straight away
+                In person or video, recording begins straight away
               </span>
             </span>
             <ChevronRight className="h-4 w-4 text-white/60" aria-hidden />

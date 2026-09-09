@@ -170,7 +170,7 @@ export async function addTaxonomyEntry(
   if (trimmed.length < 2) return { error: "Too short." };
   if (trimmed.length > 48) return { error: "Keep it under 48 characters." };
   if (kind === "country") {
-    return { error: "Countries come from the map itself — ask us to add one." };
+    return { error: "Countries come from the map itself, ask us to add one." };
   }
 
   const existing = await taxonomy(kind);

@@ -419,7 +419,7 @@ export async function createSessionPaymentCheckout(opts: {
     });
     return {
       error:
-        "This therapist has not finished setting up payouts yet, so we cannot take a payment for this session. They can finish in Settings — it takes a couple of minutes — or send you a free link in the meantime.",
+        "This therapist has not finished setting up payouts yet, so we cannot take a payment for this session. They can finish in Settings. It takes a couple of minutes, or send you a free link in the meantime.",
     };
   }
 
@@ -438,7 +438,7 @@ export async function createSessionPaymentCheckout(opts: {
   if (!country) {
     return {
       error:
-        "We cannot take payments in that country yet. Ask your therapist for a free link — the session itself works exactly the same.",
+        "We cannot take payments in that country yet. Ask your therapist for a free link, the session itself works exactly the same.",
     };
   }
 
@@ -552,7 +552,7 @@ export async function createSessionPaymentCheckout(opts: {
               // Held capture: no transfer and no application fee, because
               // there is nowhere to send either yet. The split is recorded on
               // our own books instead and released later.
-              description: "Therapy session — held pending clinician payout setup",
+              description: "Therapy session, held pending clinician payout setup",
             },
       // The checkout id rides back on the redirect so the join page can confirm
       // without waiting for a webhook — Stripe cannot reach a preview
@@ -940,7 +940,7 @@ export async function releaseHeldEarnings(
         amount: held,
         currency: "usd",
         destination: account.accountId,
-        description: "24Therapy — session earnings held during payout setup",
+        description: "24Therapy, session earnings held during payout setup",
         metadata: { therapistId, transferId: transfer.id },
       },
       // Stripe deduplicates on this, so a retry after a timeout cannot send the

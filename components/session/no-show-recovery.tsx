@@ -78,7 +78,7 @@ export function NoShowRecovery({
           Joining shortly
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Your therapist has not joined yet. Stay here — this page will open the moment they do.
+          Your therapist has not joined yet. Stay here, this page will open the moment they do.
         </p>
       </Card>
     );
@@ -107,7 +107,7 @@ export function NoShowRecovery({
       <Card className="border-amber-200 bg-amber-50 p-4">
         <p className="text-sm font-semibold text-amber-900">Nobody is free right now</p>
         <p className="mt-1 text-sm leading-relaxed text-amber-800">
-          We could not find another therapist who is online. This is our failure, not yours — take
+          We could not find another therapist who is online. This is our failure, not yours, take
           your money back and we will be sorry about it properly.
         </p>
         <Button
@@ -185,7 +185,7 @@ export function NoShowRecovery({
         }
         className="tap-target mt-3 h-10 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-700"
       >
-        None of these — refund me instead
+        None of these, refund me instead
       </button>
 
       {error ? (

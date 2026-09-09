@@ -166,7 +166,7 @@ export function straddlesTurnBoundary(text: string): boolean {
 }
 
 const SYSTEM = `RULE THAT OVERRIDES EVERYTHING BELOW: if a line contains two
-speakers — one person finishing and the other starting inside the same line —
+speakers, one person finishing and the other starting inside the same line -
 label it "unknown". Do not pick whoever says most of it. A half-correct label is
 worse than no label, because it is written into a clinical record as if it were
 certain. When in doubt between two speakers, "unknown" is the answer.
@@ -183,7 +183,7 @@ How to tell them apart:
 - The patient describes their own experience, answers questions, and discloses.
 - A single line may contain the end of one speaker's turn and the start of the
   other's, because the recording was cut into fixed chunks rather than at turn
-  boundaries. **Label that line "unknown"** — see the rule at the top. A line
+  boundaries. **Label that line "unknown"**, see the rule at the top. A line
   containing a question and then its answer is the commonest example.
 - If a line genuinely could be either, use "unknown". Do not guess to be tidy.
 
@@ -303,7 +303,7 @@ export async function diariseSession(opts: {
     const numbered = batch.rows.map((row, i) => `${i}: ${row.text}`).join("\n");
     const content =
       context.length > 0
-        ? `Earlier lines, for context only — do not label these:\n${context.join("\n")}\n\nLabel these:\n${numbered}`
+        ? `Earlier lines, for context only, do not label these:\n${context.join("\n")}\n\nLabel these:\n${numbered}`
         : numbered;
 
     let turns: Turn[];

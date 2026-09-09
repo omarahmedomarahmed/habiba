@@ -190,7 +190,7 @@ export function TherapistConsole(props: ConsoleProps) {
               <dd className="mt-0.5 text-xl font-bold text-teal-300">
                 {props.rateCents > 0
                   ? formatUsd(props.rateCents - Math.floor((props.rateCents * 1000) / 10_000))
-                  : "—"}
+                  : "-"}
               </dd>
             </div>
           </dl>
@@ -206,7 +206,7 @@ export function TherapistConsole(props: ConsoleProps) {
 
           {held ? (
             <p className="mt-4 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-sm leading-relaxed text-amber-200">
-              Go on the radar and charge your rate now — Stripe has not verified you yet, so we
+              Go on the radar and charge your rate now, Stripe has not verified you yet, so we
               hold your share and send it to your account the moment they do. Nothing to claim.
             </p>
           ) : null}
@@ -229,7 +229,7 @@ export function TherapistConsole(props: ConsoleProps) {
           {online && sound !== "ready" ? (
             <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-medium text-red-300">
               <VolumeX className="h-3.5 w-3.5" aria-hidden />
-              You are live but your browser is silent — turn the alarm on below.
+              You are live but your browser is silent, turn the alarm on below.
             </p>
           ) : null}
 
@@ -301,7 +301,7 @@ export function TherapistConsole(props: ConsoleProps) {
             />
           </Field>
 
-          <Field label="Where you are based" htmlFor="country" hint="Country only — never your address.">
+          <Field label="Where you are based" htmlFor="country" hint="Country only, never your address.">
             <select
               id="country"
               name="country"
@@ -417,14 +417,14 @@ function GoOnlineSound({
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
           You are about to be visible to people in crisis. Your browser will not play a sound
-          until you allow it — tap below and you will hear the alarm straight away, so you know
+          until you allow it, tap below and you will hear the alarm straight away, so you know
           it works before anyone needs it.
         </p>
 
         {failed ? (
           <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-800">
             Your browser refused. Open the padlock in the address bar, allow <strong>Sound</strong>{" "}
-            and reload. You can still go on the radar — you will get the on-screen banner and a
+            and reload. You can still go on the radar. You will get the on-screen banner and a
             flashing tab title instead.
           </p>
         ) : null}
@@ -515,7 +515,7 @@ function AlertSettings({
             save({ alertOnView: onView, alertOnBooking: value });
           }}
           title="Someone is paying / a session link is live"
-          body="Repeats until you open the room. This is the one that means a patient is arriving — leave it on."
+          body="Repeats until you open the room. This is the one that means a patient is arriving, leave it on."
         />
       </div>
 
@@ -565,7 +565,7 @@ function AlertSettings({
       </div>
 
       <p className="mt-2.5 text-xs leading-relaxed text-slate-500">
-        Sounds reach you anywhere in 24Therapy, not just this page — including when this tab is
+        Sounds reach you anywhere in 24Therapy, not just this page, including when this tab is
         behind something else. While a patient is waiting the tab title flashes too, which no
         browser setting can switch off.
       </p>

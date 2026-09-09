@@ -179,7 +179,7 @@ export async function savePayouts(
     return { error: "The ageing alert has to be at least an hour." };
   }
   if (!Number.isFinite(value.egpSpreadBps) || value.egpSpreadBps < 0 || value.egpSpreadBps > 1000) {
-    return { error: "The spread is between 0 and 10 per cent — anything more is a hidden margin." };
+    return { error: "The spread is between 0 and 10 per cent, anything more is a hidden margin." };
   }
 
   await writeSettingsGroup({ group: "payouts", value, updatedBy: actor.userId });

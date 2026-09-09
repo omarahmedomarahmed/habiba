@@ -55,7 +55,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
                   <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
                     explore
                   </span>
-                  Two of seven nights went better — worth naming that back.
+                  Two of seven nights went better, worth naming that back.
                 </li>
                 <li className="text-sm leading-snug text-slate-100">
                   <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">

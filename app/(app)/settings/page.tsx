@@ -55,7 +55,7 @@ export default async function SettingsPage({
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {payouts === "refresh" ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-            That Stripe link expired before you finished. Start it again below — nothing was lost.
+            That Stripe link expired before you finished. Start it again below. Nothing was lost.
           </p>
         ) : null}
 

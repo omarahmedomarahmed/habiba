@@ -97,7 +97,7 @@ export function ClinicianHomework({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900">Between sessions</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            What they agreed to try. They close each one themselves — you cannot.
+            What they agreed to try. They close each one themselves, you cannot.
           </p>
         </div>
         {trend.skipStreak >= 3 ? (
@@ -131,7 +131,7 @@ export function ClinicianHomework({
               everything — there is simply nothing to say yet, and those are
               different clinical facts.
             */}
-            {trend.completionRate === null ? "—" : `${Math.round(trend.completionRate * 100)}%`}
+            {trend.completionRate === null ? "-" : `${Math.round(trend.completionRate * 100)}%`}
           </dd>
         </div>
       </dl>

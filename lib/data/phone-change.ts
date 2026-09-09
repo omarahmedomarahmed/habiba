@@ -76,7 +76,7 @@ export async function requestPhoneChange(input: {
     return { error: "We need your permission to contact the new number before we can check it." };
   }
   if (input.reason.trim().length < 10) {
-    return { error: "Tell us why, in your own words — a person reads this." };
+    return { error: "Tell us why, in your own words, a person reads this." };
   }
 
   const expanded = toE164(input.newPhone, input.country);
@@ -195,7 +195,7 @@ export async function approveChange(input: {
   note: string;
 }): Promise<ChangeResult> {
   if (input.note.trim().length < 5) {
-    return { error: "Record how you checked — a call, a message, what they said." };
+    return { error: "Record how you checked, a call, a message, what they said." };
   }
 
   const updated = await db

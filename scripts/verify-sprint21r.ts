@@ -74,7 +74,7 @@ async function main() {
   );
 
   check(
-    "🔴 21R.9 / C93 NO verifier reads published content by hand — it comes through the deferrable reader",
+    "🔴 21R.9 / C93 NO verifier reads published content by hand. It comes through the deferrable reader",
     offenders.length === 0,
     offenders.join(" · ") || `${VERIFIERS.length} verifiers scanned`,
   );
@@ -109,7 +109,7 @@ async function main() {
 
     const caught = undeferredContentReads(readFileSync(planted, "utf8"));
     check(
-      "🔴 21R.9 CONTROL — the same scan CATCHES a hand-written content read planted in a verifier",
+      "🔴 21R.9 CONTROL, the same scan CATCHES a hand-written content read planted in a verifier",
       caught.length === 1,
       caught[0]?.slice(0, 80) ?? "THE SCAN IS BLIND",
     );
@@ -129,7 +129,7 @@ async function main() {
     `  .where(eq(${TABLE}.slug, "verify17-control"));`,
   ].join("\n");
   check(
-    "21R.9 …and a fixture the verifier planted ITSELF is not reported — the rule is about reading, not writing",
+    "21R.9 …and a fixture the verifier planted ITSELF is not reported. The rule is about reading, not writing",
     undeferredContentReads(control).length === 0,
   );
 
@@ -164,7 +164,7 @@ async function main() {
   );
 
   check(
-    "🔴 21R.9 on an EMPTY database a content check skips with its reason — it does not fail, and does not pass vacuously",
+    "🔴 21R.9 on an EMPTY database a content check skips with its reason. It does not fail, and does not pass vacuously",
     ran.onEmpty === false && recorded[0]?.reason.startsWith("22.8b:") === true,
     recorded[0]?.reason ?? "nothing recorded",
   );
@@ -187,7 +187,7 @@ async function main() {
   );
 
   check(
-    "🔴 21R.9 …and it switches itself back ON when the content is there — nobody edits a file to un-skip it",
+    "🔴 21R.9 …and it switches itself back ON when the content is there, nobody edits a file to un-skip it",
     ran.onContent === true,
     ran.onContent
       ? "the same check ran against one published page"
@@ -224,7 +224,7 @@ async function main() {
   await skipUnless(
     running === CACHE_VERSION,
     "the next deploy of main",
-    `21R.6 — ${LIVE_URL} is serving cache ${running}, this build is ${CACHE_VERSION}`,
+    `21R.6, ${LIVE_URL} is serving cache ${running}, this build is ${CACHE_VERSION}`,
     async () => {
       const live = await readLiveSite();
 
@@ -232,7 +232,7 @@ async function main() {
         REVERSED_CLAIM.test(page.text),
       );
       check(
-        "🔴 21R.6 / C92 NO live page states the claim §3c reversed — the money is not always in your own account",
+        "🔴 21R.6 / C92 NO live page states the claim §3c reversed. The money is not always in your own account",
         live.length > 0 && contradicting.length === 0,
         contradicting.map((p) => `${p.path}[${p.locale}]`).join(", ") ||
           `${live.length} live pages read`,
@@ -240,20 +240,27 @@ async function main() {
 
       const priced = live.filter((page) => PRICE_IN_PROSE.test(page.text));
       check(
-        "🔴 21R.6 …and none of them writes a price into prose — the cards carry the numbers",
+        "🔴 21R.6 …and none of them writes a price into prose, the cards carry the numbers",
         priced.length === 0,
         priced.map((p) => `${p.path}[${p.locale}]`).join(", ") || "none",
       );
 
       const pricing = live.filter((page) => page.path === "/pricing");
+      /*
+       * 21R.6 / C104 — the CARDS, not the currency toggle.
+       *
+       * This asserted on "EGP|USD" and went red against a correct page: 17.8
+       * says the toggle appears only when the pair can be priced, and C37
+       * refuses a static rate in production, so a live site with no FX quote
+       * shows no toggle by design. A check that fails when a deliberate
+       * refusal fires is a check that teaches people to ignore it. What makes
+       * a pricing page a pricing page is the per-session cards.
+       */
       check(
-        "21R.6 the live pricing page carries the tier cards and the currency toggle",
-        pricing.length > 0 &&
-          pricing.every((page) => /EGP|USD/.test(page.text)),
+        "21R.6 the live pricing page carries the tier cards, one per rate",
+        pricing.length > 0 && pricing.every((page) => /\/ session|الجلسة/.test(page.text)),
         pricing
-          .map(
-            (p) => `${p.locale}:${/EGP|USD/.test(p.text) ? "cards" : "PROSE"}`,
-          )
+          .map((p) => `${p.locale}:${/\/ session|الجلسة/.test(p.text) ? "cards" : "PROSE"}`)
           .join(", "),
       );
     },
@@ -267,12 +274,12 @@ async function main() {
    * would either miss the bug or condemn the fix.
    */
   const served =
-    "15% of the session price, and nothing else. The money is a direct charge into your own Stripe account — we never hold it — and Stripe handles the payout to your bank.";
+    "15% of the session price, and nothing else. The money is a direct charge into your own Stripe account, we never hold it, and Stripe handles the payout to your bank.";
   const corrected =
-    "The percentage shown on the cards above, and nothing else. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not — Egypt, today — we collect it, hold it, and pay you out on request.";
+    "The percentage shown on the cards above, and nothing else. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not, Egypt, today, we collect it, hold it, and pay you out on request.";
 
   check(
-    "🔴 21R.6 CONTROL — the scan CATCHES the sentence the site served, and CLEARS the conditional one that replaced it",
+    "🔴 21R.6 CONTROL, the scan CATCHES the sentence the site served, and CLEARS the conditional one that replaced it",
     REVERSED_CLAIM.test(served) && !REVERSED_CLAIM.test(corrected),
     `served: ${REVERSED_CLAIM.test(served) ? "caught" : "MISSED"} · corrected: ${
       REVERSED_CLAIM.test(corrected) ? "FALSELY CONDEMNED" : "cleared"
@@ -287,7 +294,7 @@ async function main() {
   const serviceSource = readFileSync("lib/content/service.ts", "utf8");
   const service = stripComments(serviceSource);
   check(
-    "🔴 21R.6 the public content cache EXPIRES — a cache only a click can retire will outlive the content",
+    "🔴 21R.6 the public content cache EXPIRES, a cache only a click can retire will outlive the content",
     /revalidate:\s*CACHE_SECONDS/.test(service) &&
       !/revalidate:\s*false/.test(service),
     /revalidate:\s*false/.test(service)
@@ -303,7 +310,7 @@ async function main() {
    * one scan, it is the default.
    */
   check(
-    "🔴 21R.6 CONTROL — the same scan, run WITHOUT stripping comments, would have failed on the paragraph explaining the fix",
+    "🔴 21R.6 CONTROL, the same scan, run WITHOUT stripping comments, would have failed on the paragraph explaining the fix",
     /revalidate:\s*false/.test(serviceSource),
     "the prose names the old setting; the code does not",
   );
@@ -378,7 +385,7 @@ async function main() {
   };
 
   check(
-    "🔴 21R.10 / C95 the hero icon sits WITH the text — it does not break to a line of its own",
+    "🔴 21R.10 / C95 the hero icon sits WITH the text. It does not break to a line of its own",
     iconRowHasText(withEyebrow) && iconRowHasText(withoutEyebrow),
     `with an eyebrow: ${iconRowHasText(withEyebrow) ? "inline" : "ALONE"} · without one: ${
       iconRowHasText(withoutEyebrow) ? "inline" : "ALONE"
@@ -404,7 +411,7 @@ async function main() {
     heroBlock.match(/\b(ml-|mr-|pl-|pr-|left-|right-|text-left|text-right)/g) ??
     [];
   check(
-    "🔴 21R.10 …in both directions — the hero pins no physical side, so Arabic needs no second rule",
+    "🔴 21R.10 …in both directions, the hero pins no physical side, so Arabic needs no second rule",
     physical.length === 0,
     physical.join(", ") || "flex and gap only, direction from the document",
   );
@@ -417,7 +424,7 @@ async function main() {
   const asItShipped =
     '<div><span class="inline-flex">Pricing</span><div><span class="flex h-10 w-10"><svg></svg></span></div><h1>Three rates.</h1></div>';
   check(
-    "🔴 21R.10 CONTROL — the same reader CALLS OUT the arrangement that shipped",
+    "🔴 21R.10 CONTROL, the same reader CALLS OUT the arrangement that shipped",
     !iconRowHasText(asItShipped),
     iconRowHasText(asItShipped)
       ? "THE READER IS BLIND"
@@ -442,7 +449,7 @@ async function main() {
 
   const missingPages = Object.entries(pages).filter(([, path]) => !existsSync(path));
   check(
-    "🔴 21R.1–21R.4 / C94 three kinds of person have three doors, and each of them has a way back in",
+    "🔴 21R.1-21R.4 / C94 three kinds of person have three doors, and each of them has a way back in",
     missingPages.length === 0,
     missingPages.map(([name]) => name).join(", ") || Object.keys(pages).join(", "),
   );
@@ -463,14 +470,14 @@ async function main() {
   ].join("\n");
 
   check(
-    "🔴 21R.5 every door carries its reset link — one that is not linked is one nobody has",
+    "🔴 21R.5 every door carries its reset link, one that is not linked is one nobody has",
     /href="\/forgot-password"/.test(authSources) &&
       /href="\/patient\/forgot-password"/.test(authSources),
     "clinician and patient resets are both linked from their own pages",
   );
 
   check(
-    "21R.2 …and each door names the others — 'looking for your own sessions?'",
+    "21R.2 …and each door names the others, 'looking for your own sessions?'",
     /Looking for your own sessions/i.test(authSources) &&
       /Are you a therapist/i.test(authSources),
   );
@@ -503,7 +510,7 @@ async function main() {
   );
 
   check(
-    "🔴 21R.1 CONTROL — the same scan FINDS a link planted in a public file",
+    "🔴 21R.1 CONTROL, the same scan FINDS a link planted in a public file",
     stripComments(
       `export const Footer = () => <a href="/staff/sign-in">Admin</a>;`,
     ).includes("/staff/sign-in"),
@@ -556,7 +563,7 @@ async function main() {
       .limit(1);
 
     check(
-      "🔴 21R.4 / C94 a patient with NO EMAIL can ask for a reset — the code goes to their phone",
+      "🔴 21R.4 / C94 a patient with NO EMAIL can ask for a reset. The code goes to their phone",
       request.sent === true && token?.channel === "whatsapp",
       token ? `code issued over ${token.channel}` : "NO TOKEN WAS ISSUED",
     );
@@ -641,7 +648,7 @@ async function main() {
       .limit(1);
 
     check(
-      "🔴 21R.4 the right code sets the new password — a patient locked out of their own record can get back in",
+      "🔴 21R.4 the right code sets the new password, a patient locked out of their own record can get back in",
       done.sent === true && (await verifyPassword("a-brand-new-password-1", after!.passwordHash)),
       done.error ?? "signed in with the new password",
     );
@@ -654,7 +661,7 @@ async function main() {
 
     const replay = await completePatientReset({}, right);
     check(
-      "🔴 21R.4 …and the code works ONCE — a message forwarded to somebody else buys them nothing",
+      "🔴 21R.4 …and the code works ONCE, a message forwarded to somebody else buys them nothing",
       spent?.usedAt !== null && replay.error !== undefined,
       replay.error ?? "THE SAME CODE WORKED TWICE",
     );
@@ -674,7 +681,7 @@ async function main() {
       .limit(1);
 
     check(
-      "🔴 21R.1 the sign-in action knows which door it is — one form, two audiences, one lockout",
+      "🔴 21R.1 the sign-in action knows which door it is, one form, two audiences, one lockout",
       /audience: Audience =/.test(readFileSync("lib/auth/actions.ts", "utf8")) &&
         /name="audience" value="staff"/.test(readFileSync("components/auth/forms.tsx", "utf8")),
       `${therapist ? "therapists" : "no therapist"} and ${admin ? "back office" : "no admin"} in this database`,
@@ -687,7 +694,7 @@ async function main() {
      */
     const actions = stripComments(readFileSync("lib/auth/actions.ts", "utf8"));
     check(
-      "🔴 21R.1 …and it refuses the wrong audience only AFTER the password is verified — never before",
+      "🔴 21R.1 …and it refuses the wrong audience only AFTER the password is verified, never before",
       actions.indexOf("const valid = await verifyPassword") <
         actions.indexOf('audience === "staff" && !backOffice'),
       "a refusal before the password check would enumerate the admins",

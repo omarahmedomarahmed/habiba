@@ -54,7 +54,7 @@ export function inspectEnv(
       if (!env[key]) {
         problems.push({
           level: "warn",
-          message: `${key} is not set — the feature it powers will degrade`,
+          message: `${key} is not set, the feature it powers will degrade`,
         });
       }
     }
@@ -98,7 +98,7 @@ function assertEnv() {
   }
   if (errors.length > 0) {
     throw new Error(
-      `Refusing to start — invalid environment:\n${errors.map((e) => `  - ${e.message}`).join("\n")}`,
+      `Refusing to start, invalid environment:\n${errors.map((e) => `  - ${e.message}`).join("\n")}`,
     );
   }
 }

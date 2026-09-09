@@ -33,7 +33,7 @@ const { platformSettings, countrySettings, sessionCredits, invoices, sessions, s
 let failures = 0;
 
 function check(name: string, ok: boolean, detail = "") {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 }
 

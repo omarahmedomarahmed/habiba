@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { explain } from "@/lib/access/state";
-import { askPatientCopilot } from "@/lib/ai/patient-copilot";
+import { askPatientCopilot } from "@/lib/ai/case-copilot";
 import { accessFor } from "@/lib/data/grants";
 import { requireUser } from "@/lib/auth/guard";
 import {

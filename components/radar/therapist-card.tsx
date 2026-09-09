@@ -74,7 +74,7 @@ export function TherapistCard({
         <span className={cn("block truncate text-xs", dark ? "text-white/50" : "text-slate-500")}>
           {[entry.credentials, entry.languages.slice(0, 2).join(" · ")]
             .filter(Boolean)
-            .join(" — ") || "Licensed clinician"}
+            .join(", ") || "Licensed clinician"}
         </span>
 
         {entry.specialties.length > 0 || entry.practice ? (

@@ -120,7 +120,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
           <Row
             icon={MapPin}
             label="Walk-ins"
-            value={`${profile.practice.name ?? "Practice"} — ${profile.practice.address}`}
+            value={`${profile.practice.name ?? "Practice"}, ${profile.practice.address}`}
           />
         ) : null}
       </dl>

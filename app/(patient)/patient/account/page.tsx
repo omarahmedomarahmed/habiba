@@ -59,7 +59,7 @@ export default async function PatientAccountPage() {
         <dl className="space-y-2 text-sm">
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-slate-500">Phone</dt>
-            <dd className="font-mono text-slate-800">{actor.phone ?? "—"}</dd>
+            <dd className="font-mono text-slate-800">{actor.phone ?? "-"}</dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-slate-500">Email</dt>

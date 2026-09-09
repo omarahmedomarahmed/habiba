@@ -82,7 +82,7 @@ const DEMO_NOTE = {
   observations:
     "Engaged and collaborative. Responded well to being shown the discrepancy between reported outcome and actual data. Mild fatigue evident but did not impair participation.",
   impressions:
-    "Consistent with the existing formulation of anxiety-maintained sleep disruption. No evidence of a new process. Impressions only — for clinician review, not a diagnosis.",
+    "Consistent with the existing formulation of anxiety-maintained sleep disruption. No evidence of a new process. Impressions only, for clinician review, not a diagnosis.",
   recommendations: [
     "Raise wind-down routine target to four nights per week with a simple written record",
     "Continue cognitive restructuring around performance-review catastrophising",
@@ -92,7 +92,7 @@ const DEMO_NOTE = {
   patientBrief:
     "We spent most of today on the nights you have been having, and on how much of the day gets spent bracing for the next bad one. You put it into words really clearly.\n\nThe part worth holding on to: on the two nights you did the wind-down, you slept better. You had written both of those off as flukes until we lined them up.",
   patientSteps: [
-    "Screens down an hour before bed, four nights this week — pick the nights now rather than deciding each evening.",
+    "Screens down an hour before bed, four nights this week, pick the nights now rather than deciding each evening.",
     "Get up at the same time even after a bad night. This is the one that does the most work and feels the most pointless.",
     "Jot down roughly when you fell asleep and when you woke. Not a diary, just two times.",
   ],

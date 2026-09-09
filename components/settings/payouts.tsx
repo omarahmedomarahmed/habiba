@@ -87,7 +87,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             {state.heldCents > 0
               ? `We are holding ${formatUsd(state.heldCents)} of yours until Stripe finishes verifying you. It moves to your account by itself the moment they do.`
               : state.payoutsEnabled
-                ? "Charge for a session link and the money goes straight into your own Stripe account — we never touch it."
+                ? "Charge for a session link and the money goes straight into your own Stripe account, we never touch it."
                 : "Charge for a session from today. Once Stripe has verified you the money goes straight into your own account; until then we hold your share and pass it on automatically."}
           </p>
         </div>
@@ -246,7 +246,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             </span>
             <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
               When a patient pays you, anything you owe us is taken out of the same charge instead
-              of your card — never more than what you would have received.
+              of your card, never more than what you would have received.
               {state.outstandingCents > 0
                 ? ` You currently owe ${formatUsd(state.outstandingCents)}.`
                 : ""}

@@ -17,7 +17,7 @@ const { patients, people } = schema;
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
 
@@ -40,7 +40,7 @@ async function main() {
 
     check("5.1 every patient has a person", counts!.orphans === 0, `${counts!.orphans} orphaned`);
     check(
-      "5.3 one person per patient — nothing was merged",
+      "5.3 one person per patient. Nothing was merged",
       counts!.distinct === counts!.patients,
       `${counts!.distinct} distinct people across ${counts!.patients} patients`,
     );

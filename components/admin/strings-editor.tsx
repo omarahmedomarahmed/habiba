@@ -133,7 +133,7 @@ export function LanguagePanel({ language }: { language: LanguageState }) {
           <span>
             Offered to readers
             <span className="block text-xs text-slate-500">
-              Refused below 100%. Once live, a new string never takes it down again — it falls
+              Refused below 100%. Once live, a new string never takes it down again, it falls
               back and raises an alarm (21.12).
             </span>
           </span>
@@ -230,7 +230,7 @@ function BulkApprove({ locale, keys }: { locale: string; keys: string[] }) {
       <input type="hidden" name="keys" value={keys.join(",")} />
       <Go label={`Approve ${keys.length} drafts`} />
       <span className="text-xs text-slate-500">
-        Crisis, consent and recording strings are never in this batch — those are approved one at a
+        Crisis, consent and recording strings are never in this batch, those are approved one at a
         time.
       </span>
       <Result state={state} />
@@ -250,13 +250,13 @@ function Row({ locale, row }: { locale: string; row: StringRow }) {
           {row.safety ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
               <ShieldAlert className="h-3 w-3" aria-hidden />
-              safety string — rewordable, never removable
+              safety string, rewordable, never removable
             </span>
           ) : null}
           {row.status === "draft" ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800">
               <AlertTriangle className="h-3 w-3" aria-hidden />
-              machine draft {row.model ? `· ${row.model}` : ""} — nobody has read this
+              machine draft {row.model ? `· ${row.model}` : ""}. Nobody has read this
             </span>
           ) : null}
           {row.status === "published" && row.source === "human" ? (

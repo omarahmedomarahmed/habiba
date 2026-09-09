@@ -89,8 +89,8 @@ export default async function VerificationsPage({
               specialties={row.specialties}
               languages={row.languages}
               documents={[
-                { label: "ID — front", url: row.idFrontUrl },
-                { label: "ID — back", url: row.idBackUrl },
+                { label: "ID, front", url: row.idFrontUrl },
+                { label: "ID, back", url: row.idBackUrl },
                 { label: "Licence", url: row.licenseDocUrl },
                 { label: "Headshot (public)", url: row.headshotUrl },
               ]}

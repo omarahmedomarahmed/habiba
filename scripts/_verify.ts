@@ -50,7 +50,7 @@ export function reporter(): Reporter {
   const check = (label: string, ok: boolean, detail = "") => {
     checks += 1;
     if (!ok) failures += 1;
-    console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+    console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
   };
 
   const skipUnless = async (

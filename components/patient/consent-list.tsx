@@ -80,7 +80,7 @@ export function ConsentList({
           <Card className="px-4 py-5">
             <p className="text-sm text-slate-500">
               Nobody can read your history. Your therapists still keep their own notes about the
-              sessions you had with them — that part is their record, not yours to remove.
+              sessions you had with them, that part is their record, not yours to remove.
             </p>
           </Card>
         ) : (

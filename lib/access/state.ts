@@ -218,7 +218,7 @@ export function explain(state: AccessState, gated = false): string | null {
 
   switch (state) {
     case "revoked":
-      return "This person has not granted you access to their profile. You can still see your own sessions, your own notes and your earlier copilot conversation — but not their live profile, their files, or their current diagnosis.";
+      return "This person has not granted you access to their profile. You can still see your own sessions, your own notes and your earlier copilot conversation, but not their live profile, their files, or their current diagnosis.";
     case "unclaimed_bare":
       return "This record is yours alone until the person it describes claims it. Add a diagnosis and a history to get the most out of the copilot.";
     case "no_relationship":

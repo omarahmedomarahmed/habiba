@@ -164,7 +164,7 @@ export async function requestPayout(input: {
   }
 
   const method = await defaultMethodFor(input.therapistId);
-  if (!method) return { error: "Add a payout method first — we need to know where to send it." };
+  if (!method) return { error: "Add a payout method first. We need to know where to send it." };
 
   const open = await db
     .select({ id: payoutRequests.id })

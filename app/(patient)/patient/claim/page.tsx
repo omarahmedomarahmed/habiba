@@ -59,7 +59,7 @@ export default async function ClaimPage() {
           <p className="text-sm font-semibold text-slate-900">Nothing to claim yet</p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
             Nobody has written you down under this number or address. If you are seeing a therapist
-            on 24Therapy, ask them to send you an invite — it is one button on your record.
+            on 24Therapy, ask them to send you an invite. It is one button on your record.
           </p>
         </Card>
       ) : null}

@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { __costing } from "../lib/ai/client";
 import { patientFacingCrisisMessage, scanForCrisisLanguage } from "../lib/ai/crisis";
-import { resolveCitations } from "../lib/ai/patient-copilot";
+import { resolveCitations } from "../lib/ai/case-copilot";
 import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";
 import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/password";
@@ -575,7 +575,7 @@ test("identifiers never reach the error log", async () => {
   assert.equal(
     scrubPath("/join/UyoBFkMyf8SELXgyyN1g0TAonuCqtTM6"),
     "/join/[token]",
-    "a join token is a live credential — it lets the holder into the room",
+    "a join token is a live credential, it lets the holder into the room",
   );
 
   assert.equal(

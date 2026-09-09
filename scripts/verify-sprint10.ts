@@ -27,10 +27,10 @@ const { assistantMessages, assistantThreads, patients, people } = schema;
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
-const skip = (name: string, why: string) => console.log(`  --   ${name} — NOT EXERCISED: ${why}`);
+const skip = (name: string, why: string) => console.log(`  --   ${name}, NOT EXERCISED: ${why}`);
 
 const TAG = `verify10-${randomUUID().slice(0, 8)}`;
 
@@ -145,7 +145,7 @@ async function main() {
       } else {
         const keys = Object.keys(roster[0]!).sort();
         check(
-          "🔴 10.2 a roster row is names, dates and a count — nothing else",
+          "🔴 10.2 a roster row is names, dates and a count, nothing else",
           JSON.stringify(keys) ===
             JSON.stringify(["draftNotes", "lastSessionAt", "name", "nextSessionAt", "patientId"]),
           keys.join(", "),

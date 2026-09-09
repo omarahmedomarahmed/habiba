@@ -150,7 +150,7 @@ export default async function PatientBillingPage() {
 
       <p className="text-xs leading-relaxed text-slate-400">
         The headline figure is what you were actually charged, in the currency you paid in, at the
-        rate quoted at the time. The breakdown is in the currency your therapist is paid in — that
+        rate quoted at the time. The breakdown is in the currency your therapist is paid in. That
         is the amount a refund would return.
       </p>
     </main>

@@ -59,7 +59,7 @@ export const en = {
      is the part this line exists to reassure them about.
   */
   "join.privateNotePaid":
-    "Payment is handled by Stripe and goes to your therapist — we never see your card. Your session is private and is not shared with anyone else.",
+    "Payment is handled by Stripe and goes to your therapist. We never see your card. Your session is private and is not shared with anyone else.",
   "join.paymentReceived": "Payment received",
   "join.takingYouIn": "Taking you into your session…",
 
@@ -70,7 +70,7 @@ export const en = {
   "consent.point.private":
     "Only your therapist can see it. It is never sold, never used for advertising, and never shown to another patient.",
   "consent.point.changeMind":
-    "You can change your mind during the session — ask your therapist to stop and the recording indicator turns amber.",
+    "You can change your mind during the session: ask your therapist to stop and the recording indicator turns amber.",
   "consent.refusal":
     "If you say no the session still happens, exactly the same. Your therapist writes their notes by hand instead.",
   "consent.grant": "Yes, you may record",
@@ -88,7 +88,7 @@ export const en = {
   "room.beforeYouGo": "Before you go",
   "room.doNotClose": "Do not close this tab.",
   "room.youGetToRate":
-    "You get to rate {therapist} and this session as soon as it ends — right here, on this page.",
+    "You get to rate {therapist} and this session as soon as it ends, right here, on this page.",
   "room.closingCost":
     "Closing the tab is the one thing we cannot undo: the rating and your written summary both live on the other side of it, and there is no way for us to bring you back.",
   "room.anonymous":
@@ -101,7 +101,7 @@ export const en = {
   "room.speaks": "Speaks {languages}",
   "room.summaryTitle": "A written summary, afterwards",
   "room.summaryBody":
-    "When {therapist} joins we will ask where to send it — a plain-language note of what you talked about and what you agreed.",
+    "When {therapist} joins we will ask where to send it, a plain-language note of what you talked about and what you agreed.",
   "room.goodToKnow": "Good to know",
   "room.knowRecording":
     "The recording is used to write your therapist's notes. It is not shared with anyone else.",
@@ -109,7 +109,7 @@ export const en = {
     "You get a plain-language summary. Your therapist's clinical note stays with them.",
   "room.knowEmergency":
     "This is not an emergency service. If you are in immediate danger, call your local emergency number.",
-  "room.troubleTitle": "Something is wrong — tell 24Therapy",
+  "room.troubleTitle": "Something is wrong, tell 24Therapy",
   "room.ended": "The session has ended",
   "room.endedBody":
     "One minute of feedback and we will email you a plain-language summary of what you talked about and what you agreed.",
@@ -146,7 +146,7 @@ export const en = {
    */
   "pricing.free": "Joining is free. You pay per session.",
   "pricing.freeBody":
-    "No subscription, no seat fee, no setup fee — and your first completed session is on us.",
+    "No subscription, no seat fee, no setup fee, and your first completed session is on us.",
   "pricing.perSession": "/ session",
   "pricing.tier.payg": "Pay as you go",
   "pricing.tier.starter": "Starter",
@@ -154,14 +154,14 @@ export const en = {
   "pricing.payg": "Pay for the sessions you actually run. Nothing up front.",
   "pricing.bundle": "Buy {count} or more at once.",
   "pricing.includes":
-    "The session and {count} copilot questions about that patient — each answer citing the session and timestamp it came from.",
+    "The session and {count} copilot questions about that patient, each answer citing the session and timestamp it came from.",
   "pricing.feature.transcription": "Live transcription, Arabic and English",
   "pricing.feature.note": "SOAP note in under a minute",
   "pricing.feature.report": "Patient report by email",
   "pricing.feature.video": "Video or in-person sessions",
   "pricing.feature.alerts": "Crisis-language alerts",
   "pricing.feature.getPaid":
-    "Get paid by patients — Crisis Radar and paid session links",
+    "Get paid by patients, through the Crisis Radar and paid session links",
   "pricing.feature.baa": "HIPAA BAA included",
   "pricing.signUp": "Sign up free",
   "pricing.orBundle": "or buy a bundle of {count}",
@@ -171,9 +171,9 @@ export const en = {
     "You pay per session, only when you run one, and your first completed session is free. Credits last {months} months and are always spent before anything new is billed, so moving to a smaller bundle never strands what you paid for.",
   "pricing.radarLead": "Get booked on the Crisis Radar.",
   "pricing.radarBody":
-    "Patients find you and book you, and we take {percent}% of what that session paid you — nothing else.",
+    "Patients find you and book you, and we take {percent}% of what that session paid you, and nothing else.",
   "pricing.netting":
-    "When we are holding your earnings, the session fee comes out of them automatically — nothing to pay by card. If your patients pay straight into your own Stripe account, we bill you for it instead.",
+    "When we are holding your earnings, the session fee comes out of them automatically, so there is nothing to pay by card. If your patients pay straight into your own Stripe account, we bill you for it instead.",
   "pricing.sliderLabel": "{name}: how many sessions?",
   "pricing.showEgp": "Show EGP",
   "pricing.showUsd": "Show USD",
@@ -191,7 +191,7 @@ export const en = {
    */
   "crisis.headingDefault": "If you need help right now",
   "crisis.bodyDefault":
-    "If you are in immediate danger, call your local emergency number now — this is not an emergency service and nobody here can reach you fast enough. If you can wait a few minutes, the radar has clinicians online this minute and you do not need an account to use it.",
+    "If you are in immediate danger, call your local emergency number now. This is not an emergency service and nobody here can reach you fast enough. If you can wait a few minutes, the radar has clinicians online this minute and you do not need an account to use it.",
   "crisis.findSomeone": "Find someone online now",
   "crisis.whatHappens": "What happens in a session",
   "crisis.noAccountLine":
@@ -206,27 +206,27 @@ export const en = {
    */
   "contact.urgentLead": "Do not send anything urgent here.",
   "contact.urgentBody":
-    "This reaches a person during working hours, not in the next ten minutes. If you need somebody now, open the radar — clinicians are online this minute and you need no account. If you are in immediate danger, call your local emergency number.",
+    "This reaches a person during working hours, not in the next ten minutes. If you need somebody now, open the radar. Clinicians are online this minute and you need no account. If you are in immediate danger, call your local emergency number.",
   "contact.radarWord": "radar",
   "contact.name": "What should we call you?",
   "contact.reply": "How should we reply?",
   "contact.replyHint":
-    "An email address or a phone number — whichever you actually read. One is enough.",
+    "An email address or a phone number, whichever you actually read. One is enough.",
   "contact.country": "Country",
   "contact.countryAria": "Country for the phone number",
   "contact.phone": "Phone number",
   "contact.topic": "What is this about?",
   "contact.topic.account": "My account or signing in",
   "contact.topic.billing": "A payment or a bill",
-  "contact.topic.my_record": "My record — claiming it, or what is in it",
+  "contact.topic.my_record": "My record, claiming it, or what is in it",
   "contact.topic.a_session": "Something about a session I had",
   "contact.topic.a_therapist": "A therapist on the platform",
   "contact.topic.joining_as_a_therapist": "Joining as a therapist",
   "contact.topic.something_else": "Something else",
   "contact.entity": "Who are you writing to?",
   "contact.entityHint": "Both reach the same team.",
-  "contact.entityUs": "24Therapy Inc. — international",
-  "contact.entityEg": "24Therapy Egypt — Egypt",
+  "contact.entityUs": "24Therapy Inc., international",
+  "contact.entityEg": "24Therapy Egypt, Egypt",
   "contact.message": "Your message",
   "contact.attach": "Attach a photo or PDF",
   "contact.attachHint":
@@ -237,7 +237,7 @@ export const en = {
     "What you write is kept like anything else you tell a clinician here: stored, access controlled, read only by the person answering you, and never used to train anything.",
   "contact.received": "We have it.",
   "contact.reference":
-    "Your reference is {reference}. A named person picks this up and answers within {hours} hours — by email or by message, whichever you left us. If it is urgent, do not wait for us: use the radar.",
+    "Your reference is {reference}. A named person picks this up and answers within {hours} hours, by email or by message, whichever you left us. If it is urgent, do not wait for us: use the radar.",
   "contact.attachmentFailed":
     "Your message is safe, but the attachment did not go through: {reason}",
 
@@ -252,7 +252,7 @@ export const en = {
   "radar.online": "{count} online right now",
   "radar.private": "Private and encrypted",
   "radar.noAccount": "No account needed",
-  "radar.goOnRadar": "I'm a therapist — go on the radar",
+  "radar.goOnRadar": "I'm a therapist: go on the radar",
   "radar.full": "Full radar",
   "radar.finding": "Finding clinicians…",
   "radar.fromPrice": "From {price} for 30 minutes",
@@ -343,7 +343,7 @@ export const ar: Record<MessageKey, string> = {
   "join.tooManyAttempts": "محاولات كثيرة. انتظر لحظة ثم حاول مرة أخرى.",
   "join.privateNote": "جلستك خاصة ولا تُشارَك مع أي شخص آخر.",
   "join.privateNotePaid":
-    "الدفع يتم عبر Stripe ويذهب إلى معالجك — نحن لا نرى بطاقتك أبدًا. جلستك خاصة ولا تُشارَك مع أي شخص آخر.",
+    "الدفع يتم عبر Stripe ويذهب إلى معالجك، نحن لا نرى بطاقتك أبدًا. جلستك خاصة ولا تُشارَك مع أي شخص آخر.",
   "join.paymentReceived": "تم استلام الدفع",
   "join.takingYouIn": "جارٍ إدخالك إلى جلستك…",
 
@@ -353,7 +353,7 @@ export const ar: Record<MessageKey, string> = {
   "consent.point.private":
     "معالجك وحده من يستطيع الاطلاع عليه. لا يُباع أبدًا، ولا يُستخدم في الإعلانات، ولا يُعرض على مريض آخر.",
   "consent.point.changeMind":
-    "يمكنك تغيير رأيك أثناء الجلسة — اطلب من معالجك التوقف وسيتحول مؤشر التسجيل إلى اللون الكهرماني.",
+    "يمكنك تغيير رأيك أثناء الجلسة، اطلب من معالجك التوقف وسيتحول مؤشر التسجيل إلى اللون الكهرماني.",
   "consent.refusal":
     "إذا رفضت فالجلسة تتم كما هي تمامًا. سيكتب معالجك ملاحظاته بخط يده بدلاً من ذلك.",
   "consent.grant": "نعم، يمكنك التسجيل",
@@ -368,7 +368,7 @@ export const ar: Record<MessageKey, string> = {
   "room.beforeYouGo": "قبل أن تغادر",
   "room.doNotClose": "لا تغلق هذه الصفحة.",
   "room.youGetToRate":
-    "ستتمكن من تقييم {therapist} وتقييم هذه الجلسة فور انتهائها — هنا، في هذه الصفحة.",
+    "ستتمكن من تقييم {therapist} وتقييم هذه الجلسة فور انتهائها، هنا، في هذه الصفحة.",
   "room.closingCost":
     "إغلاق الصفحة هو الشيء الوحيد الذي لا يمكننا التراجع عنه: التقييم وملخصك المكتوب كلاهما خلفها، ولا سبيل لدينا لإعادتك.",
   "room.anonymous":
@@ -381,7 +381,7 @@ export const ar: Record<MessageKey, string> = {
   "room.speaks": "يتحدث {languages}",
   "room.summaryTitle": "ملخص مكتوب، بعد الجلسة",
   "room.summaryBody":
-    "عندما ينضم {therapist} سنسألك إلى أين نرسله — ملاحظة بلغة بسيطة عما تحدثتما عنه وما اتفقتما عليه.",
+    "عندما ينضم {therapist} سنسألك إلى أين نرسله، ملاحظة بلغة بسيطة عما تحدثتما عنه وما اتفقتما عليه.",
   "room.goodToKnow": "من الجيد أن تعرف",
   "room.knowRecording":
     "يُستخدم التسجيل لكتابة ملاحظات معالجك. ولا يُشارَك مع أي شخص آخر.",
@@ -389,7 +389,7 @@ export const ar: Record<MessageKey, string> = {
     "ستحصل على ملخص بلغة بسيطة. أما الملاحظة السريرية لمعالجك فتبقى عنده.",
   "room.knowEmergency":
     "هذه ليست خدمة طوارئ. إذا كنت في خطر مباشر، اتصل برقم الطوارئ في بلدك.",
-  "room.troubleTitle": "هناك خطأ ما — أخبر 24Therapy",
+  "room.troubleTitle": "هناك خطأ ما، أخبر 24Therapy",
   "room.ended": "انتهت الجلسة",
   "room.endedBody":
     "دقيقة واحدة من رأيك وسنرسل إليك بالبريد ملخصًا بلغة بسيطة عما تحدثتما عنه وما اتفقتما عليه.",
@@ -414,7 +414,7 @@ export const ar: Record<MessageKey, string> = {
   /* pricing — 21R.8. Written as Arabic, not rendered from the English. */
   "pricing.free": "الانضمام مجاني. تدفع عن كل جلسة.",
   "pricing.freeBody":
-    "بلا اشتراك، وبلا رسوم مقعد، وبلا رسوم تجهيز — وأول جلسة مكتملة علينا.",
+    "بلا اشتراك، وبلا رسوم مقعد، وبلا رسوم تجهيز، وأول جلسة مكتملة علينا.",
   "pricing.perSession": "/ الجلسة",
   "pricing.tier.payg": "الدفع عند الاستخدام",
   "pricing.tier.starter": "البداية",
@@ -422,14 +422,14 @@ export const ar: Record<MessageKey, string> = {
   "pricing.payg": "ادفع عن الجلسات التي تجريها فعلًا. لا شيء مقدمًا.",
   "pricing.bundle": "اشترِ {count} جلسات أو أكثر دفعة واحدة.",
   "pricing.includes":
-    "الجلسة و{count} أسئلة للمساعد عن هذا المريض — وكل إجابة تشير إلى الجلسة والدقيقة التي جاءت منها.",
+    "الجلسة و{count} أسئلة للمساعد عن هذا المريض، وكل إجابة تشير إلى الجلسة والدقيقة التي جاءت منها.",
   "pricing.feature.transcription": "تفريغ مباشر بالعربية والإنجليزية",
   "pricing.feature.note": "ملاحظة سريرية في أقل من دقيقة",
   "pricing.feature.report": "تقرير للمريض بالبريد",
   "pricing.feature.video": "جلسات بالفيديو أو حضوريًا",
   "pricing.feature.alerts": "تنبيهات لغة الأزمة",
   "pricing.feature.getPaid":
-    "تقاضَ أجرك من المرضى — عبر رادار الأزمات وروابط الجلسات المدفوعة",
+    "تقاضَ أجرك من المرضى، عبر رادار الأزمات وروابط الجلسات المدفوعة",
   "pricing.feature.baa": "اتفاقية HIPAA مشمولة",
   "pricing.signUp": "أنشئ حسابك مجانًا",
   "pricing.orBundle": "أو اشترِ باقة من {count} جلسة",
@@ -439,9 +439,9 @@ export const ar: Record<MessageKey, string> = {
     "تدفع عن الجلسة حين تجريها فقط، وأول جلسة مكتملة مجانية. ورصيدك يبقى {months} شهرًا ويُصرف قبل أي محاسبة جديدة، فالانتقال إلى باقة أصغر لا يضيّع ما دفعته.",
   "pricing.radarLead": "احجز مكانك على رادار الأزمات.",
   "pricing.radarBody":
-    "يجدك المرضى ويحجزون معك، ونأخذ {percent}% مما دفعته تلك الجلسة لك — ولا شيء غير ذلك.",
+    "يجدك المرضى ويحجزون معك، ونأخذ {percent}% مما دفعته تلك الجلسة لك، ولا شيء غير ذلك.",
   "pricing.netting":
-    "حين نكون نحن من يحتفظ بأرباحك تُخصم قيمة الجلسة منها تلقائيًا — فلا شيء تدفعه بالبطاقة. وإن كان مرضاك يدفعون مباشرة إلى حساب Stripe الخاص بك فنرسل إليك الفاتورة بدلًا من ذلك.",
+    "حين نكون نحن من يحتفظ بأرباحك تُخصم قيمة الجلسة منها تلقائيًا، فلا شيء تدفعه بالبطاقة. وإن كان مرضاك يدفعون مباشرة إلى حساب Stripe الخاص بك فنرسل إليك الفاتورة بدلًا من ذلك.",
   "pricing.sliderLabel": "{name}: كم جلسة؟",
   "pricing.showEgp": "بالجنيه المصري",
   "pricing.showUsd": "بالدولار",
@@ -452,7 +452,7 @@ export const ar: Record<MessageKey, string> = {
 
   "crisis.headingDefault": "إن كنت تحتاج مساعدة الآن",
   "crisis.bodyDefault":
-    "إن كنت في خطر مباشر فاتصل برقم الطوارئ في بلدك الآن — هذه ليست خدمة طوارئ ولا يستطيع أحد هنا الوصول إليك بالسرعة الكافية. وإن كان بإمكانك الانتظار دقائق، فعلى الرادار معالجون متاحون في هذه اللحظة ولا تحتاج حسابًا لتستخدمه.",
+    "إن كنت في خطر مباشر فاتصل برقم الطوارئ في بلدك الآن، هذه ليست خدمة طوارئ ولا يستطيع أحد هنا الوصول إليك بالسرعة الكافية. وإن كان بإمكانك الانتظار دقائق، فعلى الرادار معالجون متاحون في هذه اللحظة ولا تحتاج حسابًا لتستخدمه.",
   "crisis.findSomeone": "ابحث عن شخص متاح الآن",
   "crisis.whatHappens": "ماذا يحدث في الجلسة",
   "crisis.noAccountLine":
@@ -460,27 +460,27 @@ export const ar: Record<MessageKey, string> = {
 
   "contact.urgentLead": "لا ترسل شيئًا عاجلًا من هنا.",
   "contact.urgentBody":
-    "هذه الرسالة تصل إلى شخص خلال ساعات العمل، لا خلال العشر دقائق القادمة. إن كنت تحتاج أحدًا الآن فافتح الرادار — هناك معالجون متاحون في هذه اللحظة ولا تحتاج حسابًا. وإن كنت في خطر مباشر فاتصل برقم الطوارئ في بلدك.",
+    "هذه الرسالة تصل إلى شخص خلال ساعات العمل، لا خلال العشر دقائق القادمة. إن كنت تحتاج أحدًا الآن فافتح الرادار، هناك معالجون متاحون في هذه اللحظة ولا تحتاج حسابًا. وإن كنت في خطر مباشر فاتصل برقم الطوارئ في بلدك.",
   "contact.radarWord": "الرادار",
   "contact.name": "بماذا نناديك؟",
   "contact.reply": "كيف نردّ عليك؟",
   "contact.replyHint":
-    "بريد إلكتروني أو رقم هاتف — أيّهما تقرأه فعلًا. واحد يكفي.",
+    "بريد إلكتروني أو رقم هاتف، أيّهما تقرأه فعلًا. واحد يكفي.",
   "contact.country": "الدولة",
   "contact.countryAria": "دولة رقم الهاتف",
   "contact.phone": "رقم الهاتف",
   "contact.topic": "عمّ تسأل؟",
   "contact.topic.account": "حسابي أو تسجيل الدخول",
   "contact.topic.billing": "دفعة أو فاتورة",
-  "contact.topic.my_record": "ملفي — استلامه، أو ما فيه",
+  "contact.topic.my_record": "ملفي، استلامه، أو ما فيه",
   "contact.topic.a_session": "شيء يخصّ جلسة أجريتها",
   "contact.topic.a_therapist": "معالج على المنصة",
   "contact.topic.joining_as_a_therapist": "الانضمام كمعالج",
   "contact.topic.something_else": "شيء آخر",
   "contact.entity": "إلى مَن تكتب؟",
   "contact.entityHint": "كلاهما يصل إلى الفريق نفسه.",
-  "contact.entityUs": "‏24Therapy Inc. — الكيان الدولي",
-  "contact.entityEg": "‏24Therapy Egypt — مصر",
+  "contact.entityUs": "‏24Therapy Inc.، الكيان الدولي",
+  "contact.entityEg": "‏24Therapy Egypt، مصر",
   "contact.message": "رسالتك",
   "contact.attach": "أرفق صورة أو ملف PDF",
   "contact.attachHint":
@@ -491,7 +491,7 @@ export const ar: Record<MessageKey, string> = {
     "ما تكتبه يُحفظ كأي شيء تقوله لمعالج هنا: مخزَّن، ومقيَّد الوصول، ولا يقرأه إلا من يردّ عليك، ولا يُستخدم في تدريب أي نموذج.",
   "contact.received": "وصلتنا رسالتك.",
   "contact.reference":
-    "رقمك المرجعي {reference}. يتولّاها شخص باسمه ويردّ خلال {hours} ساعة — بالبريد أو برسالة، حسب ما تركته لنا. وإن كان الأمر عاجلًا فلا تنتظرنا: استخدم الرادار.",
+    "رقمك المرجعي {reference}. يتولّاها شخص باسمه ويردّ خلال {hours} ساعة، بالبريد أو برسالة، حسب ما تركته لنا. وإن كان الأمر عاجلًا فلا تنتظرنا: استخدم الرادار.",
   "contact.attachmentFailed": "رسالتك محفوظة، لكن المرفق لم يصل: {reason}",
 
   "blocks.address": "العنوان",
@@ -503,7 +503,7 @@ export const ar: Record<MessageKey, string> = {
   "radar.online": "{count} متاحون الآن",
   "radar.private": "خاص ومشفّر",
   "radar.noAccount": "بلا حساب",
-  "radar.goOnRadar": "أنا معالج — أريد الظهور على الرادار",
+  "radar.goOnRadar": "أنا معالج، أريد الظهور على الرادار",
   "radar.full": "الرادار كاملًا",
   "radar.finding": "نبحث عن المعالجين المتاحين…",
   "radar.fromPrice": "ابتداءً من {price} لثلاثين دقيقة",

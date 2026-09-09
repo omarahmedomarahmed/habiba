@@ -153,7 +153,7 @@ export function PracticeForm(props: {
       <Field
         label="Address"
         htmlFor="practiceAddress"
-        hint="Street, city, country — or paste coordinates from your maps app."
+        hint="Street, city, country, or paste coordinates from your maps app."
       >
         <div className="flex gap-2">
           <Input

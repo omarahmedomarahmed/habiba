@@ -32,7 +32,7 @@ export default async function NotesPage() {
           open.length === 0
             ? "Everything approved"
             : waitingOnPatientCopy > 0
-              ? `${open.length} waiting — ${waitingOnPatientCopy} where the patient's summary is not released`
+              ? `${open.length} waiting, ${waitingOnPatientCopy} where the patient's summary is not released`
               : `${open.length} waiting for your approval`
         }
       />

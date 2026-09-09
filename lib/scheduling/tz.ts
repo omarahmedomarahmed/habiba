@@ -163,8 +163,8 @@ export function formatWhen(at: Date, zone: Zone): string {
 export function formatWhenWithCaveat(at: Date, zone: Zone): string {
   const base = formatWhen(at, zone);
   if (zone.source === "reader") return base;
-  if (zone.source === "clinician") return `${base} — your therapist's time zone`;
-  return `${base} — we do not have your time zone, so this is UTC`;
+  if (zone.source === "clinician") return `${base}, your therapist's time zone`;
+  return `${base}. We do not have your time zone, so this is UTC`;
 }
 
 /* ------------------------------------------------- the calendar's own day -- */

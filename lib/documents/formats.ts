@@ -110,10 +110,10 @@ export function searchabilityLabel(input: {
     case "pending":
       return { label: "Being read…", searchable: false };
     case "failed":
-      return { label: "Could not be read — not searchable", searchable: false };
+      return { label: "Could not be read, not searchable", searchable: false };
     case "unsupported":
       return {
-        label: isImage(input.mimeType) ? "Image — not searchable" : "Stored, but not searchable",
+        label: isImage(input.mimeType) ? "Image, not searchable" : "Stored, but not searchable",
         searchable: false,
       };
   }

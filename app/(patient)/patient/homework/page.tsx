@@ -36,7 +36,7 @@ export default async function HomeworkPage() {
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">What to try</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Small things you and your therapist agreed on. Do them when you can — nobody is counting.
+          Small things you and your therapist agreed on. Do them when you can. Nobody is counting.
         </p>
       </div>
 

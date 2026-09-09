@@ -87,7 +87,7 @@ export async function mailClinicianHistory(input: {
   const reason = input.reason.trim();
   if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(to)) return { error: "Enter a valid address." };
   if (reason.length < 20) {
-    return { error: "Give the reason and the authority for this request — at least a sentence." };
+    return { error: "Give the reason and the authority for this request, at least a sentence." };
   }
 
   const { buildClinicianHistory } = await import("@/lib/console/history");
@@ -110,7 +110,7 @@ export async function mailClinicianHistory(input: {
     action: "console.export.clinician",
     resourceType: "user",
     resourceId: input.therapistId,
-    reason: `Sent to ${to}, copy to ${actor.email} — ${reason}`,
+    reason: `Sent to ${to}, copy to ${actor.email}, ${reason}`,
   });
 
   const { db } = await import("@/lib/db");

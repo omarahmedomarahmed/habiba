@@ -391,7 +391,7 @@ export async function approvePatientNote(sessionId: string): Promise<SessionActi
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
-  return { ok: true, message: "Approved — their summary is released" };
+  return { ok: true, message: "Approved. Their summary is released" };
 }
 
 /*

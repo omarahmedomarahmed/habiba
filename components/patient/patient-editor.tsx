@@ -149,7 +149,7 @@ export function PatientEditor({
         <p className="text-xs leading-relaxed text-slate-400">
           Records cannot be deleted, and cannot be emailed out of here. Sessions and notes are
           kept for the retention period your regulator requires. If this patient asks for their
-          data or asks you to erase it, send them to us — we handle both, and you will be told
+          data or asks you to erase it, send them to us, we handle both, and you will be told
           when we do.
         </p>
       </div>

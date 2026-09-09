@@ -24,10 +24,10 @@ const PHONE = "+201000000007";
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
-const skip = (name: string, why: string) => console.log(`  --   ${name} — NOT EXERCISED: ${why}`);
+const skip = (name: string, why: string) => console.log(`  --   ${name}, NOT EXERCISED: ${why}`);
 
 const TAG = `verify7-${randomUUID().slice(0, 8)}`;
 

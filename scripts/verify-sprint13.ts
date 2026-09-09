@@ -28,7 +28,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 function note(text: string) {
@@ -332,7 +332,7 @@ async function main() {
       )
       .limit(1);
     check(
-      "🔴 13.10 passing the challenge does not itself claim the record — consent still runs",
+      "🔴 13.10 passing the challenge does not itself claim the record, consent still runs",
       claimRow?.status === "pending" && claimRow?.confirmed !== null,
       `status=${claimRow?.status}`,
     );
@@ -364,7 +364,7 @@ async function main() {
       String(patientRow?.timezone),
     );
 
-    note("13.9's email fallback shares this code path — the challenge is channel-agnostic.");
+    note("13.9's email fallback shares this code path. The challenge is channel-agnostic.");
   } finally {
     await db.delete(personClaims).where(
       sql`${personClaims.patientAccountId} IN (SELECT id FROM patient_accounts WHERE email LIKE 'verify13-%')`,

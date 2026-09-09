@@ -44,11 +44,11 @@ function accessNote(row: RadarSessionRow): string | null {
 
   switch (row.accessState) {
     case "revoked":
-      return "Access revoked — your own notes only";
+      return "Access revoked, your own notes only";
     case "unclaimed_bare":
-      return "Unclaimed record — yours alone";
+      return "Unclaimed record, yours alone";
     case "no_relationship":
-      return row.patientId ? null : "No record — this session's transcript only";
+      return row.patientId ? null : "No record, this session's transcript only";
     case "unclaimed_documented":
     case "granted":
       return null;

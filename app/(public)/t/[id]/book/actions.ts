@@ -93,7 +93,7 @@ export async function book(input: {
   if (!email && !rawPhone) {
     return {
       error:
-        "We need an email or a phone number — otherwise we cannot send you the link or tell you if anything changes.",
+        "We need an email or a phone number, otherwise we cannot send you the link or tell you if anything changes.",
     };
   }
 

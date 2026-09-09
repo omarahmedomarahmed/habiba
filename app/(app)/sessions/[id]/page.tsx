@@ -74,7 +74,7 @@ export default async function SessionDetailPage({
             <p className="mt-1 text-xs text-amber-700">
               {row.session.autoEndedReason === "cap"
                 ? "Ended automatically at the 50 minute limit."
-                : "Ended automatically — the room went quiet after the paid time."}
+                : "Ended automatically, the room went quiet after the paid time."}
             </p>
           ) : null}
         </div>

@@ -46,7 +46,7 @@ export async function clearOne(_prev: StringsState, formData: FormData): Promise
   if (result.error) return { error: result.error };
 
   revalidatePath("/admin/strings");
-  return { ok: "Cleared — the shipped wording is back." };
+  return { ok: "Cleared, the shipped wording is back." };
 }
 
 export async function machineTranslate(
@@ -62,7 +62,7 @@ export async function machineTranslate(
 
   revalidatePath("/admin/strings");
   return {
-    ok: `${result.count ?? 0} drafts written. They count as missing until somebody approves them — nothing is live yet.`,
+    ok: `${result.count ?? 0} drafts written. They count as missing until somebody approves them. Nothing is live yet.`,
   };
 }
 

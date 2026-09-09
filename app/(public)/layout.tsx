@@ -82,7 +82,7 @@ export default async function PublicLayout({ children }: { children: React.React
               </Button>
             </Link>
             <Link href="/signup">
-              <Button size="sm">Start free — for therapists</Button>
+              <Button size="sm">Start free, for therapists</Button>
             </Link>
           </div>
         </div>

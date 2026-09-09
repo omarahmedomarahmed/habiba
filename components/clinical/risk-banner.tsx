@@ -122,7 +122,7 @@ export function PatientSupportNotice({
             at any time.
           </>
         ) : (
-          <>call your local emergency number — it is free from any phone.</>
+          <>call your local emergency number. It is free from any phone.</>
         )}
       </p>
     </div>

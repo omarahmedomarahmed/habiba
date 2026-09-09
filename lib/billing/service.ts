@@ -101,7 +101,7 @@ export async function chargeForSession(opts: {
         sessionId: opts.sessionId,
         amountCents: 0,
         status: "waived",
-        description: "First session — on us",
+        description: "First session, on us",
       });
       return { status: "waived", amountCents: 0 };
     }
@@ -323,7 +323,7 @@ export async function recordCreditPurchaseInvoice(opts: {
     const { postInvoiceRaised, postInvoicePaidByCard, postInvoiceWrittenOff } = await import(
       "./ledger"
     );
-    const description = opts.description ?? "Unlimited — monthly subscription";
+    const description = opts.description ?? "Unlimited, monthly subscription";
     await postInvoiceRaised({
       id: created.id,
       organizationId: opts.organizationId,

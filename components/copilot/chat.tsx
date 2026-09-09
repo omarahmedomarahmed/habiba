@@ -365,7 +365,7 @@ export function CopilotChat({
                   </span>
                 ) : recording ? (
                   <span className="text-xs text-slate-500">
-                    Listening — press Stop and I will type it out for you to check.
+                    Listening, press Stop and I will type it out for you to check.
                   </span>
                 ) : null}
 
@@ -389,7 +389,7 @@ export function CopilotChat({
 
           <p className="px-1 pt-2 text-[11px] leading-relaxed text-slate-400">
             Every answer cites the exact moment it came from, and a citation that does not match a
-            real transcript line is discarded rather than shown. It can still be wrong — read the
+            real transcript line is discarded rather than shown. It can still be wrong, read the
             source before you rely on it, and correct it when it is.
           </p>
         </div>
@@ -575,7 +575,7 @@ function MessageBubble({
         ))}
 
         {message.citations.length === 0 ? (
-          <Badge tone="amber">No source — treat with care</Badge>
+          <Badge tone="amber">No source, treat with care</Badge>
         ) : null}
 
         <span className="flex-1" />
@@ -635,7 +635,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
         <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Fresh start</p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
           {result.removed} message{result.removed === 1 ? "" : "s"} cleared. I kept {result.kept}{" "}
-          note{result.kept === 1 ? "" : "s"} I wrote during sessions, and every transcript — ask me
+          note{result.kept === 1 ? "" : "s"} I wrote during sessions, and every transcript, ask me
           anything and I will build it back up from those.
         </p>
       </Card>
@@ -685,7 +685,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
       </ul>
 
       <p className="text-[11px] leading-relaxed text-slate-400">
-        Session notes are clinical record. They are not yours or mine to delete — I rebuild from
+        Session notes are clinical record. They are not yours or mine to delete, I rebuild from
         them.
       </p>
 
@@ -879,10 +879,10 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
             history living in a settings field.
           */}
           <p className="text-xs leading-relaxed text-slate-500">
-            This changes how I write, not what I know. Tone, length, things to stop doing — those
+            This changes how I write, not what I know. Tone, length, things to stop doing, those
             belong here. Facts about the patient do not: I cannot cite a note left in this box, so
             put their history and diagnosis on the patient&rsquo;s record instead. For what language
-            to answer in, use the setting above — it is more reliable than telling me here.
+            to answer in, use the setting above. It is more reliable than telling me here.
           </p>
           <Input
             value={text}

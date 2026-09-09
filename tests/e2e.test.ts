@@ -224,7 +224,7 @@ test("starting a session records audio, uploads WAV chunks and shows transcript"
   assert.ok(transcript?.includes("Transcribed chunk 1"), "chunk 1 should be in the transcript");
   assert.ok(
     transcript?.includes("Transcribed chunk 2"),
-    "chunk 2 should be in the transcript — this is the bug the rewrite fixes",
+    "chunk 2 should be in the transcript. This is the bug the rewrite fixes",
   );
 });
 
@@ -261,7 +261,7 @@ test("ending the session generates a note the therapist can approve", async () =
   const prompt = mock.state.chatRequests[0]!.body;
   assert.ok(
     !prompt.includes(PATIENT),
-    "the patient's name must not be sent to the model — context is de-identified",
+    "the patient's name must not be sent to the model, context is de-identified",
   );
   assert.ok(prompt.includes("Transcribed chunk"), "the transcript should be sent");
 

@@ -31,7 +31,7 @@ type JournalEntry = { idx: number; when: number; tag: string };
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
 
@@ -87,7 +87,7 @@ async function main() {
          */
         const present = await objectsPresent(db, entry.tag);
         if (!present) {
-          console.log(`  --   ${entry.tag} — objects NOT present, leaving it to run normally`);
+          console.log(`  --   ${entry.tag}, objects NOT present, leaving it to run normally`);
           continue;
         }
 
@@ -95,7 +95,7 @@ async function main() {
           sql`INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
               VALUES (${hashes.get(entry.tag)!}, ${entry.when})`,
         );
-        console.log(`  ++   ${entry.tag} — recorded as applied (objects verified present)`);
+        console.log(`  ++   ${entry.tag}, recorded as applied (objects verified present)`);
       }
 
       const after = await db
@@ -162,7 +162,7 @@ async function main() {
     check(
       "11R.19 no UNAPPLIED migration carries more than one constraint per DO $$ block",
       live.length === 0,
-      live.length ? live.join(", ") : "swept 0029–latest",
+      live.length ? live.join(", ") : "swept 0029-latest",
     );
     if (legacy.length > 0) {
       console.log(
@@ -231,7 +231,7 @@ async function main() {
       .then((r) => r.rows);
 
     check(
-      "🔴 22.9 every CHECK constraint is VALIDATED — none is a rule the schema does not assert",
+      "🔴 22.9 every CHECK constraint is VALIDATED, none is a rule the schema does not assert",
       unvalidated.length === 0,
       unvalidated.map((row) => `${row.tbl}.${row.conname}`).join(", ") ||
         "all validated, scanned against real rows",

@@ -36,7 +36,7 @@ export async function generateMetadata({
 
   const name = fullName(profile.firstName, profile.lastName, "Clinician");
   return {
-    title: `${name} — 24Therapy`,
+    title: `${name}, 24Therapy`,
     description:
       profile.headline ??
       `${name}${profile.credentials ? `, ${profile.credentials}` : ""} takes sessions on 24Therapy.`,

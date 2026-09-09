@@ -51,7 +51,7 @@ test("holding a clinician cookie does not let you into a patient page", () => {
 
 /* ------------------------------------------------------- /patient vs /patients -- */
 
-test("/patients is the clinician's route and /patient is not — one character apart", () => {
+test("/patients is the clinician's route and /patient is not, one character apart", () => {
   // The clinician's patient list, with a clinician cookie: passes.
   assert.deepEqual(routeDecision("/patients", clinician), { kind: "pass" });
   // …and with only a patient cookie it is a protected clinician route.

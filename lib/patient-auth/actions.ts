@@ -66,7 +66,7 @@ export async function patientSignUp(
   const rawPhone = String(formData.get("phone") ?? "").trim();
   if (!rawPhone) {
     return {
-      error: "A phone number is required — it is how you sign in and how your therapist finds you.",
+      error: "A phone number is required. It is how you sign in and how your therapist finds you.",
     };
   }
 

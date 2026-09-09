@@ -44,7 +44,7 @@ async function main() {
     }
 
     if (DRY) {
-      console.log("\ndry run — nothing written");
+      console.log("\ndry run, nothing written");
       return;
     }
     if (bad.length === 0) return;

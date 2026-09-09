@@ -111,7 +111,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
       */}
       <p className="mt-2 text-xs text-slate-500">
         It is {formatTime(now, zone)} in {zoneLabel(zone)} right now.
-        {initial === null && detected ? ` We have not saved one yet — your browser says ${detected}.` : ""}
+        {initial === null && detected ? ` We have not saved one yet. Your browser says ${detected}.` : ""}
       </p>
 
       {saved ? (

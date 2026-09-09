@@ -92,7 +92,7 @@ export function AddPatient() {
         <Field label="Email (optional)" htmlFor="email">
           <Input id="email" name="email" type="email" autoComplete="off" />
           <p className="mt-1 text-xs text-slate-500">
-            A complete alternative to WhatsApp for everything — the invite, the code, the summary.
+            A complete alternative to WhatsApp for everything, the invite, the code, the summary.
           </p>
         </Field>
 

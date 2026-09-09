@@ -29,7 +29,7 @@ export default async function NumbersPage() {
 
       <Card className="mb-4 p-4 text-sm leading-relaxed text-slate-600">
         A confirmed number is locked for {LOCK_DAYS} days, and a correction inside the first day
-        after signing up is not a change at all — a mistyped digit must not trap somebody outside
+        after signing up is not a change at all, a mistyped digit must not trap somebody outside
         their own record for three months.
       </Card>
 

@@ -58,7 +58,7 @@ async function main() {
     const parsed = toE164(to, null);
     console.error(
       `"${to}" is not an E.164 number. ${e164Problem(parsed) ?? ""}\n` +
-        "Pass it the way Meta needs it: a plus, the country code, then the number — +201001234567.",
+        "Pass it the way Meta needs it: a plus, the country code, then the number, +201001234567.",
     );
     process.exit(1);
   }
@@ -66,7 +66,7 @@ async function main() {
   if (!whatsappConfigured()) {
     console.error(
       "WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not both set.\n" +
-        "Nothing is wired up yet — see the comment at the top of this file.",
+        "Nothing is wired up yet, see the comment at the top of this file.",
     );
     process.exit(1);
   }
@@ -85,7 +85,7 @@ async function main() {
     console.log("\nSENT. Check the handset.");
     console.log("If nothing arrives, the template is probably not approved yet.");
   } else {
-    console.log("\nNOT SENT — and this is the honest failure, not a crash.");
+    console.log("\nNOT SENT, and this is the honest failure, not a crash.");
     console.log("Most likely: the template name or its language does not match, or it is");
     console.log("awaiting approval. The rejection code is in the log line above.");
   }

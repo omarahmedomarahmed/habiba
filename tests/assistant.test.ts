@@ -52,7 +52,7 @@ test("the rendered text is never rewritten", () => {
 
 /* ----------------------------------------------------------------- overlaps -- */
 
-test("🔴 the longer name wins — 'Sara Mahmoud' is not 'Sara' plus a surname", () => {
+test("🔴 the longer name wins, 'Sara Mahmoud' is not 'Sara' plus a surname", () => {
   const spans = linkRoster("Sara Mahmoud cancelled.", roster);
   assert.deepEqual(links(spans), [{ text: "Sara Mahmoud", id: "p-sara-m" }]);
   assert.equal(textOf(spans), "Sara Mahmoud cancelled.");

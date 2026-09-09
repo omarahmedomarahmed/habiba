@@ -352,7 +352,7 @@ const JOBS = {
         {
           kind: "booking.reminder",
           subject: `Your session with ${therapist}`,
-          body: `A reminder that your session with ${therapist} is ${when}.\n\nIf you cannot make it, tell them as early as you can — the hour goes back on their calendar for somebody else.`,
+          body: `A reminder that your session with ${therapist} is ${when}.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.`,
           link: booking.sessionId
             ? { label: "Open your session", url: `${env.appUrl}/sessions/${booking.sessionId}` }
             : null,
@@ -398,7 +398,7 @@ const JOBS = {
         {
           kind: "booking.cancelled",
           subject: `Your session with ${therapist} was not confirmed`,
-          body: `Your session with ${therapist} on ${when} was never paid for, so the hour has gone back on their calendar.\n\nIf you still want it, book again — it may still be free.`,
+          body: `Your session with ${therapist} on ${when} was never paid for, so the hour has gone back on their calendar.\n\nIf you still want it, book again. It may still be free.`,
           link: { label: "Book again", url: `${env.appUrl}/radar` },
           variables: [therapist, when],
         },

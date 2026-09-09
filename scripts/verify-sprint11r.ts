@@ -27,7 +27,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 function note(text: string) {
@@ -114,7 +114,7 @@ async function main() {
 
       const isos = stored.map((row) => row.startsAt.toISOString()).sort();
       check(
-        "🔴 11R.2 the same 18:00 is 15:00Z in July and 16:00Z in January — Egypt has DST again",
+        "🔴 11R.2 the same 18:00 is 15:00Z in July and 16:00Z in January, Egypt has DST again",
         isos.includes("2031-07-15T15:00:00.000Z") && isos.includes("2031-01-15T16:00:00.000Z"),
         isos.join(", "),
       );
@@ -138,7 +138,7 @@ async function main() {
       SELECT COUNT(*)::int AS n FROM availability_slots WHERE note LIKE '%[reminded]%'
     `);
     check(
-      "🔴 11R.7 / C63 no slot note carries a [reminded] marker — the note is the patient's own words",
+      "🔴 11R.7 / C63 no slot note carries a [reminded] marker. The note is the patient's own words",
       Number((marked.rows[0] as { n: number }).n) === 0,
       `${(marked.rows[0] as { n: number }).n} rows`,
     );
@@ -192,7 +192,7 @@ async function main() {
     const { isGated } = await import("../lib/access/state");
 
     check(
-      "🔴 12.1 supersedes 11R.24 — the gate is on for everybody, no grandfather date",
+      "🔴 12.1 supersedes 11R.24. The gate is on for everybody, no grandfather date",
       isGated("unclaimed_bare") &&
         !isGated("unclaimed_documented") &&
         !isGated("granted") &&
@@ -223,7 +223,7 @@ async function main() {
       SELECT conname FROM pg_constraint WHERE conname = 'sessions_feedback_token_present'
     `);
     check(
-      "🔴 12.2 supersedes 11R.26 — the database refuses a session with no feedback token",
+      "🔴 12.2 supersedes 11R.26, the database refuses a session with no feedback token",
       (constraint.rows as unknown[]).length === 1,
     );
 
@@ -231,7 +231,7 @@ async function main() {
       SELECT COUNT(*)::int AS n FROM sessions WHERE feedback_token IS NULL
     `);
     note(
-      `${(nulls.rows[0] as { n: number }).n} historical sessions still have no token. Not backfilled — the purge removes them, and a token minted today would assert a rating had been possible.`,
+      `${(nulls.rows[0] as { n: number }).n} historical sessions still have no token. Not backfilled, the purge removes them, and a token minted today would assert a rating had been possible.`,
     );
 
     /* ------------------------------------------------------ 11R.23 / C50 */
@@ -249,7 +249,7 @@ async function main() {
     check(
       "11R.23 / C50 no PDF or .docx is still marked unsupported for want of a parser",
       Number((docs.rows[0] as { stale: number }).stale) === 0,
-      `${(docs.rows[0] as { stale: number }).stale} left over — 0041 re-queues them`,
+      `${(docs.rows[0] as { stale: number }).stale} left over, 0041 re-queues them`,
     );
   } finally {
     if (createdSlotIds.length > 0) {

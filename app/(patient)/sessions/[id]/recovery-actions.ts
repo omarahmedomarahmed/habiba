@@ -157,7 +157,7 @@ export async function takeRefund(sessionId: string): Promise<RecoveryView | { er
       },
       {
         kind: "booking.cancelled",
-        subject: "We are sorry — your session did not happen",
+        subject: "We are sorry. Your session did not happen",
         body: "Nobody joined your session and we could not find anybody else free. You have been refunded in full, including our fee.\n\nThis is our failure, not yours, and you do not need to do anything. Book again whenever you are ready.",
         link: { label: "Find somebody now", url: `${env.appUrl}/radar` },
         variables: ["24Therapy", "your session"],

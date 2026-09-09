@@ -290,8 +290,8 @@ export function BookingSheet({
               */
               <p className="rounded-2xl bg-amber-50 px-3.5 py-3 text-xs leading-relaxed text-amber-800">
                 {outcome === "taken"
-                  ? "Someone else is on this profile right now. You can still try — if they do not go ahead, this clinician frees up within a minute."
-                  : "This clinician has just become unavailable. Close this and pick someone else — the board updates every few seconds."}
+                  ? "Someone else is on this profile right now. You can still try, if they do not go ahead, this clinician frees up within a minute."
+                  : "This clinician has just become unavailable. Close this and pick someone else, the board updates every few seconds."}
               </p>
             )}
 
@@ -319,7 +319,7 @@ export function BookingSheet({
               />
             </Field>
 
-            <Field label="Email" htmlFor="radar-email" hint="Optional — for your receipt.">
+            <Field label="Email" htmlFor="radar-email" hint="Optional, for your receipt.">
               <Input
                 id="radar-email"
                 name="email"
@@ -334,14 +334,14 @@ export function BookingSheet({
 
             <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              No account needed. Payment goes to your therapist through Stripe — we never see your
+              No account needed. Payment goes to your therapist through Stripe, we never see your
               card. If you are in immediate danger, call your local emergency number.
             </p>
           </form>
         ) : (
           <p className="mt-5 rounded-xl bg-slate-100 px-3.5 py-3 text-sm text-slate-600">
             {entry.status === "pending"
-              ? "Someone is with them on this page right now. If they do not go ahead, this clinician is back on the radar within a minute — this page updates by itself."
+              ? "Someone is with them on this page right now. If they do not go ahead, this clinician is back on the radar within a minute, this page updates by itself."
               : "They are in a session at the moment. They will reappear on the radar as soon as they are free."}
           </p>
         )}

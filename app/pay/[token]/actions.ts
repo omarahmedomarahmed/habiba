@@ -51,7 +51,7 @@ export async function priceFor(token: string, countryCode: string): Promise<Brea
   if (!country) {
     return {
       error:
-        "We cannot take payments in that country yet. Ask your therapist for a free link — the session works exactly the same.",
+        "We cannot take payments in that country yet. Ask your therapist for a free link. The session works exactly the same.",
     };
   }
 

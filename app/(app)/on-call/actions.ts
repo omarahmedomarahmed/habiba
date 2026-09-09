@@ -197,7 +197,7 @@ export async function findPracticeLocation(query: string): Promise<GeocodeResult
       hits: [
         {
           ...pasted,
-          displayName: `${pasted.lat}, ${pasted.lon} — the exact point you pasted`,
+          displayName: `${pasted.lat}, ${pasted.lon}, the exact point you pasted`,
           country: null,
           region: null,
           city: null,
@@ -210,7 +210,7 @@ export async function findPracticeLocation(query: string): Promise<GeocodeResult
   if (hits.length === 0) {
     return {
       error:
-        "Nothing found for that. Try a simpler version — building, street, city — or paste coordinates from your maps app.",
+        "Nothing found for that. Try a simpler version, building, street, city, or paste coordinates from your maps app.",
     };
   }
   return { hits };

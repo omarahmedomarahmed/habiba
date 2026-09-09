@@ -341,7 +341,7 @@ export async function fileReport(input: {
 
   const detail = input.detail.trim().slice(0, 4000);
   if (input.kind !== "no_show" && detail.length < 10) {
-    return { error: "Tell us what happened — a sentence is enough." };
+    return { error: "Tell us what happened, a sentence is enough." };
   }
 
   await db.insert(sessionReports).values({
@@ -812,8 +812,8 @@ export async function sweepAbandonedPatients(
           ? "You have been taken off the Crisis Radar"
           : "A patient was waiting for you",
         body: penalty
-          ? `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session.\n\nThis has happened before, so you are off the radar for ${penalty.label}. Your own patients and the rest of your portal are unaffected.\n\nBeing on the radar is a promise that you are there. If you cannot be, switch yourself off — there is no penalty for being unavailable, only for being unavailable while advertised as available.\n\nIf you believe this is wrong, reply to this email.`
-          : `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session, so they left without being seen.\n\nThis is a warning, not a suspension — the first time is usually a laptop that went to sleep or a notification that did not arrive. Please check that notifications and sound are allowed in your browser on the device you keep open.\n\nIf it happens again you will be taken off the radar for 24 hours, and for longer after that. Being on the radar is a promise that you are there; if you cannot be, switch yourself off. There is no penalty for being unavailable.`,
+          ? `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session.\n\nThis has happened before, so you are off the radar for ${penalty.label}. Your own patients and the rest of your portal are unaffected.\n\nBeing on the radar is a promise that you are there. If you cannot be, switch yourself off. There is no penalty for being unavailable, only for being unavailable while advertised as available.\n\nIf you believe this is wrong, reply to this email.`
+          : `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session, so they left without being seen.\n\nThis is a warning, not a suspension, the first time is usually a laptop that went to sleep or a notification that did not arrive. Please check that notifications and sound are allowed in your browser on the device you keep open.\n\nIf it happens again you will be taken off the radar for 24 hours, and for longer after that. Being on the radar is a promise that you are there; if you cannot be, switch yourself off. There is no penalty for being unavailable.`,
       });
     }
   }

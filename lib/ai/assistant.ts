@@ -51,7 +51,7 @@ import { MODELS, logUsage, openai } from "./client";
 const SYSTEM = `You are the assistant on a therapist's home screen. You help them run their practice.
 
 WHAT YOU HAVE:
-Their roster — patient names, when they last saw each person, and how many notes are waiting to be signed. That is all. There is no appointment schedule in this product yet; if they ask what is coming up, say so rather than guessing.
+Their roster, patient names, when they last saw each person, and how many notes are waiting to be signed. That is all. There is no appointment schedule in this product yet; if they ask what is coming up, say so rather than guessing.
 
 WHAT YOU DO NOT HAVE, AND MUST NEVER PRETEND TO:
 Any clinical content whatsoever. No transcripts, no session notes, no diagnoses, no documents, no risk information, nothing anybody said in a session. If asked about what a patient talked about, how they are doing, what their diagnosis is, or anything that would require reading their record, say plainly that you cannot see clinical material here and point them at that patient's own copilot, which can.
@@ -165,7 +165,7 @@ function rosterBlock(roster: RosterRow[]): string {
       row.nextSessionAt ? `next ${row.nextSessionAt.toISOString().slice(0, 10)}` : null,
       row.draftNotes > 0 ? `${row.draftNotes} note(s) to sign` : null,
     ].filter(Boolean);
-    return `- ${row.name} — ${bits.join(", ")}`;
+    return `- ${row.name}, ${bits.join(", ")}`;
   });
 
   return `THE ROSTER (${roster.length} patients). Names and dates only:\n${lines.join("\n")}`;

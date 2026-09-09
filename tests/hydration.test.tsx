@@ -112,7 +112,7 @@ test("🔴 a date rendered from a prop is identical on the server pass and the c
   assert.equal(
     server,
     browser,
-    "the server-rendered HTML and the hydrated markup differ — this is a React hydration mismatch",
+    "the server-rendered HTML and the hydrated markup differ. This is a React hydration mismatch",
   );
 
   // And the string is the *reader's* day, not the server's. 23:30Z on the 12th
@@ -129,13 +129,13 @@ test("…and the control: reading the zone from the runtime during render does d
   assert.notEqual(
     server,
     browser,
-    "expected the two runtimes to disagree — without that the first test is vacuous",
+    "expected the two runtimes to disagree, without that the first test is vacuous",
   );
   assert.match(server, /12 Sept 2026/);
   assert.match(browser, /13 Sept 2026/);
 });
 
-test("🔴 money formats identically under two locales — C84 is not only about dates", () => {
+test("🔴 money formats identically under two locales, C84 is not only about dates", () => {
   /*
    * `pay-flow` formatted money with `toLocaleString(undefined, …)`, which reads
    * the *runtime's* locale: `$1,234.50` on the server, `1.234,50 $` in a German
@@ -149,7 +149,7 @@ test("🔴 money formats identically under two locales — C84 is not only about
   assert.match(server, /\$1,234\.50/);
 });
 
-test("readerZone() answers on the server — it does not return null there", () => {
+test("readerZone() answers on the server. It does not return null there", () => {
   /*
    * The mistaken premise, pinned. The comment on `readerZone` used to say it
    * returned null during server rendering, so a caller could fall through to a

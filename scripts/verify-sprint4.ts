@@ -17,7 +17,7 @@ const { countrySettings, fxQuotes, sessionPayments, sessions } = schema;
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
 
@@ -42,7 +42,7 @@ async function main() {
       `${byType.paid_link ?? 0} paid_link vs ${priced} priced`,
     );
     check(
-      "4.6 nothing was invented — no session claims to be scheduled",
+      "4.6 nothing was invented, no session claims to be scheduled",
       (byType.scheduled ?? 0) === 0,
       "scheduling does not exist until sprint 11",
     );
@@ -115,7 +115,7 @@ async function main() {
     check(
       "4.4 the quote records where it came from",
       stored[0]?.source === "static",
-      `source=${stored[0]?.source} — an indicative rate must be distinguishable from a real feed`,
+      `source=${stored[0]?.source}, an indicative rate must be distinguishable from a real feed`,
     );
 
     /* ----------------------------------------------- 4.5 the worked example */

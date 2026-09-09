@@ -163,7 +163,7 @@ export async function withPublishedContent(
   await skipUnless(
     ready,
     AWAITS,
-    `${need.for} — ${content.why(need.what)}`,
+    `${need.for}, ${content.why(need.what)}`,
     () => body(content),
   );
 }

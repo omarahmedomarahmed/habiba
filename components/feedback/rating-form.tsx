@@ -136,7 +136,7 @@ export function RatingForm({
             {sent || emailed
               ? "Your summary is below, and a copy is on its way to your inbox."
               : notePending
-                ? `${therapistFirstName} is still writing up the session. Your summary will arrive by email as soon as it is approved — usually within the hour.`
+                ? `${therapistFirstName} is still writing up the session. Your summary will arrive by email as soon as it is approved, usually within the hour.`
                 : "Your summary is below. Keep this link if you want to come back to it."}
           </p>
         </Card>
@@ -205,7 +205,7 @@ export function RatingForm({
         <div className="border-t border-slate-100 pt-4">
           <p className="text-sm font-semibold text-slate-900">And the session itself?</p>
           <p className="text-xs text-slate-500">
-            Whether this half hour was any use to you — a different question from whether
+            Whether this half hour was any use to you, a different question from whether
             {" "}
             {therapistFirstName} was the right person.
           </p>
@@ -259,7 +259,7 @@ export function RatingForm({
           </label>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
             A plain-language summary of what you talked about and what you agreed. We use this
-            address for that and to reach you about this session — nothing else.
+            address for that and to reach you about this session, nothing else.
           </p>
           <Input
             id="feedback-email"
@@ -430,7 +430,7 @@ function ReportBox({
             onClick={() => setReporting("no_show")}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            They never joined — I want my money back
+            They never joined, I want my money back
           </button>
         ) : null}
         <button
@@ -456,7 +456,7 @@ function ReportBox({
       setReported(
         reporting === "no_show"
           ? "Your payment has been refunded and this therapist is off the radar while we look into it. The refund reaches your card in a few days."
-          : "This has gone straight to 24Therapy — not to your therapist. Someone will read it today and will contact you if you left an address.",
+          : "This has gone straight to 24Therapy, not to your therapist. Someone will read it today and will contact you if you left an address.",
       );
       setReporting(null);
     });
@@ -469,7 +469,7 @@ function ReportBox({
       <p className="text-xs leading-relaxed text-slate-500">
         {reporting === "no_show"
           ? "We refund you straight away and take them off the radar. No need to explain."
-          : "This goes to 24Therapy, not to your therapist. Nobody at their practice sees it. If it concerns what was said or done during the session, say so — we can look at the session record, including any period the recording was paused."}
+          : "This goes to 24Therapy, not to your therapist. Nobody at their practice sees it. If it concerns what was said or done during the session, say so. We can look at the session record, including any period the recording was paused."}
       </p>
 
       {reporting === "abuse" ? (

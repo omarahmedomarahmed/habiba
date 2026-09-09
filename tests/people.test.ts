@@ -50,7 +50,7 @@ test("a claimed record passes", () => {
   assert.equal(isClaimed(unclaimed), false);
 });
 
-test("claimed is a timestamp, not a flag — an epoch date still counts", () => {
+test("claimed is a timestamp, not a flag, an epoch date still counts", () => {
   // Guards against anyone "simplifying" the check to a truthiness test: the
   // Unix epoch is a real Date and is falsy in no sensible reading, but a
   // `claimedAt.getTime()` check would treat 1970 as unclaimed.

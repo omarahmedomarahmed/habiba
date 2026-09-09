@@ -150,7 +150,7 @@ async function main() {
 
   const home = html["home.en-x-staging"] ?? "";
   check(
-    "🔴 17.7 the rendered HOMEPAGE carries the same prices — one component, two pages",
+    "🔴 17.7 the rendered HOMEPAGE carries the same prices, one component, two pages",
     cheapest !== undefined &&
       home.includes(`$${(cheapest.rateCents / 100).toFixed(0)}`),
   );
@@ -197,7 +197,7 @@ async function main() {
    * by being absent rather than by being correct.
    */
   check(
-    "🔴 19.0a CONTROL — the rendered pages are real documents, not empty strings",
+    "🔴 19.0a CONTROL, the rendered pages are real documents, not empty strings",
     Object.values(html).every((markup) => markup.length > 500),
     Object.entries(html)
       .filter(([, markup]) => markup.length <= 500)
@@ -253,7 +253,7 @@ async function main() {
   );
 
   check(
-    "🔴 21R.8 the Arabic pages render Arabic CHROME — the buttons, the form and the price cards, not only the paragraphs",
+    "🔴 21R.8 the Arabic pages render Arabic CHROME, the buttons, the form and the price cards, not only the paragraphs",
     arabicPages.length > 0 && stillEnglish.length === 0,
     stillEnglish.join(" · ") ||
       `${arabicPages.length} Arabic pages, none of the old phrases left`,
@@ -269,7 +269,7 @@ async function main() {
    */
   const englishHome = text(html["pricing.en-x-staging"] ?? "");
   check(
-    "🔴 21R.8 CONTROL — the same phrases ARE on the English pricing page, so the list is current",
+    "🔴 21R.8 CONTROL, the same phrases ARE on the English pricing page, so the list is current",
     ["Sign up free", "/ session", "Joining is free"].every((phrase) =>
       englishHome.includes(phrase),
     ),
@@ -293,7 +293,7 @@ async function main() {
   await skipUnless(
     remaining.length === 0,
     "22R.10",
-    `21R.8 — ${remaining.length} English passages remain on the Arabic pages, all inside the demo panels (their fixtures are English)`,
+    `21R.8, ${remaining.length} English passages remain on the Arabic pages, all inside the demo panels (their fixtures are English)`,
     () => {
       check(
         "21R.8 …and not one English passage is left anywhere on them",

@@ -4,7 +4,7 @@ import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console"
 import { listRadar } from "@/lib/data/radar";
 
 export const metadata: Metadata = {
-  title: "Crisis Radar — talk to a therapist now",
+  title: "Crisis Radar, talk to a therapist now",
   description:
     "See which licensed therapists are available this minute, what languages they speak and what they charge. No account, no waiting list.",
 };

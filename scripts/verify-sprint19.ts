@@ -79,7 +79,7 @@ async function main() {
   const staged = await stagedPages();
 
   check(
-    "🔴 19.0a sprints 17 and 18 have been RENDERED somewhere — staging rows exist to render",
+    "🔴 19.0a sprints 17 and 18 have been RENDERED somewhere, staging rows exist to render",
     staged.length >= 12,
     `${staged.length} staged rows across ${new Set(staged.map((r) => r.locale)).size} locales`,
   );
@@ -189,14 +189,14 @@ async function main() {
   );
 
   check(
-    "🔴 19.3 no public or patient component pins a physical side — Arabic is a layout, not a translation",
+    "🔴 19.3 no public or patient component pins a physical side, Arabic is a layout, not a translation",
     physical.length === 0,
     physical.map((f) => f.replace("components/", "")).join(", ") ||
       `${surfaces.length} components use logical properties only`,
   );
 
   check(
-    "🔴 19.3 CONTROL — the same scan CATCHES a physical class",
+    "🔴 19.3 CONTROL, the same scan CATCHES a physical class",
     PHYSICAL.test('<div className="ml-4 text-left">') &&
       !PHYSICAL.test('<div className="ms-4 text-start">'),
   );
@@ -218,7 +218,7 @@ async function main() {
   check(
     "🔴 19.4 …and an omitted locale falls back to a PINNED tag, never to the runtime's",
     money.includes('locale || "en-US"'),
-    "toLocaleString(undefined) means 'ask the machine' — the C84 bug in one argument",
+    "toLocaleString(undefined) means 'ask the machine', the C84 bug in one argument",
   );
 
   const clientCallers = (
@@ -253,7 +253,7 @@ async function main() {
     /formatMoney\([^;]*?"[a-z]{2}-[A-Z]{2}"\s*\)/.test(source);
 
   check(
-    "🔴 19.4 every client component that formats money NAMES its locale — a prop, or an explicit tag",
+    "🔴 19.4 every client component that formats money NAMES its locale, a prop, or an explicit tag",
     clientCallers.every(named),
     clientCallers
       .filter((caller) => !named(caller))
@@ -265,7 +265,7 @@ async function main() {
 
   const { CONTENT_DEFAULTS } = await import("../lib/content/registry");
   check(
-    "🔴 19.7 the shipped content is a MAP keyed by locale — adding a third language adds an entry",
+    "🔴 19.7 the shipped content is a MAP keyed by locale, adding a third language adds an entry",
     typeof CONTENT_DEFAULTS === "object" && !Array.isArray(CONTENT_DEFAULTS),
     `${Object.keys(CONTENT_DEFAULTS).join(", ")}`,
   );
@@ -306,7 +306,7 @@ async function main() {
   );
 
   check(
-    "🔴 19.7 CONTROL — the same scan, run WITHOUT stripping comments, would have failed on prose",
+    "🔴 19.7 CONTROL, the same scan, run WITHOUT stripping comments, would have failed on prose",
     (await walkDeep("lib/i18n")).some((file) =>
       /\btwo languages\b/i.test(readFileSync(file, "utf8")),
     ),

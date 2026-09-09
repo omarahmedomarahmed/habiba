@@ -246,7 +246,7 @@ export async function checkQuota(
  * A setting rather than a correction. Telling the copilot "answer in Arabic"
  * through the corrections box is teaching it a fact about a patient it does not
  * have, and it was measured as unreliable besides — see the prompt assembly in
- * `lib/ai/patient-copilot.ts`.
+ * `lib/ai/case-copilot.ts`.
  */
 export async function setReplyLanguage(
   actor: Actor,

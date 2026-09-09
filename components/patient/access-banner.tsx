@@ -69,7 +69,7 @@ export function AccessBanner({
 
           {sent || pendingSince ? (
             <p className="mt-2 text-xs opacity-80">
-              You have asked for access. They will see your note next time they sign in — we do not
+              You have asked for access. They will see your note next time they sign in. We do not
               chase them for you.
             </p>
           ) : canRequest && !open ? (

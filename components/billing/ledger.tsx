@@ -347,7 +347,7 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
       ) : null}
       <Line
         label="You paid"
-        value={<span className="font-semibold">{invoice.paidAt ? formatUsd(payable) : "—"}</span>}
+        value={<span className="font-semibold">{invoice.paidAt ? formatUsd(payable) : "-"}</span>}
       />
       {invoice.paidAt ? <Line label="Settled" value={invoice.paidAt} /> : null}
 
@@ -427,7 +427,7 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
       <p className="pt-1.5 text-xs leading-relaxed text-slate-500">
         <Receipt className="me-1 inline h-3 w-3" aria-hidden />
         {payment.capture === "destination"
-          ? "Paid directly into your own Stripe account — we never held this money. Stripe pays it out to your bank on its own schedule."
+          ? "Paid directly into your own Stripe account, we never held this money. Stripe pays it out to your bank on its own schedule."
           : "Stripe had not finished verifying you when this was paid, so we took it and are holding your share. It moves to your account automatically the moment verification completes."}
       </p>
     </dl>

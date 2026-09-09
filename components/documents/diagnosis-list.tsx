@@ -81,7 +81,7 @@ export function DiagnosisList({
 
       {confirmed.length === 0 && proposed.length === 0 ? (
         <p className="px-4 py-5 text-sm text-slate-500">
-          Nothing yet. Add a letter or a report and read it here — anything stated as a diagnosis
+          Nothing yet. Add a letter or a report and read it here, anything stated as a diagnosis
           will be offered for you to confirm.
         </p>
       ) : null}

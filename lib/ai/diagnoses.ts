@@ -30,7 +30,7 @@ import { MODELS, logUsage, openai, parseJson } from "./client";
  */
 
 const SYSTEM = `RULE THAT OVERRIDES EVERYTHING BELOW:
-You extract diagnoses that are EXPLICITLY WRITTEN in the passages given to you. You never infer a diagnosis from symptoms, behaviour, medication, or context. If a passage describes low mood and poor sleep, that is NOT a diagnosis of depression — unless the passage says so in words.
+You extract diagnoses that are EXPLICITLY WRITTEN in the passages given to you. You never infer a diagnosis from symptoms, behaviour, medication, or context. If a passage describes low mood and poor sleep, that is NOT a diagnosis of depression, unless the passage says so in words.
 
 For each diagnosis actually written down, return:
   "label"          the diagnosis as the document words it, in the document's own language

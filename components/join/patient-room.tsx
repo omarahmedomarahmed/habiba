@@ -95,7 +95,7 @@ export function PatientRoom({
                 </p>
                 <p className="max-w-xs text-xs leading-relaxed text-white/50">
                   {live
-                    ? "This is an audio session — you will hear each other."
+                    ? "This is an audio session. You will hear each other."
                     : "This page updates by itself the moment they join. Keep it open."}
                 </p>
               </div>
@@ -104,7 +104,7 @@ export function PatientRoom({
 
           <p className="mt-2 px-1 text-center text-[11px] text-white/40 lg:text-start">
             Trouble seeing or hearing? Check your browser has permission to use your camera and
-            microphone, then reload this page — you will come straight back in.
+            microphone, then reload this page. You will come straight back in.
           </p>
         </div>
 
@@ -167,7 +167,7 @@ function RecordingStrip({ live, recording }: { live: boolean; recording: boolean
           recording ? "live-dot bg-red-500" : "bg-amber-400",
         )}
       />
-      {recording ? "Recording — for your therapist's notes" : "Recording paused by your therapist"}
+      {recording ? "Recording, for your therapist's notes" : "Recording paused by your therapist"}
     </div>
   );
 }
@@ -279,7 +279,7 @@ function WhoYouAreWith({
 
       <p className="mt-3 flex items-start gap-1.5 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-500">
         <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-        Verified by 24Therapy — we checked their licence and their ID before they could take a
+        Verified by 24Therapy, we checked their licence and their ID before they could take a
         session.
       </p>
     </Card>
@@ -319,7 +319,7 @@ function SummaryAndRating({
           A written summary, afterwards
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-500">
-          When {therapist.firstName} joins we will ask where to send it — a plain-language note of
+          When {therapist.firstName} joins we will ask where to send it, a plain-language note of
           what you talked about and what you agreed.
         </p>
       </Card>
@@ -343,7 +343,7 @@ function SummaryAndRating({
       <div>
         <p className="text-sm font-semibold text-slate-900">How easy was it to find someone?</p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-          Just about 24Therapy — not about {therapist.firstName}. You rate the session and your
+          Just about 24Therapy, not about {therapist.firstName}. You rate the session and your
           therapist afterwards.
         </p>
       </div>
@@ -425,7 +425,7 @@ function StayHere({ therapist }: { therapist: Therapist }) {
       </p>
 
       <p className="mt-2 text-base leading-snug font-semibold text-slate-800">
-        You get to rate {therapist.firstName} and this session as soon as it ends — right here, on
+        You get to rate {therapist.firstName} and this session as soon as it ends, right here, on
         this page.
       </p>
 
@@ -461,7 +461,7 @@ function Reassurance() {
         <li className="flex gap-2">
           <Phone className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
           This is not an emergency service. If you are in immediate danger, call your local
-          emergency number — in the US, call or text 988.
+          emergency number, in the US, call or text 988.
         </li>
       </ul>
     </Card>
@@ -500,7 +500,7 @@ function TroubleBox({ token }: { token: string }) {
         className="flex w-full items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-start text-xs font-medium text-white/70 hover:bg-slate-800"
       >
         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
-        Something is wrong — tell 24Therapy
+        Something is wrong, tell 24Therapy
       </button>
     );
   }

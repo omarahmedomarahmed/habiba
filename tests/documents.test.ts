@@ -132,7 +132,7 @@ test("sloppy model output still parses", () => {
   assert.deepEqual(parseCitations("[ D12:44 ]"), [{ ordinal: 12, sequence: 44 }]);
 });
 
-test("8.5 — a citation that does not resolve is removed from the answer", () => {
+test("8.5, a citation that does not resolve is removed from the answer", () => {
   const answer = "She reported poor sleep [D7:3] and was discharged in May [D9:1].";
   const { answer: cleaned, refs } = keepResolvableCitations(
     answer,
@@ -147,7 +147,7 @@ test("8.5 — a citation that does not resolve is removed from the answer", () =
   assert.match(cleaned, /discharged in May\./);
 });
 
-test("8.5 — an answer with only invented citations keeps its words", () => {
+test("8.5, an answer with only invented citations keeps its words", () => {
   const { answer, refs } = keepResolvableCitations("She was discharged [D9:1].", () => false);
   assert.deepEqual(refs, []);
   assert.equal(answer, "She was discharged.");
@@ -160,7 +160,7 @@ test("citations are normalised on the way out", () => {
 
 /* ---------------------------------------------------------------- formats -- */
 
-test("8.2 — the cap is raised above a phone photograph of an A4 page", () => {
+test("8.2. The cap is raised above a phone photograph of an A4 page", () => {
   // Measured reason: a phone photo of a page is routinely 4-6 MB and a
   // multi-page scan is past eight, which is where the old cap sat.
   assert.ok(MAX_DOCUMENT_BYTES > 8 * 1024 * 1024);
@@ -171,7 +171,7 @@ test("8.2 — the cap is raised above a phone photograph of an A4 page", () => {
   );
 });
 
-test("8.2 — scans, PDFs, Word files and text are all accepted", () => {
+test("8.2, scans, PDFs, Word files and text are all accepted", () => {
   for (const type of [
     "image/jpeg",
     "image/heic",
@@ -185,17 +185,17 @@ test("8.2 — scans, PDFs, Word files and text are all accepted", () => {
   assert.notEqual(documentProblem({ size: 1000, type: "application/x-msdownload" }), null);
 });
 
-test("8.4 — an image is stored but never claimed to be searchable", () => {
+test("8.4, an image is stored but never claimed to be searchable", () => {
   assert.equal(readabilityOf("image/png"), "stored_only");
 
   const label = searchabilityLabel({ extraction: "unsupported", mimeType: "image/png" });
   assert.equal(label.searchable, false);
   // The exact words §3 asks for. A clinician who believes the copilot read a
   // discharge summary will not go and read it themselves.
-  assert.match(label.label, /Image — not searchable/);
+  assert.match(label.label, /Image, not searchable/);
 });
 
-test("8.4 — 'cannot read this format' and 'reading failed' are different screens", () => {
+test("8.4, 'cannot read this format' and 'reading failed' are different screens", () => {
   const unsupported = searchabilityLabel({
     extraction: "unsupported",
     mimeType: "application/pdf",
@@ -216,11 +216,11 @@ test("typed text is searchable the moment it is written", () => {
 const passage =
   "Seen in clinic on 3 March. Impression: generalised anxiety disorder, moderate. Sleep is poor and appetite reduced.";
 
-test("8.9 — a verbatim sentence is accepted", () => {
+test("8.9, a verbatim sentence is accepted", () => {
   assert.equal(verbatimIn("Impression: generalised anxiety disorder, moderate.", passage), true);
 });
 
-test("8.9 — reflowed whitespace is forgiven; edited words are not", () => {
+test("8.9, reflowed whitespace is forgiven; edited words are not", () => {
   // A model that reflows a line break has not fabricated anything.
   assert.equal(
     verbatimIn("Impression: generalised   anxiety\n disorder, moderate.", passage),
@@ -232,7 +232,7 @@ test("8.9 — reflowed whitespace is forgiven; edited words are not", () => {
   assert.equal(verbatimIn("Impression: generalised anxiety disorder", passage), true);
 });
 
-test("🔴 8.9 — an inferred diagnosis is discarded, because its sentence is not there", () => {
+test("🔴 8.9, an inferred diagnosis is discarded, because its sentence is not there", () => {
   // The failure the whole mechanism exists to stop: the passage describes
   // symptoms, and the model returns "depression" with a sentence it wrote
   // itself. Not present in the source → dropped, whatever the prompt achieved.
@@ -241,14 +241,14 @@ test("🔴 8.9 — an inferred diagnosis is discarded, because its sentence is n
   assert.equal(verbatimIn("He is depressed.", symptoms), false);
 });
 
-test("8.9 — a trivially short 'sentence' is never enough provenance", () => {
+test("8.9, a trivially short 'sentence' is never enough provenance", () => {
   // "the." appears in almost any passage. A matcher that accepted it would
   // accept any diagnosis at all.
   assert.equal(verbatimIn("the", passage), false);
   assert.equal(verbatimIn("Sleep", passage), false);
 });
 
-test("8.9 — refs are parsed from what a model actually writes", () => {
+test("8.9, refs are parsed from what a model actually writes", () => {
   assert.deepEqual(parseRef("[D7:3]"), { ordinal: 7, sequence: 3 });
   assert.deepEqual(parseRef("D7:3"), { ordinal: 7, sequence: 3 });
   assert.equal(parseRef("document seven"), null);

@@ -24,7 +24,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 async function refused(fn: () => Promise<unknown>, fragment: string): Promise<boolean> {
@@ -93,7 +93,7 @@ async function main() {
       })
       .returning({ id: patientAccounts.id });
     check(
-      "🔴 13R.6 TWO address-less accounts coexist — NULLS DISTINCT, not NOT DISTINCT",
+      "🔴 13R.6 TWO address-less accounts coexist, NULLS DISTINCT, not NOT DISTINCT",
       Boolean(noEmailTwo),
     );
 
@@ -226,9 +226,9 @@ async function main() {
       name: "Yasmin",
     });
     check(
-      "🔴 13R.1 / C87 a fresh code does NOT restore the budget — the fourth guess is refused",
+      "🔴 13R.1 / C87 a fresh code does NOT restore the budget, the fourth guess is refused",
       !fourth.ok && fourth.locked === true,
-      fourth.ok ? "ACCEPTED — the budget reset" : fourth.error,
+      fourth.ok ? "ACCEPTED, the budget reset" : fourth.error,
     );
 
     /* ------------------------------------------------ C88 the way out */
@@ -236,7 +236,7 @@ async function main() {
     const release = await releaseLock({
       patientId: record!.id,
       releasedByUserId: therapist.id,
-      reason: "verify13r — spoke to her, she typed her married name",
+      reason: "verify13r, spoke to her, she typed her married name",
     });
     check("13R.4 the therapist can release the lock", release.ok);
 
@@ -272,7 +272,7 @@ async function main() {
     );
 
     check(
-      "13R.4 a release with no reason is refused — it goes on the record",
+      "13R.4 a release with no reason is refused. It goes on the record",
       !(await releaseLock({ patientId: record!.id, releasedByUserId: therapist.id, reason: " " }))
         .ok,
     );

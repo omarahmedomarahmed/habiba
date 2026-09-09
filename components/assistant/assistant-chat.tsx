@@ -136,7 +136,7 @@ export function AssistantChat({
         <Card className="flex min-h-[24rem] flex-col">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
             <p className="text-xs text-slate-500">
-              Your roster only — names, dates and what is waiting. Not clinical notes.
+              Your roster only, names, dates and what is waiting. Not clinical notes.
             </p>
             {/*
               10.5. Shown as what is left rather than what is spent: a
@@ -150,7 +150,7 @@ export function AssistantChat({
             {messages.length === 0 ? (
               <p className="text-sm leading-relaxed text-slate-500">
                 Ask about your week. “Who have I not seen in a month?” “How many notes am I behind
-                on?” For anything about what a patient actually said, open their own copilot — this
+                on?” For anything about what a patient actually said, open their own copilot, this
                 one cannot see clinical records.
               </p>
             ) : (

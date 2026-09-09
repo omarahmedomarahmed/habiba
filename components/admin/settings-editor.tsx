@@ -77,7 +77,7 @@ export function PricingEditor({
           const tier = find(key);
           return (
             <div key={key} className="grid gap-2 sm:grid-cols-3">
-              <Field label={`${key} — name`} htmlFor={`${key}Name`}>
+              <Field label={`${key}, name`} htmlFor={`${key}Name`}>
                 <Input id={`${key}Name`} name={`${key}Name`} defaultValue={tier?.name ?? key} />
               </Field>
               <Field label="Rate ($ per session)" htmlFor={`${key}Rate`}>
@@ -252,7 +252,7 @@ export function PayoutsEditor({
       <p className="text-sm font-semibold text-slate-900">The manual rail</p>
       <p className="mt-1 text-xs text-slate-500">
         §3c: adding an Egyptian collection provider is configuration, not code. The two-person
-        threshold cannot be switched off — setting it to 0 makes every payout need two people.
+        threshold cannot be switched off, setting it to 0 makes every payout need two people.
       </p>
 
       <form action={action} className="mt-3 space-y-3">
@@ -305,7 +305,7 @@ export function PayoutsEditor({
           <span>
             Take the session fee out of held earnings when we hold enough.
             <span className="block text-xs text-slate-500">
-              Off, the pricing page stops saying it — a sentence describing a mechanic we do not
+              Off, the pricing page stops saying it, a sentence describing a mechanic we do not
               have is forbidden.
             </span>
           </span>
@@ -350,7 +350,7 @@ export function CountryEditor({
         <Badge>{country.entity === "eg" ? "Egyptian entity" : "US entity"}</Badge>
         {!country.enabled ? <Badge tone="amber">off</Badge> : null}
         {country.noRail ? (
-          <Badge tone="amber">no rail — nobody here can pay or be paid</Badge>
+          <Badge tone="amber">no rail, nobody here can pay or be paid</Badge>
         ) : null}
       </div>
 
@@ -410,7 +410,7 @@ export function CountryEditor({
         <Field
           label="Regulators"
           htmlFor={`reg-${country.code}`}
-          hint="One per line. Offered beside a free-text field — a list that omits somebody's regulator reads as 'you are not welcome here', so it never constrains."
+          hint="One per line. Offered beside a free-text field, a list that omits somebody's regulator reads as 'you are not welcome here', so it never constrains."
         >
           <Textarea
             id={`reg-${country.code}`}

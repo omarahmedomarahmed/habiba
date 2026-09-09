@@ -77,7 +77,7 @@ export function PatientResetForm() {
             role="status"
             className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm leading-relaxed text-amber-800"
           >
-            ⚠️ Codes over WhatsApp are not switched on yet — the template is still waiting for
+            ⚠️ Codes over WhatsApp are not switched on yet. The template is still waiting for
             approval, so one may not arrive. If you are stuck,{" "}
             <Link href="/contact" className="font-semibold underline">
               tell us

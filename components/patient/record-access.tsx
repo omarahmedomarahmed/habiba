@@ -123,7 +123,7 @@ export function RecordAccess({
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Why — e.g. spoke to her, she typed her married name"
+            placeholder="Why, e.g. spoke to her, she typed her married name"
             className="mt-2 h-10 w-full rounded-xl border border-amber-300 bg-white px-3 text-sm"
           />
           <button
@@ -198,7 +198,7 @@ export function RecordAccess({
               </button>
             </div>
             <p className="text-xs text-slate-500">
-              Copy it now — we store only a fingerprint of this link, so it cannot be shown again.
+              Copy it now, we store only a fingerprint of this link, so it cannot be shown again.
             </p>
           </>
         ) : openInvite ? (

@@ -127,7 +127,7 @@ export default async function TherapistDetailPage({
         <p className="text-xs leading-relaxed text-slate-600">
           <span className="font-semibold text-slate-800">You cannot read clinical content here.</span>{" "}
           Transcripts, note text, risk indicators and copilot messages are not selected by any query
-          behind this page — there is no toggle that reveals them. What you can see is who the
+          behind this page. There is no toggle that reveals them. What you can see is who the
           patients are, when sessions happened and every penny in both directions. This visit is in
           the audit log.
         </p>

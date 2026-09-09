@@ -83,7 +83,7 @@ function ReportCard({ row }: { row: ReportRow }) {
                 : "Report"}
           </p>
           <p className="truncate text-xs text-slate-500">
-            {row.therapistName} · {row.therapistEmail} · session {row.sessionDate ?? "—"}
+            {row.therapistName} · {row.therapistEmail} · session {row.sessionDate ?? "-"}
             {row.durationMinutes ? ` · ${row.durationMinutes} min` : ""} · filed {row.filedAt}
           </p>
         </div>
@@ -100,7 +100,7 @@ function ReportCard({ row }: { row: ReportRow }) {
         </blockquote>
       ) : (
         <p className="px-4 py-3 text-sm text-slate-500">
-          No detail given — the patient reported a no-show, which needs none.
+          No detail given, the patient reported a no-show, which needs none.
         </p>
       )}
 

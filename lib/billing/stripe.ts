@@ -90,7 +90,7 @@ export async function createCreditCheckout(opts: {
             currency: "usd",
             unit_amount: quote.totalCents,
             product_data: {
-              name: `24Therapy — ${quote.quantity} sessions`,
+              name: `24Therapy, ${quote.quantity} sessions`,
               description: `${quote.tier.name} rate · $${(quote.tier.rateCents / 100).toFixed(2)} per session · valid until ${quote.expiresAt.toISOString().slice(0, 10)}`,
             },
           },

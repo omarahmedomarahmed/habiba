@@ -26,7 +26,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 async function refused(fn: () => Promise<unknown>, fragment: string): Promise<boolean> {
@@ -204,7 +204,7 @@ async function main() {
       .where(eq(patientCredits.personId, person!.id))
       .limit(1);
     check(
-      "🔴 14.6 the difference becomes patient credit — $30 paid, $20 charged, $10 back",
+      "🔴 14.6 the difference becomes patient credit, $30 paid, $20 charged, $10 back",
       credit?.amount === 1000,
       `${credit?.amount ?? 0} cents`,
     );
@@ -270,7 +270,7 @@ async function main() {
     check(
       "🔴 14.3 the price ceiling is re-checked at the write, not only in the list",
       !overpriced.ok,
-      overpriced.ok ? "ACCEPTED — a let-down patient could be charged more" : overpriced.error,
+      overpriced.ok ? "ACCEPTED, a let-down patient could be charged more" : overpriced.error,
     );
 
     /* ------------------------------------------------------ 14.7 the score */

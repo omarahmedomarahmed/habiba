@@ -39,7 +39,7 @@ export default async function AdminRadarPage({
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Radar control</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
           Every clinician on the board, live, everywhere. Availability, geography, ratings and our
-          cut — and nothing anyone said in a session.
+          cut, and nothing anyone said in a session.
         </p>
       </div>
 

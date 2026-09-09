@@ -52,7 +52,7 @@ export function ChangeNumber({
   return (
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">Your number</p>
-      <p className="mt-1 font-mono text-sm text-slate-700">{current ?? "—"}</p>
+      <p className="mt-1 font-mono text-sm text-slate-700">{current ?? "-"}</p>
 
       <p className="mt-2 text-xs leading-relaxed text-slate-500">
         This is how we know it is you, so changing it takes a person and a day. We call or message

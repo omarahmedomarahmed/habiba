@@ -114,7 +114,7 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
           })
         }
       >
-        {pending ? "Working…" : "This is me — claim it"}
+        {pending ? "Working…" : "This is me, claim it"}
       </Button>
     </Card>
   );

@@ -109,7 +109,7 @@ function Row({ row }: { row: ChangeRow }) {
         <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
           <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" aria-hidden />
           Call or message the <strong>new</strong> number and satisfy yourself it is them before
-          approving. Approving does not move the account — the code does, and only they can enter
+          approving. Approving does not move the account. The code does, and only they can enter
           it.
         </p>
 
@@ -139,7 +139,7 @@ function Row({ row }: { row: ChangeRow }) {
             <input type="hidden" name="requestId" value={row.id} />
             <Input
               name="reason"
-              placeholder="Why not — they read this"
+              placeholder="Why not. They read this"
               required
               className="h-8 w-56 text-xs"
             />

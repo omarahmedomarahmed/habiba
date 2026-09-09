@@ -223,7 +223,7 @@ function TicketCard({ row }: { row: TicketRow }) {
         </div>
 
         <p className="mt-2 text-xs text-slate-500">
-          Arrived {row.createdAtLabel}. Open it to read what they wrote — that read is logged.
+          Arrived {row.createdAtLabel}. Open it to read what they wrote. That read is logged.
         </p>
 
         {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
@@ -276,7 +276,7 @@ function TicketCard({ row }: { row: TicketRow }) {
           <Textarea
             name="summary"
             rows={2}
-            placeholder="What was done. They will read this on a page that authenticates — never in an email."
+            placeholder="What was done. They will read this on a page that authenticates, never in an email."
             required
           />
           <Go label="Close and send the link" />

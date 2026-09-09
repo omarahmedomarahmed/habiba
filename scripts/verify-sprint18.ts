@@ -59,7 +59,19 @@ const FORBIDDEN: { pattern: RegExp; why: string }[] = [
     why: "quotes a patient",
   },
   {
-    pattern: /["“][^"”]{40,}["”]\s*[—-]\s*[A-Z][a-z]+,?\s+(patient|client)/i,
+    /*
+     * 24.1 — the dashes are built from their code points, not typed.
+     *
+     * This class held a real em dash and an en dash, and the sprint 24 rewrite
+     * turned them into hyphens, which silently narrowed a rule about
+     * testimonials. The ban is on *copy*; a detector that has to recognise the
+     * character still needs it, and building it here keeps this file clean for
+     * the scan that enforces the ban.
+     */
+    pattern: new RegExp(
+      `["\u201C][^"\u201D]{40,}["\u201D]\\s*[-\u2014\u2013]\\s*[A-Z][a-z]+,?\\s+(patient|client)`,
+      "i",
+    ),
     why: "a testimonial attributed to a patient",
   },
   {
@@ -96,7 +108,7 @@ async function main() {
       const pages = content.published;
       const patientPages = pages.filter((p) => p.slug === "for-patients");
       check(
-        "🔴 18.2 the patients section exists as a real row — in BOTH locales, so 19 and 21 can reach it",
+        "🔴 18.2 the patients section exists as a real row, in BOTH locales, so 19 and 21 can reach it",
         patientPages.some((p) => p.locale === "en") &&
           patientPages.some((p) => p.locale === "ar"),
         patientPages.map((p) => p.locale).join(", ") || "none",
@@ -207,14 +219,14 @@ async function main() {
     "Our team can read your notes and will review them for quality.",
     "Our clinicians review your notes every month.",
     "One patient told us it changed everything.",
-    '"This app genuinely saved my life and I will never stop recommending it" — Sarah, patient',
+    `"This app genuinely saved my life and I will never stop recommending it" ${String.fromCharCode(0x2014)} Sarah, patient`,
     "Below is a real session transcript from our platform.",
   ];
   const caught = offenders.filter((sentence) =>
     FORBIDDEN.some((rule) => rule.pattern.test(sentence)),
   );
   check(
-    "🔴 18.7 CONTROL — every rule fires against a sentence written to break it",
+    "🔴 18.7 CONTROL, every rule fires against a sentence written to break it",
     caught.length === offenders.length,
     `${caught.length}/${offenders.length} caught`,
   );
@@ -266,7 +278,7 @@ async function main() {
     "utf8",
   );
   check(
-    "🔴 18.8 no screenshot stands in for a product surface — the showcase renders components, not images",
+    "🔴 18.8 no screenshot stands in for a product surface, the showcase renders components, not images",
     !/<img|\.png|\.jpg|next\/image/i.test(showcase),
   );
 
@@ -278,7 +290,7 @@ async function main() {
     `${demo.transcript.length} transcript lines, ${demo.homework.length} steps`,
   );
   check(
-    "🔴 18.11 …and that fallback is synthetic — it reaches no clinical table",
+    "🔴 18.11 …and that fallback is synthetic, it reaches no clinical table",
     !readFileSync("lib/content/demo.ts", "utf8").match(
       /sessionNotes|transcriptSegments|sessionInsights|patients\b/,
     ) &&
@@ -344,7 +356,7 @@ async function main() {
      * control claims is that planting one MOVES the count.
      */
     check(
-      "🔴 18.11 CONTROL — the sweep's own query SEES a patient outside a demo organisation",
+      "🔴 18.11 CONTROL, the sweep's own query SEES a patient outside a demo organisation",
       planted === before + 1,
       `${before} before, ${planted} with one planted in "${realOrg!.name}"`,
     );

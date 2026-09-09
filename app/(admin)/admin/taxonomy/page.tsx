@@ -31,7 +31,7 @@ export default async function TaxonomyPage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Radar lists</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
           What patients can filter by and what clinicians can pick. Switching something off removes
-          it from both — it does not remove anyone who already chose it, and it does not take a
+          it from both. It does not remove anyone who already chose it, and it does not take a
           working clinician off the map.
         </p>
       </div>
@@ -57,7 +57,7 @@ export default async function TaxonomyPage() {
 
       <p className="text-xs leading-relaxed text-slate-400">
         A country needs a point on the globe to be drawn, so new ones are a code change rather than
-        a text field — ask and it takes a minute. Languages and specialties can be added here.
+        a text field, ask and it takes a minute. Languages and specialties can be added here.
       </p>
     </div>
   );

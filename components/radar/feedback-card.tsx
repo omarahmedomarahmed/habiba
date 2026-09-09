@@ -52,7 +52,7 @@ export function FeedbackCard({
         <p className="text-sm font-semibold text-slate-900">Ratings</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
           After a radar session your patient rates you to unlock their summary, so almost all of
-          them do. Nothing here yet — your score appears publicly once{" "}
+          them do. Nothing here yet, your score appears publicly once{" "}
           {RATINGS_VISIBLE_AFTER} people have rated you.
         </p>
       </Card>
@@ -79,7 +79,7 @@ export function FeedbackCard({
 
       {total < RATINGS_VISIBLE_AFTER ? (
         <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-          Not shown to patients yet. A score goes public at {RATINGS_VISIBLE_AFTER} ratings — one
+          Not shown to patients yet. A score goes public at {RATINGS_VISIBLE_AFTER} ratings, one
           bad night should not follow you around at 1.0 stars, and one good one proves nothing.
         </p>
       ) : null}

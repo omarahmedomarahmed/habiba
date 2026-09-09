@@ -18,7 +18,7 @@ const INITIAL: TherapistSupportState = {};
  * everything, and then the queue cannot sort.
  */
 const TOPICS: { value: string; label: string }[] = [
-  { value: "billing", label: "Billing — bundles, invoices, what I was charged" },
+  { value: "billing", label: "Billing, bundles, invoices, what I was charged" },
   { value: "a_session", label: "A session that went wrong" },
   { value: "account", label: "Verification or my account" },
   { value: "something_else", label: "Something else" },
@@ -54,7 +54,7 @@ export function TherapistSupport({
           </p>
           <p className="mt-1 text-sm text-teal-900/90">
             A named person picks this up and answers within {state.ok.hours} hours. When it is
-            closed you get a link to read the reply — we do not put it in an email.
+            closed you get a link to read the reply. We do not put it in an email.
           </p>
         </Card>
       ) : null}

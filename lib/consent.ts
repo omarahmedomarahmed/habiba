@@ -29,7 +29,7 @@ export const RECORDING_CONSENT = {
   points: [
     "The recording is turned into your therapist's clinical notes, and a plain-language summary for you.",
     "Only your therapist can see it. It is never sold, never used for advertising, and never shown to another patient.",
-    "You can change your mind during the session — ask your therapist to stop and the recording indicator turns amber.",
+    "You can change your mind during the session, ask your therapist to stop and the recording indicator turns amber.",
   ],
   /** The consequence of saying no, stated before they say it. */
   refusal:

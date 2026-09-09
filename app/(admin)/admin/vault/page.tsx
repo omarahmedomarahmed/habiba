@@ -105,9 +105,9 @@ export default async function VaultPage() {
 
         <p className="text-xs text-slate-500">
           {ledger.paidInvoiceCount} invoices paid · {formatUsd(ledger.discountedCents)} discounted ·{" "}
-          {ledger.waivedCount} sessions waived. Collected includes Connect fees but not GMV — that
+          {ledger.waivedCount} sessions waived. Collected includes Connect fees but not GMV, that
           money belongs to the therapist. Model spend is estimated from published rates at the time
-          of each call — reconcile against the provider invoice monthly.
+          of each call, reconcile against the provider invoice monthly.
         </p>
       </section>
 
@@ -183,7 +183,7 @@ export default async function VaultPage() {
           />
         </div>
         <p className="text-xs text-slate-500">
-          Activated means a clinician who has completed at least one session — a signup that never
+          Activated means a clinician who has completed at least one session, a signup that never
           records one has told us nothing. MRR counts recurring subscriptions only; metered revenue
           is real but not recurring, and folding it in turns a run-rate into fiction.
         </p>
@@ -290,7 +290,7 @@ export default async function VaultPage() {
               key={invoice.id}
               id={invoice.id}
               organizationId={invoice.organizationId}
-              organizationName={invoice.organizationName ?? "—"}
+              organizationName={invoice.organizationName ?? "-"}
               description={invoice.description}
               kind={invoice.kind}
               amountCents={invoice.amountCents}
@@ -311,7 +311,7 @@ export default async function VaultPage() {
         <div className="border-b border-slate-100 px-4 py-3">
           <p className="text-sm font-semibold text-slate-900">Patient payments</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            Money that passed through us to a clinician. Only the fee column is ours — refunding
+            Money that passed through us to a clinician. Only the fee column is ours, refunding
             here reverses the transfer out of their balance and returns our cut.
           </p>
         </div>

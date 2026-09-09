@@ -385,7 +385,7 @@ export async function documentContext(
   for (const row of rows) {
     if (!seen.has(row.ordinal)) {
       const date = (row.documentDate ?? row.createdAt).toISOString().slice(0, 10);
-      parts.push(`\n=== D${row.ordinal} — ${row.title} (${date}) ===`);
+      parts.push(`\n=== D${row.ordinal}, ${row.title} (${date}) ===`);
       seen.add(row.ordinal);
     }
 

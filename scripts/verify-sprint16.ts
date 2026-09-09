@@ -30,7 +30,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 async function refused(fn: () => Promise<unknown>, fragment: string): Promise<boolean> {
@@ -289,7 +289,7 @@ async function main() {
     check(
       "🔴 C74 the person who EDITED the payout details cannot approve sending money to them",
       editorApproved.error !== undefined,
-      editorApproved.error ?? "ACCEPTED — a one-person fraud path is open",
+      editorApproved.error ?? "ACCEPTED, a one-person fraud path is open",
     );
 
     /*
@@ -299,7 +299,7 @@ async function main() {
      * database — by writing the forbidden row directly, past every code path.
      */
     check(
-      "🔴 C74 CONTROL — the same approval written STRAIGHT TO THE TABLE is refused by a CHECK",
+      "🔴 C74 CONTROL, the same approval written STRAIGHT TO THE TABLE is refused by a CHECK",
       await refused(
         () =>
           db
@@ -340,7 +340,7 @@ async function main() {
 
     const held = await (await import("../lib/billing/ledger")).heldForTherapist(payee.id);
     check(
-      "🔴 16.8 the money leaves the books when it leaves the bank — $100 held, $40 sent, $60 left",
+      "🔴 16.8 the money leaves the books when it leaves the bank, $100 held, $40 sent, $60 left",
       held === 6_000,
       `${held} cents`,
     );
@@ -545,7 +545,7 @@ async function main() {
       sessionId: plainSession!.id,
     });
     check(
-      "🔴 C69 CONTROL — a clinician we hold nothing for is still BILLED, not netted",
+      "🔴 C69 CONTROL, a clinician we hold nothing for is still BILLED, not netted",
       plainCharge?.status === "due",
       `${plainCharge?.status}`,
     );
@@ -553,7 +553,7 @@ async function main() {
     const { getSettings } = await import("../lib/settings");
     const settings = await getSettings();
     check(
-      "🔴 C69 netting exists as a setting, and is ON by default — 17's copy may describe it",
+      "🔴 C69 netting exists as a setting, and is ON by default, 17's copy may describe it",
       settings.payouts.netFeeFromHeldEarnings === true,
       `netFeeFromHeldEarnings=${settings.payouts.netFeeFromHeldEarnings}`,
     );
@@ -563,7 +563,7 @@ async function main() {
       `$${settings.payouts.twoPersonThresholdCents / 100} · ${settings.payouts.alertAfterHours}h`,
     );
     check(
-      "🔴 C76 the spread a therapist absorbs is zero by default — we take no margin on the rate",
+      "🔴 C76 the spread a therapist absorbs is zero by default. We take no margin on the rate",
       settings.payouts.egpSpreadBps === 0,
       `${settings.payouts.egpSpreadBps}bps`,
     );

@@ -48,7 +48,7 @@ export type UploadKind = "credential" | "headshot" | "support";
 
 export function uploadProblem(file: { size: number; type: string } | null): string | null {
   if (!file || file.size === 0) return "Choose a file.";
-  if (file.size > MAX_UPLOAD_BYTES) return "That image is over 8 MB — try a photo from your phone.";
+  if (file.size > MAX_UPLOAD_BYTES) return "That image is over 8 MB, try a photo from your phone.";
   if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) {
     return "Upload a photo (JPEG, PNG, WebP or HEIC).";
   }

@@ -78,7 +78,7 @@ export function DocumentList({
     return (
       <Card className="px-4 py-6">
         <p className="text-sm text-slate-500">
-          Nothing here yet. Letters, prescriptions, scans and old reports all belong here — a
+          Nothing here yet. Letters, prescriptions, scans and old reports all belong here, a
           photograph of a page is fine.
         </p>
       </Card>
@@ -212,7 +212,7 @@ function DocumentCard({
               just found something upsetting in their own record.
             */}
             <p className="text-xs leading-relaxed text-slate-500">
-              This marks the document. It does not change or remove it — a clinical record has to
+              This marks the document. It does not change or remove it, a clinical record has to
               stay as it was written.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">

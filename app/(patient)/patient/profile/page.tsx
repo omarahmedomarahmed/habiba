@@ -78,7 +78,7 @@ export default async function OwnProfilePage() {
         <h1 className="text-xl font-bold tracking-tight text-slate-900">Your profile</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           Letters, prescriptions, reports and anything you want a therapist to know. It travels with
-          you — you decide who reads it.
+          you, you decide who reads it.
         </p>
       </div>
 
@@ -114,7 +114,7 @@ export default async function OwnProfilePage() {
           </ul>
           <p className="mt-3 text-xs leading-relaxed text-slate-500">
             If any of this is out of date or wrong, flag it on the document it came from. Flagging
-            marks it for every clinician who reads it — it does not erase what was written, because
+            marks it for every clinician who reads it. It does not erase what was written, because
             a medical record has to stay as it was.
           </p>
         </Card>

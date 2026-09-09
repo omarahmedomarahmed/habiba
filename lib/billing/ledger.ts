@@ -358,7 +358,7 @@ export async function postSessionRefund(payment: {
             amountCents: payment.therapistNetCents,
             organizationId: org,
             userId: user,
-            memo: "Held earnings reversed — the session was refunded",
+            memo: "Held earnings reversed. The session was refunded",
           },
         ];
 

@@ -121,7 +121,7 @@ async function main() {
     }
 
     check(
-      "🔴 20.9 CONTROL — the same walk CATCHES a staff page that imports one",
+      "🔴 20.9 CONTROL, the same walk CATCHES a staff page that imports one",
       caught,
       caught ? "planted, caught, removed" : "THE SCAN IS BLIND",
     );
@@ -161,7 +161,7 @@ async function main() {
     const therapistQueue = await queueFor("therapist");
 
     check(
-      "🔴 20.24 the two queues are separate — a payout chase never sorts above somebody in distress",
+      "🔴 20.24 the two queues are separate, a payout chase never sorts above somebody in distress",
       patientQueue.some((t) => t.reference === (patientTicket.ok ? patientTicket.reference : "")) &&
         therapistQueue.some(
           (t) => t.reference === (therapistTicket.ok ? therapistTicket.reference : ""),
@@ -216,7 +216,7 @@ async function main() {
       reason: "Still waiting on the bank to confirm the reference.",
     });
     check(
-      "🔴 20.20 one extension, and only one — an unlimited extension is not a deadline",
+      "🔴 20.20 one extension, and only one, an unlimited extension is not a deadline",
       first.ok === true && second.error !== undefined,
       second.error ?? "A SECOND EXTENSION WAS ACCEPTED",
     );
@@ -270,7 +270,7 @@ async function main() {
     const { readByToken } = await import("../lib/data/support");
     const wrongCode = await readByToken({ token: afterClose!.accessToken!, code: "000000" });
     check(
-      "🔴 20.22 the close link alone shows nothing — a code sent to their handle is required",
+      "🔴 20.22 the close link alone shows nothing, a code sent to their handle is required",
       wrongCode.error !== undefined && wrongCode.ticket === undefined,
       wrongCode.error ?? "THE LINK ALONE OPENED THE TICKET",
     );
@@ -383,7 +383,7 @@ async function main() {
       createdAt: new Date(Date.now() - 200 * 86_400_000),
     };
     check(
-      "🔴 20.14 a correction in the first 24 hours is NOT a change — a mistyped digit must not trap somebody",
+      "🔴 20.14 a correction in the first 24 hours is NOT a change, a mistyped digit must not trap somebody",
       lockUntil(brandNew) === null && lockUntil(settled) !== null,
       `new account: free · settled account: locked until ${lockUntil(settled)?.toISOString().slice(0, 10)}`,
     );
@@ -407,7 +407,7 @@ async function main() {
       .where(eq(patientAccounts.id, account!.id))
       .limit(1);
     check(
-      "🔴 20.16 approving does NOT move the account — only the code does",
+      "🔴 20.16 approving does NOT move the account, only the code does",
       afterApproval?.phone === "+201900000001",
       `still ${afterApproval?.phone}`,
     );
@@ -422,7 +422,7 @@ async function main() {
       .where(eq(phoneChangeRequests.id, request!.id))
       .limit(1);
     check(
-      "🔴 20.16 the code is HASHED — a staff member reading the table cannot finish the change they approved",
+      "🔴 20.16 the code is HASHED, a staff member reading the table cannot finish the change they approved",
       (withCode?.hash ?? "").length > 20 && !/^\d{6}$/.test(withCode?.hash ?? ""),
       `${(withCode?.hash ?? "").slice(0, 12)}…`,
     );
@@ -482,7 +482,7 @@ async function main() {
      * on its own, which is the shape a per-field check cannot see.
      */
     check(
-      "🔴 20.1 a price cap below the floor is refused — the check is on the whole configuration",
+      "🔴 20.1 a price cap below the floor is refused. The check is on the whole configuration",
       settingsProblem({
         ...before,
         session: { ...before.session, minPriceCents: 5_000, maxPriceCents: 100 },
@@ -497,7 +497,7 @@ async function main() {
     );
 
     check(
-      "🔴 20.3 a country with NEITHER rail is identifiable — that is a clinician nobody can pay",
+      "🔴 20.3 a country with NEITHER rail is identifiable. That is a clinician nobody can pay",
       countries.some((c) => !hasNoRail(c)),
       `${countries.filter(hasNoRail).length} of ${countries.length} have no rail`,
     );
@@ -549,7 +549,7 @@ async function main() {
     check(
       "🔴 20.6 …and the percentage is ABSENT, not zero, when nothing was collected",
       traction.marginBps === null || Number.isInteger(traction.marginBps),
-      traction.marginBps === null ? "null — nothing collected in 30 days" : `${traction.marginBps}bps`,
+      traction.marginBps === null ? "null, nothing collected in 30 days" : `${traction.marginBps}bps`,
     );
 
     /* 20.7 — the Total View sits on the same screen as the levers. */

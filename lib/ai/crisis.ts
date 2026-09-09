@@ -213,7 +213,7 @@ export function patientFacingCrisisMessage(country?: string | null): {
   return {
     message: line
       ? `Your therapist has been notified and is here with you. If you need immediate help right now, you can call or text ${line.label} at any time.`
-      : "Your therapist has been notified and is here with you. If you need immediate help right now, call your local emergency number — it is free from any phone.",
+      : "Your therapist has been notified and is here with you. If you need immediate help right now, call your local emergency number. It is free from any phone.",
     helpline: line?.label ?? null,
   };
 }

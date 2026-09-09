@@ -49,7 +49,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
       <Card className="p-5">
         <p className="text-sm font-semibold text-slate-900">Nothing to claim yet</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          We could not find a record under your email or phone number. That is completely normal —
+          We could not find a record under your email or phone number. That is completely normal -
           most therapists write a name down and nothing else.
         </p>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
@@ -129,7 +129,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
                 Let this therapist keep seeing my profile
               </span>
               <span className="mt-1 block text-xs leading-relaxed text-slate-500">
-                If you leave this off, they keep the notes they already wrote and nothing else — no
+                If you leave this off, they keep the notes they already wrote and nothing else, no
                 new sessions, no live profile. You can turn it on later, and off again, whenever you
                 like.
               </span>

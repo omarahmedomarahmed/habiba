@@ -127,7 +127,7 @@ export async function reportSession(input: {
         to: therapist.email,
         firstName: therapist.firstName,
         subject: "You have been taken off the Crisis Radar",
-        body: `A patient reported that you did not join a session they had booked and paid for. They have been refunded, and you are off the radar for ${penalty.label}.\n\nIf this is wrong, reply to this email and we will look at it — the session record shows whether anyone joined the room.\n\nGoing on the radar means being ready to take a session within a minute. If you cannot be, switch yourself off; there is no penalty for being unavailable, only for being unavailable while advertised.\n\n— ${fullName(therapist.firstName, therapist.lastName, "")}`.trim(),
+        body: `A patient reported that you did not join a session they had booked and paid for. They have been refunded, and you are off the radar for ${penalty.label}.\n\nIf this is wrong, reply to this email and we will look at it, the session record shows whether anyone joined the room.\n\nGoing on the radar means being ready to take a session within a minute. If you cannot be, switch yourself off; there is no penalty for being unavailable, only for being unavailable while advertised.\n\n- ${fullName(therapist.firstName, therapist.lastName, "")}`.trim(),
       });
     }
   }

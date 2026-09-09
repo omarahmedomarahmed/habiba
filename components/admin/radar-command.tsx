@@ -288,7 +288,7 @@ export function RadarCommand({
                         <span className="block text-[11px] text-slate-400">{row.region ?? ""}</span>
                       </>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </Td>
                   <Td>
@@ -302,12 +302,12 @@ export function RadarCommand({
                         <span className="text-slate-400">({row.rating.count})</span>
                       </span>
                     ) : (
-                      <span className="text-slate-300">—</span>
+                      <span className="text-slate-300">-</span>
                     )}
                   </Td>
                   <Td className="text-end tabular-nums text-slate-600">{row.sessions30d}</Td>
                   <Td className="text-end tabular-nums font-medium text-slate-900">
-                    {row.feeCents30d > 0 ? formatUsd(row.feeCents30d) : "—"}
+                    {row.feeCents30d > 0 ? formatUsd(row.feeCents30d) : "-"}
                   </Td>
                   <Td>
                     <Controls row={row} />
@@ -483,7 +483,7 @@ function Controls({ row }: { row: CommandRow }) {
         aria-label="Reason"
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        placeholder="Reason — they see this"
+        placeholder="Reason. They see this"
         className="h-8 text-xs"
       />
       <div className="flex flex-wrap gap-1">
@@ -575,7 +575,7 @@ function Detail({
           <Row label="Last seen">
             {row.lastSeenAt ? formatDateTime(row.lastSeenAt, zone) : "never"}
           </Row>
-          <Row label="Languages">{row.languages.join(", ") || "—"}</Row>
+          <Row label="Languages">{row.languages.join(", ") || "-"}</Row>
         </dl>
 
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">

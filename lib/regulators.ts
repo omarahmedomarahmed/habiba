@@ -29,22 +29,22 @@ export type DocumentRequirement = {
  */
 export const REGULATORS: Record<string, string[]> = {
   AE: [
-    "Department of Health – Abu Dhabi (DoH)",
+    "Department of Health, Abu Dhabi (DoH)",
     "Dubai Health Authority (DHA)",
     "Ministry of Health and Prevention (MOHAP)",
     "Dubai Healthcare City Authority (DHCA)",
   ],
   SA: ["Saudi Commission for Health Specialties (SCFHS)"],
   QA: ["Department of Healthcare Professions (DHP), Ministry of Public Health"],
-  KW: ["Kuwait Ministry of Health — Licensing Department"],
+  KW: ["Kuwait Ministry of Health, Licensing Department"],
   BH: ["National Health Regulatory Authority (NHRA)"],
-  OM: ["Oman Medical Specialty Board", "Ministry of Health — Directorate of Licensing"],
+  OM: ["Oman Medical Specialty Board", "Ministry of Health, Directorate of Licensing"],
   EG: [
     "Egyptian Syndicate of Psychologists and Sociologists (نقابة المهن الاجتماعية)",
-    "Ministry of Health and Population — Mental Health Secretariat",
+    "Ministry of Health and Population, Mental Health Secretariat",
     "Egyptian Medical Syndicate (نقابة الأطباء)",
   ],
-  JO: ["Jordanian Nursing and Allied Health Council", "Ministry of Health — Licensing"],
+  JO: ["Jordanian Nursing and Allied Health Council", "Ministry of Health, Licensing"],
   LB: ["Lebanese Order of Psychologists"],
   GB: [
     "Health and Care Professions Council (HCPC)",
@@ -61,8 +61,8 @@ export const REGULATORS: Record<string, string[]> = {
   CA: ["College of Psychologists (provincial)", "College of Registered Psychotherapists (provincial)"],
   AU: ["Australian Health Practitioner Regulation Agency (AHPRA)", "Psychotherapy and Counselling Federation of Australia"],
   NZ: ["New Zealand Psychologists Board"],
-  DE: ["Landespsychotherapeutenkammer", "Approbation — Landesprüfungsamt"],
-  FR: ["Agence Régionale de Santé (ARS) — numéro ADELI"],
+  DE: ["Landespsychotherapeutenkammer", "Approbation, Landesprüfungsamt"],
+  FR: ["Agence Régionale de Santé (ARS), numéro ADELI"],
   ES: ["Colegio Oficial de Psicólogos"],
   IT: ["Ordine degli Psicologi"],
   NL: ["BIG-register (CIBG)", "Nederlands Instituut van Psychologen (NIP)"],
@@ -73,7 +73,7 @@ export const REGULATORS: Record<string, string[]> = {
   NO: ["Helsedirektoratet"],
   DK: ["Psykolognævnet"],
   PL: ["Polskie Towarzystwo Psychologiczne"],
-  TR: ["Türk Psikologlar Derneği", "Ministry of Health — Licensing"],
+  TR: ["Türk Psikologlar Derneği", "Ministry of Health, Licensing"],
   IN: ["Rehabilitation Council of India (RCI)"],
   PK: ["Pakistan Psychological Association"],
   ZA: ["Health Professions Council of South Africa (HPCSA)"],
@@ -84,9 +84,9 @@ export const REGULATORS: Record<string, string[]> = {
   AR: ["Colegio de Psicólogos (provincial)"],
   SG: ["Singapore Psychological Society", "Allied Health Professions Council"],
   MY: ["Malaysian Society of Clinical Psychology"],
-  PH: ["Professional Regulation Commission (PRC) — Board of Psychology"],
+  PH: ["Professional Regulation Commission (PRC), Board of Psychology"],
   ID: ["Himpunan Psikologi Indonesia (HIMPSI)"],
-  JP: ["Certified Public Psychologist (公認心理師) — MHLW"],
+  JP: ["Certified Public Psychologist (公認心理師), MHLW"],
   KR: ["Korean Clinical Psychology Association"],
   CN: ["Chinese Psychological Society"],
 };
@@ -165,39 +165,39 @@ export function documentRequirements(
 function documentRequirementsFromConstants(country: string | null): DocumentRequirement[] {
   const idFront =
     country === "EG"
-      ? "National ID (البطاقة) — front"
+      ? "National ID (البطاقة), front"
       : country === "AE"
-        ? "Emirates ID — front"
+        ? "Emirates ID, front"
         : country === "SA"
-          ? "National ID or Iqama — front"
+          ? "National ID or Iqama, front"
           : country === "QA"
-            ? "Qatar ID (QID) — front"
+            ? "Qatar ID (QID), front"
             : country === "KW"
-              ? "Civil ID — front"
+              ? "Civil ID, front"
               : country === "BH"
-                ? "CPR card — front"
+                ? "CPR card, front"
                 : country === "OM"
-                  ? "Resident Card — front"
+                  ? "Resident Card, front"
                   : country === "US"
-                    ? "Driver's licence or passport — front"
+                    ? "Driver's licence or passport, front"
                     : country === "GB"
-                      ? "Passport or driving licence — front"
+                      ? "Passport or driving licence, front"
                       : country === "IN"
-                        ? "Aadhaar or passport — front"
+                        ? "Aadhaar or passport, front"
                         : country === "PK"
-                          ? "CNIC — front"
+                          ? "CNIC, front"
                           : country === "NG"
-                            ? "NIN slip or passport — front"
-                            : "Government ID — front";
+                            ? "NIN slip or passport, front"
+                            : "Government ID, front";
 
   const idBack =
     country === "EG"
-      ? "National ID (البطاقة) — back"
+      ? "National ID (البطاقة), back"
       : country === "AE"
-        ? "Emirates ID — back"
+        ? "Emirates ID, back"
         : country === "PK"
-          ? "CNIC — back"
-          : "Government ID — back";
+          ? "CNIC, back"
+          : "Government ID, back";
 
   const licence =
     country === "EG"
@@ -227,7 +227,7 @@ function documentRequirementsFromConstants(country: string | null): DocumentRequ
     {
       key: "licenseDoc",
       label: licence,
-      hint: "Whatever your regulator issues — a card, a licence, a registration certificate.",
+      hint: "Whatever your regulator issues, a card, a licence, a registration certificate.",
       required: true,
     },
     {

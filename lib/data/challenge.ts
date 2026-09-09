@@ -486,7 +486,7 @@ export async function releaseLock(input: {
 }): Promise<ReleaseResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) {
-    return { ok: false, error: "Write a short reason — it goes on the record." };
+    return { ok: false, error: "Write a short reason. It goes on the record." };
   }
 
   const now = new Date();

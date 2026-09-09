@@ -76,7 +76,7 @@ export function StandingProfile({
                 The sessions and the history disagree
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
-                Both are shown as they were recorded. Which one is right is yours to decide — we do
+                Both are shown as they were recorded. Which one is right is yours to decide. We do
                 not choose.
               </p>
               <ul className="mt-2 space-y-2">
@@ -101,7 +101,7 @@ export function StandingProfile({
             <p className="mt-0.5 text-xs text-slate-500">
               Rebuilt {formatDate(profile.generatedAt, zone)} from {profile.sessionCount} session
               {profile.sessionCount === 1 ? "" : "s"} and {profile.documentCount} document
-              {profile.documentCount === 1 ? "" : "s"}. Not editable — it follows the record.
+              {profile.documentCount === 1 ? "" : "s"}. Not editable, it follows the record.
             </p>
           </div>
           {stale ? <Badge tone="amber">Behind the record</Badge> : null}

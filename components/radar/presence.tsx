@@ -376,7 +376,7 @@ export function RadarPresence({
       stopFlashingTitle();
       return;
     }
-    flashTitle(waiting ? "🔴 PATIENT WAITING FOR YOU" : "🔔 Patient joining — open the room");
+    flashTitle(waiting ? "🔴 PATIENT WAITING FOR YOU" : "🔔 Patient joining, open the room");
     return () => stopFlashingTitle();
   }, [booking, waiting]);
 
@@ -624,13 +624,13 @@ function SoundPrompt({
           {blocked ? (
             <>
               Sound is switched off for this site. Open the padlock in the address bar, set{" "}
-              <strong>Sound</strong> to <em>Allow</em>, and reload — otherwise a patient can be
+              <strong>Sound</strong> to <em>Allow</em>, and reload, otherwise a patient can be
               waiting in your room with nothing to tell you.
             </>
           ) : (
             <>
               Browsers stay silent until you say otherwise. One tap and 24Therapy can ring you
-              anywhere in the portal — including when this tab is in the background.
+              anywhere in the portal, including when this tab is in the background.
             </>
           )}
         </p>
@@ -717,7 +717,7 @@ function StatusPill({
     status === "in_session"
       ? "In a session"
       : status === "pending"
-        ? "Busy — someone is booking you"
+        ? "Busy, someone is booking you"
         : status === "online"
           ? "Live on the radar"
           : "Off the radar";
@@ -752,7 +752,7 @@ function StatusPill({
             className="ms-1 flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-400"
           >
             <VolumeX className="h-3 w-3" aria-hidden />
-            sound off — turn on
+            sound off, turn on
           </button>
         ) : permission === "default" ? (
           <button

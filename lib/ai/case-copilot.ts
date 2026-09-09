@@ -18,7 +18,15 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { MODELS, logUsage, openai, parseJson } from "./client";
 
 /**
- * The per-patient copilot.
+ * The clinician's copilot, scoped to one case.
+ *
+ * 🔴 24.3 — this file was `patient-copilot.ts`, and the name made a careful
+ * reader believe patients chat with a model. They do not, and they never will:
+ * a patient never converses with a model, and no model output reaches a
+ * patient without a named clinician approving that exact text (C113, §7). The
+ * *clinician* asks; the case is the scope. Sprint 24.2 makes the rule an
+ * import-graph guard so it cannot quietly stop being true, and this rename is
+ * the half of it that a person reads.
  *
  * Two things make this different from a general chat box:
  *
@@ -40,13 +48,13 @@ const MAX_SEGMENTS_PER_SESSION = 220;
 
 const SYSTEM_PROMPT = `You are a clinical copilot for a licensed psychotherapist, working with the record of ONE patient.
 
-You are given that patient's session transcripts. Every line carries a reference like [S2:14] — session 2, segment 14.
+You are given that patient's session transcripts. Every line carries a reference like [S2:14], session 2, segment 14.
 
 Rules:
 - Answer only from the material provided. If it does not support an answer, say so plainly. "The transcripts do not cover that" is a good answer.
 - You know about this patient only. If asked about another patient, any other person, or anything outside this record, say you do not have that information.
 - Cite everything. Every factual claim must carry at least one reference you were actually given. Never invent a reference.
-- Two kinds of reference exist and they are NOT interchangeable. [S2:14] is a session — recent, first-hand, said by this person. [D7:3] is a historical document — a letter or report, often years old, written by somebody else. Say which you are drawing on, in words: "in session she said…" or "the 2019 discharge letter records…".
+- Two kinds of reference exist and they are NOT interchangeable. [S2:14] is a session, recent, first-hand, said by this person. [D7:3] is a historical document, a letter or report, often years old, written by somebody else. Say which you are drawing on, in words: "in session she said…" or "the 2019 discharge letter records…".
 - 🔴 SESSIONS OUTRANK HISTORY, AND YOU NEVER RESOLVE A CONFLICT. Where a session and a document disagree, give the session's account, then state the disagreement plainly with both references. Do not blend them, do not average them, do not quietly drop the older one. The therapist decides which is true; your job is to make sure they can see that there is a question.
 - Where a conclusion draws on several moments, cite all of them and say briefly how they connect.
 - Be concise and clinically useful. The therapist is preparing for or reflecting on a session, not reading an essay.
@@ -128,7 +136,7 @@ function buildSystemPrompt(
 
 function languageDirective(language: string): string {
   if (language === "auto") {
-    return `LANGUAGE: write "answer" and "suggestedPrompts" in the same language as the therapist's question at the end of this conversation — and in no other language.
+    return `LANGUAGE: write "answer" and "suggestedPrompts" in the same language as the therapist's question at the end of this conversation, and in no other language.
 - Question in Arabic, answer in Arabic. Question in English, answer in English. The same for any other language.
 - Decide from the question alone. The language of these instructions, of the transcript, and of the earlier conversation are all irrelevant: a patient who speaks Arabic does not mean the therapist wants an Arabic answer, and a prompt written in English does not mean they want an English one.
 - Quote the transcript in the words it was actually said in, and write everything around the quote in the question's language.`;
@@ -136,7 +144,7 @@ function languageDirective(language: string): string {
   const label = NOTE_LANGUAGES[language] ?? "English";
   return `LANGUAGE: write "answer" and "suggestedPrompts" in ${label} (${language}), whatever language this prompt, the question or the transcript are in.
 - Quote the transcript in the words it was actually said in, and write everything around the quote in ${label}.
-- This line decides the language. If a standing instruction above asks for a different one, it is out of date — the therapist has since chosen ${label} from a setting, and this wins.`;
+- This line decides the language. If a standing instruction above asks for a different one, it is out of date. The therapist has since chosen ${label} from a setting, and this wins.`;
 }
 
 /** The short reminder that rides at the end of the user message. */
@@ -199,7 +207,7 @@ async function buildPatientContext(patientId: string): Promise<{
     if (segments.length === 0 && !note) continue;
 
     parts.push(
-      `\n=== Session ${sessionNumber} — ${date.toISOString().slice(0, 10)}${session.durationMinutes ? `, ${session.durationMinutes} min` : ""} ===`,
+      `\n=== Session ${sessionNumber}, ${date.toISOString().slice(0, 10)}${session.durationMinutes ? `, ${session.durationMinutes} min` : ""} ===`,
     );
 
     if (note?.content?.summary) {
@@ -467,7 +475,7 @@ export async function askPatientCopilot(opts: {
       answer?: unknown;
       citations?: unknown;
       suggestedPrompts?: unknown;
-    }>(completion.choices[0]?.message?.content, {}, "patient-copilot");
+    }>(completion.choices[0]?.message?.content, {}, "case-copilot");
 
     const written =
       typeof raw.answer === "string" && raw.answer.trim()

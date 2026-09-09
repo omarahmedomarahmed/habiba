@@ -95,7 +95,7 @@ export function BookingCalendar({
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           {done.sent
             ? "We have sent you a confirmation with the link to join."
-            : "🔴 We could not send you a confirmation — write this time down. Your therapist has it too."}
+            : "🔴 We could not send you a confirmation, write this time down. Your therapist has it too."}
         </p>
       </Card>
     );
