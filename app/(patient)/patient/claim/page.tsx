@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 
 import { ClaimChallenge } from "@/components/patient/claim-challenge";
 import { ClaimFlow } from "@/components/patient/claim-flow";
+import { ProveHandle } from "@/components/patient/prove-handle";
 import { Card } from "@/components/ui";
+import { db } from "@/lib/db";
+import { patientAccounts } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { openChallenges } from "@/lib/data/challenge";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
@@ -35,9 +39,33 @@ export const dynamic = "force-dynamic";
  */
 export default async function ClaimPage() {
   const actor = await requirePatient();
-  const [suggestions, challenges] = await Promise.all([mySuggestions(), openChallenges(actor.accountId)]);
 
-  const nothing = suggestions.length === 0 && challenges.length === 0;
+  /*
+   * 🔴 25.14 / C121 — the handle first, and the page says so.
+   *
+   * Before this, an account whose number was never proved fell through to the
+   * empty state, which reads "nobody has written you down under this number".
+   * That protects the secret by telling somebody a lie about their own care.
+   * What is true, and says nothing about anybody, is that we have not looked.
+   */
+  const [account] = await db
+    .select({
+      phone: patientAccounts.phone,
+      email: patientAccounts.email,
+      phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
+      emailVerifiedAt: patientAccounts.emailVerifiedAt,
+    })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, actor.accountId))
+    .limit(1);
+
+  const proven = Boolean(account?.phoneVerifiedAt || account?.emailVerifiedAt);
+
+  const [suggestions, challenges] = proven
+    ? await Promise.all([mySuggestions(), openChallenges(actor.accountId)])
+    : [[], []];
+
+  const nothing = proven && suggestions.length === 0 && challenges.length === 0;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
@@ -49,6 +77,10 @@ export default async function ClaimPage() {
           If they already keep notes about you, you can take ownership of them, {actor.firstName}.
         </p>
       </div>
+
+      {proven ? null : (
+        <ProveHandle handle={account?.phone ?? account?.email ?? "your number"} />
+      )}
 
       {challenges.length > 0 ? <ClaimChallenge challenges={challenges} /> : null}
 
