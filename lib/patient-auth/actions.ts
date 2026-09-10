@@ -84,8 +84,20 @@ export async function patientSignUp(
 
   if (!firstName) return { error: "Enter your first name." };
 
-  const problem = validatePassword(password);
-  if (problem) return { error: problem };
+  /*
+   * 🔴 25.12 / C119 — a password is optional, and only checked when there is one.
+   *
+   * One handle is enough to be a full patient user. A guest who joined a
+   * session on a phone number should not be stopped at a form asking them to
+   * invent a password while their therapist waits; a code to the number they
+   * already have is both easier and the stronger factor. Somebody who types a
+   * password still gets the shared policy, unchanged (6.5) — the weaker of two
+   * policies is the one that matters, so there is still only one.
+   */
+  if (password) {
+    const problem = validatePassword(password);
+    if (problem) return { error: problem };
+  }
 
   // Signup is a write on an unauthenticated endpoint, so it is rate limited on
   // the caller rather than on the account — there is no account yet.
@@ -147,7 +159,7 @@ export async function patientSignUp(
       .values({
         personId: person.id,
         email,
-        passwordHash: await hashPassword(password),
+        passwordHash: password ? await hashPassword(password) : null,
         phone,
         timezone,
       })
@@ -240,13 +252,20 @@ export async function patientSignIn(
     .limit(1);
 
   /*
-   * One message for "no such account" and "wrong password", and the hash is
-   * verified even when there is no account — otherwise the response time tells
-   * an attacker which handles exist.
+   * One message for "no such account", "wrong password" and "this account has
+   * no password", and the hash is verified even when there is no account, so
+   * the response time does not tell an attacker which handles exist.
+   *
+   * 🔴 25.11 — an account with no password is not an error the person typing
+   * can see. They have one way in, a code to their handle, and the sign-in
+   * page offers it to everybody rather than only to the people it would work
+   * for. Saying "that account has no password" here would answer, to anybody
+   * holding a phone number, whether that number belongs to a guest.
    */
-  const ok = account
+  const INVALID = "$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
+  const ok = account?.passwordHash
     ? await verifyPassword(password, account.passwordHash)
-    : await verifyPassword(password, "$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali");
+    : await verifyPassword(password, INVALID);
 
   if (!account || !ok) return { error: "That does not match an account. Check and try again." };
 

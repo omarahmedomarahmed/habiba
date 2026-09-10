@@ -2569,7 +2569,16 @@ export const patientAccounts = pgTable(
      * Unique **only over rows that have one** — see the index below.
      */
     email: text("email"),
-    passwordHash: text("password_hash").notNull(),
+    /**
+     * 🔴 25.11 / C119 — optional since 0056.
+     *
+     * A guest who joined with a phone number and no email has no password and
+     * never chose one. A code to a handle they have proven is a stronger
+     * factor than a password invented under time pressure at the end of a
+     * session, so a code is always a valid sign-in and a password is a
+     * convenience for the people who want one.
+     */
+    passwordHash: text("password_hash"),
     /** Null until they follow the link. Nothing is shared before this. */
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     /**
@@ -2688,7 +2697,10 @@ export const patientAuthTokens = pgTable(
     patientAccountId: uuid("patient_account_id")
       .notNull()
       .references(() => patientAccounts.id, { onDelete: "cascade" }),
-    purpose: text("purpose").$type<"password_reset">().notNull().default("password_reset"),
+    purpose: text("purpose")
+      .$type<"password_reset" | "handle_verify">()
+      .notNull()
+      .default("password_reset"),
     /** SHA-256 of the code or link token. The raw value is never stored. */
     tokenHash: text("token_hash").notNull(),
     /** Which door it went out of — 'whatsapp' or 'email'. */

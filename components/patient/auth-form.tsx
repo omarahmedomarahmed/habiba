@@ -136,7 +136,20 @@ export function PatientAuthForm({
           </>
         ) : null}
 
-        <Field label="Password" htmlFor="password">
+        {/*
+          25.12 — optional on signup, because one handle is enough to be a
+          full patient user. The hint says what happens if it is left empty
+          rather than leaving somebody to guess whether the form will refuse.
+        */}
+        <Field
+          label={mode === "signup" ? "Password (optional)" : "Password"}
+          htmlFor="password"
+          hint={
+            mode === "signup"
+              ? "Leave it empty and sign in with a code instead, sent to the number or address above."
+              : undefined
+          }
+        >
           <Input
             id="password"
             name="password"
@@ -144,7 +157,7 @@ export function PatientAuthForm({
             autoComplete={
               mode === "signup" ? "new-password" : "current-password"
             }
-            required
+            required={mode === "signin"}
           />
         </Field>
 

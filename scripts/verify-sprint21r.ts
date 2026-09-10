@@ -649,7 +649,10 @@ async function main() {
 
     check(
       "🔴 21R.4 the right code sets the new password, a patient locked out of their own record can get back in",
-      done.sent === true && (await verifyPassword("a-brand-new-password-1", after!.passwordHash)),
+      done.sent === true &&
+        after?.passwordHash !== null &&
+        after?.passwordHash !== undefined &&
+        (await verifyPassword("a-brand-new-password-1", after.passwordHash)),
       done.error ?? "signed in with the new password",
     );
 

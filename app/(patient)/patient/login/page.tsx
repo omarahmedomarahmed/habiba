@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PatientAuthForm } from "@/components/patient/auth-form";
+import { CodeSignInForm } from "@/components/patient/code-signin-form";
 
 export const metadata: Metadata = { title: "Sign in", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -16,6 +17,16 @@ export default function PatientLoginPage() {
         </p>
       </div>
       <PatientAuthForm mode="signin" />
+
+      {/*
+        🔴 25.11 / C119 — the other way in, offered to everybody.
+        
+        A guest who joined a session on a phone number has no password and
+        never chose one, and a page that offered the code route only to those
+        accounts would be answering, to anybody holding a number, whether it
+        belongs to a guest.
+      */}
+      <CodeSignInForm />
 
       {/*
         🔴 21R.5 / C94 — every door carries the way back in.

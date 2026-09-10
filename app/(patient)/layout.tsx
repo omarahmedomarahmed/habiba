@@ -13,12 +13,23 @@
  * on this app is somebody's most recent session.
  */
 import { PatientBottomNav } from "@/components/patient/bottom-nav";
+import { SosOrb } from "@/components/patient/sos-orb";
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-slate-50">
       <div className="pb-24">{children}</div>
       <PatientBottomNav />
+      {/*
+        🔴 25.5 / C125 — on every patient screen, including a live session.
+        
+        In the layout rather than on each page, because "every screen" is the
+        requirement and a page that forgets to include it is a page somebody
+        reaches on the night they need it. It is a client component with the
+        numbers compiled in: no fetch, no session, no account, and it works
+        when our API does not.
+      */}
+      <SosOrb />
     </div>
   );
 }

@@ -59,6 +59,21 @@ import { nameMatches } from "./name-match";
 export const MAX_NAME_ATTEMPTS = 3;
 
 /**
+ * 🔴 25.15 — the hint costs one of the three.
+ *
+ * Somebody who was called "Mimi" by a therapist who wrote "Mariam" is stuck at
+ * a question they cannot answer and a record that is genuinely theirs, which
+ * is 13R.2's lockout arriving for the wrong reason. A first letter turns that
+ * into a jog of the memory.
+ *
+ * It is not free, and it must not be: a first letter narrows a guess enormously
+ * for somebody who is fishing. Spending an attempt is what keeps the budget
+ * meaningful, and asking for the hint on the last attempt is refused rather
+ * than silently locking them out.
+ */
+export type HintResult = { ok: true; hint: string; attemptsLeft: number } | { ok: false; error: string };
+
+/**
  * Names already offered against this record by this account. C87.
  *
  * Zero once a therapist has released it (13R.4): the release stamps
@@ -334,15 +349,21 @@ export async function answerName(input: {
   if (budget >= MAX_NAME_ATTEMPTS) return { ok: false, error: LOCKED, locked: true };
 
   /*
-   * Either name on the record. `patients.firstName` is what this clinician
-   * wrote down; `people.firstName` is the person layer above it. They are
-   * usually the same string and occasionally are not — a therapist who wrote
-   * "Sara" for somebody the person row calls "Sara Mahmoud" — and failing
-   * somebody for the difference between two of *our* records is not a
-   * challenge, it is a bug.
+   * 🔴 25.16 / C114 — the CLINICIAN'S record, and nothing else.
+   *
+   * This accepted either `patients.firstName` (what the clinician wrote down)
+   * or `people.firstName` (the person layer above it), on the reasoning that
+   * failing somebody over the difference between two of *our* records is a bug
+   * rather than a challenge. That reasoning was sound while nobody could edit
+   * either of them.
+   *
+   * Sprint 25.7 gives a patient an editable profile, and `people` is the row
+   * it edits. Accepting it would turn the challenge into: fail, edit your own
+   * profile to the name you just guessed, retry. The question is "what name
+   * did you give your therapist", so the answer lives in the therapist's
+   * record, which the person answering cannot touch.
    */
-  const matches =
-    nameMatches(input.name, row.firstName) || nameMatches(input.name, row.personFirstName);
+  const matches = nameMatches(input.name, row.firstName);
 
   if (!matches) {
     /*
@@ -408,6 +429,68 @@ export async function answerName(input: {
 
   log.info("challenge passed", { patient: ref(input.patientId) });
   return { ok: true, stage: "done", personId: row.personId };
+}
+
+/**
+ * A first letter, at the cost of a guess. 25.15.
+ *
+ * Reads the same record the challenge compares against (25.16), so the hint
+ * can never point somewhere the answer is not.
+ */
+export async function nameHint(input: {
+  accountId: string;
+  patientId: string;
+}): Promise<HintResult> {
+  const now = new Date();
+
+  const [row] = await db
+    .select({ firstName: patients.firstName })
+    .from(personClaims)
+    .innerJoin(patients, eq(patients.id, personClaims.patientId))
+    .innerJoin(people, eq(people.id, personClaims.personId))
+    .where(
+      and(
+        eq(personClaims.patientAccountId, input.accountId),
+        eq(personClaims.patientId, input.patientId),
+        eq(personClaims.status, "pending"),
+        eq(personClaims.seenTherapist, true),
+        isNull(people.claimedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return { ok: false, error: GENERIC };
+
+  const spent = await spentOn(input.accountId, input.patientId);
+  /*
+   * Refused on the last attempt rather than spending it. Handing somebody a
+   * hint and locking them out in the same click is the interface equivalent of
+   * shutting the door as they reach it.
+   */
+  if (spent >= MAX_NAME_ATTEMPTS - 1) {
+    return {
+      ok: false,
+      error: "Only one guess left, so the hint is not available. Ask your therapist to send you an invite link instead.",
+    };
+  }
+
+  const [after] = await db
+    .insert(claimAttempts)
+    .values({ patientAccountId: input.accountId, patientId: input.patientId, attempts: 1 })
+    .onConflictDoUpdate({
+      target: [claimAttempts.patientAccountId, claimAttempts.patientId],
+      set: { attempts: sql`${claimAttempts.attempts} + 1`, updatedAt: now },
+    })
+    .returning({ attempts: claimAttempts.attempts });
+
+  const used = after?.attempts ?? MAX_NAME_ATTEMPTS;
+  const letter = (row.firstName ?? "").trim().slice(0, 1).toUpperCase();
+
+  return {
+    ok: true,
+    hint: letter,
+    attemptsLeft: Math.max(0, MAX_NAME_ATTEMPTS - used),
+  };
 }
 
 /**

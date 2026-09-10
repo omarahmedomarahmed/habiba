@@ -386,6 +386,20 @@
       "when": 1789600000020,
       "tag": "0054_validate",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1789600000021,
+      "tag": "0055_handle_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1789600000022,
+      "tag": "0056_optional_password",
+      "breakpoints": true
     }
   ]
 }

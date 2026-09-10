@@ -15,14 +15,13 @@
  */
 import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 
-import { and, notLike } from "drizzle-orm";
-
 import { db } from "../lib/db";
-import { contentPages, uiStrings } from "../lib/db/schema";
+import { uiStrings } from "../lib/db/schema";
+import { withPublishedContent } from "./_content-ready";
 import { ALLOWED, dashesIn, dashesInText, EM_DASH } from "./_dashes";
 import { reporter } from "./_verify";
 
-const { check, finish } = reporter();
+const { check, skipUnless, finish } = reporter();
 
 /** Every source file under a directory, at any depth. */
 function walk(dir: string): string[] {
@@ -156,19 +155,26 @@ async function main() {
 
   /* -------------------------------------------------- 24.1 · the database */
 
-  const pages = await db
-    .select({ slug: contentPages.slug, locale: contentPages.locale, blocks: contentPages.blocks })
-    .from(contentPages)
-    .where(and(notLike(contentPages.locale, "%-x-staging")));
+  /*
+   * C93 — through the deferrable reader, like every check that reads published
+   * content. On a database between the purge and 22.8b there is nothing to
+   * scan, and "no page carries a dash" would be true of no pages.
+   */
+  await withPublishedContent(
+    skipUnless,
+    { for: "24.1", what: "the page corpus" },
+    (content) => {
+      const inPages = content.published.flatMap((page) =>
+        dashesInText(`${page.slug}[${page.locale}]`, JSON.stringify(page.blocks)),
+      );
 
-  const inPages = pages.flatMap((page) =>
-    dashesInText(`${page.slug}[${page.locale}]`, JSON.stringify(page.blocks)),
-  );
-
-  check(
-    "🔴 24.1 no published page carries one either, the rows are the copy people actually read",
-    inPages.length === 0,
-    inPages.map((hit) => hit.file).join(", ") || `${pages.length} pages scanned`,
+      check(
+        "🔴 24.1 no published page carries one either, the rows are the copy people actually read",
+        inPages.length === 0,
+        inPages.map((hit) => hit.file).join(", ") ||
+          `${content.published.length} pages scanned`,
+      );
+    },
   );
 
   const strings = await db
