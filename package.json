@@ -76,7 +76,8 @@
     "verify:sprint27": "node --import tsx --conditions=react-server scripts/verify-sprint27.ts",
     "verify:sprint28": "node --import tsx --conditions=react-server scripts/verify-sprint28.ts",
     "verify:sprint29": "node --import tsx --conditions=react-server scripts/verify-sprint29.ts",
-    "ship:content": "tsx scripts/ship-content.ts"
+    "ship:content": "tsx scripts/ship-content.ts",
+    "verify:sprint30": "node --import tsx --conditions=react-server scripts/verify-sprint30.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

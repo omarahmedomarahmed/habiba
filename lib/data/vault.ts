@@ -1,8 +1,11 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: the spend vault is platform accounting.
+ */
 import "server-only";
 
 import { and, desc, eq, gt, gte, isNull, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import {
   aiRequestLogs,
   invoices,

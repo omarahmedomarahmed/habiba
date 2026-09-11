@@ -1,9 +1,17 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE. One copy, read by every region.
+ *
+ * This module reads facts about the PRODUCT rather than about a person:
+ * settings, content, taxonomy, language, the operator console. There is one
+ * of each and Cairo reads the same rows as Virginia. The compiler would not
+ * let this file compile without making that choice explicitly.
+ */
 import "server-only";
 
 import { and, eq, inArray } from "drizzle-orm";
 
 import { DEMO_NOTE, DEMO_TRANSCRIPT } from "@/components/demo/fixtures";
-import { db } from "@/lib/db";
+import { controlDb as db } from "@/lib/db";
 import { contentPages } from "@/lib/db/schema";
 import { getLocale } from "@/lib/i18n/server";
 

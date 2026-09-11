@@ -5,11 +5,23 @@ import { openai } from "@/lib/ai/client";
 import { audit } from "@/lib/audit";
 import { getActor } from "@/lib/auth/session";
 import { assertSameOrigin } from "@/lib/auth/guard";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { documentChunks, personDocuments } from "@/lib/db/schema";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { documentReadDecision } from "@/lib/documents/read-access";
 import { log, safeErrorMessage } from "@/lib/logger";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/api/documents/[id]/speak/route.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

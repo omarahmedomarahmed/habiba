@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patients, sessions, users } from "@/lib/db/schema";
 import {
   recordNoShow,
@@ -15,6 +16,17 @@ import {
 import { notify } from "@/lib/notify";
 import { env } from "@/lib/env";
 import { callerKey, consume } from "@/lib/rate-limit";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(patient)/sessions/[id]/recovery-actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * The patient's side of a no-show. PLAN.md 14.2–14.6.

@@ -1,3 +1,6 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: signing in resolves WHICH region, so it cannot already be behind one.
+ */
 "use server";
 
 import { createHash, randomBytes } from "node:crypto";
@@ -5,7 +8,7 @@ import { redirect } from "next/navigation";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import {
   authTokens,
   BACK_OFFICE_ROLES,

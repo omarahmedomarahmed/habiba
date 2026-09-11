@@ -4,8 +4,18 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 
-import { db } from "@/lib/db";
-import { authSessions, users } from "@/lib/db/schema";
+/*
+ * 🔴 30.1 — the CONTROL PLANE, and this one is worth stating.
+ *
+ * `auth_sessions` and `users` are platform infrastructure: a person signs in
+ * once, and the cookie has to resolve before anything knows which jurisdiction
+ * they belong to. Putting the session table behind the region seam would be
+ * circular. What this read DOES is resolve the region, once, onto the actor,
+ * so that every clinical call downstream has it without asking.
+ */
+import { controlDb as db } from "@/lib/db";
+import { authSessions, organizations, users } from "@/lib/db/schema";
+import { isRegion, DEFAULT_REGION, type Region } from "@/lib/db/region";
 import type { Role } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 
@@ -35,6 +45,20 @@ export type Actor = {
   firstName: string;
   lastName: string;
   verificationStatus: "unverified" | "pending" | "verified" | "rejected";
+  /**
+   * 🔴 The practice's jurisdiction. PLAN.md 30.1, C118.
+   *
+   * Required and carried, for the same reason the timezone is (C84) and the
+   * locale now is (C150): a value the runtime supplies is correct on the
+   * machine it was written on and wrong for the person it is about. Resolved
+   * once, here, from the organisation, so no data module has to ask.
+   *
+   * ⚠️ It is the PRACTICE's region, and a clinician's caseload can span more
+   * than one, because a patient's region is their own (C154). Use it for rows
+   * that belong to the practice: sessions, settings, payouts. For a chart, ask
+   * the directory about the patient.
+   */
+  region: Region;
   /**
    * IANA, or null. 12.3 / C70.
    *
@@ -97,6 +121,7 @@ export async function getActor(): Promise<Actor | null> {
       lastSeenAt: authSessions.lastSeenAt,
       userId: users.id,
       organizationId: users.organizationId,
+      region: organizations.region,
       role: users.role,
       email: users.email,
       firstName: users.firstName,
@@ -108,6 +133,8 @@ export async function getActor(): Promise<Actor | null> {
     })
     .from(authSessions)
     .innerJoin(users, eq(users.id, authSessions.userId))
+    /* 30.1 — the region comes with the session, so nothing downstream asks. */
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
       and(
         eq(authSessions.tokenHash, tokenHash),
@@ -153,6 +180,7 @@ export async function getActor(): Promise<Actor | null> {
     firstName: row.firstName,
     lastName: row.lastName,
     verificationStatus: row.verificationStatus,
+    region: isRegion(row.region) ? row.region : DEFAULT_REGION,
     timezone: row.timezone,
   };
 }

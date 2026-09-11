@@ -11,10 +11,21 @@
  */
 import { sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import { type ContentBlock } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
 import { reporter, writesTo } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 const { check, skipUnless, finish } = reporter();
 

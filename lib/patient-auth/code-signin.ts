@@ -3,7 +3,8 @@
 import { createHash, randomInt } from "node:crypto";
 import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
 import { notify } from "@/lib/notify";
@@ -13,6 +14,17 @@ import { callerKey, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 
 import { createPatientSession } from "./session";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/patient-auth/code-signin.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Signing in with a code. PLAN.md 25.11-25.13, C119.

@@ -75,7 +75,12 @@ export async function reportSession(input: {
 
   if (input.kind === "no_show" && filed.sessionId && filed.therapistId) {
     const { refundSessionPayment } = await import("@/lib/billing/connect");
-    const { db } = await import("@/lib/db");
+    /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/feedback/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
     const { sessionPayments, sessionReports, users } = await import("@/lib/db/schema");
     const { eq } = await import("drizzle-orm");
 

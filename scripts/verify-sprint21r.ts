@@ -30,6 +30,7 @@ import { reporter, writesTo } from "./_verify";
 import { stripComments, undeferredContentReads } from "./_scan-deferrals";
 import type { LivePage } from "./_content-ready";
 
+
 const { check, skipUnless, finish } = reporter();
 
 /** Every .ts/.tsx file under a directory, one level of nesting at a time. */
@@ -98,9 +99,9 @@ async function main() {
     writeFileSync(
       planted,
       [
-        'import { db } from "../lib/db";',
+        'import { controlDb } from "../lib/db";',
         `import { ${TABLE} } from "../lib/db/schema";`,
-        "const pages = await db",
+        "const pages = await controlDb",
         `  .select({ slug: ${TABLE}.slug })`,
         `  .from(${TABLE})`,
         `  .where(eq(${TABLE}.status, "published"));`,
@@ -434,7 +435,12 @@ async function main() {
 
   /* ------------------------------------------- 21R.1–21R.5 · C94, the doors */
 
-  const { db } = await import("../lib/db");
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("../lib/db");
+  const { pinnedToDefaultRegion } = await import("../lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("scripts/verify-sprint21r.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const schema = await import("../lib/db/schema");
   const { eq, desc, and } = await import("drizzle-orm");
 

@@ -4,7 +4,8 @@ import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   historyGrants,
   patients,
@@ -24,6 +25,17 @@ import {
   type AccessState,
   type Capabilities,
 } from "@/lib/access/state";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/grants.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Consent, and the four states that hang off it. PLAN.md 7.1–7.7.

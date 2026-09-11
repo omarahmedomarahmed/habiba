@@ -3,10 +3,22 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { organizations, therapistCodes, therapistRadar, users } from "@/lib/db/schema";
 import type { Actor } from "@/lib/auth/session";
 import { env } from "@/lib/env";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/therapist-codes.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * The clinic-wall QR code. PLAN.md 25.17, C120.

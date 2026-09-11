@@ -184,7 +184,12 @@ export async function resumeAfterPayment(token: string): Promise<JoinState> {
 
 /** Has this session been asked the recording question at all? */
 async function hasConsent(sessionId: string): Promise<boolean> {
-  const { db } = await import("@/lib/db");
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/join/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const { sessions } = await import("@/lib/db/schema");
   const { eq } = await import("drizzle-orm");
 
@@ -228,7 +233,12 @@ export async function answerConsent(token: string, consent: string): Promise<Joi
  */
 async function recordConsent(sessionId: string, consent: "granted" | "declined") {
   const { RECORDING_CONSENT_VERSION } = await import("@/lib/consent");
-  const { db } = await import("@/lib/db");
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/join/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const { sessions } = await import("@/lib/db/schema");
   const { eq } = await import("drizzle-orm");
 
@@ -307,7 +317,12 @@ export async function checkJoinState(token: string): Promise<{
    * clinician can pause the recording mid-session, and a person who agreed to
    * be recorded has to be able to see when that changed without asking.
    */
-  const { db } = await import("@/lib/db");
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/join/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const { sessions } = await import("@/lib/db/schema");
   const { eq } = await import("drizzle-orm");
 
@@ -447,7 +462,12 @@ export async function turnOnConsent(
   if (!session) return { error: "This link is no longer valid." };
 
   const { RECORDING_CONSENT_VERSION } = await import("@/lib/consent");
-  const { db } = await import("@/lib/db");
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/join/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const { sessions } = await import("@/lib/db/schema");
   const { and, eq, isNull, or, ne } = await import("drizzle-orm");
 

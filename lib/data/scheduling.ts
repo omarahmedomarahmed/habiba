@@ -6,7 +6,8 @@ import { and, asc, eq, gt, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   availabilitySlots,
   organizations,
@@ -18,6 +19,17 @@ import {
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { HOLD_MS, isWholeHour, shouldAutoOffline } from "@/lib/scheduling/hours";
 import { parseDayKey, usable, zonedHourToUtc } from "@/lib/scheduling/tz";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/scheduling.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Bookable hours, and what happens when somebody takes one. PLAN.md 11.1–11.6.

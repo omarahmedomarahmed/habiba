@@ -2,7 +2,8 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   payoutMethods,
   payoutRequestEvents,
@@ -19,6 +20,17 @@ import { getSettings } from "@/lib/settings";
 import { quoteFor } from "./fx";
 import { heldForTherapist, postManualPayout } from "./ledger";
 import { convert, payoutCurrencyFor } from "./money";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/billing/payouts.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Manual payouts: the queue three people work, at any hour. PLAN.md 16.2–16.3d.

@@ -3,10 +3,13 @@ import "server-only";
 import { and, desc, eq, gte } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
-import { db } from "@/lib/db";
+import { dbFor } from "@/lib/db";
+import { regionOfPerson } from "@/lib/db/directory";
 import { historyGrants, journals, notifications, people } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { scanForCrisisLanguage } from "@/lib/crisis/alerts";
+
+
 
 /**
  * Journals. PLAN.md 26.5 to 26.8, C123, C124.
@@ -48,6 +51,16 @@ export type JournalEntry = {
 
 /** Their own journals, newest first. */
 export async function journalsForPerson(personId: string, limit = 100): Promise<JournalEntry[]> {
+  /*
+   * 🔴 30.1 / C154 — a journal is the person's, so it lives where they do.
+   *
+   * Routed on the PERSON rather than on whichever clinician happens to be
+   * asking. An Egyptian patient's journal belongs in Egypt even when the
+   * clinician reading it is registered in Virginia, and that is the case this
+   * seam exists for rather than an edge of it.
+   */
+  const db = dbFor(await regionOfPerson(personId));
+
   return db
     .select({
       id: journals.id,
@@ -79,6 +92,9 @@ export async function writeJournal(input: {
   const body = input.body.trim();
   if (body.length < 1) return { ok: false, error: "Write something first." };
   if (body.length > 20_000) return { ok: false, error: "That is longer than we can store." };
+
+  /* 30.1 — written where the person lives. */
+  const db = dbFor(await regionOfPerson(input.personId));
 
   const indicators = scanForCrisisLanguage(body);
   const level = indicators.length > 0 ? ("high" as const) : null;
@@ -143,6 +159,7 @@ async function alertGrantHolders(
   indicators: string[],
 ): Promise<void> {
   const now = new Date();
+  const db = dbFor(await regionOfPerson(personId));
 
   const holders = await db
     .select({ userId: historyGrants.therapistUserId })
@@ -184,6 +201,8 @@ async function alertGrantHolders(
  * from an argument is one somebody eventually passes the wrong argument to.
  */
 export async function journalsForClinician(personId: string, limit = 50) {
+  const db = dbFor(await regionOfPerson(personId));
+
   return db
     .select({
       id: journals.id,
@@ -227,6 +246,8 @@ export async function journalContext(
   opts: { maxChars?: number; limit?: number } = {},
 ): Promise<{ text: string; entries: number }> {
   const maxChars = opts.maxChars ?? 12_000;
+
+  const db = dbFor(await regionOfPerson(personId));
 
   const rows = await db
     .select({

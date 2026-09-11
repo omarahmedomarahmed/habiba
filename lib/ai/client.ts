@@ -1,8 +1,11 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: the model client reads platform settings and spend caps.
+ */
 import "server-only";
 
 import OpenAI from "openai";
 
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import { aiRequestLogs } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";

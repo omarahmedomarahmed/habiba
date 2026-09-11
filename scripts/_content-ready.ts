@@ -24,8 +24,19 @@
  */
 import { like, notLike } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import { contentPages, type ContentBlock } from "../lib/db/schema";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 /** The sprint step that publishes content into a purged database. */
 export const AWAITS = "22.8b";

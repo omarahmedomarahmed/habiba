@@ -4,9 +4,12 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { dbFor } from "@/lib/db";
+import { regionOfPerson } from "@/lib/db/directory";
 import { clinicalSummaries, therapistVerifications, users } from "@/lib/db/schema";
 import { fullName } from "@/lib/utils";
+
+
 
 /**
  * The clinical summary the patient owns. PLAN.md 26.1 to 26.4, C111.
@@ -102,6 +105,16 @@ export type SummaryVersion = {
  * access does not un-write what somebody already holds.
  */
 export async function summariesForPerson(personId: string): Promise<SummaryVersion[]> {
+  /*
+   * 🔴 30.1 / C154 — routed on the PERSON, which is the whole point.
+   *
+   * The clinical summary is the portability argument: it follows somebody
+   * between clinicians. Routing it on whichever practice is currently asking
+   * would put an Egyptian patient's summary in a different country depending
+   * on who opened it, which is not a residency guarantee at all.
+   */
+  const db = dbFor(await regionOfPerson(personId));
+
   return db
     .select({
       id: clinicalSummaries.id,
@@ -134,6 +147,8 @@ export async function publishSummary(
   actor: Actor,
   input: { personId: string; body: string; sessionId?: string | null },
 ): Promise<PublishResult> {
+  const db = dbFor(await regionOfPerson(input.personId));
+
   const problem = summaryProblem(input.body);
   if (problem) return { ok: false, error: problem };
 
@@ -199,6 +214,8 @@ export async function latestSummary(personId: string): Promise<SummaryVersion | 
 
 /** Used by the export and by the verification page: how many versions exist. */
 export async function summaryCount(personId: string): Promise<number> {
+  const db = dbFor(await regionOfPerson(personId));
+
   const [row] = await db
     .select({ n: sql<number>`COUNT(*)::int` })
     .from(clinicalSummaries)

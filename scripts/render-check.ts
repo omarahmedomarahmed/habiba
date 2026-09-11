@@ -52,7 +52,11 @@ async function main() {
    * installed before anything reaches `server-only`, and a static import runs
    * before `main()` does.
    */
-  const { db } = await import("../lib/db");
+  /*
+   * 🔴 30.1 — the CONTROL PLANE. This renders content pages, which are one
+   * copy read by every region; there is no person's data on this path.
+   */
+  const { controlDb: db } = await import("../lib/db");
 
   const write = process.argv.includes("--write");
   console.log(

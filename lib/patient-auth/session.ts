@@ -1,10 +1,13 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: same as the clinician's session: the cookie resolves before the region does.
+ */
 import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import { patientAccounts, patientAuthSessions, people } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 

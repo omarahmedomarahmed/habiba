@@ -113,7 +113,12 @@ export async function mailClinicianHistory(input: {
     reason: `Sent to ${to}, copy to ${actor.email}, ${reason}`,
   });
 
-  const { db } = await import("@/lib/db");
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/tv/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const { notifications } = await import("@/lib/db/schema");
   await db.insert(notifications).values({
     userId: input.therapistId,

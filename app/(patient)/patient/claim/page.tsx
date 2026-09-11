@@ -4,13 +4,25 @@ import { ClaimChallenge } from "@/components/patient/claim-challenge";
 import { ClaimFlow } from "@/components/patient/claim-flow";
 import { ProveHandle } from "@/components/patient/prove-handle";
 import { Card } from "@/components/ui";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { openChallenges } from "@/lib/data/challenge";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 import { mySuggestions } from "./actions";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/claim/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = { title: "Your records", robots: { index: false } };
 export const dynamic = "force-dynamic";

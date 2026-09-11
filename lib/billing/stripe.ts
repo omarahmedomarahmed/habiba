@@ -3,12 +3,24 @@ import "server-only";
 import Stripe from "stripe";
 import { and, eq, inArray } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { invoices, organizations, payableCents, stripeEvents, subscriptions } from "@/lib/db/schema";
 import { activatePurchase, createPendingPurchase, quoteCredits } from "./credits";
 import { recordCreditPurchaseInvoice, sumPayable } from "./service";
 import { env, features } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/billing/stripe.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 let stripe: Stripe | null = null;
 

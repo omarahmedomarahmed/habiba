@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+
+import type { Region } from "./region";
 import {
   bigint,
   boolean,
@@ -101,11 +103,21 @@ export const organizations = pgTable(
     /** Practice-level preferences. Was a whole `organization_settings` table. */
     settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
     stripeCustomerId: text("stripe_customer_id"),
+    /**
+     * 🔴 The jurisdiction this practice's own rows live in. 30.1, C118.
+     *
+     * `'us'` on every existing row, which is a statement of where they already
+     * are rather than a backfill. A practice's region governs its sessions,
+     * settings and payouts; a patient's chart is routed on the PATIENT (C154),
+     * because an Egyptian person seeing an American clinician is ordinary here.
+     */
+    region: text("region").$type<Region>().notNull().default("us"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
+    index("organizations_region_idx").on(t.region),
     uniqueIndex("organizations_slug_unique")
       .on(t.slug)
       .where(sql`deleted_at IS NULL`),
@@ -2507,6 +2519,17 @@ export const people = pgTable(
     avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
 
     /**
+     * 🔴 Where this person's record lives. 30.1, C118, C154.
+     *
+     * On the PERSON rather than only on the practice, and that is the whole
+     * ruling: an Egyptian patient seeing a clinician registered elsewhere is
+     * the ordinary case on this product, and routing their chart to the
+     * clinician's country would put an Egyptian person's therapy record in the
+     * wrong jurisdiction while every test passed.
+     */
+    region: text("region").$type<Region>().notNull().default("us"),
+
+    /**
      * When this person took ownership of their own record. Null means nobody
      * has, which is most of them.
      */
@@ -4465,3 +4488,34 @@ export const historyAsks = pgTable(
 );
 
 export type HistoryAsk = typeof historyAsks.$inferSelect;
+
+/**
+ * A record of processing, one row per person. PLAN.md 30.3, C118.
+ *
+ * 🔴 A table rather than a document. A policy describing a transfer is written
+ * once; a transfer happens every time somebody books a session, and Egyptian
+ * enforcement lands October 2026 asking who agreed to what and when.
+ *
+ * The **wording** is frozen into the row rather than a version number pointing
+ * at editable text. A pointer proves nothing about what somebody actually
+ * read, which is the only thing a consent record is for.
+ */
+export const crossBorderConsents = pgTable(
+  "cross_border_consents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** Where they belong, and where they are actually being served from. */
+    homeRegion: text("home_region").$type<Region>().notNull(),
+    servingRegion: text("serving_region").$type<Region>().notNull(),
+    wording: text("wording").notNull(),
+    locale: text("locale").notNull(),
+    agreedAt: timestamp("agreed_at", { withTimezone: true }).defaultNow().notNull(),
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+  },
+  (t) => [index("cross_border_consents_person_idx").on(t.personId, t.agreedAt)],
+);
+
+export type CrossBorderConsent = typeof crossBorderConsents.$inferSelect;

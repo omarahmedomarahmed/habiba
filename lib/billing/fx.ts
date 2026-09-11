@@ -1,8 +1,11 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: an exchange rate is a fact about two currencies, not about a person.
+ */
 import "server-only";
 
 import { and, desc, eq, gt } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import { fxQuotes } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
