@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/verification";
 import { activeTaxonomy } from "@/lib/data/taxonomy";
 import { uploadsConfigured } from "@/lib/uploads";
+import { IDENTITY_KINDS, identityDocumentPath } from "@/lib/documents/identity-access";
 
 export const metadata: Metadata = { title: "Verify your practice", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -38,12 +39,30 @@ export default async function OnboardingPage() {
   const overrides = await requirementOverrides();
   const requirements = documentRequirements(verification.country, overrides);
 
-  const urls: Record<string, string | null> = {
+  /*
+   * 🔴 29.1 / H14 — the reference, never the stored URL.
+   *
+   * A clinician's own passport used to be rendered into this page as a blob
+   * URL, which is a secret and therefore not access control: it works forever,
+   * for anybody who ever saw it, with no audit trail and no way to revoke it.
+   * The path below carries no secret and the route asks who is calling.
+   *
+   * Null where nothing has been uploaded, so the form still knows which
+   * documents are missing rather than offering four broken images.
+   */
+  const stored: Record<string, string | null> = {
     idFront: verification.idFrontUrl,
     idBack: verification.idBackUrl,
     licenseDoc: verification.licenseDocUrl,
     headshot: verification.headshotUrl,
   };
+
+  const urls: Record<string, string | null> = Object.fromEntries(
+    IDENTITY_KINDS.map((kind) => [
+      kind,
+      stored[kind] ? identityDocumentPath(verification.id, kind) : null,
+    ]),
+  );
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-10 sm:px-6">

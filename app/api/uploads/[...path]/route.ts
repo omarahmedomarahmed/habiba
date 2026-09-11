@@ -4,6 +4,7 @@ import { join, normalize } from "node:path";
 import { NextResponse } from "next/server";
 
 import { requireUser } from "@/lib/auth/guard";
+import { localUploadAllowed } from "@/lib/documents/identity-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,14 +39,31 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pat
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  // Signed in is the bar, not any particular role: a clinician has to be able
-  // to see the licence they just uploaded, and an admin has to review it.
-  await requireUser();
+  /*
+   * 🔴 29.1 — "signed in" was the bar, and it was the wrong one.
+   *
+   * This route said: a clinician has to be able to see the licence they just
+   * uploaded, and an admin has to review it. Both true, and neither is what
+   * `requireUser()` checks. What it actually allowed was **any** signed-in
+   * clinician reading **any other** clinician's passport by walking a path,
+   * on any deployment with the local fallback switched on.
+   *
+   * Development-only, and that is not a defence: a development-only hole is
+   * the one that gets copied into the real thing. It now asks the same
+   * question the blob route asks, from the same module, so the two cannot
+   * drift apart.
+   */
+  const actor = await requireUser();
 
   const { path } = await params;
   const rel = normalize(path.join("/"));
   if (rel.startsWith("..") || rel.includes("\0")) {
     return NextResponse.json({ error: "bad_path" }, { status: 400 });
+  }
+
+  if (!localUploadAllowed(rel, actor)) {
+    /* 404 rather than 403: a stranger learns nothing from the difference. */
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
   try {
