@@ -14,7 +14,7 @@ import { eq, like, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { supportTicketEvents, supportTickets } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
-import { reporter } from "./_verify";
+import { reporter, writesTo } from "./_verify";
 
 const { check, skipUnless, finish } = reporter();
 
@@ -33,9 +33,10 @@ async function refused(
 const TAG = "verify18r";
 
 async function main() {
-  console.log(
-    `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
-  );
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   try {
     /* ------------------------------------------- 18R.2 · a real ticket */

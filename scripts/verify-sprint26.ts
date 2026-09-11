@@ -30,7 +30,7 @@ import {
   users,
 } from "../lib/db/schema";
 import { stripComments } from "./_dashes";
-import { reporter } from "./_verify";
+import { reporter, required, writesTo } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -46,22 +46,32 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 }
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   *
+   * It was missing here, and against the purged production database this file
+   * died with a TypeError about `organizationId` rather than saying what was
+   * actually wrong: an operator had pointed it at an empty database.
+   */
+  writesTo();
 
   const { publishSummary, summariesForPerson, summaryProblem } = await import(
     "../lib/data/summaries"
   );
   const { writeJournal, journalsForPerson } = await import("../lib/data/journals");
 
-  const [therapist] = await db
+  const [row] = await db
     .select({ id: users.id, organizationId: users.organizationId })
     .from(users)
     .where(eq(users.role, "therapist"))
     .limit(1);
 
+  /* C147 — an empty database is an operator mistake, not a code failure. */
+  const therapist = required(row, "therapist to plant fixtures against");
+
   const actor = {
-    userId: therapist!.id,
-    organizationId: therapist!.organizationId,
+    userId: therapist.id,
+    organizationId: therapist.organizationId,
     role: "therapist",
   } as never;
 

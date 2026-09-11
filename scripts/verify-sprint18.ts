@@ -14,7 +14,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { type ContentBlock } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
-import { reporter } from "./_verify";
+import { reporter, writesTo } from "./_verify";
 
 const { check, skipUnless, finish } = reporter();
 
@@ -81,9 +81,10 @@ const FORBIDDEN: { pattern: RegExp; why: string }[] = [
 ];
 
 async function main() {
-  console.log(
-    `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
-  );
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   /* --------------------------------------------------- 18.2, 18.5, C72 */
 

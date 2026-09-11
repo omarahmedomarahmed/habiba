@@ -20,7 +20,7 @@ import {
   supportTickets,
   users,
 } from "../lib/db/schema";
-import { reporter } from "./_verify";
+import { reporter, writesTo } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -36,7 +36,10 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 const TAG = "verify20";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   const { readFileSync, readdirSync, writeFileSync, rmSync } = await import("node:fs");
 

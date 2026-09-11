@@ -13,7 +13,7 @@ import { and, eq, like, sql } from "drizzle-orm";
 
 import { db } from "../lib/db";
 import { locales as localesTable, uiStrings, users } from "../lib/db/schema";
-import { reporter } from "./_verify";
+import { reporter, writesTo } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -29,7 +29,10 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 const TEST_LOCALE = "zz";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   const [admin] = await db
     .select({ id: users.id, organizationId: users.organizationId, role: users.role })

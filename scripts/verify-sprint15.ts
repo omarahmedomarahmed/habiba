@@ -20,6 +20,7 @@ import {
   transcriptSegments,
   users,
 } from "../lib/db/schema";
+import { writesTo } from "./_verify";
 
 let failures = 0;
 let checks = 0;
@@ -33,7 +34,10 @@ function check(label: string, ok: boolean, detail = "") {
 const SECRET = "THE-PATIENT-MUST-NEVER-SEE-THIS";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   try {
     const [therapist] = await db

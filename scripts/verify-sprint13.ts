@@ -21,6 +21,7 @@ import {
   personClaims,
   users,
 } from "../lib/db/schema";
+import { writesTo } from "./_verify";
 
 let failures = 0;
 let checks = 0;
@@ -48,7 +49,10 @@ const PHONE_A = "+201300000131";
 const PHONE_B = "+201300000132";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   const madeAccounts: string[] = [];
   const madePeople: string[] = [];

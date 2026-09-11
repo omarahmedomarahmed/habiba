@@ -29,7 +29,7 @@ import {
   users,
 } from "../lib/db/schema";
 import { stripComments } from "./_dashes";
-import { reporter } from "./_verify";
+import { reporter, required, writesTo } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -45,7 +45,14 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 }
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   *
+   * It was missing here, and against the purged production database this file
+   * died with a TypeError about `organizationId` rather than saying what was
+   * actually wrong: an operator had pointed it at an empty database.
+   */
+  writesTo();
 
   const { createInvite, redeemInvite, askForHistory, answerAsk, invitesForPerson } = await import(
     "../lib/data/portability"
@@ -56,11 +63,14 @@ async function main() {
    * that borrows "the first therapist" is a verifier whose result depends on
    * which rows happen to exist (the second lesson of C93).
    */
-  const [reference] = await db
+  const [row] = await db
     .select({ organizationId: users.organizationId })
     .from(users)
     .where(eq(users.role, "therapist"))
     .limit(1);
+
+  /* C147 — an empty database is an operator mistake, not a code failure. */
+  const reference = required(row, "therapist whose organisation the fixtures can join");
 
   let personId: string | null = null;
   let accountId: string | null = null;
@@ -71,7 +81,7 @@ async function main() {
     const [approved] = await db
       .insert(users)
       .values({
-        organizationId: reference!.organizationId,
+        organizationId: reference.organizationId,
         email: `${TAG}-approved@example.test`,
         firstName: `${TAG}-Approved`,
         lastName: "Clinician",
@@ -83,7 +93,7 @@ async function main() {
 
     await db.insert(therapistVerifications).values({
       userId: approvedId,
-      organizationId: reference!.organizationId,
+      organizationId: reference.organizationId,
       state: "approved",
       licenseBody: "Test register",
       licenseNumber: "TR-1",
@@ -92,7 +102,7 @@ async function main() {
     const [unverified] = await db
       .insert(users)
       .values({
-        organizationId: reference!.organizationId,
+        organizationId: reference.organizationId,
         email: `${TAG}-waiting@example.test`,
         firstName: `${TAG}-Waiting`,
         lastName: "Clinician",
@@ -104,7 +114,7 @@ async function main() {
 
     await db.insert(therapistVerifications).values({
       userId: unverifiedId,
-      organizationId: reference!.organizationId,
+      organizationId: reference.organizationId,
       state: "submitted",
     });
 
@@ -129,7 +139,7 @@ async function main() {
           db.insert(historyGrants).values({
             personId: personId!,
             therapistUserId: unverifiedId!,
-            organizationId: reference!.organizationId,
+            organizationId: reference.organizationId,
             status: "granted",
             shape: "open",
           }),
@@ -149,7 +159,7 @@ async function main() {
       .values({
         personId: personId!,
         therapistUserId: unverifiedId!,
-        organizationId: reference!.organizationId,
+        organizationId: reference.organizationId,
         status: "pending",
         requestedAt: new Date(),
       })
@@ -216,7 +226,7 @@ async function main() {
     );
 
     const redeemed = await redeemInvite(
-      { userId: approvedId!, organizationId: reference!.organizationId, role: "therapist" } as never,
+      { userId: approvedId!, organizationId: reference.organizationId, role: "therapist" } as never,
       minted.ok ? minted.invite.code : "AAA-AAA",
     );
 
@@ -252,7 +262,7 @@ async function main() {
         await redeemInvite(
           {
             userId: unverifiedId!,
-            organizationId: reference!.organizationId,
+            organizationId: reference.organizationId,
             role: "therapist",
           } as never,
           minted.ok ? minted.invite.code : "AAA-AAA",
@@ -309,7 +319,7 @@ async function main() {
       .returning({ id: historyAsks.id });
 
     const silent = await answerAsk(
-      { userId: approvedId!, organizationId: reference!.organizationId, role: "therapist" } as never,
+      { userId: approvedId!, organizationId: reference.organizationId, role: "therapist" } as never,
       { askId: planted!.id, decision: "declined", reason: "  " },
     );
 
@@ -320,7 +330,7 @@ async function main() {
     );
 
     const answered = await answerAsk(
-      { userId: approvedId!, organizationId: reference!.organizationId, role: "therapist" } as never,
+      { userId: approvedId!, organizationId: reference.organizationId, role: "therapist" } as never,
       {
         askId: planted!.id,
         decision: "declined",

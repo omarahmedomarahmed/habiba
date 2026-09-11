@@ -17,6 +17,7 @@ import { and, eq, like, sql } from "drizzle-orm";
 
 import { db } from "../lib/db";
 import { claimAttempts, patientAccounts, patients, people, personClaims, users } from "../lib/db/schema";
+import { writesTo } from "./_verify";
 
 let failures = 0;
 let checks = 0;
@@ -39,7 +40,10 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 const P = (n: number) => `+2013100${String(n).padStart(5, "0")}`;
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   try {
     const [therapist] = await db

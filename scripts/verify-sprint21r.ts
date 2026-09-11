@@ -26,7 +26,7 @@ import {
   readLiveSite,
 } from "./check-live";
 import { renderMarkup, stubModules } from "./_render";
-import { reporter } from "./_verify";
+import { reporter, writesTo } from "./_verify";
 import { stripComments, undeferredContentReads } from "./_scan-deferrals";
 import type { LivePage } from "./_content-ready";
 
@@ -50,9 +50,10 @@ const VERIFIERS = readdirSync("scripts").filter(
 );
 
 async function main() {
-  console.log(
-    `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
-  );
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   /*
    * This script renders real components, so it runs WITHOUT the `react-server`
