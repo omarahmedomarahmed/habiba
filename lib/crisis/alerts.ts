@@ -91,6 +91,24 @@ const CRISIS_PHRASES = [
   "sleep and not wake up",
   "not wake up again",
   "never wake up",
+  /*
+   * 🔴 32.x — perceived burdensomeness, which the list did not carry in EITHER
+   * language until Arabic cases exposed the gap.
+   *
+   * "I am a burden on my family" is one of the most consistently reported
+   * antecedents there is, and the English list had no phrase for it: the
+   * Arabic misses were what made somebody look. Added in both languages, as a
+   * concept rather than as a match for a test sentence, which is the line this
+   * list has to keep. Collocated with a person, never bare: a cost, a project
+   * and a rucksack are all burdens too.
+   */
+  "burden on my family",
+  "burden to my family",
+  "burden on everyone",
+  "burden to everyone",
+  "burden on my kids",
+  "burden on my children",
+  "better off without me",
   "hurt someone",
   "kill him",
   "kill her",
@@ -148,6 +166,37 @@ const CRISIS_PHRASES = [
   "تعبت من الحياه",
   "افضل لو مت",
   "الافضل لو مت",
+
+  /*
+   * 🔴 32.x — the register people actually use, in dialect.
+   *
+   * The first Arabic list was the formal phrasing: "أريد أن أموت". Nobody in
+   * distress writes like that. These are the three shapes the founder's own
+   * sentences took — cannot carry on, a burden on my family, no use in my life
+   * — and each is the **parity** of a concept the English list already had or
+   * has just gained, not a phrase reverse-engineered from a test case. That
+   * distinction is the whole discipline here: a list tuned to its fixture
+   * scores well and catches nobody.
+   */
+  "مش قادر اكمل",
+  "مش قادره اكمل",
+  "مش قادر استمر",
+  "ما عدت اقدر اكمل",
+  "لا استطيع الاستمرار",
+  "لا استطيع ان اكمل",
+  "عبء علي اهلي",
+  "عبء علي عائلتي",
+  "عبء علي اسرتي",
+  "عبء عليهم",
+  "عبء علي الناس",
+  "عبء علي امي",
+  "عبء علي ولادي",
+  "مفيش فايده من حياتي",
+  "لا فايده من حياتي",
+  "مفيش فايده مني",
+  "لا معني لحياتي",
+  "مفيش معني لحياتي",
+  "حياتي مالهاش لازمه",
 ] as const;
 
 /**

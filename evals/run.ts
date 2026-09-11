@@ -39,7 +39,16 @@ type Suite = {
 const SUITES: Suite[] = [risk, attribution, notes, speech];
 
 
-/** One measurement per key, averaged across takes, keeping the last detail. */
+/**
+ * One measurement per key, averaged across takes.
+ *
+ * 🔴 The details are **unioned**, not taken from the last take. A note that
+ * invented a medication in one run of three is a fabrication that happened,
+ * and printing the last run's "no planted term appeared in any note" beside an
+ * average of 1.9% would hide the one thing a reader needs: which term, in
+ * which case. An average is where a zero hides (C159), and the same is true in
+ * reverse.
+ */
 function mean(takes: Measurement[][]): Measurement[] {
   const first = takes[0] ?? [];
   return first.map((measurement, index) => {
@@ -47,9 +56,15 @@ function mean(takes: Measurement[][]): Measurement[] {
     if (values.length > 1) {
       SPREADS.set(measurement.key, Math.max(...values) - Math.min(...values));
     }
+
+    const details = [
+      ...new Set(takes.map((take) => take[index]?.detail).filter(Boolean) as string[]),
+    ];
+
     return {
       ...(takes[takes.length - 1]?.[index] ?? measurement),
       value: values.reduce((a, b) => a + b, 0) / values.length,
+      detail: details.length > 1 ? details.map((d, i) => `run ${i + 1}: ${d}`).join(" | ") : details[0],
     };
   });
 }

@@ -92,6 +92,15 @@ function hreflangs(html: string): Record<string, string> {
   return found;
 }
 
+
+/** Every `<loc>` in a sitemap, plus the hrefs of its alternates. */
+function sitemapUrls(page: Page): Set<string> {
+  const urls = new Set<string>();
+  for (const match of page.html.matchAll(/<loc>([^<]+)<\/loc>/g)) urls.add(match[1]!);
+  for (const match of page.html.matchAll(/<xhtml:link[^>]+href="([^"]+)"/g)) urls.add(match[1]!);
+  return urls;
+}
+
 function canonical(html: string): string | null {
   const tag = /<link[^>]+rel="canonical"[^>]*>/.exec(html)?.[0];
   return tag ? (/href="([^"]+)"/.exec(tag)?.[1] ?? null) : null;
@@ -240,6 +249,63 @@ async function main() {
         (canonical(arabic.html) ?? "").endsWith("/ar/pricing") &&
           (canonical(english.html) ?? "").endsWith("/pricing"),
         `${canonical(arabic.html) ?? "none"} / ${canonical(english.html) ?? "none"}`,
+      );
+
+      /*
+       * 🔴 C162 — the tag has to name the host that served it.
+       *
+       * ## The defect this was written for
+       *
+       * On the day sprint 31 went live, every canonical and every hreflang on
+       * the production site pointed at `habiba-zeta.vercel.app`, because
+       * `APP_URL` in the deployment named a different domain from the one
+       * people reach. The code was right and the environment was wrong, so the
+       * product spent a day telling Google that the Arabic pages it had just
+       * built live somewhere else. Nothing in the repository could see it:
+       * every unit test passes on a wrong hostname, and a canonical that ends
+       * in `/ar/pricing` — which is all the check above asserted — is correct
+       * on any domain in the world.
+       *
+       * Only an HTTP check can catch this, because it is the only kind that
+       * knows **which host it asked**. That was the argument for writing this
+       * verifier over the wire in the first place; the first version simply did
+       * not follow it far enough.
+       *
+       * Asserted on every alternate as well as the canonical, since a sitemap
+       * and a set of hreflangs that agree with each other and disagree with
+       * reality is exactly what shipped.
+       */
+      const expectedHost = new URL(BASE).host;
+      const hosts = [
+        ["canonical", canonical(arabic.html)],
+        ...Object.entries(langs),
+      ] as [string, string | null][];
+      const wrongHost = hosts.filter(
+        ([, href]) => !href || new URL(href, BASE).host !== expectedHost,
+      );
+
+      check(
+        "🔴 C162 every canonical and hreflang names the host that served the page",
+        wrongHost.length === 0,
+        wrongHost.length === 0
+          ? `${hosts.length} tags, all on ${expectedHost}`
+          : `served by ${expectedHost}, tags point at ${wrongHost.map(([what, href]) => `${what} → ${href ?? "nothing"}`).join(", ")}`,
+      );
+
+      /*
+       * The sitemap is prerendered, so its host is baked at BUILD time while
+       * the canonical above is rendered per request. Changing `APP_URL` and
+       * restarting therefore fixes the tags and leaves the sitemap stale until
+       * a rebuild — which is worth knowing when this check passes and the one
+       * above does not.
+       */
+      const sitemapHosts = [...sitemapUrls(await get("/sitemap.xml"))].filter(
+        (url) => new URL(url, BASE).host !== expectedHost,
+      );
+      check(
+        "🔴 C162 …and so does every URL in the sitemap",
+        sitemapHosts.length === 0,
+        sitemapHosts.length === 0 ? `all on ${expectedHost}` : `wrong: ${sitemapHosts.slice(0, 3).join(", ")}`,
       );
 
       /*

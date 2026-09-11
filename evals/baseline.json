@@ -8,17 +8,17 @@
       "tolerance": 0.06
     },
     "attribution.refused": {
-      "value": 0.03809523809523809,
+      "value": 0.047619047619047616,
       "direction": "down",
       "tolerance": 0.1
     },
     "attribution.straddles": {
-      "value": 2,
+      "value": 3,
       "direction": "up",
       "tolerance": 0
     },
     "notes.ar.coverage": {
-      "value": 0.9333333333333332,
+      "value": 0.7999999999999999,
       "direction": "up",
       "tolerance": 0.2
     },
@@ -28,7 +28,7 @@
       "tolerance": 0
     },
     "notes.coverage": {
-      "value": 0.8444444444444446,
+      "value": 0.8000000000000002,
       "direction": "up",
       "tolerance": 0.15
     },
@@ -38,7 +38,7 @@
       "tolerance": 0
     },
     "notes.sections": {
-      "value": 0.9074074074074074,
+      "value": 0.8777777777777778,
       "direction": "up",
       "tolerance": 0.12
     },
@@ -48,27 +48,27 @@
       "tolerance": 0.06
     },
     "risk.sensitivity": {
-      "value": 0.8461538461538461,
+      "value": 0.8823529411764706,
       "direction": "up",
       "tolerance": 0.05
     },
     "risk.sensitivity.ar": {
-      "value": 0.8,
-      "direction": "up",
-      "tolerance": 0.05
-    },
-    "risk.sensitivity.en": {
       "value": 0.875,
       "direction": "up",
       "tolerance": 0.05
     },
+    "risk.sensitivity.en": {
+      "value": 0.8888888888888888,
+      "direction": "up",
+      "tolerance": 0.05
+    },
     "risk.specificity": {
-      "value": 0.7272727272727273,
+      "value": 0.7692307692307693,
       "direction": "up",
       "tolerance": 0.05
     },
     "speech.wer": {
-      "value": 0.022598870056497175,
+      "value": 0.03389830508474576,
       "direction": "down",
       "tolerance": 0.04
     },
@@ -78,7 +78,7 @@
       "tolerance": 0.06
     },
     "speech.wer.detected": {
-      "value": 0.02824858757062147,
+      "value": 0.01694915254237288,
       "direction": "down",
       "tolerance": 0.06
     }

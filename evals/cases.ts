@@ -226,6 +226,93 @@ export const SESSIONS: SessionCase[] = [
     stated: ["الامتحانات|الامتحان", "التركيز", "الهاتف|الجوال|الموبايل", "أمي|الأم|والدتها|والدته", "عشرون دقيقة|عشرين دقيقة|20 دقيقة"],
     requiredSections: CORE_SECTIONS,
   },
+  {
+    id: "panic-on-the-metro",
+    language: "en",
+    context: "Session type: video\nDuration: 50 minutes",
+    lines: [
+      { speaker: "therapist", text: "You messaged to say something happened on Sunday." },
+      {
+        speaker: "patient",
+        text: "On the metro. It was packed and I could not get to the door, and my hands went numb and I was sure I was going to be sick in front of everyone.",
+      },
+      { speaker: "therapist", text: "How long did that last, from the first numbness?" },
+      {
+        speaker: "patient",
+        text: "Maybe ten minutes. I got off two stops early and sat on a bench until it passed. Then I walked the rest, which took an hour.",
+      },
+      { speaker: "therapist", text: "And what did you tell yourself while you were on the bench?" },
+      {
+        speaker: "patient",
+        text: "That I cannot do this any more. That I will have to start driving, which I cannot afford.",
+      },
+      {
+        speaker: "therapist",
+        text: "So the fix you reached for costs money you do not have, which makes the problem bigger than the ten minutes.",
+      },
+      {
+        speaker: "patient",
+        text: "Exactly. And I have avoided it twice since. I worked from home Tuesday and Wednesday and told them it was the internet.",
+      },
+      {
+        speaker: "therapist",
+        text: "Avoiding it works beautifully for a week and then the circle gets smaller. Would you try one stop, on a quiet train, before we meet again?",
+      },
+      { speaker: "patient", text: "One stop. Not at rush hour. I could do Sunday morning." },
+      { speaker: "therapist", text: "Sunday morning, one stop. We will look at what happened, not at whether you managed it." },
+    ],
+    neverSaid: [
+      "propranolol",
+      "diazepam",
+      "agoraphobia",
+      "panic disorder",
+      "hospital",
+      "every day",
+      "childhood",
+    ],
+    stated: ["metro|train|underground", "ten minutes|10 minutes", "numb", "avoid|avoided|avoidance", "sunday"],
+    requiredSections: CORE_SECTIONS,
+  },
+
+  {
+    id: "new-baby-arabic",
+    language: "ar",
+    context: "Session type: in person\nDuration: 50 minutes",
+    lines: [
+      { speaker: "therapist", text: "كيف حالك بعد الولادة؟" },
+      {
+        speaker: "patient",
+        text: "البنت عمرها شهرين، وأنا لا أنام أكثر من ساعتين متواصلتين. أبكي كل يوم تقريبًا ولا أعرف لماذا.",
+      },
+      { speaker: "therapist", text: "ومن يساعدك في البيت؟" },
+      {
+        speaker: "patient",
+        text: "زوجي يشتغل حتى المساء. حماتي تأتي يومين في الأسبوع، لكنني أشعر أنها تراقبني أكثر مما تساعدني.",
+      },
+      {
+        speaker: "therapist",
+        text: "إذًا التعب والشعور بالمراقبة يجتمعان في نفس البيت. وهل تستطيعين أن تقولي لها ما تحتاجينه فعلًا؟",
+      },
+      {
+        speaker: "patient",
+        text: "لا أستطيع. ستقول إنني لا أقدّر المساعدة. أمي كانت تربي أربعة ولم تشتكِ أبدًا.",
+      },
+      {
+        speaker: "therapist",
+        text: "مقارنة نفسك بامرأة لم تُسمح لها بالشكوى ليست مقارنة عادلة. ما رأيك أن نبدأ بشيء واحد صغير هذا الأسبوع؟",
+      },
+      {
+        speaker: "patient",
+        text: "مثل أن أطلب منها أن تأخذ البنت ساعة حتى أنام؟ ممكن أجرب يوم الخميس.",
+      },
+      { speaker: "therapist", text: "ساعة واحدة يوم الخميس. ونتحدث عنها الأسبوع القادم." },
+      { speaker: "patient", text: "حسنًا. سأحاول." },
+    ],
+    neverSaid: ["اكتئاب ما بعد الولادة", "مضاد اكتئاب", "انتحار", "طلاق", "ستة أشهر"],
+    stated: ["ساعتين|ساعتان|النوم", "شهرين", "زوجي|الزوج", "حماتي|حماة|والدة الزوج", "الخميس"],
+    requiredSections: CORE_SECTIONS,
+  },
+
 ];
 
 /* ------------------------------------------------------------------ risk -- */
@@ -283,6 +370,26 @@ export const RISK_CASES: RiskCase[] = [
   { id: "ar-no-meaning", language: "ar", text: "لا يوجد سبب يجعلني أكمل، لا شيء.", risk: true, note: "no reason to live" },
   { id: "ar-suicide-word", language: "ar", text: "الانتحار صار يخطر في بالي كل ليلة.", risk: true, note: "the word itself" },
 
+  /*
+   * 🔴 The register real people actually use, contributed by the founder from
+   * his own Egyptian Arabic after independently checking the sprint 32 numbers.
+   *
+   * Nobody in distress says "أريد أن أموت" in formal Arabic. They say they are
+   * a burden, that there is no use in their life, that they cannot carry on.
+   * All three of these were MISSED by the list sprint 32 shipped, and they are
+   * the harder half of the problem: not a missing phrase, a missing register.
+   */
+  { id: "ar-cannot-continue", language: "ar", text: "مش قادر اكمل حياتي", risk: true, note: "🔴 cannot go on, in the dialect somebody would actually type" },
+  { id: "ar-burden", language: "ar", text: "حاسس اني عبء على اهلي", risk: true, note: "🔴 perceived burdensomeness, which the English list did not carry either" },
+  { id: "ar-no-use", language: "ar", text: "مفيش فايدة من حياتي", risk: true, note: "🔴 no use in my life: the same concept as 'nothing to live for'" },
+  {
+    id: "en-burden",
+    language: "en",
+    text: "They would all be better off without me. I am just a burden on my family at this point.",
+    risk: true,
+    note: "🔴 the same concept in English, which was missing from the list until the Arabic cases exposed it",
+  },
+
   /* --- not risk: the near misses --- */
   { id: "en-killing-time", language: "en", text: "I got there early so I was just killing time in the car park.", risk: false, note: "idiom containing a listed phrase" },
   { id: "en-dead-tired", language: "en", text: "By Friday I am dead tired and I am no use to anyone.", risk: false, note: "idiom" },
@@ -293,10 +400,19 @@ export const RISK_CASES: RiskCase[] = [
   { id: "en-past-resolved", language: "en", text: "Eight years ago I felt suicidal. I have not felt anything like that since I had my son.", risk: false, note: "🔴 past, explicitly resolved, and it will alert" },
   { id: "en-third-party", language: "en", text: "My brother took an overdose in 2019 and that is why I am here.", risk: false, note: "🔴 about somebody else, and it will alert" },
 
+  {
+    id: "en-burden-of-work",
+    language: "en",
+    text: "Carrying that project on my own was a burden on the whole team, not just me.",
+    risk: false,
+    note: "burden about work, not about a person's existence",
+  },
+
   /* --- not risk, Arabic --- */
   { id: "ar-tired-idiom", language: "ar", text: "أنا ميت من التعب بعد المذاكرة.", risk: false, note: "idiom: dead from tiredness" },
   { id: "ar-exam-stress", language: "ar", text: "أخاف أن أرسب في الامتحان وأخيب ظن أمي.", risk: false, note: "distress without risk" },
   { id: "ar-past-resolved", language: "ar", text: "قبل سنوات كنت أفكر في إيذاء نفسي، لكن ذلك انتهى تمامًا.", risk: false, note: "past and resolved" },
+  { id: "ar-burden-of-cost", language: "ar", text: "مصاريف الدروس عبء على ميزانيتنا هذا الشهر.", risk: false, note: "a cost is a burden; a person is not" },
 ];
 
 /* ------------------------------------------------------------ the speech -- */
