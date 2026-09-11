@@ -24,12 +24,13 @@
  */
 import { readFileSync } from "node:fs";
 
+import { ar, en } from "../lib/i18n/messages";
 import { dateTag, intlTag, localeTag } from "../lib/i18n/config";
 import { formatCalendarDate, formatDay, formatWeekday, formatWhen } from "../lib/scheduling/tz";
 import { formatDate, formatDateTime, formatLongDate } from "../lib/utils";
 import { stripComments } from "./_dashes";
 import { reporter } from "./_verify";
-import { walk } from "./_i18n-coverage";
+import { bySurface, scanI18n, walk } from "./_i18n-coverage";
 
 const { check, finish } = reporter();
 
@@ -69,13 +70,13 @@ function main() {
 
   /* ---------------------------------------------------- 37L.9 · the reading */
 
-  const en = formatDay(INSTANT, CAIRO, "en");
-  const ar = formatDay(INSTANT, CAIRO, "ar");
+  const dayEn = formatDay(INSTANT, CAIRO, "en");
+  const dayAr = formatDay(INSTANT, CAIRO, "ar");
 
   check(
     "37L.9 an Arabic reader's date is in Arabic",
-    ar !== en && ARABIC_LETTER.test(ar) && !ARABIC_LETTER.test(en),
-    `en "${en}" · ar "${ar}"`,
+    dayAr !== dayEn && ARABIC_LETTER.test(dayAr) && !ARABIC_LETTER.test(dayEn),
+    `en "${dayEn}" · ar "${dayAr}"`,
   );
 
   /*
@@ -87,11 +88,11 @@ function main() {
   const arProse = formatCalendarDate(INSTANT, CAIRO, "ar");
   check(
     "37L.9 Arabic dates carry Western digits",
-    !ARABIC_INDIC_DIGIT.test(ar) &&
+    !ARABIC_INDIC_DIGIT.test(dayAr) &&
       !ARABIC_INDIC_DIGIT.test(arProse) &&
-      /12/.test(ar) &&
+      /12/.test(dayAr) &&
       /2026/.test(arProse),
-    `${ar} · ${arProse}`,
+    `${dayAr} · ${arProse}`,
   );
 
   /*
@@ -105,8 +106,8 @@ function main() {
    */
   check(
     "37L.9 English dates stay in day-month order (dateTag is not localeTag)",
-    dateTag("en") === "en-GB" && localeTag("en") === "en-US" && /12 September/.test(en),
-    `dateTag(en)=${dateTag("en")} localeTag(en)=${localeTag("en")} · "${en}"`,
+    dateTag("en") === "en-GB" && localeTag("en") === "en-US" && /12 September/.test(dayEn),
+    `dateTag(en)=${dateTag("en")} localeTag(en)=${localeTag("en")} · "${dayEn}"`,
   );
 
   check(
@@ -161,6 +162,81 @@ function main() {
     "37L.9 CONTROL: the guard catches a planted offender",
     /new Intl\.DateTimeFormat|toLocaleDateString|toLocaleTimeString/.test(planted),
     "the scan is a scan, not a spelling of a hope",
+  );
+
+  /* ------------------------------------------------ 37L.2 · the portal */
+
+  const surfaces = bySurface(scanI18n());
+
+  /*
+   * 🔴 The portal's 105, and what the last one is.
+   *
+   * Not "fewer than before": a number with a name on it. The one that remains
+   * is the brand in the sidebar, which is a name rather than a sentence, and
+   * saying so here is what stops the next person reading "1" as "nearly done"
+   * when it might have been one more English heading.
+   */
+  check(
+    "37L.2 the therapist portal's pages are translated",
+    surfaces.portal <= 1,
+    `portal ${surfaces.portal} (was 105); the remainder is the brand name in the sidebar`,
+  );
+
+  /*
+   * 🔴 The clinical vocabulary, in both languages and actually different.
+   *
+   * The founder's ruling: clinical Arabic is a different register, and a
+   * clinician reading a mistranslated clinical term trusts the product less,
+   * not more. An Arabic value identical to its English one is a key somebody
+   * skipped, which is the one failure mode a `Record<MessageKey, string>`
+   * cannot catch.
+   */
+  const clinical = Object.keys(en).filter(
+    (key) => key.startsWith("spec.") || key.startsWith("lang."),
+  );
+  const untranslated = clinical.filter(
+    (key) => ar[key as keyof typeof ar] === en[key as keyof typeof en],
+  );
+
+  check(
+    "37L.2 every language and specialty is written in Arabic, not left in English",
+    clinical.length >= 40 && untranslated.length === 0,
+    untranslated.length === 0
+      ? `${clinical.length} clinical terms, all in Arabic`
+      : untranslated.join(", "),
+  );
+
+  /*
+   * 🔴 The defect a translation could have caused, guarded as a negative.
+   *
+   * The chip groups used one string as the checkbox value, the stored row, the
+   * allowlist entry and the words on screen. Translating the words in place
+   * would have saved "القلق" as a specialty the allowlist does not contain, and
+   * the radar would have stopped matching that clinician to anybody looking
+   * for anxiety. A translation that changes what a form submits is worse than
+   * no translation.
+   */
+  const chipFiles = [
+    "components/onboarding/verification-form.tsx",
+    "components/radar/therapist-console.tsx",
+  ];
+  const chipOffenders = chipFiles.filter((file) => {
+    const source = stripComments(readFileSync(file, "utf8"));
+    return /value=\{option\}/.test(source) || /options: readonly string\[\]/.test(source);
+  });
+
+  check(
+    "37L.2 a taxonomy chip submits its code, never its translated label",
+    chipOffenders.length === 0,
+    chipOffenders.length === 0
+      ? "verification form and radar console both take { code, label }"
+      : chipOffenders.join(", "),
+  );
+
+  check(
+    "37L.2 CONTROL: the chip guard catches a planted offender",
+    /value=\{option\}/.test(stripComments('<input name="x" value={option} />')),
+    "the scan is a scan",
   );
 
   finish("sprint 37L.2");
