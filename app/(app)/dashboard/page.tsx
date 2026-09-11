@@ -10,11 +10,14 @@ import { getRadarProfile } from "@/lib/data/radar";
 import { countOpenDrafts, listSessions } from "@/lib/data/sessions";
 import { formatUsd } from "@/lib/billing/plans";
 import { fullName, relativeDay } from "@/lib/utils";
+import { formatDay, resolveZone } from "@/lib/scheduling/tz";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Home", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [sessions, drafts, billing, alerts, radar] = await Promise.all([
@@ -31,7 +34,13 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-2xl">
       <div className="px-4 pt-6 pb-4 sm:px-6">
         <p className="text-sm text-slate-500">
-          {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+          {/*
+            🔴 37L.9 — this was `toLocaleDateString(undefined, …)`, which is C84
+            twice over: `undefined` asks the *runtime* for the language, and no
+            `timeZone` asks it for the zone. On Vercel the runtime is UTC, so a
+            clinician in Dubai opening this at 01:00 was greeted with yesterday.
+          */}
+          {formatDay(new Date(), resolveZone(actor.timezone).name, locale)}
         </p>
         <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900">
           Hello, {actor.firstName}
@@ -172,7 +181,7 @@ export default async function DashboardPage() {
                           "Unnamed patient"}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                       </p>
                     </div>
                     {session.status === "in_progress" ? <Badge tone="red">Live</Badge> : null}

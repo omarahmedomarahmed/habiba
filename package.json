@@ -38,6 +38,7 @@
     "test:diarisation": "node --import tsx --conditions=react-server --test tests/diarisation.test.ts",
     "test:risk": "node --import tsx --conditions=react-server --test tests/risk-level.test.ts",
     "test:ingest": "node --import tsx --test tests/ingest.test.ts",
+    "verify:sprint37l2": "node --import tsx --conditions=react-server scripts/verify-sprint37l2.ts",
     "verify:sprint37l": "node --import tsx --conditions=react-server scripts/verify-sprint37l.ts",
     "verify:sprint37r": "node --import tsx --conditions=react-server scripts/verify-sprint37r.ts",
     "verify:sprint37": "node --import tsx --conditions=react-server scripts/verify-sprint37.ts",

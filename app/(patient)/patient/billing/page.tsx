@@ -109,7 +109,7 @@ export default async function PatientBillingPage() {
           </p>
           <p className="mt-1 text-xs leading-relaxed text-teal-800">
             {credits[0]?.reason} It comes off your next session automatically, and it lasts until{" "}
-            {formatDate(credits[0]?.expiresAt ?? null, actor.timezone)}.
+            {formatDate(credits[0]?.expiresAt ?? null, actor.timezone, locale)}.
           </p>
         </Card>
       ) : null}
@@ -137,7 +137,7 @@ export default async function PatientBillingPage() {
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {formatDate(row.at, actor.timezone)}
+                  {formatDate(row.at, actor.timezone, locale)}
                   {row.presented !== null && row.rateMicro
                     ? ` · charged at ${(row.rateMicro / 1_000_000).toFixed(2)} ${(row.presentedCurrency ?? "").toUpperCase()} to the ${(row.currency ?? "usd").toUpperCase()}`
                     : ""}

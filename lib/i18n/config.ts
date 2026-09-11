@@ -61,3 +61,40 @@ export const LOCALE_NAMES: Record<Locale, string> = {
 export function localeTag(locale: Locale): string {
   return locale === "ar" ? "ar-AE-u-nu-latn" : "en-US";
 }
+
+/**
+ * The tag a **date** is formatted with. 37L.9.
+ *
+ * `en-GB`, not `en-US`, and the difference is not cosmetic: `12 September` and
+ * `September 12` are read by different people, and everybody this product is
+ * built for reads the first one. Every English date in the product had always
+ * been `en-GB`; routing dates through `localeTag` to get Arabic silently
+ * flipped all of them to American order, and the timezone test caught it in
+ * the same commit that caused it.
+ *
+ * It is separate from `localeTag` because money is the other way round:
+ * `formatMoney(2000, "USD", "en-GB")` is `US$20.00`, which is right for a
+ * British reader and wrong on a screen where every price is in dollars. One
+ * tag cannot be correct for both, so there are two, and each says what it is
+ * for.
+ */
+export function dateTag(locale: Locale): string {
+  return locale === "ar" ? "ar-AE-u-nu-latn" : "en-GB";
+}
+
+/**
+ * The same rule for a language that is not one of ours. 37L.9.
+ *
+ * The product has two locales; the *session report email* has four, because it
+ * follows the language the session was held in (`lib/mail.ts`), and a French
+ * sentence with an English date in the middle of it is worse than either. So
+ * arbitrary BCP-47 tags reach `Intl` here rather than being flattened to `en`,
+ * and the digits rule above is applied to any Arabic tag on the way through —
+ * which is the part a call site would otherwise have to remember, and the
+ * reason this is a function and not a comment.
+ */
+export function intlTag(language: string): string {
+  const base = language.split("-")[0]?.toLowerCase();
+  if (base !== "ar") return language;
+  return language.includes("-u-nu-") ? language : `${language}-u-nu-latn`;
+}

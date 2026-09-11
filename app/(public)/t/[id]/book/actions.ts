@@ -149,7 +149,7 @@ export async function book(input: {
    * trust while deciding when to leave the house.
    */
   const zone = resolveZone(input.timezone, result.therapistTimezone);
-  const when = formatWhenWithCaveat(result.startsAt, zone);
+  const when = formatWhenWithCaveat(result.startsAt, zone, "en");
 
   const delivery = await notify(
     { email, phone, timezone: input.timezone ?? null },

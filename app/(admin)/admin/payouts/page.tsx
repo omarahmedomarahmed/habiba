@@ -112,7 +112,7 @@ export default async function PayoutsPage() {
             overdue: row.overdue,
             needsTwoPeople: row.needsTwoPeople,
             owned: row.ownerUserId !== null,
-            requestedAtLabel: formatDate(row.requestedAt, actor.timezone),
+            requestedAtLabel: formatDate(row.requestedAt, actor.timezone, "en"),
             proofUrl: row.proofUrl,
           }))}
           automated={automated.map((row) => ({
@@ -120,7 +120,7 @@ export default async function PayoutsPage() {
             therapistName: [row.firstName, row.lastName].filter(Boolean).join(" "),
             amountCents: row.amountCents,
             status: row.status,
-            createdAtLabel: formatDate(row.createdAt, actor.timezone),
+            createdAtLabel: formatDate(row.createdAt, actor.timezone, "en"),
           }))}
         />
       </div>

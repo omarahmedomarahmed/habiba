@@ -33,7 +33,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PatientSummaryPage() {
   const actor = await requirePatient();
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   const versions = await summariesForPerson(actor.personId);
 
   return (
@@ -71,7 +71,7 @@ export default async function PatientSummaryPage() {
                   <p className="text-xs text-slate-400">
                     {t("psummary.version", {
                       n: version.version,
-                      date: formatDate(version.approvedAt, actor.timezone),
+                      date: formatDate(version.approvedAt, actor.timezone, locale),
                     })}
                   </p>
                 </div>

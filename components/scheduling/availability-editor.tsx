@@ -7,6 +7,8 @@ import { CalendarDays, Trash2, X } from "lucide-react";
 import { cancel, publish, withdraw } from "@/app/(app)/on-call/schedule-actions";
 import { Badge, Card } from "@/components/ui";
 import { byDayIn, dayKey, formatTime, formatWeekday, zoneLabel } from "@/lib/scheduling/tz";
+import { useLocale } from "@/lib/i18n/client";
+import type { Locale } from "@/lib/i18n/config";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 
 /**
@@ -74,13 +76,15 @@ export function AvailabilityEditor({
    * browser, so it is a real answer by the time it matters.
    */
   const browserZone = useReaderZone();
+  const locale = useLocale();
   const zone = timezone ?? adopted ?? browserZone ?? "UTC";
 
   const grouped = byDayIn(
     slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
     zone,
+    locale,
   );
-  const nextTwoWeeks = upcomingDays(14, zone);
+  const nextTwoWeeks = upcomingDays(14, zone, locale);
 
   return (
     <Card>
@@ -282,7 +286,11 @@ export function AvailabilityEditor({
  * so the old version offered a first chip labelled with a day that had already
  * ended where the clinician was sitting.
  */
-function upcomingDays(count: number, zone: string): { iso: string; label: string }[] {
+function upcomingDays(
+  count: number,
+  zone: string,
+  locale: Locale,
+): { iso: string; label: string }[] {
   const out: { iso: string; label: string }[] = [];
   const seen = new Set<string>();
   const start = Date.now();
@@ -297,7 +305,7 @@ function upcomingDays(count: number, zone: string): { iso: string; label: string
 
     out.push({
       iso,
-      label: formatWeekday(at, zone),
+      label: formatWeekday(at, zone, locale),
     });
   }
   return out;

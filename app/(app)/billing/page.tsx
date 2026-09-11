@@ -12,6 +12,7 @@ import { billingSummary, listInvoices, usageBySession } from "@/lib/billing/serv
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { features } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Billing", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default async function BillingPage({
 }: {
   searchParams: Promise<{ checkout?: string }>;
 }) {
+  const { locale } = await getI18n();
   const actor = await requireUser();
   const { checkout } = await searchParams;
 
@@ -72,7 +74,7 @@ export default async function BillingPage({
           currentTierKey={summary.tier.key}
           creditsRemaining={summary.credits.remaining}
           creditsExpireOn={
-            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone) : null
+            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone, locale) : null
           }
           billingEnabled={features.billing}
           sessionsThisMonth={summary.sessionsThisMonth}
@@ -138,11 +140,11 @@ export default async function BillingPage({
             discountCents: invoice.discountCents,
             discountReason: invoice.discountReason,
             status: invoice.status,
-            issuedAt: formatDate(invoice.issuedAt, actor.timezone),
+            issuedAt: formatDate(invoice.issuedAt, actor.timezone, locale),
             sortAt: invoice.issuedAt.toISOString(),
-            paidAt: invoice.paidAt ? formatDate(invoice.paidAt, actor.timezone) : null,
-            periodStart: invoice.periodStart ? formatDate(invoice.periodStart, actor.timezone) : null,
-            periodEnd: invoice.periodEnd ? formatDate(invoice.periodEnd, actor.timezone) : null,
+            paidAt: invoice.paidAt ? formatDate(invoice.paidAt, actor.timezone, locale) : null,
+            periodStart: invoice.periodStart ? formatDate(invoice.periodStart, actor.timezone, locale) : null,
+            periodEnd: invoice.periodEnd ? formatDate(invoice.periodEnd, actor.timezone, locale) : null,
             usage: invoice.sessionId ? (usage.get(invoice.sessionId) ?? null) : null,
           }))}
           payments={payments.map((payment) => ({
@@ -154,9 +156,9 @@ export default async function BillingPage({
             therapistNetCents: payment.therapistNetCents,
             status: payment.status,
             capture: payment.capture,
-            createdAt: formatDate(payment.createdAt, actor.timezone),
+            createdAt: formatDate(payment.createdAt, actor.timezone, locale),
             sortAt: (payment.paidAt ?? payment.createdAt).toISOString(),
-            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone) : null,
+            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone, locale) : null,
           }))}
         />
       </div>

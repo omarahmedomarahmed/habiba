@@ -23,6 +23,7 @@ import {
 } from "@/lib/alarm";
 import type { RadarAttention } from "@/lib/data/radar";
 import { cn, formatDateTime } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/client";
 
 /**
  * Fast while they are on the board, slow while they are not.
@@ -102,6 +103,7 @@ export function RadarPresence({
     practiceConfirmed: boolean;
   };
 }) {
+  const locale = useLocale();
   const [status, setStatus] = useState<Status>(initialStatus as Status);
   const active = status !== "offline";
   const [attention, setAttention] = useState<RadarAttention | null>(null);
@@ -558,6 +560,7 @@ function SoundPrompt({
   forced: boolean;
   online: boolean;
 }) {
+  const locale = useLocale();
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -702,11 +705,12 @@ function StatusPill({
   onAskPermission: () => void;
   onEnableSound: () => void;
 }) {
+  const locale = useLocale();
   if (suspended) {
     return (
       <div className="safe-top fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-2">
         <p className="rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg">
-          Off the radar until {formatDateTime(suspended.until, zone)}
+          Off the radar until {formatDateTime(suspended.until, zone, locale)}
           {suspended.reason ? ` · ${suspended.reason}` : ""}
         </p>
       </div>

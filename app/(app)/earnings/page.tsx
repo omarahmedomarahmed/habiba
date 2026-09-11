@@ -19,6 +19,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import { features } from "@/lib/env";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Earnings", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export const dynamic = "force-dynamic";
  * pay rent should not have to read past an invoice list to find out.
  */
 export default async function EarningsPage() {
+  const { locale } = await getI18n();
   const actor = await requireUser();
 
   const [connect, earnings, payments, balance, transfers, held, method, requests, settings] =
@@ -143,13 +145,13 @@ export default async function EarningsPage() {
               payoutAmountMinor: row.payoutAmountMinor,
               payoutCurrency: row.payoutCurrency,
               status: row.status,
-              requestedAtLabel: formatDate(row.requestedAt, actor.timezone),
+              requestedAtLabel: formatDate(row.requestedAt, actor.timezone, locale),
               movedAtLabel: row.confirmedAt
-                ? formatDate(row.confirmedAt, actor.timezone)
+                ? formatDate(row.confirmedAt, actor.timezone, locale)
                 : row.sentAt
-                  ? formatDate(row.sentAt, actor.timezone)
+                  ? formatDate(row.sentAt, actor.timezone, locale)
                   : row.approvedAt
-                    ? formatDate(row.approvedAt, actor.timezone)
+                    ? formatDate(row.approvedAt, actor.timezone, locale)
                     : null,
               proofUrl: row.proofUrl,
               rejectedReason: row.rejectedReason,
@@ -170,15 +172,15 @@ export default async function EarningsPage() {
             paymentBrand: payment.paymentBrand,
             paymentLast4: payment.paymentLast4,
             receiptUrl: payment.receiptUrl,
-            createdAt: formatDate(payment.createdAt, actor.timezone),
-            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone) : null,
+            createdAt: formatDate(payment.createdAt, actor.timezone, locale),
+            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone, locale) : null,
           }))}
           transfers={transfers.map((transfer) => ({
             id: transfer.id,
             amountCents: transfer.amountCents,
             status: transfer.status,
-            createdAt: formatDate(transfer.createdAt, actor.timezone),
-            paidAt: transfer.paidAt ? formatDate(transfer.paidAt, actor.timezone) : null,
+            createdAt: formatDate(transfer.createdAt, actor.timezone, locale),
+            paidAt: transfer.paidAt ? formatDate(transfer.paidAt, actor.timezone, locale) : null,
             failureReason: transfer.failureReason,
           }))}
         />

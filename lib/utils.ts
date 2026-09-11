@@ -44,15 +44,40 @@ export function formatDuration(seconds: number): string {
  * Server callers pass `actor.timezone`; client callers pass `readerZone()`.
  * Either may be null, and null means UTC — stated, not assumed.
  */
+import { dateTag, type Locale } from "@/lib/i18n/config";
+
+/** The four keys `relativeDay` may ask for. Narrow on purpose. */
+type RelativeKey = "when.today" | "when.yesterday" | "when.tomorrow" | "when.daysAgo";
 import { formatCalendarDate, formatTime, resolveZone } from "@/lib/scheduling/tz";
+
+/**
+ * 🔴 37L.9 — the language is required, for the reason the zone is.
+ *
+ * This file's own doc already makes the argument about the time zone:
+ * *"Making the parameter required is what found the call sites — the type
+ * error is the audit."* The language is the same shape of mistake one layer
+ * along. A patient reading her session history in Arabic met
+ * `Friday 11 September, 16:09 (Cairo)`, which is the seam that makes an app
+ * feel half-translated, and an optional parameter would have been a thing to
+ * remember — C182's whole failure.
+ *
+ * Callers pass the app's own locale (`"en"` / `"ar"`), never an Intl tag:
+ * `dateTag` decides the tag, and it pins **Western digits** for Arabic
+ * (`-u-nu-latn`) because `lib/i18n/config.ts` rules that a patient in crisis
+ * reading `٩٨٨` is a worse outcome than a small loss of authenticity.
+ *
+ * An admin screen passing `"en"` is not an oversight: the console is English
+ * by decision until 37L.3, and the call site is where that decision shows.
+ */
 
 export function formatDate(
   date: Date | string | null | undefined,
   zone: string | null,
+  locale: Locale,
 ): string {
   if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(dateTag(locale), {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -63,11 +88,12 @@ export function formatDate(
 export function formatDateTime(
   date: Date | string | null | undefined,
   zone: string | null,
+  locale: Locale,
 ): string {
   if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
   const resolved = resolveZone(zone).name;
-  return `${new Intl.DateTimeFormat("en-GB", {
+  return `${new Intl.DateTimeFormat(dateTag(locale), {
     day: "numeric",
     month: "short",
     timeZone: resolved,
@@ -84,6 +110,8 @@ export function formatDateTime(
 export function relativeDay(
   date: Date | string | null | undefined,
   zone: string | null,
+  locale: Locale,
+  t: (key: RelativeKey, values?: Record<string, string | number>) => string,
 ): string {
   if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
@@ -93,20 +121,29 @@ export function relativeDay(
     Date.parse(`${new Intl.DateTimeFormat("en-CA", { timeZone: resolved }).format(at)}T00:00:00Z`);
 
   const days = Math.round((key(new Date()) - key(d)) / 86_400_000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days === -1) return "Tomorrow";
-  if (days > 1 && days < 7) return `${days} days ago`;
-  return formatDate(d, zone);
+  /*
+   * 🔴 37L.9 — the words are the dictionary's, not this file's.
+   *
+   * "Today" is a string a reader sees, so it cannot live in a formatting
+   * helper as an English literal. `t` is passed rather than imported because
+   * this function runs on both sides of the client boundary and the two get
+   * their translator from different places.
+   */
+  if (days === 0) return t("when.today");
+  if (days === 1) return t("when.yesterday");
+  if (days === -1) return t("when.tomorrow");
+  if (days > 1 && days < 7) return t("when.daysAgo", { count: days });
+  return formatDate(d, zone, locale);
 }
 
 /** The full `12 September 2026`, for prose rather than a table. */
 export function formatLongDate(
   date: Date | string | null | undefined,
   zone: string | null,
+  locale: Locale,
 ): string {
   if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
-  return formatCalendarDate(d, resolveZone(zone).name);
+  return formatCalendarDate(d, resolveZone(zone).name, dateTag(locale));
 }
 

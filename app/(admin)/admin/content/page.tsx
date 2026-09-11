@@ -39,7 +39,7 @@ export default async function AdminContentPage() {
                 <p className="truncate text-sm font-semibold text-slate-900">{page.title}</p>
                 <p className="truncate text-xs text-slate-500">
                   /{page.slug === "home" ? "" : page.slug} · updated{" "}
-                  {formatDateTime(page.updatedAt, actor.timezone)}
+                  {formatDateTime(page.updatedAt, actor.timezone, "en")}
                 </p>
               </Link>
 

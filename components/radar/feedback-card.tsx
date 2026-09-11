@@ -47,7 +47,7 @@ export async function FeedbackCard({
     createdAt: Date;
   }[];
 }) {
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   if (total === 0) {
     return (
       <Card className="p-4">
@@ -102,7 +102,7 @@ export async function FeedbackCard({
                   />
                 ))}
               </span>
-              <span className="text-[11px] text-slate-400">{relativeDay(entry.createdAt, zone)}</span>
+              <span className="text-[11px] text-slate-400">{relativeDay(entry.createdAt, zone, locale, t)}</span>
             </div>
 
             {entry.tags.length > 0 ? (

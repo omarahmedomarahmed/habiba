@@ -16,6 +16,7 @@ import { patients, sessions, users } from "../lib/db/schema";
 import { writesTo } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
+import { translator } from "../lib/i18n/server";
 
 /*
  * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
@@ -229,14 +230,14 @@ async function main() {
 
     check(
       "🔴 12.3 the same instant renders as a different day in Cairo and in New York",
-      formatDate(at, "Africa/Cairo") !== formatDate(at, "America/New_York"),
-      `${formatDate(at, "Africa/Cairo")} vs ${formatDate(at, "America/New_York")}`,
+      formatDate(at, "Africa/Cairo", "en") !== formatDate(at, "America/New_York", "en"),
+      `${formatDate(at, "Africa/Cairo", "en")} vs ${formatDate(at, "America/New_York", "en")}`,
     );
 
     check(
       "12.3 a null zone is UTC, said rather than silently the server's clock",
-      formatDateTime(at, null) === formatDateTime(at, "UTC"),
-      formatDateTime(at, null),
+      formatDateTime(at, null, "en") === formatDateTime(at, "UTC", "en"),
+      formatDateTime(at, null, "en"),
     );
 
     /*
@@ -247,9 +248,9 @@ async function main() {
     const justAfterCairoMidnight = new Date(Date.now());
     check(
       "12.3 relativeDay counts days in the reader's zone, not the server's",
-      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati") === "Today" ||
-        relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati") === "Tomorrow",
-      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati"),
+      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati", "en", translator("en")) === "Today" ||
+        relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati", "en", translator("en")) === "Tomorrow",
+      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati", "en", translator("en")),
     );
 
     /*

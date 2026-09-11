@@ -43,7 +43,7 @@ export default async function SupportPage() {
       extended: row.extendedAt !== null,
       movedToWhatsapp: row.movedToWhatsappAt !== null,
       hasContext: row.hasContext,
-      createdAtLabel: formatDate(row.createdAt, actor.timezone),
+      createdAtLabel: formatDate(row.createdAt, actor.timezone, "en"),
     }));
 
   return (

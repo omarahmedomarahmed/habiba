@@ -77,9 +77,9 @@ export default async function InvestigatePage({
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {report.therapistName} · session{" "}
-          {report.endedAt ? formatDate(report.endedAt, actor.timezone) : "in progress"}
+          {report.endedAt ? formatDate(report.endedAt, actor.timezone, "en") : "in progress"}
           {report.durationMinutes ? ` · ${report.durationMinutes} min` : ""} · filed{" "}
-          {formatDate(report.createdAt, actor.timezone)}
+          {formatDate(report.createdAt, actor.timezone, "en")}
         </p>
       </div>
 

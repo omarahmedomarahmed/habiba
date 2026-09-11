@@ -15,6 +15,7 @@ import { accessFor } from "@/lib/data/grants";
 import { getPatient, getPatientHistory } from "@/lib/data/patients";
 import { personIdForPatient } from "@/lib/data/people";
 import { fullName, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
   title: "Patient",
@@ -23,6 +24,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -152,7 +154,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-slate-900">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                         {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
                       </p>
                       {session.noteSummary?.summary ? (

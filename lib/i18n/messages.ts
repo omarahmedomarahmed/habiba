@@ -30,6 +30,10 @@ export const en = {
   "common.loading": "Loading…",
   "common.somethingWrong": "Something went wrong. Please try again.",
   "common.language": "Language",
+  "when.today": "Today",
+  "when.yesterday": "Yesterday",
+  "when.tomorrow": "Tomorrow",
+  "when.daysAgo": "{count} days ago",
 
   /* -------------------------------------------------------------- join -- */
   "join.title": "Join your session",
@@ -826,6 +830,10 @@ export const ar: Record<MessageKey, string> = {
   "common.loading": "جارٍ التحميل…",
   "common.somethingWrong": "حدث خطأ ما. من فضلك حاول مرة أخرى.",
   "common.language": "اللغة",
+  "when.today": "اليوم",
+  "when.yesterday": "أمس",
+  "when.tomorrow": "غدًا",
+  "when.daysAgo": "قبل {count} أيام",
 
   "join.title": "ادخل إلى جلستك",
   "join.subtitleFree": "لا حاجة إلى حساب. فقط أخبرنا بما نناديك به.",

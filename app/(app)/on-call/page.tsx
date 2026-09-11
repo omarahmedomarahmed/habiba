@@ -17,6 +17,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import { feedbackForTherapist } from "@/lib/data/feedback";
 import { activeTaxonomy } from "@/lib/data/taxonomy";
+import { getI18n } from "@/lib/i18n/server";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -33,6 +34,7 @@ export const metadata: Metadata = { title: "Crisis Radar", robots: { index: fals
 export const dynamic = "force-dynamic";
 
 export default async function RadarConsolePage() {
+  const { locale } = await getI18n();
   const actor = await requireUser();
 
   const [
@@ -108,7 +110,8 @@ export default async function RadarConsolePage() {
           }))}
         />
 
-        <SessionHistory rows={history} zone={actor.timezone} />
+        <SessionHistory
+        locale={locale} rows={history} zone={actor.timezone} />
 
         <FeedbackCard
           zone={actor.timezone}

@@ -1,6 +1,8 @@
 import { AlertTriangle, Clock, Quote } from "lucide-react";
 
 import { Badge, Card } from "@/components/ui";
+import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,7 +50,7 @@ const LEVEL_TONE = {
   moderate: "border-slate-200 bg-white",
 } as const;
 
-export function RiskAssessment({
+export async function RiskAssessment({
   level,
   source,
   findings,
@@ -72,6 +74,18 @@ export function RiskAssessment({
   zone: string | null;
   className?: string;
 }) {
+  /*
+   * 37L.9 — the date follows the reader, the zone follows the server.
+   *
+   * This rendered `Intl.DateTimeFormat("en-GB", …)` inline with `zone ?? "UTC"`:
+   * a clinician's own risk history, in a fixed language, in a zone that was not
+   * theirs whenever the prop was null. The zone stays a prop (12.3 — never read
+   * from the runtime during render); the language is asked for here, because a
+   * prop is a thing a call site can forget and this component has one call site
+   * today and will have more.
+   */
+  const { locale } = await getI18n();
+
   const protective = findings.filter((f) => f.indicator === "protective_factor");
   const risks = findings.filter((f) => f.indicator !== "protective_factor");
 
@@ -148,10 +162,7 @@ export function RiskAssessment({
           <ul className="mt-1 space-y-1">
             {prior.map((row, index) => (
               <li key={index} className="text-xs text-slate-500">
-                {new Intl.DateTimeFormat("en-GB", {
-                  dateStyle: "medium",
-                  timeZone: zone ?? "UTC",
-                }).format(row.createdAt)}{" "}
+                {formatDate(row.createdAt, zone, locale)}{" "}
                 · {row.level} · {row.source}
               </li>
             ))}

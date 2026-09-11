@@ -5,6 +5,8 @@ import { toE164, isE164, countryFromLocale, e164Problem } from "../lib/phone/e16
 import {
   byDayIn,
   dayKey,
+  formatCalendarDate,
+  formatDay,
   formatTime,
   formatWhen,
   formatWhenWithCaveat,
@@ -42,16 +44,16 @@ test("🔴 one instant renders differently for three readers, and each is right"
 });
 
 test("the zone is always named, so nobody has to guess", () => {
-  const cairo = formatWhen(instant, { name: "Africa/Cairo", source: "reader" });
+  const cairo = formatWhen(instant, { name: "Africa/Cairo", source: "reader" }, "en");
   assert.match(cairo, /22:00/);
   assert.match(cairo, /\(Cairo\)/);
   assert.match(cairo, /Saturday 12 September/);
 });
 
 test("a fallback says it is a fallback", () => {
-  const theirs = formatWhenWithCaveat(instant, { name: "Africa/Cairo", source: "reader" });
-  const clinician = formatWhenWithCaveat(instant, { name: "Africa/Cairo", source: "clinician" });
-  const utc = formatWhenWithCaveat(instant, { name: "UTC", source: "utc" });
+  const theirs = formatWhenWithCaveat(instant, { name: "Africa/Cairo", source: "reader" }, "en");
+  const clinician = formatWhenWithCaveat(instant, { name: "Africa/Cairo", source: "clinician" }, "en");
+  const utc = formatWhenWithCaveat(instant, { name: "UTC", source: "utc" }, "en");
 
   // Their own zone needs no caveat.
   assert.doesNotMatch(theirs, /therapist|do not have/);
@@ -112,7 +114,7 @@ test("🔴 a late slot sits under the day the reader sees, not the UTC one", () 
   assert.equal(dayKey(late, "UTC"), "2026-09-12");
   assert.equal(dayKey(late, "Africa/Cairo"), "2026-09-13");
 
-  const grouped = byDayIn([{ startsAt: late }], "Africa/Cairo");
+  const grouped = byDayIn([{ startsAt: late }], "Africa/Cairo", "en");
   assert.equal(grouped[0]!.key, "2026-09-13");
   assert.match(grouped[0]!.label, /Sunday 13 September/);
 });
@@ -125,6 +127,7 @@ test("grouping is ordered and its label matches its contents", () => {
       { startsAt: new Date("2026-09-12T17:00:00Z") },
     ],
     "Africa/Cairo",
+    "en",
   );
 
   assert.deepEqual(
@@ -269,6 +272,7 @@ test("published hours sort and group under the clinician's own days, empty days 
       { startsAt: new Date("2026-10-01T18:00:00Z") },
     ],
     "Africa/Cairo",
+    "en",
   );
 
   assert.deepEqual(
@@ -281,4 +285,44 @@ test("published hours sort and group under the clinician's own days, empty days 
   );
   // 2026-10-03 has nothing in it and does not appear.
   assert.equal(grouped.length, 2);
+});
+
+/* ----------------------------------------------------- 37L.9, the language -- */
+
+/**
+ * A date is a sentence, and it was the one sentence nothing translated.
+ *
+ * Every formatter here takes the reader's language as a **required** argument,
+ * because the audit was the type error: making it optional is what let nineteen
+ * screens render `Friday 11 September` to a reader who had asked for Arabic.
+ */
+test("🔴 the same instant reads as Arabic for an Arabic reader", () => {
+  const en = formatDay(instant, "Africa/Cairo", "en");
+  const ar = formatDay(instant, "Africa/Cairo", "ar");
+
+  assert.match(en, /Saturday 12 September/);
+  // Not a substring check on a known translation: the point is that it is not
+  // English, which is exactly what shipped.
+  assert.notEqual(ar, en);
+  assert.match(ar, /[\u0600-\u06FF]/);
+});
+
+test("🔴 Arabic dates use Western digits", () => {
+  // Arabic-Indic digits are banned product-wide (`localeTag`), and a date is
+  // the easiest place to lose that rule, because `Intl` defaults to them.
+  const ar = formatDay(instant, "Africa/Cairo", "ar");
+  assert.match(ar, /12/);
+  assert.doesNotMatch(ar, /[\u0660-\u0669]/);
+
+  const prose = formatCalendarDate(instant, "Africa/Cairo", "ar");
+  assert.match(prose, /2026/);
+  assert.doesNotMatch(prose, /[\u0660-\u0669]/);
+});
+
+test("a session language that is not one of the product's two still formats in itself", () => {
+  // `lib/mail.ts` sends the session report in the language the session was
+  // held in, and it has four. A French sentence with an English date in the
+  // middle of it is the defect this argument being a raw tag prevents.
+  const fr = formatCalendarDate(instant, "Africa/Cairo", "fr-FR");
+  assert.match(fr, /septembre/);
 });

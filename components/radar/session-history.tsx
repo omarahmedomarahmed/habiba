@@ -5,6 +5,8 @@ import { Badge, Card, EmptyState } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import type { RadarSessionRow } from "@/lib/data/radar";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n/config";
 
 /*
  * 12.3 / C70 — the zone this screen prints its dates in.
@@ -58,7 +60,10 @@ function accessNote(row: RadarSessionRow): string | null {
 export function SessionHistory({
   rows,
   zone,
+  locale,
 }: {
+  /** 37L.9 — the reader's language, a prop for the same reason the zone is. */
+  locale: Locale;
   rows: RadarSessionRow[];
   /** The reader's own zone. 12.3. */
   zone: string | null;
@@ -108,7 +113,7 @@ export function SessionHistory({
                   )}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {formatDate(row.endedAt ?? row.startedAt ?? new Date(), zone)} ·{" "}
+                  {formatDate(row.endedAt ?? row.startedAt ?? new Date(), zone, locale)} ·{" "}
                   {row.modality === "video" ? "Video" : "In person"}
                   {row.copilotAsked > 0
                     ? ` · ${row.copilotAsked} copilot question${row.copilotAsked === 1 ? "" : "s"}`

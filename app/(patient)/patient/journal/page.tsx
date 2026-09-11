@@ -41,7 +41,7 @@ export default async function JournalPage() {
     grantsForPerson(actor.personId),
   ]);
 
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
 
   const readers = grants
     .filter((grant) => grant.status === "granted")
@@ -85,7 +85,7 @@ export default async function JournalPage() {
             <li key={entry.id}>
               <Card className="p-4">
                 <p className="text-xs text-slate-400">
-                  {formatDateTime(entry.createdAt, actor.timezone)}
+                  {formatDateTime(entry.createdAt, actor.timezone, locale)}
                   {entry.source === "dictated" ? " · spoken" : ""}
                 </p>
                 <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">

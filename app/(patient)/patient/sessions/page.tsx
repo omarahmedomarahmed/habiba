@@ -4,7 +4,6 @@ import Link from "next/link";
 import { PatientSessionList } from "@/components/patient/session-list";
 import { PatientBack } from "@/components/patient/back";
 import { sessionsForPatient } from "@/lib/data/patient-view";
-import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { cn } from "@/lib/utils";
@@ -87,7 +86,6 @@ export default async function PatientSessionsPage({
       <PatientSessionList
         sessions={shown}
         zone={actor.timezone}
-        locale={localeTag(i18n.locale)}
       />
     </main>
   );

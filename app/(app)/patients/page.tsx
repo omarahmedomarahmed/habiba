@@ -7,11 +7,13 @@ import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { listPatients } from "@/lib/data/patients";
 import { fullName, initials, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Patients", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function PatientsPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const patients = await listPatients(actor);
 
@@ -48,7 +50,7 @@ export default async function PatientsPage() {
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
                       {patient.sessionCount} session{patient.sessionCount === 1 ? "" : "s"}
-                      {patient.lastSessionAt ? ` · last ${relativeDay(patient.lastSessionAt, actor.timezone)}` : ""}
+                      {patient.lastSessionAt ? ` · last ${relativeDay(patient.lastSessionAt, actor.timezone, locale, t)}` : ""}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />

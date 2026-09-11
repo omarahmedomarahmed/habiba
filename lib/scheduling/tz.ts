@@ -1,3 +1,5 @@
+import { dateTag, intlTag, type Locale } from "@/lib/i18n/config";
+
 /**
  * One instant, one formatter, the reader's zone. PLAN.md 11R.1–11R.4, C61.
  *
@@ -108,9 +110,15 @@ export function formatTime(at: Date, zone: string): string {
   }).format(at);
 }
 
-/** `Thursday 12 September` */
-export function formatDay(at: Date, zone: string): string {
-  return new Intl.DateTimeFormat(LOCALE, {
+/**
+ * `Thursday 12 September`, in the reader's language. 37L.9.
+ *
+ * The locale is required for the reason the zone is: an optional one is a
+ * thing to remember, and a patient reading her own session history in Arabic
+ * met `Friday 11 September` because nothing here ever asked.
+ */
+export function formatDay(at: Date, zone: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(dateTag(locale), {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -126,16 +134,26 @@ export function formatDay(at: Date, zone: string): string {
  * Cairo session is the *previous* day in UTC, and an email that names the
  * wrong day is one the patient reads as being about a different session.
  *
- * `locale` because these strings sit inside translated sentences; the zone is
+ * `language` because these strings sit inside translated sentences; the zone is
  * not optional for the same reason it is not optional anywhere else here.
+ *
+ * 37L.9 — and it is a **required** BCP-47 tag now, not one defaulting to
+ * `en-GB`. A default is a thing to remember, and both call sites that remembered
+ * were the two that did not need reminding. It is a raw tag rather than a
+ * `Locale` because the one caller that is not the app is the session report
+ * email, which follows the language the session was held in and has four.
+ * `intlTag` applies the Western-digits rule to any Arabic tag on the way in.
  */
-export function formatCalendarDate(at: Date, zone: string, locale = LOCALE): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: zone }).format(at);
+export function formatCalendarDate(at: Date, zone: string, language: string): string {
+  return new Intl.DateTimeFormat(intlTag(language), {
+    dateStyle: "long",
+    timeZone: zone,
+  }).format(at);
 }
 
 /** `Thu 12` — the short label on a day chip. */
-export function formatWeekday(at: Date, zone: string): string {
-  return new Intl.DateTimeFormat(LOCALE, {
+export function formatWeekday(at: Date, zone: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(dateTag(locale), {
     weekday: "short",
     day: "numeric",
     timeZone: zone,
@@ -149,8 +167,8 @@ export function formatWeekday(at: Date, zone: string): string {
  * the reader cannot tell from the string whether it was ambiguous, and a
  * label they did not need costs them nothing.
  */
-export function formatWhen(at: Date, zone: Zone): string {
-  return `${formatDay(at, zone.name)}, ${formatTime(at, zone.name)} (${zoneLabel(zone.name)})`;
+export function formatWhen(at: Date, zone: Zone, locale: Locale): string {
+  return `${formatDay(at, zone.name, locale)}, ${formatTime(at, zone.name)} (${zoneLabel(zone.name)})`;
 }
 
 /**
@@ -160,8 +178,8 @@ export function formatWhen(at: Date, zone: Zone): string {
  * alternative — printing a time in somebody else's zone with a city name that
  * looks authoritative — is worse than saying "we do not know where you are".
  */
-export function formatWhenWithCaveat(at: Date, zone: Zone): string {
-  const base = formatWhen(at, zone);
+export function formatWhenWithCaveat(at: Date, zone: Zone, locale: Locale): string {
+  const base = formatWhen(at, zone, locale);
   if (zone.source === "reader") return base;
   if (zone.source === "clinician") return `${base}, your therapist's time zone`;
   return `${base}. We do not have your time zone, so this is UTC`;
@@ -202,6 +220,7 @@ export function dayKey(at: Date, zone: string): string {
 export function byDayIn<T extends { startsAt: Date }>(
   slots: T[],
   zone: string,
+  locale: Locale,
 ): { key: string; label: string; slots: T[] }[] {
   const buckets = new Map<string, T[]>();
 
@@ -214,7 +233,7 @@ export function byDayIn<T extends { startsAt: Date }>(
 
   return [...buckets.entries()].map(([key, list]) => ({
     key,
-    label: formatDay(list[0]!.startsAt, zone),
+    label: formatDay(list[0]!.startsAt, zone, locale),
     slots: list,
   }));
 }

@@ -8,6 +8,7 @@ import { listThreads } from "@/lib/data/copilot";
 import { listPatients } from "@/lib/data/patients";
 import { getSettings } from "@/lib/settings";
 import { fullName, initials, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Copilot", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export const dynamic = "force-dynamic";
  * one tap rather than a thing you have to know exists.
  */
 export default async function CopilotInboxPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const [threads, patients, settings] = await Promise.all([
     listThreads(actor),
@@ -71,7 +73,7 @@ export default async function CopilotInboxPage() {
                       </span>
                       {thread.lastMessageAt ? (
                         <span className="shrink-0 text-xs text-slate-400">
-                          {relativeDay(thread.lastMessageAt, actor.timezone)}
+                          {relativeDay(thread.lastMessageAt, actor.timezone, locale, t)}
                         </span>
                       ) : null}
                     </span>

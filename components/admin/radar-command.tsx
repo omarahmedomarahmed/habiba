@@ -379,7 +379,7 @@ function State({ row, zone }: { row: CommandRow; zone: string | null }) {
           suspended
         </span>
         <span className="mt-0.5 text-[10px] text-slate-400">
-          until {formatDate(row.suspendedUntil, zone)}
+          until {formatDate(row.suspendedUntil, zone, "en")}
         </span>
       </span>
     );
@@ -573,7 +573,7 @@ function Detail({
           <Row label="Our cut 30d">{formatUsd(row.feeCents30d)}</Row>
           <Row label="Walk-ins">{row.acceptsWalkIns ? "Yes" : "No"}</Row>
           <Row label="Last seen">
-            {row.lastSeenAt ? formatDateTime(row.lastSeenAt, zone) : "never"}
+            {row.lastSeenAt ? formatDateTime(row.lastSeenAt, zone, "en") : "never"}
           </Row>
           <Row label="Languages">{row.languages.join(", ") || "-"}</Row>
         </dl>

@@ -6,7 +6,7 @@ import { AlertTriangle, FileText, Flag, ImageIcon, Mic, Volume2 } from "lucide-r
 import { Badge, Card } from "@/components/ui";
 import { isImage, searchabilityLabel } from "@/lib/documents/formats";
 import { formatDate } from "@/lib/utils";
-import { useT } from "@/lib/i18n/client";
+import { useT, useLocale } from "@/lib/i18n/client";
 
 /**
  * A person's documents, as a clinician or the person themselves sees them.
@@ -75,6 +75,7 @@ export function DocumentList({
   watermark: string;
   onFlag?: (documentId: string, reason: "outdated" | "wrong" | "not_mine") => Promise<void>;
 }) {
+  const locale = useLocale();
   const t = useT();
 
   if (documents.length === 0) {
@@ -108,6 +109,7 @@ function DocumentCard({
   watermark: string;
   onFlag?: (documentId: string, reason: "outdated" | "wrong" | "not_mine") => Promise<void>;
 }) {
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [flagging, setFlagging] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -156,7 +158,7 @@ function DocumentCard({
             </p>
             {/* 8.7 — provenance, on the face of the row rather than behind it. */}
             <p className="mt-0.5 text-xs text-slate-500">
-              {formatDate(new Date(document.documentDate ?? document.createdAt), zone)} ·{" "}
+              {formatDate(new Date(document.documentDate ?? document.createdAt), zone, locale)} ·{" "}
               {document.addedBy}
             </p>
 

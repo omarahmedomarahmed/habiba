@@ -2,6 +2,8 @@ import { AlertTriangle, Clock, FileText, MessageSquare } from "lucide-react";
 
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n/config";
 
 /*
  * 12.3 / C70 — the zone this screen prints its dates in.
@@ -34,7 +36,10 @@ export function StandingProfile({
   timeline,
   stale,
   zone,
+  locale,
 }: {
+  /** 37L.9 — the reader's language, a prop for the same reason the zone is. */
+  locale: Locale;
   /** The reader's own zone. 12.3. */
   zone: string | null;
   profile: {
@@ -99,7 +104,7 @@ export function StandingProfile({
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-900">Standing profile</p>
             <p className="mt-0.5 text-xs text-slate-500">
-              Rebuilt {formatDate(profile.generatedAt, zone)} from {profile.sessionCount} session
+              Rebuilt {formatDate(profile.generatedAt, zone, locale)} from {profile.sessionCount} session
               {profile.sessionCount === 1 ? "" : "s"} and {profile.documentCount} document
               {profile.documentCount === 1 ? "" : "s"}. Not editable, it follows the record.
             </p>
@@ -146,7 +151,7 @@ export function StandingProfile({
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 text-xs text-slate-500">
                     <Clock className="h-3 w-3" aria-hidden />
-                    {formatDate(entry.observedAt, zone)}
+                    {formatDate(entry.observedAt, zone, locale)}
                     {entry.ref ? (
                       <span className="font-mono text-slate-400">{entry.ref}</span>
                     ) : null}

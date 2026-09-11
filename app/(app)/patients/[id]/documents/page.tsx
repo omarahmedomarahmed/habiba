@@ -24,6 +24,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { sessions, users } from "@/lib/db/schema";
 import { formatDate, fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -57,6 +58,7 @@ export default async function PatientDocumentsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { locale } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -178,6 +180,7 @@ export default async function PatientDocumentsPage({
           before a session. Conflicts sit above even that.
         */}
         <StandingProfile
+        locale={locale}
           zone={actor.timezone}
           profile={
             profile
@@ -205,7 +208,7 @@ export default async function PatientDocumentsPage({
               {journals.map((entry) => (
                 <li key={entry.id} className="border-s-2 border-slate-200 ps-3">
                   <p className="text-xs text-slate-400">
-                    {formatDate(entry.createdAt, actor.timezone)}
+                    {formatDate(entry.createdAt, actor.timezone, locale)}
                     {entry.source === "dictated" ? " · spoken" : ""}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">

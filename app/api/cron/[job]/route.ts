@@ -353,7 +353,15 @@ const JOBS = {
       const therapist = [booking.therapistFirstName, booking.therapistLastName]
         .filter(Boolean)
         .join(" ");
-      const when = formatWhenWithCaveat(booking.startsAt, zone);
+      /*
+       * 🔴 37L.9 — `"en"` here is a decision, not a default.
+       *
+       * Emails and WhatsApp templates are 37L.4, which has not been done: the
+       * bodies around this string are still English, and a date rendered in Arabic
+       * inside an English sentence is worse than one that matches it. The locale is
+       * written at the call site so the day 37L.4 lands, this line is the diff.
+       */
+      const when = formatWhenWithCaveat(booking.startsAt, zone, "en");
 
       const delivery = await notify(
         {
@@ -403,7 +411,7 @@ const JOBS = {
     for (const row of released) {
       const zone = resolveZone(row.patientTimezone, row.therapistTimezone);
       const therapist = [row.therapistFirstName, row.therapistLastName].filter(Boolean).join(" ");
-      const when = formatWhenWithCaveat(row.startsAt, zone);
+      const when = formatWhenWithCaveat(row.startsAt, zone, "en");
 
       const delivery = await notify(
         { email: row.patientEmail, phone: row.patientPhone, timezone: row.patientTimezone },

@@ -42,9 +42,9 @@ export default async function NumbersPage() {
           status: row.status,
           ageHours: row.ageHours,
           approved: row.status === "approved" || row.status === "verifying",
-          createdAtLabel: formatDate(row.createdAt, actor.timezone),
+          createdAtLabel: formatDate(row.createdAt, actor.timezone, "en"),
           codeExpiresLabel: row.verificationExpiresAt
-            ? formatDate(row.verificationExpiresAt, actor.timezone)
+            ? formatDate(row.verificationExpiresAt, actor.timezone, "en")
             : null,
         }))}
       />

@@ -28,6 +28,7 @@ import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
 import type { Citation } from "@/lib/db/schema";
 import { cn, formatDate, formatDuration } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/client";
 
 export type ChatMessage = {
   id: string;
@@ -85,6 +86,7 @@ export function CopilotChat({
   /** Standing corrections, shown so they can be seen rather than trusted. */
   guidance: string | null;
 }) {
+  const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
@@ -513,6 +515,7 @@ function MessageBubble({
   onReadAloud: () => void;
   speaking: boolean;
 }) {
+  const locale = useLocale();
   const [openCitation, setOpenCitation] = useState<number | null>(null);
 
   if (message.role === "therapist") {
@@ -570,7 +573,7 @@ function MessageBubble({
             )}
           >
             <Info className="h-3 w-3" aria-hidden />
-            {formatDate(citation.sessionDate, zone)} · {formatDuration(citation.atSeconds)}
+            {formatDate(citation.sessionDate, zone, locale)} · {formatDuration(citation.atSeconds)}
           </button>
         ))}
 
@@ -601,7 +604,7 @@ function MessageBubble({
               : message.citations[openCitation]!.speaker === "therapist"
                 ? "You said"
                 : "Someone said"}{" "}
-            · {formatDate(message.citations[openCitation]!.sessionDate, zone)} at{" "}
+            · {formatDate(message.citations[openCitation]!.sessionDate, zone, locale)} at{" "}
             {formatDuration(message.citations[openCitation]!.atSeconds)}
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-700 italic">
@@ -624,6 +627,7 @@ function MessageBubble({
  * wipe the chart, they find out before it runs, not after.
  */
 function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => void }) {
+  const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<{ removed: number; kept: number } | null>(null);
@@ -731,6 +735,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
  * what it will do, and the prompt treats it as a rule.
  */
 function LanguageBox({ patientId, initial }: { patientId: string; initial: string }) {
+  const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [language, setLanguage] = useState(initial);
 
@@ -785,6 +790,7 @@ function LanguageBox({ patientId, initial }: { patientId: string; initial: strin
 }
 
 function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: string | null }) {
+  const locale = useLocale();
   const [removing, setRemoving] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>(() =>
     (guidance ?? "")

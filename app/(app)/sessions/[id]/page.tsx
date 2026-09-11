@@ -15,6 +15,7 @@ import { latestSummary } from "@/lib/data/summaries";
 import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function SessionDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { locale } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -85,7 +87,7 @@ export default async function SessionDetailPage({
             {patientLabel}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone)}
+            {formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone, locale)}
             {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
             {row.session.modality === "video" ? " · Video" : " · In person"}
           </p>
@@ -155,7 +157,7 @@ export default async function SessionDetailPage({
                     version: previousSummary.version,
                     body: previousSummary.body,
                     approvedByName: previousSummary.approvedByName,
-                    on: formatDateTime(previousSummary.approvedAt, actor.timezone),
+                    on: formatDateTime(previousSummary.approvedAt, actor.timezone, locale),
                   }
                 : null
             }
@@ -174,7 +176,7 @@ export default async function SessionDetailPage({
             noteStatus={row.session.noteStatus}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
-            dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone)}
+            dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone, locale)}
             reportSent={Boolean(row.session.reportSentAt)}
           />
           </>

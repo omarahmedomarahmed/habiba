@@ -135,7 +135,7 @@ export default async function VerificationsPage({
                   url: identityDocumentPath(row.id, kind),
                 }),
               )}
-              submittedAt={row.submittedAt ? formatDate(row.submittedAt, actor.timezone) : null}
+              submittedAt={row.submittedAt ? formatDate(row.submittedAt, actor.timezone, "en") : null}
               reviewNote={row.reviewNote}
               decided={bucket !== "submitted"}
             />

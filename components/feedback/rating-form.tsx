@@ -10,7 +10,8 @@ import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { dateTag } from "@/lib/i18n/config";
 
 /**
  * The rating form a patient fills in to get their summary.
@@ -94,9 +95,11 @@ export function RatingForm({
    * UTC — they were in a session with that clinician an hour ago.
    */
   const detected = useReaderZone();
+  const locale = useLocale();
   const sessionDate = formatCalendarDate(
     new Date(sessionDateIso),
     resolveZone(detected, therapistTimezone).name,
+    dateTag(locale),
   );
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>

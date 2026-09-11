@@ -5,7 +5,7 @@ import { Clock, ShieldOff, UserCheck } from "lucide-react";
 
 import { answerRequest, revoke } from "@/app/(patient)/patient/consent/actions";
 import { Badge, Card } from "@/components/ui";
-import { useT } from "@/lib/i18n/client";
+import { useT, useLocale } from "@/lib/i18n/client";
 import { REJECTION_REASONS } from "@/lib/access/state";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { formatDate } from "@/lib/utils";
@@ -46,6 +46,7 @@ export function ConsentList({
     revokedAt: Date | null;
   }[];
 }) {
+  const locale = useLocale();
   const t = useT();
 
   /*
@@ -110,6 +111,7 @@ function RequestRow({
     requestedAt: Date | null;
   };
 }) {
+  const locale = useLocale();
   const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +131,7 @@ function RequestRow({
         <p className="text-sm font-semibold text-slate-900">{request.therapistName}</p>
         {request.requestedAt ? (
           <p className="mt-0.5 text-xs text-slate-500">
-            Asked on {formatDate(request.requestedAt, zone)}
+            Asked on {formatDate(request.requestedAt, zone, locale)}
           </p>
         ) : null}
 
@@ -230,6 +232,7 @@ function GrantRow({
     revokedAt: Date | null;
   };
 }) {
+  const locale = useLocale();
   const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -253,12 +256,12 @@ function GrantRow({
               {live && grant.expiresAt ? (
                 <>
                   <Clock className="h-3 w-3" aria-hidden />
-                  {t("consent.until", { date: formatDate(grant.expiresAt, zone) })}
+                  {t("consent.until", { date: formatDate(grant.expiresAt, zone, locale) })}
                 </>
               ) : live ? (
                 t("consent.untilChange")
               ) : grant.revokedAt ? (
-                t("consent.youEnded", { date: formatDate(grant.revokedAt, zone) })
+                t("consent.youEnded", { date: formatDate(grant.revokedAt, zone, locale) })
               ) : grant.status === "rejected" ? (
                 t("consent.youDeclined")
               ) : (

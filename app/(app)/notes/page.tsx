@@ -6,11 +6,13 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { listRecentNotes } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Notes", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function NotesPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const notes = await listRecentNotes(actor);
   /*
@@ -62,7 +64,7 @@ export default async function NotesPage() {
                           "Unnamed patient"}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {relativeDay(note.sessionEndedAt ?? note.createdAt, actor.timezone)}
+                        {relativeDay(note.sessionEndedAt ?? note.createdAt, actor.timezone, locale, t)}
                       </p>
                     </div>
                     {note.status === "draft" ? (

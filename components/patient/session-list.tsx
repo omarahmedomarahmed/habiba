@@ -6,8 +6,9 @@ import { Card } from "@/components/ui";
 import type { PatientSession, SessionGroup } from "@/lib/data/patient-view";
 import { formatMoney } from "@/lib/billing/plans";
 import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { localeTag } from "@/lib/i18n/config";
 
 /**
  * A patient's own sessions, in the four groups 15.3 names.
@@ -44,19 +45,22 @@ const ORDER: SessionGroup[] = ["today", "upcoming", "past_scheduled", "past_inst
 export function PatientSessionList({
   sessions,
   zone,
-  locale = "en-US",
 }: {
   sessions: PatientSession[];
   /** The account's own zone, from the server. 13.13 precedence, C84's rule. */
   zone: string | null;
-  /**
-   * 19.4 — the reader's language, from the server, for the same reason as the
-   * zone. Defaulted only because the public demo renders this component with
-   * invented rows and no reader; every real screen passes it.
-   */
-  locale?: string;
 }) {
   const t = useT();
+  /*
+   * 37L.9 — the language is asked for, not passed in.
+   *
+   * It used to be an optional `locale?: string` prop defaulting to `"en-US"`,
+   * "because the demo has no reader". The demo is inside the provider like
+   * everything else, so the default bought nothing and cost the usual thing:
+   * the dates on this screen were the ones a patient reading Arabic met in
+   * English, because `formatWhen` was never given anything to be wrong with.
+   */
+  const locale = useLocale();
   if (sessions.length === 0) {
     return (
       <Card className="p-5">
@@ -94,9 +98,9 @@ export function PatientSessionList({
                       {session.therapistName}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {formatWhen(session.at, resolved)}
+                      {formatWhen(session.at, resolved, locale)}
                       {session.priceCents > 0
-                        ? ` · ${formatMoney(session.priceCents, "USD", locale)}`
+                        ? ` · ${formatMoney(session.priceCents, "USD", localeTag(locale))}`
                         : ` · ${t("psessions.free")}`}
                     </p>
 

@@ -6,6 +6,7 @@ import { Check, Plus, SkipForward, Trash2 } from "lucide-react";
 import { removeStep, setStep } from "@/app/(app)/patients/[id]/homework/actions";
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/client";
 
 /**
  * Homework, from the clinician's side. PLAN.md 9.5.
@@ -73,6 +74,7 @@ export function ClinicianHomework({
   drafted: { title: string; assigned: boolean }[];
   canAssign: boolean;
 }) {
+  const locale = useLocale();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
@@ -190,9 +192,9 @@ export function ClinicianHomework({
                   ) : null}
                   <p className="mt-0.5 text-xs text-slate-400">
                     {item.source === "drafted" ? "From the note · " : ""}
-                    {formatDate(new Date(item.createdAt), zone)}
+                    {formatDate(new Date(item.createdAt), zone, locale)}
                     {item.completedAt
-                      ? ` · answered ${formatDate(new Date(item.completedAt), zone)}`
+                      ? ` · answered ${formatDate(new Date(item.completedAt), zone, locale)}`
                       : ""}
                   </p>
                   {item.patientNote ? (

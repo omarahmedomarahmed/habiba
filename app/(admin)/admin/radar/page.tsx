@@ -84,12 +84,12 @@ export default async function AdminRadarPage({
               patientEmail: row.patientEmail,
               status: row.status,
               resolution: row.resolution,
-              filedAt: formatDate(row.createdAt, actor.timezone),
+              filedAt: formatDate(row.createdAt, actor.timezone, "en"),
               therapistId: row.therapistId,
               therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
               therapistEmail: row.therapistEmail,
               sessionId: row.sessionId,
-              sessionDate: row.sessionEndedAt ? formatDate(row.sessionEndedAt, actor.timezone) : null,
+              sessionDate: row.sessionEndedAt ? formatDate(row.sessionEndedAt, actor.timezone, "en") : null,
               durationMinutes: row.sessionDuration,
             }))}
           />

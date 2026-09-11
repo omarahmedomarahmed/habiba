@@ -9,7 +9,7 @@ import { byDayIn, formatTime, formatWhen, resolveZone } from "@/lib/scheduling/t
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { PhoneField } from "@/components/forms/phone-field";
 import { countryFromLocale } from "@/lib/phone/e164";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 /**
  * The booking calendar on a public profile. PLAN.md 11.3.
@@ -41,6 +41,7 @@ export function BookingCalendar({
   rateLabel: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [picked, setPicked] = useState<{ id: string; startsAt: string } | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -84,6 +85,7 @@ export function BookingCalendar({
   const days = byDayIn(
     slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
     zone.name,
+    locale,
   );
 
   if (done) {
@@ -131,7 +133,7 @@ export function BookingCalendar({
       {picked ? (
         <div className="mt-3 space-y-2">
           <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800">
-            {formatWhen(new Date(picked.startsAt), zone)}
+            {formatWhen(new Date(picked.startsAt), zone, locale)}
           </p>
 
           <input

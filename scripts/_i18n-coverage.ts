@@ -64,7 +64,7 @@ function exemptFor(file: string): string | null {
   return EXEMPT.find((entry) => file.includes(entry.file))?.why ?? null;
 }
 
-function walk(dir: string, out: string[] = []): string[] {
+export function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (SKIP.has(entry.name)) continue;
     const path = `${dir}/${entry.name}`;

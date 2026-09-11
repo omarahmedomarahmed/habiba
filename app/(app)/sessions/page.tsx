@@ -6,11 +6,13 @@ import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { listSessions } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Sessions", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function SessionsPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const sessions = await listSessions(actor);
 
@@ -59,7 +61,7 @@ export default async function SessionsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold text-slate-900">{label}</p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                         {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
                         {session.modality === "video" ? " · Video" : ""}
                       </p>

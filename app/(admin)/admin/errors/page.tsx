@@ -69,8 +69,8 @@ export default async function AdminErrorsPage() {
                 {latest.method ?? "-"} {latest.route}
               </code>
               <span className="text-xs text-slate-400">
-                last {formatDateTime(group.last, actor.timezone)}
-                {group.rows.length > 1 ? ` · first ${formatDateTime(group.first, actor.timezone)}` : ""}
+                last {formatDateTime(group.last, actor.timezone, "en")}
+                {group.rows.length > 1 ? ` · first ${formatDateTime(group.first, actor.timezone, "en")}` : ""}
               </span>
             </div>
 

@@ -17,6 +17,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { fullName, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -37,6 +38,7 @@ export default async function CopilotThreadPage({
 }: {
   params: Promise<{ patientId: string }>;
 }) {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { patientId } = await params;
 
@@ -108,7 +110,7 @@ export default async function CopilotThreadPage({
                       className="block px-4 py-3 active:bg-slate-50"
                     >
                       <p className="text-sm font-medium text-slate-900">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                         {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
                       </p>
                       {session.noteSummary?.summary ? (

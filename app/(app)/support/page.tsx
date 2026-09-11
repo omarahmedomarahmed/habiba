@@ -8,6 +8,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { payoutRequests, sessions, supportTickets } from "@/lib/db/schema";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -33,6 +34,7 @@ export const dynamic = "force-dynamic";
  * else's.
  */
 export default async function TherapistSupportPage() {
+  const { locale } = await getI18n();
   const actor = await requireUser();
 
   const [recentSessions, payouts, mine] = await Promise.all([
@@ -77,17 +79,17 @@ export default async function TherapistSupportPage() {
         <TherapistSupport
           sessions={recentSessions.map((row) => ({
             id: row.id,
-            label: formatDate(row.at ?? row.createdAt, actor.timezone),
+            label: formatDate(row.at ?? row.createdAt, actor.timezone, locale),
           }))}
           payouts={payouts.map((row) => ({
             id: row.id,
-            label: `$${(row.amountCents / 100).toFixed(2)} · ${row.status} · ${formatDate(row.requestedAt, actor.timezone)}`,
+            label: `$${(row.amountCents / 100).toFixed(2)} · ${row.status} · ${formatDate(row.requestedAt, actor.timezone, locale)}`,
           }))}
           mine={mine.map((row) => ({
             reference: row.reference,
             topic: row.topic,
             status: row.status,
-            atLabel: formatDate(row.createdAt, actor.timezone),
+            atLabel: formatDate(row.createdAt, actor.timezone, locale),
           }))}
         />
       </div>

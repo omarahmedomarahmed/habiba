@@ -297,7 +297,7 @@ export default async function VaultPage() {
               discountCents={invoice.discountCents}
               discountReason={invoice.discountReason}
               status={invoice.status}
-              issuedAt={formatDate(invoice.issuedAt, actor.timezone)}
+              issuedAt={formatDate(invoice.issuedAt, actor.timezone, "en")}
             />
           ))}
           {invoices.length === 0 ? (
@@ -329,7 +329,7 @@ export default async function VaultPage() {
               settledInvoiceCents={payment.settledInvoiceCents}
               therapistNetCents={payment.therapistNetCents}
               status={payment.status}
-              when={formatDate(payment.paidAt ?? payment.createdAt, actor.timezone)}
+              when={formatDate(payment.paidAt ?? payment.createdAt, actor.timezone, "en")}
             />
           ))}
           {payments.length === 0 ? (

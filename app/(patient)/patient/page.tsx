@@ -12,7 +12,6 @@ import { pendingRequestsFor } from "@/lib/data/grants";
 import { nextStepFor } from "@/lib/data/homework";
 import { sessionsForPatient } from "@/lib/data/patient-view";
 import { PatientSessionList } from "@/components/patient/session-list";
-import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { dbFor} from "@/lib/db";
@@ -258,7 +257,6 @@ export default async function PatientHomePage({
       <PatientSessionList
         sessions={sessions}
         zone={actor.timezone}
-        locale={localeTag(i18n.locale)}
       />
 
       {/* ------------------------------------------------------- your record */}

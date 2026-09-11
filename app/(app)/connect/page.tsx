@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { asksForTherapist } from "@/lib/data/portability";
 import { formatDate, fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Connect", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export const dynamic = "force-dynamic";
  * anything else in this product.
  */
 export default async function ConnectPage() {
+  const { locale } = await getI18n();
   const actor = await requireUser();
   const asks = await asksForTherapist(actor.userId);
 
@@ -34,7 +36,7 @@ export default async function ConnectPage() {
             id: ask.id,
             name: fullName(ask.firstName, ask.lastName, "A former patient"),
             note: ask.note,
-            on: formatDate(ask.createdAt, actor.timezone),
+            on: formatDate(ask.createdAt, actor.timezone, locale),
           }))}
         />
       </div>
