@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 
 import { answerStep } from "@/app/(patient)/patient/homework/actions";
 import { Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * What to do next. PLAN.md 9.5, and the warning that governs it.
@@ -30,12 +31,13 @@ export function PatientSteps({
 }: {
   steps: { id: string; title: string; detail: string | null }[];
 }) {
+  const t = useT();
   if (steps.length === 0) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Nothing to do right now</p>
+        <p className="text-sm font-semibold text-slate-900">{t("psteps.none")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          When you and your therapist agree on something to try, it appears here.
+          {t("psteps.noneBody")}
         </p>
       </Card>
     );
@@ -57,6 +59,7 @@ function Step({
   step: { id: string; title: string; detail: string | null };
   first: boolean;
 }) {
+  const t = useT();
   const [answering, setAnswering] = useState<"done" | "skipped" | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +82,7 @@ function Step({
       {answering ? (
         <div className="mt-3 space-y-2">
           <label htmlFor={`note-${step.id}`} className="block text-xs text-slate-500">
-            Anything you want to say about it? You do not have to.
+            {t("psteps.anythingToSay")}
           </label>
           <textarea
             id={`note-${step.id}`}
@@ -102,7 +105,7 @@ function Step({
               onClick={() => setAnswering(null)}
               className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-slate-600"
             >
-              Back
+              {t("common.back")}
             </button>
           </div>
         </div>
@@ -114,7 +117,8 @@ function Step({
             onClick={() => setAnswering("done")}
             className="tap-target flex h-11 items-center gap-1.5 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
           >
-            <Check className="h-4 w-4" aria-hidden />I did this
+            <Check className="h-4 w-4" aria-hidden />
+            {t("psteps.didThis")}
           </button>
           {/*
             Same height, same shape, no warning colour. This is an answer, not
@@ -126,7 +130,7 @@ function Step({
             onClick={() => setAnswering("skipped")}
             className="tap-target h-11 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
           >
-            I could not do this one
+            {t("psteps.couldNot")}
           </button>
         </div>
       )}

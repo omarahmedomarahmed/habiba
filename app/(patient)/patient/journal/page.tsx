@@ -6,6 +6,7 @@ import { PatientBack } from "@/components/patient/back";
 import { JournalWriter } from "@/components/patient/journal-writer";
 import { grantsForPerson } from "@/lib/data/grants";
 import { journalsForPerson } from "@/lib/data/journals";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDateTime, fullName } from "@/lib/utils";
 
@@ -40,6 +41,8 @@ export default async function JournalPage() {
     grantsForPerson(actor.personId),
   ]);
 
+  const { t } = await getI18n();
+
   const readers = grants
     .filter((grant) => grant.status === "granted")
     .map((grant) => fullName(grant.therapistFirstName, grant.therapistLastName, "A therapist"));
@@ -49,10 +52,9 @@ export default async function JournalPage() {
       <PatientBack />
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Your journal</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("journal.title")}</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Whatever you want to keep. Between sessions, a week is a long time to remember, and this
-          is yours whether or not you ever show it to anybody.
+          {t("journal.body")}
         </p>
       </div>
 
@@ -61,17 +63,17 @@ export default async function JournalPage() {
         that anybody is reading now: a list of who has access, which is a fact.
       */}
       <Card className="border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">Who can open this</p>
+        <p className="text-sm font-semibold text-slate-900">{t("journal.whoCanOpen")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {readers.length === 0
-            ? "Nobody. You have not given any therapist access to your history, so what you write here stays with you until you do."
-            : `${readers.join(", ")}, because you gave them access to your history. You can take that back at any time, and they are not told why.`}
+            ? t("journal.nobody")
+            : t("journal.readers", { names: readers.join("، ") })}
         </p>
         <Link
           href="/patient/consent"
           className="mt-2.5 inline-flex text-sm font-semibold text-brand-600"
         >
-          Who can read your history
+          {t("home.whoCanRead")}
         </Link>
       </Card>
 

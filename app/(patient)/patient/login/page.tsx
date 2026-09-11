@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { getI18n } from "@/lib/i18n/server";
+
 import { PatientAuthForm } from "@/components/patient/auth-form";
 import { CodeSignInForm } from "@/components/patient/code-signin-form";
 
 export const metadata: Metadata = { title: "Sign in", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-export default function PatientLoginPage() {
+export default async function PatientLoginPage() {
+  const { t } = await getI18n();
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4 py-8">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Your sessions</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pauth.signInTitle")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Sign in to see your notes, your homework and who can read your record.
+          {t("pauth.signInBody")}
         </p>
       </div>
       <PatientAuthForm mode="signin" />
@@ -36,22 +40,22 @@ export default function PatientLoginPage() {
       */}
       <p className="text-center text-sm text-slate-500">
         <Link href="/patient/forgot-password" className="hover:text-slate-800">
-          Forgot your password?
+          {t("pauth.forgot")}
         </Link>
       </p>
 
       <p className="text-center text-sm text-slate-500">
-        New here?{" "}
+        {t("pauth.newHere")}{" "}
         <Link href="/patient/signup" className="font-semibold text-brand-600 hover:underline">
-          Create an account
+          {t("pauth.createAccount")}
         </Link>
       </p>
 
       {/* 21R.2 — somebody at the wrong door is told where their own one is. */}
       <p className="text-center text-sm text-slate-500">
-        Are you a therapist?{" "}
+        {t("pauth.areYouTherapist")}{" "}
         <Link href="/login" className="font-semibold text-brand-600 hover:underline">
-          Sign in to your practice
+          {t("pauth.practiceSignIn")}
         </Link>
       </p>
     </main>

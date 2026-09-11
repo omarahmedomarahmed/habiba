@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { PatientBack } from "@/components/patient/back";
 import { summariesForPerson } from "@/lib/data/summaries";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDate } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PatientSummaryPage() {
   const actor = await requirePatient();
+  const { t } = await getI18n();
   const versions = await summariesForPerson(actor.personId);
 
   return (
@@ -39,20 +41,17 @@ export default async function PatientSummaryPage() {
       <PatientBack />
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Your clinical summary</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("psummary.title")}</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Written by the therapists you have seen, about the course of your therapy rather than one
-          session. It is yours. Every version stays, with the name of whoever wrote it, and nobody
-          can take one back.
+          {t("psummary.body")}
         </p>
       </div>
 
       {versions.length === 0 ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">Nothing here yet</p>
+          <p className="text-sm font-semibold text-slate-900">{t("psummary.none")}</p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            A therapist adds a version when there is something worth carrying between sessions.
-            Early on there usually is not, and an empty page is the honest answer.
+            {t("psummary.noneBody")}
           </p>
         </Card>
       ) : (
@@ -70,7 +69,10 @@ export default async function PatientSummaryPage() {
                     ) : null}
                   </p>
                   <p className="text-xs text-slate-400">
-                    Version {version.version} · {formatDate(version.approvedAt, actor.timezone)}
+                    {t("psummary.version", {
+                      n: version.version,
+                      date: formatDate(version.approvedAt, actor.timezone),
+                    })}
                   </p>
                 </div>
 

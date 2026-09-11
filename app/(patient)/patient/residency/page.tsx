@@ -23,13 +23,14 @@ export default async function ResidencyPage() {
   const actor = await requirePatient();
   const { locale } = await getI18n();
   const state = await residencyFor(actor.personId, locale);
+  const { t } = await getI18n();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
       <PatientBack />
 
       <h1 className="text-xl font-bold tracking-tight text-slate-900">
-        Where your record is kept
+        {t("residency.title")}
       </h1>
 
       <ResidencyNotice

@@ -8,6 +8,7 @@ import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { cn } from "@/lib/utils";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 export const metadata: Metadata = { title: "Your sessions", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -30,9 +31,9 @@ export const dynamic = "force-dynamic";
  * signed.
  */
 const TABS = [
-  { key: "all", label: "All" },
-  { key: "upcoming", label: "Upcoming" },
-  { key: "past", label: "Past" },
+  { key: "all", label: "psessions.all" },
+  { key: "upcoming", label: "psessions.upcoming" },
+  { key: "past", label: "psessions.past" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -43,6 +44,7 @@ export default async function PatientSessionsPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const actor = await requirePatient();
+  const { t } = await getI18n();
 
   const { tab } = await searchParams;
   const active: TabKey = TABS.some((t) => t.key === tab) ? (tab as TabKey) : "all";
@@ -61,9 +63,9 @@ export default async function PatientSessionsPage({
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
       <PatientBack />
 
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">Your sessions</h1>
+      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("psessions.title")}</h1>
 
-      <nav aria-label="Which sessions">
+      <nav aria-label={t("psessions.which")}>
         <ul className="flex gap-1.5 rounded-2xl bg-slate-100 p-1">
           {TABS.map((entry) => (
             <li key={entry.key} className="flex-1">
@@ -75,7 +77,7 @@ export default async function PatientSessionsPage({
                   entry.key === active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
                 )}
               >
-                {entry.label}
+                {t(entry.label as MessageKey)}
               </Link>
             </li>
           ))}

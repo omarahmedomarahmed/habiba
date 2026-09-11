@@ -7,6 +7,7 @@ import Link from "next/link";
 import { completePatientReset, requestPatientReset } from "@/lib/patient-auth/reset";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { countryFromLocale } from "@/lib/phone/e164";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * A patient setting a new password. PLAN.md 21R.4, C94.
@@ -35,6 +36,7 @@ function Submit({ label }: { label: string }) {
 }
 
 export function PatientResetForm() {
+  const t = useT();
   const [country] = useState(
     () =>
       countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
@@ -48,13 +50,13 @@ export function PatientResetForm() {
   if (done.sent) {
     return (
       <Card className="space-y-4 p-5">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Password changed</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("preset.changed")}</h1>
         <p className="text-sm leading-relaxed text-slate-600">
-          You have been signed out everywhere else. Sign in with your new password.
+          {t("preset.changedBody")}
         </p>
         <Link href="/patient/login">
           <Button full size="lg">
-            Sign in
+            {t("pauth.signIn")}
           </Button>
         </Link>
       </Card>
@@ -65,10 +67,9 @@ export function PatientResetForm() {
     return (
       <Card className="space-y-4 p-5">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">Enter your code</h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pcode.title")}</h1>
           <p className="mt-1 text-sm leading-relaxed text-slate-500">
-            If that phone number or email has an account, a six-digit code is on its way. It
-            expires in fifteen minutes.
+            {t("pcode.body")} {t("pcode.expires")}
           </p>
         </div>
 
@@ -77,12 +78,11 @@ export function PatientResetForm() {
             role="status"
             className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm leading-relaxed text-amber-800"
           >
-            ⚠️ Codes over WhatsApp are not switched on yet. The template is still waiting for
-            approval, so one may not arrive. If you are stuck,{" "}
+            ⚠️ {t("preset.channelDownLead")}{" "}
             <Link href="/contact" className="font-semibold underline">
-              tell us
+              {t("preset.tellUs")}
             </Link>{" "}
-            and a person will get you back in.
+            {t("preset.channelDownTail")}
           </p>
         ) : null}
 
@@ -90,7 +90,7 @@ export function PatientResetForm() {
           <input type="hidden" name="handle" value={handle} />
           <input type="hidden" name="handleCountry" value={country} />
 
-          <Field label="Six-digit code" htmlFor="code">
+          <Field label={t("preset.codeLabel")} htmlFor="code">
             <Input
               id="code"
               name="code"
@@ -122,7 +122,7 @@ export function PatientResetForm() {
 
         <p className="text-center text-sm text-slate-500">
           <Link href="/patient/forgot-password" className="hover:text-slate-800">
-            Ask for another code
+            {t("preset.askAnother")}
           </Link>
         </p>
       </Card>
@@ -133,15 +133,15 @@ export function PatientResetForm() {
     <Card className="space-y-4 p-5">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          Get back into your account
+          {t("preset.title")}
         </h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
-          Tell us the phone number or email you sign in with and we will send you a code.
+          {t("preset.body")}
         </p>
       </div>
 
       <form action={request} className="space-y-4">
-        <Field label="Phone number or email" htmlFor="handle">
+        <Field label={t("preset.handleLabel")} htmlFor="handle">
           <Input
             id="handle"
             name="handle"
@@ -159,12 +159,12 @@ export function PatientResetForm() {
           </p>
         ) : null}
 
-        <Submit label="Send me a code" />
+        <Submit label={t("preset.sendCode")} />
       </form>
 
       <p className="text-center text-sm text-slate-500">
         <Link href="/patient/login" className="hover:text-slate-800">
-          Back to sign in
+          {t("preset.backToSignIn")}
         </Link>
       </p>
     </Card>

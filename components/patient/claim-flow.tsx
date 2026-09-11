@@ -7,6 +7,7 @@ import { Check, ShieldCheck } from "lucide-react";
 import { confirmClaim, declineClaim, sendClaimCode } from "@/app/(patient)/patient/claim/actions";
 import type { ClaimSuggestion } from "@/lib/data/claims";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * §3's eight steps, one at a time.
@@ -41,24 +42,23 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
   const [code, setCode] = useState("");
   // Step 7: OFF until they say otherwise.
   const [keepsAccess, setKeepsAccess] = useState(false);
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   if (suggestions.length === 0 && step === "list") {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">Nothing to claim yet</p>
+        <p className="text-sm font-semibold text-slate-900">{t("pclaim.noneTitle")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          We could not find a record under your email or phone number. That is completely normal -
-          most therapists write a name down and nothing else.
+          {t("pclaim.noneBody")}
         </p>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          If you know your therapist keeps notes about you, ask them for an invite link. It takes
-          them one tap and it connects that exact record to this account.
+          {t("pclaim.noneAsk")}
         </p>
         <Link href="/patient" className="mt-4 block">
           <Button full variant="secondary">
-            Skip for now
+            {t("pclaim.skip")}
           </Button>
         </Link>
       </Card>
@@ -70,15 +70,13 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
       <Card className="p-5">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <Check className="h-4 w-4 text-teal-600" aria-hidden />
-          That record is yours now
+          {t("pclaim.doneTitle")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {keepsAccess
-            ? "Your therapist can still see your profile. You can change that at any time."
-            : "Your therapist keeps the notes they wrote, but can no longer see your live profile. You can give access back whenever you want to."}
+          {keepsAccess ? t("pclaim.doneKept") : t("pclaim.doneDropped")}
         </p>
         <Link href="/patient" className="mt-4 block">
-          <Button full>Go to my sessions</Button>
+          <Button full>{t("pclaim.goToSessions")}</Button>
         </Link>
       </Card>
     );
@@ -89,19 +87,19 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
       <Card className="space-y-4 p-5">
         <div>
           <p className="text-sm font-semibold text-slate-900">
-            {sentBy?.channel === "whatsapp" ? "Check WhatsApp" : "Check your email"}
+            {sentBy?.channel === "whatsapp" ? t("pclaim.checkWhatsapp") : t("pclaim.checkEmail")}
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            We sent a six-digit code. It expires in thirty minutes.
+            {t("pclaim.codeSent")}
           </p>
           {sentBy?.fellBack ? (
             <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
-              We could not reach you on WhatsApp, so the code went to your email instead.
+              {t("pclaim.fellBack")}
             </p>
           ) : null}
         </div>
 
-        <Field label="Your code" htmlFor="claim-code">
+        <Field label={t("pclaim.yourCode")} htmlFor="claim-code">
           <Input
             id="claim-code"
             inputMode="numeric"
@@ -126,12 +124,10 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
             />
             <span className="min-w-0">
               <span className="block text-sm font-medium text-slate-800">
-                Let this therapist keep seeing my profile
+                {t("pclaim.keepAccess")}
               </span>
               <span className="mt-1 block text-xs leading-relaxed text-slate-500">
-                If you leave this off, they keep the notes they already wrote and nothing else, no
-                new sessions, no live profile. You can turn it on later, and off again, whenever you
-                like.
+                {t("pclaim.keepAccessBody")}
               </span>
             </span>
           </label>
@@ -173,7 +169,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
             })
           }
         >
-          This is not me
+          {t("pclaim.notMe")}
         </button>
       </Card>
     );
@@ -184,8 +180,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
       {suggestions.map((s) => (
         <Card key={s.personId} className="p-4">
           <p className="text-sm text-slate-600">
-            A therapist keeps notes for someone with your{" "}
-            {s.matchedOn === "email" ? "email address" : "phone number"}, under the name:
+            {s.matchedOn === "email" ? t("pclaim.matchedEmail") : t("pclaim.matchedPhone")}
           </p>
           {/*
             The redacted name — §3 step 4. Shown rather than the real one
@@ -195,7 +190,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
           <p className="mt-2 font-mono text-lg font-semibold tracking-wider text-slate-900">
             {s.redactedName}
           </p>
-          <p className="mt-2 text-xs text-slate-500">Is that you?</p>
+          <p className="mt-2 text-xs text-slate-500">{t("pclaim.isThatYou")}</p>
 
           {error ? (
             <p role="alert" aria-live="assertive" className="mt-2 text-sm text-red-600">
@@ -221,7 +216,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
                 })
               }
             >
-              Yes, send me a code
+              {t("pclaim.yesSendCode")}
             </Button>
           </div>
         </Card>
@@ -229,8 +224,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
 
       <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-slate-500">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
-        We only show initials until you have confirmed the code. Nobody learns anything about you
-        from this screen that you did not already tell us.
+        {t("pclaim.initialsOnly")}
       </p>
     </div>
   );

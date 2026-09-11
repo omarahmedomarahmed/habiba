@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { agreeToCrossBorder, withdrawCrossBorder } from "@/app/(patient)/patient/residency/actions";
 import { Button, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Where your record is kept, and whether you agreed to it. PLAN.md 30.3.
@@ -34,6 +35,7 @@ export function ResidencyNotice({
   homeLabel: string;
   servingLabel: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +43,9 @@ export function ResidencyNotice({
   if (!crosses) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">Where your record is kept</p>
+        <p className="text-sm font-semibold text-slate-900">{t("residency.title")}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-          In {homeLabel}, which is where it belongs. Nothing crosses a border, so there is nothing
-          for you to agree to here.
+          {t("residency.home", { country: homeLabel })}
         </p>
       </Card>
     );
@@ -77,7 +78,7 @@ export function ResidencyNotice({
             }
             className="mt-2 text-sm font-semibold text-slate-500"
           >
-            Withdraw that
+            {t("residency.withdraw")}
           </button>
         </div>
       ) : (

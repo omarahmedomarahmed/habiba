@@ -399,9 +399,12 @@ async function main() {
   );
 
   const exportUi = stripComments(readFileSync("components/patient/export-record.tsx", "utf8"));
+  /* 37L — the label lives in the dictionary now; the property is unchanged. */
+  const { en: copy } = await import("../lib/i18n/messages");
   check(
     "🔴 26.10 …and with no email on file the BUTTON says so, before it is pressed",
-    /Add an email to get your record/.test(exportUi),
+    /t\("precord\.addEmail"\)/.test(exportUi) &&
+      /add an email/i.test(copy["precord.addEmail"]),
   );
 
   check(

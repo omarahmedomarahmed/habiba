@@ -10,6 +10,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { openChallenges } from "@/lib/data/challenge";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 import { mySuggestions } from "./actions";
@@ -52,6 +53,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ClaimPage() {
   const actor = await requirePatient();
+  const { t } = await getI18n();
 
   /*
    * 🔴 25.14 / C121 — the handle first, and the page says so.
@@ -87,10 +89,10 @@ export default async function ClaimPage() {
       <PatientBack />
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          Have you seen a therapist before?
+          {t("pclaim.title")}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          If they already keep notes about you, you can take ownership of them, {actor.firstName}.
+          {t("pclaim.body", { name: actor.firstName })}
         </p>
       </div>
 
@@ -104,10 +106,9 @@ export default async function ClaimPage() {
 
       {nothing ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">Nothing to claim yet</p>
+          <p className="text-sm font-semibold text-slate-900">{t("pclaim.nothingTitle")}</p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            Nobody has written you down under this number or address. If you are seeing a therapist
-            on 24Therapy, ask them to send you an invite. It is one button on your record.
+            {t("pclaim.nothingBody")}
           </p>
         </Card>
       ) : null}

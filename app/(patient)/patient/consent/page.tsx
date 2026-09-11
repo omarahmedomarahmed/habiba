@@ -12,6 +12,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patients, sessions, users } from "@/lib/db/schema";
 import { asksForPerson, invitesForPerson } from "@/lib/data/portability";
 import { grantsForPerson, pendingRequestsFor } from "@/lib/data/grants";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { fullName } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ConsentPage() {
   const actor = await requirePatient();
+  const { t } = await getI18n();
 
   const [requests, grants, invites, asks, seen] = await Promise.all([
     pendingRequestsFor(actor.personId),
@@ -83,11 +85,10 @@ export default async function ConsentPage() {
 
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          Who can read your history
+          {t("consent.pageTitle")}
         </h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Your history is yours. A therapist can ask to read it, and you can stop them at any time -
-          they do not have to agree and you do not have to explain.
+          {t("consent.pageBody")}
         </p>
       </div>
 
@@ -144,9 +145,7 @@ export default async function ConsentPage() {
         and not to be alarmed by it.
       */}
       <p className="px-1 pb-4 text-xs leading-relaxed text-slate-500">
-        Stopping access stops any further reading straight away. It does not erase what a therapist
-        already read or the notes they wrote, those are their own clinical records, which they are
-        required to keep.
+        {t("consent.stopNote")}
       </p>
     </main>
   );

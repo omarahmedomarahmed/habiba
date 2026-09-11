@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
+
 /**
  * Back, on every patient screen that is not a tab. 37R.25, C185.
  *
@@ -32,11 +34,13 @@ import { ArrowLeft } from "lucide-react";
  */
 export function PatientBack({
   fallback = "/patient",
-  label = "Back",
+  label,
 }: {
   fallback?: string;
+  /** 37L.1 — defaults to the dictionary, so "Back" is never English by accident. */
   label?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [canGoBack, setCanGoBack] = useState(false);
 
@@ -56,7 +60,7 @@ export function PatientBack({
     >
       {/* The arrow follows the writing direction: RTL mirrors it. */}
       <ArrowLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden />
-      {label}
+      {label ?? t("common.back")}
     </button>
   );
 }

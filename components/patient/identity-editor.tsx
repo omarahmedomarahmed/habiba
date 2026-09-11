@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { removeOwnPhoto, saveOwnName, saveOwnPhoto } from "@/app/(patient)/patient/account/actions";
 import { PatientAvatar } from "@/components/patient/avatar";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Name and picture. PLAN.md 25.7, C115.
@@ -34,6 +35,7 @@ export function IdentityEditor({
   lastName: string | null;
   hasPhoto: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [named, saveName] = useActionState(saveOwnName, {});
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export function IdentityEditor({
               }
               className="block text-xs font-medium text-slate-500"
             >
-              Remove it
+              {t("pidentity.removePhoto")}
             </button>
           ) : null}
         </div>
@@ -102,8 +104,7 @@ export function IdentityEditor({
       ) : null}
 
       <p className="text-xs leading-relaxed text-slate-500">
-        Your photo is not public. It is stored privately and shown only to you and to a therapist
-        who already has a record for you.
+        {t("pidentity.photoPrivateRecord")}
       </p>
 
       <form action={saveName} className="space-y-3">
@@ -121,7 +122,7 @@ export function IdentityEditor({
         ) : null}
         {named.ok ? (
           <p role="status" className="text-sm text-teal-700">
-            Saved.
+            {t("common.saved")}
           </p>
         ) : null}
 

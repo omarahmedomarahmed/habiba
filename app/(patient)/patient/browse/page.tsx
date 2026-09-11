@@ -6,6 +6,7 @@ import { Card } from "@/components/ui";
 import { PatientBack } from "@/components/patient/back";
 import { TherapistCard } from "@/components/patient/therapist-card";
 import { categories, search } from "@/lib/data/discover";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 export const metadata: Metadata = { title: "Find a therapist", robots: { index: false } };
@@ -27,6 +28,7 @@ export default async function BrowsePage({
   searchParams: Promise<{ q?: string }>;
 }) {
   await requirePatient();
+  const { t } = await getI18n();
 
   const { q } = await searchParams;
   const query = (q ?? "").trim();
@@ -40,7 +42,7 @@ export default async function BrowsePage({
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
       <PatientBack />
 
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">Find a therapist</h1>
+      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("browse.title")}</h1>
 
       <form action="/patient/browse" className="relative">
         <Search
@@ -51,8 +53,8 @@ export default async function BrowsePage({
           type="search"
           name="q"
           defaultValue={query}
-          placeholder="Anxiety, Arabic, grief…"
-          aria-label="What do you need help with?"
+          placeholder={t("browse.placeholder")}
+          aria-label={t("browse.searchAria")}
           className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pe-4 ps-10 text-sm text-slate-900 outline-none focus:border-brand-400"
         />
       </form>
@@ -69,8 +71,7 @@ export default async function BrowsePage({
         ) : (
           <Card className="p-4">
             <p className="text-sm leading-relaxed text-slate-600">
-              Nobody on 24Therapy has listed that yet. Try one of the areas below, or open the
-              radar to see who is free right now.
+              {t("browse.nothingMatched")}
             </p>
           </Card>
         )
@@ -78,9 +79,9 @@ export default async function BrowsePage({
 
       {cats.length > 0 ? (
         <section>
-          <h2 className="text-sm font-semibold text-slate-900">What do you want help with?</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t("browse.areas")}</h2>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            Only areas a verified therapist has actually listed. The number is how many.
+            {t("browse.areasBody")}
           </p>
           <ul className="mt-3 flex flex-wrap gap-2">
             {cats.map((category) => (
@@ -99,7 +100,7 @@ export default async function BrowsePage({
       ) : (
         <Card className="p-4">
           <p className="text-sm leading-relaxed text-slate-600">
-            Nobody has been listed yet. The radar shows who is available this minute.
+            {t("browse.none")} {t("browse.noneBody")}
           </p>
         </Card>
       )}

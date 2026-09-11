@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RatingForm } from "@/components/feedback/rating-form";
 import { Card } from "@/components/ui";
 import { feedbackContext } from "@/lib/data/feedback";
+import { getI18n } from "@/lib/i18n/server";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 
 export const metadata: Metadata = { title: "Your session", robots: { index: false } };
@@ -21,6 +22,7 @@ export default async function FeedbackPage({
 }: {
   params: Promise<{ token: string }>;
 }) {
+  const { t } = await getI18n();
   const { token } = await params;
   const [context, signedIn] = await Promise.all([
     feedbackContext(token),
@@ -102,8 +104,7 @@ export default async function FeedbackPage({
       )}
 
       <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
-        If you are in immediate danger, call your local emergency number. In the US, call or text
-        988.
+        {t("urgent.footer")}
       </p>
     </Shell>
   );

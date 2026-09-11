@@ -5,6 +5,7 @@ import { ChevronRight, DoorOpen, Star } from "lucide-react";
 import type { RadarEntry } from "@/components/radar/types";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn, fullName, initials } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /** One clinician, on the dark hero board or the light radar page. */
 export function TherapistCard({
@@ -16,6 +17,7 @@ export function TherapistCard({
   tone?: "light" | "dark";
   onSelect: () => void;
 }) {
+  const t = useT();
   const dark = tone === "dark";
   const bookable = entry.status === "online" || entry.reservedByYou;
 
@@ -89,7 +91,7 @@ export function TherapistCard({
                 )}
               >
                 <DoorOpen className="h-2.5 w-2.5" aria-hidden />
-                Walk-ins
+                {t("radar.walkIns")}
               </span>
             ) : null}
             {entry.specialties.slice(0, 2).map((item) => (
@@ -138,6 +140,7 @@ export function Avatar({
   dark?: boolean;
   large?: boolean;
 }) {
+  const t = useT();
   const size = large ? "h-16 w-16 text-lg" : "h-11 w-11 text-xs";
 
   if (entry.photoUrl) {
@@ -178,6 +181,7 @@ export function StatusPill({
   /** This visitor holds the reservation — a completely different message. */
   mine?: boolean;
 }) {
+  const t = useT();
   const map = {
     online: { label: "Available", light: "bg-teal-100 text-teal-800", dark: "bg-teal-400/20 text-teal-300" },
     pending: { label: "Being booked", light: "bg-amber-100 text-amber-800", dark: "bg-amber-400/20 text-amber-200" },

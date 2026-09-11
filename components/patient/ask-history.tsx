@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { askPreviousTherapist } from "@/app/(patient)/patient/consent/actions";
 import { Button, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * "Ask my previous therapist to add my history." PLAN.md 27.7, C108.
@@ -33,6 +34,7 @@ export function AskHistory({
     declineReason: string | null;
   }[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [choice, setChoice] = useState("");
   const [note, setNote] = useState("");
@@ -44,11 +46,10 @@ export function AskHistory({
   return (
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">
-        Ask a therapist you saw before to add what they hold
+        {t("consent.askOld")}
       </p>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">
-        They do not have to, and we cannot make them. What we can do is make sure you hear back:
-        they either add it, or they say no and tell you why.
+        {t("consent.askOldBody")}
       </p>
 
       {asks.length > 0 ? (
@@ -73,10 +74,10 @@ export function AskHistory({
           <select
             value={choice}
             onChange={(event) => setChoice(event.target.value)}
-            aria-label="Which therapist"
+            aria-label={t("consent.whichTherapist")}
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900"
           >
-            <option value="">Choose a therapist you have seen</option>
+            <option value="">{t("consent.chooseTherapist")}</option>
             {clinicians.map((clinician) => (
               <option key={clinician.userId} value={clinician.userId}>
                 {clinician.name}
@@ -88,7 +89,7 @@ export function AskHistory({
             rows={2}
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="Anything you want to say to them (optional)"
+            placeholder={t("consent.askNote")}
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm leading-relaxed"
           />
 

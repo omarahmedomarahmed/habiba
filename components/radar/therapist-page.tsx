@@ -33,7 +33,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
     quoteFor("usd", "egp"),
   ]);
   const egpRate = quote?.rateMicro ?? null;
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const tag = localeTag(locale);
 
   return (
@@ -67,7 +67,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
       {profile.rateCents > 0 ? (
         <div className="mx-auto max-w-2xl px-4 pt-2 sm:px-6">
           <p className="flex items-center gap-2 text-sm text-slate-500">
-            One hour
+            {t("radar.oneHour")}
             <PriceTag usdCents={profile.rateCents} rateMicro={egpRate} locale={tag} />
           </p>
         </div>

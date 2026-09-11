@@ -6,6 +6,7 @@ import { Mic } from "lucide-react";
 
 import { addJournal } from "@/app/(patient)/patient/journal/actions";
 import { Button, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Writing a journal. PLAN.md 26.5, 26.8.
@@ -27,6 +28,7 @@ import { Button, Card } from "@/components/ui";
  * would misstate where the words came from.
  */
 export function JournalWriter() {
+  const t = useT();
   const [state, submit] = useActionState(addJournal, {});
   const [body, setBody] = useState("");
   const [dictated, setDictated] = useState(false);
@@ -88,7 +90,7 @@ export function JournalWriter() {
             setBody(event.target.value);
             setDictated(false);
           }}
-          placeholder="How has it been?"
+          placeholder={t("pjournal.placeholder")}
           className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-relaxed"
           required
         />

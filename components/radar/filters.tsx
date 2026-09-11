@@ -6,6 +6,7 @@ import { MapPin, X } from "lucide-react";
 import type { RadarEntry } from "@/components/radar/types";
 import { countryFlag, countryName, languageFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 export type RadarFilter = {
   language: string;
@@ -50,6 +51,7 @@ export function RadarFilters({
   onChange: (next: RadarFilter) => void;
   tone?: "light" | "dark";
 }) {
+  const t = useT();
   const dark = tone === "dark";
 
   const languages = useMemo(
@@ -157,7 +159,7 @@ export function RadarFilters({
             dark ? "text-teal-300" : "text-brand-600",
           )}
         >
-          Clear all filters
+          {t("radar.clearFilters")}
         </button>
       ) : null}
     </div>
@@ -195,6 +197,7 @@ function tally(
 }
 
 function Scroller({ label, children }: { label: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span className="sr-only">{label}</span>
@@ -229,6 +232,7 @@ function Chip({
   dark: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"

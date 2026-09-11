@@ -109,16 +109,15 @@ export default async function PatientHomePage({
   ]);
 
   const pending = waiting.length;
+  const { t } = i18n;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-6">
       {claimed ? (
         <Card className="border-teal-200 bg-teal-50 p-4">
-          <p className="text-sm font-semibold text-teal-900">That record is yours now</p>
+          <p className="text-sm font-semibold text-teal-900">{t("home.claimedTitle")}</p>
           <p className="mt-1 text-sm leading-relaxed text-teal-900/90">
-            {claimed === "kept"
-              ? "Your therapist can still see your profile. You can change that whenever you like, under who can read your history."
-              : "Your therapist keeps the notes they already wrote, and can no longer see your live profile. You can give access back at any time."}
+            {claimed === "kept" ? t("home.claimedKept") : t("home.claimedDropped")}
           </p>
         </Card>
       ) : null}
@@ -126,7 +125,7 @@ export default async function PatientHomePage({
       {/* ------------------------------------------------------- who you are */}
 
       <header className="flex items-center gap-3">
-        <Link href="/patient/account" aria-label="Your account">
+        <Link href="/patient/account" aria-label={t("home.yourAccount")}>
           <PatientAvatar
             personId={actor.personId}
             hasPhoto={Boolean(person?.avatarUrl)}
@@ -136,10 +135,10 @@ export default async function PatientHomePage({
         </Link>
         <div className="min-w-0">
           <p className="truncate text-lg font-bold tracking-tight text-slate-900">
-            Hello, {actor.firstName}
+            {t("home.greeting", { name: actor.firstName })}
           </p>
           <p className="truncate text-xs text-slate-500">
-            {person?.claimedAt ? "Your record is yours" : "Your record is not claimed yet"}
+            {person?.claimedAt ? t("home.recordYours") : t("home.recordUnclaimed")}
           </p>
         </div>
       </header>
@@ -151,7 +150,7 @@ export default async function PatientHomePage({
         className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-500"
       >
         <Search className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-        What do you want help with?
+        {t("home.searchPlaceholder")}
       </Link>
 
       {/* ------------------------------------------------------------ the globe */}
@@ -162,9 +161,9 @@ export default async function PatientHomePage({
       >
         <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
         <span className="min-w-0">
-          <span className="block text-sm font-semibold">Find someone now</span>
+          <span className="block text-sm font-semibold">{t("home.findNow")}</span>
           <span className="block text-xs text-white/80">
-            Therapists who are online and free this minute.
+            {t("home.findNowBody")}
           </span>
         </span>
       </Link>
@@ -174,18 +173,17 @@ export default async function PatientHomePage({
       {pending > 0 ? (
         <Card className="border-amber-200 bg-amber-50 p-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-amber-900">Somebody asked to read your history</p>
+            <p className="text-sm font-semibold text-amber-900">{t("home.askedTitle")}</p>
             <Badge tone="amber">{pending}</Badge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-amber-900/90">
-            {pending === 1 ? "A therapist has" : `${pending} therapists have`} asked. You decide,
-            and you can change your mind later.
+            {pending === 1 ? t("home.askedOne") : t("home.askedMany", { count: pending })}
           </p>
           <Link
             href="/patient/consent"
             className="mt-3 inline-flex text-sm font-semibold text-amber-900 underline"
           >
-            Answer now
+            {t("home.answerNow")}
           </Link>
         </Card>
       ) : null}
@@ -193,7 +191,7 @@ export default async function PatientHomePage({
       {next ? (
         <Card className="border border-brand-200 p-4">
           <p className="text-xs font-semibold tracking-wide text-brand-600 uppercase">
-            To try before your next session
+            {t("home.beforeNext")}
           </p>
           <p className="mt-1.5 text-base leading-relaxed font-medium text-slate-900">
             {next.title}
@@ -206,8 +204,10 @@ export default async function PatientHomePage({
             className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
           >
             {next.othersWaiting > 0
-              ? `Open this and ${next.othersWaiting}${next.othersWaiting === 9 ? "+" : ""} more`
-              : "Open it"}
+              ? t("home.openAndMore", {
+                  count: `${next.othersWaiting}${next.othersWaiting === 9 ? "+" : ""}`,
+                })
+              : t("home.openIt")}
           </Link>
         </Card>
       ) : null}
@@ -216,7 +216,7 @@ export default async function PatientHomePage({
 
       {cats.length > 0 ? (
         <section>
-          <h2 className="text-sm font-semibold text-slate-900">Areas people come here for</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t("home.areas")}</h2>
           <ul className="mt-2.5 flex gap-2 overflow-x-auto pb-1">
             {cats.slice(0, 8).map((category) => (
               <li key={category.code} className="shrink-0">
@@ -238,11 +238,10 @@ export default async function PatientHomePage({
         <section>
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-            Rated highest by patients
+            {t("home.ratedHighest")}
           </h2>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            Only therapists with at least five rated sessions. Below that there is no score to
-            show, so they are not here.
+            {t("home.ratedHighestBody")}
           </p>
           <ul className="mt-2.5 space-y-2.5">
             {best.map((therapist) => (
@@ -266,24 +265,26 @@ export default async function PatientHomePage({
 
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-900">Your record</p>
+          <p className="text-sm font-semibold text-slate-900">{t("home.yourRecord")}</p>
           {person?.claimedAt ? (
-            <Badge tone="teal">Yours</Badge>
+            <Badge tone="teal">{t("home.yours")}</Badge>
           ) : (
-            <Badge tone="slate">Not claimed yet</Badge>
+            <Badge tone="slate">{t("home.notClaimed")}</Badge>
           )}
         </div>
         <p className="mt-1 text-sm text-slate-600">
-          {attached
-            ? `${attached} therapist file${attached === 1 ? "" : "s"} attached.`
-            : "No therapist files are attached to your account yet."}
+          {attached === 0
+            ? t("home.noFiles")
+            : attached === 1
+              ? t("home.filesAttached", { count: attached })
+              : t("home.filesAttachedMany", { count: attached })}
         </p>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
           <Link href="/patient/claim" className="text-sm font-semibold text-brand-600">
-            {person?.claimedAt ? "Claim another record" : "Do you have records to claim?"}
+            {person?.claimedAt ? t("home.claimAnother") : t("home.haveRecords")}
           </Link>
           <Link href="/patient/profile" className="text-sm font-semibold text-brand-600">
-            Open your profile
+            {t("home.openProfile")}
           </Link>
         </div>
       </Card>
@@ -294,7 +295,7 @@ export default async function PatientHomePage({
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
         <NotebookPen className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-        Your journal
+        {t("home.journal")}
       </Link>
 
       <Link
@@ -302,7 +303,7 @@ export default async function PatientHomePage({
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
         <FileText className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-        Your clinical summary
+        {t("home.summary")}
       </Link>
 
       <Link
@@ -310,7 +311,7 @@ export default async function PatientHomePage({
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
         <ShieldCheck className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-        Who can read your history
+        {t("home.whoCanRead")}
       </Link>
 
       {/* 26.9 — the whole thing, in one document they can keep. */}
@@ -319,7 +320,7 @@ export default async function PatientHomePage({
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
         <Download className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-        Get a copy of everything
+        {t("home.getCopy")}
       </Link>
     </main>
   );

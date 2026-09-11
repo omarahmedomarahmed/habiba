@@ -307,11 +307,24 @@ async function main() {
   );
 
   const { CRISIS_LINES } = await import("../lib/crisis/line");
+  const { en, ar } = await import("../lib/i18n/messages");
+  /*
+   * 🔴 37L — the sentence moved, and this check had to move with it.
+   *
+   * It asserted the copy by grepping the component, which was right until the
+   * product learned Arabic: the words now live in the dictionary and the orb
+   * renders `t("crisis.anywhereElse")`. Grepping the component for English
+   * after that is asserting that the component was NOT translated. So the
+   * check reads the dictionary, in both languages, and still insists the orb
+   * prints it rather than merely importing it.
+   */
   check(
     "🔴 25.5 / C98 only VERIFIED numbers appear, and the sentence that is true everywhere is not a footnote",
     Object.keys(CRISIS_LINES).length >= 1 &&
-      orb.includes("call your local emergency number"),
-    `${Object.keys(CRISIS_LINES).length} verified line(s)`,
+      en["crisis.anywhereElse"].includes("call your local emergency number") &&
+      /[؀-ۿ]/.test(ar["crisis.anywhereElse"]) &&
+      /t\("crisis\.anywhereElse"\)/.test(orb),
+    `${Object.keys(CRISIS_LINES).length} verified line(s), the sentence in both languages`,
   );
 
   /* ------------------------------------------------------ 25.6 · C116 */
@@ -471,7 +484,7 @@ async function main() {
   check(
     "🔴 25.4 / C129 a live session locks the session tab and asks before leaving",
     /liveSession/.test(readFileSync("components/patient/bottom-nav.tsx", "utf8")) &&
-      /Leave your session\?/.test(readFileSync("components/patient/bottom-nav.tsx", "utf8")) &&
+      /t\("tab\.leaveTitle"\)/.test(readFileSync("components/patient/bottom-nav.tsx", "utf8")) &&
       /live={{ href: `\/join\//.test(readFileSync("app/join/[token]/page.tsx", "utf8")),
     "the bar stays, the session is current, and leaving is a question",
   );

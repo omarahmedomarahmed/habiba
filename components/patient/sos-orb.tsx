@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Phone, X } from "lucide-react";
 
 import { countryForNumber, lineForNumber, type CrisisLine } from "@/lib/crisis/line";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
@@ -57,6 +58,7 @@ type Props = {
 };
 
 export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"start" | "end">("end");
   const [top, setTop] = useState(0.62);
@@ -111,7 +113,7 @@ export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: 
     <>
       <button
         type="button"
-        aria-label="SOS, get help now"
+        aria-label={t("crisis.orbLabel")}
         onPointerDown={() => {
           dragging.current = false;
         }}
@@ -142,14 +144,14 @@ export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: 
           <div className="rounded-3xl bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-base font-bold tracking-tight text-slate-900">Help now</p>
+                <p className="text-base font-bold tracking-tight text-slate-900">{t("crisis.sheetTitle")}</p>
                 <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
-                  These are phone numbers, not a chat. They connect you to a person.
+                  {t("crisis.sheetBody")}
                 </p>
               </div>
               <button
                 type="button"
-                aria-label="Close"
+                aria-label={t("common.close")}
                 onClick={() => setOpen(false)}
                 className="-m-2 rounded-lg p-2 text-slate-400"
               >
@@ -178,7 +180,7 @@ export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: 
                   href={`tel:${practiceNumber}`}
                   className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-slate-900 px-3 py-4 text-white"
                 >
-                  <span className="text-xs font-semibold">Your practice</span>
+                  <span className="text-xs font-semibold">{t("crisis.yourPractice")}</span>
                   <span className="text-base font-bold tracking-wide">{practiceNumber}</span>
                 </a>
               ) : null}
@@ -192,8 +194,7 @@ export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: 
             */}
             <p className="mt-4 rounded-2xl bg-slate-100 px-3.5 py-3 text-sm leading-relaxed text-slate-700">
               <Phone className="me-1.5 inline h-4 w-4 align-[-2px]" aria-hidden />
-              Anywhere else, call your local emergency number. It is free from any phone, and
-              works with no credit and no SIM.
+              {t("crisis.anywhereElse")}
             </p>
           </div>
         </div>

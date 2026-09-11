@@ -1,0 +1,14 @@
+import { readFileSync } from "node:fs";
+import { browser, go, BASE, PHONE } from "./lib.mjs";
+const people = JSON.parse(readFileSync(".walkthrough2/people.json","utf8"));
+const b = await browser();
+const ctx = await b.newContext({ viewport: PHONE });
+const p = await ctx.newPage();
+await p.goto(`${BASE}/patient/login`, { waitUntil: "networkidle" });
+await p.fill("input[name=handle]", people.patient.phone).catch(async()=>{ await p.locator("input").first().fill(people.patient.phone); });
+await p.fill("input[name=password]", people.patient.password).catch(()=>{});
+await p.getByRole("button", { name: /sign in|تسجيل/i }).first().click();
+await p.waitForTimeout(5000);
+console.log("landed:", p.url());
+await ctx.storageState({ path: ".walkthrough2/state-patient.json" });
+await b.close();

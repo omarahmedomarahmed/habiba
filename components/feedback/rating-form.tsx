@@ -10,6 +10,7 @@ import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The rating form a patient fills in to get their summary.
@@ -56,6 +57,7 @@ export function RatingForm({
   /** They rated the app when the session began; do not ask a second time. */
   ratedApp: boolean;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [therapistStars, setTherapistStars] = useState(0);
   const [sessionStars, setSessionStars] = useState(0);
@@ -126,25 +128,25 @@ export function RatingForm({
     const rtl = RTL_LANGUAGE_CODES.has(briefLanguage);
     return (
       <div className="space-y-4">
-        <Heading date={sessionDate} title="Your session" />
+        <Heading date={sessionDate} title={t("prating.yourSession")} />
         <Card className="p-5 text-center">
           <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">
             <Check className="h-5 w-5" aria-hidden />
           </span>
-          <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">Thank you</p>
+          <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">{t("room.thanks")}</p>
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
             {sent || emailed
-              ? "Your summary is below, and a copy is on its way to your inbox."
+              ? t("prating.summaryOnWay")
               : notePending
-                ? `${therapistFirstName} is still writing up the session. Your summary will arrive by email as soon as it is approved, usually within the hour.`
-                : "Your summary is below. Keep this link if you want to come back to it."}
+                ? t("prating.stillWriting", { name: therapistFirstName })
+                : t("prating.keepLink")}
           </p>
         </Card>
 
         {brief ? (
           <Card className="p-5">
             <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-              Your summary
+              {t("prating.yourSummary")}
             </p>
             {/* Same component the clinician approved this on, so what they
                 saw and what you are reading cannot drift apart. */}
@@ -156,8 +158,7 @@ export function RatingForm({
               rtl={rtl}
             />
             <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-400">
-              This is written for you. Your therapist keeps a separate clinical note, which stays
-              with them.
+              {t("prating.writtenForYou")}
             </p>
           </Card>
         ) : null}
@@ -185,7 +186,7 @@ export function RatingForm({
     <div className="space-y-4">
       <Heading
         date={sessionDate}
-        title="One minute, and your summary is yours"
+        title={t("prating.oneMinute")}
         blurb="Rate the session and tell us where to send the summary. It is the only thing we ask, and it is what keeps the good therapists visible to the next person."
       />
 
@@ -203,7 +204,7 @@ export function RatingForm({
         </div>
 
         <div className="border-t border-slate-100 pt-4">
-          <p className="text-sm font-semibold text-slate-900">And the session itself?</p>
+          <p className="text-sm font-semibold text-slate-900">{t("prating.andSession")}</p>
           <p className="text-xs text-slate-500">
             Whether this half hour was any use to you, a different question from whether
             {" "}
@@ -222,8 +223,8 @@ export function RatingForm({
         */}
         {!ratedApp ? (
           <div className="border-t border-slate-100 pt-4">
-            <p className="text-sm font-semibold text-slate-900">And 24Therapy itself?</p>
-            <p className="text-xs text-slate-500">Finding someone, connecting, the app.</p>
+            <p className="text-sm font-semibold text-slate-900">{t("prating.andApp")}</p>
+            <p className="text-xs text-slate-500">{t("prating.andAppBody")}</p>
             <Stars value={serviceStars} onChange={setServiceStars} label="Rate the service" />
             <TagRow
               options={SERVICE_TAGS}
@@ -238,10 +239,11 @@ export function RatingForm({
             htmlFor="feedback-comment"
             className="text-sm font-semibold text-slate-900"
           >
-            Anything else? <span className="font-normal text-slate-400">Optional</span>
+            {t("prating.anythingElse")}{" "}
+            <span className="font-normal text-slate-400">{t("prating.optional")}</span>
           </label>
           <p className="mt-0.5 text-xs text-slate-500">
-            Your therapist sees this without your name on it.
+            {t("prating.noName")}
           </p>
           <Textarea
             id="feedback-comment"
@@ -249,17 +251,16 @@ export function RatingForm({
             value={comment}
             onChange={(event) => setComment(event.target.value)}
             className="mt-2"
-            placeholder="What helped, what did not."
+            placeholder={t("prating.commentPlaceholder")}
           />
         </div>
 
         <div className="border-t border-slate-100 pt-4">
           <label htmlFor="feedback-email" className="text-sm font-semibold text-slate-900">
-            Where shall we send your summary?
+            {t("prating.whereSummary")}
           </label>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            A plain-language summary of what you talked about and what you agreed. We use this
-            address for that and to reach you about this session, nothing else.
+            {t("prating.summaryBody")}
           </p>
           <Input
             id="feedback-email"
@@ -270,7 +271,7 @@ export function RatingForm({
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="mt-2"
-            placeholder="you@example.com"
+            placeholder={t("room.emailPlaceholder")}
           />
         </div>
 
@@ -286,7 +287,7 @@ export function RatingForm({
         </Button>
         {!ready ? (
           <p className="text-center text-xs text-slate-400">
-            The ratings and an email address, and it is yours.
+            {t("prating.ratingsAndEmail")}
           </p>
         ) : null}
       </Card>
@@ -306,6 +307,7 @@ export function RatingForm({
 }
 
 function Heading({ date, title, blurb }: { date: string; title: string; blurb?: string }) {
+  const t = useT();
   return (
     <div>
       <p className="text-xs font-bold tracking-wider text-teal-600 uppercase">{date}</p>
@@ -324,6 +326,7 @@ function Stars({
   onChange: (v: number) => void;
   label: string;
 }) {
+  const t = useT();
   return (
     <div className="mt-2 flex gap-1" role="radiogroup" aria-label={label}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -358,6 +361,7 @@ function TagRow({
   selected: string[];
   onToggle: (value: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="mt-2.5 flex flex-wrap gap-1.5">
       {options.map((option) => (
@@ -408,6 +412,7 @@ function ReportBox({
   reported: string | null;
   setReported: (v: string | null) => void;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -415,7 +420,7 @@ function ReportBox({
   if (reported) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Reported</p>
+        <p className="text-sm font-semibold text-slate-900">{t("prating.reported")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">{reported}</p>
       </Card>
     );
@@ -430,7 +435,7 @@ function ReportBox({
             onClick={() => setReporting("no_show")}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            They never joined, I want my money back
+            {t("prating.neverJoined")}
           </button>
         ) : null}
         <button
@@ -439,7 +444,7 @@ function ReportBox({
           className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-          Report something that happened in this session
+          {t("prating.reportSomething")}
         </button>
       </div>
     );
@@ -477,7 +482,7 @@ function ReportBox({
           rows={4}
           value={detail}
           onChange={(event) => setDetail(event.target.value)}
-          placeholder="What happened, and roughly when in the session."
+          placeholder={t("prating.reportPlaceholder")}
         />
       ) : null}
 
@@ -487,7 +492,7 @@ function ReportBox({
         autoCapitalize="none"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
-        placeholder="Your email, so we can reply (optional)"
+        placeholder={t("prating.replyEmail")}
       />
 
       {error ? (
@@ -501,7 +506,7 @@ function ReportBox({
           {pending ? "Sending…" : reporting === "no_show" ? "Refund me" : "Send to 24Therapy"}
         </Button>
         <Button variant="secondary" onClick={() => setReporting(null)}>
-          Cancel
+          {t("common.cancel")}
         </Button>
       </div>
     </Card>

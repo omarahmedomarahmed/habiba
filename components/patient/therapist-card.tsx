@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 
 import type { DiscoverTherapist } from "@/lib/data/discover";
+import { getI18n } from "@/lib/i18n/server";
 
 /**
  * One clinician, in a list. PLAN.md 25.1.
@@ -10,7 +11,8 @@ import type { DiscoverTherapist } from "@/lib/data/discover";
  * repeated in three places: an absent score must be shown by being absent, and
  * the way that rule dies is one of the three copies rendering a zero.
  */
-export function TherapistCard({ therapist }: { therapist: DiscoverTherapist }) {
+export async function TherapistCard({ therapist }: { therapist: DiscoverTherapist }) {
+  const { t } = await getI18n();
   return (
     <Link
       href={`/patient/t/${therapist.userId}`}
@@ -34,7 +36,7 @@ export function TherapistCard({ therapist }: { therapist: DiscoverTherapist }) {
           <span className="truncate text-sm font-semibold text-slate-900">{therapist.name}</span>
           {therapist.online ? (
             <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700">
-              Free now
+              {t("radar.freeNow")}
             </span>
           ) : null}
         </span>

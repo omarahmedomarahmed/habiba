@@ -10,6 +10,7 @@ import { listDocuments } from "@/lib/data/documents";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { fullName } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function OwnProfilePage() {
   const actor = await requirePatient();
+  const { t } = await getI18n();
 
   const documents = await listDocuments(actor.personId);
   const diagnoses = await listDiagnoses(actor.personId);
@@ -81,10 +83,9 @@ export default async function OwnProfilePage() {
       </div>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Your profile</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pprofile.title")}</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Letters, prescriptions, reports and anything you want a therapist to know. It travels with
-          you, you decide who reads it.
+          {t("pprofile.body")}
         </p>
       </div>
 
@@ -95,9 +96,9 @@ export default async function OwnProfilePage() {
 
       {diagnoses.filter((d) => d.status === "confirmed").length > 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">Diagnoses on your record</p>
+          <p className="text-sm font-semibold text-slate-900">{t("pprofile.diagnoses")}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            Taken from the documents above, in their own words, and confirmed by a clinician.
+            {t("pprofile.diagnosesBody")}
           </p>
           <ul className="mt-3 space-y-3">
             {diagnoses
@@ -119,9 +120,7 @@ export default async function OwnProfilePage() {
               ))}
           </ul>
           <p className="mt-3 text-xs leading-relaxed text-slate-500">
-            If any of this is out of date or wrong, flag it on the document it came from. Flagging
-            marks it for every clinician who reads it. It does not erase what was written, because
-            a medical record has to stay as it was.
+            {t("pprofile.flagNote")}
           </p>
         </Card>
       ) : null}

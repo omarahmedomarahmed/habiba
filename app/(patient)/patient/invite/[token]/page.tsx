@@ -5,6 +5,7 @@ import { InviteFlow } from "@/components/patient/invite-flow";
 import { resolveInvite } from "@/lib/data/claims";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { Card } from "@/components/ui";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Your record", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -33,14 +34,15 @@ export default async function InvitePage({
   const { token } = await params;
   const [invite, patient] = await Promise.all([resolveInvite(token), optionalPatient()]);
 
+  const { t } = await getI18n();
+
   if (!invite) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-8">
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">This link is no longer valid</p>
+          <p className="text-sm font-semibold text-slate-900">{t("pinvite.usedTitle")}</p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            It may have been used already, expired, or been taken back. Ask your therapist for a
-            new one.
+            {t("pinvite.usedBody")}
           </p>
         </Card>
       </main>
@@ -51,7 +53,7 @@ export default async function InvitePage({
     return (
       <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-8">
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">Your therapist sent you this</p>
+          <p className="text-sm font-semibold text-slate-900">{t("pinvite.title")}</p>
           {/*
             🔴 13.8 — the therapist's name, and nothing about the record.
             -------------------------------------------------------------
@@ -66,8 +68,7 @@ export default async function InvitePage({
             act on.
           */}
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            <span className="font-semibold text-slate-800">{invite.therapistName}</span> has
-            invited you to take ownership of the record they keep for you.
+            {t("pinvite.body", { name: invite.therapistName })}
           </p>
           {/*
             🔴 37R.25 — this used to say "then open this link again", and it
@@ -81,20 +82,20 @@ export default async function InvitePage({
             fail at.
           */}
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Create an account or sign in, and we will bring you straight back here.
+            {t("pinvite.signedOut")}
           </p>
           <div className="mt-4 space-y-2">
             <Link
               href={`/patient/signup?invite=${token}`}
               className="flex h-11 w-full items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-white"
             >
-              Create an account
+              {t("pinvite.create")}
             </Link>
             <Link
               href={`/patient/login?next=/patient/invite/${token}`}
               className="flex h-11 w-full items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-700"
             >
-              Sign in
+              {t("pinvite.signIn")}
             </Link>
           </div>
         </Card>

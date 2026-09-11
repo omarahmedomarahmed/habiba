@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { flagOwnContent } from "@/app/(patient)/patient/profile/actions";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The person's own documents, with the same list the clinician sees.
@@ -34,6 +35,7 @@ export function OwnProfilePanel({
   documents: DocumentRow[];
   watermark: string;
 }) {
+  const t = useT();
   /*
    * 12.3 — the patient portal has no stored zone yet (§3b's signup, sprint 13),
    * so both render passes start at UTC and the reader's own zone arrives after
@@ -48,11 +50,10 @@ export function OwnProfilePanel({
         className="block rounded-2xl border border-slate-200 bg-white p-4"
       >
         <span className="block text-sm font-semibold text-slate-900">
-          Want to say how things have been?
+          {t("pprofile.sayInstead")}
         </span>
         <span className="mt-0.5 block text-sm leading-relaxed text-slate-600">
-          Write a journal instead. It is yours, a therapist you have given access to can read it,
-          and it is a lot easier than filing paperwork about yourself.
+          {t("pprofile.sayInsteadBody")}
         </span>
       </Link>
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PatientSteps } from "@/components/homework/patient-steps";
 import { PatientBack } from "@/components/patient/back";
 import { openStepsFor } from "@/lib/data/homework";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 export const metadata: Metadata = { title: "What to try", robots: { index: false } };
@@ -19,6 +20,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function HomeworkPage() {
   const actor = await requirePatient();
+  const { t } = await getI18n();
   const steps = await openStepsFor(actor.personId);
 
   return (
@@ -28,9 +30,9 @@ export default async function HomeworkPage() {
       </div>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">What to try</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("homework.title")}</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Small things you and your therapist agreed on. Do them when you can. Nobody is counting.
+          {t("homework.body")}
         </p>
       </div>
 

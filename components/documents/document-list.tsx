@@ -6,6 +6,7 @@ import { AlertTriangle, FileText, Flag, ImageIcon, Mic, Volume2 } from "lucide-r
 import { Badge, Card } from "@/components/ui";
 import { isImage, searchabilityLabel } from "@/lib/documents/formats";
 import { formatDate } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * A person's documents, as a clinician or the person themselves sees them.
@@ -74,12 +75,13 @@ export function DocumentList({
   watermark: string;
   onFlag?: (documentId: string, reason: "outdated" | "wrong" | "not_mine") => Promise<void>;
 }) {
+  const t = useT();
+
   if (documents.length === 0) {
     return (
       <Card className="px-4 py-6">
         <p className="text-sm text-slate-500">
-          Nothing here yet. Letters, prescriptions, scans and old reports all belong here, a
-          photograph of a page is fine.
+          {t("pprofile.empty")}
         </p>
       </Card>
     );

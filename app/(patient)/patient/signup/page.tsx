@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { getI18n } from "@/lib/i18n/server";
 import { PatientAuthForm } from "@/components/patient/auth-form";
 import { resolveInvite } from "@/lib/data/claims";
 
@@ -23,15 +24,16 @@ export default async function PatientSignupPage({
    * exists to prevent, arriving through the one door that bypasses it.
    */
   const invited = invite ? await resolveInvite(invite) : null;
+  const { t } = await getI18n();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4 py-8">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Create your account</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pauth.signUpTitle")}</h1>
         <p className="mt-1 text-sm text-slate-500">
           {invited
-            ? `${invited.therapistName} invited you. Your record becomes yours: it travels with you, and you decide who reads it.`
-            : "Your record becomes yours: it travels with you, and you decide who reads it."}
+            ? t("pauth.signUpInvited", { name: invited.therapistName })
+            : t("pauth.signUpBody")}
         </p>
       </div>
       <PatientAuthForm
@@ -40,21 +42,21 @@ export default async function PatientSignupPage({
         lockedPhone={invited?.phone ?? null}
       />
       <p className="text-center text-sm text-slate-500">
-        Already have one?{" "}
+        {t("pauth.alreadyHaveOne")}{" "}
         <Link href="/patient/login" className="font-semibold text-brand-600 hover:underline">
-          Sign in
+          {t("pauth.signIn")}
         </Link>{" "}
         ·{" "}
         <Link href="/patient/forgot-password" className="hover:text-slate-800">
-          Forgot your password?
+          {t("pauth.forgot")}
         </Link>
       </p>
 
       {/* 21R.2 — three audiences, three doors, each pointing at the others. */}
       <p className="text-center text-sm text-slate-500">
-        Are you a therapist?{" "}
+        {t("pauth.areYouTherapist")}{" "}
         <Link href="/signup" className="font-semibold text-brand-600 hover:underline">
-          Create a practice account
+          {t("pauth.practiceSignUp")}
         </Link>
       </p>
     </main>

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { requestSignInCode, signInWithCode } from "@/lib/patient-auth/code-signin";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { countryFromLocale } from "@/lib/phone/e164";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Signing in with a code. PLAN.md 25.11-25.13, C119.
@@ -29,6 +30,7 @@ function Submit({ label }: { label: string }) {
 }
 
 export function CodeSignInForm() {
+  const t = useT();
   const router = useRouter();
   const [country] = useState(
     () =>
@@ -47,10 +49,9 @@ export function CodeSignInForm() {
     return (
       <Card className="space-y-4 p-5">
         <div>
-          <h2 className="text-base font-bold tracking-tight text-slate-900">Enter your code</h2>
+          <h2 className="text-base font-bold tracking-tight text-slate-900">{t("pcode.title")}</h2>
           <p className="mt-1 text-sm leading-relaxed text-slate-500">
-            If that phone number or email has an account, a six-digit code is on its way. It
-            expires in fifteen minutes.
+            {t("pcode.body")} {t("pcode.expires")}
           </p>
         </div>
 
@@ -59,8 +60,7 @@ export function CodeSignInForm() {
             role="status"
             className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm leading-relaxed text-amber-800"
           >
-            ⚠️ Codes over WhatsApp are not switched on yet, so one may not arrive. If you are
-            stuck, ask your therapist for an invite link.
+            ⚠️ {t("pcode.channelDown")}
           </p>
         ) : null}
 
@@ -95,11 +95,10 @@ export function CodeSignInForm() {
     <Card className="space-y-4 p-5">
       <div>
         <h2 className="text-base font-bold tracking-tight text-slate-900">
-          Sign in with a code instead
+          {t("pcode.useCode")}
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
-          No password needed. We send a code to your phone number or your email, whichever you
-          use here.
+          {t("pcode.useCodeBody")}
         </p>
       </div>
 

@@ -5,6 +5,7 @@ import { Clock, ShieldOff, UserCheck } from "lucide-react";
 
 import { answerRequest, revoke } from "@/app/(patient)/patient/consent/actions";
 import { Badge, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 import { REJECTION_REASONS } from "@/lib/access/state";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { formatDate } from "@/lib/utils";
@@ -45,6 +46,8 @@ export function ConsentList({
     revokedAt: Date | null;
   }[];
 }) {
+  const t = useT();
+
   /*
    * 12.3, corrected — the only screen in the product where the server does not
    * know the reader's zone.
@@ -60,10 +63,10 @@ export function ConsentList({
   return (
     <div className="space-y-4">
       <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">Waiting for your answer</h2>
+        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">{t("consent.waiting")}</h2>
         {requests.length === 0 ? (
           <Card className="px-4 py-5">
-            <p className="text-sm text-slate-500">Nobody has asked to read your history.</p>
+            <p className="text-sm text-slate-500">{t("consent.nobodyAsked")}</p>
           </Card>
         ) : (
           <ul className="space-y-3">
@@ -75,12 +78,11 @@ export function ConsentList({
       </section>
 
       <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">Who has access</h2>
+        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">{t("consent.whoHasAccess")}</h2>
         {grants.length === 0 ? (
           <Card className="px-4 py-5">
             <p className="text-sm text-slate-500">
-              Nobody can read your history. Your therapists still keep their own notes about the
-              sessions you had with them, that part is their record, not yours to remove.
+              {t("consent.nobodyCanRead")}
             </p>
           </Card>
         ) : (
@@ -108,6 +110,7 @@ function RequestRow({
     requestedAt: Date | null;
   };
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState<string>("");
@@ -139,7 +142,7 @@ function RequestRow({
         {declining ? (
           <div className="mt-3 space-y-2">
             <p className="text-xs font-medium text-slate-600">
-              You can say why, or say nothing. Either is fine.
+              {t("consent.sayWhy")}
             </p>
             {REJECTION_REASONS.map((preset) => (
               <label key={preset} className="flex items-start gap-2 text-sm text-slate-700">
@@ -168,7 +171,7 @@ function RequestRow({
                 onClick={() => setDeclining(false)}
                 className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600"
               >
-                Back
+                {t("common.back")}
               </button>
             </div>
           </div>
@@ -180,7 +183,7 @@ function RequestRow({
               onClick={() => answer("granted", "24h")}
               className="tap-target h-10 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
             >
-              Yes, for 24 hours
+              {t("consent.yesDay")}
             </button>
             <button
               type="button"
@@ -188,7 +191,7 @@ function RequestRow({
               onClick={() => answer("granted", "open")}
               className="tap-target h-10 rounded-xl bg-white px-4 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
             >
-              Yes, until I change my mind
+              {t("consent.yesUntil")}
             </button>
             <button
               type="button"
@@ -196,7 +199,7 @@ function RequestRow({
               onClick={() => setDeclining(true)}
               className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
             >
-              No thanks
+              {t("consent.no")}
             </button>
           </div>
         )}
@@ -227,6 +230,7 @@ function GrantRow({
     revokedAt: Date | null;
   };
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -249,20 +253,24 @@ function GrantRow({
               {live && grant.expiresAt ? (
                 <>
                   <Clock className="h-3 w-3" aria-hidden />
-                  Until {formatDate(grant.expiresAt, zone)}
+                  {t("consent.until", { date: formatDate(grant.expiresAt, zone) })}
                 </>
               ) : live ? (
-                "Until you change your mind"
+                t("consent.untilChange")
               ) : grant.revokedAt ? (
-                `You ended this on ${formatDate(grant.revokedAt, zone)}`
+                t("consent.youEnded", { date: formatDate(grant.revokedAt, zone) })
               ) : grant.status === "rejected" ? (
-                "You declined"
+                t("consent.youDeclined")
               ) : (
-                "Expired"
+                t("consent.expired")
               )}
             </p>
           </div>
-          {live ? <Badge tone="teal">Can read</Badge> : <Badge tone="slate">Cannot read</Badge>}
+          {live ? (
+            <Badge tone="teal">{t("consent.canRead")}</Badge>
+          ) : (
+            <Badge tone="slate">{t("consent.cannotRead")}</Badge>
+          )}
         </div>
 
         {live ? (
@@ -278,7 +286,7 @@ function GrantRow({
             }
             className="tap-target mt-3 h-10 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-50"
           >
-            {pending ? "Working…" : "Stop their access"}
+            {pending ? t("common.working") : t("consent.stop")}
           </button>
         ) : null}
 

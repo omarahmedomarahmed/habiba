@@ -45,6 +45,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PatientBillingPage() {
   const actor = await requirePatient();
+  const { t } = await getI18n();
   // 19.4 — the reader's language, once, on the server.
   const { locale } = await getI18n();
   const tag = localeTag(locale);
@@ -95,9 +96,9 @@ export default async function PatientBillingPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Billing</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pbilling.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          What you paid, and exactly where it went.
+          {t("pbilling.body")}
         </p>
       </div>
 
@@ -115,9 +116,9 @@ export default async function PatientBillingPage() {
 
       {paid.length === 0 ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">Nothing paid yet</p>
+          <p className="text-sm font-semibold text-slate-900">{t("pbilling.none")}</p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            Sessions you pay for appear here with the full breakdown.
+            {t("pbilling.noneBody")}
           </p>
         </Card>
       ) : (
@@ -161,9 +162,7 @@ export default async function PatientBillingPage() {
       )}
 
       <p className="text-xs leading-relaxed text-slate-400">
-        The headline figure is what you were actually charged, in the currency you paid in, at the
-        rate quoted at the time. The breakdown is in the currency your therapist is paid in. That
-        is the amount a refund would return.
+        {t("pbilling.note")}
       </p>
     </main>
   );

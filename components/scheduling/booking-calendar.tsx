@@ -9,6 +9,7 @@ import { byDayIn, formatTime, formatWhen, resolveZone } from "@/lib/scheduling/t
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { PhoneField } from "@/components/forms/phone-field";
 import { countryFromLocale } from "@/lib/phone/e164";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The booking calendar on a public profile. PLAN.md 11.3.
@@ -39,6 +40,7 @@ export function BookingCalendar({
   therapistTimezone: string | null;
   rateLabel: string;
 }) {
+  const t = useT();
   const [picked, setPicked] = useState<{ id: string; startsAt: string } | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -106,7 +108,7 @@ export function BookingCalendar({
       <Card className="p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <CalendarDays className="h-4 w-4 text-slate-400" aria-hidden />
-          No times on the calendar
+          {t("pbook.noTimes")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {therapistName} has not published any hours yet. If this is urgent, they may be on the
@@ -120,7 +122,7 @@ export function BookingCalendar({
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
         <CalendarDays className="h-4 w-4 text-slate-400" aria-hidden />
-        Book a session
+        {t("pbook.bookSession")}
       </p>
       <p className="mt-0.5 text-xs text-slate-500">
         One hour with {therapistName} · {rateLabel}
@@ -135,14 +137,14 @@ export function BookingCalendar({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Your first name"
+            placeholder={t("pbook.firstName")}
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            placeholder="Email"
+            placeholder={t("pbook.email")}
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
 
@@ -156,7 +158,7 @@ export function BookingCalendar({
             country={phoneCountry}
             onValueChange={setPhone}
             onCountryChange={setPhoneCountry}
-            placeholder="Phone or WhatsApp"
+            placeholder={t("pbook.phone")}
           />
 
           {/*
@@ -164,13 +166,13 @@ export function BookingCalendar({
             they submit: a booking nobody can be told about is not a booking.
           */}
           <p className="text-xs leading-relaxed text-slate-500">
-            Give us one of these so we can send you the link and tell you if anything changes.
+            {t("pbook.oneOfThese")}
           </p>
           <textarea
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Anything they should know before you meet? (optional)"
+            placeholder={t("pbook.note")}
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
 
@@ -211,7 +213,7 @@ export function BookingCalendar({
               onClick={() => setPicked(null)}
               className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-slate-600"
             >
-              Pick another time
+              {t("pbook.pickAnother")}
             </button>
           </div>
         </div>

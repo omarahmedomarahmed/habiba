@@ -483,10 +483,18 @@ async function main() {
     "clinician and patient resets are both linked from their own pages",
   );
 
+  /*
+   * 37L — the patient's half of this sentence moved into the dictionary when
+   * the app learned Arabic. The property is "each door names the others", and
+   * it is now half in the source and half in the copy, so the check reads
+   * both rather than asserting that nothing was translated.
+   */
+  const { en: doors } = await import("../lib/i18n/messages");
   check(
     "21R.2 …and each door names the others, 'looking for your own sessions?'",
     /Looking for your own sessions/i.test(authSources) &&
-      /Are you a therapist/i.test(authSources),
+      (/Are you a therapist/i.test(authSources) ||
+        /are you a therapist/i.test(doors["pauth.areYouTherapist"])),
   );
 
   /*
@@ -579,7 +587,8 @@ async function main() {
       "⚠️ 21R.4 …and the page SAYS the WhatsApp code cannot arrive until Meta approves the template",
       request.channelDown === !whatsappConfigured() &&
         /still waiting for\s+approval|not switched on yet/i.test(
-          readFileSync("components/patient/reset-form.tsx", "utf8"),
+          /* 37L — the notice is a dictionary string now. */
+          `${doors["preset.channelDownLead"]} ${readFileSync("components/patient/reset-form.tsx", "utf8")}`,
         ),
       whatsappConfigured()
         ? "the channel is configured; the notice is written for when it is not"

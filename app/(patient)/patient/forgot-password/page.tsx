@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { getI18n } from "@/lib/i18n/server";
+
 import { PatientResetForm } from "@/components/patient/reset-form";
 
 export const metadata: Metadata = { title: "Get back in", robots: { index: false } };
@@ -14,15 +16,17 @@ export const dynamic = "force-dynamic";
  * missing (§3b); the form itself explains what has been sent and, when the
  * channel is not switched on yet, says so.
  */
-export default function PatientForgotPasswordPage() {
+export default async function PatientForgotPasswordPage() {
+  const { t } = await getI18n();
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4 py-8">
       <PatientResetForm />
 
       <p className="text-center text-sm text-slate-500">
-        Are you a therapist?{" "}
+        {t("pauth.areYouTherapist")}{" "}
         <Link href="/forgot-password" className="font-semibold text-brand-600 hover:underline">
-          Reset your practice password
+          {t("pauth.practiceReset")}
         </Link>
       </p>
     </main>

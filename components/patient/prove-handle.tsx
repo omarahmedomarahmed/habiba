@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { confirmHandleCode, requestHandleCode } from "@/lib/patient-auth/handle";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Proving the handle before the claim screen says anything. 25.14, C121.
@@ -32,6 +33,7 @@ function Submit({ label }: { label: string }) {
 }
 
 export function ProveHandle({ handle }: { handle: string }) {
+  const t = useT();
   const router = useRouter();
   const [asked, setAsked] = useState<{ sent?: boolean; channelDown?: boolean; error?: string }>({});
   const [sending, startSending] = useTransition();
@@ -44,11 +46,9 @@ export function ProveHandle({ handle }: { handle: string }) {
   return (
     <Card className="space-y-4 p-5">
       <div>
-        <p className="text-sm font-semibold text-slate-900">First, is this number yours?</p>
+        <p className="text-sm font-semibold text-slate-900">{t("pclaim.handleTitle")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          We have not looked yet. A phone number proves a number, not a person, so we check that
-          you can receive a message at <span className="font-mono">{handle}</span> before we say
-          anything about any record.
+          {t("pclaim.handleBody", { handle })}
         </p>
       </div>
 
@@ -57,8 +57,7 @@ export function ProveHandle({ handle }: { handle: string }) {
           role="status"
           className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm leading-relaxed text-amber-800"
         >
-          ⚠️ Codes over WhatsApp are not switched on yet, so one may not arrive. Ask your
-          therapist for an invite link instead: it does the same thing.
+          ⚠️ {t("pclaim.channelDown")}
         </p>
       ) : null}
 

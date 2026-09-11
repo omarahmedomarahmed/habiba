@@ -9,6 +9,7 @@ import {
   type InviteState,
 } from "@/app/(patient)/patient/consent/actions";
 import { Button, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Inviting a therapist. PLAN.md 27.2, C102b, C107.
@@ -40,17 +41,16 @@ export function InviteTherapist({
     awaitingAnswer?: boolean;
   }[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [state, setState] = useState<InviteState>({});
   const [pending, start] = useTransition();
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">Seeing somebody new?</p>
+      <p className="text-sm font-semibold text-slate-900">{t("consent.newTherapist")}</p>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">
-        Give them a code. They enter it, which asks you whether they may read your history, and
-        you decide then. Nothing about you moves until you say yes, and the code on its own shows
-        them nothing.
+        {t("consent.newTherapistBody")}
       </p>
 
       {live.length > 0 ? (
@@ -73,9 +73,9 @@ export function InviteTherapist({
                   */}
                   {invite.redeemedBy
                     ? invite.awaitingAnswer
-                      ? `Used by ${invite.redeemedBy}. Their request is waiting for your answer above.`
-                      : `Used by ${invite.redeemedBy}. You have already answered them.`
-                    : `Good until ${invite.expiresOn}`}
+                      ? t("consent.usedWaiting", { name: invite.redeemedBy })
+                      : t("consent.usedAnswered", { name: invite.redeemedBy })
+                    : t("consent.goodUntil", { date: invite.expiresOn })}
                 </span>
               </span>
               {invite.redeemedBy ? null : (
@@ -90,7 +90,7 @@ export function InviteTherapist({
                   }
                   className="text-sm font-semibold text-slate-500"
                 >
-                  Cancel it
+                  {t("consent.cancelIt")}
                 </button>
               )}
             </li>
@@ -128,7 +128,7 @@ export function InviteTherapist({
           })
         }
       >
-        {pending ? "Working…" : "Invite a therapist"}
+        {pending ? t("common.working") : t("consent.inviteTherapist")}
       </Button>
     </Card>
   );
