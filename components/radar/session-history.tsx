@@ -7,6 +7,7 @@ import type { RadarSessionRow } from "@/lib/data/radar";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/config";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /*
  * 12.3 / C70 — the zone this screen prints its dates in.
@@ -41,23 +42,23 @@ import type { Locale } from "@/lib/i18n/config";
  * was paid.
  */
 /** The short phrase beside a session, or nothing when nothing is withheld. */
-function accessNote(row: RadarSessionRow): string | null {
-  if (row.accessGated) return "Copilot waiting on a diagnosis and a history";
+function accessNote(row: RadarSessionRow): MessageKey | null {
+  if (row.accessGated) return "thist.gated";
 
   switch (row.accessState) {
     case "revoked":
-      return "Access revoked, your own notes only";
+      return "thist.revoked";
     case "unclaimed_bare":
-      return "Unclaimed record, yours alone";
+      return "thist.unclaimed";
     case "no_relationship":
-      return row.patientId ? null : "No record, this session's transcript only";
+      return row.patientId ? null : "thist.noRecord";
     case "unclaimed_documented":
     case "granted":
       return null;
   }
 }
 
-export function SessionHistory({
+export async function SessionHistory({
   rows,
   zone,
   locale,
@@ -68,13 +69,15 @@ export function SessionHistory({
   /** The reader's own zone. 12.3. */
   zone: string | null;
 }) {
+  const { t } = await getI18n();
+
   if (rows.length === 0) {
     return (
       <Card>
         <EmptyState
           icon={<MessageSquare className="h-5 w-5" aria-hidden />}
-          title="No sessions yet"
-          body="Every session you run appears here with what it earned and what it cost."
+          title={t("thist.none")}
+          body={t("thist.noneBody")}
         />
       </Card>
     );
@@ -83,9 +86,9 @@ export function SessionHistory({
   return (
     <Card>
       <div className="border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900">Session history</p>
+        <p className="text-sm font-semibold text-slate-900">{t("thist.title")}</p>
         <p className="mt-0.5 text-xs text-slate-500">
-          What each one was priced at on the day, and what it cost you.
+          {t("thist.blurb")}
         </p>
       </div>
 
@@ -114,9 +117,13 @@ export function SessionHistory({
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {formatDate(row.endedAt ?? row.startedAt ?? new Date(), zone, locale)} ·{" "}
-                  {row.modality === "video" ? "Video" : "In person"}
+                  {row.modality === "video" ? t("thist.video") : t("thist.inPerson")}
                   {row.copilotAsked > 0
-                    ? ` · ${row.copilotAsked} copilot question${row.copilotAsked === 1 ? "" : "s"}`
+                    ? ` · ${
+                        row.copilotAsked === 1
+                          ? t("thist.copilotOne")
+                          : t("thist.copilotMany", { count: row.copilotAsked })
+                      }`
                     : ""}
                 </p>
 
@@ -133,19 +140,19 @@ export function SessionHistory({
                   the states where nothing is being withheld.
                 */}
                 {accessNote(row) ? (
-                  <p className="mt-1 text-xs text-slate-500">{accessNote(row)}</p>
+                  <p className="mt-1 text-xs text-slate-500">{t(accessNote(row)!)}</p>
                 ) : null}
               </div>
 
               <div className="shrink-0 text-end">
                 {row.priceCents === 0 ? (
-                  <Badge tone="slate">Free</Badge>
+                  <Badge tone="slate">{t("thist.free")}</Badge>
                 ) : row.paid ? (
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
                     {formatUsd(row.paid.netCents)}
                   </p>
                 ) : (
-                  <Badge tone="amber">{formatUsd(row.priceCents)} unpaid</Badge>
+                  <Badge tone="amber">{t("thist.unpaid", { amount: formatUsd(row.priceCents) })}</Badge>
                 )}
               </div>
             </div>
@@ -158,7 +165,7 @@ export function SessionHistory({
             {row.paid ? (
               <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
                 <div className="flex gap-1.5">
-                  <dt>Session price</dt>
+                  <dt>{t("thist.price")}</dt>
                   <dd className="tabular-nums text-slate-700">
                     {formatUsd(row.paid.grossCents)}
                   </dd>
@@ -173,8 +180,11 @@ export function SessionHistory({
                   */
                   <div className="flex gap-1.5">
                     <dt>
-                      Patient also paid VAT (
-                      {(row.paid.vatBps / 100).toFixed(row.paid.vatBps % 100 === 0 ? 0 : 1)}%)
+                      {t("thist.vat", {
+                        percent: (row.paid.vatBps / 100).toFixed(
+                          row.paid.vatBps % 100 === 0 ? 0 : 1,
+                        ),
+                      })}
                     </dt>
                     <dd className="tabular-nums text-slate-700">
                       {formatUsd(row.paid.vatCents)}
@@ -183,20 +193,26 @@ export function SessionHistory({
                 ) : null}
                 <div className="flex gap-1.5">
                   <dt>
-                    24Therapy took
-                    {row.paid.feeBps > 0 ? ` (${(row.paid.feeBps / 100).toFixed(0)}%)` : ""}
+                    {row.paid.feeBps > 0
+                      ? t("thist.tookPercent", { percent: (row.paid.feeBps / 100).toFixed(0) })
+                      : t("thist.took")}
                   </dt>
                   <dd className="tabular-nums text-slate-700">{formatUsd(row.paid.feeCents)}</dd>
                 </div>
                 <div className="flex gap-1.5">
-                  <dt>You received</dt>
+                  <dt>{t("thist.received")}</dt>
                   <dd className="tabular-nums text-slate-700">{formatUsd(row.paid.netCents)}</dd>
                 </div>
                 {row.paid.presentedCurrency && row.paid.presentedCurrency !== row.paid.currency ? (
                   <div className="basis-full text-slate-400">
-                    Paid in {row.paid.presentedCurrency.toUpperCase()}
-                    {row.paid.payerCountry ? ` from ${row.paid.payerCountry}` : ""} at the rate
-                    quoted that hour.
+                    {row.paid.payerCountry
+                      ? t("thist.paidInFrom", {
+                          currency: row.paid.presentedCurrency.toUpperCase(),
+                          country: row.paid.payerCountry,
+                        })
+                      : t("thist.paidIn", {
+                          currency: row.paid.presentedCurrency.toUpperCase(),
+                        })}
                   </div>
                 ) : null}
               </dl>
@@ -209,13 +225,15 @@ export function SessionHistory({
             */}
             {row.ownBill ? (
               <p className="mt-1.5 text-xs text-slate-500">
-                Your session bill:{" "}
+                {t("thist.ownBill")}{" "}
                 <span className="tabular-nums text-slate-700">
                   {row.ownBill.amountCents === 0
                     ? row.ownBill.description
                     : formatUsd(row.ownBill.amountCents)}
                 </span>
-                {row.ownBill.status === "due" && row.ownBill.amountCents > 0 ? " · unpaid" : ""}
+                {row.ownBill.status === "due" && row.ownBill.amountCents > 0
+                  ? ` · ${t("thist.billUnpaid")}`
+                  : ""}
               </p>
             ) : null}
           </li>

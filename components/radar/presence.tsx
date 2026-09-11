@@ -23,7 +23,7 @@ import {
 } from "@/lib/alarm";
 import type { RadarAttention } from "@/lib/data/radar";
 import { cn, formatDateTime } from "@/lib/utils";
-import { useLocale } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 /**
  * Fast while they are on the board, slow while they are not.
@@ -104,6 +104,7 @@ export function RadarPresence({
   };
 }) {
   const locale = useLocale();
+  const t = useT();
   const [status, setStatus] = useState<Status>(initialStatus as Status);
   const active = status !== "offline";
   const [attention, setAttention] = useState<RadarAttention | null>(null);
@@ -296,7 +297,7 @@ export function RadarPresence({
       if (lastBookingRef.current) {
         lastBookingRef.current = null;
         playTone("cancel");
-        notify("Booking cancelled", "They did not go through with it. You are back on the radar.", false);
+        notify(t("tpres.cancelled"), t("tpres.cancelledBody"), false);
       }
       announcedRef.current = null;
       return;
@@ -312,7 +313,7 @@ export function RadarPresence({
     if (attention.kind === "viewing") {
       if (alertOnView) {
         playTone("soft");
-        notify("Someone is looking at your profile", "You are showing as busy to everyone else.", false);
+        notify(t("torb.viewing"), t("torb.viewingBody"), false);
       }
       return;
     }
@@ -322,15 +323,15 @@ export function RadarPresence({
       setMuted(false);
       notify(
         attention.waiting
-          ? "Your patient is waiting in the room"
+          ? t("tpres.waitingTitle")
           : attention.kind === "confirmed"
-            ? "Your patient is joining"
-            : "Someone is booking you",
+            ? t("tpres.joiningTitle")
+            : t("trad.pending"),
         attention.waiting
-          ? `${attention.patientName ?? "They"} has joined and is looking at an empty screen. Tap to go in.`
+          ? t("tpres.waitingBody", { name: attention.patientName ?? t("tpres.they") })
           : attention.kind === "confirmed"
-            ? "They have paid and are on their way in. Tap to open the room."
-            : "They are paying now. Be in the room when they arrive.",
+            ? t("tpres.confirmedBody")
+            : t("tpres.payingBody"),
         true,
         `/sessions/${attention.sessionId}/room`,
       );
@@ -462,17 +463,19 @@ export function RadarPresence({
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">
                       {attention.waiting
-                        ? `${attention.patientName ?? "Your patient"} is waiting for you`
+                        ? t("tpres.cardWaiting", {
+                            name: attention.patientName ?? t("tpres.yourPatient"),
+                          })
                         : attention.kind === "confirmed"
-                          ? "Your patient is joining"
-                          : "Someone is booking you"}
+                          ? t("tpres.joiningTitle")
+                          : t("trad.pending")}
                     </p>
                     <p className="mt-0.5 text-xs text-white/80">
                       {attention.waiting
-                        ? "They are in the room now, looking at an empty screen. Go in."
+                        ? t("tpres.cardWaitingBody")
                         : attention.kind === "confirmed"
-                          ? "They have paid and are on their way into the room."
-                          : "They are paying now. Open the room and be there when they arrive."}
+                          ? t("tpres.cardConfirmedBody")
+                          : t("tpres.cardPayingBody")}
                     </p>
                   </div>
 
@@ -487,7 +490,7 @@ export function RadarPresence({
                   <button
                     type="button"
                     onClick={() => setMuted((m) => !m)}
-                    aria-label={muted ? "Unmute the alarm" : "Silence this alarm"}
+                    aria-label={muted ? t("tpres.unmute") : t("tpres.silence")}
                     aria-pressed={muted}
                     className="tap-target flex shrink-0 items-center justify-center rounded-lg text-white/60 hover:text-white"
                   >
@@ -510,12 +513,12 @@ export function RadarPresence({
                     attention.waiting ? "bg-white text-red-700" : "bg-teal-500 text-white",
                   )}
                 >
-                  {attention.waiting ? "Go in now" : "Open the room"}
+                  {attention.waiting ? t("tpres.goIn") : t("tpres.openRoom")}
                 </Link>
 
                 {muted ? (
                   <p className="mt-2 text-center text-[11px] text-white/60">
-                    Sound off for this one. The next patient will still ring.
+                    {t("tpres.mutedNote")}
                   </p>
                 ) : null}
               </div>
@@ -561,6 +564,7 @@ function SoundPrompt({
   online: boolean;
 }) {
   const locale = useLocale();
+  const t = useT();
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -620,27 +624,28 @@ function SoundPrompt({
         </span>
 
         <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">
-          {blocked ? "Your browser is blocking the alarm" : "Turn on your alarm"}
+          {blocked ? t("tpres.blockedTitle") : t("tpres.armTitle")}
         </p>
 
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-          {blocked ? (
-            <>
-              Sound is switched off for this site. Open the padlock in the address bar, set{" "}
-              <strong>Sound</strong> to <em>Allow</em>, and reload, otherwise a patient can be
-              waiting in your room with nothing to tell you.
-            </>
-          ) : (
-            <>
-              Browsers stay silent until you say otherwise. One tap and 24Therapy can ring you
-              anywhere in the portal, including when this tab is in the background.
-            </>
-          )}
+          {blocked
+            ? t("tpres.blockedBody")
+                .split(/(\{sound\}|\{allow\})/g)
+                .map((part, index) =>
+                  part === "{sound}" ? (
+                    <strong key={index}>{t("trad.soundWord")}</strong>
+                  ) : part === "{allow}" ? (
+                    <em key={index}>{t("tpres.allowWord")}</em>
+                  ) : (
+                    <span key={index}>{part}</span>
+                  ),
+                )
+            : t("tpres.armBody")}
         </p>
 
         {forced ? (
           <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-            Someone is booking you right now and you cannot hear it.
+            {t("tpres.forced")}
           </p>
         ) : null}
 
@@ -657,7 +662,7 @@ function SoundPrompt({
             className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
           >
             <Volume2 className="h-4 w-4" aria-hidden />
-            {busy ? "Turning it on…" : "Turn the alarm on"}
+            {busy ? t("trad.turningOn") : t("trad.turnOn")}
           </button>
         ) : null}
 
@@ -666,11 +671,11 @@ function SoundPrompt({
           onClick={close}
           className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-500 hover:bg-slate-50"
         >
-          {blocked ? "I will fix it in my browser" : online ? "Not now" : "Later"}
+          {blocked ? t("tpres.willFix") : online ? t("tpres.notNow") : t("tpres.later")}
         </button>
 
         <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-400">
-          You will hear a short ring so you know it worked.
+          {t("tpres.shortRing")}
         </p>
       </div>
     </div>,
@@ -706,11 +711,14 @@ function StatusPill({
   onEnableSound: () => void;
 }) {
   const locale = useLocale();
+  const t = useT();
   if (suspended) {
     return (
       <div className="safe-top fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-2">
         <p className="rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg">
-          Off the radar until {formatDateTime(suspended.until, zone, locale)}
+          {t("tpres.suspendedUntil", {
+            when: formatDateTime(suspended.until, zone, locale),
+          })}
           {suspended.reason ? ` · ${suspended.reason}` : ""}
         </p>
       </div>
@@ -719,12 +727,12 @@ function StatusPill({
 
   const label =
     status === "in_session"
-      ? "In a session"
+      ? t("trad.inSession")
       : status === "pending"
-        ? "Busy, someone is booking you"
+        ? t("tpres.pillPending")
         : status === "online"
-          ? "Live on the radar"
-          : "Off the radar";
+          ? t("trad.on")
+          : t("trad.off");
 
   return (
     <div className="safe-top pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-2">
@@ -756,7 +764,7 @@ function StatusPill({
             className="ms-1 flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-400"
           >
             <VolumeX className="h-3 w-3" aria-hidden />
-            sound off, turn on
+            {t("tpres.soundOff")}
           </button>
         ) : permission === "default" ? (
           <button
@@ -765,11 +773,11 @@ function StatusPill({
             className="ms-1 flex items-center gap-1 rounded-full bg-teal-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-teal-400"
           >
             <Bell className="h-3 w-3" aria-hidden />
-            Alert me
+            {t("tpres.alertMe")}
           </button>
         ) : permission === "denied" ? (
           <span className="ms-1 rounded-full bg-white/10 px-2 py-1 text-[11px] text-white/60">
-            notifications blocked
+            {t("tpres.notifBlocked")}
           </span>
         ) : null}
       </div>

@@ -23,6 +23,7 @@ import {
 } from "@/lib/alarm";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: RadarState = {};
 
@@ -47,15 +48,17 @@ export type ConsoleProps = {
 
 function Save() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save radar profile"}
+      {pending ? t("common.saving") : t("trad.saveProfile")}
     </Button>
   );
 }
 
 export function TherapistConsole(props: ConsoleProps) {
   const router = useRouter();
+  const t = useT();
   const [formState, formAction] = useActionState(saveRadarSetup, INITIAL);
   const [status, setStatus] = useState(props.status);
   const [pending, startTransition] = useTransition();
@@ -140,7 +143,7 @@ export function TherapistConsole(props: ConsoleProps) {
                       // `online` above already excludes "offline"; narrowing it
                       // again here keeps the dot type honest.
                       status: status,
-                      label: "You",
+                      label: t("trad.you"),
                     },
                   ]
                 : []
@@ -161,32 +164,30 @@ export function TherapistConsole(props: ConsoleProps) {
           >
             <Radio className={cn("h-3 w-3", online && "live-dot")} aria-hidden />
             {status === "offline"
-              ? "Off the radar"
+              ? t("trad.off")
               : status === "online"
-                ? "Live on the radar"
+                ? t("trad.on")
                 : status === "pending"
-                  ? "Someone is booking you"
-                  : "In a session"}
+                  ? t("trad.pending")
+                  : t("trad.inSession")}
           </span>
 
           <p className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {online ? "You are visible to the world" : "Fill a free half hour"}
+            {online ? t("trad.headlineOn") : t("trad.headlineOff")}
           </p>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-white/60">
-            {online
-              ? "Anyone on the public radar can see you and start a session with you right now. The alarm will reach you anywhere in the app."
-              : "Go on call between appointments. Someone who needs help now finds you, pays you, and you are in the room in under a minute."}
+            {online ? t("trad.bodyOn") : t("trad.bodyOff")}
           </p>
 
           <dl className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <dt className="text-xs text-white/50">Your rate · 30 min</dt>
+              <dt className="text-xs text-white/50">{t("trad.rate")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-white">
-                {props.rateCents > 0 ? formatUsd(props.rateCents) : "Free"}
+                {props.rateCents > 0 ? formatUsd(props.rateCents) : t("trad.free")}
               </dd>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <dt className="text-xs text-white/50">You keep</dt>
+              <dt className="text-xs text-white/50">{t("trad.youKeep")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-teal-300">
                 {props.rateCents > 0
                   ? formatUsd(props.rateCents - Math.floor((props.rateCents * 1000) / 10_000))
@@ -206,8 +207,7 @@ export function TherapistConsole(props: ConsoleProps) {
 
           {held ? (
             <p className="mt-4 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-sm leading-relaxed text-amber-200">
-              Go on the radar and charge your rate now, Stripe has not verified you yet, so we
-              hold your share and send it to your account the moment they do. Nothing to claim.
+              {t("trad.heldNote")}
             </p>
           ) : null}
 
@@ -223,19 +223,19 @@ export function TherapistConsole(props: ConsoleProps) {
             )}
           >
             <Radio className="h-4 w-4" aria-hidden />
-            {pending ? "Working…" : online ? "Go offline" : "Go on the radar"}
+            {pending ? t("common.working") : online ? t("trad.goOffline") : t("trad.goOnline")}
           </button>
 
           {online && sound !== "ready" ? (
             <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-medium text-red-300">
               <VolumeX className="h-3.5 w-3.5" aria-hidden />
-              You are live but your browser is silent, turn the alarm on below.
+              {t("trad.silentWarning")}
             </p>
           ) : null}
 
           {!props.country ? (
             <p className="mt-2 text-center text-xs text-white/40">
-              Add your country below and you will appear on the map.
+              {t("trad.addCountry")}
             </p>
           ) : null}
         </div>
@@ -265,20 +265,19 @@ export function TherapistConsole(props: ConsoleProps) {
 
       {/* --------------------------------------------------------- profile */}
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Your radar profile</p>
+        <p className="text-sm font-semibold text-slate-900">{t("trad.profile")}</p>
         <p className="mt-0.5 text-sm text-slate-500">
-          This is what a stranger sees before they choose you. Nothing here is clinical and none of
-          it is private.
+          {t("trad.profileBody")}
         </p>
 
         <form action={formAction} className="mt-4 space-y-4">
-          {formState.ok ? <p className="text-sm text-emerald-700">Saved</p> : null}
+          {formState.ok ? <p className="text-sm text-emerald-700">{t("common.saved")}</p> : null}
           {formState.error ? <p className="text-sm text-red-600">{formState.error}</p> : null}
 
           <Field
-            label="One line about how you work"
+            label={t("trad.headline")}
             htmlFor="headline"
-            hint="Shown under your name. Keep it human."
+            hint={t("trad.headlineHint")}
           >
             <Textarea
               id="headline"
@@ -286,11 +285,11 @@ export function TherapistConsole(props: ConsoleProps) {
               rows={2}
               maxLength={240}
               defaultValue={props.headline ?? ""}
-              placeholder="Twelve years with anxiety and panic. Direct, warm, no homework unless you want it."
+              placeholder={t("trad.headlinePlaceholder")}
             />
           </Field>
 
-          <Field label="Photo URL" htmlFor="photoUrl" hint="Optional. Must be an https:// image.">
+          <Field label={t("trad.photo")} htmlFor="photoUrl" hint={t("trad.photoHint")}>
             <Input
               id="photoUrl"
               name="photoUrl"
@@ -301,14 +300,14 @@ export function TherapistConsole(props: ConsoleProps) {
             />
           </Field>
 
-          <Field label="Where you are based" htmlFor="country" hint="Country only, never your address.">
+          <Field label={t("trad.where")} htmlFor="country" hint={t("trad.whereHint")}>
             <select
               id="country"
               name="country"
               defaultValue={props.country ?? ""}
               className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
             >
-              <option value="">Not shared</option>
+              <option value="">{t("trad.notShared")}</option>
               {props.countryOptions.map((country) => (
                 <option key={country.code} value={country.code}>
                   {country.name}
@@ -318,14 +317,14 @@ export function TherapistConsole(props: ConsoleProps) {
           </Field>
 
           <CheckGroup
-            legend="Languages you can work in"
+            legend={t("tver.languages")}
             name="languages"
             options={props.languageOptions}
             selected={props.languages}
           />
 
           <CheckGroup
-            legend="What you work with"
+            legend={t("tver.specialties")}
             name="specialties"
             options={props.specialtyOptions}
             selected={props.specialties}
@@ -402,6 +401,7 @@ function GoOnlineSound({
   onCancel: () => void;
   onArmed: (armed: boolean) => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -413,19 +413,21 @@ function GoOnlineSound({
         </span>
 
         <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">
-          Can we ring you?
+          {t("trad.canWeRing")}
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-          You are about to be visible to people in crisis. Your browser will not play a sound
-          until you allow it, tap below and you will hear the alarm straight away, so you know
-          it works before anyone needs it.
+          {t("trad.canWeRingBody")}
         </p>
 
         {failed ? (
           <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-800">
-            Your browser refused. Open the padlock in the address bar, allow <strong>Sound</strong>{" "}
-            and reload. You can still go on the radar. You will get the on-screen banner and a
-            flashing tab title instead.
+            {t("trad.soundRefused")
+              .split("{sound}")
+              .flatMap((part, index) =>
+                index === 0
+                  ? [part]
+                  : [<strong key="sound">{t("trad.soundWord")}</strong>, part],
+              )}
           </p>
         ) : null}
 
@@ -446,7 +448,7 @@ function GoOnlineSound({
           className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
         >
           <Volume2 className="h-4 w-4" aria-hidden />
-          {busy ? "Turning it on…" : "Turn the alarm on and go live"}
+          {busy ? t("trad.turningOn") : t("trad.turnOnAndGoLive")}
         </button>
 
         <button
@@ -454,7 +456,7 @@ function GoOnlineSound({
           onClick={() => (failed ? onArmed(false) : onCancel())}
           className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-500 hover:bg-slate-50"
         >
-          {failed ? "Go on the radar without sound" : "Cancel"}
+          {failed ? t("trad.goWithoutSound") : t("common.cancel")}
         </button>
       </div>
     </div>
@@ -471,6 +473,7 @@ function AlertSettings({
   sound: AlarmState;
 }) {
   const router = useRouter();
+  const t = useT();
   const [onView, setOnView] = useState(initialOnView);
   const [onBooking, setOnBooking] = useState(initialOnBooking);
   const [pending, startTransition] = useTransition();
@@ -489,12 +492,12 @@ function AlertSettings({
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <BellRing className="h-4 w-4 text-teal-600" aria-hidden />
-          Alert sounds
+          {t("trad.alertSounds")}
         </p>
         {pending ? (
-          <span className="text-xs text-slate-400">Saving…</span>
+          <span className="text-xs text-slate-400">{t("common.saving")}</span>
         ) : saved ? (
-          <span className="text-xs text-emerald-600">Saved</span>
+          <span className="text-xs text-emerald-600">{t("common.saved")}</span>
         ) : null}
       </div>
 
@@ -505,8 +508,8 @@ function AlertSettings({
             setOnView(value);
             save({ alertOnView: value, alertOnBooking: onBooking });
           }}
-          title="Someone opened my profile"
-          body="A single soft tone. You have just gone busy to everyone else on the radar, and they have sixty seconds to decide."
+          title={t("trad.alertViewTitle")}
+          body={t("trad.alertViewBody")}
         />
         <AlertToggle
           checked={onBooking}
@@ -514,8 +517,8 @@ function AlertSettings({
             setOnBooking(value);
             save({ alertOnView: onView, alertOnBooking: value });
           }}
-          title="Someone is paying / a session link is live"
-          body="Repeats until you open the room. This is the one that means a patient is arriving, leave it on."
+          title={t("trad.alertBookTitle")}
+          body={t("trad.alertBookBody")}
         />
       </div>
 
@@ -537,7 +540,7 @@ function AlertSettings({
               className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               <Volume2 className="h-3.5 w-3.5 text-teal-600" aria-hidden />
-              Hear a booking
+              {t("trad.hearBooking")}
             </button>
             <button
               type="button"
@@ -545,9 +548,9 @@ function AlertSettings({
               className="flex h-10 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100"
             >
               <BellRing className="h-3.5 w-3.5" aria-hidden />
-              Hear a patient waiting
+              {t("trad.hearWaiting")}
             </button>
-            <span className="text-xs font-medium text-emerald-600">Sound is on</span>
+            <span className="text-xs font-medium text-emerald-600">{t("trad.soundOn")}</span>
           </>
         ) : (
           <button
@@ -559,15 +562,13 @@ function AlertSettings({
             className="flex h-10 items-center gap-1.5 rounded-xl bg-teal-500 px-3.5 text-xs font-semibold text-white hover:bg-teal-400"
           >
             <Volume2 className="h-3.5 w-3.5" aria-hidden />
-            Turn the alarm on
+            {t("trad.turnOn")}
           </button>
         )}
       </div>
 
       <p className="mt-2.5 text-xs leading-relaxed text-slate-500">
-        Sounds reach you anywhere in 24Therapy, not just this page, including when this tab is
-        behind something else. While a patient is waiting the tab title flashes too, which no
-        browser setting can switch off.
+        {t("trad.soundsNote")}
       </p>
     </Card>
   );
