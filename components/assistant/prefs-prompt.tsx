@@ -5,13 +5,16 @@ import { useState, useTransition } from "react";
 import { savePrefs } from "@/app/(app)/assistant/actions";
 import { Card } from "@/components/ui";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
+/* 37L.2 — keys, resolved at render. */
 const VOICES = {
-  british_female: "British, female",
-  british_male: "British, male",
-  american_female: "American, female",
-  american_male: "American, male",
-} as const;
+  british_female: "tasst.voiceBritishF",
+  british_male: "tasst.voiceBritishM",
+  american_female: "tasst.voiceAmericanF",
+  american_male: "tasst.voiceAmericanM",
+} as const satisfies Record<string, MessageKey>;
 
 /**
  * Preferences, asked once. PLAN.md 10.6.
@@ -43,6 +46,7 @@ export function AssistantPrefsPrompt({
   const [voice, setVoice] = useState<keyof typeof VOICES>(prefs.voice);
   const [speed, setSpeed] = useState(prefs.voiceSpeed);
   const [dismissed, setDismissed] = useState(false);
+  const t = useT();
   const [pending, startTransition] = useTransition();
 
   if (dismissed) return null;
@@ -55,14 +59,14 @@ export function AssistantPrefsPrompt({
 
   return (
     <Card className="mb-4 border border-brand-200 p-4">
-      <p className="text-sm font-semibold text-slate-900">Before you start</p>
+      <p className="text-sm font-semibold text-slate-900">{t("tasst.beforeStart")}</p>
       <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-        Three things, once. You can change them any time in Settings.
+        {t("tasst.beforeStartBody")}
       </p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <label className="block">
-          <span className="block text-xs font-medium text-slate-600">Answer in</span>
+          <span className="block text-xs font-medium text-slate-600">{t("tasst.answerIn")}</span>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -74,7 +78,7 @@ export function AssistantPrefsPrompt({
               language is the setting most likely to be wrong for the next
               thing they type.
             */}
-            <option value="auto">Match my question</option>
+            <option value="auto">{t("tasst.matchQuestion")}</option>
             {Object.entries(NOTE_LANGUAGES).map(([code, label]) => (
               <option key={code} value={code}>
                 {label}
@@ -84,7 +88,7 @@ export function AssistantPrefsPrompt({
         </label>
 
         <label className="block">
-          <span className="block text-xs font-medium text-slate-600">Read-aloud voice</span>
+          <span className="block text-xs font-medium text-slate-600">{t("tasst.voice")}</span>
           <select
             value={voice}
             onChange={(e) => setVoice(e.target.value as keyof typeof VOICES)}
@@ -92,7 +96,7 @@ export function AssistantPrefsPrompt({
           >
             {Object.entries(VOICES).map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </select>
@@ -121,7 +125,7 @@ export function AssistantPrefsPrompt({
           onClick={save}
           className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? t("common.saving") : t("tdoc.save")}
         </button>
         <button
           type="button"
@@ -129,7 +133,7 @@ export function AssistantPrefsPrompt({
           onClick={save}
           className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600"
         >
-          These are fine
+          {t("tasst.fine")}
         </button>
       </div>
     </Card>

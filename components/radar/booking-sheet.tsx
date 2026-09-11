@@ -178,7 +178,7 @@ export function BookingSheet({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="tap-target absolute top-3 end-3 flex items-center justify-center text-slate-400 hover:text-slate-700"
         >
           <X className="h-5 w-5" aria-hidden />

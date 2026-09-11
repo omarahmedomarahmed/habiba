@@ -7,7 +7,7 @@ import { CalendarDays, Trash2, X } from "lucide-react";
 import { cancel, publish, withdraw } from "@/app/(app)/on-call/schedule-actions";
 import { Badge, Card } from "@/components/ui";
 import { byDayIn, dayKey, formatTime, formatWeekday, zoneLabel } from "@/lib/scheduling/tz";
-import { useLocale } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 import type { Locale } from "@/lib/i18n/config";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 
@@ -77,6 +77,7 @@ export function AvailabilityEditor({
    */
   const browserZone = useReaderZone();
   const locale = useLocale();
+  const t = useT();
   const zone = timezone ?? adopted ?? browserZone ?? "UTC";
 
   const grouped = byDayIn(
@@ -91,11 +92,10 @@ export function AvailabilityEditor({
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <CalendarDays className="h-4 w-4 text-slate-400" aria-hidden />
-          Hours people can book
+          {t("tav.title")}
         </p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-          Whole hours only. Somebody who is not in crisis books one of these instead of pulling you
-          out of your evening.
+          {t("tav.blurb")}
         </p>
       </div>
 
@@ -123,7 +123,7 @@ export function AvailabilityEditor({
 
         <div className="flex flex-wrap items-end gap-2">
           <label className="block">
-            <span className="block text-xs font-medium text-slate-600">From</span>
+            <span className="block text-xs font-medium text-slate-600">{t("tav.from")}</span>
             <select
               value={fromHour}
               onChange={(e) => setFromHour(Number(e.target.value))}
@@ -138,7 +138,7 @@ export function AvailabilityEditor({
           </label>
 
           <label className="block">
-            <span className="block text-xs font-medium text-slate-600">Until</span>
+            <span className="block text-xs font-medium text-slate-600">{t("tav.until")}</span>
             <select
               value={toHour}
               onChange={(e) => setToHour(Number(e.target.value))}
@@ -173,7 +173,7 @@ export function AvailabilityEditor({
                   // fewer hours than the clinician asked for.
                   if (result.impossible) {
                     setError(
-                      `${result.impossible} of those hours do not exist, the clocks go forward that morning. Everything else is published.`,
+                      t("tav.impossible", { count: result.impossible }),
                     );
                   }
                 }
@@ -181,7 +181,7 @@ export function AvailabilityEditor({
             }
             className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {pending ? "Publishing…" : "Publish"}
+            {pending ? t("tav.publishing") : t("tav.publish")}
           </button>
         </div>
 
@@ -192,10 +192,23 @@ export function AvailabilityEditor({
           before and after the first publish.
         */}
         <p className="text-xs text-slate-500">
-          These are <strong className="font-semibold">{zoneLabel(zone)}</strong> hours
-          {timezone ? "" : ", from this browser"}. Patients see them in their own time zone.{" "}
+          {(timezone
+            ? t("tav.zoneNote", { zone: "\u0000" })
+            : t("tav.zoneNoteBrowser", { zone: "\u0000" })
+          )
+            .split("\u0000")
+            .flatMap((part, index) =>
+              index === 0
+                ? [part]
+                : [
+                    <strong key="z" className="font-semibold">
+                      {zoneLabel(zone)}
+                    </strong>,
+                    part,
+                  ],
+            )}{" "}
           <Link href="/settings" className="font-medium text-brand-600">
-            {timezone ? "Change" : "Set your time zone"}
+            {timezone ? t("tav.change") : t("tav.setZone")}
           </Link>
         </p>
 
@@ -208,7 +221,7 @@ export function AvailabilityEditor({
 
       {/* ---------------------------------------------------- the calendar */}
       {grouped.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-slate-500">Nothing published yet.</p>
+        <p className="px-4 py-5 text-sm text-slate-500">{t("tav.none")}</p>
       ) : (
         <div className="divide-y divide-slate-100">
           {grouped.map((day) => (
@@ -229,7 +242,7 @@ export function AvailabilityEditor({
                       {formatTime(slot.startsAt, zone)}
                       {slot.status === "booked" ? (
                         <Badge tone="teal" className="ms-1.5">
-                          Booked
+                          {t("tav.booked")}
                         </Badge>
                       ) : null}
                     </span>
@@ -238,7 +251,7 @@ export function AvailabilityEditor({
                       <button
                         type="button"
                         disabled={pending}
-                        aria-label="Cancel this appointment"
+                        aria-label={t("tav.cancelAppointment")}
                         onClick={() =>
                           startTransition(async () => {
                             setError(null);
@@ -254,7 +267,7 @@ export function AvailabilityEditor({
                       <button
                         type="button"
                         disabled={pending}
-                        aria-label="Remove this hour"
+                        aria-label={t("tav.removeHour")}
                         onClick={() =>
                           startTransition(async () => {
                             setError(null);

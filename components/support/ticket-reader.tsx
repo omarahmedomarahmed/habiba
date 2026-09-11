@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { openTicket, type ReaderState } from "@/app/support/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: ReaderState = {};
 
@@ -26,6 +27,7 @@ function Open() {
 }
 
 export function TicketReader({ token }: { token: string }) {
+  const t = useT();
   const [state, action] = useActionState(openTicket, INITIAL);
 
   if (state.ticket) {
@@ -33,7 +35,7 @@ export function TicketReader({ token }: { token: string }) {
       <div className="space-y-3">
         <Card className="p-4">
           <p className="text-xs text-slate-400">Reference {state.ticket.reference}</p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">What you wrote</p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">{t("ttk.whatYouWrote")}</p>
           <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">
             {state.ticket.message}
           </p>
@@ -52,7 +54,7 @@ export function TicketReader({ token }: { token: string }) {
         ))}
 
         <p className="text-xs leading-relaxed text-slate-500">
-          If this did not answer your question, write to us again and mention the reference above.
+          {t("ttk.writeAgain")}
         </p>
       </div>
     );

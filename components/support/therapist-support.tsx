@@ -6,6 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 
 import { raiseTicket, type TherapistSupportState } from "@/app/(app)/support/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: TherapistSupportState = {};
 
@@ -42,6 +43,7 @@ export function TherapistSupport({
   payouts: { id: string; label: string }[];
   mine: { reference: string; topic: string; status: string; atLabel: string }[];
 }) {
+  const t = useT();
   const [state, action] = useActionState(raiseTicket, INITIAL);
 
   return (
@@ -89,7 +91,7 @@ export function TherapistSupport({
               defaultValue=""
               className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
             >
-              <option value="">Not about a payout</option>
+              <option value="">{t("tsup.notPayout")}</option>
               {payouts.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.label}
@@ -105,7 +107,7 @@ export function TherapistSupport({
               defaultValue=""
               className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
             >
-              <option value="">Not about a session</option>
+              <option value="">{t("tsup.notSession")}</option>
               {sessions.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.label}
@@ -129,7 +131,7 @@ export function TherapistSupport({
 
       {mine.length > 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">Your tickets</p>
+          <p className="text-sm font-semibold text-slate-900">{t("tsup.yourTickets")}</p>
           <ul className="mt-2 divide-y divide-slate-100">
             {mine.map((row) => (
               <li key={row.reference} className="flex items-center gap-3 py-2 text-sm">
