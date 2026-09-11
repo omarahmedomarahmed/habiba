@@ -22,6 +22,20 @@
  * per segment would not survive contact with a fifty-minute session.
  *
  * Pure, so it can be tested without a database.
+ *
+ * ## 🔴 Why this is not in `lib/ai/`, which is where it used to live
+ *
+ * Sprint 24.2 makes `lib/ai/` a boundary rather than a filing convention:
+ * nothing a patient can reach may import anything under it, transitively. When
+ * sprint 25 brought the radar and the clinician profile inside the patient
+ * app, the guard fired on a five-hop path ending here, and it was right to:
+ * `lib/data/sessions.ts` is on a patient's path and this module was in the
+ * forbidden directory.
+ *
+ * The honest fix is not an exception. It is that this file never called a
+ * model and never should have been filed as though it might. It counts words
+ * and subtracts timestamps. Anything left in `lib/ai/` is a thing that talks
+ * to a model, which is what makes the guard's answer trustworthy.
  */
 
 /**

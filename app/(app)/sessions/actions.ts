@@ -11,6 +11,8 @@ import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { priceProblem } from "@/lib/billing/connect";
 import { getSettings } from "@/lib/settings";
 import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
+import { createInviteLink } from "@/app/(app)/patients/actions";
+import { normalisePhone } from "@/lib/data/people";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
@@ -47,6 +49,7 @@ export async function startNewSession(
   const modality = formData.get("modality") === "video" ? "video" : "in_person";
   const guestName = String(formData.get("guestName") ?? "").trim();
   const guestEmail = String(formData.get("guestEmail") ?? "").trim();
+  const guestPhone = String(formData.get("guestPhone") ?? "").trim();
   const patientId = String(formData.get("patientId") ?? "").trim() || null;
 
   if (!patientId && !guestName) {
@@ -75,15 +78,19 @@ export async function startNewSession(
    */
 
   let sessionId: string;
+  /** Set only when this call created the chart, so an existing patient is never re-invited. */
+  let newPatientId: string | null = null;
   try {
     const session = await createSession(actor, {
       modality,
       patientId,
       guestName: guestName || undefined,
       guestEmail: guestEmail || undefined,
+      guestPhone: guestPhone || undefined,
       priceCents,
     });
     sessionId = session.id;
+    if (!patientId && session.patientId) newPatientId = session.patientId;
 
     // Create the video room up front so the patient's link works the moment it
     // is sent, rather than only once the clinician presses Start. Whoever
@@ -118,6 +125,29 @@ export async function startNewSession(
   } catch (error) {
     log.error("session create failed", { reason: safeErrorMessage(error) });
     return { error: "Could not start the session. Please try again." };
+  }
+
+  /*
+   * 🔴 25.18 — the invite goes NOW, not from a second screen.
+   *
+   * Both halves of this already existed and were two pages apart: the chart is
+   * created above, and `createInviteLink` is the thing that makes the record
+   * the patient's own. A clinician starting a session with somebody new had to
+   * remember to walk to the patient page afterwards and press a second button,
+   * which is why most records were never handed over.
+   *
+   * Awaited rather than deferred to `after()`, because it reads the caller's
+   * session, and because a send that silently failed after the response would
+   * be invisible. `createInviteLink` reports whether it arrived rather than
+   * assuming; a failure here is logged and does not block the session, since
+   * the clinician can still send it from the patient page and the person in
+   * front of them is waiting.
+   */
+  if (newPatientId && normalisePhone(guestPhone)) {
+    const invited = await createInviteLink(newPatientId);
+    if ("error" in invited) {
+      log.warn("session invite not sent", { session: ref(sessionId), reason: invited.error });
+    }
   }
 
   redirect(`/sessions/${sessionId}/room`);

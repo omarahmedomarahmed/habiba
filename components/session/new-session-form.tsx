@@ -136,6 +136,29 @@ export function NewSessionForm({
             />
           </Field>
 
+          {/*
+            🔴 25.18 — the mobile number, asked at the same moment as the name.
+
+            §3b makes the number the identity, and this is the one screen where
+            a clinician is looking at the person. Asking for it here is what
+            lets the invite that hands them their own record go out with the
+            session rather than from a page nobody visits twice.
+          */}
+          <Field
+            label="Patient mobile number"
+            htmlFor="guestPhone"
+            hint="We send them their own account straight away, on WhatsApp. This is also how their record finds them later."
+          >
+            <Input
+              id="guestPhone"
+              name="guestPhone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              placeholder="+20 100 123 4567"
+            />
+          </Field>
+
           <Field
             label={modality === "video" ? "Patient email" : "Patient email (optional)"}
             htmlFor="guestEmail"

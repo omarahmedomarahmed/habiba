@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Globe2 } from "lucide-react";
+import { Globe2, Search, ShieldCheck, Star } from "lucide-react";
+import { eq, sql } from "drizzle-orm";
 
 import { Badge, Card } from "@/components/ui";
+import { PatientAvatar } from "@/components/patient/avatar";
+import { TherapistCard } from "@/components/patient/therapist-card";
+import { categories, topRated } from "@/lib/data/discover";
 import { pendingRequestsFor } from "@/lib/data/grants";
 import { nextStepFor } from "@/lib/data/homework";
 import { sessionsForPatient } from "@/lib/data/patient-view";
@@ -13,23 +17,33 @@ import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { db } from "@/lib/db";
 import { patients, people } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
 
 export const metadata: Metadata = { title: "Your sessions", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 /**
- * The patient's home.
+ * The patient's home. PLAN.md 25.1.
  *
- * A shell for sprint 13, which brings the globe, the bottom navigation and the
- * session lists. What it shows today is exactly what sprints 5 and 6 make
- * true: who they are, whether their record is claimed, and how many clinical
- * files are attached to it.
+ * ## 🔴 What changed, and why it is not a tidy-up
  *
- * 🔴 It deliberately shows **no clinical content**. §6: a patient never sees a
- * transcript or a clinical note, enforced server-side. This page reads two
- * counts and a name; the notes written *for* the patient arrive in 13.4 and go
- * through their own query.
+ * This was a column of five cards, each of which was a sentence and a link.
+ * That is a site map, not a home screen, and it made the app feel like an
+ * administrative back end for a record rather than somewhere you go to find
+ * help. It now has the shape people expect: who you are, one thing to search
+ * with, what is waiting on you, what to do next, who is good, and your
+ * sessions.
+ *
+ * ## Everything on it is still a fact
+ *
+ * The temptation in a screen like this is a rail of "recommended for you" that
+ * is really "whoever we queried first", and a category grid where most tiles
+ * lead nowhere. `lib/data/discover.ts` refuses both: a category appears only
+ * when a verified clinician has listed it, and the top-rated rail renders only
+ * for clinicians who have cleared the same five-rating bar the rest of the
+ * product uses. When nothing clears it, the rail is absent rather than padded.
+ *
+ * 🔴 It still shows **no clinical content**. §6: a patient never sees a
+ * transcript or a clinical note, enforced server-side.
  */
 export default async function PatientHomePage({
   searchParams,
@@ -37,6 +51,7 @@ export default async function PatientHomePage({
   searchParams: Promise<{ claimed?: string }>;
 }) {
   const actor = await requirePatient();
+
   /*
    * 🔴 22R — the confirmation the invite page could not show.
    *
@@ -47,56 +62,44 @@ export default async function PatientHomePage({
    */
   const { claimed } = await searchParams;
 
-  // 7.4 — an unanswered request is the one thing on this page that is waiting
-  // on them, so it is counted here rather than discovered by navigating.
-  const waiting = await pendingRequestsFor(actor.personId);
+  const [waiting, next, sessions, cats, best, person, attached, i18n] = await Promise.all([
+    // 7.4 — an unanswered request is the one thing on this page waiting on them.
+    pendingRequestsFor(actor.personId),
+    // 9.5 — one step, and `nextStepFor` cannot return a rate, a streak or a
+    // history, which is how the rule is enforced rather than remembered.
+    nextStepFor(actor.personId),
+    // 15.3 — their own sessions, in four groups, through the one query whose
+    // select list is the 15.8 enforcement.
+    sessionsForPatient(actor.personId),
+    categories(),
+    topRated(4),
+    db
+      .select({ claimedAt: people.claimedAt, avatarUrl: people.avatarUrl })
+      .from(people)
+      .where(eq(people.id, actor.personId))
+      .limit(1)
+      .then((rows) => rows[0]),
+    /*
+     * 🔴 22R — counted in its own query, because the correlated one returned 0.
+     *
+     * This was a `sql<number>` subquery inside the select above, and on a
+     * record with one file attached the screen said "No therapist files are
+     * attached to your account yet" while the database, asked directly, said
+     * one. A patient reading that has just been told their record is empty on
+     * the day they claimed it.
+     */
+    db
+      .select({ n: sql<number>`COUNT(*)::int` })
+      .from(patients)
+      .where(eq(patients.personId, actor.personId))
+      .then((rows) => Number(rows[0]?.n ?? 0)),
+    getI18n(),
+  ]);
+
   const pending = waiting.length;
 
-  /*
-   * 9.5 — one step. `nextStepFor` returns a single row and a capped count of
-   * what else is waiting; it cannot return a rate, a streak or a history,
-   * which is how the ⚠️ rule is enforced rather than remembered.
-   */
-  const next = await nextStepFor(actor.personId);
-
-  /*
-   * 15.3 — their own sessions, in the four groups. One query, in
-   * `lib/data/patient-view.ts`, whose select list is the 15.8 enforcement.
-   */
-  const sessions = await sessionsForPatient(actor.personId);
-
-  const [person] = await db
-    .select({ claimedAt: people.claimedAt })
-    .from(people)
-    .where(eq(people.id, actor.personId))
-    .limit(1);
-
-  /*
-   * 🔴 22R — counted in its own query, because the correlated one returned 0.
-   *
-   * This was a `sql<number>` subquery inside the `select()` above, and on a
-   * record with one file attached the screen said "No therapist files are
-   * attached to your account yet" — while the database, asked the same
-   * question directly, said one. A patient reading that has just been told
-   * their record is empty on the day they claimed it.
-   */
-  const [attached] = await db
-    .select({ n: sql<number>`COUNT(*)::int` })
-    .from(patients)
-    .where(eq(patients.personId, actor.personId));
-
-  const records = Number(attached?.n ?? 0);
-
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
-      {/*
-        15.2 — their name, and the globe. The globe is the one thing on this
-        app somebody might need urgently, so it is on the home screen as well
-        as under the thumb in the nav, not only in a menu.
-
-        `actor.email` is nullable since 13R.6 — an account may have only a
-        number — so the subtitle falls back rather than rendering an empty line.
-      */}
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-6">
       {claimed ? (
         <Card className="border-teal-200 bg-teal-50 p-4">
           <p className="text-sm font-semibold text-teal-900">That record is yours now</p>
@@ -108,17 +111,41 @@ export default async function PatientHomePage({
         </Card>
       ) : null}
 
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          Welcome, {actor.firstName}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {actor.email ?? "Signed in with your phone number"}
-        </p>
-      </div>
+      {/* ------------------------------------------------------- who you are */}
+
+      <header className="flex items-center gap-3">
+        <Link href="/patient/account" aria-label="Your account">
+          <PatientAvatar
+            personId={actor.personId}
+            hasPhoto={Boolean(person?.avatarUrl)}
+            name={actor.firstName}
+            size={44}
+          />
+        </Link>
+        <div className="min-w-0">
+          <p className="truncate text-lg font-bold tracking-tight text-slate-900">
+            Hello, {actor.firstName}
+          </p>
+          <p className="truncate text-xs text-slate-500">
+            {person?.claimedAt ? "Your record is yours" : "Your record is not claimed yet"}
+          </p>
+        </div>
+      </header>
+
+      {/* ---------------------------------------------------------- the search */}
 
       <Link
-        href="/radar"
+        href="/patient/browse"
+        className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-500"
+      >
+        <Search className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        What do you want help with?
+      </Link>
+
+      {/* ------------------------------------------------------------ the globe */}
+
+      <Link
+        href="/patient/radar"
         className="flex items-center gap-3 rounded-2xl bg-brand-500 px-4 py-3.5 text-white shadow-sm active:scale-[0.99]"
       >
         <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
@@ -130,45 +157,26 @@ export default async function PatientHomePage({
         </span>
       </Link>
 
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-900">Your record</p>
-          {person?.claimedAt ? (
-            <Badge tone="teal">Yours</Badge>
-          ) : (
-            <Badge tone="slate">Not claimed yet</Badge>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-slate-600">
-          {records
-            ? `${records} therapist file${records === 1 ? "" : "s"} attached.`
-            : "No therapist files are attached to your account yet."}
-        </p>
-        <Link
-          href="/patient/claim"
-          className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
-        >
-          {person?.claimedAt ? "Claim another record" : "Do you have records to claim?"}
-        </Link>
-      </Card>
+      {/* --------------------------------------------------- what is waiting */}
 
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-900">Who can read your history</p>
-          {pending > 0 ? <Badge tone="amber">{pending} waiting</Badge> : null}
-        </div>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {pending > 0
-            ? `${pending} therapist${pending === 1 ? " has" : "s have"} asked to read your history. You decide, and you can change your mind later.`
-            : "Nobody reads your history unless you say so. You can stop anyone at any time."}
-        </p>
-        <Link
-          href="/patient/consent"
-          className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
-        >
-          {pending > 0 ? "Answer now" : "Manage access"}
-        </Link>
-      </Card>
+      {pending > 0 ? (
+        <Card className="border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-amber-900">Somebody asked to read your history</p>
+            <Badge tone="amber">{pending}</Badge>
+          </div>
+          <p className="mt-1 text-sm leading-relaxed text-amber-900/90">
+            {pending === 1 ? "A therapist has" : `${pending} therapists have`} asked. You decide,
+            and you can change your mind later.
+          </p>
+          <Link
+            href="/patient/consent"
+            className="mt-3 inline-flex text-sm font-semibold text-amber-900 underline"
+          >
+            Answer now
+          </Link>
+        </Card>
+      ) : null}
 
       {next ? (
         <Card className="border border-brand-200 p-4">
@@ -192,31 +200,89 @@ export default async function PatientHomePage({
         </Card>
       ) : null}
 
-      <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Your profile</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Letters, prescriptions and anything you want a therapist to know. It travels with you.
-        </p>
-        <Link
-          href="/patient/profile"
-          className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
-        >
-          Open your profile
-        </Link>
-      </Card>
+      {/* --------------------------------------------------------- categories */}
 
-      <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Coming next</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Your sessions, your homework and your billing appear here.
-        </p>
-      </Card>
+      {cats.length > 0 ? (
+        <section>
+          <h2 className="text-sm font-semibold text-slate-900">Areas people come here for</h2>
+          <ul className="mt-2.5 flex gap-2 overflow-x-auto pb-1">
+            {cats.slice(0, 8).map((category) => (
+              <li key={category.code} className="shrink-0">
+                <Link
+                  href={`/patient/browse?q=${encodeURIComponent(category.code)}`}
+                  className="block rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+                >
+                  {category.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* ------------------------------------------------------- the top rail */}
+
+      {best.length > 0 ? (
+        <section>
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
+            Rated highest by patients
+          </h2>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+            Only therapists with at least five rated sessions. Below that there is no score to
+            show, so they are not here.
+          </p>
+          <ul className="mt-2.5 space-y-2.5">
+            {best.map((therapist) => (
+              <li key={therapist.userId}>
+                <TherapistCard therapist={therapist} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* ---------------------------------------------------------- sessions */}
 
       <PatientSessionList
         sessions={sessions}
         zone={actor.timezone}
-        locale={localeTag((await getI18n()).locale)}
+        locale={localeTag(i18n.locale)}
       />
+
+      {/* ------------------------------------------------------- your record */}
+
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-900">Your record</p>
+          {person?.claimedAt ? (
+            <Badge tone="teal">Yours</Badge>
+          ) : (
+            <Badge tone="slate">Not claimed yet</Badge>
+          )}
+        </div>
+        <p className="mt-1 text-sm text-slate-600">
+          {attached
+            ? `${attached} therapist file${attached === 1 ? "" : "s"} attached.`
+            : "No therapist files are attached to your account yet."}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+          <Link href="/patient/claim" className="text-sm font-semibold text-brand-600">
+            {person?.claimedAt ? "Claim another record" : "Do you have records to claim?"}
+          </Link>
+          <Link href="/patient/profile" className="text-sm font-semibold text-brand-600">
+            Open your profile
+          </Link>
+        </div>
+      </Card>
+
+      <Link
+        href="/patient/consent"
+        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
+      >
+        <ShieldCheck className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        Who can read your history
+      </Link>
     </main>
   );
 }

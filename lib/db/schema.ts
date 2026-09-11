@@ -2474,6 +2474,17 @@ export const people = pgTable(
     phone: text("phone"),
 
     /**
+     * Their own picture. PLAN.md 25.7, C115.
+     *
+     * A storage path, never a URL handed to a browser. C115 rules that a
+     * patient photo is served through an authenticated route like a clinical
+     * document rather than as a public object, so the only reader of this
+     * column is `/api/patient/avatar/[personId]`, and an admin can null it.
+     */
+    avatarUrl: text("avatar_url"),
+    avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
+
+    /**
      * When this person took ownership of their own record. Null means nobody
      * has, which is most of them.
      */
@@ -4233,3 +4244,41 @@ export const uiStrings = pgTable(
 );
 
 export type UiString = typeof uiStrings.$inferSelect;
+
+/**
+ * A clinician's QR code, for a clinic wall. PLAN.md 25.17, C120.
+ *
+ * 🔴 There is deliberately no patient column here, and there never will be. A
+ * printed code is public: whatever it carries, it carries to everyone who
+ * walks past the poster. It carries the clinician, and nothing else.
+ *
+ * Revocable, because a poster outlives the person on it. `revokedAt` rather
+ * than a delete, so a scan of a dead code can say "this code is no longer in
+ * use" instead of "not found", which is what somebody standing in a waiting
+ * room actually needs to read.
+ */
+export const therapistCodes = pgTable(
+  "therapist_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Eight characters, no ambiguous glyphs. Shaped by a CHECK in 0058. */
+    code: text("code").notNull(),
+    label: text("label"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: uuid("revoked_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    uniqueIndex("therapist_codes_code_unique").on(t.code),
+    index("therapist_codes_user_idx").on(t.userId, t.revokedAt),
+  ],
+);
+
+export type TherapistCode = typeof therapistCodes.$inferSelect;

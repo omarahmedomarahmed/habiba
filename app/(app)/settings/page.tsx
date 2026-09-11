@@ -124,6 +124,21 @@ export default async function SettingsPage({
               licenseState: user?.profile?.licenseState ?? "",
             }}
           />
+
+          {/* 25.17 / C120 — the clinic-wall code lives with the rest of "you". */}
+          <Card className="p-4">
+            <p className="text-sm font-semibold text-slate-900">Your QR code</p>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              A code for the wall or the end of a session. It names you and nothing else, and you
+              can revoke one when a poster goes out of date.
+            </p>
+            <Link
+              href="/settings/codes"
+              className="mt-3 inline-flex text-sm font-semibold text-brand-600"
+            >
+              Open your codes
+            </Link>
+          </Card>
         </SettingsSection>
 
         <SettingsSection

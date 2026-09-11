@@ -5,9 +5,10 @@ import { ShieldCheck } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { ChangeNumber } from "@/components/patient/change-number";
+import { IdentityEditor } from "@/components/patient/identity-editor";
 import { Card } from "@/components/ui";
 import { db } from "@/lib/db";
-import { patientAccounts } from "@/lib/db/schema";
+import { patientAccounts, people } from "@/lib/db/schema";
 import { lockUntil } from "@/lib/data/phone-change";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { zoneLabel } from "@/lib/scheduling/tz";
@@ -37,6 +38,12 @@ export default async function PatientAccountPage() {
     .where(eq(patientAccounts.id, actor.accountId))
     .limit(1);
 
+  const [person] = await db
+    .select({ avatarUrl: people.avatarUrl })
+    .from(people)
+    .where(eq(people.id, actor.personId))
+    .limit(1);
+
   const countries = await getCountries();
   const locked = account ? lockUntil(account) : null;
 
@@ -48,6 +55,14 @@ export default async function PatientAccountPage() {
         </h1>
         <p className="mt-1 text-sm text-slate-500">Your account and who can see your record.</p>
       </div>
+
+      {/* 25.7 / C115 — name and picture, both theirs. */}
+      <IdentityEditor
+        personId={actor.personId}
+        firstName={actor.firstName}
+        lastName={actor.lastName ?? null}
+        hasPhoto={Boolean(person?.avatarUrl)}
+      />
 
       <ChangeNumber
         current={actor.phone}

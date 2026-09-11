@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { JoinFlow } from "@/components/join/join-flow";
+import { PatientChrome } from "@/components/patient/chrome";
+import { optionalPatient } from "@/lib/patient-auth/guard";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
 import { localeTag } from "@/lib/i18n/config";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
@@ -96,7 +98,14 @@ export default async function JoinPage({
     .limit(1);
 
   return (
-    <Shell>
+    /*
+     * 🔴 25.2 / 25.4 / C129 — the live session is a patient screen.
+     *
+     * It is not in the `(patient)` route group, because a join link has to work
+     * for somebody who has never signed in, so it takes the chrome directly.
+     * `live` locks the Session tab and makes every other destination ask first.
+     */
+    <Shell live={{ href: `/join/${token}` }}>
       <JoinFlow
         feedbackToken={await feedbackTokenForJoin(token)}
         therapist={{
@@ -148,9 +157,22 @@ export default async function JoinPage({
   );
 }
 
-async function Shell({ children }: { children: React.ReactNode }) {
+async function Shell({
+  children,
+  live = null,
+}: {
+  children: React.ReactNode;
+  live?: { href: string } | null;
+}) {
   const { t } = await getI18n();
+  /*
+   * The bar only appears for somebody who can use it. A guest on a bare link
+   * has no account, so every destination in it would bounce them to a login
+   * screen. The SOS orb inside the chrome is not conditional on anything.
+   */
+  const patient = await optionalPatient();
   return (
+    <PatientChrome nav={patient !== null} liveSession={live}>
     <div className="flex min-h-dvh flex-col bg-slate-50">
       {/*
         The language switch belongs here, not buried in a menu.
@@ -170,5 +192,6 @@ async function Shell({ children }: { children: React.ReactNode }) {
         <p className="text-xs text-slate-400">{t("urgent.footer")}</p>
       </footer>
     </div>
+    </PatientChrome>
   );
 }

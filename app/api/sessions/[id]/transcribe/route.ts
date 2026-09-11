@@ -7,7 +7,7 @@ import { AuthorizationError, assertSameOrigin, requireUserApi } from "@/lib/auth
 import { db } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
 import { recordSessionSuggestions } from "@/lib/data/copilot";
-import { appendTranscriptSegment } from "@/lib/data/sessions";
+import { appendTranscriptSegment } from "@/lib/data/transcript";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 export const runtime = "nodejs";

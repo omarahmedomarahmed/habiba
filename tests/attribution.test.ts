@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { countWords, pauseBeforeMs, wordsPerMinute } from "../lib/ai/descriptors";
+import { countWords, pauseBeforeMs, wordsPerMinute } from "../lib/transcript/descriptors";
 import { planBatches, straddlesTurnBoundary } from "../lib/ai/diarise";
 import { shouldCut } from "../lib/audio/recorder";
 
