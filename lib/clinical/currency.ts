@@ -159,3 +159,66 @@ export function priorityOf(source: FactSourceName): number {
 export function maySupersede(challenger: FactSourceName, incumbent: FactSourceName): boolean {
   return priorityOf(challenger) <= priorityOf(incumbent);
 }
+
+/**
+ * 🔴 C166 — currency gates the ladder. The founder's question, answered.
+ *
+ * ## The question
+ *
+ * *"An OLD patient statement against a NEW document. Ladder-first means a
+ * patient's throwaway remark from two years ago outranks a discharge summary
+ * filed last week, forever. Does anything MARK a fact stale, or does it stay
+ * active until somebody supersedes it by hand?"*
+ *
+ * ## The answer, as sprint 33 shipped it
+ *
+ * **Nothing marked it stale.** `status` stayed `active` until a human
+ * superseded it, and `currencyOf` was computed at read time for the *display*
+ * only. So the chart printed "2 years ago (not current)" beside a fact that
+ * was still sorting above last week's discharge summary, and every consumer
+ * that took the first row — which is every consumer — read the stale one. The
+ * label was honest and the order was not.
+ *
+ * ## The fix, and why it is ordering rather than a status
+ *
+ * Currency is **derived**, so it is applied where the ordering happens rather
+ * than written into a column. A stored `stale` flag would be wrong the day
+ * after it was written and would need a sweeper to stay true, which is the
+ * same argument 33.5 made against a polymorphic evidence pointer: a value that
+ * needs a job to stay correct is a value that is sometimes incorrect.
+ *
+ * So a fact that is past its domain's half-life **loses its rank**: any
+ * current fact outranks any stale one, and the ladder decides among equals.
+ * The two-year-old remark now sorts below the week-old letter, and the letter
+ * is what the note reads.
+ *
+ * ## What it costs, named
+ *
+ * A stale **clinician** entry now sorts below a fresh model inference in the
+ * same field — a clinician's "sleep: poor" from six months ago below the
+ * model's "sleeping better since June" from today. That is the right clinical
+ * answer (the fresher observation is about now) and it is a real transfer of
+ * standing from a human to a model, so two things hold it: a diagnosis never
+ * expires, so nothing a clinician *diagnosed* is ever demoted this way, and an
+ * AI fact is still unverified on screen and still cannot supersede.
+ */
+export function rankFacts<T extends { domain: string; effectiveAt: Date | string; sourcePriority: number }>(
+  facts: T[],
+  now: Date,
+): T[] {
+  return [...facts].sort((a, b) => {
+    const aCurrent = currencyOf(a, now).current;
+    const bCurrent = currencyOf(b, now).current;
+    if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
+
+    if (a.sourcePriority !== b.sourcePriority) return a.sourcePriority - b.sourcePriority;
+
+    return effectiveTime(b) - effectiveTime(a);
+  });
+}
+
+function effectiveTime(fact: { effectiveAt: Date | string }): number {
+  return fact.effectiveAt instanceof Date
+    ? fact.effectiveAt.getTime()
+    : new Date(fact.effectiveAt).getTime();
+}

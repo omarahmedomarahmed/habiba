@@ -30,6 +30,9 @@ export type Surface = {
 
 export const SURFACES: Surface[] = [
   { file: "lib/ai/notes.ts", suite: "notes" },
+  /* 34.1 — the same module, grounded. Measured separately because the failure
+     mode is different: contamination rather than fabrication. */
+  { file: "lib/clinical/context.ts", suite: "grounding" },
   { file: "lib/ai/diarise.ts", suite: "attribution" },
   { file: "lib/ai/transcribe.ts", suite: "speech" },
   /* Not in lib/ai, and measured anyway: it is the safety one. */

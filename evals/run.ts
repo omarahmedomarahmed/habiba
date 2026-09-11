@@ -26,6 +26,7 @@
 import { compare, printTable, readBaseline, writeBaseline, type Measurement } from "./report";
 import { unmeasured } from "./coverage";
 import { attribution } from "./suites/attribution";
+import { grounding } from "./suites/grounding";
 import { notes } from "./suites/notes";
 import { risk } from "./suites/risk";
 import { speech } from "./suites/speech";
@@ -36,7 +37,7 @@ type Suite = {
   run: () => Measurement[] | Promise<Measurement[]>;
 };
 
-const SUITES: Suite[] = [risk, attribution, notes, speech];
+const SUITES: Suite[] = [risk, attribution, notes, grounding, speech];
 
 
 /**

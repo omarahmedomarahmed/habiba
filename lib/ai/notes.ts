@@ -40,7 +40,9 @@ const EMPTY_NOTE: NoteContent = {
   patientNext: "",
 };
 
-const SYSTEM_PROMPT = `You are a clinical documentation assistant for a licensed psychotherapist.
+const SYSTEM_PROMPT = `RULE THAT OVERRIDES EVERYTHING BELOW: the note describes THIS SESSION. Anything under "KNOWN BEFORE THIS SESSION" is background, not evidence: it may not go in the note on its own authority, and you must not name a diagnosis it implies. Where the transcript disagrees with it, the transcript is what happened and the background is out of date - follow the transcript and note the change in "assessment". Where the transcript says the same thing, write it from the transcript: background must never make you leave out what the session covered.
+
+You are a clinical documentation assistant for a licensed psychotherapist.
 
 You are given a transcript of one therapy session and minimal context. Produce documentation the clinician can review and sign.
 
@@ -51,6 +53,7 @@ Rules:
 - Never address the patient. Never include advice written to the patient.
 - Refer to the person as "the patient". Do not use any name, even if one appears in the transcript.
 - If the transcript contains language suggesting risk of harm to self or others, say so plainly in "assessment" and in "impressions".
+- 🔴 A section headed "KNOWN BEFORE THIS SESSION" is BACKGROUND, not evidence. Nothing in it may be written into the note as something observed, said or agreed today. If the transcript does not support it, it does not go in the note. Where the transcript contradicts it, follow the transcript and say in "assessment" that it differs from what was on record.
 - Lines marked "Speaker" come from a single microphone in a shared room and are not attributed. Work out from context who is speaking, the clinician asks, reflects and summarises; the patient discloses and describes their own experience, and attribute correctly in your write-up. Where a line is genuinely ambiguous, do not guess in a way that changes clinical meaning.
 
 LANGUAGE
@@ -118,6 +121,7 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
       modality: sessions.modality,
       durationMinutes: sessions.durationMinutes,
       clinical: patients.clinical,
+      personId: patients.personId,
     })
     .from(sessions)
     .leftJoin(patients, eq(patients.id, sessions.patientId))
@@ -133,6 +137,39 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
     const goals = row.clinical?.goals ?? [];
     if (diagnoses.length) contextParts.push(`Working diagnoses: ${diagnoses.join("; ")}`);
     if (goals.length) contextParts.push(`Treatment goals: ${goals.join("; ")}`);
+  }
+
+  /*
+   * 🔴 34.1 — the two lines above became a record. PLAN.md 34.1.
+   *
+   * `patients.clinical` is a JSON blob of strings with no date, no source and
+   * no way to disagree with it, and until this sprint it was the entire memory
+   * a note generator had. The evidence layer replaces it with facts that carry
+   * when they were true and who said so, which is what turns an isolated SOAP
+   * generator into longitudinal documentation.
+   *
+   * The blob is deliberately still sent. It is what a clinician typed into the
+   * old field and it is still on thousands of rows; dropping it on the day the
+   * new layer ships would quietly make every existing note worse. It goes when
+   * the facts are extracted from it, not before, and nothing here backfills.
+   *
+   * One failing lookup degrades this section rather than failing the note: a
+   * session whose patient has no person row is the ordinary case for a join
+   * link, and it must still produce documentation.
+   */
+  if (row?.personId) {
+    try {
+      const { factsFor } = await import("@/lib/data/facts");
+      const { factsPrompt } = await import("@/lib/clinical/context");
+      const facts = await factsFor(row.personId);
+      const block = factsPrompt(facts, new Date());
+      if (block) contextParts.push("", block);
+    } catch (error) {
+      log.warn("note context could not read the evidence layer", {
+        session: ref(sessionId),
+        reason: safeErrorMessage(error),
+      });
+    }
   }
 
   const segments = await db
@@ -202,9 +239,12 @@ export async function noteFromTranscript(input: {
     "note-generation",
   );
 
+  const content = normaliseNote(raw);
+
   return {
-    content: normaliseNote(raw),
-    language: normaliseLanguage(raw.language),
+    content,
+    /* The tag is checked against what was actually written. See C169. */
+    language: normaliseLanguage(raw.language, noteWords(content)),
     raw,
     model: MODELS.note,
     inputTokens: completion.usage?.prompt_tokens ?? 0,
@@ -278,10 +318,62 @@ export async function generateNoteContent(opts: {
  * Only a language we can actually render and label. Anything else is English:
  * a note tagged `xy` would give the viewer no way to pick a direction or a
  * font, and guessing wrong on right-to-left is very visible.
+ *
+ * ## 🔴 C169 — the model's word is checked against the script it wrote in
+ *
+ * The grounding eval caught a note for an English session, written in English,
+ * reported as **`es`**. The word "metro" in the transcript is the likely pull.
+ * Two things follow from a wrong tag and neither is cosmetic: the viewer gets
+ * the wrong direction and font for the note, and `generateNoteContent` sees a
+ * non-English language and spends a second model call translating an English
+ * note into English.
+ *
+ * So the claim is checked against the evidence. The script is decidable: a note
+ * in Arabic characters is Arabic whatever the tag says, and a note in Latin
+ * characters is not Arabic whatever the tag says. That closes the failure that
+ * matters — right-to-left rendered left-to-right, which is the most visible way
+ * an interface announces nobody localised it (C150, 21.x).
+ *
+ * **The residual, named:** `en` mislabelled as `es` shares a script, so this
+ * cannot see it, and the eval still records it. Distinguishing two Latin
+ * languages needs actual language identification, which is a dependency and a
+ * sprint, and the harm is one wasted call rather than an unreadable note.
  */
-export function normaliseLanguage(raw: unknown): string {
+/** Every string in a note, for the script check. */
+function noteWords(note: NoteContent): string {
+  return [
+    note.soap.subjective,
+    note.soap.objective,
+    note.soap.assessment,
+    note.soap.plan,
+    note.summary,
+    note.observations,
+    note.impressions,
+    note.patientBrief,
+    note.patientNext,
+    ...note.talkingPoints,
+    ...note.recommendations,
+    ...note.patientSteps,
+  ].join(" ");
+}
+
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F]/g;
+
+export function normaliseLanguage(raw: unknown, text?: string): string {
   const tag = typeof raw === "string" ? raw.trim().toLowerCase().slice(0, 2) : "";
-  return tag in NOTE_LANGUAGES ? tag : "en";
+  const claimed = tag in NOTE_LANGUAGES ? tag : "en";
+
+  if (!text) return claimed;
+
+  const arabic = (text.match(ARABIC_SCRIPT) ?? []).length;
+  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
+
+  /* Written in Arabic, tagged as something else. The tag loses. */
+  if (arabic > latin && arabic > 40) return "ar";
+  /* Tagged Arabic, written in Latin script. The tag loses again. */
+  if (claimed === "ar" && latin > arabic) return "en";
+
+  return claimed;
 }
 
 async function translateNote(opts: {

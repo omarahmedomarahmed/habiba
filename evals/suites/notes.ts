@@ -49,6 +49,7 @@ export const notes = {
     const invented: string[] = [];
     const blanks: string[] = [];
     const dropped: string[] = [];
+    const wrongLanguage: string[] = [];
 
     for (const session of SESSIONS) {
       const transcript = session.lines
@@ -82,6 +83,8 @@ export const notes = {
       coverageSum += claims.coverage;
       sectionSum += sections.coverage;
       if (language === session.language) languageRight += 1;
+      /* Named, because a metric with a zero tolerance must say what tripped it. */
+      else wrongLanguage.push(`${session.id}: wrote ${language}, expected ${session.language}`);
 
       if (claims.unsupported.length > 0) {
         invented.push(`${session.id}: ${claims.unsupported.join(", ")}`);
@@ -144,6 +147,7 @@ export const notes = {
         unit: "rate",
         /* Zero: a note in the wrong language is never within tolerance. */
         tolerance: 0,
+        detail: wrongLanguage.length ? wrongLanguage.join(" · ") : "every note matched its session",
       },
       {
         key: "notes.ar.coverage",

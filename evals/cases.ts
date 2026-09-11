@@ -46,6 +46,50 @@ export type SessionCase = {
   stated: string[];
   /** Note fields this session genuinely supports. Empty ones are legitimate. */
   requiredSections: string[];
+
+  /**
+   * 34.1 — what the evidence layer would already hold about this person.
+   *
+   * True, and from before this session. Used to measure whether grounding a
+   * note in prior facts helps or hurts.
+   */
+  priorFacts?: PriorFact[];
+
+  /**
+   * 🔴 34.1 — the wrong-patient trap.
+   *
+   * Facts that are plausible, well-formed, and about **somebody else**. At
+   * least one per case is a `document`, deliberately: C167 keeps unverified AI
+   * facts out of the prompt entirely, so a poison set made only of AI rows
+   * would be filtered before the model ever saw it and the trap would be
+   * measuring the filter rather than the model. A misfiled document is the
+   * classic retrieval contamination anyway.
+   *
+   * Every
+   * value here is drawn from this session's own `neverSaid` list, so a note
+   * that repeats one is caught by the same scorer that catches a fabrication:
+   * retrieval contamination and hallucination are indistinguishable in the
+   * output, which is exactly why they are measured the same way.
+   */
+  poisonFacts?: PriorFact[];
+
+  /**
+   * A prior fact the transcript contradicts, and what a correct note says.
+   *
+   * The rule the prompt states is "follow the transcript". This is how it is
+   * checked rather than asserted.
+   */
+  contradiction?: { fact: PriorFact; mustSay: string[]; mustNotSay: string[] };
+};
+
+export type PriorFact = {
+  domain: string;
+  field: string;
+  value: string;
+  sourceType: "clinician" | "document" | "patient" | "ai";
+  /** How long ago it was true. Currency is computed from this. */
+  ageDays: number;
+  verified?: boolean;
 };
 
 /**
@@ -134,6 +178,19 @@ export const SESSIONS: SessionCase[] = [
       "alcohol",
     ],
     stated: ["sleep", "four", "audit", "manager|work|supervisor", "sister|sibling"],
+    priorFacts: [
+      { domain: "presentation", field: "sleep", value: "early waking, three or four nights a week", sourceType: "clinician", ageDays: 21 },
+      { domain: "goal", field: "focus", value: "assertiveness at work", sourceType: "clinician", ageDays: 45 },
+    ],
+    poisonFacts: [
+      { domain: "medication", field: "ssri", value: "sertraline 50mg daily", sourceType: "ai", ageDays: 20 },
+      { domain: "diagnosis", field: "primary", value: "generalised anxiety disorder", sourceType: "document", ageDays: 30 },
+    ],
+    contradiction: {
+      fact: { domain: "presentation", field: "sleep", value: "sleeping through the night since March", sourceType: "document", ageDays: 30 },
+      mustSay: ["sleep"],
+      mustNotSay: ["sleeping through the night", "sleep has improved", "sleeping well"],
+    },
     requiredSections: CORE_SECTIONS,
   },
 
@@ -184,6 +241,19 @@ export const SESSIONS: SessionCase[] = [
       "medication",
     ],
     stated: ["work|workplace|office", "six weeks|6 weeks", "chest", "dog", "thursday"],
+    priorFacts: [
+      { domain: "history", field: "bereavement", value: "father died six weeks ago", sourceType: "patient", ageDays: 42 },
+      { domain: "goal", field: "focus", value: "phased return to work", sourceType: "clinician", ageDays: 20 },
+    ],
+    poisonFacts: [
+      { domain: "medication", field: "ssri", value: "citalopram 20mg", sourceType: "ai", ageDays: 15 },
+      { domain: "diagnosis", field: "primary", value: "major depressive disorder", sourceType: "document", ageDays: 25 },
+    ],
+    contradiction: {
+      fact: { domain: "function", field: "work", value: "back at work full time since Monday", sourceType: "document", ageDays: 5 },
+      mustSay: ["two hours|left|desk"],
+      mustNotSay: ["full time", "back at work full"],
+    },
     requiredSections: CORE_SECTIONS,
   },
 
@@ -224,6 +294,19 @@ export const SESSIONS: SessionCase[] = [
     ],
     neverSaid: ["اكتئاب", "دواء", "انتحار", "ثلاثة أشهر", "الأب"],
     stated: ["الامتحانات|الامتحان", "التركيز", "الهاتف|الجوال|الموبايل", "أمي|الأم|والدتها|والدته", "عشرون دقيقة|عشرين دقيقة|20 دقيقة"],
+    priorFacts: [
+      { domain: "goal", field: "focus", value: "الدراسة بانتظام قبل الامتحانات", sourceType: "clinician", ageDays: 30 },
+      { domain: "social", field: "family", value: "تعيش مع الأم", sourceType: "patient", ageDays: 120 },
+    ],
+    contradiction: {
+      fact: { domain: "presentation", field: "concentration", value: "التركيز تحسن ولم تعد هناك صعوبة في المذاكرة", sourceType: "document", ageDays: 20 },
+      mustSay: ["التركيز"],
+      mustNotSay: ["تحسن التركيز", "لم تعد هناك صعوبة", "لا توجد صعوبة في التركيز"],
+    },
+    poisonFacts: [
+      { domain: "diagnosis", field: "primary", value: "اكتئاب", sourceType: "ai", ageDays: 40 },
+      { domain: "medication", field: "ssri", value: "دواء يومي", sourceType: "document", ageDays: 40 },
+    ],
     requiredSections: CORE_SECTIONS,
   },
   {
@@ -271,6 +354,18 @@ export const SESSIONS: SessionCase[] = [
       "childhood",
     ],
     stated: ["metro|train|underground", "ten minutes|10 minutes", "numb", "avoid|avoided|avoidance", "sunday"],
+    priorFacts: [
+      { domain: "presentation", field: "panic", value: "episodes on public transport", sourceType: "clinician", ageDays: 14 },
+    ],
+    contradiction: {
+      fact: { domain: "function", field: "travel", value: "travelling by metro daily without difficulty", sourceType: "document", ageDays: 9 },
+      mustSay: ["metro|train|underground"],
+      mustNotSay: ["without difficulty", "travels daily without", "no difficulty travelling"],
+    },
+    poisonFacts: [
+      { domain: "medication", field: "prn", value: "propranolol before travel", sourceType: "ai", ageDays: 10 },
+      { domain: "diagnosis", field: "primary", value: "panic disorder", sourceType: "document", ageDays: 12 },
+    ],
     requiredSections: CORE_SECTIONS,
   },
 
@@ -310,6 +405,18 @@ export const SESSIONS: SessionCase[] = [
     ],
     neverSaid: ["اكتئاب ما بعد الولادة", "مضاد اكتئاب", "انتحار", "طلاق", "ستة أشهر"],
     stated: ["ساعتين|ساعتان|النوم", "شهرين", "زوجي|الزوج", "حماتي|حماة|والدة الزوج", "الخميس"],
+    priorFacts: [
+      { domain: "history", field: "birth", value: "ولادة قبل شهرين", sourceType: "patient", ageDays: 60 },
+    ],
+    contradiction: {
+      fact: { domain: "social", field: "support", value: "الزوج متفرغ في البيت ويساعد طوال اليوم", sourceType: "document", ageDays: 15 },
+      mustSay: ["المساء|يعمل|الدعم|المساعدة"],
+      mustNotSay: ["متفرغ في البيت", "يساعد طوال اليوم"],
+    },
+    poisonFacts: [
+      { domain: "diagnosis", field: "primary", value: "اكتئاب ما بعد الولادة", sourceType: "document", ageDays: 20 },
+      { domain: "medication", field: "ssri", value: "مضاد اكتئاب", sourceType: "ai", ageDays: 20 },
+    ],
     requiredSections: CORE_SECTIONS,
   },
 

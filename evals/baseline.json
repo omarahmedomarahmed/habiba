@@ -8,7 +8,7 @@
       "tolerance": 0.06
     },
     "attribution.refused": {
-      "value": 0.047619047619047616,
+      "value": 0.041666666666666664,
       "direction": "down",
       "tolerance": 0.1
     },
@@ -17,8 +17,28 @@
       "direction": "up",
       "tolerance": 0
     },
-    "notes.ar.coverage": {
+    "grounding.contradiction": {
       "value": 0.7999999999999999,
+      "direction": "up",
+      "tolerance": 0.19
+    },
+    "grounding.coverage": {
+      "value": 0.6666666666666666,
+      "direction": "up",
+      "tolerance": 0.15
+    },
+    "grounding.leak": {
+      "value": 0.06666666666666667,
+      "direction": "down",
+      "tolerance": 0.03
+    },
+    "grounding.unsupported": {
+      "value": 0.011111111111111112,
+      "direction": "down",
+      "tolerance": 0.06
+    },
+    "notes.ar.coverage": {
+      "value": 0.8333333333333334,
       "direction": "up",
       "tolerance": 0.2
     },
@@ -28,22 +48,22 @@
       "tolerance": 0
     },
     "notes.coverage": {
-      "value": 0.8000000000000002,
+      "value": 0.7333333333333334,
       "direction": "up",
       "tolerance": 0.15
     },
     "notes.language": {
-      "value": 1,
+      "value": 0.8666666666666667,
       "direction": "up",
       "tolerance": 0
     },
     "notes.sections": {
-      "value": 0.8777777777777778,
+      "value": 1,
       "direction": "up",
       "tolerance": 0.12
     },
     "notes.unsupported": {
-      "value": 0,
+      "value": 0.03333333333333333,
       "direction": "down",
       "tolerance": 0.06
     },
@@ -68,7 +88,7 @@
       "tolerance": 0.05
     },
     "speech.wer": {
-      "value": 0.03389830508474576,
+      "value": 0.02824858757062147,
       "direction": "down",
       "tolerance": 0.04
     },
@@ -78,7 +98,7 @@
       "tolerance": 0.06
     },
     "speech.wer.detected": {
-      "value": 0.01694915254237288,
+      "value": 0.02824858757062147,
       "direction": "down",
       "tolerance": 0.06
     }
