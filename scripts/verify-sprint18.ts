@@ -13,7 +13,7 @@ import { sql } from "drizzle-orm";
 
 import { type ContentBlock } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
-import { reporter, writesTo } from "./_verify";
+import { reporter, writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -187,7 +187,7 @@ async function main() {
    * must not point at /signup or /login.
    */
   const { readFileSync } = await import("node:fs");
-  const rendered = readFileSync("components/public/blocks.tsx", "utf8");
+  const rendered = readSource("components/public/blocks.tsx");
   const crisisBlock = rendered.slice(rendered.indexOf("function Crisis("));
   check(
     "🔴 18.3 …and it goes to the radar, never to a signup or a login",
@@ -285,10 +285,7 @@ async function main() {
     },
   );
 
-  const showcase = readFileSync(
-    "components/demo/component-showcase.tsx",
-    "utf8",
-  );
+  const showcase = readSource("components/demo/component-showcase.tsx");
   check(
     "🔴 18.8 no screenshot stands in for a product surface, the showcase renders components, not images",
     !/<img|\.png|\.jpg|next\/image/i.test(showcase),
@@ -303,7 +300,7 @@ async function main() {
   );
   check(
     "🔴 18.11 …and that fallback is synthetic, it reaches no clinical table",
-    !readFileSync("lib/content/demo.ts", "utf8").match(
+    !readSource("lib/content/demo.ts").match(
       /sessionNotes|transcriptSegments|sessionInsights|patients\b/,
     ) &&
       DEMO_FALLBACK.patientSessions.every((s) => s.therapist.startsWith("Dr ")),

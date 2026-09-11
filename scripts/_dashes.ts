@@ -51,6 +51,23 @@ export function stripComments(source: string): string {
     .replace(/^\s*\/\/.*$/gm, "");
 }
 
+/**
+ * The same, with the line numbering intact. C205.
+ *
+ * `stripComments` deletes a block comment outright, which moves every line
+ * after it. That is harmless for a checker asking "does this construct appear"
+ * and wrong for one that reports a line number, so a blanket sweep across
+ * every verifier needs this shape rather than that one: each removed line
+ * leaves an empty line behind, and line N of the output is line N of the file.
+ */
+export function stripCommentsKeepingLines(source: string): string {
+  const blanked = (match: string) => match.replace(/[^\n]/g, "");
+  return source
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, blanked)
+    .replace(/\/\*[\s\S]*?\*\//g, blanked)
+    .replace(/^(\s*)\/\/.*$/gm, "$1");
+}
+
 export type DashHit = { file: string; line: number; text: string };
 
 /** Every dash left in one source once its comments are gone. */

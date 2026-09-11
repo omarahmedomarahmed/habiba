@@ -28,7 +28,7 @@ import { caseSetChanged, readBaseline } from "../evals/report";
 import { scanForCrisisLanguage } from "../lib/crisis/alerts";
 import { PAST, PRESENT, RESOLVED, THIRD_PARTY } from "../lib/crisis/context";
 import { contains, fold, foldsToNothing } from "../lib/crisis/fold";
-import { reporter } from "./_verify";
+import { reporter, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -39,7 +39,7 @@ function declaredTolerances(): Map<string, number> {
   const found = new Map<string, number>();
 
   for (const file of readdirSync("evals/suites")) {
-    const source = readFileSync(`evals/suites/${file}`, "utf8");
+    const source = readSource(`evals/suites/${file}`);
     const pattern = /key:\s*"([^"]+)"[\s\S]{0,2000}?tolerance:\s*([0-9.]+)/g;
     for (let match = pattern.exec(source); match; match = pattern.exec(source)) {
       /* First one wins: the regex is non-greedy, so it is the nearest band. */
@@ -52,7 +52,7 @@ function declaredTolerances(): Map<string, number> {
 async function main() {
   console.log("\nSprint 35R, the eval case set\n");
 
-  const mark = JSON.parse(readFileSync(RATCHET, "utf8")) as {
+  const mark = JSON.parse(readSource(RATCHET)) as {
     sessions: number;
     riskCases: number;
     speechCases: number;

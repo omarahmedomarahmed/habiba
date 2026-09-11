@@ -27,7 +27,7 @@ import { honestyProblems, honestyProblemsIn, readableStrings } from "../lib/cont
 import { CONTENT_DEMOS } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
 import { stripComments } from "./_dashes";
-import { reporter } from "./_verify";
+import { reporter, readSource } from "./_verify";
 
 const { check, skipUnless, finish } = reporter();
 
@@ -127,7 +127,7 @@ async function main() {
 
   /* ------------------------------------------ 28.2 / 28.3 · at the door */
 
-  const adminActions = stripComments(readFileSync("app/(admin)/admin/actions.ts", "utf8"));
+  const adminActions = stripComments(readSource("app/(admin)/admin/actions.ts"));
   check(
     "🔴 28.2 / 28.3 an admin cannot PUBLISH one either, the save refuses it",
     /honestyProblemsIn\(/.test(adminActions) && /return \{ error: honestyMessage\(/.test(adminActions),
@@ -185,7 +185,7 @@ async function main() {
    * a claim on a marketing page whose guard was quietly deleted is worse than
    * no claim at all.
    */
-  const guard = readFileSync("scripts/verify-sprint24.ts", "utf8");
+  const guard = readSource("scripts/verify-sprint24.ts");
   check(
     "🔴 28.4 …and the sentence is backed by the import guard rather than by itself",
     /reachesAi/.test(guard) && /app\/\(patient\)/.test(guard),
@@ -204,7 +204,7 @@ async function main() {
   ];
   const missing = routes.filter((route) => {
     try {
-      readFileSync(route, "utf8");
+      readSource(route);
       return false;
     } catch {
       return true;
@@ -238,7 +238,7 @@ async function main() {
     `${INTEGRATIONS.length} entries`,
   );
 
-  const developers = stripComments(readFileSync("app/(public)/developers/page.tsx", "utf8"));
+  const developers = stripComments(readSource("app/(public)/developers/page.tsx"));
   check(
     "🔴 28.5 the developer page says there is no API rather than documenting the internal routes",
     /There is no public API yet/.test(developers) && !/https?:\/\/[^"]*\/api\//.test(developers),
@@ -247,7 +247,7 @@ async function main() {
 
   /* --------------------------------------------------------- 28.6 */
 
-  const showcase = stripComments(readFileSync("components/demo/component-showcase.tsx", "utf8"));
+  const showcase = stripComments(readSource("components/demo/component-showcase.tsx"));
   const drawable = [...showcase.matchAll(/case "([a-z-]+)":/g)].map((match) => match[1]!);
 
   check(

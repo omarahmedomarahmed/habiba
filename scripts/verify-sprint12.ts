@@ -13,7 +13,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { patients, sessions, users } from "../lib/db/schema";
-import { writesTo } from "./_verify";
+import { writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 import { translator } from "../lib/i18n/server";
@@ -366,7 +366,7 @@ async function main() {
     );
 
     const { readFileSync } = await import("node:fs");
-    const reset = readFileSync("scripts/reset.ts", "utf8");
+    const reset = readSource("scripts/reset.ts");
     check(
       "12.6 the reset refuses to run without --i-mean-it and a typed host name",
       reset.includes("--i-mean-it") && reset.includes("Type the host to confirm"),

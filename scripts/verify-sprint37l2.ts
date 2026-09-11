@@ -22,7 +22,7 @@
  * So the checks here are about the shape of the formatters rather than about
  * any one screen. Arity, not memory.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 import { ar, en } from "../lib/i18n/messages";
 import { dateTag, intlTag, localeTag } from "../lib/i18n/config";
@@ -237,6 +237,43 @@ function main() {
     "37L.2 CONTROL: the chip guard catches a planted offender",
     /value=\{option\}/.test(stripComments('<input name="x" value={option} />')),
     "the scan is a scan",
+  );
+
+  /*
+   * 🔴 C205 moved to every place that can meet it, and counted.
+   *
+   * The lesson is seven sprints old and had been learned in one file at a
+   * time. Thirteen verifiers read `.ts`/`.tsx` source and none of them
+   * stripped; they all go through `readSource` now, and this counts the ones
+   * that do not so the number can only go down. `verify-sprint19.ts` is the
+   * one deliberate exception and it is EXCLUDED BY NAME rather than by a
+   * pattern: its 19.7 CONTROL reads unstripped on purpose, to prove that
+   * stripping is what makes the check above it mean anything.
+   */
+  const RAW_BY_DESIGN = ["verify-sprint19.ts", "verify-sprint21r.ts"];
+  const verifiers = readdirSync("scripts").filter((name) => /^verify-.*\.ts$/.test(name));
+  const rawScanners = verifiers
+    .filter((name) => !RAW_BY_DESIGN.includes(name))
+    .filter((name) => {
+      const source = stripComments(readFileSync(`scripts/${name}`, "utf8"));
+      return /readFileSync\([^)]*\.tsx?["`][^)]*\)/.test(source);
+    });
+
+  /*
+   * 🔴 `verifiers.length > 20` is part of the assertion, not decoration.
+   *
+   * The first version of this check used `walk("scripts")`, which only returns
+   * `.tsx` files, so it scanned nothing, found nothing, and passed. A count of
+   * zero offenders out of zero files is the shape of a check that will pass
+   * forever while the thing it guards rots. A number has to report which part
+   * of itself is real.
+   */
+  check(
+    "🔴 C205 no verifier reads TypeScript source without stripping its comments",
+    verifiers.length > 20 && rawScanners.length === 0,
+    rawScanners.length === 0
+      ? `${verifiers.length} verifiers, all through readSource; verify-sprint19 and verify-sprint21r keep one deliberate raw read each, for their CONTROLs`
+      : rawScanners.join(", "),
   );
 
   finish("sprint 37L.2");

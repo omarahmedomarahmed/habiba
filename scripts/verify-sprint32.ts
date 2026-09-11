@@ -28,14 +28,14 @@ import { modelCallSites, SURFACES, unmeasured } from "../evals/coverage";
 import { compare, type Baseline, type Measurement } from "../evals/report";
 import { risk } from "../evals/suites/risk";
 import { scanForCrisisLanguage } from "../lib/crisis/alerts";
-import { reporter } from "./_verify";
+import { reporter, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 
 const RATCHET = "evals/unmeasured.json";
 
 function readRatchet(): { unmeasured: number; measuredOn: string } {
-  return JSON.parse(readFileSync(RATCHET, "utf8")) as { unmeasured: number; measuredOn: string };
+  return JSON.parse(readSource(RATCHET)) as { unmeasured: number; measuredOn: string };
 }
 
 async function main() {
@@ -111,8 +111,8 @@ async function main() {
 
   /* ------------------------------------------------------------------ the scorers -- */
 
-  const metrics = readFileSync("evals/metrics.ts", "utf8");
-  const tests = readFileSync("tests/evals.test.ts", "utf8");
+  const metrics = readSource("evals/metrics.ts");
+  const tests = readSource("tests/evals.test.ts");
   const exported = [...metrics.matchAll(/export function (\w+)/g)].map((m) => m[1]!);
   const untested = exported.filter((name) => !tests.includes(name));
 

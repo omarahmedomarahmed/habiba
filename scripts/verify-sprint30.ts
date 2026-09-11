@@ -31,7 +31,7 @@ import {
 } from "../lib/db/region";
 import { mislabelled, scanRegionPins } from "./_region-pins";
 import { stripComments } from "./_dashes";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -65,7 +65,7 @@ async function main() {
    * rather than by grepping call sites, because the export is the thing that
    * makes every call site impossible rather than merely wrong.
    */
-  const dbModule = readFileSync("lib/db/index.ts", "utf8");
+  const dbModule = readSource("lib/db/index.ts");
 
   check(
     "🔴 30.1 / C118 `lib/db` exports NO bare database, so a region-less query does not compile",
@@ -111,7 +111,7 @@ async function main() {
     (file) => !file.startsWith("lib/db/"),
   );
   const ownPools = others.filter((file) =>
-    /new Pool\(|drizzle\(/.test(stripComments(readFileSync(file, "utf8"))),
+    /new Pool\(|drizzle\(/.test(stripComments(readSource(file))),
   );
 
   check(
@@ -364,7 +364,7 @@ async function main() {
   );
 
   /* Going live is one variable and nothing else. */
-  const regionModule = readFileSync("lib/db/region.ts", "utf8");
+  const regionModule = readSource("lib/db/region.ts");
   check(
     "🔴 30.1 going live in Egypt is DATABASE_URL_EG and nothing else",
     /process\.env\.DATABASE_URL_EG/.test(regionModule) &&

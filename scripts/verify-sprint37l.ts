@@ -23,7 +23,7 @@ import { ar, en } from "../lib/i18n/messages";
 import { isSafetyKey } from "../lib/i18n/strings";
 import { stripComments } from "./_dashes";
 import { bySurface, literalsIn, scanI18n, surfaceOf, type Surface } from "./_i18n-coverage";
-import { reporter } from "./_verify";
+import { reporter, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -131,7 +131,7 @@ function main() {
    * property that matters is: no page carries text it did not ask for.
    */
   const untranslatedPages = patientPages().filter((file) => {
-    const source = readFileSync(file, "utf8");
+    const source = readSource(file);
     if (/getI18n\(\)|useT\(\)/.test(source)) return false;
     return literalsIn(source).length > 0;
   });
@@ -163,7 +163,7 @@ function main() {
    * checker that reports the fix as the fault.
    */
   const hookInServer = counts.filter((count) => {
-    const raw = readFileSync(count.file, "utf8");
+    const raw = readSource(count.file);
     const source = stripComments(raw);
     return /\buseT\(\)/.test(source) && !raw.startsWith('"use client"');
   });
@@ -221,7 +221,7 @@ function main() {
    * sentence that is true everywhere.
    */
   const markup = counts
-    .map((count) => readFileSync(count.file, "utf8"))
+    .map((count) => readSource(count.file))
     .filter((source) => !source.includes("_i18n-coverage"));
 
   /*
@@ -231,7 +231,7 @@ function main() {
    * explaining why the Arabic prints no US number. C84's shape, both times.
    */
   const hardcoded = counts.filter((count) =>
-    /\b988\b/.test(stripComments(readFileSync(count.file, "utf8"))),
+    /\b988\b/.test(stripComments(readSource(count.file))),
   );
 
   check(
@@ -248,7 +248,7 @@ function main() {
 
   /* ------------------------------------------------------ 37L.7 · direction */
 
-  const layout = readFileSync("app/layout.tsx", "utf8");
+  const layout = readSource("app/layout.tsx");
   check(
     "37L.7 direction is set on the server, from the request, once",
     /dir=\{dirFor\(locale\)\}/.test(layout),

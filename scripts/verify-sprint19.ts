@@ -10,7 +10,9 @@
  * green that measured the wrong thing.
  */
 import { stagedPages, withPublishedContent } from "./_content-ready";
-import { reporter } from "./_verify";
+import { readFileSync } from "node:fs";
+
+import { reporter, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -67,7 +69,6 @@ async function main() {
     `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
   );
 
-  const { readFileSync } = await import("node:fs");
 
   /* ------------------------------------------------------ 19.0 · C90 */
 
@@ -75,7 +76,7 @@ async function main() {
     f.includes("verify-sprint"),
   );
   const usingReporter = verifiers.filter((f) =>
-    readFileSync(f, "utf8").includes('from "./_verify"'),
+    readSource(f).includes('from "./_verify"'),
   );
   check(
     "🔴 19.0 the two verifiers that were permanently red now SKIP with a reason",
@@ -109,7 +110,7 @@ async function main() {
     Number(
       (withNav as unknown as { rows: { n: number }[] }).rows[0]?.n ?? 0,
     ) === 0 &&
-      readFileSync("lib/content/service.ts", "utf8").includes(
+      readSource("lib/content/service.ts").includes(
         'notLike(contentPages.locale, "%-x-staging")',
       ),
     `${staged.length} staged rows, none with a nav label, and the query excludes them`,
@@ -182,7 +183,7 @@ async function main() {
 
   check(
     "19.6 …and an English fallback for a missing Arabic string is impossible, not merely absent",
-    readFileSync("lib/i18n/messages.ts", "utf8").includes(
+    readSource("lib/i18n/messages.ts").includes(
       "Record<MessageKey, string>",
     ),
     "the Arabic dictionary is typed against the English key set, so tsc is the gate",
@@ -196,7 +197,7 @@ async function main() {
     ...(await walkDeep("components/money")),
   ];
   const physical = surfaces.filter((file) =>
-    PHYSICAL.test(readFileSync(file, "utf8")),
+    PHYSICAL.test(readSource(file)),
   );
 
   check(
@@ -214,12 +215,12 @@ async function main() {
 
   check(
     "19.3 …and the document direction comes from the locale, on the html element",
-    readFileSync("app/layout.tsx", "utf8").includes("dir={dirFor(locale)}"),
+    readSource("app/layout.tsx").includes("dir={dirFor(locale)}"),
   );
 
   /* --------------------------------------------------- 19.4 · the locale */
 
-  const money = readFileSync("lib/billing/plans.ts", "utf8");
+  const money = readSource("lib/billing/plans.ts");
   check(
     "🔴 19.4 money takes the locale as a REQUIRED argument, fed from the server",
     /export function formatMoney\(cents: number, currency: string, locale: string\)/.test(
@@ -238,7 +239,7 @@ async function main() {
         ...surfaces,
         ...(await walkDeep("components/billing")),
         ...(await walkDeep("components/pay")),
-      ].map(async (file) => ({ file, source: readFileSync(file, "utf8") })),
+      ].map(async (file) => ({ file, source: readSource(file) })),
     )
   ).filter(
     ({ source }) =>
@@ -292,7 +293,7 @@ async function main() {
     `${Object.keys(CONTENT_DEFAULTS).join(", ")}`,
   );
 
-  const republish = readFileSync("scripts/republish.ts", "utf8");
+  const republish = readSource("scripts/republish.ts");
   check(
     "🔴 19.7 …and the publisher takes a LOCALE, not an --ar boolean",
     republish.includes("--locale=") &&
@@ -315,7 +316,7 @@ async function main() {
     source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
   const hardcoded = (await walkDeep("lib/i18n")).filter((file) => {
-    const code = withoutComments(readFileSync(file, "utf8"));
+    const code = withoutComments(readSource(file));
     return /\[\s*"en"\s*,\s*"ar"\s*\]/.test(
       code.replace(/export const LOCALES[^;]*;/, ""),
     );
@@ -329,6 +330,13 @@ async function main() {
 
   check(
     "🔴 19.7 CONTROL, the same scan, run WITHOUT stripping comments, would have failed on prose",
+    /*
+     * 🔴 `readFileSync`, deliberately, and the ONE place in this file where it
+     * is right. C205's sweep moved every source read onto `readSource`, which
+     * strips; this check exists to prove that stripping is what makes the
+     * check above mean anything, so reading the stripped text here would make
+     * it assert nothing and pass forever.
+     */
     (await walkDeep("lib/i18n")).some((file) =>
       /\btwo languages\b/i.test(readFileSync(file, "utf8")),
     ),

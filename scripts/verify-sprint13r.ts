@@ -16,7 +16,7 @@
 import { and, eq, like, sql } from "drizzle-orm";
 
 import { claimAttempts, patientAccounts, patients, people, personClaims, users } from "../lib/db/schema";
-import { writesTo } from "./_verify";
+import { writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -333,7 +333,7 @@ async function main() {
      * person in therapy.
      */
     const { readFileSync } = await import("node:fs");
-    const authSource = readFileSync("lib/patient-auth/actions.ts", "utf8");
+    const authSource = readSource("lib/patient-auth/actions.ts");
     const messages = [...authSource.matchAll(/error: "(That[^"]*)"/g)].map((m) => m[1]);
     check(
       "13R.9 sign-in has exactly one failure message, not one per handle",

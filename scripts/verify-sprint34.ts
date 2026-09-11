@@ -26,7 +26,7 @@ import { normaliseLanguage } from "../lib/ai/notes";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 import { patientClinicalFacts, people, users } from "../lib/db/schema";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 import { readFileSync } from "node:fs";
 
 const { check, finish } = reporter();
@@ -189,7 +189,7 @@ async function main() {
     );
 
     /* And the same rule, in the system prompt, above the schema. */
-    const notes = readFileSync("lib/ai/notes.ts", "utf8");
+    const notes = readSource("lib/ai/notes.ts");
     const overrideAt = notes.indexOf("RULE THAT OVERRIDES EVERYTHING BELOW");
     const schemaAt = notes.indexOf("Respond with a single JSON object");
     check(

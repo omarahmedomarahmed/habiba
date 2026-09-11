@@ -27,7 +27,7 @@ import { DEFAULT_REGION } from "../lib/db/region";
 import { organizations, sessions, sessionSources, users } from "../lib/db/schema";
 import { scanRegionPins } from "./_region-pins";
 import { stripComments } from "./_dashes";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 const db = dbFor(DEFAULT_REGION);
@@ -306,7 +306,7 @@ async function main() {
   /* --------------------------------------------- 36.2 · what the door is NOT */
 
   const route = stripComments(
-    readFileSync("app/api/sessions/[id]/transcribe/route.ts", "utf8"),
+    readSource("app/api/sessions/[id]/transcribe/route.ts"),
   );
 
   check(
@@ -332,7 +332,7 @@ async function main() {
   check(
     "36.3 no bot ships in this sprint",
     !/recall\.ai|recallai|puppeteer|playwright|joinMeeting/i.test(route) &&
-      !/recall/i.test(readFileSync("lib/data/session-sources.ts", "utf8")),
+      !/recall/i.test(readSource("lib/data/session-sources.ts")),
     "the shape only",
   );
 

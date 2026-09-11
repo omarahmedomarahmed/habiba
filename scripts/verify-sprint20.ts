@@ -19,7 +19,7 @@ import {
   supportTickets,
   users,
 } from "../lib/db/schema";
-import { reporter, writesTo } from "./_verify";
+import { reporter, writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -97,12 +97,12 @@ async function main() {
     ];
 
     const staffPages = walk("app/(admin)/admin").filter((file) => {
-      const source = readFileSync(file, "utf8");
+      const source = readSource(file);
       return source.includes("requireStaff()") || source.includes("requireManager()");
     });
 
     const leaky = staffPages.filter((file) => {
-      const source = readFileSync(file, "utf8");
+      const source = readSource(file);
       return CLINICAL.some((needle) => source.includes(needle));
     });
 
@@ -128,8 +128,8 @@ async function main() {
           `export default async function Page() { await requireStaff(); return null; }\n`,
       );
       caught = walk("app/(admin)/admin")
-        .filter((file) => readFileSync(file, "utf8").includes("requireStaff()"))
-        .some((file) => CLINICAL.some((n) => readFileSync(file, "utf8").includes(n)));
+        .filter((file) => readSource(file).includes("requireStaff()"))
+        .some((file) => CLINICAL.some((n) => readSource(file).includes(n)));
     } finally {
       rmSync("app/(admin)/admin/_verify20-offender", { recursive: true, force: true });
     }
@@ -299,7 +299,7 @@ async function main() {
      * that goes out carries a link and a code and **not one word of the
      * ticket**. Asserted on the source of the only function that sends it.
      */
-    const supportSource = readFileSync("lib/data/support.ts", "utf8");
+    const supportSource = readSource("lib/data/support.ts");
     const closeBody = supportSource.slice(
       supportSource.indexOf("export async function closeTicket"),
       supportSource.indexOf("export async function readByToken"),
@@ -567,7 +567,7 @@ async function main() {
     );
 
     /* 20.7 — the Total View sits on the same screen as the levers. */
-    const settingsPage = readFileSync("app/(admin)/admin/settings/page.tsx", "utf8");
+    const settingsPage = readSource("app/(admin)/admin/settings/page.tsx");
     check(
       "20.7 the margin is on the same page as the rates that produce it",
       settingsPage.includes("tractionMetrics") && settingsPage.includes("PricingEditor"),
@@ -605,7 +605,7 @@ async function main() {
     check(
       "🔴 20.19 / C82 no prompt-building module can reach a support ticket or its attachments",
       promptModules.every(
-        (file) => !/supportAttachments|data\/support/.test(readFileSync(file, "utf8")),
+        (file) => !/supportAttachments|data\/support/.test(readSource(file)),
       ),
     );
 
@@ -617,7 +617,7 @@ async function main() {
      */
     const extractors = [...walk("lib/documents"), ...walk("lib/data")].filter(
       (file) =>
-        /supportAttachments/.test(readFileSync(file, "utf8")) &&
+        /supportAttachments/.test(readSource(file)) &&
         !file.endsWith("lib/data/support.ts"),
     );
     check(

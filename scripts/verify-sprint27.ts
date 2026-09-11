@@ -28,7 +28,7 @@ import {
   users,
 } from "../lib/db/schema";
 import { stripComments } from "./_dashes";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -375,11 +375,11 @@ async function main() {
 
   /* ------------------------------------------------------ 27.5 · C107 */
 
-  const consentList = stripComments(readFileSync("components/patient/consent-list.tsx", "utf8"));
+  const consentList = stripComments(readSource("components/patient/consent-list.tsx"));
   const consentActions = stripComments(
-    readFileSync("app/(patient)/patient/consent/actions.ts", "utf8"),
+    readSource("app/(patient)/patient/consent/actions.ts"),
   );
-  const grantsSource = stripComments(readFileSync("lib/data/grants.ts", "utf8"));
+  const grantsSource = stripComments(readSource("lib/data/grants.ts"));
 
   /*
    * 🔴 Asserted on the SIGNATURES rather than by scanning the file for the word
@@ -401,7 +401,7 @@ async function main() {
     "the revoke path has nowhere to put a reason, so nobody can be asked for one",
   );
 
-  const grants = stripComments(readFileSync("lib/data/grants.ts", "utf8"));
+  const grants = stripComments(readSource("lib/data/grants.ts"));
   check(
     "🔴 27.6 / C107 the patient is told on EVERY grant, from the one place a grant is decided",
     /notifyPatientOfGrant/.test(grants) && /input\.decision === "granted"/.test(grants),
@@ -415,8 +415,8 @@ async function main() {
    * would make this feature dishonest, and neither may appear on the screens
    * that carry it.
    */
-  const invitePanel = stripComments(readFileSync("components/patient/invite-therapist.tsx", "utf8"));
-  const askPanel = stripComments(readFileSync("components/patient/ask-history.tsx", "utf8"));
+  const invitePanel = stripComments(readSource("components/patient/invite-therapist.tsx"));
+  const askPanel = stripComments(readSource("components/patient/ask-history.tsx"));
 
   check(
     "🔴 27.2 / C102b the invite copy never says send your record",

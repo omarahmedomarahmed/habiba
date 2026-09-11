@@ -29,7 +29,7 @@ import {
   users,
 } from "../lib/db/schema";
 import { stripComments } from "./_dashes";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -244,7 +244,7 @@ async function main() {
 
   /* ---------------------------------------------------- 26.3 · C112 */
 
-  const approval = stripComments(readFileSync("components/session/session-approval.tsx", "utf8"));
+  const approval = stripComments(readSource("components/session/session-approval.tsx"));
 
   check(
     "🔴 26.3 / C112 nothing on the approval screen is pre-ticked, so walking away publishes nothing",
@@ -254,13 +254,13 @@ async function main() {
     "both checkboxes start off and the summary box starts empty",
   );
 
-  const actions = stripComments(readFileSync("app/(app)/sessions/actions.ts", "utf8"));
+  const actions = stripComments(readSource("app/(app)/sessions/actions.ts"));
   check(
     "🔴 26.3 …and an empty summary publishes no version rather than an empty one",
     /choice\.summary && choice\.summary\.trim\(\)/.test(actions),
   );
 
-  const review = stripComments(readFileSync("components/session/note-review.tsx", "utf8"));
+  const review = stripComments(readSource("components/session/note-review.tsx"));
   check(
     "26.3 the editor no longer carries its own approve buttons, so there is ONE approval surface",
     /props\.approvals !== false/.test(review),
@@ -268,7 +268,7 @@ async function main() {
 
   /* ------------------------------------------------- 26.5 · uploads gone */
 
-  const profileActions = readFileSync("app/(patient)/patient/profile/actions.ts", "utf8");
+  const profileActions = readSource("app/(patient)/patient/profile/actions.ts");
   check(
     "🔴 26.5 the patient upload and dictate-your-history actions are DELETED, not hidden",
     !/export async function addOwnFile|export async function addOwnNote/.test(profileActions),
@@ -285,9 +285,9 @@ async function main() {
     /24\/7 support/i,
   ];
 
-  const journalPage = stripComments(readFileSync("app/(patient)/patient/journal/page.tsx", "utf8"));
+  const journalPage = stripComments(readSource("app/(patient)/patient/journal/page.tsx"));
   const journalWriter = stripComments(
-    readFileSync("components/patient/journal-writer.tsx", "utf8"),
+    readSource("components/patient/journal-writer.tsx"),
   );
 
   const implied = FORBIDDEN.filter(
@@ -308,7 +308,7 @@ async function main() {
       `export const Reassurance = () => <p>Do not worry, your therapist reads this every morning.</p>;\n`,
     );
     const caught = FORBIDDEN.some((pattern) =>
-      pattern.test(stripComments(readFileSync(planted, "utf8"))),
+      pattern.test(stripComments(readSource(planted))),
     );
     check(
       "🔴 26.7 CONTROL, the same scan CATCHES a planted reassurance of exactly that shape",
@@ -321,12 +321,12 @@ async function main() {
 
   check(
     "26.7 …and the crisis line is on that screen like every other, from the chrome",
-    readFileSync("components/patient/chrome.tsx", "utf8").includes("<SosOrb"),
+    readSource("components/patient/chrome.tsx").includes("<SosOrb"),
   );
 
   /* ------------------------------------------------- 26.9 · C127 · the extract */
 
-  const exportSource = readFileSync("lib/data/export.ts", "utf8");
+  const exportSource = readSource("lib/data/export.ts");
 
   /*
    * 🔴 The forbidden words, scanned in the RENDERED document rather than in
@@ -398,7 +398,7 @@ async function main() {
     "the fallback cannot fire because the call is not given a number",
   );
 
-  const exportUi = stripComments(readFileSync("components/patient/export-record.tsx", "utf8"));
+  const exportUi = stripComments(readSource("components/patient/export-record.tsx"));
   /* 37L — the label lives in the dictionary now; the property is unchanged. */
   const { en: copy } = await import("../lib/i18n/messages");
   check(
@@ -443,7 +443,7 @@ async function main() {
 
   /* --------------------------------------------------- 26.6 · the copilot */
 
-  const copilot = stripComments(readFileSync("lib/ai/case-copilot.ts", "utf8"));
+  const copilot = stripComments(readSource("lib/ai/case-copilot.ts"));
   check(
     "🔴 26.6 journals reach the copilot behind the SAME capability as the documents",
     /journalsFor/.test(copilot) &&
@@ -452,7 +452,7 @@ async function main() {
   );
 
   const clinicianPage = stripComments(
-    readFileSync("app/(app)/patients/[id]/documents/page.tsx", "utf8"),
+    readSource("app/(app)/patients/[id]/documents/page.tsx"),
   );
   check(
     "26.6 …and a clinician sees them on the record only while they hold the grant",

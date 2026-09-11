@@ -20,7 +20,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { auditLog, therapistVerifications, users } from "../lib/db/schema";
 import { stripComments } from "./_dashes";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -76,7 +76,7 @@ async function main() {
   );
 
   const leaks = surfaces.filter((file) => {
-    const source = stripComments(readFileSync(file, "utf8"));
+    const source = stripComments(readSource(file));
     /*
      * Reading the column to decide whether a document EXISTS is fine, and both
      * pages legitimately do it. Emitting it is not. So the offence is the
@@ -99,7 +99,7 @@ async function main() {
       `export const docs = (row: { idFrontUrl: string }) => [{ label: "ID", url: row.idFrontUrl }];\n`,
     );
     const caught = /url:\s*\w+\.(idFrontUrl|idBackUrl|licenseDocUrl|headshotUrl)/.test(
-      stripComments(readFileSync(planted, "utf8")),
+      stripComments(readSource(planted)),
     );
     check(
       "🔴 29.1 CONTROL, the same scan CATCHES the line both pages actually shipped",
@@ -265,7 +265,7 @@ async function main() {
      * 🔴 Audited BEFORE the bytes, and with enough in the row to answer the
      * question this exists for: who looked at my passport, and which one.
      */
-    const route = stripComments(readFileSync("app/api/uploads/[id]/route.ts", "utf8"));
+    const route = stripComments(readSource("app/api/uploads/[id]/route.ts"));
     const auditAt = route.indexOf("await audit(");
     const fetchAt = route.indexOf("await fetch(");
 

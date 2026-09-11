@@ -26,7 +26,7 @@ import {
   readLiveSite,
 } from "./check-live";
 import { renderMarkup, stubModules } from "./_render";
-import { reporter, writesTo } from "./_verify";
+import { reporter, writesTo, readSource } from "./_verify";
 import { stripComments, undeferredContentReads } from "./_scan-deferrals";
 import type { LivePage } from "./_content-ready";
 
@@ -70,7 +70,7 @@ async function main() {
   /* ------------------------------------------------ 21R.9 · C93, the rule */
 
   const offenders = VERIFIERS.flatMap((name) =>
-    undeferredContentReads(readFileSync(`scripts/${name}`, "utf8")).map(
+    undeferredContentReads(readSource(`scripts/${name}`)).map(
       (statement) => `${name}: ${statement}`,
     ),
   );
@@ -109,7 +109,7 @@ async function main() {
       ].join("\n"),
     );
 
-    const caught = undeferredContentReads(readFileSync(planted, "utf8"));
+    const caught = undeferredContentReads(readSource(planted));
     check(
       "🔴 21R.9 CONTROL, the same scan CATCHES a hand-written content read planted in a verifier",
       caught.length === 1,
@@ -293,6 +293,14 @@ async function main() {
    * A cache entry that nothing but a person can retire will outlive the
    * content sooner or later; the timer is what makes that bounded.
    */
+  /*
+   * 🔴 The RAW text, deliberately, and the only raw read left in this file.
+   *
+   * C205's sweep moved every source read onto `readSource`, which strips. The
+   * control below needs the unstripped text to prove that stripping is what
+   * makes the check above it mean anything, so it is read once, here, with its
+   * comments intact, and stripped for the check that wants them gone.
+   */
   const serviceSource = readFileSync("lib/content/service.ts", "utf8");
   const service = stripComments(serviceSource);
   check(
@@ -403,7 +411,7 @@ async function main() {
    * correct in English and on the wrong side of the heading in Arabic.
    */
   const heroSource = stripComments(
-    readFileSync("components/public/blocks.tsx", "utf8"),
+    readSource("components/public/blocks.tsx"),
   );
   const heroBlock = heroSource.slice(
     heroSource.indexOf("function Hero("),
@@ -470,10 +478,10 @@ async function main() {
    * that is where the links actually live.
    */
   const authSources = [
-    readFileSync("components/auth/forms.tsx", "utf8"),
-    readFileSync("components/patient/reset-form.tsx", "utf8"),
-    readFileSync(pages.patientIn, "utf8"),
-    readFileSync(pages.patientUp, "utf8"),
+    readSource("components/auth/forms.tsx"),
+    readSource("components/patient/reset-form.tsx"),
+    readSource(pages.patientIn),
+    readSource(pages.patientUp),
   ].join("\n");
 
   check(
@@ -522,7 +530,7 @@ async function main() {
   ].filter((path) => existsSync(path));
 
   const linkingStaff = publicSurfaces.filter((path) =>
-    stripComments(readFileSync(path, "utf8")).includes("/staff/sign-in"),
+    stripComments(readSource(path)).includes("/staff/sign-in"),
   );
 
   check(
@@ -595,7 +603,7 @@ async function main() {
       request.channelDown === !whatsappConfigured() &&
         /still waiting for\s+approval|not switched on yet/i.test(
           /* 37L — the notice is a dictionary string now. */
-          `${doors["preset.channelDownLead"]} ${readFileSync("components/patient/reset-form.tsx", "utf8")}`,
+          `${doors["preset.channelDownLead"]} ${readSource("components/patient/reset-form.tsx")}`,
         ),
       whatsappConfigured()
         ? "the channel is configured; the notice is written for when it is not"
@@ -708,8 +716,8 @@ async function main() {
 
     check(
       "🔴 21R.1 the sign-in action knows which door it is, one form, two audiences, one lockout",
-      /audience: Audience =/.test(readFileSync("lib/auth/actions.ts", "utf8")) &&
-        /name="audience" value="staff"/.test(readFileSync("components/auth/forms.tsx", "utf8")),
+      /audience: Audience =/.test(readSource("lib/auth/actions.ts")) &&
+        /name="audience" value="staff"/.test(readSource("components/auth/forms.tsx")),
       `${therapist ? "therapists" : "no therapist"} and ${admin ? "back office" : "no admin"} in this database`,
     );
 
@@ -718,7 +726,7 @@ async function main() {
      * the staff form would answer "wrong door" to a stranger typing an admin's
      * address, which is the disclosure separate doors exist to prevent.
      */
-    const actions = stripComments(readFileSync("lib/auth/actions.ts", "utf8"));
+    const actions = stripComments(readSource("lib/auth/actions.ts"));
     check(
       "🔴 21R.1 …and it refuses the wrong audience only AFTER the password is verified, never before",
       actions.indexOf("const valid = await verifyPassword") <

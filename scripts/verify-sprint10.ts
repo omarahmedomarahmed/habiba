@@ -22,6 +22,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 
 import { connect, schema } from "./db";
+import { readSource } from "./_verify";
 
 const { assistantMessages, assistantThreads, patients, people } = schema;
 
@@ -79,7 +80,7 @@ async function main() {
      * that assembles the general copilot's context does not import any table
      * that carries clinical text.
      */
-    const source = readFileSync("lib/ai/assistant.ts", "utf8");
+    const source = readSource("lib/ai/assistant.ts");
 
     /*
      * The **import block**, not the whole file. The first version of this

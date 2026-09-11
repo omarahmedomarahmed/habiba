@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+
+import { stripCommentsKeepingLines } from "./_dashes";
+
 /**
  * The shared reporting for every acceptance script. PLAN.md 19.0, C90.
  *
@@ -143,4 +147,21 @@ export function required<T>(row: T | undefined | null, what: string): T {
     process.exit(1);
   }
   return row;
+}
+
+/**
+ * Read a source file with its comments gone. C205, and §6.
+ *
+ * 🔴 Seven checkers have now passed or failed by matching the prose that
+ * describes the defect they hunt, and the seventh was written by somebody who
+ * had fixed the sixth an hour earlier. A rule forgotten seven times is not a
+ * rule, it is a hope. This is the function that cannot be called incorrectly,
+ * and `verify:sprint37l2` counts the verifiers that still read source without
+ * it, so the number can only go down.
+ *
+ * Line numbers survive: a removed comment leaves its newlines behind, so line
+ * N of the result is line N of the file.
+ */
+export function readSource(file: string): string {
+  return stripCommentsKeepingLines(readFileSync(file, "utf8"));
 }

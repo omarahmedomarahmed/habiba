@@ -13,7 +13,7 @@ import { eq, like, sql } from "drizzle-orm";
 
 import { supportTicketEvents, supportTickets } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
-import { reporter, writesTo } from "./_verify";
+import { reporter, writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -186,7 +186,7 @@ async function main() {
     );
     const importsSupport = promptModules.filter((file) =>
       /from\s+["'](@\/lib\/data\/support|\.\.\/data\/support|\.\/support)["']/.test(
-        readFileSync(file, "utf8"),
+        readSource(file),
       ),
     );
     check(
@@ -214,7 +214,7 @@ async function main() {
       );
       caughtPlanted = walk("lib/ai").some((file) =>
         /from\s+["'](@\/lib\/data\/support|\.\.\/data\/support|\.\/support)["']/.test(
-          readFileSync(file, "utf8"),
+          readSource(file),
         ),
       );
     } finally {
@@ -230,7 +230,7 @@ async function main() {
     check(
       "🔴 18R.4 a support message is never written to the application log",
       !/log\.(info|warn|error)\([^)]*message/.test(
-        readFileSync("lib/data/support.ts", "utf8"),
+        readSource("lib/data/support.ts"),
       ),
     );
 
@@ -257,10 +257,7 @@ async function main() {
       `${flood.filter((r) => r.ok).length} of 5 accepted`,
     );
 
-    const contactForm = readFileSync(
-      "components/public/contact-form.tsx",
-      "utf8",
-    );
+    const contactForm = readSource("components/public/contact-form.tsx");
     check(
       "🔴 18R.5 …without a third-party widget watching the reader",
       !/recaptcha|hcaptcha|turnstile|googletagmanager|analytics/i.test(
@@ -337,7 +334,7 @@ async function main() {
 
     check(
       "🔴 18R.6 …and every field of them is CONTENT, nothing about a company is hardcoded",
-      !readFileSync("components/public/blocks.tsx", "utf8").match(
+      !readSource("components/public/blocks.tsx").match(
         /24Therapy (Inc|Egypt)|support@24therapy|egypt@24therapy/,
       ),
       "no company name, address or address-of-record in the renderer",
@@ -345,7 +342,7 @@ async function main() {
 
     check(
       "18R.7 the international entity is rendered first and the Egyptian one second, both always",
-      readFileSync("components/public/blocks.tsx", "utf8").includes(
+      readSource("components/public/blocks.tsx").includes(
         'return a.entity === "eg" ? 1 : -1;',
       ),
     );

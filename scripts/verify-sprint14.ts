@@ -18,7 +18,7 @@ import {
   therapistRadar,
   users,
 } from "../lib/db/schema";
-import { writesTo } from "./_verify";
+import { writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -310,7 +310,7 @@ async function main() {
      * and the check below is that nothing clinical came with it.
      */
     const { readFileSync } = await import("node:fs");
-    const source = readFileSync("lib/ai/assistant.ts", "utf8");
+    const source = readSource("lib/ai/assistant.ts");
     const rosterBlock = source.slice(
       source.indexOf("export async function buildRoster"),
       source.indexOf("export async function buildRoster") + 3000,

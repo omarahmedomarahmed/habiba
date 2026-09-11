@@ -29,7 +29,7 @@ import { patients, users } from "../lib/db/schema";
 import { patientsWithPhone } from "../lib/data/patients";
 import { stripComments } from "./_dashes";
 import { scanRegionPins } from "./_region-pins";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 const db = dbFor(DEFAULT_REGION);
@@ -75,7 +75,7 @@ async function main() {
     "the guard refuses the wrong country, not everybody",
   );
 
-  const orb = readFileSync("components/patient/sos-orb.tsx", "utf8");
+  const orb = readSource("components/patient/sos-orb.tsx");
   check(
     "🔴 C184 the orb asks for ONE line by number, never the whole table",
     /lineForNumber\(phone\)/.test(orb) && !/Object\.entries\(\s*CRISIS_LINES/.test(orb),
@@ -90,7 +90,7 @@ async function main() {
     "a scan that finds nothing proves nothing until it is watched finding something",
   );
 
-  const chrome = readFileSync("app/(patient)/layout.tsx", "utf8");
+  const chrome = readSource("app/(patient)/layout.tsx");
   check(
     "🔴 C185 the layout asks who is reading, so the orb has a number to work from",
     /optionalPatient\(\)/.test(chrome) && /phone=\{actor\?\.phone/.test(chrome),
@@ -109,7 +109,7 @@ async function main() {
     missing.join(", ") || `${patientPages().length} patient pages, ${NO_BACK_NEEDED.size} tabs and landings excepted`,
   );
 
-  const back = readFileSync("components/patient/back.tsx", "utf8");
+  const back = readSource("components/patient/back.tsx");
   check(
     "C185 …and back means the previous page, with a named fallback for a deep link",
     /router\.back\(\)/.test(back) && /router\.push\(fallback\)/.test(back),
@@ -164,7 +164,7 @@ async function main() {
     if (plantedId) await db.delete(patients).where(eq(patients.id, plantedId));
   }
 
-  const action = readFileSync("app/(app)/patients/actions.ts", "utf8");
+  const action = readSource("app/(app)/patients/actions.ts");
   check(
     "🔴 C186 …and the form consults it BEFORE creating, with a deliberate way past",
     action.indexOf("patientsWithPhone") < action.indexOf("await createPatient") &&
@@ -176,13 +176,13 @@ async function main() {
 
   check(
     "C187 the therapist's radar control carries its icon, not a bare dot",
-    /<Radio\b/.test(readFileSync("components/radar/orb.tsx", "utf8").split("aria-expanded={open}")[1] ?? ""),
+    /<Radio\b/.test(readSource("components/radar/orb.tsx").split("aria-expanded={open}")[1] ?? ""),
     "a 12px grey circle with no label is not a control anybody presses",
   );
 
   check(
     "C188 the admin console shows all sixteen destinations on a laptop",
-    /lg:flex-wrap/.test(readFileSync("app/(admin)/layout.tsx", "utf8")),
+    /lg:flex-wrap/.test(readSource("app/(admin)/layout.tsx")),
     "five of them were clipped off the right edge at 1440px",
   );
 
@@ -190,7 +190,7 @@ async function main() {
      file and matched the COMMENT that quotes the old sentence. Comments are
      stripped before any copy scan in this repository for exactly that reason. */
   const invite = stripComments(
-    readFileSync("app/(patient)/patient/invite/[token]/page.tsx", "utf8"),
+    readSource("app/(patient)/patient/invite/[token]/page.tsx"),
   );
   check(
     "C189 the invite landing no longer asks somebody to find the link again",
@@ -198,7 +198,7 @@ async function main() {
     "both buttons already carried the invite",
   );
 
-  const editor = readFileSync("components/patient/patient-editor.tsx", "utf8");
+  const editor = readSource("components/patient/patient-editor.tsx");
   check(
     "C190 the phone country beside a stored number comes from the number",
     /countryFromE164\(initial\.phone\)/.test(editor) && countryFromE164("+201001234567") === "EG",

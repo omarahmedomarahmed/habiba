@@ -31,7 +31,7 @@ import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 import { riskAssessments } from "../lib/db/schema";
 import { stripComments } from "./_dashes";
-import { reporter, writesTo } from "./_verify";
+import { reporter, writesTo, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 const db = dbFor(DEFAULT_REGION);
@@ -47,7 +47,7 @@ function reaches(entry: string, target: RegExp): string[] | null {
 
     let source: string;
     try {
-      source = stripComments(readFileSync(file, "utf8"));
+      source = stripComments(readSource(file));
     } catch {
       return null;
     }
@@ -83,7 +83,7 @@ function resolve(spec: string, from: string): string | null {
 
   for (const candidate of [`${normalised}.ts`, `${normalised}.tsx`, `${normalised}/index.ts`]) {
     try {
-      readFileSync(candidate, "utf8");
+      readSource(candidate);
       return candidate;
     } catch {
       /* keep looking */
@@ -98,7 +98,7 @@ async function main() {
 
   /* ------------------------------------------- 35.3 · the model cannot adjudicate */
 
-  const classifier = stripComments(readFileSync("lib/ai/risk.ts", "utf8"));
+  const classifier = stripComments(readSource("lib/ai/risk.ts"));
 
   check(
     "🔴 35.3 the classifier's schema has no level, score or severity to fill in",
@@ -110,7 +110,7 @@ async function main() {
   check(
     "🔴 35.3 the ladder reads indicator NAMES and nothing else a model returned",
     (() => {
-      const ladder = stripComments(readFileSync("lib/crisis/level.ts", "utf8"));
+      const ladder = stripComments(readSource("lib/crisis/level.ts"));
       /* A level computed from a confidence is a level a model decided. */
       return !/confidence/.test(ladder.replace(/confidence: number;/, ""));
     })(),
@@ -196,7 +196,7 @@ async function main() {
   check(
     "🔴 C170 …and the prior history reaches the CLINICIAN, from a different module",
     /export async function priorRiskFor/.test(
-      readFileSync("lib/data/session-risk.ts", "utf8"),
+      readSource("lib/data/session-risk.ts"),
     ) && !/priorRiskFor|latestAssessment/.test(classifier),
     "priorRiskFor lives beside the screen, not beside the prompt",
   );
@@ -221,7 +221,7 @@ async function main() {
   check(
     "35.1 every indicator the prompt lists is one the ladder knows",
     (() => {
-      const prompt = readFileSync("lib/ai/risk.ts", "utf8");
+      const prompt = readSource("lib/ai/risk.ts");
       return RISK_INDICATORS.every((indicator) => prompt.includes(`- ${indicator}:`));
     })(),
     `${RISK_INDICATORS.length} indicators`,
@@ -246,7 +246,7 @@ async function main() {
 
   /* ------------------------------------------------ 35.3 · the pipeline untouched */
 
-  const alerts = stripComments(readFileSync("lib/crisis/alerts.ts", "utf8"));
+  const alerts = stripComments(readSource("lib/crisis/alerts.ts"));
   check(
     "🔴 35.3 raiseCrisisAlert still writes pending BEFORE notifying and delivered after",
     alerts.indexOf("alertStatus: \"pending\"") < alerts.indexOf("delivered") &&
@@ -314,7 +314,7 @@ async function main() {
 
   /* --------------------------------------------------- the module is in the list */
 
-  const surfaces = readFileSync("evals/coverage.ts", "utf8");
+  const surfaces = readSource("evals/coverage.ts");
   check(
     "32.2 the new model surface is measured, not merely added",
     /"lib\/ai\/risk\.ts", suite: "risk-model"/.test(surfaces),
@@ -324,7 +324,7 @@ async function main() {
   check(
     "35.1 the suite exists and reports per language, never averaged (C159)",
     files.includes("risk-model.ts") &&
-      /risk\.combined\.sensitivity\.ar/.test(readFileSync("evals/suites/risk-model.ts", "utf8")),
+      /risk\.combined\.sensitivity\.ar/.test(readSource("evals/suites/risk-model.ts")),
   );
 
   finish("Sprint 35");

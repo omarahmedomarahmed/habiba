@@ -19,7 +19,7 @@ import {
   transcriptSegments,
   users,
 } from "../lib/db/schema";
-import { writesTo } from "./_verify";
+import { writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -261,7 +261,7 @@ async function main() {
     const offenders = walk("app/(patient)")
       .concat(walk("components/patient"))
       .filter((file) => {
-        const src = readFileSync(file, "utf8");
+        const src = readSource(file);
         return BANNED.some((table) => new RegExp(`\\b${table}\\b`).test(src));
       });
     check(
@@ -272,7 +272,7 @@ async function main() {
 
     // …and the ban is a real ban: it must fire on a file that does touch one.
     const control = walk("app").filter((f) => f.includes("(app)")).find((file) =>
-      BANNED.some((t) => new RegExp(`\\b${t}\\b`).test(readFileSync(file, "utf8"))),
+      BANNED.some((t) => new RegExp(`\\b${t}\\b`).test(readSource(file))),
     );
     check(
       "🔴 C16 CONTROL, the same scan FINDS a clinician screen that does",

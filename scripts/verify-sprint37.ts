@@ -36,7 +36,7 @@ import { DEFAULT_REGION } from "../lib/db/region";
 import { sessionVoices, sessions, transcriptSegments, users } from "../lib/db/schema";
 import { scanRegionPins } from "./_region-pins";
 import { stripComments } from "./_dashes";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 
 const { check, finish } = reporter();
 const db = dbFor(DEFAULT_REGION);
@@ -468,7 +468,7 @@ async function main() {
   /* ---------------------------------------------- 37.4 · the gap, on record */
 
   const sources = ["turns", "align", "voices", "provider"].map((file) =>
-    stripComments(readFileSync(`lib/diarisation/${file}.ts`, "utf8")),
+    stripComments(readSource(`lib/diarisation/${file}.ts`)),
   );
 
   check(
@@ -486,7 +486,7 @@ async function main() {
     "measurable without a network",
   );
 
-  const schema = readFileSync("lib/db/schema.ts", "utf8");
+  const schema = readSource("lib/db/schema.ts");
   check(
     "🔴 37.2 the binding enum has two values and neither of them is a model",
     /VOICE_BINDINGS = \["track", "operator"\] as const/.test(schema),

@@ -28,7 +28,7 @@ import {
 } from "../lib/db/schema";
 import { createCode, resolveCode, revokeCode } from "../lib/data/therapist-codes";
 import { stripComments } from "./_dashes";
-import { reporter, required, writesTo } from "./_verify";
+import { reporter, required, writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -282,9 +282,9 @@ async function main() {
 
   /* ------------------------------------------------------ 25.5 · C125 */
 
-  const orb = readFileSync("components/patient/sos-orb.tsx", "utf8");
-  const layout = readFileSync("app/(patient)/layout.tsx", "utf8");
-  const chrome = readFileSync("components/patient/chrome.tsx", "utf8");
+  const orb = readSource("components/patient/sos-orb.tsx");
+  const layout = readSource("app/(patient)/layout.tsx");
+  const chrome = readSource("components/patient/chrome.tsx");
 
   /*
    * The orb moved out of the layout and into the chrome in 25.2, because two
@@ -338,7 +338,7 @@ async function main() {
   const BADGE = /App Store|Google Play|app-store-badge|play\.google\.com/i;
   const surfaces = [...walk("components"), ...walk("app"), ...walk("lib/content")];
   const badges = surfaces.filter((file) =>
-    BADGE.test(stripComments(readFileSync(file, "utf8"))),
+    BADGE.test(stripComments(readSource(file))),
   );
 
   check(
@@ -354,7 +354,7 @@ async function main() {
       `export const Badge = () => <a href="https://play.google.com/store/apps">Get it on Google Play</a>;\n`,
     );
     const caught = walk("components").filter((file) =>
-      BADGE.test(stripComments(readFileSync(file, "utf8"))),
+      BADGE.test(stripComments(readSource(file))),
     );
     check(
       "🔴 25.6 CONTROL, the same scan CATCHES a store badge planted in a component",
@@ -367,7 +367,7 @@ async function main() {
 
   check(
     "25.6 …and what a patient CAN install is offered: a manifest, so the app adds to a home screen",
-    readFileSync("app/manifest.ts", "utf8").includes('display: "standalone"'),
+    readSource("app/manifest.ts").includes('display: "standalone"'),
   );
 
 
@@ -471,7 +471,7 @@ async function main() {
    */
   const OUTSIDE = ["app/join/[token]/page.tsx", "app/j/[code]/page.tsx"];
   const uncovered = OUTSIDE.filter((file) => {
-    const source = stripComments(readFileSync(file, "utf8"));
+    const source = stripComments(readSource(file));
     return !/PatientChrome|SosOrb/.test(source);
   });
 
@@ -483,9 +483,9 @@ async function main() {
 
   check(
     "🔴 25.4 / C129 a live session locks the session tab and asks before leaving",
-    /liveSession/.test(readFileSync("components/patient/bottom-nav.tsx", "utf8")) &&
-      /t\("tab\.leaveTitle"\)/.test(readFileSync("components/patient/bottom-nav.tsx", "utf8")) &&
-      /live={{ href: `\/join\//.test(readFileSync("app/join/[token]/page.tsx", "utf8")),
+    /liveSession/.test(readSource("components/patient/bottom-nav.tsx")) &&
+      /t\("tab\.leaveTitle"\)/.test(readSource("components/patient/bottom-nav.tsx")) &&
+      /live={{ href: `\/join\//.test(readSource("app/join/[token]/page.tsx")),
     "the bar stays, the session is current, and leaving is a question",
   );
 
@@ -499,7 +499,7 @@ async function main() {
    */
   const renderers = [...walk("components"), ...walk("app")].filter((file) => {
     if (file === "app/api/patient/avatar/[personId]/route.ts") return false;
-    const source = stripComments(readFileSync(file, "utf8"));
+    const source = stripComments(readSource(file));
     /* Reading it to decide whether a photo EXISTS is fine; emitting it is not. */
     return /avatarUrl\s*[},)]?\s*(?=[^=]*src=)/.test(source) || /src={[^}]*avatarUrl/.test(source);
   });
@@ -512,12 +512,12 @@ async function main() {
 
   check(
     "25.7 …and that route asks who is calling rather than trusting an unguessable URL",
-    /mayRead/.test(readFileSync("app/api/patient/avatar/[personId]/route.ts", "utf8")),
+    /mayRead/.test(readSource("app/api/patient/avatar/[personId]/route.ts")),
   );
 
   /* ------------------------------------------------------- 25.8 · the tabs */
 
-  const tabs = readFileSync("app/(patient)/patient/sessions/page.tsx", "utf8");
+  const tabs = readSource("app/(patient)/patient/sessions/page.tsx");
   check(
     "25.8 the sessions tab has All, Upcoming and Past, as links rather than client state",
     /"all"/.test(tabs) && /"upcoming"/.test(tabs) && /"past"/.test(tabs) && /searchParams/.test(tabs),
@@ -533,7 +533,7 @@ async function main() {
    * because the true sentence can be worded a hundred ways and the lie has a
    * shape.
    */
-  const afterwards = stripComments(readFileSync("app/feedback/[token]/page.tsx", "utf8"));
+  const afterwards = stripComments(readSource("app/feedback/[token]/page.tsx"));
 
   check(
     "🔴 25.13 / C130 the end-of-session prompt never implies the record would be lost",
@@ -549,8 +549,8 @@ async function main() {
 
   /* ------------------------------------------------------ 25.18 · one step */
 
-  const form = stripComments(readFileSync("components/session/new-session-form.tsx", "utf8"));
-  const creating = stripComments(readFileSync("app/(app)/sessions/actions.ts", "utf8"));
+  const form = stripComments(readSource("components/session/new-session-form.tsx"));
+  const creating = stripComments(readSource("app/(app)/sessions/actions.ts"));
 
   check(
     "🔴 25.18 the new-session form takes a MOBILE NUMBER beside the name",

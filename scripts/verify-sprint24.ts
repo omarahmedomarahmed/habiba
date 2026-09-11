@@ -18,7 +18,7 @@ import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node
 import { uiStrings } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
 import { ALLOWED, dashesIn, dashesInText, EM_DASH } from "./_dashes";
-import { reporter } from "./_verify";
+import { reporter, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -67,7 +67,7 @@ function reachesAi(entry: string): string[] | null {
 
     let source: string;
     try {
-      source = readFileSync(file, "utf8");
+      source = readSource(file);
     } catch {
       continue;
     }
@@ -121,7 +121,7 @@ async function main() {
   /* ------------------------------------------------------ 24.1 · the source */
 
   const sources = ["lib", "components", "app", "scripts", "tests"].flatMap(walk);
-  const inSource = sources.flatMap((file) => dashesIn(file, readFileSync(file, "utf8")));
+  const inSource = sources.flatMap((file) => dashesIn(file, readSource(file)));
 
   check(
     "🔴 24.1 / C117 no em dash and no en dash in any product copy, comments stripped first",
@@ -142,7 +142,7 @@ async function main() {
   const planted = "lib/content/_verify24-offender.ts";
   try {
     writeFileSync(planted, `export const copy = "A sentence ${EM_DASH} with a dash in it.";\n`);
-    const caught = dashesIn(planted, readFileSync(planted, "utf8"));
+    const caught = dashesIn(planted, readSource(planted));
     check(
       "🔴 24.1 CONTROL, the same scan CATCHES a dash planted in a copy module",
       caught.length === 1,
