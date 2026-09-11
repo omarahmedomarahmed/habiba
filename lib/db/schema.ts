@@ -916,6 +916,31 @@ export const riskAssessments = pgTable(
     source: text("source").$type<"keyword" | "model">().notNull(),
     /** Matched phrases / model indicators. PHI — never logged. */
     indicators: jsonb("indicators").$type<string[]>().default([]).notNull(),
+
+    /**
+     * 🔴 35.1 — the findings, each with the sentence that produced it.
+     *
+     * `indicators` holds labels; this holds evidence. A clinician reading an
+     * alert needs the quote more than the label: "ideation" is a word a system
+     * produced, and "ideation, because he said *I just want to go to sleep and
+     * not wake up*" is something a person can act on or recognise as a misread
+     * idiom. Same rule as 8.9's source sentence and 33.1's evidence quote.
+     */
+    findings: jsonb("findings")
+      .$type<{ indicator: string; quote: string; confidence: number }[]>()
+      .default([])
+      .notNull(),
+    /** Which model said so. A record that cannot be audited backwards is not one. */
+    model: text("model"),
+    /**
+     * Findings dropped for quoting something the transcript does not contain.
+     *
+     * Counted because it is invisible by construction: a dropped finding leaves
+     * no trace in the output, so without this the rate at which the classifier
+     * invents a sentence is a number nobody has.
+     */
+    unquotedFindings: integer("unquoted_findings").notNull().default(0),
+
     recommendedAction: text("recommended_action"),
 
     /**

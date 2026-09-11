@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 
 import { NoteReview } from "@/components/session/note-review";
+import { RiskAssessment } from "@/components/clinical/risk-assessment";
 import { SessionApproval } from "@/components/session/session-approval";
 import { Badge, Button, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
@@ -11,6 +12,7 @@ import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { personIdForPatient } from "@/lib/data/people";
 import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
 import { latestSummary } from "@/lib/data/summaries";
+import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 
@@ -52,6 +54,18 @@ export default async function SessionDetailPage({
   const previousSummary = summaryPersonId ? await latestSummary(summaryPersonId) : null;
 
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
+
+  /*
+   * 35.1 — the assessment, and the history beside it.
+   *
+   * 🔴 Two separate reads on purpose. The assessment is what a model found in
+   * THIS session; the history is what came before, and it reaches the clinician
+   * here and the classifier nowhere. See `lib/data/session-risk.ts` and C170.
+   */
+  const assessment = live ? null : await latestAssessment(id, actor, row.session.patientId);
+  const priorRisk = assessment
+    ? await priorRiskFor(id, row.session.therapistId, actor.organizationId)
+    : [];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -112,6 +126,18 @@ export default async function SessionDetailPage({
           </Card>
         ) : (
           <>
+          {assessment ? (
+            <RiskAssessment
+              level={assessment.level as "moderate" | "elevated" | "high" | "critical"}
+              source={assessment.source}
+              findings={assessment.findings}
+              recommendedAction={assessment.recommendedAction}
+              keywordIndicators={assessment.indicators}
+              prior={priorRisk}
+              unquoted={assessment.unquotedFindings}
+              zone={actor.timezone}
+            />
+          ) : null}
           {/*
             🔴 26.3 / C112 — the one approval surface. NoteReview keeps its
             editors and loses its two approve buttons, because two ways to

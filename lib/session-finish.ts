@@ -84,6 +84,29 @@ export async function finishSession(opts: {
     await settleInvoicesFromHeld(opts.therapistId);
   });
 
+  /*
+   * 🔴 35.1 — before the note, because an alert is time-critical and a note is
+   * not.
+   *
+   * The keyword scanner has always run inside the transcript write, line by
+   * line, and still does (35.2). This is the session-level pass: a classifier
+   * reading the whole conversation, which can see a plan built across four
+   * turns that no single line contains.
+   *
+   * It runs here rather than in the transcript path for the reason
+   * `lib/crisis/alerts.ts` gives: a person writing at 3am is not waiting on an
+   * inference call to find out whether their sentence saved.
+   */
+  await step("risk", async () => {
+    const { assessSessionRisk } = await import("@/lib/data/session-risk");
+    await assessSessionRisk({
+      sessionId: opts.sessionId,
+      organizationId: opts.organizationId,
+      therapistId: opts.therapistId,
+      patientId: opts.patientId,
+    });
+  });
+
   await step("note", async () => {
     const { generateAndStoreNote } = await import("@/lib/ai/notes");
     await generateAndStoreNote({

@@ -29,6 +29,7 @@ import { attribution } from "./suites/attribution";
 import { grounding } from "./suites/grounding";
 import { notes } from "./suites/notes";
 import { risk } from "./suites/risk";
+import { riskModel } from "./suites/risk-model";
 import { speech } from "./suites/speech";
 
 type Suite = {
@@ -37,7 +38,7 @@ type Suite = {
   run: () => Measurement[] | Promise<Measurement[]>;
 };
 
-const SUITES: Suite[] = [risk, attribution, notes, grounding, speech];
+const SUITES: Suite[] = [risk, riskModel, attribution, notes, grounding, speech];
 
 
 /**
@@ -183,7 +184,8 @@ async function main() {
     }
     writeBaseline(
       measurements,
-      "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. Re-record on purpose, with a reason in PLAN.md.",
+      "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. `spread` is how far it moved between takes of unchanged code when this was recorded: where that exceeds the tolerance, a red line is marked WORSE? and asks for --repeat 3 rather than being believed. Re-record on purpose, with a reason in PLAN.md.",
+      SPREADS,
     );
     console.log("\nbaseline recorded");
     process.exit(0);
@@ -203,6 +205,16 @@ async function main() {
       console.log(
         `  ${verdict.measurement.key}: moved ${verdict.moved > 0 ? "+" : ""}${verdict.moved.toFixed(3)}, tolerance ${verdict.measurement.tolerance}`,
       );
+      /*
+       * 🔴 Still red. The sentence changes, the exit code does not: a metric
+       * noisier than its own band cannot tell a regression from a coin flip,
+       * and the honest response is another run, never a wider band (C160).
+       */
+      if (verdict.indeterminate && repeats === 1) {
+        console.log(
+          `    …within this metric's own recorded noise. It cannot be told from a regression on one take: re-run with --repeat 3.`,
+        );
+      }
     }
     process.exit(1);
   }

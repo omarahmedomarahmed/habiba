@@ -1,71 +1,126 @@
 {
-  "comment": "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. Re-record on purpose, with a reason in PLAN.md.",
+  "comment": "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. `spread` is how far it moved between takes of unchanged code when this was recorded: where that exceeds the tolerance, a red line is marked WORSE? and asks for --repeat 3 rather than being believed. Re-record on purpose, with a reason in PLAN.md.",
   "recordedOn": "2026-09-11",
   "metrics": {
     "attribution.der": {
       "value": 0,
       "direction": "down",
-      "tolerance": 0.06
+      "tolerance": 0.06,
+      "spread": 0
     },
     "attribution.refused": {
       "value": 0.041666666666666664,
       "direction": "down",
-      "tolerance": 0.1
+      "tolerance": 0.1,
+      "spread": 0.018
     },
     "attribution.straddles": {
       "value": 3,
       "direction": "up",
-      "tolerance": 0
+      "tolerance": 0,
+      "spread": 0
     },
     "grounding.contradiction": {
-      "value": 0.7999999999999999,
+      "value": 0.7333333333333334,
       "direction": "up",
-      "tolerance": 0.19
+      "tolerance": 0.19,
+      "spread": 0.4
     },
     "grounding.coverage": {
-      "value": 0.6666666666666666,
+      "value": 0.7333333333333334,
       "direction": "up",
-      "tolerance": 0.15
+      "tolerance": 0.15,
+      "spread": 0.04
     },
     "grounding.leak": {
-      "value": 0.06666666666666667,
+      "value": 0,
       "direction": "down",
-      "tolerance": 0.03
+      "tolerance": 0.03,
+      "spread": 0
     },
     "grounding.unsupported": {
-      "value": 0.011111111111111112,
+      "value": 0.022222222222222223,
       "direction": "down",
-      "tolerance": 0.06
+      "tolerance": 0.06,
+      "spread": 0.033
     },
     "notes.ar.coverage": {
       "value": 0.8333333333333334,
       "direction": "up",
-      "tolerance": 0.2
+      "tolerance": 0.2,
+      "spread": 0.1
     },
     "notes.ar.language": {
       "value": 1,
       "direction": "up",
-      "tolerance": 0
+      "tolerance": 0,
+      "spread": 0
     },
     "notes.coverage": {
-      "value": 0.7333333333333334,
+      "value": 0.6933333333333334,
       "direction": "up",
-      "tolerance": 0.15
+      "tolerance": 0.15,
+      "spread": 0.04
     },
     "notes.language": {
-      "value": 0.8666666666666667,
+      "value": 0.8000000000000002,
       "direction": "up",
-      "tolerance": 0
+      "tolerance": 0,
+      "spread": 0
     },
     "notes.sections": {
-      "value": 1,
+      "value": 0.9888888888888889,
       "direction": "up",
-      "tolerance": 0.12
+      "tolerance": 0.12,
+      "spread": 0.033
     },
     "notes.unsupported": {
       "value": 0.03333333333333333,
       "direction": "down",
-      "tolerance": 0.06
+      "tolerance": 0.06,
+      "spread": 0
+    },
+    "risk.combined.sensitivity": {
+      "value": 1,
+      "direction": "up",
+      "tolerance": 0.06,
+      "spread": 0
+    },
+    "risk.combined.sensitivity.ar": {
+      "value": 1,
+      "direction": "up",
+      "tolerance": 0.06,
+      "spread": 0
+    },
+    "risk.combined.sensitivity.en": {
+      "value": 1,
+      "direction": "up",
+      "tolerance": 0.06,
+      "spread": 0
+    },
+    "risk.combined.specificity": {
+      "value": 0.7692307692307693,
+      "direction": "up",
+      "tolerance": 0.08,
+      "spread": 0
+    },
+    "risk.model.sensitivity": {
+      "value": 0.9411764705882352,
+      "direction": "up",
+      "tolerance": 0.06,
+      "spread": 0
+    },
+    "risk.model.specificity": {
+      "value": 1,
+      "direction": "up",
+      "tolerance": 0.08,
+      "spread": 0
+    },
+    "risk.model.unquoted": {
+      "value": 0,
+      "direction": "down",
+      "tolerance": 0.05,
+      "spread": 0
     },
     "risk.sensitivity": {
       "value": 0.8823529411764706,
@@ -90,17 +145,20 @@
     "speech.wer": {
       "value": 0.02824858757062147,
       "direction": "down",
-      "tolerance": 0.04
+      "tolerance": 0.04,
+      "spread": 0.017
     },
     "speech.wer.ar": {
       "value": 0,
       "direction": "down",
-      "tolerance": 0.06
+      "tolerance": 0.06,
+      "spread": 0
     },
     "speech.wer.detected": {
       "value": 0.02824858757062147,
       "direction": "down",
-      "tolerance": 0.06
+      "tolerance": 0.06,
+      "spread": 0.017
     }
   }
 }

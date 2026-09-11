@@ -51,7 +51,25 @@ export type Measurement = {
 export type Baseline = {
   comment: string;
   recordedOn: string;
-  metrics: Record<string, { value: number; direction: Direction; tolerance: number }>;
+  metrics: Record<
+    string,
+    {
+      value: number;
+      direction: Direction;
+      tolerance: number;
+      /**
+       * 🔴 How far this metric moved between takes of unchanged code, when the
+       * baseline was recorded.
+       *
+       * Recorded because a metric whose spread exceeds its tolerance cannot
+       * tell a regression from its own noise, and a single-take run against a
+       * three-take mean will fail it sooner or later for nothing. Storing the
+       * number lets the runner say **which** of those two a red line is,
+       * without ever turning it green. See `compare`.
+       */
+      spread?: number;
+    }
+  >;
 };
 
 const BASELINE_PATH = new URL("./baseline.json", import.meta.url).pathname;
@@ -64,10 +82,19 @@ export function readBaseline(): Baseline | null {
   }
 }
 
-export function writeBaseline(measurements: Measurement[], comment: string): void {
+export function writeBaseline(
+  measurements: Measurement[],
+  comment: string,
+  spreads: Map<string, number> = new Map(),
+): void {
   const metrics: Baseline["metrics"] = {};
   for (const m of [...measurements].sort((a, b) => a.key.localeCompare(b.key))) {
-    metrics[m.key] = { value: m.value, direction: m.direction, tolerance: m.tolerance };
+    metrics[m.key] = {
+      value: m.value,
+      direction: m.direction,
+      tolerance: m.tolerance,
+      ...(spreads.has(m.key) ? { spread: Number(spreads.get(m.key)!.toFixed(3)) } : {}),
+    };
   }
 
   const baseline: Baseline = {
@@ -89,13 +116,25 @@ export type Verdict = {
   status: "new" | "same" | "better" | "WORSE";
   was: number | null;
   moved: number;
+  /**
+   * 🔴 The move is worse than the tolerance AND smaller than this metric's own
+   * recorded noise, so the two cannot be told apart from this run.
+   *
+   * The run still FAILS. A red line that might be noise is not a green line:
+   * the only honest thing to change is the sentence beside it, which asks for
+   * `--repeat 3` rather than pretending the number means something it does not.
+   * Widening the band to make this pass is the thing C160 forbids.
+   */
+  indeterminate: boolean;
 };
 
 /** Did it move the wrong way by more than its own tolerance? */
 export function compare(measurements: Measurement[], baseline: Baseline | null): Verdict[] {
   return measurements.map((measurement) => {
     const previous = baseline?.metrics[measurement.key];
-    if (!previous) return { measurement, status: "new" as const, was: null, moved: 0 };
+    if (!previous) {
+      return { measurement, status: "new" as const, was: null, moved: 0, indeterminate: false };
+    }
 
     const moved = measurement.value - previous.value;
     const worse = measurement.direction === "up" ? -moved : moved;
@@ -103,7 +142,10 @@ export function compare(measurements: Measurement[], baseline: Baseline | null):
     const status =
       worse > measurement.tolerance ? "WORSE" : worse > 0 ? "same" : moved === 0 ? "same" : "better";
 
-    return { measurement, status, was: previous.value, moved };
+    const noise = previous.spread ?? 0;
+    const indeterminate = status === "WORSE" && noise > measurement.tolerance && worse <= noise;
+
+    return { measurement, status, was: previous.value, moved, indeterminate };
   });
 }
 
@@ -117,7 +159,8 @@ export function printTable(verdicts: Verdict[]): void {
       verdict.was === null
         ? "   (new)"
         : `was ${format({ value: verdict.was, unit: m.unit })}`.padStart(12);
-    const flag = verdict.status === "WORSE" ? " 🔴 WORSE" : "";
+    const flag =
+      verdict.status === "WORSE" ? (verdict.indeterminate ? " 🔴 WORSE?" : " 🔴 WORSE") : "";
     console.log(`  ${m.label.padEnd(width)}  ${value}  ${was}${flag}`);
     if (m.detail) console.log(`  ${" ".repeat(width)}  ${m.detail}`);
   }

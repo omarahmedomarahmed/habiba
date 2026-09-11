@@ -37,6 +37,8 @@ export const SURFACES: Surface[] = [
   { file: "lib/ai/transcribe.ts", suite: "speech" },
   /* Not in lib/ai, and measured anyway: it is the safety one. */
   { file: "lib/crisis/alerts.ts", suite: "risk" },
+  /* 35.1 — the classifier, measured against the floor it has to beat. */
+  { file: "lib/ai/risk.ts", suite: "risk-model" },
 
   {
     file: "lib/ai/copilot.ts",
