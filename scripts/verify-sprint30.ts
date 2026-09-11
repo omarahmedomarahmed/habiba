@@ -26,10 +26,10 @@ import { crossBorderConsents, organizations, patients, people, users } from "../
 import {
   connectionStringFor,
   crossesBorder,
-  regionPins,
   regionStatus,
   REGIONS,
 } from "../lib/db/region";
+import { mislabelled, scanRegionPins } from "./_region-pins";
 import { stripComments } from "./_dashes";
 import { reporter, required, writesTo } from "./_verify";
 
@@ -123,27 +123,67 @@ async function main() {
   /* ---------------------------------------------- 30.1 · the pins, counted */
 
   /*
-   * 🔴 The honest half. Most of the clinical core routes on an entity; the
-   * rest is pinned to the default and REGISTERED, so the debt is a printed
-   * list rather than an archaeology exercise. This check does not fail on a
-   * pin, it prints them: a gate that is red for a known reason is a gate
-   * everybody learns to skim (C90).
+   * 🔴 C157 — counted from the SOURCE, not from a runtime registry.
+   *
+   * The first version of this check called `regionPins()`, which is a registry
+   * a module writes to when something imports it. So it printed the modules
+   * this one execution happened to load: 47, against a real figure of 85 call
+   * sites in 82 files. The sprint report was wrong by 45 per cent.
+   *
+   * That is the third time a checker in this repository has measured what it
+   * could reach rather than what is true (C84 matched its own helper, 18.8 was
+   * vacuously true against no content). The fix is the same one both times:
+   * walk the files.
    */
-  await import("../lib/data/journals");
-  await import("../lib/data/summaries");
-  await import("../lib/data/sessions");
-  await import("../lib/data/documents");
+  const pins = scanRegionPins();
+  const pinnedFiles = new Set(pins.map((pin) => pin.file));
 
-  const pins = regionPins();
-  console.log(`\n  region pins still to route (${pins.length}):`);
-  for (const pin of pins.slice(0, 8)) console.log(`     ${pin.where}`);
-  if (pins.length > 8) console.log(`     …and ${pins.length - 8} more`);
+  console.log(`\n  region pins still to route: ${pins.length} call sites in ${pinnedFiles.size} files`);
+  const byRoot = new Map<string, number>();
+  for (const pin of pins) {
+    const root = pin.file.split("/")[0]!;
+    byRoot.set(root, (byRoot.get(root) ?? 0) + 1);
+  }
+  for (const [root, count] of [...byRoot].sort()) console.log(`     ${root}: ${count}`);
   console.log("");
 
   check(
-    "30.1 every unrouted module is REGISTERED rather than silently defaulted",
+    "30.1 every pin carries a reason, so the debt is legible rather than a default",
     pins.every((pin) => pin.reason.length > 20),
-    `${pins.length} pinned, each with a reason`,
+    `${pins.length} call sites, each with a reason`,
+  );
+
+  /*
+   * 🔴 A pin whose label does not name its own file is a pin that will be
+   * quoted against the wrong module. The label is a hand-written string beside
+   * a path and the two drift the moment a file moves.
+   */
+  const wrong = mislabelled(pins);
+  check(
+    "30.1 …and every pin's label names its own file, so a report cannot misattribute one",
+    wrong.length === 0,
+    wrong.map((pin) => `${pin.file} says ${pin.where}`).join(", ") || "all labels match their path",
+  );
+
+  /*
+   * 🔴 THE RATCHET. A pin is debt, and debt that can grow quietly is how C89
+   * kept coming back. The high-water mark is committed, and this FAILS when
+   * the count goes up: adding a pin has to be a deliberate edit to a checked-in
+   * number, which is a conversation rather than a drift.
+   */
+  const mark = JSON.parse(readFileSync("scripts/_region-pins.json", "utf8")) as {
+    callSites: number;
+    files: number;
+  };
+
+  check(
+    "🔴 30.1 / C157 the number of pins has NOT gone up since it was last recorded",
+    pins.length <= mark.callSites && pinnedFiles.size <= mark.files,
+    pins.length === mark.callSites
+      ? `${pins.length} call sites, unchanged`
+      : pins.length < mark.callSites
+        ? `${pins.length}, down from ${mark.callSites}: lower the mark in scripts/_region-pins.json`
+        : `${pins.length}, UP from ${mark.callSites}. A new pin is new debt and needs saying out loud`,
   );
 
   /* ------------------------------------------------- 30.1 · C154 · routing */
