@@ -1059,6 +1059,7 @@ live rows, and every one of them is now void:
 | C176 | 36 | **A third door is only safe if it is NARROWER than the two it joins.** The ingestion token authenticates a machine, so it gets less than a person does, not the same: it is scoped to one session (the id is inside the token **and** the hash is stored on that session's own row, so a token for session A cannot be expressed at session B), it expires in hours, it is revocable, its uses are counted, and it is stored only as a SHA-256 the column's CHECK will not let be anything else. **And what it opens is audio in, a sequence number out.** The copilot never runs on a token request — it reads a chart and writes into a clinician's thread, and a bot is not in the room — and the response body carries no transcript text and no crisis flag, because a credential somebody could leave in a log must not be answerable with clinical text. The two existing doors are untouched: `assertSameOrigin()` and `requireUserApi()` still guard the browser path, and the token branch is taken only when a bearer is presented. 2026-09-14. | major | 41 | **ruled, 17 pure tests, every refusal paired with the acceptance** |
 | C179 | 37R | 🔴 **`bound_by = 'operator'` has no screen and no ticket owns one.** Sprint 37 made a named human the only way a voice gets a role without two-track evidence, which is exactly right, and then nothing anywhere lets a human do it. `session_voices` is referenced by **zero** components. Every single-microphone session therefore falls through to the semantic layer permanently, and C177's carefully-built `operator` path is unreachable. **Ruling: 37R either builds the screen or writes the ticket that owns it, and says which.** A capability the database records and no interface offers is a capability nobody has. | major | review | **ruled — sprint 37R.22** |
 | C180 | 37R | 🔴 **Nobody has used this product since sprint 22R, and fourteen sprints have shipped.** 57 route files changed or appeared. The patient app was rebuilt, the claim order was corrected, portability, journals, summaries, exports, Arabic URLs, a region seam and a risk classifier all landed. Every one verified against the database or the import graph; **not one walked by a person.** 22R found seven defects in a single pass and every one was a screen that was wrong while the rows beneath it were right — a patient claimed their record and their app said it was empty. That class is invisible to every verifier here. **Ruling: the second walkthrough is its own sprint and it runs before 40**, because each sprint that passes makes it longer and because a beta user is closer than a partner integration is. | major | review | **ruled — sprint 37R** |
+| C181 | 37R | 🔴 **The internal apps have never had a design pass, and nobody has checked whether they look finished.** Sprint 25 rebuilt the patient app because the founder looked at it and said so; 24.4 rebuilt one settings page. Everything else in the therapist portal and the entire admin console has been built for **function** since sprint 1, and no sprint, verifier or walkthrough has ever asked whether a page is plain text and bare buttons with no sections, no icons, no hierarchy and nothing to rest the eye on. Empty states have never been looked at at all, and an empty state is the **first** screen a new therapist and a new patient see. **Ruling: 37R gives every page a design verdict separately from its functional one** — *finished · thin · unstyled* — judged narrow and wide, and judged in Arabic as Arabic rather than as the English page mirrored. The output is one complete table, not a highlight reel, because that table is the brief for the design sprint that follows it. | major | founder | **ruled — sprint 37R.23a–g** |
 
 **The rule going forward: never shape a product decision around a production
 row again.** If a change is right, make it. The migration still has to be
@@ -2248,6 +2249,36 @@ unexamined.*
       binds a voice, and there is no way for any human to do it. Either build
       the screen in this sprint or write the ticket that owns it
 
+**Every page judged as a design, not only as a feature**
+
+- [ ] **37R.23a** 🔴 **Give every single page a design verdict, separately from
+      whether it works.** A page that works and looks unfinished is a defect and
+      goes on the list. The question is not "did the button do the thing", it is
+      "would somebody paying for this believe it was finished"
+- [ ] **37R.23b** 🔴 **Flag every page that is plain text and bare buttons** —
+      no sections, no cards, no icons, no chart where a number is trying to tell
+      a story, no visual hierarchy, nothing to rest the eye on. Name them all.
+      Do not stop at the two or three worst
+- [ ] **37R.23c** **Empty states are pages too.** A screen with no data yet is
+      the FIRST thing a new therapist and a new patient see, and a blank list
+      under a heading is how a product looks abandoned. Every empty state gets
+      the same verdict
+- [ ] **37R.23d** **Arabic is judged as Arabic.** A page that looks fine in
+      English can look broken in Arabic: line length, numerals, icon direction,
+      a heading that wraps at a different point, a button whose label no longer
+      fits. Judge the Arabic screen on its own, never as "the English one but
+      mirrored"
+- [ ] **37R.23e** **Narrow and wide.** The patient app is a phone product and
+      the therapist app is used on a laptop in a clinic. Both, for every page
+- [ ] **37R.23f** 🔴 **The internal apps have never had a design pass.** Sprint
+      25 rebuilt the patient app and 24.4 rebuilt one settings page; the rest of
+      the therapist portal and the whole admin console have been built for
+      function since sprint 1. Expect the worst pages to be there, and say so
+- [ ] **37R.23g** Produce **one table**: every page, a verdict of *finished ·
+      thin · unstyled*, and one line on what is missing. That table is the
+      brief for the design sprint that follows, so it has to be complete rather
+      than a highlight reel
+
 **The record**
 
 - [ ] **37R.23** 🔴 **Screenshot every page for every user type**, both
@@ -2261,7 +2292,9 @@ unexamined.*
 - [ ] **37R.25** Fix what the sweep finds, then say plainly whether this
       product is ready for a beta user who has never seen it
 - **Accept:** every route, for every kind of person, in both languages, has
-      been walked by somebody reasoning as a user who has a patient waiting.
+      been walked by somebody reasoning as a user who has a patient waiting —
+      and every page has a design verdict beside its functional one, with the
+      unstyled ones named rather than the worst two mentioned.
 
 ### Sprint 38 — Note templates · ~3 weeks
 
