@@ -80,8 +80,17 @@ export function VerificationForm({
   };
   documents: DocSlot[];
   countryOptions: { code: string; name: string; flag: string }[];
-  languageOptions: readonly string[];
-  specialtyOptions: readonly string[];
+  /*
+   * 🔴 37L.2 — code AND label, never one string doing both jobs.
+   *
+   * These used to be `readonly string[]`, and the string was the checkbox's
+   * value, the thing stored on the row, the allowlist entry and the words on
+   * screen all at once. Translating the words would have silently changed what
+   * gets stored, so a clinician picking "القلق" would have saved a specialty
+   * the allowlist does not contain.
+   */
+  languageOptions: { code: string; label: string }[];
+  specialtyOptions: { code: string; label: string }[];
   uploadsEnabled: boolean;
 }) {
   const router = useRouter();
@@ -485,7 +494,7 @@ function ChipGroup({
 }: {
   legend: string;
   name: string;
-  options: readonly string[];
+  options: { code: string; label: string }[];
   selected: string[];
   disabled: boolean;
 }) {
@@ -496,17 +505,17 @@ function ChipGroup({
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <label
-            key={option}
+            key={option.code}
             className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-500 has-checked:bg-brand-50 has-checked:text-brand-700"
           >
             <input
               type="checkbox"
               name={name}
-              value={option}
-              defaultChecked={chosen.has(option)}
+              value={option.code}
+              defaultChecked={chosen.has(option.code)}
               className="sr-only"
             />
-            {option}
+            {option.label}
           </label>
         ))}
       </div>

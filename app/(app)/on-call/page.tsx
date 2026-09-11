@@ -84,8 +84,8 @@ export default async function RadarConsolePage() {
           country={profile.country}
           rateCents={me?.rateCents ?? 0}
           chargesEnabled={me?.chargesEnabled ?? false}
-          languageOptions={languageOptions.map((o) => o.label)}
-          specialtyOptions={specialtyOptions.map((o) => o.label)}
+          languageOptions={languageOptions.map((o) => ({ code: o.code, label: o.label }))}
+          specialtyOptions={specialtyOptions.map((o) => ({ code: o.code, label: o.label }))}
           countryOptions={countryOptions.map((o) => ({
             code: o.code,
             name: o.label,

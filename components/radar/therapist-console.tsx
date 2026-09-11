@@ -39,8 +39,9 @@ export type ConsoleProps = {
   country: string | null;
   rateCents: number;
   chargesEnabled: boolean;
-  languageOptions: readonly string[];
-  specialtyOptions: readonly string[];
+  /* 🔴 37L.2 — code and label, never one string doing both jobs. */
+  languageOptions: { code: string; label: string }[];
+  specialtyOptions: { code: string; label: string }[];
   countryOptions: { code: string; name: string }[];
   alertOnView: boolean;
   alertOnBooking: boolean;
@@ -345,7 +346,7 @@ function CheckGroup({
 }: {
   legend: string;
   name: string;
-  options: readonly string[];
+  options: { code: string; label: string }[];
   selected: string[];
 }) {
   const chosen = new Set(selected);
@@ -355,17 +356,17 @@ function CheckGroup({
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <label
-            key={option}
+            key={option.code}
             className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-500 has-checked:bg-brand-50 has-checked:text-brand-700"
           >
             <input
               type="checkbox"
               name={name}
-              value={option}
-              defaultChecked={chosen.has(option)}
+              value={option.code}
+              defaultChecked={chosen.has(option.code)}
               className="sr-only"
             />
-            {option}
+            {option.label}
           </label>
         ))}
       </div>

@@ -126,8 +126,8 @@ export default async function OnboardingPage() {
             url: urls[requirement.key] ?? null,
           }))}
           countryOptions={countryOptions.map((o) => ({ code: o.code, name: o.label, flag: o.flag }))}
-          languageOptions={languageOptions.map((o) => o.label)}
-          specialtyOptions={specialtyOptions.map((o) => o.label)}
+          languageOptions={languageOptions.map((o) => ({ code: o.code, label: o.label }))}
+          specialtyOptions={specialtyOptions.map((o) => ({ code: o.code, label: o.label }))}
           requirements={overrides}
           uploadsEnabled={uploadsConfigured()}
         />
