@@ -154,9 +154,18 @@ function main() {
    * next person translating a file will reach for the hook they saw in the
    * file beside it.
    */
+  /*
+   * 🔴 §6 again, and this is the seventh occurrence: comments are stripped
+   * BEFORE the scan. Without this the guard flagged
+   * `components/memory/standing-profile.tsx` for the sentence in its own
+   * comment explaining that `useT()` there was the bug it had just stopped
+   * being. A checker that matches the prose describing the defect is a
+   * checker that reports the fix as the fault.
+   */
   const hookInServer = counts.filter((count) => {
-    const source = readFileSync(count.file, "utf8");
-    return /\buseT\(\)/.test(source) && !source.startsWith('"use client"');
+    const raw = readFileSync(count.file, "utf8");
+    const source = stripComments(raw);
+    return /\buseT\(\)/.test(source) && !raw.startsWith('"use client"');
   });
 
   check(

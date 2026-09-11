@@ -484,17 +484,24 @@ async function main() {
   );
 
   /*
-   * 37L — the patient's half of this sentence moved into the dictionary when
-   * the app learned Arabic. The property is "each door names the others", and
-   * it is now half in the source and half in the copy, so the check reads
-   * both rather than asserting that nothing was translated.
+   * 37L.2 — BOTH halves of this sentence are in the dictionary now.
+   *
+   * 37L moved the patient's half and this check was repointed at the copy for
+   * it; 37L.2 moved the clinician's half, and the check failed on the commit
+   * that fixed the thing it was written to protect. That is the second time,
+   * and it is the rule §6 already carries: **a check on copy belongs against
+   * the source of the copy**. It reads the dictionary for both, in both
+   * languages, so the property survives a translation rather than being
+   * broken by one.
    */
-  const { en: doors } = await import("../lib/i18n/messages");
+  const { en: doors, ar: doorsAr } = await import("../lib/i18n/messages");
   check(
     "21R.2 …and each door names the others, 'looking for your own sessions?'",
-    /Looking for your own sessions/i.test(authSources) &&
-      (/Are you a therapist/i.test(authSources) ||
-        /are you a therapist/i.test(doors["pauth.areYouTherapist"])),
+    /Looking for your own sessions/i.test(doors["tauth.patientDoor"]) &&
+      doorsAr["tauth.patientDoor"].trim().length > 0 &&
+      /are you a therapist/i.test(doors["pauth.areYouTherapist"]) &&
+      doorsAr["pauth.areYouTherapist"].trim().length > 0,
+    "both doors name the other, in both languages",
   );
 
   /*

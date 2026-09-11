@@ -4,6 +4,7 @@ import { Check, FileText, Sparkles } from "lucide-react";
 
 import type { NoteContent } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The SOAP note, read-only.
@@ -26,11 +27,13 @@ export function NoteCard({
   className?: string;
   compact?: boolean;
 }) {
+  const t = useT();
+
   const sections: { key: string; label: string; body: string }[] = [
-    { key: "s", label: "Subjective", body: note.soap.subjective },
-    { key: "o", label: "Objective", body: note.soap.objective },
-    { key: "a", label: "Assessment", body: note.soap.assessment },
-    { key: "p", label: "Plan", body: note.soap.plan },
+    { key: "s", label: t("tnote.subjective"), body: note.soap.subjective },
+    { key: "o", label: t("tnote.objective"), body: note.soap.objective },
+    { key: "a", label: t("tnote.assessment"), body: note.soap.assessment },
+    { key: "p", label: t("tnote.plan"), body: note.soap.plan },
   ];
 
   return (
@@ -42,7 +45,9 @@ export function NoteCard({
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-slate-900">
-              {patientLabel ? `Session note, ${patientLabel}` : "Session note"}
+              {patientLabel
+                ? t("tnc.sessionNoteFor", { name: patientLabel })
+                : t("tnc.sessionNote")}
             </p>
             {dateLabel ? <p className="text-xs text-slate-500">{dateLabel}</p> : null}
           </div>
@@ -75,7 +80,7 @@ export function NoteCard({
                 <p className="mt-1 text-sm leading-relaxed text-slate-700">{section.body}</p>
               ) : (
                 <p className="mt-1 text-sm leading-relaxed text-amber-700">
-                  Not written. Add it before you sign this note.
+                  {t("tnc.notWritten")}
                 </p>
               )}
             </div>
@@ -85,7 +90,7 @@ export function NoteCard({
         {!compact && note.talkingPoints.length > 0 ? (
           <div>
             <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-              Key points
+              {t("tnc.keyPoints")}
             </p>
             <ul className="mt-1.5 space-y-1">
               {note.talkingPoints.map((point, i) => (
@@ -101,7 +106,7 @@ export function NoteCard({
         {!compact && note.impressions ? (
           <div className="rounded-xl bg-amber-50/70 px-3.5 py-3">
             <p className="text-[11px] font-bold tracking-wider text-amber-700 uppercase">
-              Clinical impressions, for your review
+              {t("tnc.impressions")}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-amber-900">{note.impressions}</p>
           </div>
@@ -110,7 +115,7 @@ export function NoteCard({
         {!compact && note.recommendations.length > 0 ? (
           <div>
             <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-              Recommendations
+              {t("tnc.recommendations")}
             </p>
             <ul className="mt-1.5 space-y-1">
               {note.recommendations.map((rec, i) => (
@@ -125,7 +130,7 @@ export function NoteCard({
 
         {note.followUp ? (
           <p className="border-t border-slate-100 pt-3 text-sm text-slate-600">
-            <span className="font-semibold text-slate-800">Follow-up:</span> {note.followUp}
+            <span className="font-semibold text-slate-800">{t("tnc.followUp")}</span> {note.followUp}
           </p>
         ) : null}
       </div>
@@ -134,23 +139,24 @@ export function NoteCard({
 }
 
 function StatusPill({ status }: { status: "draft" | "approved" | "generating" }) {
+  const t = useT();
   if (status === "approved") {
     return (
       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-        <Check className="h-3 w-3" aria-hidden /> Approved
+        <Check className="h-3 w-3" aria-hidden /> {t("tnote.approved")}
       </span>
     );
   }
   if (status === "generating") {
     return (
       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
-        <Sparkles className="h-3 w-3" aria-hidden /> Writing…
+        <Sparkles className="h-3 w-3" aria-hidden /> {t("tnc.writing")}
       </span>
     );
   }
   return (
     <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-      Draft
+      {t("tnote.stateDraft")}
     </span>
   );
 }

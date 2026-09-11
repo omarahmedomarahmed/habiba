@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { Mic, MicOff } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 export type TranscriptLine = {
   id: string;
@@ -32,19 +33,21 @@ export function TranscriptPanel({
   lines,
   live = false,
   paused = false,
-  emptyTitle = "Listening…",
-  emptyBody = "The transcript will appear here as you talk.",
+  emptyTitle,
+  emptyBody,
   className,
   autoScroll = true,
 }: {
   lines: TranscriptLine[];
   live?: boolean;
   paused?: boolean;
+  /* 37L.2 — no English default. A default is a string nothing translates. */
   emptyTitle?: string;
   emptyBody?: string;
   className?: string;
   autoScroll?: boolean;
 }) {
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export function TranscriptPanel({
                 )}
               />
               <span className="text-[11px] font-medium text-slate-400">
-                {paused ? "Paused" : "Recording"}
+                {paused ? t("ttr.paused") : t("ttr.recording")}
               </span>
             </span>
           ) : null}
@@ -92,13 +95,13 @@ export function TranscriptPanel({
         // Announce new lines to assistive tech, politely — this updates often.
         aria-live="polite"
         aria-atomic="false"
-        aria-label="Session transcript"
+        aria-label={t("ttr.sessionTranscript")}
         className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
       >
         {lines.length === 0 ? (
           <div className="flex h-full min-h-32 flex-col items-center justify-center text-center">
-            <p className="text-sm font-medium text-slate-300">{emptyTitle}</p>
-            <p className="mt-1 max-w-[22rem] text-xs text-slate-500">{emptyBody}</p>
+            <p className="text-sm font-medium text-slate-300">{emptyTitle ?? t("ttr.listening")}</p>
+            <p className="mt-1 max-w-[22rem] text-xs text-slate-500">{emptyBody ?? t("ttr.willAppear")}</p>
           </div>
         ) : (
           lines.map((line) => (
@@ -111,17 +114,17 @@ export function TranscriptPanel({
               >
                 <span className={cn(line.speakerInferred && "border-b border-dotted border-current")}>
                   {line.speaker === "patient"
-                    ? "Patient"
+                    ? t("tev.speakerPatient")
                     : line.speaker === "therapist"
-                      ? "You"
-                      : "Speaker"}
+                      ? t("tev.speakerYou")
+                      : t("tev.speakerOther")}
                 </span>
                 {line.speakerInferred ? (
                   <span
                     className="font-normal normal-case tracking-normal text-slate-400"
-                    title="One microphone heard both of you. This name was worked out from the words, not from separate audio."
+                    title={t("ttr.oneMic")}
                   >
-                    inferred
+                    {t("ttr.inferred")}
                   </span>
                 ) : null}
               </p>

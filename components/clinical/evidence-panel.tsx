@@ -6,6 +6,8 @@ import { AlertTriangle, Check, FileText, MessageSquare, NotebookPen, User } from
 import { confirmFact, rejectFact } from "@/app/(app)/patients/[id]/evidence/actions";
 import { Badge, Button, Card, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * Why the system believes something. PLAN.md 33.6.
@@ -53,11 +55,12 @@ export type PanelFact = {
   contradicts: { value: string; sourceType: string; ageLabel: string }[];
 };
 
-const SOURCE_LABEL: Record<PanelFact["sourceType"], string> = {
-  clinician: "You entered this",
-  document: "From a document",
-  patient: "The patient said this",
-  ai: "Drawn from the session by the model",
+/* 37L.2 — keys, resolved at render. */
+const SOURCE_LABEL: Record<PanelFact["sourceType"], MessageKey> = {
+  clinician: "tev.srcClinician",
+  document: "tev.srcDocument",
+  patient: "tev.srcPatient",
+  ai: "tev.srcAi",
 };
 
 const EVIDENCE_ICON = {
@@ -75,12 +78,13 @@ export function EvidencePanel({
   patientId: string;
   facts: PanelFact[];
 }) {
+  const t = useT();
+
   if (facts.length === 0) {
     return (
       <Card className="p-6">
         <p className="text-sm text-slate-600">
-          Nothing has been recorded about this person yet. Facts appear here as sessions are
-          written up, documents are read, and you enter things yourself.
+          {t("tev.none")}
         </p>
       </Card>
     );
@@ -109,6 +113,7 @@ export function EvidencePanel({
 }
 
 function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [disputing, setDisputing] = useState(false);
   const [reason, setReason] = useState("");
@@ -126,7 +131,7 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
 
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone={fact.sourceType === "ai" ? "amber" : "slate"}>
-            {SOURCE_LABEL[fact.sourceType]}
+            {t(SOURCE_LABEL[fact.sourceType])}
           </Badge>
           {/*
             🔴 The number never appears alone. "0.82" beside a clinical
@@ -140,7 +145,7 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
             </Badge>
           ) : null}
           <Badge tone={fact.current ? "slate" : "amber"}>{fact.ageLabel}</Badge>
-          {fact.status === "disputed" ? <Badge tone="amber">you disagreed</Badge> : null}
+          {fact.status === "disputed" ? <Badge tone="amber">{t("tev.youDisagreed")}</Badge> : null}
         </div>
       </div>
 
@@ -166,7 +171,12 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
               )}
             >
               <span className="text-slate-400">
-                {line.speaker === "patient" ? "Patient" : line.speaker === "therapist" ? "You" : "Speaker"}:{" "}
+                {line.speaker === "patient"
+                  ? t("tev.speakerPatient")
+                  : line.speaker === "therapist"
+                    ? t("tev.speakerYou")
+                    : t("tev.speakerOther")}
+                :{" "}
               </span>
               {line.text}
             </p>
@@ -176,7 +186,7 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
 
       {fact.contradicts.length > 0 ? (
         <div className="mt-3 rounded-lg border border-slate-200 p-3">
-          <p className="text-xs font-medium text-slate-600">This contradicts:</p>
+          <p className="text-xs font-medium text-slate-600">{t("tev.contradicts")}</p>
           <ul className="mt-1 space-y-1">
             {fact.contradicts.map((other, index) => (
               <li key={index} className="text-xs text-slate-500">
@@ -195,8 +205,8 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
             rows={2}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Why is this wrong? The next clinician reading the record will see this."
-            aria-label="Why you disagree"
+            placeholder={t("tev.whyPlaceholder")}
+            aria-label={t("tev.whyLabel")}
           />
           <div className="flex gap-2">
             <Button
@@ -213,10 +223,10 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
                 })
               }
             >
-              Record my disagreement
+              {t("tev.recordDisagreement")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setDisputing(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           </div>
         </div>
@@ -235,12 +245,12 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
               }
             >
               <Check className="me-1.5 h-3.5 w-3.5" aria-hidden />
-              This is right
+              {t("tev.thisIsRight")}
             </Button>
           ) : null}
           {fact.status !== "disputed" ? (
             <Button size="sm" variant="ghost" onClick={() => setDisputing(true)}>
-              I disagree
+              {t("tev.iDisagree")}
             </Button>
           ) : null}
         </div>

@@ -257,6 +257,17 @@ async function main() {
    */
   const named = ({ source }: { source: string }) =>
     /locale[?]?: string/.test(source) ||
+    /*
+     * 37L.2 — a third shape, and the best of the three: the component asks.
+     *
+     * `localeTag(useLocale())` cannot be omitted by a call site because there
+     * is no call site to omit it. Two components that carried
+     * `locale?: string = "en-US"` were changed to this in 37L.9/37L.2, and the
+     * rule this check enforces is "never let the runtime answer", not "always
+     * a prop" — so asking satisfies it more completely than passing does.
+     */
+    /localeTag\(\s*useLocale\(\)\s*\)/.test(source) ||
+    /const locale = useLocale\(\)/.test(source) ||
     // `[^;]*?` rather than `[^)]*`: a real call contains nested parentheses —
     // `formatMoney(x, row.currency.toUpperCase(), "en-US")` — and the first
     // version of this pattern stopped at the inner one and reported a file

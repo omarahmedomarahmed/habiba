@@ -3,6 +3,7 @@
 import { AlertTriangle, Phone, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import type { CrisisLine } from "@/lib/crisis/line";
 
 /**
@@ -35,6 +36,7 @@ export function RiskBanner({
    */
   line?: CrisisLine | null;
 }) {
+  const t = useT();
   return (
     <div
       role="alert"
@@ -49,15 +51,14 @@ export function RiskBanner({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-red-900">
-            Risk language detected · {level}
+            {t("risk.detected", { level })}
           </p>
           <p className="mt-0.5 text-sm leading-relaxed text-red-800">
-            Pause and assess directly. If there is imminent risk, follow your
-            local emergency protocol.
+            {t("risk.assess")}
           </p>
           {indicators.length > 0 ? (
             <p className="mt-2 text-xs text-red-700">
-              Matched:{" "}
+              {t("risk.matched")}{" "}
               <span className="font-medium">{indicators.join(", ")}</span>
             </p>
           ) : null}
@@ -67,12 +68,12 @@ export function RiskBanner({
               className="tap-target mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white"
             >
               <Phone className="h-3.5 w-3.5" aria-hidden />
-              Call {line.label}
+              {t("risk.call", { label: line.label })}
             </a>
           ) : (
             <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-red-900">
               <Phone className="h-3.5 w-3.5" aria-hidden />
-              If there is imminent risk, call your local emergency number.
+              {t("risk.noLine")}
             </p>
           )}
         </div>
@@ -80,7 +81,7 @@ export function RiskBanner({
           <button
             type="button"
             onClick={onDismiss}
-            aria-label="Dismiss alert"
+            aria-label={t("risk.dismiss")}
             className="tap-target -m-2 flex items-center justify-center rounded-lg p-2 text-red-400 hover:bg-red-100"
           >
             <X className="h-4 w-4" aria-hidden />
@@ -104,6 +105,7 @@ export function PatientSupportNotice({
   /** 🔴 C98 — the same rule, on the surface where it matters most. */
   line?: CrisisLine | null;
 }) {
+  const t = useT();
   return (
     <div
       className={cn(
@@ -112,17 +114,27 @@ export function PatientSupportNotice({
       )}
     >
       <p className="text-sm leading-relaxed text-teal-900">
-        Your therapist is here with you. If you need immediate help right now,{" "}
+        {t("crisis.therapistHere")}{" "}
         {line ? (
-          <>
-            you can call or text{" "}
-            <a href={`tel:${line.tel}`} className="font-semibold underline">
-              {line.label}
-            </a>{" "}
-            at any time.
-          </>
+          /*
+            37L.2 — one row with the number in a slot. Arabic does not put the
+            phrase "at any time" where English does, and two half-sentences
+            either side of an anchor cannot be translated at all.
+          */
+          t("crisis.canCallOrText", { label: "\u0000" })
+            .split("\u0000")
+            .flatMap((part, index) =>
+              index === 0
+                ? [part]
+                : [
+                    <a key="n" href={`tel:${line.tel}`} className="font-semibold underline">
+                      {line.label}
+                    </a>,
+                    part,
+                  ],
+            )
         ) : (
-          <>call your local emergency number. It is free from any phone.</>
+          <>{t("crisis.localNumberFree")}</>
         )}
       </p>
     </div>
