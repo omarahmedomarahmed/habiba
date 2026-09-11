@@ -2012,6 +2012,16 @@ export const CONTENT_DEMOS = [
   "patient-sessions",
   "homework",
   "profile",
+  /*
+   * 28.6 — the two screens sprint 26 gave the patient, shown as themselves.
+   *
+   * The clinical summary is the portability argument made visible: two
+   * clinicians, two versions, both with names on them. The journal is the
+   * other half, what the person wrote. Both are real components driven by
+   * invented people, which is the only kind of demonstration this site ships.
+   */
+  "summary",
+  "journal",
   "none",
 ] as const;
 export type ContentDemo = (typeof CONTENT_DEMOS)[number];

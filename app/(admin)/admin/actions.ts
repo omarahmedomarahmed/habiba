@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { CMS_TAG } from "@/lib/content/service";
+import { honestyMessage, honestyProblemsIn } from "@/lib/content/honesty";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
@@ -80,6 +81,22 @@ export async function savePage(
 
   const blocks = sanitiseBlocks(input.blocks);
   if (!blocks) return { error: "The content structure is not valid. Check the block editor." };
+
+  /*
+   * 🔴 28.2 / 28.3 / C109 / C110 — two claims this product may not make.
+   *
+   * Refused at the save rather than caught by a reviewer, because a marketing
+   * sentence is written by whoever is writing marketing that afternoon and the
+   * arithmetic is not in front of them. The message names the sentence and
+   * says what the true version is, so the refusal is usable rather than
+   * merely correct.
+   *
+   * `verify:sprint28` scans the published ROWS as well: this stops the next
+   * one being written, and C148 is the reminder that it does nothing about
+   * the ones already in the database.
+   */
+  const dishonest = honestyProblemsIn(input.title.trim() || "this page", blocks);
+  if (dishonest.length > 0) return { error: honestyMessage(dishonest[0]!) };
 
   const [page] = await db
     .update(contentPages)

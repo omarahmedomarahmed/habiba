@@ -290,6 +290,9 @@ async function main() {
     ),
   );
 
+  /* 28.1 — name what is left, so the remainder is legible rather than a number. */
+  for (const run of remaining.slice(0, 12)) console.log(`        ${run}`);
+
   await skipUnless(
     remaining.length === 0,
     "22R.10",

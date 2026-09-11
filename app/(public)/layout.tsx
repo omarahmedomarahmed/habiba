@@ -5,6 +5,19 @@ import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getFooterLinks, getPublicNav } from "@/lib/content/service";
 import { publicLanguages } from "@/lib/i18n/strings";
 
+/**
+ * Pages that are routes rather than rows. PLAN.md 28.5, C149.
+ *
+ * They carry a claim about what exists, which is not an editorial decision,
+ * so they cannot be unpublished from the content editor.
+ */
+const CODE_PAGES = [
+  { href: "/integrations", label: "Integrations" },
+  { href: "/for-clinics", label: "For clinics" },
+  { href: "/developers", label: "Developers" },
+  { href: "/verify", label: "Check a record extract" },
+] as const;
+
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const [nav, footer, offered] = await Promise.all([
     getPublicNav(),
@@ -113,6 +126,22 @@ export default async function PublicLayout({ children }: { children: React.React
                 <Link
                   key={item.slug}
                   href={`/${item.slug}`}
+                  className="text-xs text-slate-500 hover:text-slate-900"
+                >
+                  {item.label}
+                </Link>
+              ))}
+              {/*
+                28.5 — four live routes rather than CMS pages, for the same
+                reason the radar link above is hard-coded: each of them states
+                what is and is not built, and that state is a fact about the
+                code. An editor who could unpublish the page saying "there is
+                no API yet" would leave us with no page saying it.
+              */}
+              {CODE_PAGES.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
                   className="text-xs text-slate-500 hover:text-slate-900"
                 >
                   {item.label}

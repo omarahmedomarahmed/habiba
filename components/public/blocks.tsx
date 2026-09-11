@@ -58,7 +58,17 @@ export async function BlockRenderer({
    * can reach a database, which is what makes a real product component safe on
    * an anonymous page.
    */
-  const demo = await getDemoContent();
+  /*
+   * 🔴 28.1 — the demo is read in the SAME language the chrome is.
+   *
+   * It used to ask the runtime, which throws outside a request, so every
+   * script-rendered Arabic page fell through to the English constant: Arabic
+   * paragraphs around a transcript panel holding an English conversation.
+   * That is worse than a screenshot, because it looks like the product cannot
+   * do Arabic. The locale arrives as a prop for exactly this reason (C84), so
+   * the demo takes it too.
+   */
+  const demo = await getDemoContent(locale);
 
   /*
    * 🔴 21R.8 — the reader's language, resolved once here and handed down.

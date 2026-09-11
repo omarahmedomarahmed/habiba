@@ -157,7 +157,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "for-patients",
     title: "For patients",
     description:
-      "How to find a therapist, what the Crisis Radar is, what happens in a session, and exactly what your therapist can and cannot see.",
+      "Your therapy record, owned by you and readable by nobody until you say so. What the intelligence does, what it never does, and how the record moves with you.",
     layout: "marketing",
     navLabel: "For patients",
     navOrder: 0,
@@ -165,13 +165,83 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "hero",
         eyebrow: "For patients",
-        heading: "A real therapist, without the waiting list",
-        body: "You do not need an account to talk to somebody. Open the radar, see who is online this minute, pick a person, tell them what to call you, and you are in a session. Everything below is what happens next, in the order people ask about it.",
+        heading: "Your therapy record, and it is actually yours",
+        body: "Most people who have had therapy cannot lay their hands on a single page of it. Here the record has your name on it, you can read it, you can take it to the next therapist in one tap, and you can take that back just as fast. Below is how each of those works, and what we refuse to do with any of it.",
         ctaLabel: "See who is online now",
         ctaHref: "/radar",
         demo: "none",
-        icon: "users",
+        icon: "shield",
         backgroundImage: "/backgrounds/waves.svg",
+      },
+      {
+        type: "features",
+        heading: "It moves with you",
+        items: [
+          {
+            title: "One record, however many therapists",
+            body: "A second therapist does not start you from nothing. Your clinical summary is versioned and every version stays, with the name of whoever wrote it, so the new person reads what the last one thought rather than asking you to say it all again.",
+            icon: "users",
+          },
+          {
+            title: "You hand it over, nobody takes it",
+            body: "You generate a code and read it to your therapist. That asks you whether they may read your history. Nothing about you moves until you answer, and the code on its own shows them nothing at all.",
+            icon: "lock",
+          },
+          {
+            title: "Taking it back costs one tap and no explanation",
+            body: "Who can read your history is a permanent screen in the app, with the date each person got access and a button to end it. You are never asked why, and they are never told why.",
+            icon: "shield",
+          },
+          {
+            title: "A copy you can keep",
+            body: "Every session, every note a clinician signed, every version of your summary, what you wrote yourself. Emailed to you, never over WhatsApp, with the licence of whoever signed each note printed on it.",
+            icon: "fileText",
+          },
+        ],
+      },
+      {
+        type: "showcase",
+        heading: "The two screens that argument rests on",
+        items: [
+          {
+            title: "Your summary, with both therapists on it",
+            body: "This is the real screen, with invented people on it. Version two is a clinician who picked you up from somebody else; version one is still there with the first name on it. Nobody can edit or delete a version, including us.",
+            icon: "fileText",
+            demo: "summary",
+          },
+          {
+            title: "What you wrote, between sessions",
+            body: "A week is a long time to remember. You write or say whatever you want to keep, and a therapist you have given access to can read it. Nobody else, and nothing on that screen pretends somebody is watching it.",
+            icon: "heart",
+            demo: "journal",
+          },
+        ],
+      },
+      {
+        type: "features",
+        heading: "You never talk to the AI",
+        items: [
+          {
+            title: "There is no chatbot here, and there will not be one",
+            body: "You cannot message the intelligence, and it cannot message you. There is no screen in the patient app where you are typing to a model. That is enforced in the code rather than promised in a paragraph: nothing a patient can open is allowed to reach it, even indirectly.",
+            icon: "lock",
+          },
+          {
+            title: "What it does instead",
+            body: "It reads what happened in your sessions and what you wrote, and it puts that in front of the clinician who is treating you, with the sentence it came from attached so they can disagree with it.",
+            icon: "brain",
+          },
+          {
+            title: "Only a clinician you chose can ask it anything",
+            body: "And only about you, and only while you have given them access. Take the access back and the assistant stops being able to read your history that same second.",
+            icon: "shield",
+          },
+          {
+            title: "Nothing written by a machine reaches you unsigned",
+            body: "The summary after a session is drafted by software and does not leave the building until the person who was in the room with you has read it and put their name on it.",
+            icon: "check",
+          },
+        ],
       },
       {
         type: "features",
@@ -257,6 +327,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             q: "Do I need an account?",
             a: "Not to have a session. You need one to keep your history, see the notes written to you, and claim a record a therapist already keeps about you.",
+          },
+          {
+            q: "If I stop using 24Therapy, do I lose everything?",
+            a: "No. Ask for a copy of your record and it is emailed to you: every session, every signed note, every version of your summary, and the licence of the clinician behind each. It is a record extract rather than a certificate, which means it says what we hold and when, and does not claim that a diagnosis in it is correct.",
+          },
+          {
+            q: "Can a therapist read my record without me agreeing?",
+            a: "No, and there is no screen anywhere that ends in them having access. Every grant needs you, signed in, answering a question. You are sent a message every time one starts, so if somebody ever pressured you into it you will see it afterwards, and ending it takes one tap.",
           },
         ],
       },
