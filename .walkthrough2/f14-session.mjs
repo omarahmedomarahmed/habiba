@@ -1,0 +1,10 @@
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+const step = async (n, chars=1600) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await go(p, "/sessions/new");
+await step("t16-new-session");
+console.log("FIELDS:", await p.evaluate(()=>JSON.stringify([...document.querySelectorAll("input,select,textarea")].filter(e=>e.type!=="hidden").map(e=>({n:e.name,t:e.type,l:(e.labels&&e.labels[0]&&e.labels[0].innerText.trim().slice(0,40))||e.placeholder||""})))));
+console.log("BUTTONS:", await p.evaluate(()=>[...document.querySelectorAll("button")].map(b=>b.innerText.trim()).filter(Boolean).join(" | ")));
+await b.close();

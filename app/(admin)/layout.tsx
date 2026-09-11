@@ -56,7 +56,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
         </div>
 
-        <nav aria-label="Admin" className="no-scrollbar mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2 sm:px-5">
+        {/*
+          🔴 37R.25 / C188 — sixteen destinations, and five of them were off
+          the screen on a laptop.
+
+          The row was `max-w-5xl` with `overflow-x-auto` and `no-scrollbar`, so
+          at 1440px it clipped mid-word after "Radar lists" and showed nothing
+          to say there was more: Announce, Site content, Settings, Strings and
+          the Audit log simply did not appear, and nothing in the console links
+          to them from anywhere else. It wraps now — a console is a tool, and a
+          tool that hides a third of itself to stay on one line is the wrong
+          trade. The horizontal scroll stays for phones, where wrapping sixteen
+          items would push the page down instead.
+        */}
+        <nav aria-label="Admin" className="no-scrollbar mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 pb-2 sm:px-5 lg:flex-wrap lg:overflow-x-visible">
           <AdminLink href="/admin" icon={LayoutDashboard}>Overview</AdminLink>
 
           {/* 🔴 20.18 / 20.24 — two support queues, never one list. */}

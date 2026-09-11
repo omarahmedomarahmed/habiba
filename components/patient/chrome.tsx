@@ -23,6 +23,7 @@ export function PatientChrome({
   liveSession = null,
   nav = true,
   practiceNumber = null,
+  phone = null,
 }: {
   children: React.ReactNode;
   liveSession?: { href: string } | null;
@@ -33,6 +34,11 @@ export function PatientChrome({
    */
   nav?: boolean;
   practiceNumber?: string | null;
+  /**
+   * 🔴 37R.25 / C184 — the reader's own number, so the orb prints the crisis
+   * line for THEIR country and not the only one in the table.
+   */
+  phone?: string | null;
 }) {
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -46,7 +52,7 @@ export function PatientChrome({
         requirement and a page that forgets it is a page somebody reaches on
         the night they need it.
       */}
-      <SosOrb dimmed={liveSession !== null} practiceNumber={practiceNumber} />
+      <SosOrb dimmed={liveSession !== null} practiceNumber={practiceNumber} phone={phone} />
     </div>
   );
 }

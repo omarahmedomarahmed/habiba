@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { PatientBack } from "@/components/patient/back";
 import { TherapistPageBody } from "@/components/radar/therapist-page";
 import { publicProfile } from "@/lib/data/radar";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -27,5 +28,19 @@ export default async function PatientTherapistPage({
   const { id } = await params;
   if (!(await publicProfile(id))) notFound();
 
-  return <TherapistPageBody id={id} />;
+  /*
+   * 🔴 37R.25 / C185 — a way back.
+   *
+   * This screen is reached by tapping a name on the home screen or the radar,
+   * and until the walkthrough the only way out of it was the bottom bar, which
+   * goes somewhere else entirely. The control is above the body rather than
+   * inside it because the body is shared with the public page, where there is
+   * no app to go back into.
+   */
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pt-6">
+      <PatientBack />
+      <TherapistPageBody id={id} />
+    </div>
+  );
 }

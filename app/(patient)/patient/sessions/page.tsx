@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { PatientSessionList } from "@/components/patient/session-list";
+import { PatientBack } from "@/components/patient/back";
 import { sessionsForPatient } from "@/lib/data/patient-view";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
@@ -59,13 +59,7 @@ export default async function PatientSessionsPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
-      <Link
-        href="/patient"
-        className="tap-target -ms-2 flex w-fit items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back
-      </Link>
+      <PatientBack />
 
       <h1 className="text-xl font-bold tracking-tight text-slate-900">Your sessions</h1>
 

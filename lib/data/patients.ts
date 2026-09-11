@@ -32,6 +32,22 @@ function scope(actor: Actor) {
     : and(base, eq(patients.therapistId, actor.userId));
 }
 
+/**
+ * 🔴 Records on this caseload that already hold a number. C186, 37R.25.
+ *
+ * Scoped by `scope(actor)`, so it answers about the caseload the clinician can
+ * already see and never reveals that another practice holds that number —
+ * which would turn a duplicate check into a lookup service for whether a phone
+ * belongs to somebody in therapy.
+ */
+export async function patientsWithPhone(actor: Actor, e164: string) {
+  return db
+    .select({ id: patients.id, firstName: patients.firstName, lastName: patients.lastName })
+    .from(patients)
+    .where(and(scope(actor), eq(patients.phone, e164)))
+    .limit(2);
+}
+
 export async function listPatients(actor: Actor) {
   return db
     .select({

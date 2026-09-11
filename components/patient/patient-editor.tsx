@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { savePatient } from "@/app/(app)/patients/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { PhoneField } from "@/components/forms/phone-field";
-import { countryFromLocale } from "@/lib/phone/e164";
+import { countryFromE164, countryFromLocale } from "@/lib/phone/e164";
 
 type Initial = {
   firstName: string;
@@ -38,7 +38,13 @@ export function PatientEditor({
    * national number for the default country to expand wrongly.
    */
   const [phoneCountry, setPhoneCountry] = useState(
-    () => countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
+    () =>
+      /* 37R.25 — the number decides the label. A record holding +20 showed
+         "United States" beside it because the selector only ever asked the
+         browser. */
+      countryFromE164(initial.phone) ??
+      countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ??
+      "EG",
   );
 
   const set = <K extends keyof Initial>(key: K, value: Initial[K]) =>

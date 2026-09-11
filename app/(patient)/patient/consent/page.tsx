@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { eq } from "drizzle-orm";
 
 import { AskHistory } from "@/components/patient/ask-history";
+import { PatientBack } from "@/components/patient/back";
 import { ConsentList } from "@/components/patient/consent-list";
 import { InviteTherapist } from "@/components/patient/invite-therapist";
 import { dbFor} from "@/lib/db";
@@ -78,13 +78,7 @@ export default async function ConsentPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
       <div className="flex items-center gap-1">
-        <Link
-          href="/patient"
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back
-        </Link>
+        <PatientBack />
       </div>
 
       <div>
@@ -122,6 +116,10 @@ export default async function ConsentPage() {
           code: invite.code,
           expiresOn: invite.expiresAt.toISOString().slice(0, 10),
           redeemedBy: invite.redeemedBy,
+          /* 37R.25 — "look above" is only true while the request is above. */
+          awaitingAnswer: requests.some(
+            (request) => fullName(request.therapistFirstName, request.therapistLastName, "") === invite.redeemedBy,
+          ),
         }))}
       />
 

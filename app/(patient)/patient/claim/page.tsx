@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ClaimChallenge } from "@/components/patient/claim-challenge";
+import { PatientBack } from "@/components/patient/back";
 import { ClaimFlow } from "@/components/patient/claim-flow";
 import { ProveHandle } from "@/components/patient/prove-handle";
 import { Card } from "@/components/ui";
@@ -81,6 +82,9 @@ export default async function ClaimPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+      {/* 🔴 37R.25 / C185 — claiming is reached from the home screen and had
+          no way back to it. */}
+      <PatientBack />
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
           Have you seen a therapist before?

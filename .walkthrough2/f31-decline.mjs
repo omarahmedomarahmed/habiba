@@ -1,0 +1,18 @@
+import { browser, go, text, shot, PHONE, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const tctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const t = await tctx.newPage();
+await go(t, "/connect");
+await t.fill("input[name=reason]", "I only saw you once, and the note from that session is already in your record.");
+await t.getByRole("button", { name: /Decline, with that reason/i }).click();
+await t.waitForTimeout(4000);
+console.log("=== after decline ===\n" + (await text(t)).split("Connect")[1]?.slice(0,600).replace(/\n{2,}/g,"\n"));
+await shot(t, "t29-declined");
+const pctx = await b.newContext({ viewport: PHONE, storageState: ".walkthrough2/state-patient.json" });
+const p = await pctx.newPage();
+await go(p, "/patient/consent");
+const body = await text(p);
+const i = body.indexOf("Ask a therapist");
+console.log("\n=== patient sees the decline ===\n" + body.slice(i-500, i+500).replace(/\n{2,}/g,"\n"));
+await shot(p, "p27-decline-seen");
+await b.close();

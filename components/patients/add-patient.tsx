@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { UserPlus } from "lucide-react";
 
@@ -100,6 +101,33 @@ export function AddPatient() {
           <p role="alert" aria-live="assertive" className="text-sm text-red-600">
             {state.error}
           </p>
+        ) : null}
+
+        {/*
+          🔴 C186 — the way past a duplicate number, and it only appears once
+          somebody has been told what they are doing.
+
+          Two people really can share a phone: a parent's number on a child's
+          record is ordinary. What is not ordinary is two charts for one person,
+          which is what happened here before the check existed, so the second
+          record costs one deliberate tick and a link to the one that is
+          already open.
+        */}
+        {state.duplicateOf ? (
+          <div className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm text-amber-900">
+            <Link
+              href={`/patients/${state.duplicateOf}`}
+              className="font-semibold underline underline-offset-2"
+            >
+              Open the record that already has this number
+            </Link>
+            <label className="mt-2 flex items-start gap-2 text-xs leading-relaxed">
+              <input type="checkbox" name="duplicate" value="allow" className="mt-0.5" />
+              <span>
+                This is a different person who shares that phone. Add them as a second record.
+              </span>
+            </label>
+          </div>
         ) : null}
 
         <div className="flex flex-wrap gap-2">

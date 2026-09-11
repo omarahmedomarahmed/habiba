@@ -1,0 +1,15 @@
+import { writeFileSync } from "node:fs";
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+const step = async (n, chars=1600) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await go(p, "/sessions/new");
+await p.getByRole("button", { name: /Video/i }).first().click();
+await p.waitForTimeout(500);
+await p.selectOption("select[name=patientId]", { label: "Layla Mansour" }).catch(e=>console.log("sel", e.message.slice(0,60)));
+await p.getByRole("button", { name: /Start session now/i }).click();
+await p.waitForTimeout(8000);
+await step("t17-session-started");
+writeFileSync(".walkthrough2/session-url.txt", p.url());
+await b.close();

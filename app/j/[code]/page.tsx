@@ -5,6 +5,7 @@ import { PatientAuthForm } from "@/components/patient/auth-form";
 import { Card } from "@/components/ui";
 import { SosOrb } from "@/components/patient/sos-orb";
 import { resolveCode } from "@/lib/data/therapist-codes";
+import { optionalPatient } from "@/lib/patient-auth/guard";
 
 export const metadata: Metadata = {
   title: "Join 24Therapy",
@@ -32,6 +33,10 @@ export const dynamic = "force-dynamic";
  * is help, while "not found" is an accusation about their typing.
  */
 export default async function ScanPage({ params }: { params: Promise<{ code: string }> }) {
+  /* 🔴 C184 — the orb needs the reader's number to know whose crisis line to
+     print. A stranger on a waiting-room floor has none, and gets the sentence
+     that is true everywhere rather than another country's number. */
+  const reader = await optionalPatient();
   const { code } = await params;
   const scanned = await resolveCode(code);
 
@@ -94,7 +99,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
       )}
 
       {/* 🔴 25.5 / C125 — a stranger on a waiting-room floor gets the orb too. */}
-      <SosOrb />
+      <SosOrb phone={reader?.phone ?? null} />
     </main>
   );
 }

@@ -26,6 +26,8 @@
  * fix rather than growing this list from memory.
  */
 
+import { DIALLING_CODES } from "@/lib/phone/e164";
+
 export type CrisisLine = {
   /** What the reader sees. A number, as they would say it. */
   label: string;
@@ -53,4 +55,52 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
 export function crisisLine(country?: string | null): CrisisLine | null {
   if (!country) return null;
   return CRISIS_LINES[country.trim().toUpperCase()] ?? null;
+}
+
+/**
+ * 🔴 The line for a person we know only by their number. 37R.25, C184.
+ *
+ * The walkthrough found the orb printing `988 · United States` to a patient
+ * whose number begins `+20`, because it rendered **every** entry in the table
+ * rather than the one for the reader — `crisisLine`, written for exactly this,
+ * was never called by it. One entry in the table is what made the bug
+ * invisible: the list and the correct answer looked identical from Delaware
+ * and only differed in Cairo, which is the market.
+ *
+ * Matching is longest-prefix over the dialling codes, and a tie is resolved
+ * only when the tied countries leave exactly one verified line between them:
+ * `+1` is the United States and Canada, and there is one line for the pair.
+ * Anything else returns null, and null means the sentence that is true
+ * everywhere.
+ */
+export function lineForNumber(e164: string | null | undefined): CrisisLine | null {
+  const digits = (e164 ?? "").replace(/[^\d+]/g, "");
+  if (!digits.startsWith("+")) return null;
+  const national = digits.slice(1);
+
+  let best = 0;
+  let candidates: string[] = [];
+  for (const [country, code] of Object.entries(DIALLING_CODES)) {
+    if (!national.startsWith(code)) continue;
+    if (code.length > best) {
+      best = code.length;
+      candidates = [country];
+    } else if (code.length === best) {
+      candidates.push(country);
+    }
+  }
+
+  const lines = candidates
+    .map((country) => CRISIS_LINES[country])
+    .filter((line): line is CrisisLine => Boolean(line));
+  const distinct = new Set(lines.map((line) => line.tel));
+
+  return distinct.size === 1 ? lines[0]! : null;
+}
+
+/** The country label for a number, when there is a line to label. */
+export function countryForNumber(e164: string | null | undefined): string | null {
+  const line = lineForNumber(e164);
+  if (!line) return null;
+  return Object.keys(CRISIS_LINES).find((country) => CRISIS_LINES[country]!.tel === line.tel) ?? null;
 }

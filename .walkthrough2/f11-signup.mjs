@@ -1,0 +1,18 @@
+import { readFileSync } from "node:fs";
+import { browser, go, anatomy, text, shot, PHONE } from "./lib.mjs";
+const link = readFileSync(".walkthrough2/invite.txt","utf8").trim();
+const people = JSON.parse(readFileSync(".walkthrough2/people.json","utf8"));
+const q = people.patient;
+const b = await browser();
+const ctx = await b.newContext({ viewport: PHONE });
+const p = await ctx.newPage();
+const step = async (n, chars=1200) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await p.goto(link, { waitUntil: "networkidle" });
+await p.getByRole("link", { name: /Create an account/i }).click();
+await p.waitForURL(/signup/, { timeout: 20000 }).catch(()=>{});
+await p.waitForLoadState("networkidle").catch(()=>{});
+await p.waitForTimeout(1500);
+await step("p02-patient-signup", 1400);
+console.log("FIELDS:", await p.evaluate(()=>JSON.stringify([...document.querySelectorAll("input,select")].filter(e=>e.type!=="hidden").map(e=>({n:e.name,t:e.type,l:(e.labels&&e.labels[0]&&e.labels[0].innerText.trim())||e.placeholder||""})))));
+console.log("BUTTONS:", await p.evaluate(()=>[...document.querySelectorAll("button")].map(b=>b.innerText.trim()).filter(Boolean).join(" | ")));
+await b.close();

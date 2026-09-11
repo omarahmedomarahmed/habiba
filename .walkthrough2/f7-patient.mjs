@@ -1,0 +1,14 @@
+import { readFileSync } from "node:fs";
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const people = JSON.parse(readFileSync(".walkthrough2/people.json", "utf8"));
+const q = people.patient;
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+const step = async (n, chars=1200) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await go(p, "/patients");
+await p.getByRole("button", { name: /add a patient/i }).first().click();
+await p.waitForTimeout(1500);
+await step("t12-add-patient-open");
+console.log(await p.evaluate(()=>JSON.stringify([...document.querySelectorAll("input,select,textarea")].filter(e=>e.type!=="hidden").map(e=>({n:e.name,l:(e.labels&&e.labels[0]&&e.labels[0].innerText.trim())||e.placeholder||""})))));
+await b.close();

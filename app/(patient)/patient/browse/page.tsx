@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { Card } from "@/components/ui";
+import { PatientBack } from "@/components/patient/back";
 import { TherapistCard } from "@/components/patient/therapist-card";
 import { categories, search } from "@/lib/data/discover";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -37,13 +38,7 @@ export default async function BrowsePage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
-      <Link
-        href="/patient"
-        className="tap-target -ms-2 flex w-fit items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back
-      </Link>
+      <PatientBack />
 
       <h1 className="text-xl font-bold tracking-tight text-slate-900">Find a therapist</h1>
 

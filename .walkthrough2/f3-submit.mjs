@@ -1,0 +1,17 @@
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+await go(p, "/onboarding");
+const submit = p.getByRole("button", { name: "Submit for verification" });
+console.log("disabled:", await submit.isDisabled());
+await submit.click();
+await p.waitForTimeout(4000);
+console.log("### t06-submitted", p.url(), JSON.stringify(await anatomy(p)));
+console.log((await text(p)).slice(0, 900));
+await shot(p, "t06-submitted");
+await go(p, "/dashboard");
+console.log("### t07-dashboard-pending", p.url(), JSON.stringify(await anatomy(p)));
+console.log((await text(p)).slice(0, 900));
+await shot(p, "t07-dashboard-pending");
+await b.close();

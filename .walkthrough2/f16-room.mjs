@@ -1,0 +1,18 @@
+import { readFileSync } from "node:fs";
+import { chromium } from "playwright";
+import { anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const url = readFileSync(".walkthrough2/session-url.txt","utf8").trim();
+const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox","--use-fake-ui-for-media-stream","--use-fake-device-for-media-stream","--autoplay-policy=no-user-gesture-required"] });
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json", permissions: ["microphone"] });
+const p = await ctx.newPage();
+const step = async (n, chars=1400) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await p.goto(url, { waitUntil: "networkidle" });
+await p.getByRole("button", { name: /^Start session$/i }).click();
+await p.waitForSelector("text=Recording", { timeout: 20000 }).catch(e=>console.log("no Recording label"));
+await p.waitForFunction(()=>document.querySelectorAll('[aria-label="Session transcript"] p').length >= 4, undefined, { timeout: 60000 }).catch(e=>console.log("transcript wait:", e.message.slice(0,80)));
+await step("t18-session-recording");
+await p.getByRole("button", { name: /End session/i }).click();
+await p.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 60000 }).catch(()=>{});
+await p.waitForTimeout(8000);
+await step("t19-session-ended", 2500);
+await b.close();

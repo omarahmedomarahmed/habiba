@@ -184,7 +184,7 @@ async function Shell({
    */
   const patient = await optionalPatient();
   return (
-    <PatientChrome nav={patient !== null} liveSession={live}>
+    <PatientChrome nav={patient !== null} liveSession={live} phone={patient?.phone ?? null}>
     <div className="flex min-h-dvh flex-col bg-slate-50">
       {/*
         The language switch belongs here, not buried in a menu.

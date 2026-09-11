@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Phone, X } from "lucide-react";
 
-import { CRISIS_LINES, type CrisisLine } from "@/lib/crisis/line";
+import { countryForNumber, lineForNumber, type CrisisLine } from "@/lib/crisis/line";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,6 +25,10 @@ import { cn } from "@/lib/utils";
  *     print a number from memory, because a crisis number that does not dial is
  *     worse than the sentence that is always true: call your local emergency
  *     number.
+ *   - 🔴 **Only the READER's number** (C184, 37R.25). Verified is not enough:
+ *     a verified line for another country is a button that looks like help and
+ *     reaches nothing. The reader's own dialling code decides, and when it
+ *     decides nothing the sentence above is the whole answer.
  *
  * ## Why it is draggable, and why it snaps
  *
@@ -39,9 +43,20 @@ type Props = {
   practiceNumber?: string | null;
   /** Dimmed over a live session, present all the same (C126). */
   dimmed?: boolean;
+  /**
+   * 🔴 37R.25 / C184 — the reader's own number, which is the only thing here
+   * that says which country's line to print.
+   *
+   * Until the walkthrough this component rendered every entry in
+   * `CRISIS_LINES`, and with one entry in that table it printed a large red
+   * `988 · United States` to a patient whose number starts `+20`. In the
+   * minute this orb exists for, the wrong country's number is worse than no
+   * number: it looks like help and reaches nothing.
+   */
+  phone?: string | null;
 };
 
-export function SosOrb({ practiceNumber = null, dimmed = false }: Props) {
+export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: Props) {
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"start" | "end">("end");
   const [top, setTop] = useState(0.62);
@@ -69,20 +84,34 @@ export function SosOrb({ practiceNumber = null, dimmed = false }: Props) {
     }
   };
 
-  const lines: { country: string; label: string; line: CrisisLine; word: string }[] = Object.entries(
-    CRISIS_LINES,
-  ).map(([country, line]) => ({
-    country,
-    label: COUNTRY_LABEL[country] ?? country,
-    line,
-    word: HELP_WORD[country] ?? "Help",
-  }));
+  /*
+   * 🔴 One line, for this reader, or none. Never the whole table.
+   *
+   * `lineForNumber` refuses unless the number's dialling code leaves exactly
+   * one verified line, so a `+20` number gets null and falls through to the
+   * sentence that is true everywhere. The list rendered here is therefore at
+   * most one entry long, and it exists as a list only because a second
+   * verified country will slot into it without this component changing.
+   */
+  const mine = lineForNumber(phone);
+  const mineCountry = countryForNumber(phone);
+  const lines: { country: string; label: string; line: CrisisLine; word: string }[] =
+    mine && mineCountry
+      ? [
+          {
+            country: mineCountry,
+            label: COUNTRY_LABEL[mineCountry] ?? mineCountry,
+            line: mine,
+            word: HELP_WORD[mineCountry] ?? "Help",
+          },
+        ]
+      : [];
 
   return (
     <>
       <button
         type="button"
-        aria-label="Get help now"
+        aria-label="SOS, get help now"
         onPointerDown={() => {
           dragging.current = false;
         }}
@@ -128,7 +157,7 @@ export function SosOrb({ practiceNumber = null, dimmed = false }: Props) {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2.5">
+            <div className={cn("mt-4 grid gap-2.5", lines.length + (practiceNumber ? 1 : 0) > 1 ? "grid-cols-2" : "grid-cols-1")}>
               {lines.map((entry) => (
                 <a
                   key={entry.country}

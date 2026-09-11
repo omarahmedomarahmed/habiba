@@ -1,0 +1,16 @@
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+const step = async (n, chars=1000) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await go(p, "/sessions/7886c48f-fe49-494f-8e80-ca4ff5be0b0a");
+await p.locator("input[type=checkbox]").nth(0).check();
+await p.locator("input[type=checkbox]").nth(1).check();
+await p.locator("textarea").first().fill("We are three sessions in. Sleep is the thread we keep pulling on, and it is loosening. Layla decides who reads this.");
+await p.waitForTimeout(500);
+console.log("BUTTON NOW:", await p.evaluate(()=>[...document.querySelectorAll("button")].map(b=>b.innerText.trim()).filter(Boolean).join(" | ")));
+await shot(p, "t21-three-ticked");
+await p.getByRole("button", { name: /Publish what is ticked/i }).first().click();
+await p.waitForTimeout(6000);
+await step("t22-after-close", 1400);
+await b.close();

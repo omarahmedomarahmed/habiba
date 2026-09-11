@@ -69,8 +69,19 @@ export default async function InvitePage({
             <span className="font-semibold text-slate-800">{invite.therapistName}</span> has
             invited you to take ownership of the record they keep for you.
           </p>
+          {/*
+            🔴 37R.25 — this used to say "then open this link again", and it
+            was not true.
+
+            Both buttons below carry the invite: signup takes it as `?invite=`,
+            sign-in as `?next=`, and either one lands back here with the claim
+            waiting. The old sentence asked somebody to hold on to a WhatsApp
+            message and find it again afterwards, which is a step the product
+            does not need and a person in the middle of signing up can easily
+            fail at.
+          */}
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Create an account or sign in, then open this link again.
+            Create an account or sign in, and we will bring you straight back here.
           </p>
           <div className="mt-4 space-y-2">
             <Link

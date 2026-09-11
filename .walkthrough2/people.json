@@ -1,0 +1,22 @@
+{
+  "admin": { "email": "admin@24therapy.test", "password": "Walkthrough-2-admin!" },
+  "therapist": {
+    "first": "Yasmin",
+    "last": "Farouk",
+    "email": "yasmin.farouk@clinic.test",
+    "password": "Walkthrough-2-yasmin!"
+  },
+  "therapist2": {
+    "first": "Omar",
+    "last": "Shafik",
+    "email": "omar.shafik@clinic.test",
+    "password": "Walkthrough-2-omar!"
+  },
+  "patient": {
+    "first": "Layla",
+    "last": "Mansour",
+    "phone": "+201001234567",
+    "email": "layla.mansour@people.test",
+    "password": "Walkthrough-2-layla!"
+  }
+}

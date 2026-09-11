@@ -1,0 +1,11 @@
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-admin.json" });
+const p = await ctx.newPage();
+await go(p, "/admin/verifications");
+await p.getByRole("button", { name: /^Approve/i }).first().click();
+await p.waitForTimeout(4000);
+console.log("### a04-approved", p.url(), JSON.stringify(await anatomy(p)));
+console.log((await text(p)).slice(0, 1200));
+await shot(p, "a04-approved");
+await b.close();

@@ -31,7 +31,14 @@ import { Button, Card } from "@/components/ui";
 export function InviteTherapist({
   live,
 }: {
-  live: { id: string; code: string; expiresOn: string; redeemedBy: string | null }[];
+  live: {
+    id: string;
+    code: string;
+    expiresOn: string;
+    redeemedBy: string | null;
+    /** True while that clinician's request is still unanswered. */
+    awaitingAnswer?: boolean;
+  }[];
 }) {
   const router = useRouter();
   const [state, setState] = useState<InviteState>({});
@@ -58,8 +65,16 @@ export function InviteTherapist({
                   {invite.code}
                 </span>
                 <span className="block text-xs text-slate-500">
+                  {/*
+                    🔴 37R.25 — this said "Look for their request above" whether
+                    or not a request was still there to look at, so a patient
+                    who had already answered was sent hunting for a section
+                    that had gone. It now says where things stand.
+                  */}
                   {invite.redeemedBy
-                    ? `Used by ${invite.redeemedBy}. Look for their request above.`
+                    ? invite.awaitingAnswer
+                      ? `Used by ${invite.redeemedBy}. Their request is waiting for your answer above.`
+                      : `Used by ${invite.redeemedBy}. You have already answered them.`
                     : `Good until ${invite.expiresOn}`}
                 </span>
               </span>

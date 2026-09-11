@@ -292,13 +292,33 @@ export function RadarOrb({
         aria-expanded={open}
         aria-label={`${LABEL[tone]}. Open radar controls.`}
         className={cn(
-          "tap-target pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full shadow-lg ring-1 transition-colors",
+          "tap-target pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg ring-1 transition-colors",
           tone === "off"
             ? "bg-white ring-slate-200 hover:bg-slate-50"
             : "bg-navy-500 ring-navy-500/20 hover:bg-navy-600",
         )}
       >
-        <span className={cn("h-3 w-3 rounded-full", DOT[tone])} />
+        {/*
+          🔴 37R.25 / C187 — an icon, because a dot is not a control.
+
+          The collapsed state was a white circle with a 12px grey dot in it and
+          nothing else. On the walkthrough it read as a stray element or a
+          spinner: nothing on the screen said "radar", and a clinician who has
+          never opened it has no reason to press it. The dot stays — it is the
+          status, and its colour is the whole point — but it now sits on the
+          icon the sidebar uses for the same feature, so the two are visibly
+          the same thing.
+        */}
+        <Radio
+          className={cn("h-5 w-5", tone === "off" ? "text-slate-500" : "text-white")}
+          aria-hidden
+        />
+        <span
+          className={cn(
+            "absolute end-1 top-1 h-2.5 w-2.5 rounded-full ring-2 ring-white",
+            DOT[tone],
+          )}
+        />
       </button>
     </div>
   );

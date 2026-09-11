@@ -590,6 +590,12 @@ export async function approveSession(
 
   const done: string[] = [];
 
+  /** Join the fragments and give the result a capital letter. */
+  const sentence = (parts: string[]) => {
+    const joined = parts.join(", ");
+    return joined.charAt(0).toUpperCase() + joined.slice(1);
+  };
+
   if (choice.clinical) {
     const result = await approveNote(sessionId);
     if (result.error) return result;
@@ -611,7 +617,7 @@ export async function approveSession(
       return {
         error:
           done.length > 0
-            ? `${done.join(", ")}. The summary could not be published: this session has no patient record attached to a person.`
+            ? `${sentence(done)}. The summary could not be published: this session has no patient record attached to a person.`
             : "This session has no patient record attached to a person, so there is nothing to add a summary to.",
       };
     }
@@ -624,7 +630,7 @@ export async function approveSession(
 
     if (!published.ok) {
       return {
-        error: done.length > 0 ? `${done.join(", ")}. ${published.error}` : published.error,
+        error: done.length > 0 ? `${sentence(done)}. ${published.error}` : published.error,
       };
     }
 
@@ -635,5 +641,8 @@ export async function approveSession(
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
-  return { ok: true, message: `${done.join(", ")}.` };
+  /* 37R.25 — the list is assembled from fragments, so the sentence it becomes
+     needs its own capital. It read "chart signed, their copy released." on the
+     screen, which looks like a bug even though nothing was wrong underneath. */
+  return { ok: true, message: `${sentence(done)}.` };
 }
