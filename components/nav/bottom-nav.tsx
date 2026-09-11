@@ -8,6 +8,7 @@ import {
   CreditCard,
   FileText,
   Home,
+  KeyRound,
   MessageSquare,
   MoreHorizontal,
   Plus,
@@ -51,6 +52,8 @@ const MORE = [
    */
   { href: "/assistant", label: "Assistant", icon: Sparkles, hint: "Your week, not your notes" },
   { href: "/notes", label: "Notes", icon: FileText, hint: "Drafts waiting for you" },
+  /* 27.2 / 27.7 — the two things a patient starts and a clinician answers. */
+  { href: "/connect", label: "Connect", icon: KeyRound, hint: "Codes and history requests" },
   { href: "/on-call", label: "Crisis Radar", icon: Radio, hint: "Go online, get booked" },
   { href: "/earnings", label: "Earnings", icon: Wallet, hint: "What patients paid you" },
   { href: "/billing", label: "Billing", icon: CreditCard, hint: "What you owe 24Therapy" },

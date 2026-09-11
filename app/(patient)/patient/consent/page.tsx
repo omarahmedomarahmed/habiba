@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import { eq } from "drizzle-orm";
+
+import { AskHistory } from "@/components/patient/ask-history";
 import { ConsentList } from "@/components/patient/consent-list";
+import { InviteTherapist } from "@/components/patient/invite-therapist";
+import { db } from "@/lib/db";
+import { patients, sessions, users } from "@/lib/db/schema";
+import { asksForPerson, invitesForPerson } from "@/lib/data/portability";
 import { grantsForPerson, pendingRequestsFor } from "@/lib/data/grants";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { fullName } from "@/lib/utils";
@@ -24,10 +31,34 @@ export const dynamic = "force-dynamic";
 export default async function ConsentPage() {
   const actor = await requirePatient();
 
-  const [requests, grants] = await Promise.all([
+  const [requests, grants, invites, asks, seen] = await Promise.all([
     pendingRequestsFor(actor.personId),
     grantsForPerson(actor.personId),
+    invitesForPerson(actor.personId),
+    asksForPerson(actor.personId),
+    /*
+     * 27.7 — only clinicians who have actually seen them. Drawn from their own
+     * sessions rather than typed, so this cannot become a way to message any
+     * clinician on the platform.
+     */
+    db
+      .selectDistinct({
+        userId: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
+      .from(sessions)
+      .innerJoin(patients, eq(patients.id, sessions.patientId))
+      .innerJoin(users, eq(users.id, sessions.therapistId))
+      .where(eq(patients.personId, actor.personId))
+      .limit(20),
   ]);
+
+  /* A live code is one nobody has used and nobody has cancelled. */
+  const now = Date.now();
+  const liveInvites = invites.filter(
+    (invite) => !invite.revokedAt && invite.expiresAt.getTime() > now,
+  );
 
   const named = <T extends { therapistFirstName: string; therapistLastName: string }>(row: T) =>
     fullName(row.therapistFirstName, row.therapistLastName);
@@ -69,6 +100,30 @@ export default async function ConsentPage() {
           expiresAt: g.expiresAt,
           decidedAt: g.decidedAt,
           revokedAt: g.revokedAt,
+        }))}
+      />
+
+      {/* 27.2 / C102b — the patient's own way to bring somebody in. */}
+      <InviteTherapist
+        live={liveInvites.map((invite) => ({
+          id: invite.id,
+          code: invite.code,
+          expiresOn: invite.expiresAt.toISOString().slice(0, 10),
+          redeemedBy: invite.redeemedBy,
+        }))}
+      />
+
+      {/* 27.7 / C108 — asking backwards, with the answer guaranteed. */}
+      <AskHistory
+        clinicians={seen.map((row) => ({
+          userId: row.userId,
+          name: fullName(row.firstName, row.lastName, "A therapist"),
+        }))}
+        asks={asks.map((ask) => ({
+          id: ask.id,
+          therapistName: ask.therapistName,
+          status: ask.status,
+          declineReason: ask.declineReason,
         }))}
       />
 

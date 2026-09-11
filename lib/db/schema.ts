@@ -4376,3 +4376,82 @@ export const journals = pgTable(
 );
 
 export type Journal = typeof journals.$inferSelect;
+
+/**
+ * A patient's invite to a clinician. PLAN.md 27.2, C102b.
+ *
+ * 🔴 Redeeming this does **not** create access. It creates a *request*, which
+ * the patient then approves in one tap. That is the whole design: the patient
+ * gets the initiative, and nobody gets a back door. The copy says "invite your
+ * therapist" and never "send your record", because the record does not move
+ * until its owner says so a second time, knowing who is asking.
+ *
+ * The code is short and hyphenated because it is read aloud across a desk.
+ */
+export const patientInvites = pgTable(
+  "patient_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** The patient account that made it. Points at `patient_accounts`. */
+    accountId: uuid("account_id").notNull(),
+    code: text("code").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    redeemedByUserId: uuid("redeemed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("patient_invites_code_unique").on(t.code),
+    index("patient_invites_person_idx").on(t.personId, t.createdAt),
+  ],
+);
+
+export type PatientInvite = typeof patientInvites.$inferSelect;
+
+export const HISTORY_ASK_STATUSES = ["pending", "added", "declined"] as const;
+export type HistoryAskStatus = (typeof HISTORY_ASK_STATUSES)[number];
+
+/**
+ * "Ask my previous therapist to add my history." PLAN.md 27.7, C108.
+ *
+ * 🔴 A row rather than a message, because the ruling is that a **silent
+ * request is worse than a refusal**. We cannot promise that an old clinician
+ * cooperates: they may have left, may want paying, may simply say no. What the
+ * product can promise is that the patient finds out. So the clinician sees it
+ * in a queue and either adds something or declines with a reason, and the
+ * database refuses a decline with no reason at all.
+ *
+ * The copy everywhere says "ask", never "get".
+ */
+export const historyAsks = pgTable(
+  "history_asks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").notNull(),
+    therapistUserId: uuid("therapist_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").$type<HistoryAskStatus>().notNull().default("pending"),
+    note: text("note"),
+    /** Read by the patient verbatim. Never null on a decline. */
+    declineReason: text("decline_reason"),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("history_asks_therapist_idx").on(t.therapistUserId, t.status),
+    index("history_asks_person_idx").on(t.personId, t.createdAt),
+  ],
+);
+
+export type HistoryAsk = typeof historyAsks.$inferSelect;

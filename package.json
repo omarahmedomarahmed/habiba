@@ -72,7 +72,8 @@
     "verify:sprint12": "node --import tsx --conditions=react-server scripts/verify-sprint12.ts",
     "db:reset": "node --import tsx --conditions=react-server scripts/reset.ts",
     "whatsapp:check": "node --import tsx --conditions=react-server scripts/whatsapp-check.ts",
-    "verify:sprint26": "node --import tsx --conditions=react-server scripts/verify-sprint26.ts"
+    "verify:sprint26": "node --import tsx --conditions=react-server scripts/verify-sprint26.ts",
+    "verify:sprint27": "node --import tsx --conditions=react-server scripts/verify-sprint27.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

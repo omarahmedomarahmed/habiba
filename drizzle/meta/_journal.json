@@ -421,6 +421,13 @@
       "when": 1789600000025,
       "tag": "0059_summaries_and_journals",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1789600000026,
+      "tag": "0060_portability",
+      "breakpoints": true
     }
   ]
 }

@@ -90,7 +90,18 @@ export type Message = {
      * person does not control. The caller enforces it by passing no phone at
      * all, so the fallback cannot fire.
      */
-    | "record.export";
+    | "record.export"
+    /**
+     * 🔴 27.6 / C107 — the patient is told on EVERY new grant.
+     *
+     * No preference switches this off. The threat model is coercion: somebody
+     * pressured into approving, or whose phone was held while somebody else
+     * did. The only defence a product can offer is that the fact is visible
+     * afterwards and revocation costs nothing.
+     */
+    | "consent.granted"
+    /** 27.7 / C108 — the old clinician's answer, including a refusal. */
+    | "history.answered";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

@@ -344,7 +344,18 @@ export async function decideGrant(input: {
     return { ok: false, error: "Choose how long they may have access." };
   }
 
-  const [updated] = await db
+  /*
+   * 🔴 27.3 / C131 — approving into a clinician who is not verified yet.
+   *
+   * Migration 0060 refuses the write outright (C106), which is right and also
+   * means this path has to explain itself rather than showing a database
+   * error. A patient who invited somebody mid-verification tapped approve and
+   * meant it; what they need to be told is that it is waiting on us, not on
+   * them, and that nothing further is required.
+   */
+  let updated: { id: string; therapist: string } | undefined;
+  try {
+    [updated] = await db
     .update(historyGrants)
     .set({
       status: input.decision,
@@ -368,6 +379,16 @@ export async function decideGrant(input: {
       ),
     )
     .returning({ id: historyGrants.id, therapist: historyGrants.therapistUserId });
+  } catch (error) {
+    if (String((error as Error).message).includes("verification is not approved")) {
+      return {
+        ok: false,
+        error:
+          "We have not finished checking that therapist's licence yet, so access cannot start. Nothing more is needed from you: try again once they tell you they are approved.",
+      };
+    }
+    throw error;
+  }
 
   if (!updated) return { ok: false, error: "That request is no longer waiting for an answer." };
 
@@ -380,6 +401,24 @@ export async function decideGrant(input: {
     resourceId: updated.id,
     reason: input.decision === "granted" ? (input.shape ?? null) : (input.reason ?? null),
   });
+
+  /*
+   * 🔴 27.6 / C107 — the patient is told, on every grant, without exception.
+   *
+   * Best effort and after the decision: a notification that failed to send
+   * must not undo an answer somebody gave. The screen shows the same fact
+   * either way, which is what makes this a second chance to notice rather than
+   * the only one.
+   */
+  if (input.decision === "granted") {
+    const { notifyPatientOfGrant } = await import("@/lib/data/portability");
+    await notifyPatientOfGrant({
+      personId: input.personId,
+      therapistUserId: updated.therapist,
+    }).catch((error) => {
+      log.warn("grant notice not sent", { reason: String((error as Error).message) });
+    });
+  }
 
   log.info("grant decided", { grant: ref(updated.id), decision: input.decision });
   return { ok: true };
