@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import type { Region } from "./region";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   bigint,
   boolean,
@@ -699,6 +700,17 @@ export const transcriptSegments = pgTable(
       .default("unknown"),
     /** True when the speaker was inferred from the words, not heard on a track. */
     speakerInferred: boolean("speaker_inferred").notNull().default(false),
+    /**
+     * 🔴 37.2 — which acoustic voice said this line, when one was separated.
+     *
+     * Null for every row written before sprint 37 and for every two-track
+     * capture, which needs no diarisation. When it is set, migration 0065's
+     * trigger refuses any `speaker` that disagrees with the voice: a voice
+     * nothing proves may only carry `unknown`.
+     */
+    voiceId: uuid("voice_id").references((): AnyPgColumn => sessionVoices.id, {
+      onDelete: "set null",
+    }),
     text: text("text").notNull(),
     startMs: integer("start_ms").notNull().default(0),
     endMs: integer("end_ms").notNull().default(0),
@@ -4723,3 +4735,55 @@ export const sessionSources = pgTable(
 );
 
 export type SessionSource = typeof sessionSources.$inferSelect;
+
+/* ------------------------------------------------------- sprint 37 voices -- */
+
+export const VOICE_ROLES = ["therapist", "patient"] as const;
+export type VoiceRoleColumn = (typeof VOICE_ROLES)[number];
+
+/**
+ * 🔴 How a voice acquired a person. There is no "model" and there must not be.
+ *
+ * `track` is the recording already knowing, because a video session captured
+ * two tracks. `operator` is a named human saying so. Sprint 37.2 — an
+ * unrecognised voice is a numbered speaker, never a guess — is only a rule
+ * anybody can rely on if there is no way to write down a guess.
+ */
+export const VOICE_BINDINGS = ["track", "operator"] as const;
+export type VoiceBinding = (typeof VOICE_BINDINGS)[number];
+
+export const sessionVoices = pgTable(
+  "session_voices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+
+    /** The provider's opaque label for this voice. Not a person. */
+    label: text("label").notNull(),
+    /** 1-based, in first-heard order. "Speaker 3" is ordinal 3. */
+    ordinal: integer("ordinal").notNull(),
+
+    /** Null means unrecognised, which is normal and permanent. */
+    role: text("role").$type<VoiceRoleColumn>(),
+    patientId: uuid("patient_id").references(() => patients.id, { onDelete: "restrict" }),
+    boundBy: text("bound_by").$type<VoiceBinding>(),
+    boundByUserId: uuid("bound_by_user_id").references(() => users.id, { onDelete: "restrict" }),
+    boundAt: timestamp("bound_at", { withTimezone: true }),
+
+    speakingMs: integer("speaking_ms").notNull().default(0),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("session_voices_label_unique").on(t.sessionId, t.label),
+    uniqueIndex("session_voices_ordinal_unique").on(t.sessionId, t.ordinal),
+  ],
+);
+
+export type SessionVoice = typeof sessionVoices.$inferSelect;
