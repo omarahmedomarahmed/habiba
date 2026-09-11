@@ -1066,6 +1066,8 @@ live rows, and every one of them is now void:
 | C185 | 37R | **A signed-out visitor got a navigation bar whose every destination bounces them to a sign-in screen.** `PatientChrome` has taken a `nav` prop since sprint 25 and its own comment explains this case in as many words; **nothing ever passed it**, so the default won and a person opening an invite from WhatsApp got four tabs and no way to use any of them. The same layout now asks `optionalPatient()` once and the answer feeds both the bar and C184's crisis line — one question, two things that were wrong for the same reason. **And back is a real control now:** nine patient pages had a fixed `Back` to `/patient` and two had none at all, so moving between consent, summary and journal kept throwing the reader to the top. One `PatientBack` component, `router.back()`, with a named fallback because half this product's traffic arrives on a deep link with no history to go back to. 2026-09-16. | major | 37R | **fixed** |
 | C186 | 37R | 🔴 **The same person could be added to a caseload twice, silently.** Same phone, same email, ten seconds apart, two patient records, no warning of any kind — `addPatient` had no duplicate check at all. In a product whose identity model is **the phone number is the handle** (§3b, C119), that is not untidiness: the invite, the claim and the summary attach to one of the two rows and the clinician reading the other sees half a history with nothing on the screen to say the rest exists. **Fixed by refusing rather than merging** — merging two charts is a clinical decision nobody should make implicitly — and refusing rather than by a unique index, because two people really can share a phone and a parent's number on a child's record is ordinary. The refusal names the record that already holds the number, links to it, and takes a deliberate tick from somebody who has read the sentence. 2026-09-16. | major | 37R | **fixed** |
 | C187 | 37R | **Eight smaller findings, each fixed, each held by `verify:sprint37r`.** The admin console clipped five of its sixteen destinations off the right edge of a 1440px laptop with no fade, no arrow and no other link to them (**it wraps now**). The therapist's radar control was a floating white circle containing a 12px grey dot, unlabelled (**it carries the sidebar's radar icon now, with the status as a badge**). The invite landing told people to *"open this link again"* when both buttons already carried the invite. The phone selector beside a `+20` number said *United States*. A confirmation read *"chart signed, their copy released."* with no capital. The consent screen said *"look for their request above"* after the request had gone. The SOS button's accessible name omitted its own visible label. And one **recorded rather than fixed**: signing up with a number that already has an account still tells a stranger that it does, because the neutral-response design needs a message channel this deployment does not have. 2026-09-16. | minor | 37R | **fixed, one recorded** |
+| C182 | 37L | 🔴 **The website is Arabic and the product is not.** Measured on `main`: **0 of 21 admin pages, 0 of 19 patient pages, 2 of 20 therapist pages** call the dictionary. 87 keys exist, 43 are used, by 4 components. Sprints 19, 21 and 31 each shipped real Arabic work and none of them translated the application, because each was scoped to the surface in front of it and nothing counted what was left. A patient found on an Arabic homepage, signed up on an Arabic form, lands in an English app. **Ruling: its own sprint, 37L, and it blocks a beta in Egypt** — not because anything is broken but because the market cannot use it. And the guard is a ratcheted count of translated pages, because a rule shipped in sprint 19 and ignored for fourteen sprints is a rule that needs a number behind it. | blocker | 37R | **ruled — sprint 37L** |
+| C183 | 37R | 🔴 **The SOS orb showed every patient on earth the American lifeline.** `lib/crisis/line.ts` exists precisely to prevent this and says so in its own first paragraph: *"`tel:988` dialled from Cairo reaches nothing."* It exports `crisisLine(country)`. **The orb never called it** — it rendered `Object.entries(CRISIS_LINES)`, and with one row in that table a patient in Cairo pressing the most safety-critical control in the product got a large red card reading **🇺🇸 Help · 988 · United States**, with *"call your local emergency number"* demoted beneath it. C98 was ruled, the module was built, five components were fixed, and the sixth was added afterwards and read the table instead of the function. **No verifier could have seen it**: the string is in the right module, the import is from the right place, and it only looks wrong if you are the patient in Cairo looking at a flag that is not yours. **Ruling, and it goes in §6: a verified number is not enough. It has to be verified FOR THE READER.** `lineForNumber` now matches the longest dialling prefix and answers only when exactly one verified line survives; `+20` gets the sentence, `+1` still gets 988, proved both directions. | blocker | 37R | **resolved — sprint 37R, and the rule generalised** |
 
 **The rule going forward: never shape a product decision around a production
 row again.** If a change is right, make it. The migration still has to be
@@ -2311,6 +2313,40 @@ unexamined.*
       been walked by somebody reasoning as a user who has a patient waiting —
       and every page has a design verdict beside its functional one, with the
       unstyled ones named rather than the worst two mentioned.
+
+### Sprint 37L — The product speaks Arabic · ~2.5 weeks · 🔴 BEFORE ANY BETA IN EGYPT
+
+*C182. Sprint 19 translated the interface strings that existed. Sprint 31 gave
+Arabic an address. Sprint 21 made every string editable. All three shipped and
+all three work, and the **application** was never translated: measured on `main`
+today, **0 of 21 admin pages, 0 of 19 patient pages and 2 of 20 therapist pages**
+call the dictionary at all. The website is Arabic. The product a patient actually
+uses is English.*
+
+- [ ] **37L.1** 🔴 **Every patient screen in Arabic.** This is the one that
+      matters: a patient in Cairo who found us on an Arabic homepage, signed up
+      on an Arabic form, and then lands in an English app has been handed to a
+      competitor
+- [ ] **37L.2** Every therapist screen. Clinical Arabic for a clinician, which
+      is a different register from the patient's
+- [ ] **37L.3** Every admin screen. The back office is staffed in Cairo
+- [ ] **37L.4** Every auth screen, every email, every WhatsApp template
+- [ ] **37L.5** 🔴 **Written as Arabic, never rendered from the English**
+      (21.x). The AI may draft; a person publishes; and crisis, consent and
+      recording copy can never publish from a draft at all
+- [ ] **37L.6** 🔴 **The guard has to be structural or this recurs.** Sprint 19
+      shipped a rule and fourteen sprints wrote English past it. A check that
+      counts pages calling the dictionary, ratcheted like the region pins, so
+      the number can only go up
+- [ ] **37L.7** RTL judged per page, not assumed from `dir=rtl`. 37R proved
+      direction is right on all 71 renders and that says nothing about whether
+      a heading wraps or a button's label still fits
+- [ ] **37L.8** The completeness checklist from 21.11 finally has something to
+      count. Nothing goes live in a language until it is 100%, and that gates
+      the **launch** of a language, never its **life** (C78)
+- **Accept:** a patient who speaks only Arabic can find a therapist, claim their
+      record, read their summary, write a journal and press SOS without meeting
+      one English word.
 
 ### Sprint 38 — Note templates · ~3 weeks
 
