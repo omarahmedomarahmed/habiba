@@ -32,6 +32,8 @@
     "settings:reprice": "tsx scripts/settings.ts reprice",
     "evals": "node --import tsx --conditions=react-server evals/run.ts",
     "test:evals": "node --import tsx --test tests/evals.test.ts",
+    "test:facts": "node --import tsx --test tests/facts.test.ts",
+    "verify:sprint33": "node --import tsx --conditions=react-server scripts/verify-sprint33.ts",
     "verify:sprint32": "node --import tsx --conditions=react-server scripts/verify-sprint32.ts",
     "verify:sprint31": "node --import tsx --conditions=react-server scripts/verify-sprint31.ts",
     "test:locale": "node --import tsx --test tests/locale-paths.test.ts",

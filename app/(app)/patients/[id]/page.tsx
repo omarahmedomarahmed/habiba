@@ -107,6 +107,26 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           </Link>
         </Card>
 
+        {/*
+          33.6 — why the system believes what it believes.
+          A separate screen rather than a panel on this one, because it is long
+          by design: every fact carries the sentence that produced it.
+        */}
+        <Card>
+          <Link
+            href={`/patients/${patient.id}/evidence`}
+            className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">What we believe, and why</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Every fact with the sentence it came from. Disagree with any of it.
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+          </Link>
+        </Card>
+
         <RecordAccess
           locked={await lockedOn(id)}
           zone={actor.timezone}

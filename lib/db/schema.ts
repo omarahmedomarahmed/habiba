@@ -9,6 +9,7 @@ import {
   jsonb,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -4519,3 +4520,113 @@ export const crossBorderConsents = pgTable(
 );
 
 export type CrossBorderConsent = typeof crossBorderConsents.$inferSelect;
+
+/**
+ * The clinical evidence layer. PLAN.md 33.1 to 33.6.
+ *
+ * ## 🔴 Not a key-value table. A fact with a history.
+ *
+ * The thing this replaces is `patients.clinical`, a JSON blob holding
+ * diagnoses and goals as strings. A blob can hold what the system believes and
+ * cannot hold **why**, **when it was true**, **who said so**, or **what it
+ * replaced** — so every downstream feature that reads it has to treat the
+ * contents as equally certain, and a model's guess from session 3 sits in the
+ * same array as a diagnosis a psychiatrist wrote.
+ *
+ * Every rule below is enforced by the database, in `0062_clinical_facts.sql`,
+ * and each is proved in `verify:sprint33` by attempting the write:
+ *
+ *   - The evidence quote is `NOT NULL` and non-blank. A fact nobody can trace
+ *     to a sentence cannot be stored at all.
+ *   - `source_priority` is CHECKed against `source_type`, so an extraction job
+ *     cannot write an `ai` row that outranks a clinician.
+ *   - An `ai` fact cannot be inserted already verified. Confidence is not
+ *     truth, and the agreement has to come from a person, afterwards.
+ *   - Value, quote, domain, field and person are immutable after the insert.
+ *     Disagreeing is a status change and a superseding row, never an edit.
+ *   - A lower-ranked source may not supersede a higher-ranked one.
+ *   - Superseding retires the old row to `historical` rather than deleting it.
+ *   - Deleting the evidence nulls the pointer and the fact becomes
+ *     `unsupported` in the same statement (33.5).
+ */
+export const FACT_SOURCES = ["clinician", "document", "patient", "ai"] as const;
+export type FactSource = (typeof FACT_SOURCES)[number];
+
+export const FACT_STATUSES = [
+  "active",
+  "resolved",
+  "historical",
+  "disputed",
+  /** 33.5 — the evidence behind it was deleted. Kept, never shown as current. */
+  "unsupported",
+] as const;
+export type FactStatus = (typeof FACT_STATUSES)[number];
+
+export const FACT_EVIDENCE_KINDS = ["segment", "chunk", "journal", "clinician"] as const;
+export type FactEvidenceKind = (typeof FACT_EVIDENCE_KINDS)[number];
+
+export const FACT_SENSITIVITIES = ["normal", "sensitive", "restricted"] as const;
+export type FactSensitivity = (typeof FACT_SENSITIVITIES)[number];
+
+export const patientClinicalFacts = pgTable(
+  "patient_clinical_facts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+
+    domain: text("domain").notNull(),
+    field: text("field").notNull(),
+    value: text("value").notNull(),
+
+    sourceType: text("source_type").$type<FactSource>().notNull(),
+    /** Lower wins. Derived from `sourceType` and CHECKed against it. */
+    sourcePriority: integer("source_priority").notNull(),
+    sourceId: uuid("source_id"),
+
+    /** 🔴 The sentence. NOT NULL, because a fact without one is a rumour. */
+    evidenceQuote: text("evidence_quote").notNull(),
+    evidenceKind: text("evidence_kind").$type<FactEvidenceKind>().notNull(),
+    segmentId: uuid("segment_id").references(() => transcriptSegments.id, {
+      onDelete: "set null",
+    }),
+    chunkId: uuid("chunk_id").references(() => documentChunks.id, { onDelete: "set null" }),
+    journalId: uuid("journal_id").references(() => journals.id, { onDelete: "set null" }),
+    enteredByUserId: uuid("entered_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    /** Only ever set for `ai`, and CHECKed that way. */
+    confidence: real("confidence"),
+
+    status: text("status").$type<FactStatus>().notNull().default("active"),
+
+    /** 🔴 33.3 — when it was TRUE, not when it was written. */
+    effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+    firstObservedAt: timestamp("first_observed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastObservedAt: timestamp("last_observed_at", { withTimezone: true }).defaultNow().notNull(),
+
+    supersedesId: uuid("supersedes_id"),
+
+    verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+
+    sensitivity: text("sensitivity").$type<FactSensitivity>().notNull().default("normal"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("clinical_facts_person_idx").on(t.personId, t.domain, t.field),
+    index("clinical_facts_active_idx").on(t.personId, t.status),
+    index("clinical_facts_supersedes_idx").on(t.supersedesId),
+  ],
+);
+
+export type ClinicalFact = typeof patientClinicalFacts.$inferSelect;
