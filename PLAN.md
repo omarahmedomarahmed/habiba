@@ -1057,6 +1057,8 @@ live rows, and every one of them is now void:
 | C177 | 37 | 🔴 **THERE IS NO ELIMINATION RULE, AND THIS IS WHAT IT COSTS.** The tempting line of code is four words long: two voices, one of them is provably the clinician, therefore the other one is the patient. It is right most of the time, and the times it is wrong are not random — a supervisor sitting in, a parent answering for a child, a partner arriving twenty minutes late, a mother on speakerphone. Every one of those is a voice that is not the patient in a recording whose only identified voice is the clinician, and elimination writes all of them into the chart under the patient's name. Acoustically there is nothing to separate those cases from an ordinary two-person session, so no confidence score can rescue the rule. **Decided: a voice is bound to a person only by evidence — `track` (the recording already knew, because two tracks were captured) or `operator` (a named human said so, with their id and the date) — and a voice with no evidence of its own is `Speaker N` permanently.** Not even by elimination in a two-voice room, and not even when two voices both look like the clinician: the stronger claim takes the role and the loser is left **unnamed** rather than handed the leftover one, which is elimination wearing a hat. A tie is nobody. **The cost, stated rather than buried:** a single-microphone session with no two-track evidence attributes nobody by this path at all. It falls through to the semantic layer that has shipped since sprint 32, which labels roles from the words and marks every row `speaker_inferred` — so the reader can always tell which of the two answered. The acoustic layer's job is separating voices; naming them is a different question with a different standard of proof. 2026-09-15. | major | 41 | **ruled, proved in both directions, nine fixtures** |
 | C178 | 37 | **An unrecognised voice cannot be written down as a person, and the enum is missing the value that would let it.** C175's lesson applied to identity: the rule "when a voice is nobody, write `unknown`" is a convention a service can forget, so migration 0065 makes it a refusal. A transcript line carrying a `voice_id` is checked against that voice — a line on an **unbound** voice may only say `unknown`, a line on a bound voice may say `unknown` or that voice's own role, and a line may not point at a voice from another session at all. `bound_by` is `('track','operator')` and there is **no `model`, no `inferred`, no `auto`**: a schema that cannot express "software decided who this is" is a schema in which 37.2 cannot quietly stop being true, and adding the value is a migration with somebody's name on it. There is also **no display-name, alias or nickname column** anywhere on the voice — a voice shows either the person the session record already names (41.5, two sprints early) or `Speaker N` computed from its ordinal, so a meeting provider's "Mum" or "iPhone" has nowhere to land. **And unbinding cleans up after itself:** the moment a voice is unbound, every line that claimed that person goes back to `unknown` in the same statement, because otherwise 37.2 would be true only of rows written after somebody admitted the mistake. A direct swap from one person to another is refused; a correction is unbind then bind, two deliberate steps. 2026-09-15. | major | 41 | **ruled, every refusal paired with the write it must allow** |
 | C176 | 36 | **A third door is only safe if it is NARROWER than the two it joins.** The ingestion token authenticates a machine, so it gets less than a person does, not the same: it is scoped to one session (the id is inside the token **and** the hash is stored on that session's own row, so a token for session A cannot be expressed at session B), it expires in hours, it is revocable, its uses are counted, and it is stored only as a SHA-256 the column's CHECK will not let be anything else. **And what it opens is audio in, a sequence number out.** The copilot never runs on a token request — it reads a chart and writes into a clinician's thread, and a bot is not in the room — and the response body carries no transcript text and no crisis flag, because a credential somebody could leave in a log must not be answerable with clinical text. The two existing doors are untouched: `assertSameOrigin()` and `requireUserApi()` still guard the browser path, and the token branch is taken only when a bearer is presented. 2026-09-14. | major | 41 | **ruled, 17 pure tests, every refusal paired with the acceptance** |
+| C179 | 37R | 🔴 **`bound_by = 'operator'` has no screen and no ticket owns one.** Sprint 37 made a named human the only way a voice gets a role without two-track evidence, which is exactly right, and then nothing anywhere lets a human do it. `session_voices` is referenced by **zero** components. Every single-microphone session therefore falls through to the semantic layer permanently, and C177's carefully-built `operator` path is unreachable. **Ruling: 37R either builds the screen or writes the ticket that owns it, and says which.** A capability the database records and no interface offers is a capability nobody has. | major | review | **ruled — sprint 37R.22** |
+| C180 | 37R | 🔴 **Nobody has used this product since sprint 22R, and fourteen sprints have shipped.** 57 route files changed or appeared. The patient app was rebuilt, the claim order was corrected, portability, journals, summaries, exports, Arabic URLs, a region seam and a risk classifier all landed. Every one verified against the database or the import graph; **not one walked by a person.** 22R found seven defects in a single pass and every one was a screen that was wrong while the rows beneath it were right — a patient claimed their record and their app said it was empty. That class is invisible to every verifier here. **Ruling: the second walkthrough is its own sprint and it runs before 40**, because each sprint that passes makes it longer and because a beta user is closer than a partner integration is. | major | review | **ruled — sprint 37R** |
 
 **The rule going forward: never shape a product decision around a production
 row again.** If a change is right, make it. The migration still has to be
@@ -2161,6 +2163,105 @@ measurement and not a build.
       reported. Needs real audio of two people with a gold transcript, a
       provider, and credits. Named the way **35R.4** is named. 🔴 **41 is
       blocked on this being MEASURED, not merely built.**
+
+### Sprint 37R — The second walkthrough · ~1.5 weeks · 🔴 BEFORE 40
+
+*Sprint 22R was the last time a person used this product. It predates sprints
+24 to 37 entirely. Since then: fourteen sprints, 57 route files changed or
+added, a rebuilt patient app, a new claim order, portability, journals,
+summaries, exports, Arabic URLs, a region seam and a risk classifier. All of it
+verified by machines. **None of it walked by anybody.***
+
+*22R found seven defects in one pass, and every one of them was a screen that
+was wrong while every row underneath it was right. A patient claimed their
+record and their app told them it was empty. That class of defect is invisible
+to every verifier in this repository, and there are now fourteen sprints of it
+unexamined.*
+
+**Before anything**
+
+- [ ] **37R.1** 🔴 **A fresh purge, seeded admin only.** Every account created
+      through the real forms. `scripts/reset.ts`, then `ship:content` so the
+      rows match the code
+- [ ] **37R.2** Both languages, both directions, on every screen walked. RTL is
+      where layout defects hide and nobody has looked since 31 shipped
+
+**Re-walk everything 22R walked, because all of it changed**
+
+- [ ] **37R.3** Therapist signs up → admin approves → adds a patient with a
+      **phone number** → invites by WhatsApp → patient signs up and claims →
+      session invite → patient joins → session runs → transcript → note →
+      patient report → invoice raised and paid
+- [ ] **37R.4** The second therapist: same patient, claim request, documents
+      the first uploaded, a session, it appearing in the first therapist's
+      history, then the patient **revoking** the first therapist
+- [ ] **37R.5** Documents and the case copilot: upload history, ask about it,
+      citations resolve, a revoked clinician gets nothing
+- [ ] **37R.6** Everything else a therapist can do: copilot limit refused ·
+      radar · on-call · payout requested · EGP and USD · bundle bought ·
+      **upgrade then downgrade holding 30 unused sessions**
+- [ ] **37R.7** Admin, manager and staff, each signed in as themselves
+
+**Then everything built since 22R, which nobody has ever used**
+
+- [ ] **37R.8** 🔴 **The patient app as an app** (25): the home, the profile
+      with **name and picture**, Sessions with **All · Upcoming · Past**,
+      Billing and credit, and the radar **inside the app chrome**. Does it look
+      like the best mental-health app anybody has built, or does it look like
+      scaffolding? Say which
+- [ ] **37R.9** 🔴 **The SOS orb**, from every patient screen including a live
+      session. Draggable, reachable in two taps, the numbers we have verified
+      and nothing invented. **This is the most safety-critical control in the
+      product and no person has ever pressed it**
+- [ ] **37R.10** 🔴 **The claim order as corrected** (C121): handle, then code,
+      **then** the therapist's name and photo. Confirm nothing about any record
+      appears before the handle is proven. Try a stranger's number and see what
+      you learn
+- [ ] **37R.11** **Three ways in** (C119): phone only, email only, both. A
+      password is optional; a code always works. A guest with one handle
+- [ ] **37R.12** **The therapist QR** (C120): print it, scan it, claim from it
+- [ ] **37R.13** **Journals** (26): written and **dictated**, seen by a
+      clinician with a grant, cited in the copilot, and a high-risk journal
+      raising an alert
+- [ ] **37R.14** **The clinical summary** (26): versioned, two clinicians'
+      versions side by side, **one approval screen with three items**, and
+      silence publishing nothing
+- [ ] **37R.15** **The export** (26): the whole record, the secure email link,
+      the cover page, the **verification code checked at `/verify/[code]`**
+- [ ] **37R.16** **Portability** (27): the patient invite, a grant refused to
+      an unverified clinician, ask-my-old-therapist including a **decline with
+      a reason**, and who-can-read-me with one-tap revoke
+- [ ] **37R.17** **The public site** (28, 31): `/for-patients`, `/developers`,
+      `/for-clinics`, `/integrations`, and every one of them at `/ar/...`
+- [ ] **37R.18** **Cross-border consent** (30) at `/patient/residency`
+- [ ] **37R.19** **The evidence screen** (33) at `/patients/[id]/evidence`:
+      does a clinician understand why the system believes something?
+- [ ] **37R.20** **The risk assessment** (35) on a session: indicators,
+      quotes, and the prior-risk panel that the classifier does not read
+
+**The two things that have no screen, confirmed rather than assumed**
+
+- [ ] **37R.21** `session_sources` (36) has no interface anywhere, **by
+      design**. 41.2 builds it. Confirm and record
+- [ ] **37R.22** 🔴 `session_voices` (37) has no interface anywhere, **and no
+      ticket builds one** (C179). `bound_by = 'operator'` means a named human
+      binds a voice, and there is no way for any human to do it. Either build
+      the screen in this sprint or write the ticket that owns it
+
+**The record**
+
+- [ ] **37R.23** 🔴 **Screenshot every page for every user type**, both
+      languages, into `docs/walkthrough-2/`. Synthetic people only; admin
+      screens swept and gitignored (C80)
+- [ ] **37R.24** 🔴 **Write down what was HARD, not only what was broken.**
+      Buttons you could not find, controls hidden behind a modal, a step where
+      it was unclear what happens next, anything you needed the plan to
+      understand. **No verifier in this repository can report this**, and it is
+      the reason 22R existed
+- [ ] **37R.25** Fix what the sweep finds, then say plainly whether this
+      product is ready for a beta user who has never seen it
+- **Accept:** every route, for every kind of person, in both languages, has
+      been walked by somebody reasoning as a user who has a patient waiting.
 
 ### Sprint 38 — Note templates · ~3 weeks
 
