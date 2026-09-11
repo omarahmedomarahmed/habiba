@@ -158,6 +158,60 @@ export class EmptyTranscriptError extends Error {
   }
 }
 
+/**
+ * 🔴 The model call, with no database on either side of it. PLAN.md 32.1.
+ *
+ * Split out of `generateNoteContent` so `evals/` can exercise **this prompt**
+ * — the one that ships — against a synthetic transcript. The alternative was
+ * an eval that rebuilt the request from an exported constant, which measures a
+ * copy of the pipeline and drifts from it silently. That is C84's shape, and
+ * an eval suite measuring a copy is worse than none: it reports a number about
+ * code nobody runs.
+ *
+ * Usage is returned rather than logged, because the caller is the thing that
+ * knows whose organisation to bill. An eval has none and logs nothing.
+ */
+export async function noteFromTranscript(input: {
+  context: string;
+  transcript: string;
+}): Promise<{
+  content: NoteContent;
+  language: string;
+  raw: Record<string, unknown>;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}> {
+  const completion = await openai().chat.completions.create({
+    model: MODELS.note,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    max_tokens: 3000,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `${input.context ? `Context:\n${input.context}\n\n` : ""}Transcript:\n${input.transcript}`,
+      },
+    ],
+  });
+
+  const raw = parseJson<Record<string, unknown>>(
+    completion.choices[0]?.message?.content,
+    {},
+    "note-generation",
+  );
+
+  return {
+    content: normaliseNote(raw),
+    language: normaliseLanguage(raw.language),
+    raw,
+    model: MODELS.note,
+    inputTokens: completion.usage?.prompt_tokens ?? 0,
+    outputTokens: completion.usage?.completion_tokens ?? 0,
+  };
+}
+
 export async function generateNoteContent(opts: {
   sessionId: string;
   organizationId: string;
@@ -169,40 +223,21 @@ export async function generateNoteContent(opts: {
   if (transcript.trim().length < 80) throw new EmptyTranscriptError();
 
   try {
-    const completion = await openai().chat.completions.create({
-      model: MODELS.note,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      max_tokens: 3000,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `${context ? `Context:\n${context}\n\n` : ""}Transcript:\n${transcript}`,
-        },
-      ],
-    });
+    const generated = await noteFromTranscript({ context, transcript });
 
     await logUsage({
       organizationId: opts.organizationId,
       userId: opts.userId,
       sessionId: opts.sessionId,
       kind: "note",
-      model: MODELS.note,
-      inputTokens: completion.usage?.prompt_tokens ?? 0,
-      outputTokens: completion.usage?.completion_tokens ?? 0,
+      model: generated.model,
+      inputTokens: generated.inputTokens,
+      outputTokens: generated.outputTokens,
       durationMs: Date.now() - started,
       status: "success",
     });
 
-    const raw = parseJson<Record<string, unknown>>(
-      completion.choices[0]?.message?.content,
-      {},
-      "note-generation",
-    );
-
-    const content = normaliseNote(raw);
-    const language = normaliseLanguage(raw.language);
+    const { content, language } = generated;
 
     // English sessions are already English; asking for a translation would
     // spend money to produce the same text.

@@ -219,6 +219,131 @@ export type DiariseResult = {
   skipped?: "two-track" | "too-short" | "no-transcript" | "unavailable";
 };
 
+/**
+ * 🔴 Attribution as a function of text. PLAN.md 32.1.
+ *
+ * Lifted out of `diariseSession` so `evals/` can measure the diarisation error
+ * rate of **the shipped prompt, the shipped batching and the shipped straddle
+ * floor** against a synthetic session with gold labels. An eval that rebuilt
+ * any of those three would be measuring a replica: the batch seam and the
+ * context prefix are where attribution actually goes wrong, so an eval that
+ * skipped them would report a number about the easy part.
+ *
+ * Returns one entry per line: the label it decided, or `null` for a line it
+ * would not answer for. `null` is not a failure — see the note on the top rule
+ * of the prompt — and the caller writes nothing for it.
+ *
+ * `onUsage` keeps billing where it belongs: `diariseSession` logs a row per
+ * batch as it always did, and an eval passes nothing and logs nothing.
+ */
+export type LineLabel = "therapist" | "patient" | null;
+
+export async function attributeLines(
+  texts: string[],
+  opts: {
+    /** What is already known for each line, used for the context prefix. */
+    known?: ("therapist" | "patient" | "unknown")[];
+    onUsage?: (usage: { inputTokens: number; outputTokens: number; durationMs: number }) => Promise<void> | void;
+    onBatchError?: (offset: number, error: unknown) => void;
+  } = {},
+): Promise<{ labels: LineLabel[]; straddles: number; failedBatches: number; batches: number }> {
+  const plan = planBatches(texts.length);
+  const batches = plan.map((b) => ({
+    offset: b.offset,
+    texts: texts.slice(b.offset, b.offset + b.length),
+  }));
+
+  const decided = new Map<number, "therapist" | "patient">();
+  let failedBatches = 0;
+  /** Lines the model labelled that were refused for containing two speakers. */
+  let straddles = 0;
+
+  for (const batch of batches) {
+    /*
+     * The context prefix: lines already labelled, immediately before this
+     * batch. Sent with their speaker so the model can see the rhythm it is
+     * joining, and with a marker so a label coming back for one of them is
+     * unmistakably out of range and ignored.
+     */
+    const contextStart = Math.max(0, batch.offset - BATCH_OVERLAP);
+    const context = texts.slice(contextStart, batch.offset).map((text, i) => {
+      const idx = contextStart + i;
+      const who = decided.get(idx) ?? opts.known?.[idx] ?? "unknown";
+      return `(already labelled, ${who}): ${text}`;
+    });
+
+    const numbered = batch.texts.map((text, i) => `${i}: ${text}`).join("\n");
+    const content =
+      context.length > 0
+        ? `Earlier lines, for context only, do not label these:\n${context.join("\n")}\n\nLabel these:\n${numbered}`
+        : numbered;
+
+    let turns: Turn[];
+    try {
+      const started = Date.now();
+      const response = await openai().chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content },
+        ],
+      });
+
+      await opts.onUsage?.({
+        inputTokens: response.usage?.prompt_tokens ?? 0,
+        outputTokens: response.usage?.completion_tokens ?? 0,
+        durationMs: Date.now() - started,
+      });
+
+      const parsed = parseJson<{ turns?: Turn[] }>(
+        response.choices[0]?.message?.content ?? "",
+        { turns: [] },
+        "diarise",
+      );
+      turns = Array.isArray(parsed.turns) ? parsed.turns : [];
+    } catch (error) {
+      /*
+       * One batch, not the session.
+       *
+       * A transcript with some speakers is worse than one with all of them and
+       * far better than one with none. This never fails the note it runs
+       * before.
+       */
+      failedBatches += 1;
+      opts.onBatchError?.(batch.offset, error);
+      continue;
+    }
+
+    for (const turn of turns) {
+      // Local index -> global. Anything outside this batch's own range is
+      // dropped, which is what makes the context prefix safe.
+      if (!Number.isInteger(turn.i) || turn.i < 0 || turn.i >= batch.texts.length) continue;
+      if (turn.speaker !== "therapist" && turn.speaker !== "patient") continue;
+
+      /*
+       * The deterministic floor, applied after the model has answered.
+       *
+       * The prompt asks for `unknown` on a straddling line and puts that rule
+       * above the schema (H2 — an instruction below the schema loses to the
+       * weight of the context above it). This is the half that does not depend
+       * on the model having listened. A line with a question and an answer in
+       * it is left `unknown` whatever came back.
+       */
+      if (straddlesTurnBoundary(batch.texts[turn.i]!)) {
+        straddles += 1;
+        continue;
+      }
+
+      decided.set(batch.offset + turn.i, turn.speaker);
+    }
+  }
+
+  const labels: LineLabel[] = texts.map((_, i) => decided.get(i) ?? null);
+  return { labels, straddles, failedBatches, batches: batches.length };
+}
+
 export async function diariseSession(opts: {
   sessionId: string;
   organizationId: string;
@@ -277,13 +402,7 @@ export async function diariseSession(opts: {
    * of five leaves batches one, two, four and five attributed, which is
    * strictly better than the old behaviour of attributing nothing past 160.
    */
-  const plan = planBatches(rows.length);
-  const batches = plan.map((b) => ({
-    offset: b.offset,
-    rows: rows.slice(b.offset, b.offset + b.length),
-  }));
-
-  const planned = plan.reduce((n, b) => n + b.length, 0);
+  const planned = planBatches(rows.length).reduce((n, b) => n + b.length, 0);
   if (planned < rows.length) {
     log.warn("diarisation truncated at the batch ceiling", {
       session: ref(opts.sessionId),
@@ -292,106 +411,36 @@ export async function diariseSession(opts: {
     });
   }
 
-  /** What each row was decided to be, keyed by its index in `rows`. */
+  const attributed = await attributeLines(
+    rows.map((row) => row.text),
+    {
+      known: rows.map((row) => row.speaker as "therapist" | "patient" | "unknown"),
+      onUsage: (usage) =>
+        logUsage({
+          organizationId: opts.organizationId,
+          userId: opts.userId,
+          sessionId: opts.sessionId,
+          kind: "diarise",
+          model: "gpt-4o-mini",
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          durationMs: usage.durationMs,
+          status: "success",
+        }),
+      onBatchError: (offset, error) =>
+        log.warn("diarisation batch unavailable", {
+          session: ref(opts.sessionId),
+          offset,
+          reason: safeErrorMessage(error),
+        }),
+    },
+  );
+
+  const { straddles, failedBatches } = attributed;
   const decided = new Map<number, "therapist" | "patient">();
-  let failedBatches = 0;
-  /** Lines the model labelled that were refused for containing two speakers. */
-  let straddles = 0;
-
-  for (const batch of batches) {
-    /*
-     * The context prefix: lines already labelled, immediately before this
-     * batch. Sent with their speaker so the model can see the rhythm it is
-     * joining, and with negative indices so a label coming back for one of them
-     * is unmistakably out of range and ignored.
-     */
-    const contextStart = Math.max(0, batch.offset - BATCH_OVERLAP);
-    const context = rows.slice(contextStart, batch.offset).map((row, i) => {
-      const idx = contextStart + i;
-      const who = decided.get(idx) ?? row.speaker;
-      return `(already labelled, ${who}): ${row.text}`;
-    });
-
-    const numbered = batch.rows.map((row, i) => `${i}: ${row.text}`).join("\n");
-    const content =
-      context.length > 0
-        ? `Earlier lines, for context only, do not label these:\n${context.join("\n")}\n\nLabel these:\n${numbered}`
-        : numbered;
-
-    let turns: Turn[];
-    try {
-      const started = Date.now();
-      const response = await openai().chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content },
-        ],
-      });
-
-      await logUsage({
-        organizationId: opts.organizationId,
-        userId: opts.userId,
-        sessionId: opts.sessionId,
-        kind: "diarise",
-        model: "gpt-4o-mini",
-        inputTokens: response.usage?.prompt_tokens ?? 0,
-        outputTokens: response.usage?.completion_tokens ?? 0,
-        durationMs: Date.now() - started,
-        status: "success",
-      });
-
-      const parsed = parseJson<{ turns?: Turn[] }>(
-        response.choices[0]?.message?.content ?? "",
-        { turns: [] },
-        "diarise",
-      );
-      turns = Array.isArray(parsed.turns) ? parsed.turns : [];
-    } catch (error) {
-      /*
-       * One batch, not the session.
-       *
-       * A transcript with some speakers is worse than one with all of them and
-       * far better than one with none. This never fails the note it runs
-       * before.
-       */
-      failedBatches += 1;
-      log.warn("diarisation batch unavailable", {
-        session: ref(opts.sessionId),
-        offset: batch.offset,
-        reason: safeErrorMessage(error),
-      });
-      continue;
-    }
-
-    for (const turn of turns) {
-      // Local index -> global. Anything outside this batch's own range is
-      // dropped, which is what makes the context prefix safe.
-      if (!Number.isInteger(turn.i) || turn.i < 0 || turn.i >= batch.rows.length) continue;
-      if (turn.speaker !== "therapist" && turn.speaker !== "patient") continue;
-
-      /*
-       * The deterministic floor, applied after the model has answered.
-       *
-       * The prompt asks for `unknown` on a straddling line and puts that rule
-       * above the schema (H2 — an instruction below the schema loses to the
-       * weight of the context above it). This is the half that does not depend
-       * on the model having listened. A line with a question and an answer in
-       * it is left `unknown` whatever came back.
-       *
-       * Deliberately not applied to the *context* prefix, which is not being
-       * relabelled anyway.
-       */
-      if (straddlesTurnBoundary(batch.rows[turn.i]!.text)) {
-        straddles += 1;
-        continue;
-      }
-
-      decided.set(batch.offset + turn.i, turn.speaker);
-    }
-  }
+  attributed.labels.forEach((label, index) => {
+    if (label) decided.set(index, label);
+  });
 
   if (decided.size === 0) {
     return { updated: 0, skipped: failedBatches > 0 ? "unavailable" : undefined };
@@ -444,7 +493,7 @@ export async function diariseSession(opts: {
   log.info("diarisation complete", {
     session: ref(opts.sessionId),
     segments: rows.length,
-    batches: batches.length,
+    batches: attributed.batches,
     failedBatches,
     straddles,
     updated,

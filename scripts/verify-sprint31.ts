@@ -98,7 +98,7 @@ function canonical(html: string): string | null {
 }
 
 async function main() {
-  console.log(`\nSprint 31 — Arabic URLs\n  against ${BASE}\n`);
+  console.log(`\nSprint 31, Arabic URLs\n  against ${BASE}\n`);
 
   /* ------------------------------------------- the arithmetic, without a server -- */
 
@@ -146,7 +146,7 @@ async function main() {
   await skipUnless(
     live,
     "a running server",
-    `nothing answers at ${BASE} — start one with \`npx next start -p 3100\``,
+    `nothing answers at ${BASE}, start one with \`npx next start -p 3100\``,
     async () => {
       /* The sprint, in one status code. This was 404. */
       const arabic = await get("/ar/pricing");

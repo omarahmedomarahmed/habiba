@@ -82,19 +82,104 @@ const CRISIS_PHRASES = [
   "kill me",
   "cant go on",
   "can't go on",
-  "hopeless",
+  /* 32.1 — "I cannot go on like this" missed the list entirely: two
+     contractions were here and the uncontracted form was not. */
+  "cannot go on",
+  /* 32.1 — the commonest indirect phrasing there is. Kept as the whole
+     collocation, because bare "not wake up" matches "I did not wake up until
+     ten" and a false alarm at 3am is how an alert stops being read. */
+  "sleep and not wake up",
+  "not wake up again",
+  "never wake up",
   "hurt someone",
   "kill him",
   "kill her",
   "kill them",
+
+  /*
+   * 🔴 32.1 — the phrases that carry hopelessness, not the word.
+   *
+   * Bare "hopeless" was here and it flagged "I am hopeless at keeping a diary",
+   * which is somebody being hard on themselves about a habit tracker. The eval
+   * put a number on it: three false alarms in eleven negative cases, one of
+   * them this. Hopelessness matters clinically; the adjective on its own does
+   * not carry it.
+   */
+  "feel hopeless",
+  "feeling hopeless",
+  "everything is hopeless",
+  "it is hopeless",
+  "its hopeless",
+
+  /*
+   * 🔴 32.1 — Arabic, which the list could not read at all.
+   *
+   * The first eval run scored Arabic sensitivity at **0%**: five crisis
+   * sentences, none found, in the market this product is built for. The list
+   * had been English-only since it was written, every test passed, and nothing
+   * anywhere said so. That is the single most valuable thing sprint 32 found,
+   * and it was found by counting rather than by reading.
+   *
+   * Stored in folded form (see `fold`): no diacritics, one alef, final ة and ى
+   * normalised, because the same sentence typed by two people differs in
+   * exactly those characters and a crisis scanner may not depend on typing.
+   */
+  "اتمني ان اموت",
+  "اتمني الموت",
+  "نفسي اموت",
+  "عايز اموت",
+  "عاوز اموت",
+  "اريد ان اموت",
+  "بدي اموت",
+  "انهي حياتي",
+  "انهاء حياتي",
+  "اقتل نفسي",
+  "اقضي علي نفسي",
+  "انتحر",
+  "انتحار",
+  "اذيت نفسي",
+  "اؤذي نفسي",
+  "ايذاء نفسي",
+  "جرحت نفسي",
+  "اجرح نفسي",
+  "لا اريد ان اعيش",
+  "مش عايز اعيش",
+  "مش عايزه اعيش",
+  "تعبت من الحياه",
+  "افضل لو مت",
+  "الافضل لو مت",
 ] as const;
+
+/**
+ * 🔴 One spelling, so a phrase list can be read in Arabic at all.
+ *
+ * Arabic is written with optional diacritics, three interchangeable alef forms,
+ * a final ة that half the internet types as ه, and a final ى that half types as
+ * ي. None of those change the word. Matching raw text means a patient who
+ * vowels their writing, or types on a phone keyboard that does not, is invisible
+ * to the scanner — and the one person the scanner exists for is the one writing
+ * at 3am on a phone.
+ *
+ * English passes through this unchanged apart from the lowercasing it already
+ * had, so nothing about the existing behaviour moves.
+ */
+function fold(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[ؐ-ًؚ-ٰٟۖ-ۭـ]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[ؤئ]/g, "ء")
+    /* The tatweel is in the class above; nothing else is stripped. */;
+}
 
 /** Ten minutes. Re-alerting on every mention turns the alert into noise. */
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
 export function scanForCrisisLanguage(text: string): string[] {
-  const haystack = text.toLowerCase();
-  return CRISIS_PHRASES.filter((phrase) => haystack.includes(phrase));
+  const haystack = fold(text);
+  return CRISIS_PHRASES.filter((phrase) => haystack.includes(fold(phrase)));
 }
 
 /**

@@ -28,3 +28,6 @@ docs/screens/admin/
 # Playwright storage states for the screens sweep. Session cookies.
 .screens/
 .render/
+
+# Synthesised eval audio. Regenerated on demand; never committed.
+.evals-audio/

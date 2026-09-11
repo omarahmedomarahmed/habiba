@@ -1,0 +1,86 @@
+{
+  "comment": "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. Re-record on purpose, with a reason in PLAN.md.",
+  "recordedOn": "2026-09-11",
+  "metrics": {
+    "attribution.der": {
+      "value": 0,
+      "direction": "down",
+      "tolerance": 0.06
+    },
+    "attribution.refused": {
+      "value": 0.03809523809523809,
+      "direction": "down",
+      "tolerance": 0.1
+    },
+    "attribution.straddles": {
+      "value": 2,
+      "direction": "up",
+      "tolerance": 0
+    },
+    "notes.ar.coverage": {
+      "value": 0.9333333333333332,
+      "direction": "up",
+      "tolerance": 0.2
+    },
+    "notes.ar.language": {
+      "value": 1,
+      "direction": "up",
+      "tolerance": 0
+    },
+    "notes.coverage": {
+      "value": 0.8444444444444446,
+      "direction": "up",
+      "tolerance": 0.15
+    },
+    "notes.language": {
+      "value": 1,
+      "direction": "up",
+      "tolerance": 0
+    },
+    "notes.sections": {
+      "value": 0.9074074074074074,
+      "direction": "up",
+      "tolerance": 0.12
+    },
+    "notes.unsupported": {
+      "value": 0,
+      "direction": "down",
+      "tolerance": 0.06
+    },
+    "risk.sensitivity": {
+      "value": 0.8461538461538461,
+      "direction": "up",
+      "tolerance": 0.05
+    },
+    "risk.sensitivity.ar": {
+      "value": 0.8,
+      "direction": "up",
+      "tolerance": 0.05
+    },
+    "risk.sensitivity.en": {
+      "value": 0.875,
+      "direction": "up",
+      "tolerance": 0.05
+    },
+    "risk.specificity": {
+      "value": 0.7272727272727273,
+      "direction": "up",
+      "tolerance": 0.05
+    },
+    "speech.wer": {
+      "value": 0.022598870056497175,
+      "direction": "down",
+      "tolerance": 0.04
+    },
+    "speech.wer.ar": {
+      "value": 0,
+      "direction": "down",
+      "tolerance": 0.06
+    },
+    "speech.wer.detected": {
+      "value": 0.02824858757062147,
+      "direction": "down",
+      "tolerance": 0.06
+    }
+  }
+}

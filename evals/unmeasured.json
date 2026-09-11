@@ -1,0 +1,5 @@
+{
+  "comment": "The high-water mark for model surfaces with no eval. verify:sprint32 FAILS when it rises. Lowering it is the work; raising it is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md.",
+  "unmeasured": 6,
+  "measuredOn": "2026-09-13"
+}

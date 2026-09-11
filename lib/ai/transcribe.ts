@@ -24,6 +24,51 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
  * `toFile` (rather than `new File(...)`) is required — the browser File
  * constructor does not work with a Node Buffer.
  */
+/**
+ * 🔴 The transcription call, with no database on either side of it. 32.1.
+ *
+ * Extracted so `evals/` can measure word error rate against the **shipped**
+ * request — this model, this language handling, this prompt — rather than a
+ * reconstruction of it. The language logic in particular is the part that has
+ * already been wrong once in production (every Arabic session asserted to be
+ * English), and an eval that rebuilt the request would not have been measuring
+ * the thing that broke.
+ *
+ * `extension` matters: the API reads the container from the filename, and a
+ * WAV sent as `.webm` is rejected.
+ */
+export async function transcribeAudio(opts: {
+  audio: ArrayBuffer;
+  mimeType: string;
+  language?: string | null;
+}): Promise<string> {
+  const extension = opts.mimeType.includes("wav")
+    ? "wav"
+    : opts.mimeType.includes("mp3") || opts.mimeType.includes("mpeg")
+      ? "mp3"
+      : "webm";
+  const language = normaliseLanguage(opts.language);
+
+  const file = await toFile(Buffer.from(opts.audio), `chunk.${extension}`, {
+    type: opts.mimeType,
+  });
+
+  const result = await openai().audio.transcriptions.create({
+    model: MODELS.transcribe,
+    file,
+    // Omitted entirely when unknown. The API detects a language when this key
+    // is absent; sending an empty string or "auto" is an error, not a hint.
+    ...(language ? { language } : {}),
+    // Nudges the model away from hallucinating filler on near-silent chunks.
+    // Written in the target language, because an English prompt is itself a
+    // pull toward English output on ambiguous audio — the same bias that the
+    // hardcoded language tag caused, arriving through a different door.
+    prompt: chunkPrompt(language),
+  });
+
+  return cleanTranscript(result.text ?? "");
+}
+
 export async function transcribeChunk(opts: {
   audio: ArrayBuffer;
   mimeType: string;
@@ -49,25 +94,11 @@ export async function transcribeChunk(opts: {
   language?: string | null;
 }): Promise<string> {
   const started = Date.now();
-  const extension = opts.mimeType.includes("wav") ? "wav" : "webm";
-  const language = normaliseLanguage(opts.language);
-
   try {
-    const file = await toFile(Buffer.from(opts.audio), `chunk.${extension}`, {
-      type: opts.mimeType,
-    });
-
-    const result = await openai().audio.transcriptions.create({
-      model: MODELS.transcribe,
-      file,
-      // Omitted entirely when unknown. The API detects a language when this key
-      // is absent; sending an empty string or "auto" is an error, not a hint.
-      ...(language ? { language } : {}),
-      // Nudges the model away from hallucinating filler on near-silent chunks.
-      // Written in the target language, because an English prompt is itself a
-      // pull toward English output on ambiguous audio — the same bias that the
-      // hardcoded language tag caused, arriving through a different door.
-      prompt: chunkPrompt(language),
+    const text = await transcribeAudio({
+      audio: opts.audio,
+      mimeType: opts.mimeType,
+      language: opts.language,
     });
 
     await logUsage({
@@ -81,7 +112,7 @@ export async function transcribeChunk(opts: {
       status: "success",
     });
 
-    return cleanTranscript(result.text ?? "");
+    return text;
   } catch (error) {
     await logUsage({
       organizationId: opts.organizationId,
