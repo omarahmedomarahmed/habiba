@@ -7,6 +7,7 @@ import { Check, Loader2 } from "lucide-react";
 import { approveSession } from "@/app/(app)/sessions/actions";
 import { Button, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * One screen, one action, three items. PLAN.md 26.3, C112.
@@ -51,6 +52,7 @@ type Props = {
 
 export function SessionApproval(props: Props) {
   const router = useRouter();
+  const t = useT();
   const [pending, start] = useTransition();
 
   const [clinical, setClinical] = useState(false);
@@ -68,10 +70,9 @@ export function SessionApproval(props: Props) {
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">Before you close this session</p>
+      <p className="text-sm font-semibold text-slate-900">{t("tappr.title")}</p>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">
-        Three things, one button. Nothing here happens unless you tick it, and nothing is published
-        by walking away.
+        {t("tappr.body")}
       </p>
 
       <ul className="mt-4 space-y-2.5">
@@ -81,12 +82,8 @@ export function SessionApproval(props: Props) {
             done={props.clinicalSigned}
             disabled={props.clinicalSigned || !props.hasNote}
             onChange={setClinical}
-            title="Sign the clinical note"
-            body={
-              props.clinicalSigned
-                ? "Signed. It stays in the chart and reaches no patient."
-                : "Your professional record of the session. Nobody but you and your practice reads it."
-            }
+            title={t("tappr.signNote")}
+            body={props.clinicalSigned ? t("tappr.signedBody") : t("tappr.signBody")}
           />
         </li>
         <li>
@@ -95,12 +92,8 @@ export function SessionApproval(props: Props) {
             done={props.patientReleased}
             disabled={props.patientReleased || !props.hasNote}
             onChange={setPatient}
-            title={`Release ${props.patientLabel}'s copy`}
-            body={
-              props.patientReleased
-                ? "Released. There is no unsending, which is why it was its own decision."
-                : "The plain-language summary of today, written to them. Once released it cannot be unsent."
-            }
+            title={t("tappr.release", { name: props.patientLabel })}
+            body={props.patientReleased ? t("tappr.releasedBody") : t("tappr.releaseBody")}
           />
         </li>
       </ul>
@@ -108,19 +101,20 @@ export function SessionApproval(props: Props) {
       {props.canSummarise ? (
         <div className="mt-4">
           <p className="text-sm font-semibold text-slate-900">
-            Add a version to their clinical summary
+            {t("tappr.patientVersion")}
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            This one belongs to {props.patientLabel} rather than to your practice. It is about the
-            course of treatment rather than today, the next clinician they see will read it, and
-            every version stays: yours is added beside whatever is already there, never over it.
+            {t("tappr.summaryBody", { name: props.patientLabel })}
           </p>
 
           {props.previousSummary ? (
             <details className="mt-2.5 rounded-xl bg-slate-50 p-3">
               <summary className="cursor-pointer text-xs font-semibold text-slate-600">
-                Version {props.previousSummary.version}, by {props.previousSummary.approvedByName} on{" "}
-                {props.previousSummary.on}
+                {t("tappr.versionBy", {
+                  version: props.previousSummary.version,
+                  name: props.previousSummary.approvedByName,
+                  date: props.previousSummary.on,
+                })}
               </summary>
               <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
                 {props.previousSummary.body}
@@ -132,12 +126,11 @@ export function SessionApproval(props: Props) {
             rows={5}
             value={summary}
             onChange={(event) => setSummary(event.target.value)}
-            placeholder="Leave this empty and no version is published."
+            placeholder={t("tappr.leaveEmpty")}
             className="mt-2.5 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm leading-relaxed"
           />
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Written to them, not about them: no diagnosis, no impressions, no risk language. A
-            diagnosis belongs on the diagnoses list, where it carries the sentence it came from.
+            {t("tappr.patientVersionBody")}
           </p>
         </div>
       ) : null}
@@ -177,7 +170,7 @@ export function SessionApproval(props: Props) {
         ) : (
           <Check className="h-4 w-4" aria-hidden />
         )}
-        {willDo ? "Publish what is ticked" : "Nothing ticked"}
+        {willDo ? t("tappr.publish") : t("tappr.nothingTicked")}
       </Button>
     </Card>
   );

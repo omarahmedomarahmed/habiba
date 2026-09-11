@@ -6,7 +6,6 @@ import { JoinFlow } from "@/components/join/join-flow";
 import { PatientChrome } from "@/components/patient/chrome";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
-import { localeTag } from "@/lib/i18n/config";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
@@ -161,7 +160,6 @@ export default async function JoinPage({
             sessionId={session.id}
             startedAt={null}
             waitMinutes={Math.floor((Date.now() - session.scheduledAt.getTime()) / 60_000)}
-            locale={localeTag((await getI18n()).locale)}
           />
         </div>
       ) : null}

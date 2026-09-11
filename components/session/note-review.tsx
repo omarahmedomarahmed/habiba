@@ -16,6 +16,8 @@ import {
 } from "@/app/(app)/sessions/actions";
 import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 type Props = {
   sessionId: string;
@@ -61,6 +63,7 @@ type Props = {
  */
 export function NoteReview(props: Props) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
 
   const [note, setNote] = useState<NoteContent | null>(props.initialNote);
@@ -108,10 +111,9 @@ export function NoteReview(props: Props) {
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
         <Sparkles className="h-6 w-6 animate-pulse text-brand-500" aria-hidden />
-        <p className="text-base font-semibold text-slate-900">Writing your note</p>
+        <p className="text-base font-semibold text-slate-900">{t("tnote.writing")}</p>
         <p className="max-w-xs text-sm text-slate-500">
-          This usually takes under half a minute. You can leave this page. It will be here when
-          you get back.
+          {t("tnote.writingBody")}
         </p>
       </Card>
     );
@@ -120,10 +122,9 @@ export function NoteReview(props: Props) {
   if (props.noteStatus === "failed" || !note) {
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <p className="text-base font-semibold text-slate-900">The note could not be written</p>
+        <p className="text-base font-semibold text-slate-900">{t("tnote.failed")}</p>
         <p className="max-w-sm text-sm text-slate-500">
-          This usually means very little was captured, check the transcript below. You can try
-          again without re-running the session.
+          {t("tnote.failedBody")}
         </p>
         <Button
           variant="secondary"
@@ -157,7 +158,7 @@ export function NoteReview(props: Props) {
       if (result.error) setError(result.error);
       else {
         setEditing(false);
-        setFeedback("Saved");
+        setFeedback(t("common.saved"));
       }
     });
 
@@ -171,9 +172,7 @@ export function NoteReview(props: Props) {
         setStatus("approved");
         setEditing(false);
         setFeedback(
-          patientStatus === "approved"
-            ? "Clinical note signed"
-            : "Clinical note signed. Their summary is still yours to approve.",
+          patientStatus === "approved" ? t("tnote.signed") : t("tnote.signedPending"),
         );
         // The other half is the one that reaches a person, so point at it.
         if (patientStatus !== "approved") setTab("patient");
@@ -191,7 +190,7 @@ export function NoteReview(props: Props) {
       if (result.error) setError(result.error);
       else {
         setEditingBrief(false);
-        setFeedback("Saved");
+        setFeedback(t("common.saved"));
       }
     });
 
@@ -214,7 +213,7 @@ export function NoteReview(props: Props) {
       else {
         setPatientStatus("approved");
         setEditingBrief(false);
-        setFeedback("Approved. Their summary is released");
+        setFeedback(t("tnote.released"));
       }
     });
 
@@ -237,16 +236,22 @@ export function NoteReview(props: Props) {
           active={tab === "clinical"}
           onClick={() => setTab("clinical")}
           icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />}
-          label="Clinical note"
-          state={status === "approved" ? "Signed" : "Draft"}
+          label={t("tnote.clinicalTab")}
+          state={status === "approved" ? t("tnote.stateSigned") : t("tnote.stateDraft")}
           done={status === "approved"}
         />
         <DocTab
           active={tab === "patient"}
           onClick={() => setTab("patient")}
           icon={<User className="h-3.5 w-3.5" aria-hidden />}
-          label="Their summary"
-          state={patientStatus === "approved" ? (sent ? "Sent" : "Released") : "Not approved"}
+          label={t("tnote.patientTab")}
+          state={
+            patientStatus === "approved"
+              ? sent
+                ? t("tnote.stateSent")
+                : t("tnote.stateReleased")
+              : t("tnote.stateNotApproved")
+          }
           done={patientStatus === "approved"}
         />
       </div>
@@ -267,7 +272,7 @@ export function NoteReview(props: Props) {
                 active={!showEnglish}
                 onClick={() => setShowEnglish(false)}
                 label={props.languageLabel}
-                hint="the record"
+                hint={t("tnote.theRecord")}
               />
               <LangTab
                 active={showEnglish}
@@ -275,15 +280,15 @@ export function NoteReview(props: Props) {
                   setShowEnglish(true);
                   setEditing(false);
                 }}
-                label="English"
-                hint="translation"
+                label={t("tcop.english")}
+                hint={t("tnote.translation")}
               />
             </div>
           ) : null}
 
           {editing && !showEnglish ? (
             <Card className="space-y-4 p-4">
-              <Field label="Summary" htmlFor="summary">
+              <Field label={t("tnote.summary")} htmlFor="summary">
                 <Textarea
                   id="summary"
                   rows={3}
@@ -292,7 +297,7 @@ export function NoteReview(props: Props) {
                 />
               </Field>
               {(["subjective", "objective", "assessment", "plan"] as const).map((key) => (
-                <Field key={key} label={key[0]!.toUpperCase() + key.slice(1)} htmlFor={key}>
+                <Field key={key} label={t(SOAP_LABELS[key])} htmlFor={key}>
                   <Textarea
                     id={key}
                     rows={4}
@@ -301,7 +306,7 @@ export function NoteReview(props: Props) {
                   />
                 </Field>
               ))}
-              <Field label="Follow-up" htmlFor="followUp">
+              <Field label={t("tnote.followUp")} htmlFor="followUp">
                 <Input
                   id="followUp"
                   value={note.followUp}
@@ -316,10 +321,10 @@ export function NoteReview(props: Props) {
                   onClick={() => setEditing(false)}
                   disabled={pending}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button full onClick={handleSave} disabled={pending}>
-                  {pending ? "Saving…" : "Save changes"}
+                  {pending ? t("common.saving") : t("tnote.saveChanges")}
                 </Button>
               </div>
             </Card>
@@ -337,14 +342,14 @@ export function NoteReview(props: Props) {
           {showEnglish ? (
             <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs leading-relaxed text-slate-600">
               A machine translation of the note above, for a supervisor or an insurer. The record
-              you sign is the {props.languageLabel} one, switch back to edit or approve it.
+              {t("tnote.machineNote", { language: props.languageLabel })}
             </p>
           ) : null}
 
           {!editing && !showEnglish ? (
             <div className="flex flex-col gap-2.5 sm:flex-row">
               <Button variant="secondary" full onClick={() => setEditing(true)}>
-                <Pencil className="h-4 w-4" aria-hidden /> Edit
+                <Pencil className="h-4 w-4" aria-hidden /> {t("tnote.edit")}
               </Button>
 
               {status === "draft" && props.approvals !== false ? (
@@ -354,7 +359,7 @@ export function NoteReview(props: Props) {
                   ) : (
                     <Check className="h-4 w-4" aria-hidden />
                   )}
-                  Sign the note
+                  {t("tnote.sign")}
                 </Button>
               ) : null}
             </div>
@@ -362,7 +367,7 @@ export function NoteReview(props: Props) {
 
           {status === "approved" ? (
             <p className="px-1 text-xs leading-relaxed text-slate-500">
-              Signed. This stays in the chart, nothing on this tab is ever sent to a patient.
+              {t("tnote.signedNote")}
             </p>
           ) : null}
         </>
@@ -371,7 +376,7 @@ export function NoteReview(props: Props) {
         <>
           {editingBrief ? (
             <Card className="space-y-4 p-4">
-              <Field label="What you talked about" htmlFor="patientBrief">
+              <Field label={t("tnote.talkedAbout")} htmlFor="patientBrief">
                 <Textarea
                   id="patientBrief"
                   rows={7}
@@ -386,7 +391,7 @@ export function NoteReview(props: Props) {
                 disabled={pending}
               />
 
-              <Field label="What happens next" htmlFor="patientNext">
+              <Field label={t("tnote.whatNext")} htmlFor="patientNext">
                 <Input
                   id="patientNext"
                   value={patientNext}
@@ -401,10 +406,10 @@ export function NoteReview(props: Props) {
                   onClick={() => setEditingBrief(false)}
                   disabled={pending}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button full onClick={handleSaveBrief} disabled={pending}>
-                  {pending ? "Saving…" : "Save changes"}
+                  {pending ? t("common.saving") : t("tnote.saveChanges")}
                 </Button>
               </div>
             </Card>
@@ -413,10 +418,10 @@ export function NoteReview(props: Props) {
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900">
-                    What {props.patientLabel} receives
+                    {t("tnote.receives", { name: props.patientLabel })}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Word for word. Nothing else from this session leaves the practice.
+                    {t("tnote.receivesBody")}
                   </p>
                 </div>
                 <span
@@ -427,7 +432,7 @@ export function NoteReview(props: Props) {
                       : "bg-slate-100 text-slate-600",
                   )}
                 >
-                  {patientStatus === "approved" ? "Approved" : "Draft"}
+                  {patientStatus === "approved" ? t("tnote.approved") : t("tnote.stateDraft")}
                 </span>
               </div>
 
@@ -444,7 +449,7 @@ export function NoteReview(props: Props) {
           {!editingBrief ? (
             <div className="flex flex-col gap-2.5 sm:flex-row">
               <Button variant="secondary" full onClick={() => setEditingBrief(true)}>
-                <Pencil className="h-4 w-4" aria-hidden /> Edit their copy
+                <Pencil className="h-4 w-4" aria-hidden /> {t("tnote.editCopy")}
               </Button>
 
               {patientStatus === "draft" && props.approvals !== false ? (
@@ -454,7 +459,7 @@ export function NoteReview(props: Props) {
                   ) : (
                     <Check className="h-4 w-4" aria-hidden />
                   )}
-                  Approve and send
+                  {t("tnote.approveAndSend")}
                 </Button>
               ) : null}
             </div>
@@ -473,18 +478,17 @@ export function NoteReview(props: Props) {
             <Card className="p-4">
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Mail className="h-4 w-4 text-teal-600" aria-hidden />
-                {sent ? "Their summary has been sent" : "Their summary is released"}
+                {sent ? t("tnote.sentTitle") : t("tnote.releasedTitle")}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 {props.patientEmail
-                  ? `${props.patientEmail} gets exactly what is above, not the clinical note, the moment they complete their session rating, or straight away if they already have. If they have not, we email them once to say it is waiting.`
-                  : "Your patient receives exactly what is above, not the clinical note, when they rate the session and give us an address. Nothing is sent until they ask for it."}
+                  ? t("tnote.sentBody", { email: props.patientEmail })
+                  : t("tnote.releasedBody")}
               </p>
             </Card>
           ) : (
             <p className="px-1 text-xs leading-relaxed text-slate-500">
-              Nothing has been sent. Approving this is what releases it, the clinical note is
-              never part of it, whether or not it is signed.
+              {t("tnote.nothingSent")}
             </p>
           )}
         </>
@@ -503,6 +507,16 @@ export function NoteReview(props: Props) {
  */
 const MAX_STEPS = 4;
 
+/* The SOAP headings, as keys. They were built by capitalising the field name,
+   which produces an English word from a database key and nothing a translator
+   can reach. 37L.2. */
+const SOAP_LABELS = {
+  subjective: "tnote.subjective",
+  objective: "tnote.objective",
+  assessment: "tnote.assessment",
+  plan: "tnote.plan",
+} as const satisfies Record<"subjective" | "objective" | "assessment" | "plan", MessageKey>;
+
 function StepEditor({
   steps,
   onChange,
@@ -512,9 +526,10 @@ function StepEditor({
   onChange: (steps: string[]) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   return (
     <div>
-      <p className="mb-1.5 text-sm font-medium text-slate-700">Before we next meet</p>
+      <p className="mb-1.5 text-sm font-medium text-slate-700">{t("tnote.beforeNext")}</p>
       <div className="space-y-2">
         {steps.map((step, index) => (
           <div key={index} className="flex items-start gap-2">
@@ -524,7 +539,7 @@ function StepEditor({
             <Textarea
               className="min-w-0 flex-1"
               rows={2}
-              aria-label={`Step ${index + 1}`}
+              aria-label={t("tnote.stepLabel", { number: index + 1 })}
               value={step}
               onChange={(e) =>
                 onChange(steps.map((s, i) => (i === index ? e.target.value : s)))
@@ -534,7 +549,7 @@ function StepEditor({
               type="button"
               disabled={disabled}
               onClick={() => onChange(steps.filter((_, i) => i !== index))}
-              aria-label={`Remove step ${index + 1}`}
+              aria-label={t("tnote.removeStep", { number: index + 1 })}
               className="tap-target mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-red-600"
             >
               <Trash2 className="h-4 w-4" aria-hidden />
@@ -550,11 +565,11 @@ function StepEditor({
           onClick={() => onChange([...steps, ""])}
           className="mt-2 flex items-center gap-1.5 rounded-lg px-1 py-1.5 text-sm font-semibold text-teal-700 hover:text-teal-800"
         >
-          <Plus className="h-4 w-4" aria-hidden /> Add a step
+          <Plus className="h-4 w-4" aria-hidden /> {t("tnote.addStep")}
         </button>
       ) : (
         <p className="mt-2 px-1 text-xs text-slate-400">
-          Four is the most anybody starts. Cut one to add another.
+          {t("tnote.maxSteps")}
         </p>
       )}
     </div>
