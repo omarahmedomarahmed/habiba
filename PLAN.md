@@ -2290,6 +2290,14 @@ unexamined.*
 - [ ] **40.3** 🔴 **A partner never flips the approval bit.** `isCleared()`
       does not change. A bad match is a named person's mistake, never an
       unexplained approval
+- [ ] **40.5** 🔴 **Vezeeta lists 1,158 PSYCHIATRISTS, not therapists.**
+      Psychiatrists are physicians carrying a Medical Syndicate licence;
+      psychologists and counsellors are not syndicate members at all. Adapter
+      one therefore covers roughly half the supply this marketplace needs, and
+      the other half still has no credential path. Build the registry so that
+      second path is an adapter rather than a rewrite, and say on the admin
+      screen which source a match came from, because "verified" will otherwise
+      mean two different things
 - [ ] **40.4** `roster_entries` is PII about people who never signed up:
       retention rule, lawful basis, and **no therapist can ever search it**
 
