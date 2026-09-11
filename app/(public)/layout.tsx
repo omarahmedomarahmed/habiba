@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 
 import { Button } from "@/components/ui";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getFooterLinks, getPublicNav } from "@/lib/content/service";
+import { env } from "@/lib/env";
+import { getLocale } from "@/lib/i18n/server";
+import { alternatesFor, localisedPath } from "@/lib/i18n/paths";
 import { publicLanguages } from "@/lib/i18n/strings";
 
 /**
@@ -18,19 +23,53 @@ const CODE_PAGES = [
   { href: "/verify", label: "Check a record extract" },
 ] as const;
 
+/**
+ * 🔴 `hreflang` for every public page, declared once. PLAN.md 31.1.
+ *
+ * In the **layout**, deliberately. Next merges metadata down the segment
+ * chain, so a page that says nothing about alternates inherits this, and a new
+ * marketing page is correct on the day it is added rather than on the day
+ * somebody notices. The alternative — the same four lines copied into eleven
+ * `generateMetadata` functions — is the shape that produced C84 and C150: a
+ * rule some call sites remember.
+ *
+ * A crawler that finds `/ar/pricing` with no link back to `/pricing` treats
+ * them as unrelated documents competing with each other, which is worse for
+ * both than publishing one.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const pathname = (await headers()).get("x-pathname") ?? "/";
+  return { alternates: alternatesFor(pathname, env.appUrl) };
+}
+
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [nav, footer, offered] = await Promise.all([
+  const [nav, footer, offered, locale] = await Promise.all([
     getPublicNav(),
     getFooterLinks(),
     // 21.13 — only the languages whose public switch is on.
     publicLanguages(),
+    getLocale(),
   ]);
+
+  /*
+   * 🔴 Every link out of this chrome keeps the prefix.
+   *
+   * Without it an Arabic reader is one nav click from `/features` — still in
+   * Arabic, because the cookie follows them, but at a URL that says English.
+   * They would then share the page they are reading and their friend would
+   * open it in a language they may not read. A prefix that does not survive
+   * navigation is a prefix that only works for the first page.
+   */
+  const href = (path: string) => localisedPath(path, locale);
+
+  /* The real path, prefix and all. See the note in `LanguageSwitch`. */
+  const pathname = (await headers()).get("x-pathname") ?? "/";
 
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="text-[15px] font-bold tracking-tight text-navy-500">
+          <Link href={href("/")} className="text-[15px] font-bold tracking-tight text-navy-500">
             24Therapy
           </Link>
 
@@ -38,7 +77,7 @@ export default async function PublicLayout({ children }: { children: React.React
             {nav.map((item) => (
               <Link
                 key={item.slug}
-                href={`/${item.slug}`}
+                href={href(`/${item.slug}`)}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               >
                 {item.label}
@@ -51,7 +90,7 @@ export default async function PublicLayout({ children }: { children: React.React
               accident from the content editor.
             */}
             <Link
-              href="/radar"
+              href={href("/radar")}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50"
             >
               <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" aria-hidden />
@@ -68,8 +107,9 @@ export default async function PublicLayout({ children }: { children: React.React
             <LanguageSwitch
               className="hidden sm:inline-flex"
               offered={offered.map((row) => ({ code: row.code, nativeName: row.nativeName }))}
+              pathname={pathname}
             />
-            <Link href="/radar" className="sm:hidden">
+            <Link href={href("/radar")} className="sm:hidden">
               <Button variant="ghost" size="sm" className="text-teal-700">
                 Talk now
               </Button>
@@ -89,7 +129,7 @@ export default async function PublicLayout({ children }: { children: React.React
               free" is the clinician's signup and stays the primary action for
               them. Neither is hidden behind the other.
             */}
-            <Link href="/for-patients" className="hidden sm:block">
+            <Link href={href("/for-patients")} className="hidden sm:block">
               <Button variant="secondary" size="sm">
                 I need a therapist
               </Button>
@@ -125,7 +165,7 @@ export default async function PublicLayout({ children }: { children: React.React
               {nav.concat(footer).map((item) => (
                 <Link
                   key={item.slug}
-                  href={`/${item.slug}`}
+                  href={href(`/${item.slug}`)}
                   className="text-xs text-slate-500 hover:text-slate-900"
                 >
                   {item.label}
@@ -141,7 +181,7 @@ export default async function PublicLayout({ children }: { children: React.React
               {CODE_PAGES.map((item) => (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={href(item.href)}
                   className="text-xs text-slate-500 hover:text-slate-900"
                 >
                   {item.label}

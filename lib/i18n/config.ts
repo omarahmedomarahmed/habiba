@@ -20,7 +20,13 @@ export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
 
-/** The cookie is the whole locale mechanism. See `lib/i18n/server.ts`. */
+/**
+ * The **preference**, not the mechanism. 31.1, C103.
+ *
+ * It was the whole mechanism until sprint 31, which is why `/ar/pricing` was a
+ * 404. Now a URL prefix decides where there is one and this decides where
+ * there is not: an unprefixed path, and everything behind a login.
+ */
 export const LOCALE_COOKIE = "24t_locale";
 
 const RTL = new Set<string>(["ar"]);

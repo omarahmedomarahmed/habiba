@@ -1,12 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Languages } from "lucide-react";
 
 import { setLocale } from "@/app/actions/locale";
 import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
 import { useLocale } from "@/lib/i18n/client";
+import { isLocalisable, localisedPath } from "@/lib/i18n/paths";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,21 +35,43 @@ import { cn } from "@/lib/utils";
  * — a test, a demo, a page nobody has updated — still offers something rather
  * than nothing.
  */
+/**
+ * 🔴 31.1 — switching language now changes the URL, where there is one.
+ *
+ * `pathname` comes from the server, not from `usePathname()`. The Arabic pages
+ * are served by a middleware **rewrite**, so the router's idea of the path is
+ * the rewritten one (`/pricing`) while the browser's address bar says
+ * `/ar/pricing`. Switching on the router's answer would send a reader from
+ * Arabic to Arabic and look like a broken button. The layout reads the real
+ * path from `x-pathname` and passes it down.
+ *
+ * On a path that has no translated URL — `/join/<token>`, the signed-in app —
+ * the cookie is still the whole mechanism and the switch refreshes in place.
+ * Those pages have one address on purpose (C153).
+ */
 export function LanguageSwitch({
   className,
   offered,
+  pathname,
 }: {
   className?: string;
   offered?: { code: string; nativeName: string }[];
+  pathname?: string;
 }) {
   const current = useLocale();
   const router = useRouter();
+  const routerPath = usePathname();
   const [pending, startTransition] = useTransition();
+
+  const here = pathname ?? routerPath ?? "/";
 
   const choose = (next: Locale) =>
     startTransition(async () => {
+      /* The cookie is still the preference, and it is set either way: a reader
+         who chose Arabic on a public page stays in Arabic when they sign in. */
       await setLocale(next);
-      router.refresh();
+      if (isLocalisable(here)) router.push(localisedPath(here, next));
+      else router.refresh();
     });
 
   return (
