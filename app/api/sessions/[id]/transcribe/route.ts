@@ -9,6 +9,8 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { sessions } from "@/lib/db/schema";
 import { recordSessionSuggestions } from "@/lib/data/copilot";
 import { appendTranscriptSegment } from "@/lib/data/transcript";
+import { recordIngestUse, sourceForIngest } from "@/lib/data/session-sources";
+import { bearerFrom, ingestDecision } from "@/lib/ingest/token";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 /*
@@ -39,30 +41,84 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await assertSameOrigin();
-    const actor = await requireUserApi();
     const { id: sessionId } = await params;
 
-    // Ownership is checked here, not inferred from the URL. The transcript is
-    // the rawest PHI in the system.
-    const [session] = await db
-      .select({
-        id: sessions.id,
-        status: sessions.status,
-        organizationId: sessions.organizationId,
-        therapistId: sessions.therapistId,
-        patientId: sessions.patientId,
-        transcriptLanguage: sessions.transcriptLanguage,
-      })
-      .from(sessions)
-      .where(
-        and(
-          eq(sessions.id, sessionId),
-          eq(sessions.organizationId, actor.organizationId),
-          eq(sessions.therapistId, actor.userId),
-        ),
-      )
-      .limit(1);
+    /*
+     * 🔴 36.2 — THREE doors, and this is the third.
+     *
+     * A browser fetch from our own page (same origin + a clinician's cookie)
+     * is doors one and two, unchanged. A bot has neither: no origin, and it
+     * must never hold a person's session. So a session-scoped bearer token is
+     * the third, and it is narrower than either of the others.
+     *
+     * The order matters. The token branch is taken **only** when a bearer is
+     * presented, so a browser request cannot fall into it by accident and a
+     * bot cannot fall out of it into the clinician path. Nothing about the two
+     * existing doors is weakened; there is simply a third, with less behind it.
+     */
+    const bearer = bearerFrom(request.headers.get("authorization"));
+
+    let session: {
+      id: string;
+      status: string;
+      organizationId: string;
+      therapistId: string;
+      patientId: string | null;
+      transcriptLanguage: string | null;
+    } | null = null;
+    /** Who to bill the model call to, and whether the copilot may run. */
+    let actorUserId: string;
+    let viaToken = false;
+
+    if (bearer) {
+      const found = await sourceForIngest(sessionId);
+      const decision = ingestDecision({
+        sessionId,
+        header: request.headers.get("authorization"),
+        source: found?.source ?? null,
+      });
+
+      if (!decision.ok) {
+        /*
+         * One status and one word for every refusal. The reason is logged and
+         * never returned: "expired" versus "wrong_session" tells a prober which
+         * session ids exist, and a bot has nothing useful to do with either.
+         */
+        log.warn("ingest token refused", { session: ref(sessionId), reason: decision.reason });
+        return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      }
+
+      session = found!.session;
+      actorUserId = found!.session.therapistId;
+      viaToken = true;
+    } else {
+      await assertSameOrigin();
+      const actor = await requireUserApi();
+      actorUserId = actor.userId;
+
+      // Ownership is checked here, not inferred from the URL. The transcript is
+      // the rawest PHI in the system.
+      const [row] = await db
+        .select({
+          id: sessions.id,
+          status: sessions.status,
+          organizationId: sessions.organizationId,
+          therapistId: sessions.therapistId,
+          patientId: sessions.patientId,
+          transcriptLanguage: sessions.transcriptLanguage,
+        })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.id, sessionId),
+            eq(sessions.organizationId, actor.organizationId),
+            eq(sessions.therapistId, actor.userId),
+          ),
+        )
+        .limit(1);
+
+      session = row ?? null;
+    }
 
     if (!session) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -99,7 +155,7 @@ export async function POST(
       mimeType: file.type || "audio/wav",
       durationSeconds: Number.isFinite(durationRaw) ? durationRaw : 8,
       organizationId: session.organizationId,
-      userId: actor.userId,
+      userId: actorUserId,
       sessionId: session.id,
       // Null until somebody sets it in the room, and null means "detect it".
       // Either is better than the "en" that used to be hardcoded one layer
@@ -123,18 +179,42 @@ export async function POST(
       endMs: sequenceRaw * 8000,
     });
 
-    // The response to the chunk upload is the push channel. The client is
-    // already talking to the server every few seconds, so a crisis flag, a new
-    // segment and any copilot suggestion ride back on a request that was
-    // happening anyway — which is why this app needs no WebSocket at all.
+    /*
+     * 🔴 The third door appends audio and NOTHING else.
+     *
+     * The copilot is a clinician's panel: it reads the chart, writes into their
+     * thread, and belongs to a person who is in the room. A bot is not in the
+     * room and has no person, so the token branch never runs it — and because
+     * the suggestions are also the response body, a token holder never receives
+     * clinical text back either. What goes in is audio; what comes out is a
+     * sequence number.
+     *
+     * The response to the chunk upload is otherwise the push channel. The
+     * client is already talking to the server every few seconds, so a crisis
+     * flag, a new segment and any copilot suggestion ride back on a request
+     * that was happening anyway — which is why this app needs no WebSocket.
+     */
     const suggestions =
-      result.inserted && shouldRunCopilot(sequenceRaw)
+      !viaToken && result.inserted && shouldRunCopilot(sequenceRaw)
         ? await generateCopilot({
             sessionId: session.id,
             organizationId: session.organizationId,
-            userId: actor.userId,
+            userId: actorUserId,
           })
         : [];
+
+    if (viaToken) {
+      await recordIngestUse(session.id, session.organizationId, session.patientId);
+      /*
+       * 🔴 And the body a bot gets back carries no clinical text.
+       *
+       * `text` is what the patient just said and `crisis` is a clinical
+       * judgement about them. Neither belongs in a response to a machine that
+       * authenticated with a token somebody could leave in a log. The audio
+       * went in; the acknowledgement comes out.
+       */
+      return NextResponse.json({ sequence: sequenceRaw, accepted: true });
+    }
 
     // Anything surfaced in the room is written into that patient's copilot
     // thread, so the panel during a session and the chat afterwards are one

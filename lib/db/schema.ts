@@ -4655,3 +4655,71 @@ export const patientClinicalFacts = pgTable(
 );
 
 export type ClinicalFact = typeof patientClinicalFacts.$inferSelect;
+
+/**
+ * Where a session's audio comes from. PLAN.md 36.1, and 41.1 made cheap.
+ *
+ * 🔴 The table is shaped so that sprint 41's hard rule — *the bot joins
+ * meetings 24Therapy created for a session, nothing else, ever* — is a
+ * property of the schema rather than a convention in a service. There is no
+ * column for a link somebody pasted and no column that could hold a calendar
+ * (C132); an external kind must carry `provisionedAt` and
+ * `provisionedByUserId`, enforced by CHECK; and the meeting identity is
+ * immutable after insert, so a source cannot be re-pointed at another meeting.
+ *
+ * See `drizzle/0064_session_sources.sql`, which names the residual honestly.
+ */
+export const SESSION_SOURCE_KINDS = [
+  "24t_room",
+  "google_meet",
+  "zoom",
+  "teams",
+  "in_person",
+  "upload",
+] as const;
+export type SessionSourceKind = (typeof SESSION_SOURCE_KINDS)[number];
+
+/** The kinds that describe a meeting inside somebody else's product. */
+export const EXTERNAL_SOURCE_KINDS: readonly SessionSourceKind[] = [
+  "google_meet",
+  "zoom",
+  "teams",
+];
+
+export const sessionSources = pgTable(
+  "session_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+
+    kind: text("kind").$type<SessionSourceKind>().notNull(),
+
+    /** Only ever set for a meeting WE created in a connected account. */
+    externalMeetingId: text("external_meeting_id"),
+    provisionedAt: timestamp("provisioned_at", { withTimezone: true }),
+    provisionedByUserId: uuid("provisioned_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+
+    /** 🔴 36.2 — the third door, hashed, expiring, revocable, counted. */
+    ingestTokenHash: text("ingest_token_hash"),
+    ingestTokenExpiresAt: timestamp("ingest_token_expires_at", { withTimezone: true }),
+    ingestTokenRevokedAt: timestamp("ingest_token_revoked_at", { withTimezone: true }),
+    ingestUses: integer("ingest_uses").notNull().default(0),
+    ingestLastUsedAt: timestamp("ingest_last_used_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("session_sources_session_unique").on(t.sessionId),
+    index("session_sources_org_idx").on(t.organizationId, t.createdAt),
+  ],
+);
+
+export type SessionSource = typeof sessionSources.$inferSelect;

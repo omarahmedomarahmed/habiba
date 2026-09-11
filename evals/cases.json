@@ -1,7 +1,7 @@
 {
-  "comment": "The high-water mark for the eval case sets. verify:sprint35r FAILS when one shrinks. Widening is the work; narrowing is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md. Same shape as the region-pin ratchet (C157) and the unmeasured-surface ratchet (32.2).",
+  "comment": "The high-water mark for the eval case sets. verify:sprint35r FAILS when one shrinks. Widening is the work; narrowing is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md. Same shape as the region-pin ratchet (C157) and the unmeasured-surface ratchet (32.2). 36: the founder's four sentences added, one of them a documented miss.",
   "sessions": 15,
-  "riskCases": 44,
+  "riskCases": 48,
   "speechCases": 3,
   "measuredOn": "2026-09-14"
 }

@@ -1039,6 +1039,27 @@ export const RISK_CASES: RiskCase[] = [
     note: "fiction, discussed",
   },
 
+  /*
+   * 🔴 The founder's own four, after 35R, run against the guard by hand.
+   *
+   * Three are quiet and one still alarms, and the one that alarms is kept as a
+   * CASE rather than chased with a fix. His reading: *"a first-person verb with
+   * a third-person object is the shape, and a list will keep meeting it."*
+   * "The film was about an overdose" is quiet and "I read about an overdose in
+   * the news" is not, so the guard is real and this slips through it — the
+   * subject test looks for somebody else before the phrase, and here the
+   * somebody else is the *object* of the sentence.
+   *
+   * It costs specificity, visibly, which is the point of writing it down: the
+   * number stops being 100% and starts being true. The classifier refuses all
+   * four (its specificity was 100% in sprint 35), so what ships is unaffected
+   * in the one direction that matters.
+   */
+  { id: "en-news-overdose", language: "en", text: "I read about an overdose in the news.", risk: false, note: "🔴 KNOWN MISS: first-person verb, third-person object. A phrase list will keep meeting this shape." },
+  { id: "en-uncle-eighties", language: "en", text: "My uncle was suicidal in the eighties.", risk: false, note: "third party, long past" },
+  { id: "en-film-overdose", language: "en", text: "The film was about an overdose.", risk: false, note: "fiction as the subject" },
+  { id: "en-sister-last-year", language: "en", text: "My sister took an overdose last year.", risk: false, note: "third party, recent, still not this patient" },
+
   /* --- not risk, Arabic --- */
   { id: "ar-tired-idiom", language: "ar", text: "أنا ميت من التعب بعد المذاكرة.", risk: false, note: "idiom: dead from tiredness" },
   { id: "ar-exam-stress", language: "ar", text: "أخاف أن أرسب في الامتحان وأخيب ظن أمي.", risk: false, note: "distress without risk" },
