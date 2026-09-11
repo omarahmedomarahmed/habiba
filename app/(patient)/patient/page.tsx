@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Globe2, Search, ShieldCheck, Star } from "lucide-react";
+import { Download, FileText, Globe2, NotebookPen, Search, ShieldCheck, Star } from "lucide-react";
 import { eq, sql } from "drizzle-orm";
 
 import { Badge, Card } from "@/components/ui";
@@ -276,12 +276,38 @@ export default async function PatientHomePage({
         </div>
       </Card>
 
+      {/* 26.5 / 26.1 — the two things on this app that are unambiguously theirs. */}
+      <Link
+        href="/patient/journal"
+        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
+      >
+        <NotebookPen className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        Your journal
+      </Link>
+
+      <Link
+        href="/patient/summary"
+        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
+      >
+        <FileText className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        Your clinical summary
+      </Link>
+
       <Link
         href="/patient/consent"
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
         <ShieldCheck className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
         Who can read your history
+      </Link>
+
+      {/* 26.9 — the whole thing, in one document they can keep. */}
+      <Link
+        href="/patient/record"
+        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
+      >
+        <Download className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        Get a copy of everything
       </Link>
     </main>
   );

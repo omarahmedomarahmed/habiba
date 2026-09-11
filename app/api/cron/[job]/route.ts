@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { lt } from "drizzle-orm";
 
-import { sweepUndeliveredAlerts } from "@/lib/ai/crisis";
+import { sweepUndeliveredAlerts } from "@/lib/crisis/alerts";
 import { purgeExpiredSessions } from "@/lib/auth/session";
 import { reconcileMissingCharges } from "@/lib/billing/service";
 import { sweepRadar } from "@/lib/data/radar";

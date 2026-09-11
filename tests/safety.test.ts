@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { __costing } from "../lib/ai/client";
-import { patientFacingCrisisMessage, scanForCrisisLanguage } from "../lib/ai/crisis";
+import { patientFacingCrisisMessage, scanForCrisisLanguage } from "../lib/crisis/alerts";
 import { resolveCitations } from "../lib/ai/case-copilot";
 import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";

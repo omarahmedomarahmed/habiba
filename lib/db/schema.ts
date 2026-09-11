@@ -1042,6 +1042,18 @@ export const dataExports = pgTable(
     deliveredTo: text("delivered_to").notNull(),
     requestedBy: uuid("requested_by").references(() => users.id, { onDelete: "set null" }),
     requestedByRole: text("requested_by_role").$type<Role>(),
+    /**
+     * 26.9 / C127 — what a third party can check, and all they can check.
+     *
+     * Printed on the cover page and resolved on a public page. It attests what
+     * we can honestly attest: that this platform holds a record, how much of
+     * one, and when the extract was made. It never resolves to a name, a
+     * diagnosis or a note, because that is the difference between a record
+     * extract and the certificate this is not.
+     */
+    verificationCode: text("verification_code"),
+    /** The identity the extract is about. Null on rows predating sprint 26. */
+    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     firstOpenedAt: timestamp("first_opened_at", { withTimezone: true }),
     openCount: integer("open_count").default(0).notNull(),
@@ -4282,3 +4294,85 @@ export const therapistCodes = pgTable(
 );
 
 export type TherapistCode = typeof therapistCodes.$inferSelect;
+
+/**
+ * The patient's clinical summary, versioned. PLAN.md 26.1, C111.
+ *
+ * 🔴 Keyed on the **person**, not on a clinic's `patients` row. The summary is
+ * about somebody rather than about one clinician's file on them, and the whole
+ * portability argument collapses if moving practice means starting again.
+ *
+ * Append only, enforced by a trigger in migration 0059 rather than by everyone
+ * remembering. Therapist B writing version 2 leaves version 1, with therapist
+ * A's name on it, exactly where it was — and 26.2 is then free rather than
+ * built: revoking A's grant cannot retract a version, because nothing in this
+ * product can retract a version.
+ *
+ * The author is snapshotted by name and licence as well as by id. A clinician
+ * can leave or be deleted; a patient's record may not lose its author to that.
+ */
+export const clinicalSummaries = pgTable(
+  "clinical_summaries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    body: text("body").notNull(),
+
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    approvedByName: text("approved_by_name").notNull(),
+    approvedByCredentials: text("approved_by_credentials"),
+    approvedByLicenseBody: text("approved_by_license_body"),
+    approvedByLicenseNumber: text("approved_by_license_number"),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+
+    approvedAt: timestamp("approved_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("clinical_summaries_person_version").on(t.personId, t.version)],
+);
+
+export type ClinicalSummary = typeof clinicalSummaries.$inferSelect;
+
+/**
+ * A journal. PLAN.md 26.5 to 26.8, C123, C124.
+ *
+ * What replaced patient file uploads and patient-dictated clinical history. A
+ * person photographing a prescription was doing a clinician's filing; a person
+ * dictating "my history" was writing a clinical document about themselves.
+ * Neither is what somebody actually wants to do at eleven at night.
+ *
+ * 🔴 `riskLevel` and `riskIndicators` exist because C123 rules that a journal
+ * is scanned like a transcript: somebody writes "I want to die" into one at
+ * 3am and the clinician holding a grant is told. **Nothing on the patient's
+ * screen reads these columns**, and the page never says or implies that
+ * anybody is watching, because promising monitoring we cannot staff is the
+ * most dangerous thing this product could do.
+ */
+export const journals = pgTable(
+  "journals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** The patient account that wrote it. Points at `patient_accounts`. */
+    accountId: uuid("account_id").notNull(),
+    source: text("source").$type<"typed" | "dictated">().notNull().default("typed"),
+    body: text("body").notNull(),
+    riskLevel: text("risk_level").$type<RiskLevel | null>(),
+    riskIndicators: jsonb("risk_indicators").$type<string[]>().default([]).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("journals_person_idx").on(t.personId, t.createdAt)],
+);
+
+export type Journal = typeof journals.$inferSelect;

@@ -291,6 +291,36 @@ async function documentsFor(
 }
 
 /**
+ * The person's journals, laid out for the prompt. PLAN.md 26.6.
+ *
+ * Gated by exactly the same capability as the documents, for exactly the same
+ * reason: a revoked clinician must not be handed by one route what another
+ * route refuses them. A journal is the most personal thing in this record, so
+ * it is the last thing that should have a second door.
+ */
+async function journalsFor(
+  patientId: string,
+  capabilities?: Capabilities,
+): Promise<string> {
+  if (capabilities && !capabilities.liveProfile) return "";
+
+  const [row] = await db
+    .select({ personId: patients.personId })
+    .from(patients)
+    .where(eq(patients.id, patientId))
+    .limit(1);
+
+  if (!row?.personId) return "";
+
+  const { journalContext } = await import("@/lib/data/journals");
+  const context = await journalContext(row.personId);
+  return context.text;
+}
+
+/** Exposed for `scripts/verify-sprint26.ts`, which asserts the refusal. */
+export const __journalsForTest = journalsFor;
+
+/**
  * The document assembly, exposed for `scripts/verify-sprint8.ts`.
  *
  * C47's closure is a claim about what the copilot is *given*, and the only
@@ -375,6 +405,7 @@ export async function askPatientCopilot(opts: {
   const standing = opts.guidance?.trim() ?? "";
   const { transcript, index, sessionCount } = await buildPatientContext(opts.patientId);
   const documents = await documentsFor(opts.patientId, opts.capabilities);
+  const journalText = await journalsFor(opts.patientId, opts.capabilities);
   const standingProfile = await profileFor(opts.patientId, opts.capabilities);
 
   // Documents alone are enough to answer from — that is the whole point of the
@@ -440,6 +471,20 @@ export async function askPatientCopilot(opts: {
              * carries its own refs, so anything quoted from here can still be
              * traced back to a session or a document.
              */
+            /*
+             * 26.6 — what the patient wrote about their own week, dated.
+             *
+             * Quoted by date rather than by a `[D7:3]` marker: the citation
+             * machinery is document-shaped, and generalising it belongs to the
+             * evidence layer in sprint 33 rather than to a second half-model
+             * invented here. ⚠️ Incomplete until then, and said so in
+             * `journalContext`.
+             *
+             * Withheld in the degraded state exactly as the documents are.
+             */
+            journalText
+              ? `The patient's own journals, in their words. Attribute anything you use to its date, for example "in their journal on 2026-03-04":\n${journalText}`
+              : "",
             standingProfile,
             historyText ? `Recent conversation:\n${historyText}` : "",
             /*

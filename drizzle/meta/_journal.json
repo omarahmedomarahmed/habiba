@@ -414,6 +414,13 @@
       "when": 1789600000024,
       "tag": "0058_therapist_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1789600000025,
+      "tag": "0059_summaries_and_journals",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,8 @@ import { priceProblem } from "@/lib/billing/connect";
 import { getSettings } from "@/lib/settings";
 import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
 import { createInviteLink } from "@/app/(app)/patients/actions";
-import { normalisePhone } from "@/lib/data/people";
+import { normalisePhone, personIdForPatient } from "@/lib/data/people";
+import { publishSummary } from "@/lib/data/summaries";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
@@ -525,4 +526,102 @@ export async function setTranscriptLanguage(
     reason: next ?? "auto",
   });
   return { ok: true };
+}
+
+/* --------------------------------------------- 26.3 · C112 · one approval */
+
+export type ApprovalChoice = {
+  /** Sign the chart. */
+  clinical: boolean;
+  /** Release the patient's copy. Irreversible. */
+  patient: boolean;
+  /**
+   * The summary to publish as a new version, or null to publish nothing.
+   *
+   * 🔴 A string rather than a boolean plus a stored draft, because C112's rule
+   * is that **silence publishes nothing**. There is no draft summary sitting
+   * anywhere waiting to be released by inaction: if this is null, no version
+   * exists, and the patient's record is unchanged.
+   */
+  summary: string | null;
+};
+
+/**
+ * One screen, one action, three items. PLAN.md 26.3, C112.
+ *
+ * ## Why these three were merged and the actions were not
+ *
+ * Three separate approvals per session is how approvals become rubber stamps:
+ * by the third dialog nobody is reading. So the clinician sees all three
+ * together and presses once.
+ *
+ * Underneath, they stay three distinct writes with three distinct audit
+ * entries, because they are three different acts with three different
+ * consequences. Signing the chart is a professional attestation. Releasing the
+ * patient's copy puts text on somebody's phone and cannot be undone. Publishing
+ * a summary version writes an append-only row into a record that person owns
+ * and will still be reading in five years. Collapsing those into one row in the
+ * audit log would make the log worse to make the screen simpler.
+ *
+ * Partial failure is reported rather than rolled back. If the summary is
+ * rejected for reading like a clinical note (26.4) but the chart was signed,
+ * the honest answer is "signed, and the summary needs a rewrite", not undoing a
+ * signature the clinician meant.
+ */
+export async function approveSession(
+  sessionId: string,
+  choice: ApprovalChoice,
+): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const row = await getSession(actor, sessionId);
+  if (!row) return { error: "Session not found." };
+
+  const done: string[] = [];
+
+  if (choice.clinical) {
+    const result = await approveNote(sessionId);
+    if (result.error) return result;
+    done.push("chart signed");
+  }
+
+  if (choice.patient) {
+    const result = await approvePatientNote(sessionId);
+    if (result.error) return result;
+    done.push("their copy released");
+  }
+
+  if (choice.summary && choice.summary.trim()) {
+    const personId = row.session.patientId
+      ? await personIdForPatient(row.session.patientId)
+      : null;
+
+    if (!personId) {
+      return {
+        error:
+          done.length > 0
+            ? `${done.join(", ")}. The summary could not be published: this session has no patient record attached to a person.`
+            : "This session has no patient record attached to a person, so there is nothing to add a summary to.",
+      };
+    }
+
+    const published = await publishSummary(actor, {
+      personId,
+      body: choice.summary,
+      sessionId,
+    });
+
+    if (!published.ok) {
+      return {
+        error: done.length > 0 ? `${done.join(", ")}. ${published.error}` : published.error,
+      };
+    }
+
+    done.push(`summary version ${published.version} published`);
+  }
+
+  if (done.length === 0) return { ok: true, message: "Nothing published." };
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/notes");
+  return { ok: true, message: `${done.join(", ")}.` };
 }

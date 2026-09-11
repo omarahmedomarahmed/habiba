@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, desc, eq, lt } from "drizzle-orm";
 
-import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/ai/crisis";
+import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/crisis/alerts";
 import { db } from "@/lib/db";
 import { transcriptSegments } from "@/lib/db/schema";
 import { pauseBeforeMs, wordsPerMinute } from "@/lib/transcript/descriptors";

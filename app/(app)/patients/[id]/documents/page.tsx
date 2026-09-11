@@ -14,6 +14,7 @@ import { explain } from "@/lib/access/state";
 import { requireUser } from "@/lib/auth/guard";
 import { listDiagnoses } from "@/lib/data/diagnoses";
 import { listDocuments } from "@/lib/data/documents";
+import { journalsForClinician } from "@/lib/data/journals";
 import { draftedStepsFor, homeworkTrend, listHomework } from "@/lib/data/homework";
 import { isStale, profileFor, timelineFor } from "@/lib/data/memory";
 import { accessFor } from "@/lib/data/grants";
@@ -21,7 +22,7 @@ import { getPatient } from "@/lib/data/patients";
 import { personIdForPatient } from "@/lib/data/people";
 import { db } from "@/lib/db";
 import { sessions, users } from "@/lib/db/schema";
-import { fullName } from "@/lib/utils";
+import { formatDate, fullName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Profile", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -54,6 +55,15 @@ export default async function PatientDocumentsPage({
   const access = await accessFor(actor, id);
 
   const all = personId ? await listDocuments(personId) : [];
+  /*
+   * 26.6 — journals, behind the same capability as the patient's files.
+   *
+   * `patientFiles` is the grant-derived capability, so a revoked clinician
+   * sees none of these, and there is no second door: the copilot is gated on
+   * the same flag in `journalsFor`.
+   */
+  const journals =
+    personId && access.capabilities.patientFiles ? await journalsForClinician(personId) : [];
   const diagnoses = personId ? await listDiagnoses(personId) : [];
 
   /*
@@ -171,6 +181,29 @@ export default async function PatientDocumentsPage({
           timeline={timeline}
           stale={isStale(profile, { sessions: profile?.sessionCount ?? 0, documents: all.length })}
         />
+
+        {journals.length > 0 ? (
+          <Card className="p-4">
+            <p className="text-sm font-semibold text-slate-900">Their journals</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+              Written by them, between sessions. They chose to give you access to their history,
+              which is what puts these here.
+            </p>
+            <ul className="mt-3 space-y-3">
+              {journals.map((entry) => (
+                <li key={entry.id} className="border-s-2 border-slate-200 ps-3">
+                  <p className="text-xs text-slate-400">
+                    {formatDate(entry.createdAt, actor.timezone)}
+                    {entry.source === "dictated" ? " · spoken" : ""}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                    {entry.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
 
         {personId ? (
           <DocumentPanel

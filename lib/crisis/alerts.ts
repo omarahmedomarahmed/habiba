@@ -12,6 +12,24 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
 /**
  * The single crisis keyword list, and the single place it is applied.
  *
+ * ## 🔴 Why this is not in `lib/ai/`, where it used to live (C137, C140)
+ *
+ * Nothing here calls a model. It is a list of phrases and an `includes`, plus
+ * the write ordering that makes an alert durable. It sat under `lib/ai/`
+ * because risk detection *sounds* like a model problem, and sprint 24.2 turned
+ * that directory into a boundary a patient may not cross transitively. Sprint
+ * 26 then needed exactly this scanner on the patient's own journal write, and
+ * the choice was an exception or an honest filing. `lib/ai/` means "this talks
+ * to a model"; this does not.
+ *
+ * **When sprint 35 gives risk a model**, the model call does not come back
+ * here. It belongs in `lib/ai/` and runs from a background job reading the
+ * row, never inside the request a patient is waiting on: that keeps the import
+ * graph clean and, more to the point, keeps the property the graph is standing
+ * in for, which is that a person writing at 3am is not waiting on an inference
+ * call to find out whether their sentence saved. `raiseCrisisAlert` already
+ * takes `source: "keyword" | "model"` for that day.
+ *
  * The old codebase had four divergent lists, and the scan itself lived only in
  * the typed-segment path — the Whisper path used a different function that never
  * scanned at all. Since essentially every real session is audio, that meant

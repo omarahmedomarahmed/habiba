@@ -33,6 +33,17 @@ type Props = {
   patientEmail: string | null;
   dateLabel: string;
   reportSent: boolean;
+  /**
+   * 26.3 / C112 — whether this component owns approving.
+   *
+   * False when the session page renders `SessionApproval` above it, which is
+   * the one screen, one action, three items C112 asks for. Two approval
+   * surfaces for the same document is the approval fatigue the ruling is
+   * about, so this component becomes an editor and nothing else.
+   *
+   * Defaulted to true so that any other caller keeps the behaviour it had.
+   */
+  approvals?: boolean;
 };
 
 /**
@@ -336,7 +347,7 @@ export function NoteReview(props: Props) {
                 <Pencil className="h-4 w-4" aria-hidden /> Edit
               </Button>
 
-              {status === "draft" ? (
+              {status === "draft" && props.approvals !== false ? (
                 <Button full onClick={handleApprove} disabled={pending}>
                   {pending ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -436,7 +447,7 @@ export function NoteReview(props: Props) {
                 <Pencil className="h-4 w-4" aria-hidden /> Edit their copy
               </Button>
 
-              {patientStatus === "draft" ? (
+              {patientStatus === "draft" && props.approvals !== false ? (
                 <Button variant="teal" full onClick={handleApproveBrief} disabled={pending}>
                   {pending ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

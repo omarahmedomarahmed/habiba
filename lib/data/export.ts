@@ -3,7 +3,10 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
-import { auditPhi } from "@/lib/audit";
+import { audit, auditPhi } from "@/lib/audit";
+import { log, safeErrorMessage } from "@/lib/logger";
+import { personIdForPatient } from "@/lib/data/people";
+import { env } from "@/lib/env";
 import type { Actor } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import {
@@ -14,6 +17,7 @@ import {
   patients,
   riskAssessments,
   sessionNotes,
+  therapistVerifications,
   sessions,
   transcriptSegments,
   users,
@@ -38,6 +42,25 @@ import {
 
 const HASH = (token: string) => createHash("sha256").update(token).digest("hex");
 
+/**
+ * 26.9 / C127 — the code a third party can check.
+ *
+ * Twelve unambiguous characters in three groups, because it is read off a
+ * printed cover page and typed into a public form, sometimes by a solicitor's
+ * assistant. Same alphabet as the wall code: no O, no 0, no I, no 1.
+ */
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function mintVerificationCode(): string {
+  const bytes = randomBytes(12);
+  let out = "";
+  for (let i = 0; i < 12; i += 1) {
+    if (i > 0 && i % 4 === 0) out += "-";
+    out += CODE_ALPHABET[bytes[i]! % CODE_ALPHABET.length];
+  }
+  return out;
+}
+
 /** What lands in the patient's inbox as a URL path. */
 export function exportPath(token: string): string {
   return `/records/${token}`;
@@ -46,7 +69,15 @@ export function exportPath(token: string): string {
 /* ------------------------------------------------------------- creating -- */
 
 export type ExportRequest =
-  | { ok: true; token: string; email: string; patientName: string; expiresAt: Date }
+  | {
+      ok: true;
+      token: string;
+      email: string;
+      patientName: string;
+      expiresAt: Date;
+      /** 26.9 / C127 — printed on the cover page, checkable on a public page. */
+      verificationCode: string;
+    }
   | { ok: false; error: string };
 
 /**
@@ -123,10 +154,15 @@ export async function requestPatientExport(
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + EXPORT_TTL_HOURS * 60 * 60 * 1000);
 
+  const personId = await personIdForPatient(patient.id);
+  const verificationCode = mintVerificationCode();
+
   await db.insert(dataExports).values({
     organizationId: patient.organizationId,
     patientId: patient.id,
+    personId,
     tokenHash: HASH(token),
+    verificationCode,
     deliveredTo: email,
     requestedBy: actor.userId,
     requestedByRole: actor.role,
@@ -158,13 +194,57 @@ export async function requestPatientExport(
     });
   }
 
+  /*
+   * 🔴 26.10 — every export raises an admin alert.
+   *
+   * Not a permission and not a delay: the link has already been sent. It is a
+   * record leaving the platform, and the one thing an operator must never
+   * learn about from a subpoena is that a full chart went to an inbox and
+   * nobody here knew. The alert names nothing clinical.
+   */
+  await alertStaffOfExport({
+    patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
+    to: email,
+    byRole: actor.role,
+    code: verificationCode,
+  }).catch((error) => {
+    log.error("export admin alert failed", { reason: safeErrorMessage(error) });
+  });
+
   return {
     ok: true,
     token,
     email,
     patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
     expiresAt,
+    verificationCode,
   };
+}
+
+/** 26.10 — the operators, told. No diagnosis, no note, no transcript. */
+async function alertStaffOfExport(input: {
+  patientName: string;
+  to: string;
+  byRole: string;
+  code: string;
+}): Promise<void> {
+  const staff = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, "super_admin"))
+    .limit(10);
+
+  if (staff.length === 0) return;
+
+  await db.insert(notifications).values(
+    staff.map((person) => ({
+      userId: person.id,
+      kind: "system" as const,
+      title: "A full record extract left the platform",
+      body: `A record extract for ${input.patientName} was sent to ${input.to}, requested by a ${input.byRole}. Extract code ${input.code}. Nobody here read it. This is a notice, not a request.`,
+      actionUrl: `/admin`,
+    })),
+  );
 }
 
 /* -------------------------------------------------------------- opening -- */
@@ -199,7 +279,10 @@ export async function openExport(token: string) {
     })
     .where(eq(dataExports.id, row.id));
 
-  return buildExport(row.patientId, row.expiresAt);
+  return buildExport(row.patientId, row.expiresAt, {
+    personId: row.personId,
+    verificationCode: row.verificationCode,
+  });
 }
 
 /**
@@ -209,7 +292,14 @@ export async function openExport(token: string) {
  * a chart sitting in a bucket, and a patient who opens the link a day later
  * sees the record as it stands rather than as it stood.
  */
-async function buildExport(patientId: string, expiresAt: Date) {
+async function buildExport(
+  patientId: string,
+  expiresAt: Date,
+  extra: { personId: string | null; verificationCode: string | null } = {
+    personId: null,
+    verificationCode: null,
+  },
+) {
   const [patient] = await db
     .select({
       id: patients.id,
@@ -233,6 +323,26 @@ async function buildExport(patientId: string, expiresAt: Date) {
 
   if (!patient) return null;
 
+  /*
+   * 🔴 26.9 — every session, not one clinic's sessions.
+   *
+   * The extract is the record of somebody's therapy, and somebody who moved
+   * practice has two `patients` rows. Scoping to the row the link was minted
+   * against would hand a person half their own life and call it complete,
+   * which is exactly the failure the person layer exists to prevent.
+   *
+   * Falls back to the single row when there is no person yet, which is a
+   * record created before sprint 5 rather than an error.
+   */
+  const chartIds = extra.personId
+    ? (
+        await db
+          .select({ id: patients.id })
+          .from(patients)
+          .where(eq(patients.personId, extra.personId))
+      ).map((row) => row.id)
+    : [patientId];
+
   const rows = await db
     .select({
       id: sessions.id,
@@ -249,13 +359,15 @@ async function buildExport(patientId: string, expiresAt: Date) {
       noteContentEn: sessionNotes.contentEn,
       noteStatus: sessionNotes.status,
       noteApprovedAt: sessionNotes.approvedAt,
+      noteApprovedBy: sessionNotes.approvedBy,
+      sessionTherapistId: sessions.therapistId,
       riskLevel: riskAssessments.level,
       riskAction: riskAssessments.recommendedAction,
     })
     .from(sessions)
     .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
     .leftJoin(riskAssessments, eq(riskAssessments.sessionId, sessions.id))
-    .where(eq(sessions.patientId, patientId))
+    .where(inArray(sessions.patientId, chartIds.length > 0 ? chartIds : [patientId]))
     .orderBy(desc(sessions.createdAt))
     .limit(500);
 
@@ -293,9 +405,96 @@ async function buildExport(patientId: string, expiresAt: Date) {
     }
   }
 
+  /*
+   * 🔴 26.9 / C127 — who signed each note, with their licence.
+   *
+   * A note in an extract that says only "signed on 4 March" is a note nobody
+   * can trace to a person who can be asked about it. The name and licence are
+   * read now rather than snapshotted at signing time, which is a deliberate
+   * trade: a clinician who renews a licence number would otherwise leave old
+   * notes stamped with a number that no longer resolves. The summary versions
+   * below DO snapshot, because those are the patient's own document and must
+   * survive the clinician's account being deleted entirely.
+   */
+  const signerIds = [
+    ...new Set(
+      rows.flatMap((row) => [row.noteApprovedBy, row.sessionTherapistId].filter(Boolean)),
+    ),
+  ] as string[];
+
+  const signers = signerIds.length
+    ? await db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profile: users.profile,
+          licenseBody: therapistVerifications.licenseBody,
+          licenseNumber: therapistVerifications.licenseNumber,
+        })
+        .from(users)
+        .leftJoin(therapistVerifications, eq(therapistVerifications.userId, users.id))
+        .where(inArray(users.id, signerIds))
+    : [];
+
+  const signerOf = new Map(
+    signers.map((signer) => [
+      signer.id,
+      {
+        name: [signer.firstName, signer.lastName].filter(Boolean).join(" "),
+        credentials: signer.profile?.credentials ?? null,
+        licenseBody: signer.licenseBody ?? null,
+        licenseNumber: signer.licenseNumber ?? null,
+      },
+    ]),
+  );
+
+  /*
+   * The three things the old export did not carry, and which are the whole
+   * point of "the most complete record of themselves a person can hold":
+   * the summary versions they own, what they wrote themselves, and the steps
+   * they were asked to try.
+   */
+  const [summaries, journalEntries, steps, diagnoses] = extra.personId
+    ? await Promise.all([
+        import("@/lib/data/summaries").then((m) => m.summariesForPerson(extra.personId!)),
+        import("@/lib/data/journals").then((m) => m.journalsForPerson(extra.personId!, 500)),
+        import("@/lib/data/homework").then((m) => m.listHomework(extra.personId!)),
+        import("@/lib/data/diagnoses").then((m) => m.listDiagnoses(extra.personId!)),
+      ])
+    : [[], [], [], []];
+
   return {
     generatedAt: new Date(),
+    verificationCode: extra.verificationCode,
     linkExpiresAt: expiresAt,
+    summaries: summaries.map((version) => ({
+      version: version.version,
+      body: version.body,
+      approvedByName: version.approvedByName,
+      approvedByCredentials: version.approvedByCredentials,
+      approvedByLicenseBody: version.approvedByLicenseBody,
+      approvedByLicenseNumber: version.approvedByLicenseNumber,
+      approvedAt: version.approvedAt,
+    })),
+    journals: journalEntries.map((entry) => ({
+      body: entry.body,
+      source: entry.source,
+      createdAt: entry.createdAt,
+    })),
+    homework: steps.map((step) => ({
+      title: step.title,
+      detail: step.detail ?? null,
+      status: step.status,
+      createdAt: step.createdAt,
+    })),
+    confirmedDiagnoses: diagnoses
+      .filter((diagnosis) => diagnosis.status === "confirmed")
+      .map((diagnosis) => ({
+        label: diagnosis.label,
+        code: diagnosis.code ?? null,
+        sourceSentence: diagnosis.sourceSentence,
+      })),
     patient: {
       name: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
       email: patient.email,
@@ -323,6 +522,9 @@ async function buildExport(patientId: string, expiresAt: Date) {
       noteLanguage: row.noteLanguage ?? "en",
       noteEnglish: row.noteContentEn ?? null,
       noteSigned: row.noteStatus === "approved" ? row.noteApprovedAt : null,
+      /* C127 — the person who stands behind this note, and their licence. */
+      signedBy: row.noteApprovedBy ? (signerOf.get(row.noteApprovedBy) ?? null) : null,
+      seenBy: row.sessionTherapistId ? (signerOf.get(row.sessionTherapistId) ?? null) : null,
       riskLevel: row.riskLevel ?? null,
       riskAction: row.riskAction ?? null,
       transcript: transcripts.get(row.id) ?? [],
@@ -395,6 +597,13 @@ export function renderExportHtml(
   record: NonNullable<ExportRecord>,
   jsonHref: string,
 ): string {
+  /*
+   * 🔴 C127 — the words "certified" and "proof of diagnosis" never appear in
+   * this document, and `verify:sprint26` scans the rendered HTML for them
+   * rather than trusting this comment. What the cover page claims is exactly
+   * what we can attest: what our records contain, and when.
+   */
+  const verifyUrl = `${env.appUrl.replace(/^https?:\/\//, "")}/verify`;
   const sessionsHtml = record.sessions
     .map((session) => {
       const languageLabel = NOTE_LANGUAGES[session.noteLanguage] ?? session.noteLanguage;
@@ -483,6 +692,8 @@ export function renderExportHtml(
   .tx p { margin:0 0 6px; }
   .tx .t { color:#94a3b8; font-variant-numeric:tabular-nums; font-size:12px; }
   .tx .s { font-weight:600; color:#0A2342; }
+  .code { font:700 22px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em;
+          background:#f1f5f9; border-radius:12px; padding:12px 16px; display:inline-block; margin:6px 0; }
   a.dl { display:inline-block; margin-top:10px; background:#1F5EFF; color:#fff;
          text-decoration:none; border-radius:12px; padding:10px 16px; font-weight:600; font-size:14px; }
   footer { color:#64748b; font-size:13px; text-align:center; margin-top:24px; line-height:1.7; }
@@ -499,20 +710,84 @@ export function renderExportHtml(
   </header>
 
   <section>
-    <h2>About this document</h2>
-    <p>This is everything held about you in the 24Therapy chart kept by
-      ${esc(record.clinician.name ?? "your clinician")}${
-        record.clinician.practice ? ` at ${esc(record.clinician.practice)}` : ""
-      }: your details, every session, every note, and the transcript of anything
-      that was recorded.</p>
-    <p class="muted">The one thing not included is your clinician's own working
-      conversation with their assistant tool, their thinking-out-loud about your
-      care, which is a professional aid rather than part of your record. Everything
-      that assistant wrote <em>during</em> a session is in the notes below.</p>
+    <h2>What this is</h2>
+    <p><strong>This is a record extract.</strong> It sets out what 24Therapy holds
+      about you: your sessions, the notes your clinicians wrote and signed, the
+      versions of your clinical summary, anything you wrote yourself, the steps you
+      were asked to try, and the transcript of anything that was recorded.</p>
+
+    <h2 style="margin-top:18px">What this is not</h2>
+    <p>It is <strong>not</strong> a statement that any diagnosis in it is correct, and
+      it is not a report written for a court, an employer, an insurer or a school.
+      We can say what our records contain and when they were written. We cannot
+      vouch for the clinical judgement inside them, and nobody should read this as
+      though we have.</p>
+    <p class="muted">If you need a document written for a particular purpose, ask
+      the clinician who saw you. They can write one, and they will put their name
+      on it.</p>
+    ${
+      record.verificationCode
+        ? `<h2 style="margin-top:18px">Checking this is real</h2>
+           <p>Anyone you hand this to can confirm that it came from us. They enter
+             this code at <strong>${esc(verifyUrl)}</strong>:</p>
+           <p class="code">${esc(record.verificationCode)}</p>
+           <p class="muted">That page confirms that this platform produced an extract,
+             on that date, containing that many sessions and signed notes. It shows no
+             name, no diagnosis and nothing anybody wrote.</p>`
+        : ""
+    }
+    <p class="muted" style="margin-top:18px">The one thing not included is your
+      clinician's own working conversation with their assistant tool, their
+      thinking-out-loud about your care, which is a professional aid rather than
+      part of your record. Everything that assistant wrote <em>during</em> a session
+      is in the notes below.</p>
     <p class="muted">This link stops working on ${when(record.linkExpiresAt)}.
       Save or print this page now. Nobody at 24Therapy read it to send it to you.</p>
     <a class="dl" href="${esc(jsonHref)}" download>Download as data (JSON)</a>
   </section>
+
+  ${
+    record.summaries.length > 0
+      ? `<section>
+          <h2>Your clinical summary, ${record.summaries.length} version${record.summaries.length === 1 ? "" : "s"}</h2>
+          <p class="muted">Newest first. Every version stays: a later one is added
+            beside an earlier one, never over it.</p>
+          ${record.summaries
+            .map(
+              (version) => `<div class="note">
+                <h4>Version ${version.version} · ${when(version.approvedAt)}</h4>
+                <p>${esc(version.body).replaceAll("\n", "<br>")}</p>
+                <p class="muted">Approved by ${esc(version.approvedByName)}${
+                  version.approvedByCredentials ? `, ${esc(version.approvedByCredentials)}` : ""
+                }${
+                  version.approvedByLicenseBody
+                    ? ` · ${esc(version.approvedByLicenseBody)}${version.approvedByLicenseNumber ? ` ${esc(version.approvedByLicenseNumber)}` : ""}`
+                    : ""
+                }</p>
+              </div>`,
+            )
+            .join("")}
+        </section>`
+      : ""
+  }
+
+  ${
+    record.confirmedDiagnoses.length > 0
+      ? `<section>
+          <h2>Diagnoses on your record</h2>
+          <p class="muted">Each one with the sentence it was taken from, because a
+            label on its own is not checkable and the sentence is.</p>
+          ${record.confirmedDiagnoses
+            .map(
+              (diagnosis) => `<div class="note">
+                <h4>${esc(diagnosis.label)}${diagnosis.code ? ` · ${esc(diagnosis.code)}` : ""}</h4>
+                <p>${esc(diagnosis.sourceSentence)}</p>
+              </div>`,
+            )
+            .join("")}
+        </section>`
+      : ""
+  }
 
   <section>
     <h2>You</h2>
@@ -565,10 +840,244 @@ export function renderExportHtml(
 
   ${sessionsHtml}
 
+  ${
+    record.journals.length > 0
+      ? `<section>
+          <h2>What you wrote, ${record.journals.length}</h2>
+          <p class="muted">Your own journals, in your words, newest first.</p>
+          ${record.journals
+            .map(
+              (entry) => `<div class="note">
+                <h4>${when(entry.createdAt)}${entry.source === "dictated" ? " · spoken" : ""}</h4>
+                <p>${esc(entry.body).replaceAll("\n", "<br>")}</p>
+              </div>`,
+            )
+            .join("")}
+        </section>`
+      : ""
+  }
+
+  ${
+    record.homework.length > 0
+      ? `<section>
+          <h2>Steps you were asked to try, ${record.homework.length}</h2>
+          <ul>${record.homework
+            .map(
+              (step) =>
+                `<li>${esc(step.title)}${step.detail ? `. ${esc(step.detail)}` : ""} <span class="muted">(${esc(step.status)}, ${when(step.createdAt)})</span></li>`,
+            )
+            .join("")}</ul>
+        </section>`
+      : ""
+  }
+
   <footer>
     Prepared by 24Therapy at the request of the person named above.<br>
     If anything here looks wrong, tell your clinician, corrections belong in the
     record alongside the original, not instead of it.
   </footer>
 </main></body></html>`;
+}
+
+/* ---------------------------------------------------------- verifying -- */
+
+export type VerificationResult =
+  | {
+      known: true;
+      issuedAt: Date;
+      sessions: number;
+      signedNotes: number;
+      summaryVersions: number;
+    }
+  | { known: false };
+
+/**
+ * What a third party can check. PLAN.md 26.9, C127.
+ *
+ * ## 🔴 What this deliberately does not return
+ *
+ * No name, no diagnosis, no note, no clinician, no organisation, not even
+ * whether the code belongs to the person standing in front of them. A code
+ * printed on a cover page ends up in a solicitor's file, a landlord's inbox
+ * and occasionally on a photocopier, and anything this function returns is
+ * returned to whoever has it.
+ *
+ * What it returns is the narrow thing we can honestly attest and that is
+ * actually useful: this platform produced an extract on this date, containing
+ * this many sessions and this many signed notes. That distinguishes a real
+ * extract from a forged one, which is the entire job, and it attests nothing
+ * about whether a diagnosis inside it is correct.
+ */
+export async function verifyExtract(code: string): Promise<VerificationResult> {
+  const normalised = code.trim().toUpperCase().replace(/\s+/g, "");
+  if (!/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(normalised)) {
+    return { known: false };
+  }
+
+  const [row] = await db
+    .select({
+      createdAt: dataExports.createdAt,
+      patientId: dataExports.patientId,
+      personId: dataExports.personId,
+    })
+    .from(dataExports)
+    .where(eq(dataExports.verificationCode, normalised))
+    .limit(1);
+
+  if (!row) return { known: false };
+
+  const chartIds = row.personId
+    ? (
+        await db
+          .select({ id: patients.id })
+          .from(patients)
+          .where(eq(patients.personId, row.personId))
+      ).map((chart) => chart.id)
+    : [row.patientId];
+
+  const counted = await db
+    .select({
+      sessionId: sessions.id,
+      noteStatus: sessionNotes.status,
+    })
+    .from(sessions)
+    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    .where(inArray(sessions.patientId, chartIds.length > 0 ? chartIds : [row.patientId]))
+    .limit(2000);
+
+  const summaryVersions = row.personId
+    ? await import("@/lib/data/summaries").then((m) => m.summaryCount(row.personId!))
+    : 0;
+
+  return {
+    known: true,
+    issuedAt: row.createdAt,
+    sessions: counted.length,
+    signedNotes: counted.filter((entry) => entry.noteStatus === "approved").length,
+    summaryVersions,
+  };
+}
+
+/* ------------------------------------------------ 26.10 · the patient asks */
+
+export type OwnExportResult =
+  | { ok: true; email: string; expiresAt: Date; verificationCode: string }
+  | { ok: false; error: string; needsEmail?: boolean };
+
+/**
+ * A patient asking for their own record. PLAN.md 26.9, 26.10, C128.
+ *
+ * ## 🔴 Email only, and the button has to say so first
+ *
+ * C128: never WhatsApp. A full record extract is the most sensitive document
+ * this platform produces, and WhatsApp is the channel most likely to be read
+ * by somebody else holding the phone, forwarded in one tap, and backed up to a
+ * cloud account the person does not control. So it goes to an email address or
+ * it does not go.
+ *
+ * Most patients here have no email (§3b), which is exactly why the ruling
+ * continues: they add one **to export**, and the button says that before it is
+ * pressed rather than after. `needsEmail` is how the caller knows to say it.
+ *
+ * The clinician's version of this exists separately and is not reused: that
+ * one is scoped by caseload and audited against an actor. This one has no
+ * `Actor` at all, because a patient is not a member of an organisation (C41).
+ */
+export async function requestOwnExport(input: {
+  accountId: string;
+  personId: string;
+  email: string | null;
+}): Promise<OwnExportResult> {
+  const email = (input.email ?? "").trim().toLowerCase();
+
+  if (!email || !email.includes("@")) {
+    return {
+      ok: false,
+      needsEmail: true,
+      error:
+        "We send a record extract to an email address and nowhere else. Add one to your account and it will come straight through.",
+    };
+  }
+
+  const [chart] = await db
+    .select({ id: patients.id, organizationId: patients.organizationId })
+    .from(patients)
+    .where(and(eq(patients.personId, input.personId), isNull(patients.deletedAt)))
+    .orderBy(desc(patients.createdAt))
+    .limit(1);
+
+  if (!chart) {
+    return {
+      ok: false,
+      error: "There is nothing in your record to export yet. It fills up as you have sessions.",
+    };
+  }
+
+  const { consume, subjectKey } = await import("@/lib/rate-limit");
+  const allowed = await consume(subjectKey("patient:own-export", input.personId), 4, 3600);
+  if (!allowed.allowed) {
+    return {
+      ok: false,
+      error: "You have asked for this a few times in the last hour. Try again a bit later.",
+    };
+  }
+
+  // One live link at a time, for the same reason as the clinician's version.
+  await db
+    .update(dataExports)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(dataExports.patientId, chart.id), isNull(dataExports.revokedAt)));
+
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + EXPORT_TTL_HOURS * 60 * 60 * 1000);
+  const verificationCode = mintVerificationCode();
+
+  await db.insert(dataExports).values({
+    organizationId: chart.organizationId,
+    patientId: chart.id,
+    personId: input.personId,
+    tokenHash: HASH(token),
+    verificationCode,
+    deliveredTo: email,
+    expiresAt,
+  });
+
+  await audit({
+    actor: null,
+    patientAccountId: input.accountId,
+    category: "phi_access",
+    action: "patient.export_requested",
+    resourceType: "person",
+    resourceId: input.personId,
+  });
+
+  const { notify } = await import("@/lib/notify");
+  await notify(
+    /*
+     * 🔴 C128 — the phone is deliberately not passed.
+     *
+     * `notify` falls back to WhatsApp when there is no email, which is right
+     * for a reminder and wrong for a medical record. Passing null here means
+     * the fallback cannot fire: the ruling is enforced by what this call is
+     * given rather than by a branch inside it.
+     */
+    { email, phone: null, timezone: null },
+    {
+      kind: "record.export",
+      subject: "Your record from 24Therapy",
+      body: "You asked for a copy of your record. The link below opens it, and it stops working in three days. Nobody here read it.",
+      link: { label: "Open my record", url: `${env.appUrl}${exportPath(token)}` },
+    },
+  );
+
+  await alertStaffOfExport({
+    patientName: "a patient, at their own request",
+    to: email,
+    byRole: "patient",
+    code: verificationCode,
+  }).catch((error) => {
+    log.error("export admin alert failed", { reason: safeErrorMessage(error) });
+  });
+
+  return { ok: true, email, expiresAt, verificationCode };
 }

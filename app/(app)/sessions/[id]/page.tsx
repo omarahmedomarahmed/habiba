@@ -4,10 +4,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 
 import { NoteReview } from "@/components/session/note-review";
+import { SessionApproval } from "@/components/session/session-approval";
 import { Badge, Button, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
+import { personIdForPatient } from "@/lib/data/people";
 import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
+import { latestSummary } from "@/lib/data/summaries";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 
@@ -37,6 +40,16 @@ export default async function SessionDetailPage({
     fullName(row.patient?.firstName, row.patient?.lastName, "") ||
     row.session.guestName ||
     "Unnamed patient";
+
+  /*
+   * 26.1 — the summary is filed against the PERSON, so a session whose patient
+   * row has no person yet cannot carry one. The panel says so rather than
+   * failing on submit.
+   */
+  const summaryPersonId = row.session.patientId
+    ? await personIdForPatient(row.session.patientId)
+    : null;
+  const previousSummary = summaryPersonId ? await latestSummary(summaryPersonId) : null;
 
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
 
@@ -98,7 +111,33 @@ export default async function SessionDetailPage({
             </Link>
           </Card>
         ) : (
+          <>
+          {/*
+            🔴 26.3 / C112 — the one approval surface. NoteReview keeps its
+            editors and loses its two approve buttons, because two ways to
+            approve the same document is the fatigue the ruling is about.
+          */}
+          <SessionApproval
+            sessionId={id}
+            clinicalSigned={note?.status === "approved"}
+            patientReleased={note?.patientStatus === "approved"}
+            hasNote={Boolean(note?.content)}
+            canSummarise={summaryPersonId !== null}
+            previousSummary={
+              previousSummary
+                ? {
+                    version: previousSummary.version,
+                    body: previousSummary.body,
+                    approvedByName: previousSummary.approvedByName,
+                    on: formatDateTime(previousSummary.approvedAt, actor.timezone),
+                  }
+                : null
+            }
+            patientLabel={patientLabel}
+          />
+
           <NoteReview
+            approvals={false}
             sessionId={id}
             initialNote={note?.content ?? null}
             language={note?.language ?? "en"}
@@ -112,6 +151,7 @@ export default async function SessionDetailPage({
             dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone)}
             reportSent={Boolean(row.session.reportSentAt)}
           />
+          </>
         )}
 
         {transcript.length > 0 ? (

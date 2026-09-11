@@ -80,7 +80,17 @@ export type Message = {
      * have no address (§3b, C43): a reset that can only be emailed is a reset
      * most of the people who need it cannot use.
      */
-    | "password.reset_code";
+    | "password.reset_code"
+    /**
+     * 🔴 26.10 / C128 — the link to a full record extract.
+     *
+     * Email only. This is the most sensitive document the platform produces,
+     * and WhatsApp is the channel most likely to be read by somebody else
+     * holding the phone, forwarded in one tap, and backed up to an account the
+     * person does not control. The caller enforces it by passing no phone at
+     * all, so the fallback cannot fire.
+     */
+    | "record.export";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;
