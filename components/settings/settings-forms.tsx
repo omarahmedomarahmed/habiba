@@ -6,15 +6,17 @@ import { useFormStatus } from "react-dom";
 import { changePassword, signOut, type ActionState } from "@/lib/auth/actions";
 import { updateProfile, type SettingsState } from "@/app/(app)/settings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL_SETTINGS: SettingsState = {};
 const INITIAL_AUTH: ActionState = {};
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" full disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t("common.saving") : label}
     </Button>
   );
 }
@@ -40,14 +42,15 @@ export function ProfileForm({
   };
 }) {
   const [profileState, profileAction] = useActionState(updateProfile, INITIAL_SETTINGS);
+  const t = useT();
 
   return (
     <>
       <Card className="p-4">
         <form action={profileAction} className="space-y-4">
-          <p className="text-sm font-semibold text-slate-900">Your details</p>
+          <p className="text-sm font-semibold text-slate-900">{t("tset.details")}</p>
 
-          {profileState.ok ? <p className="text-sm text-emerald-700">Saved</p> : null}
+          {profileState.ok ? <p className="text-sm text-emerald-700">{t("common.saved")}</p> : null}
           {profileState.error ? (
             <p role="alert" className="text-sm text-red-700">
               {profileState.error}
@@ -55,45 +58,45 @@ export function ProfileForm({
           ) : null}
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="First name" htmlFor="firstName">
+            <Field label={t("tauth.firstName")} htmlFor="firstName">
               <Input id="firstName" name="firstName" defaultValue={initial.firstName} required />
             </Field>
-            <Field label="Last name" htmlFor="lastName">
+            <Field label={t("tauth.lastName")} htmlFor="lastName">
               <Input id="lastName" name="lastName" defaultValue={initial.lastName} />
             </Field>
           </div>
 
           <Field
-            label="Credentials"
+            label={t("tset.credentials")}
             htmlFor="credentials"
-            hint="Shown on the reports you send to patients."
+            hint={t("tset.credentialsHint")}
           >
             <Input
               id="credentials"
               name="credentials"
-              placeholder="LCSW"
+              placeholder={t("tset.credentialsPlaceholder")}
               defaultValue={initial.credentials}
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Licence type" htmlFor="licenseType">
+            <Field label={t("tset.licenceType")} htmlFor="licenseType">
               <Input id="licenseType" name="licenseType" defaultValue={initial.licenseType} />
             </Field>
-            <Field label="Licence state" htmlFor="licenseState">
+            <Field label={t("tset.licenceState")} htmlFor="licenseState">
               <Input id="licenseState" name="licenseState" defaultValue={initial.licenseState} />
             </Field>
           </div>
 
           <Field
-            label="Licence number"
+            label={t("tset.licenceNumber")}
             htmlFor="licenseNumber"
-            hint="Optional. Nothing here gates your ability to record sessions."
+            hint={t("tset.licenceNumberHint")}
           >
             <Input id="licenseNumber" name="licenseNumber" defaultValue={initial.licenseNumber} />
           </Field>
 
-          <Submit label="Save details" />
+          <Submit label={t("tset.saveDetails")} />
         </form>
       </Card>
 
@@ -103,14 +106,15 @@ export function ProfileForm({
 
 export function PasswordForm() {
   const [passwordState, passwordAction] = useActionState(changePassword, INITIAL_AUTH);
+  const t = useT();
 
   return (
     <>
       <Card className="p-4">
         <form action={passwordAction} className="space-y-4">
-          <p className="text-sm font-semibold text-slate-900">Password</p>
+          <p className="text-sm font-semibold text-slate-900">{t("tset.password")}</p>
           <p className="text-xs text-slate-500">
-            Changing your password signs you out on every device.
+            {t("tset.passwordBody")}
           </p>
 
           {passwordState.error ? (
@@ -119,7 +123,7 @@ export function PasswordForm() {
             </p>
           ) : null}
 
-          <Field label="Current password" htmlFor="currentPassword">
+          <Field label={t("tset.currentPassword")} htmlFor="currentPassword">
             <Input
               id="currentPassword"
               name="currentPassword"
@@ -129,7 +133,7 @@ export function PasswordForm() {
             />
           </Field>
 
-          <Field label="New password" htmlFor="newPassword" hint="At least 10 characters.">
+          <Field label={t("tauth.newPassword")} htmlFor="newPassword" hint={t("tauth.passwordHint")}>
             <Input
               id="newPassword"
               name="newPassword"
@@ -139,19 +143,18 @@ export function PasswordForm() {
             />
           </Field>
 
-          <Submit label="Change password" />
+          <Submit label={t("tset.changePassword")} />
         </form>
       </Card>
 
       <Card className="p-4">
         <form action={signOut}>
           <Button type="submit" variant="secondary" full>
-            Sign out
+            {t("portal.nav.signOut")}
           </Button>
         </form>
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          Signing out here signs you out on this device. Changing your password above signs you
-          out everywhere.
+          {t("tset.signOutBody")}
         </p>
       </Card>
     </>

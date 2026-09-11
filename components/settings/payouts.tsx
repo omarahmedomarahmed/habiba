@@ -13,6 +13,7 @@ import {
 } from "@/app/(app)/settings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: SettingsState = {};
 
@@ -34,9 +35,10 @@ export type PayoutState = {
 
 function Saving({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t("common.saving") : label}
     </Button>
   );
 }
@@ -51,6 +53,7 @@ function Saving({ label }: { label: string }) {
  */
 export function PayoutSettings({ state }: { state: PayoutState }) {
   const [formState, formAction] = useActionState(updatePaymentSettings, INITIAL);
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [rate, setRate] = useState(
@@ -76,7 +79,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           <Wallet className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">Get paid by patients</p>
+          <p className="text-sm font-semibold text-slate-900">{t("tpay.title")}</p>
           {/*
             The old line — "the money goes straight to your own Stripe account,
             we never hold it" — was a promise the product can no longer make
@@ -85,10 +88,10 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           */}
           <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
             {state.heldCents > 0
-              ? `We are holding ${formatUsd(state.heldCents)} of yours until Stripe finishes verifying you. It moves to your account by itself the moment they do.`
+              ? t("tpay.holding", { amount: formatUsd(state.heldCents) })
               : state.payoutsEnabled
-                ? "Charge for a session link and the money goes straight into your own Stripe account, we never touch it."
-                : "Charge for a session from today. Once Stripe has verified you the money goes straight into your own account; until then we hold your share and pass it on automatically."}
+                ? t("tpay.enabled")
+                : t("tpay.notEnabled")}
           </p>
         </div>
       </div>
@@ -103,11 +106,10 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         <div className="mt-4">
           <Button full size="lg" disabled={pending} onClick={() => run(connectPayouts)}>
             <Banknote className="h-4 w-4" aria-hidden />
-            {pending ? "Opening Stripe…" : "Set up payouts"}
+            {pending ? t("tpay.openingStripe") : t("tpay.setUp")}
           </Button>
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            Stripe handles identity checks, payouts to your bank and your tax forms. It takes about
-            three minutes and you can come back to it.
+            {t("tpay.setUpBody")}
           </p>
         </div>
       ) : (
@@ -115,20 +117,20 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <StatusChip
               ok={state.chargesEnabled}
-              okLabel="Ready to take payments"
-              waitLabel="Stripe is still verifying you"
+              okLabel={t("tpay.chargesOk")}
+              waitLabel={t("tpay.chargesWait")}
             />
             <StatusChip
               ok={state.payoutsEnabled}
-              okLabel="Payouts on"
-              waitLabel="Payouts not enabled yet"
+              okLabel={t("tpay.payoutsOk")}
+              waitLabel={t("tpay.payoutsWait")}
             />
           </div>
 
           {!state.chargesEnabled ? (
             <div className="mt-3">
               <Button variant="secondary" disabled={pending} onClick={() => run(connectPayouts)}>
-                {pending ? "Opening Stripe…" : "Finish Stripe setup"}
+                {pending ? t("tpay.openingStripe") : t("tpay.finishStripe")}
               </Button>
             </div>
           ) : null}
@@ -136,7 +138,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           {state.availableCents !== null ? (
             <dl className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                <dt className="text-xs text-slate-500">Available now</dt>
+                <dt className="text-xs text-slate-500">{t("tpay.available")}</dt>
                 <dd className="mt-0.5 text-2xl font-bold text-slate-900">
                   {formatUsd(state.availableCents)}
                 </dd>
@@ -144,7 +146,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <dt className="flex items-center gap-1 text-xs text-slate-500">
                   <Clock className="h-3 w-3" aria-hidden />
-                  Clearing
+                  {t("tpay.clearing")}
                 </dt>
                 <dd className="mt-0.5 text-2xl font-bold text-slate-900">
                   {formatUsd(state.pendingCents ?? 0)}
@@ -156,30 +158,31 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           <div className="mt-3 flex flex-wrap gap-2">
             {state.payoutsEnabled && (state.availableCents ?? 0) > 0 ? (
               <Button disabled={pending} onClick={() => run(payOutNow)}>
-                {pending ? "Requesting…" : `Pay out ${formatUsd(state.availableCents ?? 0)}`}
+                {pending
+                  ? t("tpay.requesting")
+                  : t("tpay.payOut", { amount: formatUsd(state.availableCents ?? 0) })}
               </Button>
             ) : null}
             <Button variant="secondary" disabled={pending} onClick={() => run(openPayoutDashboard)}>
-              Stripe dashboard
+              {t("tpay.dashboard")}
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
             </Button>
           </div>
 
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            Payouts run automatically every day. The button is only there for when you would rather
-            not wait.
+            {t("tpay.dailyNote")}
           </p>
         </>
       )}
 
       <form action={formAction} className="mt-5 space-y-4 border-t border-slate-100 pt-4">
-        {formState.ok ? <p className="text-sm text-emerald-700">Saved</p> : null}
+        {formState.ok ? <p className="text-sm text-emerald-700">{t("common.saved")}</p> : null}
         {formState.error ? <p className="text-sm text-red-600">{formState.error}</p> : null}
 
         <Field
-          label="Your rate for a 30-minute session"
+          label={t("tpay.rateLabel")}
           htmlFor="rateDollars"
-          hint="Used as the default when you create a paid session link. Leave at 0 for free sessions."
+          hint={t("tpay.rateHint")}
         >
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -209,7 +212,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
               name="rateCurrency"
               value={currency}
               onChange={(event) => setCurrency(event.target.value)}
-              aria-label="Currency"
+              aria-label={t("tpay.currency")}
               className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm"
             >
               <option value="usd">USD</option>
@@ -221,12 +224,12 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         {rateCents > 0 ? (
           <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm">
             <div className="flex items-baseline justify-between">
-              <span className="text-slate-600">You keep</span>
+              <span className="text-slate-600">{t("tpay.youKeep")}</span>
               <span className="text-lg font-bold text-slate-900">{formatUsd(keep)}</span>
             </div>
             <div className="mt-1 flex items-baseline justify-between">
               <span className="text-slate-500">
-                24Therapy fee ({(state.feeBps / 100).toFixed(0)}%)
+                {t("tpay.fee", { percent: (state.feeBps / 100).toFixed(0) })}
               </span>
               <span className="font-medium text-slate-500">{formatUsd(cut)}</span>
             </div>
@@ -242,19 +245,18 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           />
           <span className="min-w-0">
             <span className="block text-sm font-medium text-slate-800">
-              Pay my 24Therapy bill out of my earnings
+              {t("tpay.autoSettle")}
             </span>
             <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
-              When a patient pays you, anything you owe us is taken out of the same charge instead
-              of your card, never more than what you would have received.
+              {t("tpay.autoSettleBody")}
               {state.outstandingCents > 0
-                ? ` You currently owe ${formatUsd(state.outstandingCents)}.`
+                ? ` ${t("tpay.owedNow", { amount: formatUsd(state.outstandingCents) })}`
                 : ""}
             </span>
           </span>
         </label>
 
-        <Saving label="Save payment settings" />
+        <Saving label={t("tpay.saveSettings")} />
       </form>
     </Card>
   );

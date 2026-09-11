@@ -70,7 +70,7 @@ export default async function WallCodesPage() {
       </Card>
 
       <NewWallCode />
-      <WallCodeList codes={withSvg} />
+      <WallCodeList codes={withSvg} zone={actor.timezone} />
     </main>
   );
 }

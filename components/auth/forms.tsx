@@ -12,16 +12,36 @@ import {
   type ActionState,
 } from "@/lib/auth/actions";
 import { Button, Field, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: ActionState = {};
 
 function Submit({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" size="lg" full disabled={pending}>
-      {pending ? "One moment…" : children}
+      {pending ? t("tauth.oneMoment") : children}
     </Button>
   );
+}
+
+/**
+ * A sentence with links inside it, as one dictionary row. 37L.2.
+ *
+ * Two half-sentences either side of an anchor is a translation nobody can do:
+ * Arabic does not put the clause where English does. So the row carries named
+ * slots and this splits on them, which keeps the order the translator chose.
+ */
+function withLinks(text: string, links: Record<string, React.ReactNode>): React.ReactNode[] {
+  return text.split(/(\{\w+\})/g).map((part, index) => {
+    const name = part.startsWith("{") && part.endsWith("}") ? part.slice(1, -1) : null;
+    return name && name in links ? (
+      <span key={index}>{links[name]}</span>
+    ) : (
+      <span key={index}>{part}</span>
+    );
+  });
 }
 
 function ErrorNote({ message }: { message?: string }) {
@@ -43,11 +63,12 @@ function ErrorNote({ message }: { message?: string }) {
  * out, in the words the person would use about themselves.
  */
 function PatientDoor() {
+  const t = useT();
   return (
     <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
-      Looking for your own sessions?{" "}
+      {t("tauth.patientDoor")}{" "}
       <Link href="/patient/login" className="font-medium text-brand-600 hover:text-brand-700">
-        Sign in as a patient
+        {t("tauth.patientDoorLink")}
       </Link>
     </p>
   );
@@ -55,12 +76,15 @@ function PatientDoor() {
 
 export function SignInForm({ next, notice }: { next?: string; notice?: string }) {
   const [state, action] = useActionState(signIn, INITIAL);
+  const t = useT();
 
   return (
     <form action={action} className="space-y-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Welcome back</h1>
-        <p className="mt-1 text-sm text-slate-500">Sign in to your practice.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          {t("tauth.welcomeBack")}
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">{t("tauth.signInPractice")}</p>
       </div>
 
       {notice ? (
@@ -70,7 +94,7 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
 
       <input type="hidden" name="next" value={next ?? ""} />
 
-      <Field label="Email" htmlFor="email">
+      <Field label={t("tauth.email")} htmlFor="email">
         <Input
           id="email"
           name="email"
@@ -82,18 +106,18 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
         />
       </Field>
 
-      <Field label="Password" htmlFor="password">
+      <Field label={t("tauth.password")} htmlFor="password">
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </Field>
 
-      <Submit>Sign in</Submit>
+      <Submit>{t("tauth.signIn")}</Submit>
 
       <div className="flex items-center justify-between pt-1 text-sm">
         <Link href="/forgot-password" className="text-slate-500 hover:text-slate-800">
-          Forgot password?
+          {t("tauth.forgot")}
         </Link>
         <Link href="/signup" className="font-medium text-brand-600 hover:text-brand-700">
-          Create account
+          {t("tauth.createAccount")}
         </Link>
       </div>
 
@@ -118,17 +142,22 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
  */
 export function StaffSignInForm({ next, notice }: { next?: string; notice?: string }) {
   const [state, action] = useActionState(signIn, INITIAL);
+  const t = useT();
 
   return (
     <form action={action} className="space-y-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Staff console</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          {t("tauth.staffConsole")}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          For the 24Therapy team. Clinicians sign in at{" "}
-          <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
-            /login
-          </Link>
-          .
+          {withLinks(t("tauth.staffBody"), {
+            link: (
+              <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
+                /login
+              </Link>
+            ),
+          })}
         </p>
       </div>
 
@@ -140,7 +169,7 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
       <input type="hidden" name="audience" value="staff" />
       <input type="hidden" name="next" value={next ?? ""} />
 
-      <Field label="Work email" htmlFor="email">
+      <Field label={t("tauth.workEmail")} htmlFor="email">
         <Input
           id="email"
           name="email"
@@ -152,7 +181,7 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
         />
       </Field>
 
-      <Field label="Password" htmlFor="password">
+      <Field label={t("tauth.password")} htmlFor="password">
         <Input
           id="password"
           name="password"
@@ -162,12 +191,12 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
         />
       </Field>
 
-      <Submit>Sign in</Submit>
+      <Submit>{t("tauth.signIn")}</Submit>
 
       {/* 21R.5 — this door carries its reset too. It is the same one. */}
       <p className="pt-1 text-center text-sm">
         <Link href="/forgot-password" className="text-slate-500 hover:text-slate-800">
-          Forgot password?
+          {t("tauth.forgot")}
         </Link>
       </p>
     </form>
@@ -176,30 +205,31 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
 
 export function SignUpForm() {
   const [state, action] = useActionState(signUp, INITIAL);
+  const t = useT();
 
   return (
     <form action={action} className="space-y-4">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Start your first session
+          {t("tauth.signUpTitle")}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Four fields, then you are in. Your first session is free.
+          {t("tauth.signUpBody")}
         </p>
       </div>
 
       <ErrorNote message={state.error} />
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="First name" htmlFor="firstName">
+        <Field label={t("tauth.firstName")} htmlFor="firstName">
           <Input id="firstName" name="firstName" autoComplete="given-name" required />
         </Field>
-        <Field label="Last name" htmlFor="lastName">
+        <Field label={t("tauth.lastName")} htmlFor="lastName">
           <Input id="lastName" name="lastName" autoComplete="family-name" />
         </Field>
       </div>
 
-      <Field label="Work email" htmlFor="email">
+      <Field label={t("tauth.workEmail")} htmlFor="email">
         <Input
           id="email"
           name="email"
@@ -211,31 +241,34 @@ export function SignUpForm() {
         />
       </Field>
 
-      <Field label="Password" htmlFor="password" hint="At least 10 characters.">
+      <Field label={t("tauth.password")} htmlFor="password" hint={t("tauth.passwordHint")}>
         <Input id="password" name="password" type="password" autoComplete="new-password" required />
       </Field>
 
-      <Submit>Create account</Submit>
+      <Submit>{t("tauth.createAccount")}</Submit>
 
       <p className="pt-1 text-center text-sm text-slate-500">
-        Already have an account?{" "}
+        {t("tauth.haveAccount")}{" "}
         <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
-          Sign in
+          {t("tauth.signIn")}
         </Link>
       </p>
 
       <PatientDoor />
 
       <p className="text-center text-xs leading-relaxed text-slate-400">
-        By creating an account you agree to our{" "}
-        <Link href="/terms" className="underline">
-          terms
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="underline">
-          privacy policy
-        </Link>
-        . You are responsible for obtaining your patients&rsquo; consent to recording.
+        {withLinks(t("tauth.terms"), {
+          terms: (
+            <Link href="/terms" className="underline">
+              {t("tauth.termsWord")}
+            </Link>
+          ),
+          privacy: (
+            <Link href="/privacy" className="underline">
+              {t("tauth.privacyWord")}
+            </Link>
+          ),
+        })}
       </p>
     </form>
   );
@@ -243,18 +276,20 @@ export function SignUpForm() {
 
 export function ForgotPasswordForm() {
   const [state, action] = useActionState(requestPasswordReset, INITIAL);
+  const t = useT();
 
   if (state.ok) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Check your inbox</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          {t("tauth.checkInbox")}
+        </h1>
         <p className="text-sm leading-relaxed text-slate-600">
-          If an account exists for that address, a reset link is on its way. It works once and
-          expires in an hour.
+          {t("tauth.checkInboxBody")}
         </p>
         <Link href="/login">
           <Button variant="secondary" full>
-            Back to sign in
+            {t("tauth.backToSignIn")}
           </Button>
         </Link>
       </div>
@@ -264,21 +299,23 @@ export function ForgotPasswordForm() {
   return (
     <form action={action} className="space-y-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Reset your password</h1>
-        <p className="mt-1 text-sm text-slate-500">We will email you a link.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          {t("tauth.resetTitle")}
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">{t("tauth.resetBody")}</p>
       </div>
 
       <ErrorNote message={state.error} />
 
-      <Field label="Email" htmlFor="email">
+      <Field label={t("tauth.email")} htmlFor="email">
         <Input id="email" name="email" type="email" autoComplete="email" required />
       </Field>
 
-      <Submit>Send reset link</Submit>
+      <Submit>{t("tauth.sendResetLink")}</Submit>
 
       <p className="pt-1 text-center text-sm">
         <Link href="/login" className="text-slate-500 hover:text-slate-800">
-          Back to sign in
+          {t("tauth.backToSignIn")}
         </Link>
       </p>
 
@@ -289,13 +326,16 @@ export function ForgotPasswordForm() {
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const [state, action] = useActionState(resetPassword, INITIAL);
+  const t = useT();
 
   return (
     <form action={action} className="space-y-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Choose a new password</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          {t("tauth.chooseNew")}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          This will sign you out everywhere else.
+          {t("tauth.chooseNewBody")}
         </p>
       </div>
 
@@ -303,15 +343,15 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
       <input type="hidden" name="token" value={token} />
 
-      <Field label="New password" htmlFor="password" hint="At least 10 characters.">
+      <Field label={t("tauth.newPassword")} htmlFor="password" hint={t("tauth.passwordHint")}>
         <Input id="password" name="password" type="password" autoComplete="new-password" required />
       </Field>
 
-      <Submit>Update password</Submit>
+      <Submit>{t("tauth.updatePassword")}</Submit>
 
       <p className="pt-1 text-center text-sm">
         <Link href="/login" className="text-slate-500 hover:text-slate-800">
-          Back to sign in
+          {t("tauth.backToSignIn")}
         </Link>
       </p>
 

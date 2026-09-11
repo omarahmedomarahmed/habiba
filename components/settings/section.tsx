@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { getI18n } from "@/lib/i18n/server";
+
 /**
  * One section of the settings page. PLAN.md 24.4.
  *
@@ -47,10 +49,15 @@ export function SettingsSection({
  * are more sections than fit, which is the one place a horizontal scroll is
  * the right answer.
  */
-export function SettingsNav({ sections }: { sections: { id: string; title: string }[] }) {
+export async function SettingsNav({
+  sections,
+}: {
+  sections: { id: string; title: string }[];
+}) {
+  const { t } = await getI18n();
   return (
     <nav
-      aria-label="Settings sections"
+      aria-label={t("tset.sections")}
       className="-mx-4 mb-2 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"
     >
       {sections.map((section) => (

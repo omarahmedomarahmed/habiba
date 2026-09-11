@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 
 import { killWallCode, newWallCode } from "@/app/(app)/settings/codes/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { formatDate } from "@/lib/utils";
 
 /**
  * Wall codes, listed and killed. PLAN.md 25.17, C120.
@@ -27,13 +29,19 @@ export type WallCodeRow = {
 
 export function NewWallCode() {
   const [state, create] = useActionState(newWallCode, {});
+  const t = useT();
 
   return (
     <Card className="p-4">
       <form action={create} className="flex flex-wrap items-end gap-3">
         <div className="min-w-[14rem] flex-1">
-          <Field label="What is this one for?" htmlFor="label">
-            <Input id="label" name="label" placeholder="Waiting room poster" maxLength={80} />
+          <Field label={t("tset.codeFor")} htmlFor="label">
+            <Input
+              id="label"
+              name="label"
+              placeholder={t("tset.codeLabelPlaceholder")}
+              maxLength={80}
+            />
           </Field>
         </div>
         <Mint />
@@ -49,20 +57,24 @@ export function NewWallCode() {
 
 function Mint() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Creating…" : "Create a code"}
+      {pending ? t("tset.codeCreating") : t("tset.codeCreate")}
     </Button>
   );
 }
 
-export function WallCodeList({ codes }: { codes: WallCodeRow[] }) {
+export function WallCodeList({ codes, zone }: { codes: WallCodeRow[]; zone: string | null }) {
+  const t = useT();
+  const locale = useLocale();
+
   if (codes.length === 0) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">No codes yet</p>
+        <p className="text-sm font-semibold text-slate-900">{t("tset.codesNone")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Create one above, print it, and put it where people wait.
+          {t("tset.codesNoneBody")}
         </p>
       </Card>
     );
@@ -81,7 +93,7 @@ export function WallCodeList({ codes }: { codes: WallCodeRow[] }) {
               />
             ) : (
               <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-center text-xs font-medium text-slate-400">
-                Revoked
+                {t("tset.codeRevoked")}
               </div>
             )}
 
@@ -89,12 +101,22 @@ export function WallCodeList({ codes }: { codes: WallCodeRow[] }) {
               <p className="font-mono text-lg font-bold tracking-[0.2em] text-slate-900">
                 {entry.code}
               </p>
-              <p className="mt-0.5 text-sm text-slate-600">{entry.label ?? "No label"}</p>
+              <p className="mt-0.5 text-sm text-slate-600">{entry.label ?? t("tset.codeNoLabel")}</p>
               <p className="mt-1 text-xs break-all text-slate-400">{entry.url}</p>
               <p className="mt-1 text-xs text-slate-400">
+                {/*
+                  37L.2 — these printed `iso.slice(0, 10)`, which is a date in
+                  no language and in no zone: the raw UTC day, shown to a
+                  clinician. It is the C61 defect with the formatter skipped
+                  rather than misused, which is why no scan for `Intl` found it.
+                */}
                 {entry.revokedAt
-                  ? `Revoked ${entry.revokedAt.slice(0, 10)}`
-                  : `Created ${entry.createdAt.slice(0, 10)}`}
+                  ? t("tset.codeRevokedOn", {
+                      date: formatDate(entry.revokedAt, zone, locale),
+                    })
+                  : t("tset.codeCreatedOn", {
+                      date: formatDate(entry.createdAt, zone, locale),
+                    })}
               </p>
 
               {entry.revokedAt ? null : (
@@ -104,7 +126,7 @@ export function WallCodeList({ codes }: { codes: WallCodeRow[] }) {
                     type="submit"
                     className="text-sm font-semibold text-red-600 hover:underline"
                   >
-                    Revoke this code
+                    {t("tset.codeRevoke")}
                   </button>
                 </form>
               )}
