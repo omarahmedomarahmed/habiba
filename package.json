@@ -34,6 +34,7 @@
     "test:evals": "node --import tsx --test tests/evals.test.ts",
     "test:facts": "node --import tsx --test tests/facts.test.ts",
     "test:risk": "node --import tsx --conditions=react-server --test tests/risk-level.test.ts",
+    "verify:sprint35r": "node --import tsx --conditions=react-server scripts/verify-sprint35r.ts",
     "verify:sprint35": "node --import tsx --conditions=react-server scripts/verify-sprint35.ts",
     "verify:sprint34": "node --import tsx --conditions=react-server scripts/verify-sprint34.ts",
     "verify:sprint33": "node --import tsx --conditions=react-server scripts/verify-sprint33.ts",

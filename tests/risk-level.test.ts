@@ -10,6 +10,9 @@ import {
   type Finding,
 } from "../lib/crisis/level";
 import { traceable } from "../lib/ai/risk";
+import { scanForCrisisLanguage } from "../lib/crisis/alerts";
+import { PAST, PRESENT, RESOLVED, THIRD_PARTY, stillCounts } from "../lib/crisis/context";
+import { contains, fold, foldsToNothing } from "../lib/crisis/fold";
 
 /**
  * The adjudication, which no model touches. PLAN.md 35.3.
@@ -161,4 +164,106 @@ test("🔴 an Arabic quote is matched through diacritics and alef forms", () => 
     arabic,
   );
   assert.equal(kept.length, 1, "a re-typed Arabic quote must still match");
+});
+
+/* ------------------------------------------ 35R · the context guard, both ways -- */
+
+/**
+ * 🔴 The only thing in this product that makes an alert LESS likely.
+ *
+ * Every test here is paired: a sentence it must suppress and a sentence that
+ * looks suppressible and must still fire. A guard proved only by what it
+ * silences is C165's locked door nobody opened, and the cost of this one being
+ * wrong is the cost that cannot be undone.
+ */
+
+test("🔴 C173 no marker folds away to nothing, in any list", () => {
+  // This is the bug twice over. C161 in sprint 32, and again in 35R in a new
+  // file: a marker that normalises to "" matches EVERY string, which turned
+  // "is this about the present?" into "yes, always" and silently disabled the
+  // whole guard. The lists are data, so the check is over the data.
+  for (const [name, list] of [
+    ["THIRD_PARTY", THIRD_PARTY],
+    ["PAST", PAST],
+    ["RESOLVED", RESOLVED],
+    ["PRESENT", PRESENT],
+  ] as const) {
+    assert.deepEqual(foldsToNothing(list), [], `${name} has a marker that folds to nothing`);
+  }
+});
+
+test("🔴 C173 an empty needle contains nothing", () => {
+  assert.equal(contains("any English sentence at all", ""), false);
+  assert.equal(contains("any English sentence at all", "   "), false);
+  assert.equal(fold("الان").length > 0, true, "Arabic must survive folding");
+});
+
+test("a story about somebody else does not alert", () => {
+  assert.deepEqual(scanForCrisisLanguage("My brother took an overdose in 2019."), []);
+  assert.deepEqual(scanForCrisisLanguage("أخي انتحر من سنتين."), []);
+});
+
+test("🔴 …but the patient's own disclosure in the next sentence does", () => {
+  assert.ok(
+    scanForCrisisLanguage(
+      "My brother took an overdose in 2019. Since then I have thought about an overdose myself.",
+    ).length > 0,
+  );
+  assert.ok(scanForCrisisLanguage("أخي انتحر من سنتين. وأنا بقيت أفكر أنهي حياتي زيه.").length > 0);
+});
+
+test("🔴 …and a relative in the same sentence does not silence the speaker", () => {
+  assert.ok(
+    scanForCrisisLanguage("My brother worries about me and I have been thinking I want to die.")
+      .length > 0,
+    "'I' before the phrase means the speaker put themselves in it",
+  );
+});
+
+test("something said to be over does not alert", () => {
+  assert.deepEqual(
+    scanForCrisisLanguage(
+      "When I was nineteen I used to cut myself. That is over and it has not come back.",
+    ),
+    [],
+  );
+  assert.deepEqual(
+    scanForCrisisLanguage("زمان كنت أجرح نفسي، لكن ذلك انتهى ولم أعد أفعله."),
+    [],
+  );
+});
+
+test("🔴 …but the present beats the past, ANYWHERE in the text", () => {
+  // The widened case set caught this within an hour of the guard being
+  // written: the correction that matters was in the next sentence, where
+  // nothing was looking, and the alert was silently lost.
+  assert.ok(
+    scanForCrisisLanguage(
+      "Years ago I felt suicidal and it passed. It is back now, worse than it was.",
+    ).length > 0,
+  );
+  assert.ok(
+    scanForCrisisLanguage("قبل سنوات كنت أفكر في إيذاء نفسي وانتهى ذلك. رجع تاني من شهر.").length >
+      0,
+  );
+  assert.ok(
+    scanForCrisisLanguage("I used to want to die when I was twenty. I still do, most mornings.")
+      .length > 0,
+  );
+});
+
+test("🔴 a past tense ALONE never suppresses: only an explicit ending does", () => {
+  assert.ok(scanForCrisisLanguage("I tried to kill myself last year.").length > 0);
+  assert.ok(scanForCrisisLanguage("حاولت أنهي حياتي السنة الماضية.").length > 0);
+});
+
+test("a plain disclosure is untouched by any of this", () => {
+  assert.ok(scanForCrisisLanguage("I want to die.").length > 0);
+  assert.ok(scanForCrisisLanguage("أتمنى أن أموت.").length > 0);
+  assert.equal(stillCounts("I want to die.", "want to die"), true);
+});
+
+test("a phrase that is not in the text is not suppressed into existence", () => {
+  assert.equal(stillCounts("We talked about the weather.", "want to die"), true);
+  assert.deepEqual(scanForCrisisLanguage("We talked about the weather."), []);
 });

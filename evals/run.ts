@@ -23,7 +23,15 @@
  * risk suite calls nothing at all — the crisis scanner is a phrase list — so
  * the one eval that must never be skipped for cost never is.
  */
-import { compare, printTable, readBaseline, writeBaseline, type Measurement } from "./report";
+import {
+  caseSetChanged,
+  compare,
+  printTable,
+  readBaseline,
+  writeBaseline,
+  type Measurement,
+} from "./report";
+import { RISK_CASES, SESSIONS, SPEECH_CASES } from "./cases";
 import { unmeasured } from "./coverage";
 import { attribution } from "./suites/attribution";
 import { grounding } from "./suites/grounding";
@@ -82,6 +90,14 @@ async function main() {
 
   const hasKey = Boolean(process.env.OPENAI_API_KEY);
 
+  /* The shape of what is being measured, so a widened set cannot be compared
+     against a narrower one without somebody saying so out loud. */
+  const shape = {
+    sessions: SESSIONS.length,
+    riskCases: RISK_CASES.length,
+    speechCases: SPEECH_CASES.length,
+  };
+
   const chosen = SUITES.filter((suite) => {
     if (only && suite.name !== only) return false;
     if ((offline || !hasKey) && suite.needsModel) return false;
@@ -134,7 +150,24 @@ async function main() {
 
     const takes: Measurement[][] = [];
     for (let take = 0; take < (suite.needsModel ? repeats : 1); take += 1) {
-      takes.push(await suite.run());
+      try {
+        takes.push(await suite.run());
+      } catch (error) {
+        /*
+         * 🔴 A suite that could not run is not a suite that passed.
+         *
+         * The first time the API refused — "you have no credits remaining" —
+         * this printed a Node stack trace and exited non-zero by accident. The
+         * exit code was right for the wrong reason, and a reader skimming the
+         * output would have seen a crash rather than the one fact that
+         * mattered. A measurement that did not happen says so in one line, and
+         * nothing is recorded from a partial run.
+         */
+        const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
+        console.log(`  🔴 ${suite.name} could not run: ${reason}`);
+        console.log(`\nevals: INCOMPLETE. Nothing measured, nothing recorded.`);
+        process.exit(1);
+      }
     }
 
     const averaged = mean(takes);
@@ -148,6 +181,17 @@ async function main() {
   }
 
   const measurements = runs.flat();
+
+  /*
+   * 🔴 A changed case set invalidates every number in the file.
+   *
+   * Fifteen sessions compared against a figure taken over five is not a
+   * regression or an improvement, it is two different measurements printed
+   * next to each other. The run FAILS and asks for a deliberate re-record,
+   * which is the same posture as C172: never green on a number that cannot be
+   * trusted, and never quietly adjusted to make it green.
+   */
+  const changed = caseSetChanged(readBaseline(), shape);
 
   /*
    * 🔴 The unmeasured surfaces are printed on every run.
@@ -186,9 +230,20 @@ async function main() {
       measurements,
       "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. `spread` is how far it moved between takes of unchanged code when this was recorded: where that exceeds the tolerance, a red line is marked WORSE? and asks for --repeat 3 rather than being believed. Re-record on purpose, with a reason in PLAN.md.",
       SPREADS,
+      shape,
     );
     console.log("\nbaseline recorded");
     process.exit(0);
+  }
+
+  if (changed.length > 0) {
+    console.log(`\n🔴 evals: the case set changed since the baseline was taken`);
+    for (const line of changed) console.log(`  ${line}`);
+    console.log(
+      "  Nothing in this run is comparable to the file. Re-record on purpose:\n" +
+        "    npm run evals -- --record",
+    );
+    process.exit(1);
   }
 
   const verdicts = compare(measurements, readBaseline());

@@ -1,6 +1,8 @@
 import "server-only";
 
 import { crisisLine } from "@/lib/crisis/line";
+import { stillCounts } from "@/lib/crisis/context";
+import { contains } from "@/lib/crisis/fold";
 
 import { and, desc, eq, gt } from "drizzle-orm";
 
@@ -199,36 +201,30 @@ const CRISIS_PHRASES = [
   "حياتي مالهاش لازمه",
 ] as const;
 
-/**
- * 🔴 One spelling, so a phrase list can be read in Arabic at all.
- *
- * Arabic is written with optional diacritics, three interchangeable alef forms,
- * a final ة that half the internet types as ه, and a final ى that half types as
- * ي. None of those change the word. Matching raw text means a patient who
- * vowels their writing, or types on a phone keyboard that does not, is invisible
- * to the scanner — and the one person the scanner exists for is the one writing
- * at 3am on a phone.
- *
- * English passes through this unchanged apart from the lowercasing it already
- * had, so nothing about the existing behaviour moves.
- */
-function fold(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[ؐ-ًؚ-ٰٟۖ-ۭـ]/g, "")
-    .replace(/[أإآٱ]/g, "ا")
-    .replace(/ة/g, "ه")
-    .replace(/ى/g, "ي")
-    .replace(/[ؤئ]/g, "ء")
-    /* The tatweel is in the class above; nothing else is stripped. */;
-}
-
 /** Ten minutes. Re-alerting on every mention turns the alert into noise. */
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
+/**
+ * 🔴 35R / C171 — a match that is about somebody else, or about something the
+ * speaker says is over, does not count.
+ *
+ * The measured reason: after sprint 35 the classifier scored **100%
+ * specificity** and the shipped pipeline scored **76.9%**, because every
+ * remaining false alarm came from this list and the list is a floor the model
+ * may not lower. The founder's ruling was to fix the list rather than the
+ * floor, and tense and subject are the two things a list cannot otherwise
+ * carry.
+ *
+ * The suppression is per **sentence** and deliberately narrow: a text with a
+ * story about a brother in one sentence and a disclosure in the next still
+ * alerts, and any marker of the present cancels it outright. See
+ * `lib/crisis/context.ts`, which is the most dangerous file here and is
+ * written to be the smallest.
+ */
 export function scanForCrisisLanguage(text: string): string[] {
-  const haystack = fold(text);
-  return CRISIS_PHRASES.filter((phrase) => haystack.includes(fold(phrase)));
+  return CRISIS_PHRASES.filter(
+    (phrase) => contains(text, phrase) && stillCounts(text, phrase),
+  );
 }
 
 /**

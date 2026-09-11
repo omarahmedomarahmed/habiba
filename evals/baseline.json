@@ -1,6 +1,11 @@
 {
-  "comment": "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. `spread` is how far it moved between takes of unchanged code when this was recorded: where that exceeds the tolerance, a red line is marked WORSE? and asks for --repeat 3 rather than being believed. Re-record on purpose, with a reason in PLAN.md.",
+  "comment": "Measured by `npm run evals -- --record`. A metric may only move the wrong way by its own tolerance; past that the run fails. `spread` is how far it moved between takes of unchanged code when this was recorded: where that exceeds the tolerance, a red line is marked WORSE? and asks for --repeat 3 rather than being believed. Re-record on purpose, with a reason in PLAN.md. 🔴 35R: `cases` records the shape this file was measured on. The case set has since been widened (15 sessions, 44 risk cases) and the model suites COULD NOT be re-recorded because the OpenAI account ran out of credits mid-sprint, so every metric here is still a five-session, thirty-case figure. The runner refuses to compare a run against a different shape: the next full run fails with 'the case set changed' until somebody re-records on purpose.",
   "recordedOn": "2026-09-11",
+  "cases": {
+    "sessions": 5,
+    "riskCases": 30,
+    "speechCases": 3
+  },
   "metrics": {
     "attribution.der": {
       "value": 0,

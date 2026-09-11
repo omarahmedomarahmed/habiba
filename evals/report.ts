@@ -48,9 +48,22 @@ export type Measurement = {
   detail?: string;
 };
 
+/**
+ * 🔴 The shape of the case set a baseline was measured on. 35R.
+ *
+ * Without this, widening the case set silently invalidates every number in the
+ * file: a run over fifteen sessions compares itself against a figure taken
+ * over five, and the diff is reported as a regression or an improvement when
+ * it is neither. A metric is only comparable to itself over the same cases,
+ * and that is a fact about the baseline rather than something a reader is
+ * expected to remember.
+ */
+export type CaseShape = Record<string, number>;
+
 export type Baseline = {
   comment: string;
   recordedOn: string;
+  cases?: CaseShape;
   metrics: Record<
     string,
     {
@@ -86,6 +99,7 @@ export function writeBaseline(
   measurements: Measurement[],
   comment: string,
   spreads: Map<string, number> = new Map(),
+  cases: CaseShape = {},
 ): void {
   const metrics: Baseline["metrics"] = {};
   for (const m of [...measurements].sort((a, b) => a.key.localeCompare(b.key))) {
@@ -100,6 +114,7 @@ export function writeBaseline(
   const baseline: Baseline = {
     comment,
     recordedOn: new Date().toISOString().slice(0, 10),
+    cases,
     metrics,
   };
   writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
@@ -127,6 +142,22 @@ export type Verdict = {
    */
   indeterminate: boolean;
 };
+
+/**
+ * 🔴 Has the case set changed since the baseline was taken?
+ *
+ * Returns the differences. A non-empty answer means **no metric in this run is
+ * comparable to the file**, and the honest response is to say so and refuse,
+ * not to print a diff of two different measurements.
+ */
+export function caseSetChanged(baseline: Baseline | null, now: CaseShape): string[] {
+  const was = baseline?.cases;
+  if (!was || Object.keys(was).length === 0) return [];
+
+  return Object.keys(now)
+    .filter((key) => was[key] !== undefined && was[key] !== now[key])
+    .map((key) => `${key} ${was[key]} -> ${now[key]}`);
+}
 
 /** Did it move the wrong way by more than its own tolerance? */
 export function compare(measurements: Measurement[], baseline: Baseline | null): Verdict[] {
