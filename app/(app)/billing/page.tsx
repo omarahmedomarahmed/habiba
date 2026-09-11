@@ -22,7 +22,7 @@ export default async function BillingPage({
 }: {
   searchParams: Promise<{ checkout?: string }>;
 }) {
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { checkout } = await searchParams;
 
@@ -48,24 +48,23 @@ export default async function BillingPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Billing" />
+      <PageHeader title={t("portal.billing.title")} />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {checkout && checkout !== "cancelled" ? (
           <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
-            Payment received, thank you.
+            {t("portal.billing.paid")}
           </p>
         ) : null}
         {checkout === "cancelled" ? (
           <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
-            Checkout cancelled. Nothing was charged.
+            {t("portal.billing.cancelled")}
           </p>
         ) : null}
 
         {!features.billing ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-            Payments are not configured on this deployment, so nothing is being charged. Sessions
-            still record and notes are still written.
+            {t("portal.billing.noPayments")}
           </p>
         ) : null}
 
@@ -83,13 +82,13 @@ export default async function BillingPage({
 
         {!summary.subscription.trialSessionUsed ? (
           <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
-            Your first completed session is free.
+            {t("portal.billing.firstFree")}
           </p>
         ) : null}
 
         {summary.subscription.upcomingDiscountCents > 0 ? (
           <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
-            A credit is waiting on your next invoice
+            {t("portal.billing.creditWaiting")}
             {summary.subscription.upcomingDiscountReason
               ? `, ${summary.subscription.upcomingDiscountReason}`
               : ""}
@@ -114,11 +113,16 @@ export default async function BillingPage({
             <Wallet className="h-4 w-4" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-slate-900">Your earnings</span>
+            <span className="block text-sm font-semibold text-slate-900">{t("portal.billing.earnings")}</span>
             <span className="block truncate text-xs text-slate-500">
               {earnings.heldCents > 0
-                ? `${formatUsd(earnings.heldCents)} held for you, ${formatUsd(earnings.thisMonthNetCents)} earned this month`
-                : `${formatUsd(earnings.thisMonthNetCents)} earned this month`}
+                ? t("portal.billing.heldAndEarned", {
+                    held: formatUsd(earnings.heldCents),
+                    earned: formatUsd(earnings.thisMonthNetCents),
+                  })
+                : t("portal.billing.earnedThisMonth", {
+                    earned: formatUsd(earnings.thisMonthNetCents),
+                  })}
             </span>
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />

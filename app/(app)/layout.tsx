@@ -25,6 +25,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { initials } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -59,6 +60,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = await getI18n();
   const actor = await requireUser();
   const [radar, [me], state] = await Promise.all([
     getRadarProfile(actor.userId),
@@ -103,11 +105,11 @@ export default async function AppLayout({
             className="mx-4 mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
           >
             <Plus className="h-4 w-4" aria-hidden />
-            New session
+            {t("portal.nav.newSession")}
           </Link>
         ) : null}
 
-        <nav aria-label="Primary" className="flex-1 space-y-0.5 px-3">
+        <nav aria-label={t("portal.nav.primary")} className="flex-1 space-y-0.5 px-3">
           {/*
             Nothing gated is linked until they are cleared.
 
@@ -118,25 +120,25 @@ export default async function AppLayout({
           */}
           {!cleared ? (
             <SidebarLink href="/onboarding" icon={ShieldCheck}>
-              Finish verification
+              {t("portal.nav.finishVerification")}
             </SidebarLink>
           ) : null}
           {cleared ? (
           <>
           <SidebarLink href="/dashboard" icon={Home}>
-            Home
+            {t("portal.nav.home")}
           </SidebarLink>
           <SidebarLink href="/sessions" icon={CalendarDays}>
-            Sessions
+            {t("portal.nav.sessions")}
           </SidebarLink>
           <SidebarLink href="/patients" icon={Users}>
-            Patients
+            {t("portal.nav.patients")}
           </SidebarLink>
           <SidebarLink href="/notes" icon={FileText}>
-            Notes
+            {t("portal.nav.notes")}
           </SidebarLink>
           <SidebarLink href="/copilot" icon={MessageSquare}>
-            Copilot
+            {t("portal.nav.copilot")}
           </SidebarLink>
           {/*
             When a clinician is live, the radar stops being one nav item among
@@ -145,11 +147,13 @@ export default async function AppLayout({
           */}
           <SidebarLink href="/on-call" icon={Radio}>
             <span className="flex items-center gap-2">
-              Crisis Radar
+              {t("portal.nav.crisisRadar")}
               {radar?.status === "online" || radar?.status === "in_session" ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-teal-700 uppercase">
                   <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" />
-                  {radar.status === "in_session" ? "In session" : "Live"}
+                  {radar.status === "in_session"
+                    ? t("portal.nav.radarInSession")
+                    : t("portal.nav.radarLive")}
                 </span>
               ) : null}
             </span>
@@ -157,13 +161,13 @@ export default async function AppLayout({
           </>
           ) : null}
           <SidebarLink href="/earnings" icon={Wallet}>
-            Earnings
+            {t("portal.nav.earnings")}
           </SidebarLink>
           <SidebarLink href="/billing" icon={CreditCard}>
-            Billing
+            {t("portal.nav.billing")}
           </SidebarLink>
           <SidebarLink href="/settings" icon={Settings}>
-            Settings
+            {t("portal.nav.settings")}
           </SidebarLink>
         </nav>
 
@@ -190,8 +194,8 @@ export default async function AppLayout({
           <form action={signOut}>
             <button
               type="submit"
-              title="Sign out"
-              aria-label="Sign out"
+              title={t("portal.nav.signOut")}
+              aria-label={t("portal.nav.signOut")}
               className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             >
               <LogOut className="h-4 w-4" aria-hidden />

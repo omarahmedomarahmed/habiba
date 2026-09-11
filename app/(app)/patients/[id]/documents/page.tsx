@@ -58,7 +58,7 @@ export default async function PatientDocumentsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -157,9 +157,9 @@ export default async function PatientDocumentsPage({
       </div>
 
       <div className="px-4 pt-3 pb-4 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Profile</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("portal.docs.profile")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Letters, prescriptions, scans and history. These belong to the person, not to one clinic.
+          {t("portal.docs.blurb")}
         </p>
       </div>
 
@@ -199,17 +199,16 @@ export default async function PatientDocumentsPage({
 
         {journals.length > 0 ? (
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">Their journals</p>
+            <p className="text-sm font-semibold text-slate-900">{t("portal.docs.journals")}</p>
             <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-              Written by them, between sessions. They chose to give you access to their history,
-              which is what puts these here.
+              {t("portal.docs.journalsBlurb")}
             </p>
             <ul className="mt-3 space-y-3">
               {journals.map((entry) => (
                 <li key={entry.id} className="border-s-2 border-slate-200 ps-3">
                   <p className="text-xs text-slate-400">
                     {formatDate(entry.createdAt, actor.timezone, locale)}
-                    {entry.source === "dictated" ? " · spoken" : ""}
+                    {entry.source === "dictated" ? ` · ${t("portal.docs.spoken")}` : ""}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
                     {entry.body}
@@ -225,13 +224,16 @@ export default async function PatientDocumentsPage({
             zone={actor.timezone}
             patientId={id}
             documents={rows}
-            watermark={`${fullName(patient.firstName, patient.lastName)} · viewed by ${actor.email ?? actor.userId.slice(0, 8)}`}
+            watermark={t("portal.docs.viewedBy", {
+              name: fullName(patient.firstName, patient.lastName),
+              who: actor.email ?? actor.userId.slice(0, 8),
+            })}
             canAdd={access.state !== "revoked"}
           />
         ) : (
           <Card className="px-4 py-6">
             <p className="text-sm text-slate-500">
-              This patient has no personal record yet. Adding a document creates one.
+              {t("portal.docs.noRecord")}
             </p>
           </Card>
         )}

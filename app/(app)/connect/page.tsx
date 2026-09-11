@@ -19,15 +19,15 @@ export const dynamic = "force-dynamic";
  * anything else in this product.
  */
 export default async function ConnectPage() {
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const asks = await asksForTherapist(actor.userId);
 
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Connect"
-        subtitle="Codes patients gave you, and people asking for their own history."
+        title={t("portal.connect.title")}
+        subtitle={t("portal.connect.subtitle")}
       />
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         <RedeemInvite />

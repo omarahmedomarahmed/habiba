@@ -16,6 +16,7 @@ import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { SessionBadge } from "@/components/sessions/status-badge";
 
 export const metadata: Metadata = { title: "Session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function SessionDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -77,7 +78,7 @@ export default async function SessionDetailPage({
           className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Sessions
+          {t("portal.nav.sessions")}
         </Link>
       </div>
 
@@ -107,21 +108,23 @@ export default async function SessionDetailPage({
             </p>
           ) : null}
         </div>
-        <StatusBadge status={row.session.status} />
+        <SessionBadge status={row.session.status} />
       </div>
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {live ? (
           <Card className="flex flex-col items-start gap-3 p-4">
             <div>
-              <p className="text-sm font-semibold text-slate-900">This session has not finished</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {t("portal.session.unfinished")}
+              </p>
               <p className="mt-0.5 text-sm text-slate-500">
-                Head back into the room to record and end it.
+                {t("portal.session.unfinishedBody")}
               </p>
             </div>
             <Link href={`/sessions/${id}/room`}>
               <Button variant="teal">
-                Open room
+                {t("portal.session.openRoom")}
                 <ChevronRight className="h-4 w-4" aria-hidden />
               </Button>
             </Link>
@@ -185,7 +188,7 @@ export default async function SessionDetailPage({
         {transcript.length > 0 ? (
           <details className="group rounded-2xl border border-slate-200 bg-white">
             <summary className="tap-target flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-800">
-              Transcript
+              {t("portal.session.transcript")}
               <span className="text-xs font-normal text-slate-400">
                 {transcript.length} segments
               </span>
@@ -200,7 +203,7 @@ export default async function SessionDetailPage({
           </details>
         ) : row.session.status === "completed" ? (
           <p className="px-1 text-sm text-slate-500">
-            No transcript was captured for this session.
+            {t("portal.session.noTranscript")}
           </p>
         ) : null}
       </div>
@@ -208,9 +211,3 @@ export default async function SessionDetailPage({
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "completed") return <Badge tone="green">Completed</Badge>;
-  if (status === "in_progress") return <Badge tone="red">Live</Badge>;
-  if (status === "cancelled") return <Badge tone="slate">Cancelled</Badge>;
-  return <Badge tone="amber">Not started</Badge>;
-}

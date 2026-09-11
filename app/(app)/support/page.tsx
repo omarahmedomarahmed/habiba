@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
  * else's.
  */
 export default async function TherapistSupportPage() {
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [recentSessions, payouts, mine] = await Promise.all([
@@ -71,8 +71,8 @@ export default async function TherapistSupportPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Support"
-        subtitle="A person reads this, and answers within a day."
+        title={t("portal.support.title")}
+        subtitle={t("portal.support.subtitle")}
       />
 
       <div className="px-4 pb-10 sm:px-6">

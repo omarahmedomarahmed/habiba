@@ -14,11 +14,13 @@ import {
 import { activeTaxonomy } from "@/lib/data/taxonomy";
 import { uploadsConfigured } from "@/lib/uploads";
 import { IDENTITY_KINDS, identityDocumentPath } from "@/lib/documents/identity-access";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Verify your practice", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function OnboardingPage() {
+  const { t } = await getI18n();
   const actor = await requireUser();
 
   // An operator has no licence to upload and no queue to wait in.
@@ -72,12 +74,14 @@ export default async function OnboardingPage() {
         </span>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {verification.state === "approved" ? "You are verified" : "Verify your practice"}
+            {verification.state === "approved"
+              ? t("portal.onboarding.verified")
+              : t("portal.onboarding.verify")}
           </h1>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
             {verification.state === "approved"
-              ? "Everything is in order. You can run sessions, go on the Crisis Radar and take payments."
-              : "One-off, before your first session. It takes about five minutes with your phone."}
+              ? t("portal.onboarding.verifiedBody")
+              : t("portal.onboarding.verifyBody")}
           </p>
         </div>
       </div>
@@ -93,18 +97,13 @@ export default async function OnboardingPage() {
         <Card className="mt-5 border-slate-200 bg-slate-50 p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Lock className="h-4 w-4 text-slate-500" aria-hidden />
-            Why we ask
+            {t("portal.onboarding.whyWeAsk")}
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            You will be treating vulnerable people, writing clinical records and taking payment
-            through us. As a HIPAA business associate we have to know who is doing that, and so do
-            our payment and insurance partners. It is also the only thing standing between a
-            patient in crisis and someone who is not a therapist at all.
+            {t("portal.onboarding.why")}
           </p>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Your ID and licence are seen only by our compliance team. They are never shown to
-            patients, never shown to other clinicians and never used for anything else. Only your
-            headshot, name, credentials, languages and specialties appear publicly.
+            {t("portal.onboarding.privacy")}
           </p>
         </Card>
       ) : null}

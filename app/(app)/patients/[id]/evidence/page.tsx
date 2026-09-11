@@ -59,7 +59,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   if (!personId || access.state === "revoked") {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <Back id={id} />
+        <Back id={id} label={t("portal.evidence.back")} />
         <Card className="mt-4 p-6">
           <p className="text-sm text-slate-600">
             {personId
@@ -112,14 +112,14 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <Back id={id} />
+      <Back id={id} label={t("portal.evidence.back")} />
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
-        What we believe about {fullName(patient.firstName, patient.lastName, "this patient")}
+        {t("portal.evidence.title", {
+          name: fullName(patient.firstName, patient.lastName, t("portal.evidence.thisPatient")),
+        })}
       </h1>
       <p className="mt-1 max-w-prose text-sm text-slate-500">
-        Every line here came from somewhere, and the sentence it came from is underneath it. If
-        one of them is wrong, say so: nothing is deleted, and the next clinician sees that you
-        disagreed.
+        {t("portal.evidence.blurb")}
       </p>
 
       <div className="mt-8">
@@ -129,14 +129,14 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   );
 }
 
-function Back({ id }: { id: string }) {
+function Back({ id, label }: { id: string; label: string }) {
   return (
     <Link
       href={`/patients/${id}`}
       className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"
     >
       <ArrowLeft className="h-4 w-4" aria-hidden />
-      Back to the patient
+      {label}
     </Link>
   );
 }

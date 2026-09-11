@@ -19,7 +19,10 @@ export default async function PatientsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Patients" subtitle={`${patients.length} on your caseload`} />
+      <PageHeader
+        title={t("portal.patients.title")}
+        subtitle={t("portal.patients.subtitle", { count: patients.length })}
+      />
 
       <div className="space-y-3 px-4 pb-10 sm:px-6">
         {/* 12.4 — the first screen where a therapist can write somebody down. */}
@@ -29,8 +32,8 @@ export default async function PatientsPage() {
           <Card>
             <EmptyState
               icon={<Users className="h-5 w-5" aria-hidden />}
-              title="No patients yet"
-              body="Add one above, or a record is created the first time you start a session with somebody."
+              title={t("portal.patients.none")}
+              body={t("portal.patients.noneBody")}
             />
           </Card>
         ) : (

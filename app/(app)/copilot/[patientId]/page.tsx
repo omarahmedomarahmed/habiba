@@ -63,7 +63,7 @@ export default async function CopilotThreadPage({
           className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Copilot
+          {t("portal.copilot.title")}
         </Link>
       </div>
 
@@ -97,7 +97,7 @@ export default async function CopilotThreadPage({
             <details>
               <summary className="tap-target flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-800">
                 <FileText className="h-4 w-4 text-slate-400" aria-hidden />
-                Session history and transcripts
+                {t("portal.copilot.history")}
                 <span className="ms-auto text-xs font-normal text-slate-400">
                   {history.length}
                 </span>

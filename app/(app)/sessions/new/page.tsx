@@ -7,6 +7,7 @@ import { getConnectAccount } from "@/lib/billing/connect";
 import { listPatients } from "@/lib/data/patients";
 import { getSettings } from "@/lib/settings";
 import { fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "New session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ export default async function NewSessionPage({
 }: {
   searchParams: Promise<{ welcome?: string }>;
 }) {
+  const { t } = await getI18n();
   const actor = await requireUser();
   const [{ welcome }, patients, connect, settings] = await Promise.all([
     searchParams,
@@ -26,7 +28,10 @@ export default async function NewSessionPage({
 
   return (
     <div className="mx-auto max-w-lg">
-      <PageHeader title="New session" subtitle="One field, then you are recording." />
+      <PageHeader
+        title={t("portal.sessions.newTitle")}
+        subtitle={t("portal.sessions.newSubtitle")}
+      />
       <div className="px-4 pb-10 sm:px-6">
         <NewSessionForm
           welcome={welcome === "1"}

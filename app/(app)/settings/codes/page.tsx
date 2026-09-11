@@ -7,6 +7,7 @@ import { Card } from "@/components/ui";
 import { WallCodeList, NewWallCode } from "@/components/settings/wall-codes";
 import { requireUser } from "@/lib/auth/guard";
 import { listCodes } from "@/lib/data/therapist-codes";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Your QR code", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export const dynamic = "force-dynamic";
  * costs nothing at render time.
  */
 export default async function WallCodesPage() {
+  const { t } = await getI18n();
   const actor = await requireUser();
   const codes = await listCodes(actor);
 
@@ -47,28 +49,23 @@ export default async function WallCodesPage() {
         className="flex w-fit items-center gap-1 text-sm font-medium text-slate-500"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Settings
+        {t("portal.nav.settings")}
       </Link>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Your QR code</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("portal.codes.title")}</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          For the wall, the desk, or the end of an in-person session. Somebody scans it, creates
-          their own account, and can then take ownership of the notes you keep about them.
+          {t("portal.codes.blurb")}
         </p>
       </div>
 
       <Card className="border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">What it carries</p>
+        <p className="text-sm font-semibold text-slate-900">{t("portal.codes.carries")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Only you. It names you and your practice and nothing else, because a poster on a wall is
-          public and anybody walking past can photograph it. It cannot identify a patient, and
-          scanning it does not give anybody access to anything: matching a record still needs a
-          confirmed phone number or email, and the name question.
+          {t("portal.codes.carriesBody")}
         </p>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Revoke a code when the poster it is on goes out of date. Scanning a revoked code says so,
-          rather than failing.
+          {t("portal.codes.revoke")}
         </p>
       </Card>
 

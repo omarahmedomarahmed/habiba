@@ -34,7 +34,7 @@ export const metadata: Metadata = { title: "Crisis Radar", robots: { index: fals
 export const dynamic = "force-dynamic";
 
 export default async function RadarConsolePage() {
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [
@@ -70,8 +70,8 @@ export default async function RadarConsolePage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Crisis Radar"
-        subtitle="Fill a free half hour with someone who needs one now."
+        title={t("portal.nav.crisisRadar")}
+        subtitle={t("portal.oncall.subtitle")}
       />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
@@ -134,12 +134,24 @@ export default async function RadarConsolePage() {
         />
 
         <p className="text-xs leading-relaxed text-slate-500">
-          Radar sessions work exactly like any other: they are transcribed, they produce a note you
-          approve, and they open a copilot thread for that patient. See{" "}
-          <Link href="/radar" className="font-medium text-brand-600">
-            the public radar
-          </Link>{" "}
-          for what a patient sees.
+          {/*
+            37L.2 — the sentence is one dictionary row with a {link} slot, not
+            two half-sentences either side of an anchor. Arabic does not put
+            the clause in the same place English does, and a translator handed
+            "See" and "for what a patient sees" separately cannot fix that.
+          */}
+          {t("portal.oncall.body")
+            .split("{link}")
+            .flatMap((part, index) =>
+              index === 0
+                ? [part]
+                : [
+                    <Link key="link" href="/radar" className="font-medium text-brand-600">
+                      {t("portal.oncall.publicRadar")}
+                    </Link>,
+                    part,
+                  ],
+            )}
         </p>
       </div>
     </div>

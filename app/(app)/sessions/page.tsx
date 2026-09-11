@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { listSessions } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { SessionBadge } from "@/components/sessions/status-badge";
 
 export const metadata: Metadata = { title: "Sessions", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -19,11 +20,11 @@ export default async function SessionsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Sessions"
+        title={t("portal.sessions.title")}
         action={
           <Link href="/sessions/new" className="hidden lg:block">
             <Button size="sm">
-              <Plus className="h-4 w-4" aria-hidden /> New
+              <Plus className="h-4 w-4" aria-hidden /> {t("portal.new")}
             </Button>
           </Link>
         }
@@ -34,11 +35,11 @@ export default async function SessionsPage() {
           <Card>
             <EmptyState
               icon={<CalendarDays className="h-5 w-5" aria-hidden />}
-              title="No sessions yet"
-              body="Start one and your note will be waiting when you finish."
+              title={t("portal.sessions.none")}
+              body={t("portal.sessions.noneBody")}
               action={
                 <Link href="/sessions/new">
-                  <Button variant="teal">Start a session</Button>
+                  <Button variant="teal">{t("portal.sessions.start")}</Button>
                 </Link>
               }
             />
@@ -49,7 +50,7 @@ export default async function SessionsPage() {
               const label =
                 fullName(session.patientFirstName, session.patientLastName, "") ||
                 session.guestName ||
-                "Unnamed patient";
+                t("portal.unnamedPatient");
               const live = session.status === "in_progress" || session.status === "scheduled";
 
               return (
@@ -67,7 +68,7 @@ export default async function SessionsPage() {
                       </p>
                     </div>
 
-                    <RowBadge status={session.status} noteStatus={session.noteStatus} />
+                    <SessionBadge status={session.status} noteStatus={session.noteStatus} />
                     <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
                   </Link>
                 </li>
@@ -80,11 +81,3 @@ export default async function SessionsPage() {
   );
 }
 
-function RowBadge({ status, noteStatus }: { status: string; noteStatus: string }) {
-  if (status === "in_progress") return <Badge tone="red">Live</Badge>;
-  if (status === "scheduled") return <Badge tone="amber">Not started</Badge>;
-  if (status === "cancelled") return <Badge tone="slate">Cancelled</Badge>;
-  if (noteStatus === "generating") return <Badge tone="brand">Writing…</Badge>;
-  if (noteStatus === "failed") return <Badge tone="amber">Note failed</Badge>;
-  return <Badge tone="green">Note ready</Badge>;
-}

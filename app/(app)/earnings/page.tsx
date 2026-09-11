@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
  * pay rent should not have to read past an invoice list to find out.
  */
 export default async function EarningsPage() {
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [connect, earnings, payments, balance, transfers, held, method, requests, settings] =
@@ -69,12 +69,12 @@ export default async function EarningsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Earnings" subtitle="What your patients have paid you." />
+      <PageHeader title={t("portal.earnings.title")} subtitle={t("portal.earnings.subtitle")} />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {!features.billing ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-            Payments are not configured on this deployment, so nothing is being charged.
+            {t("portal.earnings.noPayments")}
           </p>
         ) : null}
 
@@ -102,17 +102,16 @@ export default async function EarningsPage() {
         {earnings.heldCents > 0 ? (
           <Card className="p-4">
             <p className="text-sm font-semibold text-slate-900">
-              Your held earnings pay your 24Therapy bills
+              {t("portal.earnings.heldPays")}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-slate-500">
-              While {formatUsd(earnings.heldCents)} is with us, any session bill you run up is
-              cleared from it automatically. Nothing to pay by card, and nothing to remember.
+              {t("portal.earnings.heldBody", { amount: formatUsd(earnings.heldCents) })}
             </p>
             <Link
               href="/billing"
               className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
             >
-              See what you owe
+              {t("portal.earnings.seeOwed")}
               <ChevronRight className="h-4 w-4" aria-hidden />
             </Link>
           </Card>

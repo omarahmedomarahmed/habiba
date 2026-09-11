@@ -17,6 +17,7 @@ import { AssistantPrefsSettings } from "@/components/assistant/prefs-settings";
 import { assistantPrefs } from "@/lib/ai/assistant";
 import { practiceState } from "@/lib/data/verification";
 import { invoices, users } from "@/lib/db/schema";
+import { getI18n } from "@/lib/i18n/server";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -37,6 +38,7 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ payouts?: string }>;
 }) {
+  const { t } = await getI18n();
   const actor = await requireUser();
   const { payouts } = await searchParams;
 
@@ -71,33 +73,35 @@ export default async function SettingsPage({
    * nobody has ever opened settings in a hurry to change it.
    */
   const sections = [
-    { id: "you", title: "You" },
-    { id: "paid", title: "Getting paid" },
-    { id: "when", title: "Your hours" },
-    { id: "copilot", title: "The copilot" },
-    { id: "security", title: "Security" },
-    ...(actor.role === "super_admin" ? [{ id: "admin", title: "Admin" }] : []),
+    { id: "you", title: t("portal.settings.tabYou") },
+    { id: "paid", title: t("portal.settings.tabPaid") },
+    { id: "when", title: t("portal.settings.tabHours") },
+    { id: "copilot", title: t("portal.settings.tabCopilot") },
+    { id: "security", title: t("portal.settings.tabSecurity") },
+    ...(actor.role === "super_admin"
+      ? [{ id: "admin", title: t("portal.settings.tabAdmin") }]
+      : []),
   ];
 
   const held = await heldForTherapist(actor.userId);
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Settings" subtitle={actor.email} />
+      <PageHeader title={t("portal.settings.title")} subtitle={actor.email} />
 
       <div className="space-y-8 px-4 pb-10 sm:px-6">
         <SettingsNav sections={sections} />
 
         {payouts === "refresh" ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-            That Stripe link expired before you finished. Start it again below. Nothing was lost.
+            {t("portal.settings.stripeExpired")}
           </p>
         ) : null}
 
         <SettingsSection
           id="you"
-          title="You"
-          why="Your name and credentials as a patient sees them, and the licence our compliance team checked."
+          title={t("portal.settings.tabYou")}
+          why={t("portal.settings.whyYou")}
         >
           {/*
             24.4 — the verification state belongs here, and it was on no screen
@@ -106,22 +110,22 @@ export default async function SettingsPage({
             onboarding page they are redirected away from once they pass.
           */}
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">Your practice</p>
+            <p className="text-sm font-semibold text-slate-900">{t("portal.settings.practice")}</p>
             <p className="mt-1 text-sm leading-relaxed text-slate-600">
               {practice === "approved"
-                ? "Approved. Your licence has been checked and you can see patients."
+                ? t("portal.settings.practiceApproved")
                 : practice === "submitted"
-                  ? "With our compliance team. You will hear from us, and nothing else is needed from you right now."
+                  ? t("portal.settings.practiceSubmitted")
                   : practice === "rejected"
-                    ? "Not approved. Open verification to see what we need and send it again."
-                    : "Not submitted yet. You cannot start a session until your licence has been checked."}
+                    ? t("portal.settings.practiceRejected")
+                    : t("portal.settings.practiceNone")}
             </p>
             {practice !== "approved" ? (
               <Link
                 href="/onboarding"
                 className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
               >
-                Open verification
+                {t("portal.settings.openVerification")}
               </Link>
             ) : null}
           </Card>
@@ -139,24 +143,23 @@ export default async function SettingsPage({
 
           {/* 25.17 / C120 — the clinic-wall code lives with the rest of "you". */}
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">Your QR code</p>
+            <p className="text-sm font-semibold text-slate-900">{t("portal.settings.qr")}</p>
             <p className="mt-1 text-sm leading-relaxed text-slate-600">
-              A code for the wall or the end of a session. It names you and nothing else, and you
-              can revoke one when a poster goes out of date.
+              {t("portal.settings.qrBlurb")}
             </p>
             <Link
               href="/settings/codes"
               className="mt-3 inline-flex text-sm font-semibold text-brand-600"
             >
-              Open your codes
+              {t("portal.settings.openCodes")}
             </Link>
           </Card>
         </SettingsSection>
 
         <SettingsSection
           id="paid"
-          title="Getting paid"
-          why="Where a patient's payment lands, what we are holding for you, and what you owe us."
+          title={t("portal.settings.tabPaid")}
+          why={t("portal.settings.whyPaid")}
         >
           <PayoutSettings
             state={{
@@ -177,16 +180,16 @@ export default async function SettingsPage({
 
         <SettingsSection
           id="when"
-          title="Your hours"
-          why="The zone every time in this product is shown in, and the hour we are willing to message your patients at."
+          title={t("portal.settings.tabHours")}
+          why={t("portal.settings.whyHours")}
         >
           <TimezoneSettings initial={user?.timezone ?? null} />
         </SettingsSection>
 
         <SettingsSection
           id="copilot"
-          title="The copilot"
-          why="How it talks back to you. It never talks to a patient."
+          title={t("portal.settings.tabCopilot")}
+          why={t("portal.settings.whyCopilot")}
         >
           <AssistantPrefsSettings
             initial={{
@@ -199,8 +202,8 @@ export default async function SettingsPage({
 
         <SettingsSection
           id="security"
-          title="Security"
-          why="Your password, and the way out."
+          title={t("portal.settings.tabSecurity")}
+          why={t("portal.settings.whySecurity")}
         >
           <PasswordForm />
         </SettingsSection>
@@ -208,19 +211,19 @@ export default async function SettingsPage({
         {actor.role === "super_admin" ? (
           <SettingsSection
             id="admin"
-            title="Admin"
-            why="The back office. Only people with a role here can open it."
+            title={t("portal.settings.tabAdmin")}
+            why={t("portal.settings.whyAdmin")}
           >
             <Card className="p-4">
-              <p className="text-sm font-semibold text-slate-900">Admin console</p>
+              <p className="text-sm font-semibold text-slate-900">{t("portal.settings.admin")}</p>
               <p className="mt-0.5 text-sm text-slate-500">
-                Manage clinicians, review the audit log and edit the public site.
+                {t("portal.settings.adminBlurb")}
               </p>
               <Link
                 href="/admin"
                 className="mt-3 inline-flex h-10 items-center rounded-xl bg-navy-500 px-4 text-sm font-semibold text-white"
               >
-                Open admin
+                {t("portal.settings.openAdmin")}
               </Link>
             </Card>
           </SettingsSection>

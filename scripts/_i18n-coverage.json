@@ -1,10 +1,10 @@
 {
   "comment": "🔴 37L.6 — the high-water mark for English left in the markup, by surface. A number may only go DOWN. `verify:sprint37l` fails when one rises, which is the half that stops C182 happening for a fourth time: sprints 19, 21 and 31 each shipped real Arabic work and none of them counted what was left, so fourteen sprints wrote English past a rule. Lowering these is the work. Raising one is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md.",
-  "measuredOn": "2026-09-17",
+  "measuredOn": "2026-09-11",
   "surfaces": {
     "patient": 22,
     "auth": 4,
-    "portal": 105,
+    "portal": 1,
     "admin": 312,
     "shared": 434
   },
