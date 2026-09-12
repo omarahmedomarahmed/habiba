@@ -2,8 +2,6 @@ import "server-only";
 
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
-import { env } from "@/lib/env";
-
 /**
  * Reversible encryption for secrets we have to use again. PLAN.md 41.3.
  *
@@ -44,13 +42,22 @@ const VERSION = "v1";
 /**
  * The key, or null.
  *
- * Read on each call rather than at module load: a verifier that sets the
- * variable and then imports this would otherwise get whatever the process
- * started with, which is the shape of bug that makes a security helper look
- * broken when it is not.
+ * 🔴 `process.env` directly, on every call, NOT `env.tokenEncryptionKey`.
+ *
+ * The first draft read the `env` object and carried a comment saying it was
+ * read on each call. It was not: `lib/env.ts` snapshots `process.env` at
+ * module load, so the value was whatever the process started with and the
+ * comment described a behaviour the code did not have. `verify:sprint41`
+ * found it by setting the variable and watching nothing change, which is
+ * exactly what a verifier is for and exactly the defect this sprint has now
+ * hit three times.
+ *
+ * Reading it live is also what lets the verifier test BOTH behaviours — the
+ * refusal with no key, and the round trip with one — in a single run, instead
+ * of testing whichever half the machine happens to be configured for.
  */
 function key(): Buffer | null {
-  const raw = env.tokenEncryptionKey;
+  const raw = process.env.TOKEN_ENCRYPTION_KEY || "";
   if (!raw) return null;
 
   const bytes = Buffer.from(raw, "base64");
