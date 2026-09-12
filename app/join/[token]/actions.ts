@@ -33,6 +33,39 @@ export type JoinState = {
  * lives here, on the server, next to the code that creates the meeting token —
  * not on the button that opens it.
  */
+/**
+ * The meeting we created for this session, if it is an external one.
+ *
+ * 🔴 Only a PROVISIONED source answers. `provisioned_at` is set solely by the
+ * path that created the meeting inside the clinician's own account, and the
+ * database refuses an external kind without it (0064, C175, C215). So this
+ * cannot forward a patient to a link a therapist supplied, because there is
+ * nowhere for such a link to have been stored.
+ */
+async function externalMeetingFor(sessionId: string): Promise<string | null> {
+  const { EXTERNAL_SOURCE_KINDS, sessionSources } = await import("@/lib/db/schema");
+  const { acrossRegions } = await import("@/lib/db");
+  const { eq } = await import("drizzle-orm");
+
+  const rows = await acrossRegions((db) =>
+    db
+      .select({
+        kind: sessionSources.kind,
+        externalMeetingId: sessionSources.externalMeetingId,
+        provisionedAt: sessionSources.provisionedAt,
+      })
+      .from(sessionSources)
+      .where(eq(sessionSources.sessionId, sessionId))
+      .limit(1),
+  );
+
+  const source = rows[0];
+  if (!source || !source.provisionedAt || !source.externalMeetingId) return null;
+  if (!EXTERNAL_SOURCE_KINDS.includes(source.kind)) return null;
+
+  return source.externalMeetingId;
+}
+
 async function admit(token: string, name: string): Promise<JoinState> {
   const session = await resolveJoinToken(token);
   if (!session) return { joined: true, videoUrl: null };
@@ -40,6 +73,22 @@ async function admit(token: string, name: string): Promise<JoinState> {
   if (session.priceCents > 0 && session.paymentStatus !== "paid") {
     return { error: "This session has not been paid for yet." };
   }
+
+  /*
+   * 🔴 41.4 / C133 — the patient always received OUR link, and this is where
+   * it finally forwards.
+   *
+   * The link in their message is `/join/[token]`, never the meeting. That is
+   * what makes the consent screen unavoidable: whoever holds the meeting link
+   * can skip it, which is why sprint 36 built `session_sources` with no column
+   * a pasted link could live in.
+   *
+   * They reach the meeting here, after answering, and after paying if the
+   * session is paid. Declining still forwards them: a refusal turns the AI
+   * off, never the session.
+   */
+  const external = await externalMeetingFor(session.id);
+  if (external) return { joined: true, videoUrl: external };
 
   let videoUrl: string | null = null;
   if (session.modality === "video" && session.videoRoomUrl && session.videoRoomName) {
@@ -242,6 +291,39 @@ async function recordConsent(sessionId: string, consent: "granted" | "declined")
   const { sessions } = await import("@/lib/db/schema");
   const { eq } = await import("drizzle-orm");
 
+  /*
+   * 🔴 41.7 — COUPLES: ONE CONSENTS AND ONE DOES NOT MEANS NO AI.
+   *
+   * > *Cheaper to state than to litigate.*
+   *
+   * Two people join a couples session through the same link and both answer,
+   * into one `recording_consent` column. Without this the second answer simply
+   * overwrites the first, so a partner who declines is silently overruled by
+   * whoever happens to press the button next — and the recorder they objected
+   * to runs anyway.
+   *
+   * So the write is MONOTONIC TOWARD DECLINE. A decline always lands; a grant
+   * lands only when nobody has declined. No new table, no per-participant
+   * consent model, and the rule holds for three people in a group as readily
+   * as for two in a couple.
+   *
+   * The cost is that a genuine change of mind cannot be made from this screen
+   * once anybody has said no, which is the right way round: `turnOnConsent` is
+   * a deliberate in-session act with both people present, and that is where a
+   * reversal belongs.
+   */
+  const declined = await db
+    .select({ consent: sessions.recordingConsent })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1)
+    .then((rows) => rows[0]?.consent === "declined");
+
+  if (declined && consent === "granted") {
+    log.info("consent grant not applied, somebody in this session declined");
+    return;
+  }
+
   await db
     .update(sessions)
     .set({
@@ -264,6 +346,65 @@ async function recordConsent(sessionId: string, consent: "granted" | "declined")
   // user id here, and the fact recorded is about consent rather than about
   // anybody reading a chart.
   log.info("recording consent recorded", { consent, version: RECORDING_CONSENT_VERSION });
+
+  /*
+   * 🔴 41.8 — THE BOT IS DISPATCHED HERE, AND NOWHERE ELSE (C216).
+   *
+   * > *There is no bot button, and that is the design. A button a therapist
+   * > can forget is a session that silently went untranscribed; a button they
+   * > can press is a bot that can be sent somewhere it should not go.*
+   *
+   * This function is the one place a consent answer is written, reached from
+   * both the join form and the standalone consent screen, so putting dispatch
+   * anywhere else would mean two dispatchers or a path that misses one.
+   *
+   * 🔴 A DECLINE DISPATCHES NOTHING AT ALL. Not a bot that joins and stays
+   * quiet. That is the ethics — a recorder in the room of somebody who said no
+   * is a recorder they were told would not be there — and it is also the cost
+   * answer the "knock like Google Meet" design loses on, since Recall bills
+   * per bot-hour and a bot on a declined session is money spent recording
+   * nothing.
+   *
+   * It lands in the right order by itself: the patient consents on our page
+   * before being forwarded to the meeting, so the bot is already in the room
+   * when they arrive and nobody watches it appear mid-conversation.
+   *
+   * Awaited, but every failure inside is swallowed and logged. Nothing about a
+   * recorder may stop a patient reaching their session.
+   */
+  if (consent === "granted") {
+    const { sendBotForConsent } = await import("@/lib/meetings/dispatch");
+    await sendBotForConsent(sessionId);
+    return;
+  }
+
+  /*
+   * 🔴 41.7, the other half of the couples rule.
+   *
+   * One person consents, the bot is dispatched, and their partner then
+   * declines. The decline landed above and refuses the audio, but a recorder
+   * we already sent is sitting in the meeting — and the person who just said
+   * no can see it in the participant list. Withdrawing it is not tidiness, it
+   * is the difference between a rule and a claim.
+   *
+   * Harmless when no bot was ever sent: `withdrawBot` reads the row, finds no
+   * `bot_id`, and returns.
+   */
+  const [row] = await db
+    .select({ organizationId: sessions.organizationId, patientId: sessions.patientId })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  if (row) {
+    const { withdrawBot } = await import("@/lib/meetings/dispatch");
+    await withdrawBot({
+      sessionId,
+      organizationId: row.organizationId,
+      patientId: row.patientId,
+      reason: "consent_withdrawn",
+    });
+  }
 }
 
 /** Polled by the waiting room until the clinician starts. */
@@ -559,6 +700,27 @@ export async function stopRecording(token: string): Promise<{ ok?: boolean; erro
     .update(sessions)
     .set({ recordingPausedAt: new Date() })
     .where(and(eq(sessions.id, session.id), isNull(sessions.recordingPausedAt)));
+
+  /*
+   * 🔴 41.7 — consent revoked mid-session, and the bot LEAVES.
+   *
+   * Pausing the transcript is enough when the audio is ours: the 24Therapy
+   * room stops sending it. It is NOT enough in somebody else's meeting, where
+   * a recorder we dispatched is sitting in the call. A patient who withdraws
+   * consent and can still see a bot in the participant list has been told one
+   * thing and shown another, and they are right to believe the list.
+   *
+   * The pause above is what refuses the audio and is under our control; this
+   * is what removes the recorder and depends on the provider. Both, in that
+   * order, so a failed API call still leaves nothing being processed.
+   */
+  const { withdrawBot } = await import("@/lib/meetings/dispatch");
+  await withdrawBot({
+    sessionId: session.id,
+    organizationId: session.organizationId,
+    patientId: session.patientId ?? null,
+    reason: "consent_withdrawn",
+  });
 
   log.info("recording stopped by the patient");
   return { ok: true };
