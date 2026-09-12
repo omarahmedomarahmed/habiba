@@ -38,7 +38,26 @@ export type AuthoringResult = { ok?: boolean; error?: string; count?: number };
 
 type Actor = { userId: string; organizationId: string; role: string };
 
-/** Save one override. 21.3. */
+/**
+ * Save one override. 21.3.
+ *
+ * 🔴 45.5 — a save is a draft. Publishing is a second, deliberate act.
+ *
+ * This used to default to `published`, and that was defensible while an
+ * override only reached four marketing files. 45.3 changed what an override
+ * is: it now reaches every client component too, which means the patient app's
+ * buttons, the room's controls and every form label are editable text. A typo
+ * in this box used to be a wrong word on a landing page. It can now be a blank
+ * control in a live session.
+ *
+ * So the two states stop being a machine-translation detail and become the
+ * shape of the screen: **write, look at it, publish it.** Nothing a person
+ * types here is visible to anybody until somebody publishes it, because
+ * `stringsFor` and `overridesFor` both read `status = 'published'` only.
+ *
+ * A caller may still pass `status` explicitly — `approveDrafts` does — but the
+ * default is the safe one rather than the convenient one.
+ */
 export async function saveString(input: {
   key: string;
   locale: string;
@@ -61,7 +80,7 @@ export async function saveString(input: {
       key: input.key,
       locale: input.locale,
       value,
-      status: input.status ?? "published",
+      status: input.status ?? "draft",
       source: "human",
       updatedBy: input.actor.userId,
       updatedAt: new Date(),
@@ -70,7 +89,7 @@ export async function saveString(input: {
       target: [uiStrings.key, uiStrings.locale],
       set: {
         value,
-        status: input.status ?? "published",
+        status: input.status ?? "draft",
         source: "human",
         model: null,
         updatedBy: input.actor.userId,
@@ -85,6 +104,54 @@ export async function saveString(input: {
     resourceType: "ui_string",
     resourceId: `${input.key}:${input.locale}`,
     reason: isSafetyKey(input.key) ? "safety string" : null,
+  });
+
+  await invalidateStrings();
+  return { ok: true };
+}
+
+/**
+ * 🔴 45.5 — publish one override, having read it.
+ *
+ * The other half of the draft default above. It flips one row, by one named
+ * person, and it is the only path by which a human edit becomes visible to a
+ * patient. Deliberately **not** a bulk action: `approveDrafts` exists for
+ * machine batches and refuses safety strings for precisely this reason, and
+ * adding a "publish everything" button here would recreate the hole that rule
+ * closes.
+ *
+ * It re-reads the row rather than trusting what the form posted, so publishing
+ * cannot be used to write a value — the only thing this call can change is the
+ * status of text somebody already saved and looked at.
+ */
+export async function publishString(input: {
+  key: string;
+  locale: string;
+  actor: Actor;
+}): Promise<AuthoringResult> {
+  const [row] = await db
+    .select({ status: uiStrings.status })
+    .from(uiStrings)
+    .where(and(eq(uiStrings.key, input.key), eq(uiStrings.locale, input.locale)))
+    .limit(1);
+
+  if (!row) {
+    return { error: "There is nothing saved for that string, so there is nothing to publish." };
+  }
+  if (row.status === "published") return { ok: true };
+
+  await db
+    .update(uiStrings)
+    .set({ status: "published", updatedBy: input.actor.userId, updatedAt: new Date() })
+    .where(and(eq(uiStrings.key, input.key), eq(uiStrings.locale, input.locale)));
+
+  await audit({
+    actor: input.actor as never,
+    category: "admin",
+    action: "string.published",
+    resourceType: "ui_string",
+    resourceId: `${input.key}:${input.locale}`,
+    reason: isSafetyKey(input.key) ? "safety string, published one at a time by a named person" : null,
   });
 
   await invalidateStrings();
@@ -150,7 +217,7 @@ export async function saveLanguage(input: {
     const state = await completeness(code);
     if (state.percent < 100) {
       return {
-        error: `${input.name} is ${state.percent}% translated, ${state.missingKeys.length} strings still missing${state.drafts > 0 ? `, and ${state.drafts} machine drafts nobody has approved` : ""}. A language goes live complete or not at all.`,
+        error: `${input.name} is ${state.percent}% translated, ${state.missingKeys.length} strings still missing${state.machineDrafts > 0 ? `, and ${state.machineDrafts} machine drafts nobody has approved` : ""}. A language goes live complete or not at all.`,
       };
     }
   }

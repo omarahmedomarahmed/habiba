@@ -7,6 +7,7 @@ import {
   approveDrafts,
   clearString,
   draftTranslations,
+  publishString,
   saveLanguage,
   saveString,
 } from "@/lib/i18n/authoring";
@@ -32,7 +33,28 @@ export async function saveOne(_prev: StringsState, formData: FormData): Promise<
   if (result.error) return { error: result.error };
 
   revalidatePath("/admin/strings");
-  return { ok: "Saved." };
+  return { ok: "Saved as a draft. Nobody sees it until you publish it." };
+}
+
+/**
+ * 🔴 45.5 — publishing is the deliberate act.
+ *
+ * Separate from saving because 45.3 made an override reach every client
+ * component, so a wrong word here is no longer a wrong word on a landing page;
+ * it can be a blank control in a live session. Write it, read it back, publish
+ * it.
+ */
+export async function publishOne(_prev: StringsState, formData: FormData): Promise<StringsState> {
+  const actor = await requireRole("super_admin");
+  const result = await publishString({
+    key: String(formData.get("key") ?? ""),
+    locale: String(formData.get("locale") ?? ""),
+    actor,
+  });
+  if (result.error) return { error: result.error };
+
+  revalidatePath("/admin/strings");
+  return { ok: "Published. Readers see it now, in both halves of the product." };
 }
 
 /** 21.5 — restore the shipped wording. Never a blank. */

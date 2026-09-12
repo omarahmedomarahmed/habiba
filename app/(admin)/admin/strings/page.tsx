@@ -48,6 +48,7 @@ export default async function StringsPage({
               percent: states[i]!.percent,
               missing: states[i]!.missingKeys.length,
               drafts: states[i]!.drafts,
+              machineDrafts: states[i]!.machineDrafts,
             }}
           />
         ))}

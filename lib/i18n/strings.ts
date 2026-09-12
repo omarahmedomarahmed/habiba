@@ -112,6 +112,30 @@ async function readOverrides(locale: string): Promise<Record<string, string>> {
   }
 }
 
+/**
+ * 🔴 45.3 — the overridden keys, and only those, for the client provider.
+ *
+ * The server has resolved overrides since sprint 21 (`stringsFor`, below).
+ * **The client has not.** `I18nProvider` read `DICTIONARIES[locale]` straight
+ * out of the bundle, so roughly seventy client components — the whole patient
+ * app's interactive surface, the room, the booking sheet, every form — ignored
+ * every admin edit while the server-rendered ones honoured it. An admin
+ * changed a button's words, watched half the product change, and had no way to
+ * find out why the other half had not.
+ *
+ * This returns the **overrides alone**, never the merged dictionary, and that
+ * is the whole design. Serialising a resolved dictionary would put 1,536 rows
+ * into the RSC payload of every layout and defeat the tree-shaking trade
+ * `client.tsx` made deliberately. What crosses the wire is proportional to
+ * what an admin actually changed, which on almost every request is nothing.
+ *
+ * The static dictionary stays underneath as the floor, so a failed query is an
+ * interface in its shipped wording rather than an interface in keys.
+ */
+export async function overridesFor(locale: Locale | string): Promise<Record<string, string>> {
+  return readOverrides(locale);
+}
+
 export async function invalidateStrings(): Promise<void> {
   try {
     const { revalidateTag } = await import("next/cache");
@@ -228,6 +252,16 @@ export type Completeness = {
   done: number;
   /** Awaiting a person. Counted separately so the number is honest. */
   drafts: number;
+  /**
+   * 45.5 — of those drafts, how many a model wrote.
+   *
+   * A human's unpublished draft and a machine's are both invisible to readers
+   * and are not the same fact about a language. Since 45.5 a person's own save
+   * is a draft too, so a single `drafts` count would have made the sentence in
+   * `saveLanguage` ("machine drafts nobody has approved") untrue the first
+   * time an admin saved a row and went to lunch.
+   */
+  machineDrafts: number;
   missingKeys: string[];
   percent: number;
 };
@@ -253,7 +287,7 @@ export async function completeness(locale: string): Promise<Completeness> {
     .where(eq(uiStrings.locale, locale));
 
   const published = new Set(rows.filter((r) => r.status === "published").map((r) => r.key));
-  const drafts = new Set(rows.filter((r) => r.status === "draft").map((r) => r.key));
+  const draftRows = rows.filter((r) => r.status === "draft" && !published.has(r.key));
 
   const missingKeys = keys.filter((key) => !published.has(key) && dictionary[key] === undefined);
   const done = keys.length - missingKeys.length;
@@ -262,7 +296,8 @@ export async function completeness(locale: string): Promise<Completeness> {
     locale,
     total: keys.length,
     done,
-    drafts: [...drafts].filter((key) => !published.has(key)).length,
+    drafts: draftRows.length,
+    machineDrafts: draftRows.filter((r) => r.source === "machine").length,
     missingKeys,
     percent: keys.length === 0 ? 100 : Math.round((done / keys.length) * 100),
   };

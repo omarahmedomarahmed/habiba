@@ -2,12 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AlertTriangle, Bot, Check, RotateCcw, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Bot, Check, Eye, RotateCcw, ShieldAlert } from "lucide-react";
 
 import {
   approve,
   clearOne,
   machineTranslate,
+  publishOne,
   saveLocale,
   saveOne,
   type StringsState,
@@ -21,11 +22,19 @@ const INITIAL: StringsState = {};
  *
  * ## What the screen is trying to make obvious
  *
- * Three states per string, and they are not the same thing: **shipped** (the
- * dictionary, no override), **published** (somebody decided this wording), and
- * **draft** (a machine wrote it and nobody has read it). The third is styled
- * as unfinished work rather than as a value, because the entire risk of 21.17
- * is somebody skimming a list of drafts and thinking the language is done.
+ * Four states per string, and they are not the same thing: **shipped** (the
+ * dictionary, no override), **published** (somebody decided this wording),
+ * **machine draft** (a model wrote it and nobody has read it), and — new in
+ * 45.5 — **your own unpublished draft**. The two drafts are styled as
+ * unfinished work rather than as values, because the entire risk of 21.17 is
+ * somebody skimming a list of drafts and thinking the language is done.
+ *
+ * 🔴 45.5 — why a human save is now a draft too. Until 45.3 an override
+ * reached four marketing files. It now reaches every client component, so the
+ * text in these boxes is the patient app's buttons and the session room's
+ * controls. A typo that used to be a wrong word on a landing page can now be a
+ * blank control in a live session, so nothing here is visible to a reader
+ * until somebody publishes it on purpose.
  *
  * Safety strings carry a mark and cannot be bulk-approved (21.7/21.18).
  */
@@ -50,7 +59,10 @@ export type LanguageState = {
   publicEnabled: boolean;
   percent: number;
   missing: number;
+  /** Everything saved and not yet published, human and machine alike. */
   drafts: number;
+  /** 45.5 — of those, the ones a model wrote and nobody has read. */
+  machineDrafts: number;
 };
 
 function Go({ label, quiet }: { label: string; quiet?: boolean }) {
@@ -97,7 +109,11 @@ export function LanguagePanel({ language }: { language: LanguageState }) {
           <span className="text-slate-600">{language.percent}% ready</span>
           <span className="text-xs text-slate-500">
             {language.missing} missing
-            {language.drafts > 0 ? ` · ${language.drafts} machine drafts unapproved` : ""}
+            {language.drafts > 0
+              ? ` · ${language.drafts} unpublished${
+                  language.machineDrafts > 0 ? `, ${language.machineDrafts} of them machine drafts` : ""
+                }`
+              : ""}
           </span>
         </div>
         <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
@@ -241,6 +257,16 @@ function BulkApprove({ locale, keys }: { locale: string; keys: string[] }) {
 function Row({ locale, row }: { locale: string; row: StringRow }) {
   const [saveState, saveAction] = useActionState(saveOne, INITIAL);
   const [clearState, clearAction] = useActionState(clearOne, INITIAL);
+  const [publishState, publishAction] = useActionState(publishOne, INITIAL);
+
+  /*
+   * 45.5 — a machine draft and a person's unpublished draft are both drafts
+   * and are not the same problem. One needs reading before it is trusted; the
+   * other was written by the person looking at the screen and needs only the
+   * second click. Telling them apart is what stops "approve all" thinking.
+   */
+  const draft = row.status === "draft";
+  const mine = draft && row.source === "human";
 
   return (
     <li>
@@ -253,10 +279,16 @@ function Row({ locale, row }: { locale: string; row: StringRow }) {
               safety string, rewordable, never removable
             </span>
           ) : null}
-          {row.status === "draft" ? (
+          {draft && !mine ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800">
               <AlertTriangle className="h-3 w-3" aria-hidden />
               machine draft {row.model ? `· ${row.model}` : ""}. Nobody has read this
+            </span>
+          ) : null}
+          {mine ? (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800">
+              <Eye className="h-3 w-3" aria-hidden />
+              saved, not published. No reader sees this yet
             </span>
           ) : null}
           {row.status === "published" && row.source === "human" ? (
@@ -281,8 +313,27 @@ function Row({ locale, row }: { locale: string; row: StringRow }) {
               className="h-9 w-full min-w-64 text-sm"
             />
           </Field>
-          <Go label="Save" />
+          <Go label="Save draft" />
         </form>
+
+        {/*
+          45.5 — the second, deliberate act. One row, one named person, no bulk
+          equivalent: `approveDrafts` handles machine batches and refuses
+          safety strings, and a "publish everything" button here would reopen
+          exactly that hole.
+        */}
+        {draft ? (
+          <form action={publishAction} className="mt-2">
+            <input type="hidden" name="key" value={row.key} />
+            <input type="hidden" name="locale" value={locale} />
+            <Go label={row.safety ? "Publish this safety string" : "Publish"} />
+            {row.safety ? (
+              <span className="ms-2 text-xs text-rose-700">
+                Read it once more. This is crisis, consent or recording wording.
+              </span>
+            ) : null}
+          </form>
+        ) : null}
 
         {row.override ? (
           <form action={clearAction} className="mt-1">
@@ -299,6 +350,7 @@ function Row({ locale, row }: { locale: string; row: StringRow }) {
         ) : null}
 
         <Result state={saveState} />
+        <Result state={publishState} />
         <Result state={clearState} />
       </Card>
     </li>

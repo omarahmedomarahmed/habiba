@@ -52,9 +52,8 @@ async function main() {
   const actor = { userId: admin!.id, organizationId: admin!.organizationId, role: "super_admin" };
 
   try {
-    const { saveString, clearString, saveLanguage, approveDrafts, editorRows } = await import(
-      "../lib/i18n/authoring"
-    );
+    const { saveString, publishString, clearString, saveLanguage, approveDrafts, editorRows } =
+      await import("../lib/i18n/authoring");
     const { completeness, isSafetyKey, shippedKeys, stringsFor, publicLanguages } = await import(
       "../lib/i18n/strings"
     );
@@ -65,7 +64,31 @@ async function main() {
     /* ------------------------------------------------- 21.1 · the override */
 
     const before = (await stringsFor("en")).t(sample);
+
+    /*
+     * 🔴 Amended by 45.5: a save is a DRAFT, and publishing is a second act.
+     *
+     * This check asserted that saving made the wording live, which was right
+     * while an override reached four marketing files. 45.3 made an override
+     * reach every client component too — the patient app's buttons, the room's
+     * controls — so a typo in the editor can now blank a control in a live
+     * session, and nothing a person types is visible until they publish it.
+     *
+     * So the check is now two-sided, which is also what §6 wants: the draft
+     * being invisible is asserted *and* the publish being visible, because
+     * "the draft does not show" is equally true of a resolver that returns
+     * nothing at all.
+     */
     await saveString({ key: sample, locale: "en", value: "An overridden phrase", actor });
+
+    const { stringsFor: drafted } = await import(`../lib/i18n/strings.ts?a0=${Date.now()}`);
+    check(
+      "🔴 21.1 / 45.5 a saved override is a DRAFT and changes nothing a reader sees",
+      (await drafted("en")).t(sample) === before,
+      `${before} → ${(await drafted("en")).t(sample)}`,
+    );
+
+    await publishString({ key: sample, locale: "en", actor });
 
     const { stringsFor: fresh } = await import(`../lib/i18n/strings.ts?a=${Date.now()}`);
     check(

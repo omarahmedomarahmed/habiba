@@ -39,3 +39,4 @@ docs/walkthrough-2/admin_*
 .walkthrough2/state-*.json
 .walkthrough2/invite.txt
 .walkthrough2/sweep.json
+.verify-tmp-*/
