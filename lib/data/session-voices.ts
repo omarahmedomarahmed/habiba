@@ -3,9 +3,9 @@ import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
-import { dbFor } from "@/lib/db";
+import { controlDb, dbFor } from "@/lib/db";
 import { regionOfOrganization, regionOfPatient } from "@/lib/db/directory";
-import { sessionVoices, transcriptSegments, type SessionVoice } from "@/lib/db/schema";
+import { sessionVoices, transcriptSegments, users, type SessionVoice } from "@/lib/db/schema";
 import { speakerFor, type BoundBy, type Voice, type VoiceRole } from "@/lib/diarisation/voices";
 
 /**
@@ -208,4 +208,24 @@ export async function unbindVoice(
     resourceType: "session",
     resourceId: input.sessionId,
   });
+}
+
+/**
+ * The names behind `bound_by_user_id`, for the 51.6 panel.
+ *
+ * 🔴 Names of STAFF, not of patients. `session_voices.bound_by_user_id` is a
+ * `users` row, which in this product means a clinician or an operator, so this
+ * is a colleague's name on an audit line rather than anything clinical. It
+ * reads from the control plane for the same reason the directory does: a
+ * `users` row is not regional data.
+ */
+export async function namesForUsers(ids: readonly string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+
+  const rows = await controlDb
+    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+    .from(users)
+    .where(inArray(users.id, [...new Set(ids)]));
+
+  return new Map(rows.map((row) => [row.id, `${row.firstName} ${row.lastName}`.trim()]));
 }

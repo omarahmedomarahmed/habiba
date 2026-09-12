@@ -93,8 +93,23 @@ export function literalsIn(source: string): string[] {
   const code = stripComments(source);
   const found: string[] = [];
 
-  for (const match of code.matchAll(/>([^<>{}]+)</g)) {
-    const text = match[1]!.replace(/\s+/g, " ").trim();
+  /*
+   * 🔴 The `>` that opens a text node is not the `>` of an arrow function.
+   *
+   * `(fn: () => Promise<State>)` gave this scanner a match of "Promise": the
+   * `>` of `=>`, then a word, then the `<` of a type argument. Seven files
+   * were carrying a phantom literal named `Promise`, and sprint 51 nearly
+   * responded by rewriting real code to please a regex. A ratchet that counts
+   * type annotations cannot be ratcheted, because the number moves when
+   * somebody adds a generic.
+   *
+   * The preceding character is captured and an arrow is skipped. This LOWERS
+   * the recorded floor, and it does so by correcting the measurement rather
+   * than by translating anything, which is a different claim entirely and is
+   * why `_i18n-coverage.json` says so where the numbers changed.
+   */
+  for (const match of code.matchAll(/(^|[^=])>([^<>{}]+)</g)) {
+    const text = match[2]!.replace(/\s+/g, " ").trim();
     if (isVisibleEnglish(text)) found.push(text);
   }
 

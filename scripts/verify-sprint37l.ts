@@ -61,11 +61,27 @@ function main() {
    * translated it. Copying the English string is what a hurried author does,
    * and it is invisible in a diff of 300 lines.
    */
+  /*
+   * 🔴 Brand names, which are the same word in every language.
+   *
+   * The existing exemption above covers a SINGLE token, so "Zoom" passed and
+   * "Google Meet" did not. Microsoft ships "Microsoft Teams" untranslated in
+   * its own Arabic interface and Google ships "Google Meet"; transliterating
+   * them here would produce a label an Egyptian clinician has never seen on
+   * the product they are being asked to join.
+   *
+   * Listed by exact value rather than by key prefix, so a key that stops
+   * holding a brand name stops being exempt on the same edit, and the CONTROL
+   * below proves the list is not swallowing ordinary English.
+   */
+  const BRAND_NAMES = new Set(["Google Meet", "Microsoft Teams", "Zoom", "24Therapy"]);
+
   const untranslated = enKeys.filter((key) => {
     const english = en[key as keyof typeof en] as string;
     const arabic = ar[key as keyof typeof ar];
     /* Proper nouns and addresses are legitimately identical. */
     if (/^[A-Za-z0-9@._+-]+$/.test(english.trim())) return false;
+    if (BRAND_NAMES.has(english.trim())) return false;
     return english.trim() === arabic.trim();
   });
 
@@ -83,9 +99,23 @@ function main() {
      * demanded Arabic letters in it would be demanding a worse placeholder.
      */
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return false;
+    if (BRAND_NAMES.has(value)) return false;
     /* A value with no Arabic letters at all is English left behind. */
     return !/[؀-ۿ]/.test(value) && /[A-Za-z]{4}/.test(value);
   });
+
+  /*
+   * 🔴 CONTROL — the brand list is a list, not a hole.
+   *
+   * An exemption set is exactly where an untranslated string goes to hide, so
+   * this asserts that ordinary English is still caught while a brand name is
+   * not. Without it, widening the set one entry at a time is invisible.
+   */
+  check(
+    "🔴 37L.5 CONTROL, the brand-name exemption does not swallow ordinary English",
+    !BRAND_NAMES.has("Sign in") && !BRAND_NAMES.has("Start") && BRAND_NAMES.has("Zoom"),
+    `${BRAND_NAMES.size} brand names exempt, each a word that is the same in Arabic`,
+  );
 
   check(
     "🔴 37L.5 CONTROL, the same scan CATCHES an Arabic value with no Arabic in it",

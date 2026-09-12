@@ -6,11 +6,15 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { NoteReview } from "@/components/session/note-review";
 import { RiskAssessment } from "@/components/clinical/risk-assessment";
 import { SessionApproval } from "@/components/session/session-approval";
+import { SourcePanel } from "@/components/session/source-panel";
+import { VoicesPanel } from "@/components/session/voices-panel";
 import { Badge, Button, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { personIdForPatient } from "@/lib/data/people";
 import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
+import { sourceFor } from "@/lib/data/session-sources";
+import { namesForUsers, voicesFor } from "@/lib/data/session-voices";
 import { latestSummary } from "@/lib/data/summaries";
 import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
@@ -58,6 +62,25 @@ export default async function SessionDetailPage({
   const previousSummary = summaryPersonId ? await latestSummary(summaryPersonId) : null;
 
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
+
+  /*
+   * 51.6 / 37R.21 / 37R.22 / C179 — the two tables that had a migration, a
+   * service, triggers and no screen. A table nobody can see is a table whose
+   * constraints nobody can check, and "either a screen exists or a ticket owns
+   * it, no third option" is the rule. These are the screens.
+   */
+  const [source, voices] = await Promise.all([
+    sourceFor(id, actor.organizationId, row.session.patientId),
+    voicesFor(id, actor.organizationId, row.session.patientId),
+  ]);
+
+  /*
+   * The name beside an operator binding. Resolved here rather than in the
+   * component because a client component must not be handed a query.
+   */
+  const binderNames = await namesForUsers(
+    voices.map((voice) => voice.boundByUserId).filter((v): v is string => v !== null),
+  );
 
   /*
    * 35.1 — the assessment, and the history beside it.
@@ -198,6 +221,47 @@ export default async function SessionDetailPage({
           />
           </>
         )}
+
+        {/*
+          51.6 — the source and the voices, beside the transcript they explain.
+
+          Placed here rather than on a page of their own because "what recorded
+          this" and "who is speaking in it" are questions somebody asks WHILE
+          reading a transcript. A separate route would satisfy the letter of
+          51.6 and nobody would ever open it.
+        */}
+        <SourcePanel
+          sessionId={id}
+          kind={source?.kind ?? null}
+          provisionedAt={
+            source?.provisionedAt
+              ? formatDateTime(source.provisionedAt, actor.timezone, locale)
+              : null
+          }
+          tokenExpiresAt={
+            source?.ingestTokenExpiresAt
+              ? formatDateTime(source.ingestTokenExpiresAt, actor.timezone, locale)
+              : null
+          }
+          tokenRevoked={Boolean(source?.ingestTokenRevokedAt)}
+          tokenUses={source?.ingestUses ?? 0}
+          canIssue={live}
+        />
+
+        <VoicesPanel
+          sessionId={id}
+          voices={voices.map((voice) => ({
+            id: voice.id,
+            ordinal: voice.ordinal,
+            role: voice.role,
+            boundBy: voice.boundBy,
+            boundByName: voice.boundByUserId
+              ? (binderNames.get(voice.boundByUserId) ?? null)
+              : null,
+            speakingMs: voice.speakingMs,
+          }))}
+          canEdit={!live}
+        />
 
         {transcript.length > 0 ? (
           <details className="group rounded-2xl border border-slate-200 bg-white">
