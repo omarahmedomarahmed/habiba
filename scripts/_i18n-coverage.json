@@ -1,12 +1,16 @@
 {
   "comment": "🔴 37L.6 — the high-water mark for English left in the markup, by surface. A number may only go DOWN. `verify:sprint37l` fails when one rises, which is the half that stops C182 happening for a fourth time: sprints 19, 21 and 31 each shipped real Arabic work and none of them counted what was left, so fourteen sprints wrote English past a rule. Lowering these is the work. Raising one is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md.",
-  "measuredOn": "2026-09-11",
+  "measuredOn": "2026-09-12",
   "surfaces": {
     "patient": 22,
     "auth": 4,
     "portal": 1,
-    "admin": 312,
+    "admin": 302,
     "shared": 79
   },
-  "note": "The count is a FLOOR, not a total: it sees JSX text nodes and four attributes, so a string inside a ternary or passed as an ordinary prop is invisible to it. It is still the right ratchet, because it cannot be satisfied by remembering and it moves the moment somebody types a sentence into a page."
+  "note": "The count is a FLOOR, not a total: it sees JSX text nodes and four attributes, so a string inside a ternary or passed as an ordinary prop is invisible to it. It is still the right ratchet, because it cannot be satisfied by remembering and it moves the moment somebody types a sentence into a page.",
+  "overridability": {
+    "comment": "🔴 45.7 — the OTHER number, and the one C217 was actually about. A literal count says how much English is left; it says nothing about whether the English that IS translated can be changed by an administrator. Until 45.3 the answer for 72 client components was no: `I18nProvider` read the bundled dictionary and never consulted `ui_strings`, so an admin published an edit, saw the server-rendered half of a page change, and got no error on the other half. This counts components that read the dictionary as a VALUE instead of through a resolver. Zero is the only acceptable number: `useT` and `getI18n` both consult overrides, a direct `DICTIONARIES` read does not, and there is no case where bypassing is right.",
+    "directDictionaryReads": 0
+  }
 }

@@ -55,6 +55,10 @@ const SKIP = new Set(["node_modules", ".next", "dist", "build"]);
  */
 const EXEMPT: Array<{ file: string; why: string }> = [
   { file: "app/(admin)/admin/strings/", why: "the translation console itself, staffed in English" },
+  {
+    file: "components/admin/strings-editor",
+    why: "the same translation console, rendered. 45.5 added two sentences to it and the page half was already exempt for this reason; exempting the page and counting its only component was an accident of path rather than a decision",
+  },
   { file: "components/admin/page-editor", why: "the CMS editor's own chrome, staffed in English" },
   { file: "app/(public)/", why: "CMS-driven: the rows are already published in both languages" },
   { file: "components/public/blocks", why: "renders CMS rows, which carry their own language" },

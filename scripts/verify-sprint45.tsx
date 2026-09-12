@@ -36,6 +36,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { reporter, readSource, required, writesTo } from "./_verify";
+import { walk } from "./_i18n-coverage";
 
 const { check, finish } = reporter();
 
@@ -176,7 +177,7 @@ void (async () => {
   check(
     "🔴 45.3 the provider layers overrides over the bundled dictionary rather than replacing it",
     /DICTIONARIES\[locale\]/.test(client) && /edited\[key\] \?\? dictionary\[key\]/.test(client),
-    "overrides first, dictionary second, English last — the same order as stringsFor",
+    "overrides first, dictionary second, English last, the same order as stringsFor",
   );
 
   /* ----------------------------------- 45.5 · a save is a draft until published -- */
@@ -233,6 +234,93 @@ void (async () => {
     "45.5 / 21.5 clearing removes the row, so the shipped wording comes back",
     afterClear[KEY] === undefined && DICTIONARIES[LOCALE][KEY] === shipped,
     `shipped wording is still ${JSON.stringify(shipped)}`,
+  );
+
+  /* ------------------------------- 45.7 · overridability, the other number -- */
+
+  /*
+   * 🔴 45.7 — count what reaches a screen, not what is imported.
+   *
+   * C157's defect was counting the wrong thing, and C217's was measuring the
+   * table rather than the resolver. The literal ratchet in
+   * `_i18n-coverage.json` answers "how much English is left"; it says nothing
+   * about whether the English that IS translated can be changed by an
+   * administrator, which is the entire subject of sprint 45.
+   *
+   * A component that reads `DICTIONARIES` as a value bypasses the override
+   * layer and looks completely correct doing it: right strings, right
+   * language, no error, and an admin's edit silently ignored. That was the
+   * defect for 72 components until 45.3. Zero is the only acceptable number,
+   * because `useT` and `getI18n` both consult overrides and there is no case
+   * where bypassing them is right.
+   *
+   * `type` imports are fine and are not counted: `MessageKey` is erased at
+   * build time and naming a key is how a lib module defers to a translator.
+   */
+  const BYPASSES_RESOLVER =
+    /^import\s+(?!type\b)[^;]*\b(?:DICTIONARIES|en|ar)\b[^;]*from\s+["'][^"']*i18n\/messages["']/m;
+
+  const renderedFiles = walk("app").concat(walk("components"));
+  const bypassing = renderedFiles.filter((file) => BYPASSES_RESOLVER.test(readSource(file)));
+
+  check(
+    "🔴 45.7 every rendered component reads its strings through a resolver that consults overrides",
+    renderedFiles.length > 200 && bypassing.length === 0,
+    bypassing.length === 0
+      ? `${renderedFiles.length} components, none reading the dictionary as a value`
+      : bypassing.join(", "),
+  );
+
+  /*
+   * 🔴 CONTROL — the pattern above is proved against planted offenders.
+   *
+   * "Zero components bypass the resolver" is exactly what a regex that matches
+   * nothing reports, and it would report it forever. These are the two shapes
+   * the defect actually takes, plus the two shapes that are fine, because a
+   * pattern that also flags the legitimate ones gets switched off within a
+   * week.
+   */
+  const PLANTED = [
+    { source: `import { DICTIONARIES } from "@/lib/i18n/messages";`, bypasses: true },
+    { source: `import { en, ar } from "@/lib/i18n/messages";`, bypasses: true },
+    { source: `import type { MessageKey } from "@/lib/i18n/messages";`, bypasses: false },
+    { source: `import { useT } from "@/lib/i18n/client";`, bypasses: false },
+  ];
+  const wrong = PLANTED.filter((c) => BYPASSES_RESOLVER.test(c.source) !== c.bypasses);
+
+  check(
+    "🔴 CONTROL the bypass pattern catches a planted dictionary import and spares a type import",
+    wrong.length === 0,
+    wrong.length === 0
+      ? "2 offenders caught, 2 legitimate imports spared"
+      : wrong.map((c) => c.source).join(" · "),
+  );
+
+  /*
+   * 🔴 45.8 — and the literal ratchet may not rise.
+   *
+   * Every sprint from 46 to 52 adds copy. This is what makes "added as a
+   * MessageKey" a fact rather than an intention: a sentence typed straight
+   * into a component moves one of these numbers the moment it is written, and
+   * the sprint fails.
+   */
+  const { scanI18n, bySurface } = await import("./_i18n-coverage");
+  const ratchet = JSON.parse(readFileSync("scripts/_i18n-coverage.json", "utf8")) as {
+    surfaces: Record<string, number>;
+  };
+  const now = bySurface(scanI18n());
+  const risen = Object.entries(now).filter(
+    ([surface, count]) => count > (ratchet.surfaces[surface] ?? 0),
+  );
+
+  check(
+    "🔴 45.8 no surface has more English in its markup than its high-water mark",
+    risen.length === 0,
+    risen.length === 0
+      ? Object.entries(now)
+          .map(([surface, count]) => `${surface} ${count}/${ratchet.surfaces[surface]}`)
+          .join(", ")
+      : risen.map(([s, c]) => `${s} rose to ${c} from ${ratchet.surfaces[s]}`).join(", "),
   );
 
   /* ------------------------------------------------- 45.0 · the NUL rule -- */

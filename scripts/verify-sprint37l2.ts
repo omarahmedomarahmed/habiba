@@ -250,7 +250,21 @@ function main() {
    * pattern: its 19.7 CONTROL reads unstripped on purpose, to prove that
    * stripping is what makes the check above it mean anything.
    */
-  const RAW_BY_DESIGN = ["verify-sprint19.ts", "verify-sprint21r.ts"];
+  const RAW_BY_DESIGN = [
+    "verify-sprint19.ts",
+    "verify-sprint21r.ts",
+    /*
+     * 🔴 45.0 / C245 — this one reads BYTES, and must.
+     *
+     * `readSource` decodes to a string and strips comments, which is right for
+     * every scan that hunts prose and wrong for the scan that hunts NUL bytes:
+     * a NUL inside a comment blinds `grep` exactly as well as a NUL inside
+     * code, so stripping first would hide the offender this exists to find.
+     * Named here rather than matched by a pattern, for the same reason the two
+     * above are.
+     */
+    "verify-nul.ts",
+  ];
   const verifiers = readdirSync("scripts").filter((name) => /^verify-.*\.ts$/.test(name));
   const rawScanners = verifiers
     .filter((name) => !RAW_BY_DESIGN.includes(name))
@@ -272,7 +286,7 @@ function main() {
     "🔴 C205 no verifier reads TypeScript source without stripping its comments",
     verifiers.length > 20 && rawScanners.length === 0,
     rawScanners.length === 0
-      ? `${verifiers.length} verifiers, all through readSource; verify-sprint19 and verify-sprint21r keep one deliberate raw read each, for their CONTROLs`
+      ? `${verifiers.length} verifiers through readSource; ${RAW_BY_DESIGN.length} named exceptions: ${RAW_BY_DESIGN.join(", ")}`
       : rawScanners.join(", "),
   );
 
