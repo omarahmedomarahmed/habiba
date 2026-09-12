@@ -4923,14 +4923,133 @@ export const sessionSources = pgTable(
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+
+    /* ------------------------------------------- sprint 41 · the bot -- */
+
+    /**
+     * 🔴 41.7 — the provider's id for the bot we sent, and the reason this
+     * column is UNIQUE.
+     *
+     * "Bot reconnects without duplicating" is an edge case that cannot be
+     * handled by remembering. A network blip between us and Recall means our
+     * dispatch call may have succeeded and its response may have been lost, so
+     * a retry is the ordinary case rather than the exotic one. A second bot in
+     * a therapy session is not a duplicate row to clean up later: it is a
+     * second recorder in the room, and the patient consented to one.
+     *
+     * The unique index makes a duplicate dispatch a database error, and
+     * `dispatchBot` writes it with a conditional UPDATE against
+     * `bot_id IS NULL`, so the loser of a race is told rather than served.
+     */
+    botId: text("bot_id"),
+    botDispatchedAt: timestamp("bot_dispatched_at", { withTimezone: true }),
+    /**
+     * What the provider last told us it was doing.
+     *
+     * Free text from their webhook rather than an enum of ours: a status we
+     * have not heard of is information, and coercing it into "unknown" would
+     * throw away the one line that explains why a session has no transcript.
+     */
+    botStatus: text("bot_status"),
+    botLeftAt: timestamp("bot_left_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("session_sources_session_unique").on(t.sessionId),
     index("session_sources_org_idx").on(t.organizationId, t.createdAt),
+    /* 41.7 — one bot, ever, per source. See the column comment. */
+    uniqueIndex("session_sources_bot_unique").on(t.botId),
   ],
 );
 
 export type SessionSource = typeof sessionSources.$inferSelect;
+
+/* ---------------------------------------------------- sprint 41 · meetings -- */
+
+/**
+ * A clinician's connected meeting account. PLAN.md 41.3, C132.
+ *
+ * ## 🔴 What this holds, and the one thing it must never enable
+ *
+ * An OAuth connection to Zoom, Google Meet or Teams, held per clinician, used
+ * for exactly one purpose: **creating a meeting for a session, inside their
+ * own account.** 41.1 is that the bot joins meetings 24Therapy created for a
+ * session and nothing else, ever, and C132 is that no calendar is read.
+ *
+ * So the scopes requested are meeting-creation scopes. A calendar scope is not
+ * requested, not stored, and not accepted: a tool that watches a calendar
+ * eventually records a supervision call or a conversation with an accountant,
+ * and the person whose words those are never agreed to anything.
+ *
+ * ## Why the tokens are sealed rather than hashed
+ *
+ * They have to be used again. See `lib/crypto/secretbox.ts`, which is the only
+ * reversible primitive in this codebase and exists for these two columns.
+ *
+ * ## 🔴 A therapist never sees an API key (41.3)
+ *
+ * There is no column here a clinician could be shown or asked to paste. The
+ * whole record is written by the OAuth callback and read only by the server.
+ * §7: a therapist holding an API key is a therapist who got lost in our
+ * product.
+ */
+export const MEETING_PROVIDERS = ["zoom", "google_meet", "teams"] as const;
+export type MeetingProvider = (typeof MEETING_PROVIDERS)[number];
+
+export const meetingConnections = pgTable(
+  "meeting_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    provider: text("provider").$type<MeetingProvider>().notNull(),
+
+    /** 🔴 Sealed with AES-256-GCM. Never rendered, never logged, never listed. */
+    accessTokenSealed: text("access_token_sealed").notNull(),
+    refreshTokenSealed: text("refresh_token_sealed"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+
+    /**
+     * Their account at the provider, for the "connected as" line.
+     *
+     * An email or an account id, whatever the provider returns. Shown so a
+     * clinician with two Zoom accounts can see which one this is, which is the
+     * single most common support question any integration produces.
+     */
+    externalAccountLabel: text("external_account_label"),
+
+    connectedAt: timestamp("connected_at", { withTimezone: true }).defaultNow().notNull(),
+    /**
+     * Disconnection is a STAMP, not a delete.
+     *
+     * A session recorded through a connection that has since been removed
+     * still has to be explainable a year later: which account made that
+     * meeting, and when did it stop being connected. A deleted row makes that
+     * unanswerable, and the sealed tokens are cleared on revoke so the row
+     * keeps the fact without keeping the credential.
+     */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * One LIVE connection per clinician per provider. A partial unique index,
+     * so the history of revoked ones is kept beside it.
+     */
+    uniqueIndex("meeting_connections_live_unique")
+      .on(t.userId, t.provider)
+      .where(sql`revoked_at IS NULL`),
+    index("meeting_connections_org_idx").on(t.organizationId),
+  ],
+);
+
+export type MeetingConnection = typeof meetingConnections.$inferSelect;
 
 /* --------------------------------------------------- sprint 56 assessments -- */
 

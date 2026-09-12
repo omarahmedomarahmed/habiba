@@ -151,6 +151,22 @@ export const env = {
 
   cronSecret: process.env.CRON_SECRET || "",
 
+  /*
+   * 🔴 41.3 / 41.6 — the meeting bot's three secrets.
+   *
+   * `tokenEncryptionKey` seals a clinician's OAuth refresh token, which is the
+   * one secret in this product that has to come back out again (see
+   * lib/crypto/secretbox.ts). Absent, connecting a meeting account is refused
+   * rather than done in plaintext.
+   *
+   * Read at module load like everything else here, and read AGAIN inside
+   * `secretbox.ts`, because a verifier that sets the variable and then imports
+   * would otherwise get whatever the process started with.
+   */
+  tokenEncryptionKey: process.env.TOKEN_ENCRYPTION_KEY || "",
+  recallApiKey: process.env.RECALL_API_KEY || "",
+  recallBaseUrl: process.env.RECALL_BASE_URL || "https://api.recall.ai",
+
 } as const;
 
 /** Feature availability, derived — never a separate FEATURE_* flag. */
@@ -166,5 +182,16 @@ export const features = {
   },
   get email() {
     return Boolean(env.resendApiKey);
+  },
+  /*
+   * 🔴 41.3 — BOTH, and the page says which half is missing.
+   *
+   * A bot with no way to seal a refresh token cannot hold a connection, and a
+   * sealed connection with no bot to dispatch is a Connect button that leads
+   * nowhere. Either alone is a screen that lies about what it can do, which is
+   * the exact defect `lib/integrations/registry.ts` exists to prevent.
+   */
+  get meetingBots() {
+    return Boolean(env.recallApiKey) && Boolean(env.tokenEncryptionKey);
   },
 };
