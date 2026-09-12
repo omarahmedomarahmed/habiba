@@ -17,7 +17,7 @@ export default async function AdminTherapistsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Clinicians</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Verification is a signal, not a gate — an unverified clinician can still record sessions.
+          Verification is a signal, not a gate, an unverified clinician can still record sessions.
         </p>
       </div>
 

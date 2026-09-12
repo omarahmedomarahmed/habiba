@@ -3,18 +3,31 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { JoinFlow } from "@/components/join/join-flow";
+import { PatientChrome } from "@/components/patient/chrome";
+import { optionalPatient } from "@/lib/patient-auth/guard";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
-import { localeTag } from "@/lib/i18n/config";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { feedbackContext, feedbackTokenForJoin } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { therapistRadar, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { callerKey, releaseHold } from "@/lib/rate-limit";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/join/[token]/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = {
   title: "Join your session",
@@ -96,7 +109,14 @@ export default async function JoinPage({
     .limit(1);
 
   return (
-    <Shell>
+    /*
+     * 🔴 25.2 / 25.4 / C129 — the live session is a patient screen.
+     *
+     * It is not in the `(patient)` route group, because a join link has to work
+     * for somebody who has never signed in, so it takes the chrome directly.
+     * `live` locks the Session tab and makes every other destination ask first.
+     */
+    <Shell live={{ href: `/join/${token}` }}>
       <JoinFlow
         feedbackToken={await feedbackTokenForJoin(token)}
         therapist={{
@@ -140,7 +160,6 @@ export default async function JoinPage({
             sessionId={session.id}
             startedAt={null}
             waitMinutes={Math.floor((Date.now() - session.scheduledAt.getTime()) / 60_000)}
-            locale={localeTag((await getI18n()).locale)}
           />
         </div>
       ) : null}
@@ -148,9 +167,22 @@ export default async function JoinPage({
   );
 }
 
-async function Shell({ children }: { children: React.ReactNode }) {
+async function Shell({
+  children,
+  live = null,
+}: {
+  children: React.ReactNode;
+  live?: { href: string } | null;
+}) {
   const { t } = await getI18n();
+  /*
+   * The bar only appears for somebody who can use it. A guest on a bare link
+   * has no account, so every destination in it would bounce them to a login
+   * screen. The SOS orb inside the chrome is not conditional on anything.
+   */
+  const patient = await optionalPatient();
   return (
+    <PatientChrome nav={patient !== null} liveSession={live} phone={patient?.phone ?? null}>
     <div className="flex min-h-dvh flex-col bg-slate-50">
       {/*
         The language switch belongs here, not buried in a menu.
@@ -170,5 +202,6 @@ async function Shell({ children }: { children: React.ReactNode }) {
         <p className="text-xs text-slate-400">{t("urgent.footer")}</p>
       </footer>
     </div>
+    </PatientChrome>
   );
 }

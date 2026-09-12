@@ -21,7 +21,7 @@ const { platformSettings, sessions, sessionPayments, invoices, copilotMessages, 
 
 let failures = 0;
 function check(name: string, ok: boolean, detail = "") {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 }
 
@@ -55,7 +55,7 @@ async function main() {
     check(
       "session_id is writable on a therapist message",
       true,
-      "verified by the column existing and the code path setting it — new questions only",
+      "verified by the column existing and the code path setting it, new questions only",
     );
 
     /* ------------------------------------------- history is frozen, not derived */
@@ -73,7 +73,7 @@ async function main() {
       .limit(1);
 
     if (!row) {
-      console.log("\n(no priced session in this database — skipping the freeze check)");
+      console.log("\n(no priced session in this database, skipping the freeze check)");
     } else {
       const [{ value: pricingValue } = { value: null }] = await db
         .select({ value: platformSettings.value })

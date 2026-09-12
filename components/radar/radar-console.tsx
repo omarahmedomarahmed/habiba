@@ -8,6 +8,7 @@ import { BookingSheet } from "@/components/radar/booking-sheet";
 import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components/radar/filters";
 import { TherapistCard } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 
@@ -53,6 +54,7 @@ const Globe = dynamicImport(() => import("@/components/radar/globe").then((m) =>
 const REFRESH_MS = 4_000;
 
 export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
+  const t = useT();
   const [entries, setEntries] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
@@ -98,8 +100,10 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
 
   const filterSummary =
     activeFilters === 0
-      ? "Everyone on shift"
-      : `${activeFilters} filter${activeFilters === 1 ? "" : "s"} on`;
+      ? t("radar.everyoneOnShift")
+      : activeFilters === 1
+        ? t("radar.oneFilterOn")
+        : t("radar.filtersOn", { count: activeFilters });
 
   const filterContent = (
     <RadarFilters entries={entries} value={filter} onChange={setFilter} tone="dark" />
@@ -108,17 +112,18 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
   const listContent =
     visible.length === 0 ? (
       <div className="rounded-2xl bg-white/5 p-4 text-center">
-        <p className="text-sm font-semibold text-white">Nobody matching that is on shift</p>
+        <p className="text-sm font-semibold text-white">{t("radar.nobodyMatchingTitle")}</p>
         <p className="mt-1 text-xs leading-relaxed text-white/60">
-          {onlineCount} other {onlineCount === 1 ? "clinician is" : "clinicians are"} available
-          right now.
+          {onlineCount === 1
+            ? t("radar.othersAvailableOne")
+            : t("radar.othersAvailableMany", { count: onlineCount })}
         </p>
         <button
           type="button"
           onClick={() => setFilter(NO_FILTER)}
           className="mt-3 text-xs font-semibold text-teal-300 hover:text-teal-200"
         >
-          Show everyone
+          {t("radar.showEveryone")}
         </button>
       </div>
     ) : (
@@ -160,10 +165,14 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
             )}
           />
           <span className="text-sm font-semibold text-white tabular-nums">
-            {onlineCount > 0 ? onlineCount : "No one"}
+            {onlineCount > 0 ? onlineCount : t("radar.noOne")}
           </span>
           <span className="text-sm text-white/60">
-            {onlineCount === 1 ? "therapist on shift" : onlineCount > 0 ? "therapists on shift" : "on shift"}
+            {onlineCount === 1
+              ? t("radar.oneOnShift")
+              : onlineCount > 0
+                ? t("radar.manyOnShift")
+                : t("radar.onShift")}
           </span>
           {refreshing ? (
             <Loader2 className="h-3 w-3 animate-spin text-white/30" aria-hidden />
@@ -171,7 +180,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
         </div>
 
         <p className="pointer-events-none hidden rounded-full bg-[#04101f]/70 px-3 py-1.5 text-xs text-white/45 backdrop-blur sm:block">
-          Drag to spin · tap a country to filter
+          {t("radar.dragToSpin")}
         </p>
       </div>
 
@@ -181,7 +190,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
           side="left"
           open={leftOpen}
           onToggle={() => setLeftOpen((v) => !v)}
-          title="Narrow it down"
+          title={t("radar.narrowDown")}
           summary={filterSummary}
         >
           {filterContent}
@@ -191,7 +200,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
           side="right"
           open={rightOpen}
           onToggle={() => setRightOpen((v) => !v)}
-          title="Who is free"
+          title={t("radar.whoIsFree")}
           summary={`${visible.length} showing`}
         >
           {listContent}
@@ -222,7 +231,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
                   : "text-white/55 hover:text-white/80",
               )}
             >
-              {tab === "list" ? `${visible.length} free` : filterSummary}
+              {tab === "list" ? t("radar.countFree", { count: visible.length }) : filterSummary}
             </button>
           ))}
           <span className="flex h-9 w-9 items-center justify-center text-white/40">
@@ -310,10 +319,12 @@ function Panel({
 
 /** Kept out of the panel so the emergency line is never inside a collapsed box. */
 export function RadarSafetyLine() {
+  const t = useT();
+
   return (
     <p className="flex items-center justify-center gap-2 bg-[#04101f] px-4 py-2.5 text-center text-xs text-white/45">
       <Radio className="h-3 w-3 shrink-0" aria-hidden />
-      Not an emergency service. In the US call or text 988; elsewhere, your local emergency number.
+      {t("crisis.notEmergency")}
     </p>
   );
 }

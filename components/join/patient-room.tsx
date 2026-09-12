@@ -18,6 +18,7 @@ import { reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn, initials } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 export type Therapist = {
   name: string;
@@ -63,6 +64,7 @@ export function PatientRoom({
   startedAt: string | null;
   clock: { stage: ClockStage; remainingSeconds: number } | null;
 }) {
+  const t = useT();
   /*
    * Escapes the join page's centred column.
    *
@@ -83,7 +85,7 @@ export function PatientRoom({
             {videoUrl ? (
               <iframe
                 src={videoUrl}
-                title="Your session"
+                title={t("room.yourSession")}
                 allow="camera; microphone; fullscreen; display-capture; autoplay"
                 className="aspect-[3/4] w-full border-0 sm:aspect-video lg:aspect-[4/3]"
               />
@@ -91,20 +93,19 @@ export function PatientRoom({
               <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 px-6 text-center">
                 <Headphones className="h-6 w-6 text-white/30" aria-hidden />
                 <p className="text-sm font-semibold text-white">
-                  {live ? "Your session has started" : "Waiting for your therapist"}
+                  {live ? t("room.started") : t("room.waiting")}
                 </p>
                 <p className="max-w-xs text-xs leading-relaxed text-white/50">
                   {live
-                    ? "This is an audio session — you will hear each other."
-                    : "This page updates by itself the moment they join. Keep it open."}
+                    ? t("room.audioOnly")
+                    : t("room.keepOpen")}
                 </p>
               </div>
             )}
           </div>
 
           <p className="mt-2 px-1 text-center text-[11px] text-white/40 lg:text-start">
-            Trouble seeing or hearing? Check your browser has permission to use your camera and
-            microphone, then reload this page — you will come straight back in.
+            {t("room.trouble")}
           </p>
         </div>
 
@@ -153,6 +154,7 @@ export function PatientRoom({
  * existed they were the only participant who could not tell.
  */
 function RecordingStrip({ live, recording }: { live: boolean; recording: boolean }) {
+  const t = useT();
   if (!live) return null;
   return (
     <div
@@ -167,7 +169,7 @@ function RecordingStrip({ live, recording }: { live: boolean; recording: boolean
           recording ? "live-dot bg-red-500" : "bg-amber-400",
         )}
       />
-      {recording ? "Recording — for your therapist's notes" : "Recording paused by your therapist"}
+      {recording ? "Recording, for your therapist's notes" : "Recording paused by your therapist"}
     </div>
   );
 }
@@ -193,6 +195,7 @@ function PatientClockNote({
 }: {
   clock: { stage: ClockStage; remainingSeconds: number };
 }) {
+  const t = useT();
   if (clock.stage === "running") return null;
 
   if (clock.stage === "over") {
@@ -200,10 +203,10 @@ function PatientClockNote({
       <Card className="border-amber-200 bg-amber-50/70 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
           <Clock className="h-4 w-4 shrink-0" aria-hidden />
-          This session has ended
+          {t("room.endedTitle")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-amber-800">
-          If you and your therapist want to carry on, they can send you a link to a new session.
+          {t("room.endedAgain")}
         </p>
       </Card>
     );
@@ -238,6 +241,7 @@ function WhoYouAreWith({
   live: boolean;
   startedAt: string | null;
 }) {
+  const t = useT();
   const [elapsed, setElapsed] = useState("");
 
   /*
@@ -273,14 +277,13 @@ function WhoYouAreWith({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
-        {therapist.languages.length > 0 ? <span>Speaks {therapist.languages.join(", ")}</span> : null}
+        {therapist.languages.length > 0 ? <span>{t("room.speaks", { languages: therapist.languages.join("، ") })}</span> : null}
         {live && elapsed ? <span className="font-medium text-teal-700">{elapsed}</span> : null}
       </div>
 
       <p className="mt-3 flex items-start gap-1.5 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-500">
         <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-        Verified by 24Therapy — we checked their licence and their ID before they could take a
-        session.
+        {t("room.verifiedBody")}
       </p>
     </Card>
   );
@@ -306,6 +309,7 @@ function SummaryAndRating({
   live: boolean;
   therapist: Therapist;
 }) {
+  const t = useT();
   const [stars, setStars] = useState(0);
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
@@ -316,10 +320,10 @@ function SummaryAndRating({
       <Card className="p-4">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
           <Mail className="h-3.5 w-3.5 text-slate-400" aria-hidden />
-          A written summary, afterwards
+          {t("room.summaryTitle")}
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-500">
-          When {therapist.firstName} joins we will ask where to send it — a plain-language note of
+          When {therapist.firstName} joins we will ask where to send it, a plain-language note of
           what you talked about and what you agreed.
         </p>
       </Card>
@@ -329,7 +333,7 @@ function SummaryAndRating({
   if (done) {
     return (
       <Card className="border-teal-200 bg-teal-50/60 p-4">
-        <p className="text-sm font-semibold text-teal-900">Thank you</p>
+        <p className="text-sm font-semibold text-teal-900">{t("room.thanks")}</p>
         <p className="mt-1 text-xs leading-relaxed text-teal-800">
           Your summary will come to that address once {therapist.firstName} has written up the
           session.
@@ -341,14 +345,14 @@ function SummaryAndRating({
   return (
     <Card className="space-y-3 p-4">
       <div>
-        <p className="text-sm font-semibold text-slate-900">How easy was it to find someone?</p>
+        <p className="text-sm font-semibold text-slate-900">{t("room.howEasy")}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-          Just about 24Therapy — not about {therapist.firstName}. You rate the session and your
+          Just about 24Therapy, not about {therapist.firstName}. You rate the session and your
           therapist afterwards.
         </p>
       </div>
 
-      <div className="flex gap-1" role="radiogroup" aria-label="Rate 24Therapy">
+      <div className="flex gap-1" role="radiogroup" aria-label={t("room.rateApp")}>
         {[1, 2, 3, 4, 5].map((value) => (
           <button
             key={value}
@@ -372,7 +376,7 @@ function SummaryAndRating({
 
       <div>
         <label htmlFor="room-email" className="text-xs font-medium text-slate-800">
-          Where shall we send your summary?
+          {t("room.whereSummary")}
         </label>
         <Input
           id="room-email"
@@ -383,7 +387,7 @@ function SummaryAndRating({
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="mt-1.5 h-11 text-sm"
-          placeholder="you@example.com"
+          placeholder={t("room.emailPlaceholder")}
         />
       </div>
 
@@ -413,32 +417,31 @@ function SummaryAndRating({
  * will be read.
  */
 function StayHere({ therapist }: { therapist: Therapist }) {
+  const t = useT();
   return (
     <Card className="border-amber-300 bg-amber-50 p-4">
       <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest text-amber-700 uppercase">
         <MessageSquareHeart className="h-3.5 w-3.5" aria-hidden />
-        Before you go
+        {t("room.beforeYouGo")}
       </p>
 
       <p className="mt-1.5 text-2xl leading-[1.12] font-black tracking-tight text-slate-900">
-        Do not close this tab.
+        {t("room.doNotClose")}
       </p>
 
       <p className="mt-2 text-base leading-snug font-semibold text-slate-800">
-        You get to rate {therapist.firstName} and this session as soon as it ends — right here, on
+        You get to rate {therapist.firstName} and this session as soon as it ends, right here, on
         this page.
       </p>
 
       <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
-        Closing the tab is the one thing we cannot undo: the rating and your written summary both
-        live on the other side of it, and there is no way for us to bring you back.
+        {t("room.closingCost")}
       </p>
 
       <p className="mt-2 flex items-start gap-1.5 border-t border-amber-200 pt-2.5 text-xs leading-relaxed text-slate-600">
         <Star className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" aria-hidden />
         <span>
-          Your rating is <strong>anonymous</strong>. {therapist.firstName} sees the stars and the
-          words, never who wrote them.
+          {t("room.anonymous", { therapist: therapist.firstName })}
         </span>
       </p>
     </Card>
@@ -446,22 +449,22 @@ function StayHere({ therapist }: { therapist: Therapist }) {
 }
 
 function Reassurance() {
+  const t = useT();
   return (
     <Card className="p-4">
-      <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Good to know</p>
+      <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">{t("room.goodToKnow")}</p>
       <ul className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
         <li className="flex gap-2">
           <Lock className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
-          The recording is used to write your therapist's notes. It is not shared with anyone else.
+          {t("room.knowRecording")}
         </li>
         <li className="flex gap-2">
           <Mail className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
-          You get a plain-language summary. Your therapist's clinical note stays with them.
+          {t("room.knowSummary")}
         </li>
         <li className="flex gap-2">
           <Phone className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
-          This is not an emergency service. If you are in immediate danger, call your local
-          emergency number — in the US, call or text 988.
+          {t("room.knowEmergency")}
         </li>
       </ul>
     </Card>
@@ -476,6 +479,7 @@ function Reassurance() {
  * should have to ask for the complaints address.
  */
 function TroubleBox({ token }: { token: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState("");
   const [sent, setSent] = useState(false);
@@ -484,9 +488,9 @@ function TroubleBox({ token }: { token: string }) {
   if (sent) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Sent to 24Therapy</p>
+        <p className="text-sm font-semibold text-slate-900">{t("room.sentToUs")}</p>
         <p className="mt-1 text-xs leading-relaxed text-slate-600">
-          Someone will read this today. It did not go to your therapist.
+          {t("room.sentToUsBody")}
         </p>
       </Card>
     );
@@ -500,22 +504,22 @@ function TroubleBox({ token }: { token: string }) {
         className="flex w-full items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-start text-xs font-medium text-white/70 hover:bg-slate-800"
       >
         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
-        Something is wrong — tell 24Therapy
+        {t("room.troubleTitle")}
       </button>
     );
   }
 
   return (
     <Card className="space-y-2.5 p-4">
-      <p className="text-sm font-semibold text-slate-900">Tell us what is happening</p>
+      <p className="text-sm font-semibold text-slate-900">{t("room.tellUsTitle")}</p>
       <p className="text-xs leading-relaxed text-slate-500">
-        This goes straight to 24Therapy. Your therapist does not see it.
+        {t("room.tellUsBody")}
       </p>
       <Textarea
         rows={3}
         value={detail}
         onChange={(event) => setDetail(event.target.value)}
-        placeholder="What is happening right now."
+        placeholder={t("room.tellUsPlaceholder")}
       />
       <div className="flex gap-2">
         <Button
@@ -532,7 +536,7 @@ function TroubleBox({ token }: { token: string }) {
           {pending ? "Sending…" : "Send"}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
-          Cancel
+          {t("common.cancel")}
         </Button>
       </div>
     </Card>

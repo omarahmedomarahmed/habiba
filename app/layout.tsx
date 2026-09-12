@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
   title: {
-    default: "24Therapy — your session notes, written for you",
+    default: "24Therapy, your session notes, written for you",
     template: "%s · 24Therapy",
   },
   description:
@@ -52,10 +52,33 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const locale = await getLocale();
 
+  /*
+   * 🔴 45.3 — the admin's overrides, for the client half of the product.
+   *
+   * Server components have resolved these since sprint 21; client components
+   * read the bundled dictionary and ignored them entirely. This is the one
+   * place the two halves are joined, and it carries **only the keys somebody
+   * edited** — usually none — rather than a resolved dictionary of 1,536.
+   *
+   * It must not be able to fail the page. `overridesFor` already swallows a
+   * database error and answers `{}`; the catch here covers the import itself,
+   * because a layout that throws takes every screen in the product with it and
+   * the thing at stake is a wording change.
+   */
+  let overrides: Record<string, string> = {};
+  try {
+    const { overridesFor } = await import("@/lib/i18n/strings");
+    overrides = await overridesFor(locale);
+  } catch {
+    // The shipped dictionary is a complete answer. 21.6.
+  }
+
   return (
     <html lang={locale} dir={dirFor(locale)}>
       <body>
-        <I18nProvider locale={locale}>{children}</I18nProvider>
+        <I18nProvider locale={locale} overrides={overrides}>
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

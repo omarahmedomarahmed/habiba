@@ -25,10 +25,10 @@ const { homeworkItems, observations, patientAccounts, patients, people, personPr
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
-const skip = (name: string, why: string) => console.log(`  --   ${name} — NOT EXERCISED: ${why}`);
+const skip = (name: string, why: string) => console.log(`  --   ${name}, NOT EXERCISED: ${why}`);
 
 const TAG = `verify9-${randomUUID().slice(0, 8)}`;
 
@@ -69,7 +69,7 @@ async function main() {
       sql`SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname='person_profiles_person_unique'`,
     );
     check(
-      "9.1 one profile per person — there is nowhere to keep a hand-written second copy",
+      "9.1 one profile per person. There is nowhere to keep a hand-written second copy",
       idx.rows.length === 1,
     );
 
@@ -236,7 +236,7 @@ async function main() {
           personId,
         });
         check(
-          "🔴 9.5 an ANSWERED step cannot be withdrawn — the answer is theirs",
+          "🔴 9.5 an ANSWERED step cannot be withdrawn. The answer is theirs",
           answered === false,
         );
       }

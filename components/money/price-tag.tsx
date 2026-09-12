@@ -33,6 +33,7 @@ export function PriceTag({
   locale,
   className,
   size = "base",
+  unit,
 }: {
   usdCents: number;
   /** EGP per USD, x1e6. Null when we cannot price the pair — then no toggle. */
@@ -47,6 +48,17 @@ export function PriceTag({
   locale: string;
   className?: string;
   size?: "base" | "lg";
+  /**
+   * 🔴 21R.8 — what the price is *per*, rendered between the amount and the
+   * currency toggle.
+   *
+   * Read aloud, the pricing card used to say "four dollars EGP per session":
+   * the toggle sits next to the number, so a small button labelled `EGP`
+   * reads as part of the amount to anybody skimming. Putting the unit in
+   * between separates them — "$4 / session · EGP" — and the caller no longer
+   * has to place a `<span>` after a component that ends in a button.
+   */
+  unit?: string;
 }) {
   const [egp, setEgp] = useState(false);
   const showEgp = egp && rateMicro !== null;
@@ -58,6 +70,8 @@ export function PriceTag({
           ? formatMoney(convert(usdCents, rateMicro!), "EGP", locale)
           : formatMoney(usdCents, "USD", locale)}
       </span>
+
+      {unit ? <span className="text-sm font-normal text-slate-500">{unit}</span> : null}
 
       {rateMicro !== null ? (
         <button

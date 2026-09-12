@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server";
 import { lt } from "drizzle-orm";
 
-import { sweepUndeliveredAlerts } from "@/lib/ai/crisis";
+import { sweepUndeliveredAlerts } from "@/lib/crisis/alerts";
 import { purgeExpiredSessions } from "@/lib/auth/session";
 import { reconcileMissingCharges } from "@/lib/billing/service";
 import { sweepRadar } from "@/lib/data/radar";
 import { purgeExpiredLimits } from "@/lib/rate-limit";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { auditLog } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/api/cron/[job]/route.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -341,7 +353,15 @@ const JOBS = {
       const therapist = [booking.therapistFirstName, booking.therapistLastName]
         .filter(Boolean)
         .join(" ");
-      const when = formatWhenWithCaveat(booking.startsAt, zone);
+      /*
+       * 🔴 37L.9 — `"en"` here is a decision, not a default.
+       *
+       * Emails and WhatsApp templates are 37L.4, which has not been done: the
+       * bodies around this string are still English, and a date rendered in Arabic
+       * inside an English sentence is worse than one that matches it. The locale is
+       * written at the call site so the day 37L.4 lands, this line is the diff.
+       */
+      const when = formatWhenWithCaveat(booking.startsAt, zone, "en");
 
       const delivery = await notify(
         {
@@ -352,7 +372,7 @@ const JOBS = {
         {
           kind: "booking.reminder",
           subject: `Your session with ${therapist}`,
-          body: `A reminder that your session with ${therapist} is ${when}.\n\nIf you cannot make it, tell them as early as you can — the hour goes back on their calendar for somebody else.`,
+          body: `A reminder that your session with ${therapist} is ${when}.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.`,
           link: booking.sessionId
             ? { label: "Open your session", url: `${env.appUrl}/sessions/${booking.sessionId}` }
             : null,
@@ -391,14 +411,14 @@ const JOBS = {
     for (const row of released) {
       const zone = resolveZone(row.patientTimezone, row.therapistTimezone);
       const therapist = [row.therapistFirstName, row.therapistLastName].filter(Boolean).join(" ");
-      const when = formatWhenWithCaveat(row.startsAt, zone);
+      const when = formatWhenWithCaveat(row.startsAt, zone, "en");
 
       const delivery = await notify(
         { email: row.patientEmail, phone: row.patientPhone, timezone: row.patientTimezone },
         {
           kind: "booking.cancelled",
           subject: `Your session with ${therapist} was not confirmed`,
-          body: `Your session with ${therapist} on ${when} was never paid for, so the hour has gone back on their calendar.\n\nIf you still want it, book again — it may still be free.`,
+          body: `Your session with ${therapist} on ${when} was never paid for, so the hour has gone back on their calendar.\n\nIf you still want it, book again. It may still be free.`,
           link: { label: "Book again", url: `${env.appUrl}/radar` },
           variables: [therapist, when],
         },

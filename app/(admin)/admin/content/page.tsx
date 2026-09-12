@@ -27,7 +27,7 @@ export default async function AdminContentPage() {
         <Card className="px-4 py-8 text-center">
           <p className="text-sm text-slate-600">
             No pages in the database yet. The public site is currently rendering the built-in
-            defaults — run <code className="rounded bg-slate-100 px-1">npm run db:seed</code> to
+            defaults, run <code className="rounded bg-slate-100 px-1">npm run db:seed</code> to
             import them so they become editable.
           </p>
         </Card>
@@ -39,7 +39,7 @@ export default async function AdminContentPage() {
                 <p className="truncate text-sm font-semibold text-slate-900">{page.title}</p>
                 <p className="truncate text-xs text-slate-500">
                   /{page.slug === "home" ? "" : page.slug} · updated{" "}
-                  {formatDateTime(page.updatedAt, actor.timezone)}
+                  {formatDateTime(page.updatedAt, actor.timezone, "en")}
                 </p>
               </Link>
 

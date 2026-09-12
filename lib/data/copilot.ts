@@ -4,7 +4,8 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { getSettings } from "@/lib/settings";
 import {
   copilotMessages,
@@ -14,6 +15,17 @@ import {
   NOTE_LANGUAGES,
   type Citation,
 } from "@/lib/db/schema";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/copilot.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 
 function scope(actor: Actor) {
@@ -246,7 +258,7 @@ export async function checkQuota(
  * A setting rather than a correction. Telling the copilot "answer in Arabic"
  * through the corrections box is teaching it a fact about a patient it does not
  * have, and it was measured as unreliable besides — see the prompt assembly in
- * `lib/ai/patient-copilot.ts`.
+ * `lib/ai/case-copilot.ts`.
  */
 export async function setReplyLanguage(
   actor: Actor,

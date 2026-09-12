@@ -7,18 +7,37 @@
  * a member of an organisation. Reusing it with conditionals would put "is this
  * a patient?" into a component whose whole job is to assume it is not.
  *
- * The bottom navigation and its centred globe arrive here in sprint 15.1. The
- * padding under `children` is the height of the bar plus the safe area — a
- * fixed bar with no matching padding hides the last item of every list, which
- * on this app is somebody's most recent session.
+ * The chrome itself lives in `components/patient/chrome.tsx` rather than here,
+ * because two screens a patient must never fall out of are not in this route
+ * group: the radar and the live session (25.2).
+ *
+ * ## 🔴 Why the layout asks who is reading. 37R.25, C184, C185
+ *
+ * Two things the chrome cannot decide on its own, and until the second
+ * walkthrough it was deciding both wrongly for everybody signed out:
+ *
+ *   1. **The navigation bar.** `PatientChrome` has always taken `nav`, and its
+ *      own comment says a visitor who is not signed in gets the orb and no
+ *      navigation "because every destination in the bar would bounce them to a
+ *      login screen". Nothing passed it, so the default won and a person
+ *      opening an invite link from WhatsApp got four tabs, all of which threw
+ *      them at a sign-in page.
+ *   2. **The crisis line.** The orb prints the line for the reader's own
+ *      dialling code, which means it needs the reader's number.
+ *
+ * Both come from the same answer, so the layout asks once. `optionalPatient()`
+ * reads the session cookie and returns null rather than redirecting, which is
+ * what a layout wrapping both signed-in and signed-out pages needs.
  */
-import { PatientBottomNav } from "@/components/patient/bottom-nav";
+import { PatientChrome } from "@/components/patient/chrome";
+import { optionalPatient } from "@/lib/patient-auth/guard";
 
-export default function PatientLayout({ children }: { children: React.ReactNode }) {
+export default async function PatientLayout({ children }: { children: React.ReactNode }) {
+  const actor = await optionalPatient();
+
   return (
-    <div className="min-h-dvh bg-slate-50">
-      <div className="pb-24">{children}</div>
-      <PatientBottomNav />
-    </div>
+    <PatientChrome nav={actor !== null} phone={actor?.phone ?? null}>
+      {children}
+    </PatientChrome>
   );
 }

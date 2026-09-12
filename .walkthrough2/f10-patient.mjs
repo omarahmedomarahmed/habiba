@@ -1,0 +1,15 @@
+import { readFileSync } from "node:fs";
+import { browser, context, go, anatomy, text, shot, PHONE } from "./lib.mjs";
+const link = readFileSync(".walkthrough2/invite.txt", "utf8").trim();
+const people = JSON.parse(readFileSync(".walkthrough2/people.json", "utf8"));
+const b = await browser();
+const ctx = await b.newContext({ viewport: PHONE });
+const p = await ctx.newPage();
+const step = async (n, chars=1200) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await p.goto(link, { waitUntil: "domcontentloaded" });
+await p.waitForLoadState("networkidle").catch(()=>{});
+await step("p01-invite-landing", 1500);
+console.log("FIELDS:", await p.evaluate(()=>JSON.stringify([...document.querySelectorAll("input,select")].filter(e=>e.type!=="hidden").map(e=>({n:e.name,t:e.type,l:(e.labels&&e.labels[0]&&e.labels[0].innerText.trim())||e.placeholder||""})))));
+console.log("BUTTONS:", await p.evaluate(()=>[...document.querySelectorAll("button")].map(b=>b.innerText.trim()).filter(Boolean).join(" | ")));
+await ctx.storageState({ path: ".walkthrough2/state-patient.json" });
+await b.close();

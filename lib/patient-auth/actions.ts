@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, people } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
@@ -13,6 +14,17 @@ import { log } from "@/lib/logger";
 import { callerKey, consume } from "@/lib/rate-limit";
 
 import { createPatientSession, destroyPatientSession } from "./session";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/patient-auth/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export type PatientAuthState = { error?: string };
 
@@ -66,7 +78,7 @@ export async function patientSignUp(
   const rawPhone = String(formData.get("phone") ?? "").trim();
   if (!rawPhone) {
     return {
-      error: "A phone number is required — it is how you sign in and how your therapist finds you.",
+      error: "A phone number is required. It is how you sign in and how your therapist finds you.",
     };
   }
 
@@ -84,8 +96,20 @@ export async function patientSignUp(
 
   if (!firstName) return { error: "Enter your first name." };
 
-  const problem = validatePassword(password);
-  if (problem) return { error: problem };
+  /*
+   * 🔴 25.12 / C119 — a password is optional, and only checked when there is one.
+   *
+   * One handle is enough to be a full patient user. A guest who joined a
+   * session on a phone number should not be stopped at a form asking them to
+   * invent a password while their therapist waits; a code to the number they
+   * already have is both easier and the stronger factor. Somebody who types a
+   * password still gets the shared policy, unchanged (6.5) — the weaker of two
+   * policies is the one that matters, so there is still only one.
+   */
+  if (password) {
+    const problem = validatePassword(password);
+    if (problem) return { error: problem };
+  }
 
   // Signup is a write on an unauthenticated endpoint, so it is rate limited on
   // the caller rather than on the account — there is no account yet.
@@ -147,7 +171,7 @@ export async function patientSignUp(
       .values({
         personId: person.id,
         email,
-        passwordHash: await hashPassword(password),
+        passwordHash: password ? await hashPassword(password) : null,
         phone,
         timezone,
       })
@@ -160,7 +184,27 @@ export async function patientSignUp(
 
   await createPatientSession(accountId);
   log.info("patient account created");
-  redirect("/patient/claim");
+
+  /*
+   * 🔴 22R — the invite the form carried is not dropped on the floor.
+   *
+   * `/patient/signup?invite=<token>` renders the token as a hidden field, and
+   * this function never read it: a patient who followed the link their
+   * therapist handed them was dropped into the *matching* route instead, which
+   * asks for a code by email or WhatsApp. Most patients here have no email
+   * (§3b, C43) and WhatsApp is waiting on Meta, so the screen they reached said
+   * "we could not send your code — check the email address on your account",
+   * to somebody who has no email and is holding the very invite it then
+   * suggests they ask for. That is a dead end on the primary way into this
+   * product, and it took signing up as a patient to see it.
+   *
+   * The redirect goes to the invite page rather than redeeming here on
+   * purpose: §3 step 7 asks whether the therapist keeps access, the default is
+   * OFF, and the patient chooses. Claiming silently at signup would answer a
+   * consent question on their behalf.
+   */
+  const inviteToken = String(formData.get("inviteToken") ?? "").trim();
+  redirect(inviteToken ? `/patient/invite/${encodeURIComponent(inviteToken)}` : "/patient/claim");
 }
 
 /**
@@ -186,7 +230,13 @@ export async function patientSignIn(
   }
 
   const verdict = await consume(await callerKey("patient:signin"), 10, 15 * 60);
-  if (!verdict.allowed) return { error: "Too many attempts. Try again shortly." };
+  if (!verdict.allowed) {
+    /* 22R — the wait in minutes, for the same reason as the clinician's door. */
+    const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
+    return {
+      error: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    };
+  }
 
   /*
    * Which handle is this? Decided by shape, not by asking.
@@ -214,13 +264,20 @@ export async function patientSignIn(
     .limit(1);
 
   /*
-   * One message for "no such account" and "wrong password", and the hash is
-   * verified even when there is no account — otherwise the response time tells
-   * an attacker which handles exist.
+   * One message for "no such account", "wrong password" and "this account has
+   * no password", and the hash is verified even when there is no account, so
+   * the response time does not tell an attacker which handles exist.
+   *
+   * 🔴 25.11 — an account with no password is not an error the person typing
+   * can see. They have one way in, a code to their handle, and the sign-in
+   * page offers it to everybody rather than only to the people it would work
+   * for. Saying "that account has no password" here would answer, to anybody
+   * holding a phone number, whether that number belongs to a guest.
    */
-  const ok = account
+  const INVALID = "$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
+  const ok = account?.passwordHash
     ? await verifyPassword(password, account.passwordHash)
-    : await verifyPassword(password, "$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali");
+    : await verifyPassword(password, INVALID);
 
   if (!account || !ok) return { error: "That does not match an account. Check and try again." };
 

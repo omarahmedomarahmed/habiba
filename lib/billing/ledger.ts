@@ -2,7 +2,8 @@ import "server-only";
 
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   earningsTransfers,
   ledgerEntries,
@@ -12,6 +13,17 @@ import {
   type LedgerTxnKind,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/billing/ledger.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * The books.
@@ -358,7 +370,7 @@ export async function postSessionRefund(payment: {
             amountCents: payment.therapistNetCents,
             organizationId: org,
             userId: user,
-            memo: "Held earnings reversed — the session was refunded",
+            memo: "Held earnings reversed. The session was refunded",
           },
         ];
 

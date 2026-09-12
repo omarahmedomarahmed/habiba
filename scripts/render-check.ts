@@ -28,87 +28,10 @@ import React from "react";
 import { like } from "drizzle-orm";
 
 import { contentPages } from "../lib/db/schema";
+import { resolve, stubModules } from "./_render";
 import { reporter } from "./_verify";
 
-const { check, finish } = reporter();
-
-/**
- * Two narrow module substitutions, and why each is needed.
- *
- * `next/link` builds a React context at import time and there is no renderer
- * mounted here; it is replaced by a plain anchor (see `verify-sprint17.ts`).
- *
- * `server-only` is a bundler guard whose entire implementation is a throw
- * unless the `react-server` export condition is set — and this script needs
- * the *full* React build, because the demo error boundary is a class component
- * and the react-server build has no `Component`. Nothing under test changes:
- * these are the real modules, rendered on a server, in a script.
- *
- * Deliberately two exact module ids. A broad mock would let a real failure be
- * answered by a stub.
- */
-async function stubModules() {
-  const { createRequire } = await import("node:module");
-  const Module = (await import("node:module")).default as unknown as {
-    _resolveFilename: (request: string, ...rest: unknown[]) => string;
-  };
-  const require = createRequire(import.meta.url);
-  const link = require.resolve("./_stub-link.tsx");
-  const empty = require.resolve("./_stub-empty.ts");
-  const original = Module._resolveFilename;
-  Module._resolveFilename = function (request: string, ...rest: unknown[]) {
-    if (request === "next/link") return link;
-    if (request === "server-only") return empty;
-    return original.call(this, request, ...rest);
-  };
-}
-
-/** Await every async component in the tree, leaving plain elements behind. */
-async function resolve(node: unknown): Promise<unknown> {
-  if (node === null || node === undefined || typeof node !== "object") return node;
-
-  if (Array.isArray(node)) return Promise.all(node.map(resolve));
-
-  const element = node as { type?: unknown; props?: Record<string, unknown> };
-  if (!("type" in element)) return node;
-
-  if (typeof element.type === "function") {
-    /*
-     * Server components are run here; client components are left for React.
-     *
-     * The distinction cannot be read off the function, so it is discovered by
-     * trying: a **server** component is a plain function that returns markup
-     * (or a promise of it), while a client component reaches for a hook
-     * dispatcher that only exists inside a renderer, and a class component
-     * cannot be called at all. Both fail loudly and immediately, and the
-     * element is handed back untouched for `renderToStaticMarkup`, which knows
-     * how to do it properly.
-     *
-     * This has to run *through* synchronous server components, not only async
-     * ones: `PricingTiers` is returned by a plain `Block`, and the first
-     * version of this walk stopped at `Block` and reported three pages as "a
-     * component suspended" — a failure that had nothing to do with the pages.
-     * A partial walk is worse than none, because it still looks like a render.
-     */
-    try {
-      const produced = (element.type as (p: unknown) => unknown)(element.props ?? {});
-      const awaited = produced instanceof Promise ? await produced : produced;
-      return await resolve(awaited);
-    } catch {
-      return node;
-    }
-  }
-
-  if (element.props && "children" in element.props) {
-    return {
-      ...element,
-      props: { ...element.props, children: await resolve(element.props.children) },
-    };
-  }
-
-  return node;
-}
-
+const { check, skipUnless, finish } = reporter();
 /**
  * `renderToStaticMarkup`, reached past the `react-server` condition.
  *
@@ -129,10 +52,16 @@ async function main() {
    * installed before anything reaches `server-only`, and a static import runs
    * before `main()` does.
    */
-  const { db } = await import("../lib/db");
+  /*
+   * 🔴 30.1 — the CONTROL PLANE. This renders content pages, which are one
+   * copy read by every region; there is no person's data on this path.
+   */
+  const { controlDb: db } = await import("../lib/db");
 
   const write = process.argv.includes("--write");
-  console.log(`rendering from ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  console.log(
+    `rendering from ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
+  );
 
   const rows = await db
     .select({
@@ -159,11 +88,26 @@ async function main() {
   for (const row of rows) {
     try {
       const tree = await resolve(
-        React.createElement(BlockRenderer as never, { blocks: row.blocks, slug: row.slug }),
+        /*
+         * 🔴 21R.8 — each row is rendered in ITS OWN language.
+         *
+         * There is no cookie here, so without this the Arabic rows rendered
+         * with English chrome and the check below would have been measuring
+         * the script's default rather than the page. `en-x-staging` is rendered as `en`.
+         */
+        React.createElement(BlockRenderer as never, {
+          blocks: row.blocks,
+          slug: row.slug,
+          locale: row.locale.replace("-x-staging", ""),
+        }),
       );
-      html[`${row.slug}.${row.locale}`] = renderToStaticMarkup(tree as React.ReactElement);
+      html[`${row.slug}.${row.locale}`] = renderToStaticMarkup(
+        tree as React.ReactElement,
+      );
     } catch (error) {
-      failed.push(`${row.slug}[${row.locale}]: ${(error as Error).message.split("\n")[0]}`);
+      failed.push(
+        `${row.slug}[${row.locale}]: ${(error as Error).message.split("\n")[0]}`,
+      );
     }
   }
 
@@ -184,14 +128,18 @@ async function main() {
       pricing.includes(`$${(tier.rateCents / 100).toFixed(0)}`),
     ),
     `looking for ${settings.pricing.tiers.map((t) => `$${t.rateCents / 100}`).join(", ")} · found ${
-      settings.pricing.tiers.filter((t) => pricing.includes(`$${(t.rateCents / 100).toFixed(0)}`)).length
+      settings.pricing.tiers.filter((t) =>
+        pricing.includes(`$${(t.rateCents / 100).toFixed(0)}`),
+      ).length
     }`,
   );
 
   check(
     "17.4 …and the slider, starting at the bundle minimum",
     /type="range"/.test(pricing) &&
-      pricing.includes(`min="${settings.pricing.tiers.filter((t) => t.minimumSessions > 0).pop()?.minimumSessions}"`),
+      pricing.includes(
+        `min="${settings.pricing.tiers.filter((t) => t.minimumSessions > 0).pop()?.minimumSessions}"`,
+      ),
   );
 
   check(
@@ -206,36 +154,44 @@ async function main() {
 
   const home = html["home.en-x-staging"] ?? "";
   check(
-    "🔴 17.7 the rendered HOMEPAGE carries the same prices — one component, two pages",
-    cheapest !== undefined && home.includes(`$${(cheapest.rateCents / 100).toFixed(0)}`),
+    "🔴 17.7 the rendered HOMEPAGE carries the same prices, one component, two pages",
+    cheapest !== undefined &&
+      home.includes(`$${(cheapest.rateCents / 100).toFixed(0)}`),
   );
 
   const patients = html["for-patients.en-x-staging"] ?? "";
   check(
     "🔴 18.3 the rendered patients page carries the crisis panel, pointing at the radar",
-    patients.includes("If you need help right now") && patients.includes('href="/radar"'),
+    patients.includes("If you need help right now") &&
+      patients.includes('href="/radar"'),
   );
   check(
     "18.9 …and the live patient-app component, with its demo rows",
-    patients.includes("When you needed someone") || patients.includes("Dr Nadia Farouk"),
+    patients.includes("When you needed someone") ||
+      patients.includes("Dr Nadia Farouk"),
   );
 
   const contact = html["contact.en-x-staging"] ?? "";
   check(
     "🔴 18R.2 the rendered contact page carries a real form and both companies",
-    /<form/.test(contact) && contact.includes("24Therapy Inc.") && contact.includes("24Therapy Egypt"),
+    /<form/.test(contact) &&
+      contact.includes("24Therapy Inc.") &&
+      contact.includes("24Therapy Egypt"),
   );
   check(
     "🔴 18R.4 …with the urgent warning above the box, not under the button",
     contact.indexOf("Do not send anything urgent here") > 0 &&
-      contact.indexOf("Do not send anything urgent here") < contact.indexOf("<form"),
+      contact.indexOf("Do not send anything urgent here") <
+        contact.indexOf("<form"),
   );
 
   const arabic = html["for-patients.ar-x-staging"] ?? "";
   check(
     "19.1 the Arabic patients page renders Arabic, not an English fallback",
     /[؀-ۿ]/.test(arabic),
-    arabic ? `${(arabic.match(/[؀-ۿ]/g) ?? []).length} Arabic characters` : "no page",
+    arabic
+      ? `${(arabic.match(/[؀-ۿ]/g) ?? []).length} Arabic characters`
+      : "no page",
   );
 
   /*
@@ -245,13 +201,113 @@ async function main() {
    * by being absent rather than by being correct.
    */
   check(
-    "🔴 19.0a CONTROL — the rendered pages are real documents, not empty strings",
+    "🔴 19.0a CONTROL, the rendered pages are real documents, not empty strings",
     Object.values(html).every((markup) => markup.length > 500),
     Object.entries(html)
       .filter(([, markup]) => markup.length <= 500)
       .map(([name]) => name)
       .join(", ") ||
       `smallest ${Math.min(...Object.values(html).map((m) => m.length))} bytes`,
+  );
+
+  /* ------------------------------------------ 21R.8 · the Arabic pages read Arabic */
+
+  /*
+   * 🔴 The finding this check exists for.
+   *
+   * The Arabic pricing page was rendered **entirely in English**: the row
+   * existed in Arabic — C72 asserted exactly that, and passed — but the row's
+   * only block is `pricing`, and the component that draws it had every word
+   * typed into it. Same for the contact form, the crisis buttons and the radar
+   * hero's chrome. A reader who switches language and meets the money page in
+   * English is being asked to trust a number whose conditions they cannot read.
+   *
+   * The strict half is a regression list: these are the phrases that were on
+   * the Arabic pages on 2026-09-07 and must never be again.
+   */
+  const arabicPages = Object.entries(html).filter(([name]) =>
+    name.includes(".ar"),
+  );
+
+  const text = (markup: string) =>
+    markup
+      .replace(/<script[\s\S]*?<\/script>/g, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&#x27;/g, "'")
+      .replace(/\s+/g, " ");
+
+  const WAS_ENGLISH = [
+    "Sign up free",
+    "/ session",
+    "Show EGP",
+    "Find someone online now",
+    "What happens in a session",
+    "Full radar",
+    "Finding clinicians",
+    "Do not send anything urgent",
+    "Not an emergency service",
+    "Who are you writing to?",
+    "Joining is free",
+  ];
+
+  const stillEnglish = arabicPages.flatMap(([name, markup]) =>
+    WAS_ENGLISH.filter((phrase) => text(markup).includes(phrase)).map(
+      (phrase) => `${name}: "${phrase}"`,
+    ),
+  );
+
+  check(
+    "🔴 21R.8 the Arabic pages render Arabic CHROME, the buttons, the form and the price cards, not only the paragraphs",
+    arabicPages.length > 0 && stillEnglish.length === 0,
+    stillEnglish.join(" · ") ||
+      `${arabicPages.length} Arabic pages, none of the old phrases left`,
+  );
+
+  /*
+   * 🔴 CONTROL — the same list, run against the ENGLISH render, must match.
+   *
+   * Without it this is a scan that would pass on an empty string, which is how
+   * a "no English left" check quietly becomes a check that the page failed to
+   * render. If the phrases are not on the English page either, the list is out
+   * of date rather than satisfied.
+   */
+  const englishHome = text(html["pricing.en-x-staging"] ?? "");
+  check(
+    "🔴 21R.8 CONTROL, the same phrases ARE on the English pricing page, so the list is current",
+    ["Sign up free", "/ session", "Joining is free"].every((phrase) =>
+      englishHome.includes(phrase),
+    ),
+  );
+
+  /*
+   * ⚠️ And the honest measurement of what is left, deferred rather than
+   * hidden: the demo panels — the transcript, the SOAP note, the copilot
+   * suggestions — are still English on an Arabic page, because their fixtures
+   * are English and writing a clinical note in Arabic is writing, not
+   * translating. It is real work with a real deadline (22R.10), and a skip
+   * that names it is worth more than a threshold nobody revisits.
+   */
+  const latinRun = /(?:\b[A-Za-z][A-Za-z'’-]{2,}\b[ ,.]+){6,}/g;
+  const remaining = arabicPages.flatMap(([name, markup]) =>
+    (text(markup).match(latinRun) ?? []).map(
+      (run) => `${name}: ${run.trim().slice(0, 60)}…`,
+    ),
+  );
+
+  /* 28.1 — name what is left, so the remainder is legible rather than a number. */
+  for (const run of remaining.slice(0, 12)) console.log(`        ${run}`);
+
+  await skipUnless(
+    remaining.length === 0,
+    "22R.10",
+    `21R.8, ${remaining.length} English passages remain on the Arabic pages, all inside the demo panels (their fixtures are English)`,
+    () => {
+      check(
+        "21R.8 …and not one English passage is left anywhere on them",
+        true,
+        "none",
+      );
+    },
   );
 
   if (write) {

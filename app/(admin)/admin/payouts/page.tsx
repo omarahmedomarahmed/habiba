@@ -7,9 +7,21 @@ import { requireStaff } from "@/lib/auth/guard";
 import { reconcile } from "@/lib/billing/ledger";
 import { manualQueue } from "@/lib/billing/payouts";
 import { formatUsd } from "@/lib/billing/plans";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { earningsTransfers, users } from "@/lib/db/schema";
 import { formatDate } from "@/lib/utils";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/payouts/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = { title: "Payouts", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -100,7 +112,7 @@ export default async function PayoutsPage() {
             overdue: row.overdue,
             needsTwoPeople: row.needsTwoPeople,
             owned: row.ownerUserId !== null,
-            requestedAtLabel: formatDate(row.requestedAt, actor.timezone),
+            requestedAtLabel: formatDate(row.requestedAt, actor.timezone, "en"),
             proofUrl: row.proofUrl,
           }))}
           automated={automated.map((row) => ({
@@ -108,7 +120,7 @@ export default async function PayoutsPage() {
             therapistName: [row.firstName, row.lastName].filter(Boolean).join(" "),
             amountCents: row.amountCents,
             status: row.status,
-            createdAtLabel: formatDate(row.createdAt, actor.timezone),
+            createdAtLabel: formatDate(row.createdAt, actor.timezone, "en"),
           }))}
         />
       </div>

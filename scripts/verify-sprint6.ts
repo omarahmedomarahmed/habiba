@@ -23,10 +23,10 @@ const { patientAccounts, patientAuthSessions, people, personClaims, personInvite
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
-const skip = (name: string, why: string) => console.log(`  --   ${name} — NOT EXERCISED: ${why}`);
+const skip = (name: string, why: string) => console.log(`  --   ${name}, NOT EXERCISED: ${why}`);
 
 const TAG = `verify6-${randomUUID().slice(0, 8)}`;
 const email = (n: string) => `${TAG}-${n}@example.invalid`;
@@ -379,7 +379,7 @@ async function main() {
       )
       .then((r) => r.rows);
     check(
-      "C41 users.organization_id stayed NOT NULL — patients never flow through it",
+      "C41 users.organization_id stayed NOT NULL, patients never flow through it",
       orgNullable?.is_nullable === "NO",
       `is_nullable=${orgNullable?.is_nullable}`,
     );

@@ -1,0 +1,10 @@
+import { browser, go, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+await go(p, "/sessions/7886c48f-fe49-494f-8e80-ca4ff5be0b0a");
+await p.waitForTimeout(3000);
+console.log("BUTTONS:", await p.evaluate(()=>[...document.querySelectorAll("button")].map(b=>b.innerText.trim()).filter(Boolean).join(" | ")));
+const t = await text(p); console.log(t.slice(0, 700));
+await shot(p, "t20-session-page");
+await b.close();

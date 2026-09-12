@@ -35,8 +35,41 @@ export const AUTH_ROUTES = ["/login", "/signup"];
 
 /** Everything a signed-in patient reaches. Guarded properly by `requirePatient`. */
 export const PATIENT_PREFIXES = ["/patient"];
-/** The patient's own sign-in pages, which a signed-in patient has no use for. */
-export const PATIENT_AUTH_ROUTES = ["/patient/login", "/patient/signup"];
+/**
+ * The patient's own sign-in pages, which a signed-in patient has no use for.
+ *
+ * 🔴 21R.4 — `/patient/forgot-password` belongs here, and the reason is the
+ * whole bug: a person who cannot sign in has no patient cookie, so any patient
+ * path that is not on this list bounces them to `/patient/login` — the page
+ * they are on because they cannot use it. A reset route missing from this list
+ * is a reset route nobody can reach.
+ */
+export const PATIENT_AUTH_ROUTES = [
+  "/patient/login",
+  "/patient/signup",
+  "/patient/forgot-password",
+];
+
+/**
+ * 🔴 22R — patient routes that work signed in AND signed out.
+ *
+ * The invite link is the one a therapist hands over in the room, and for most
+ * of this book it is the *only* claim route that can work (§3b: 56 of 66
+ * patients have no email). The page itself is written for both cases — it says
+ * "create an account or sign in, then open this link again" — and the
+ * middleware never let an anonymous person reach it: with no patient cookie,
+ * `/patient/invite/<token>` was redirected to `/patient/login`, so a patient
+ * opening the link their therapist just gave them met a sign-in form for an
+ * account they do not have, with no mention of the invite.
+ *
+ * Found by opening the link as the patient, in a browser with no cookies. No
+ * verifier could have found it: the route exists, the page renders, the token
+ * resolves, and every check about all three passes.
+ */
+export const PATIENT_OPEN_ROUTES = ["/patient/invite"];
+
+/** 21R.1 / C94 — where an unauthenticated caller at an admin route is sent. */
+export const STAFF_SIGN_IN = "/staff/sign-in";
 
 export type RouteDecision =
   /** Carry on, with `x-pathname` set for the server components. */
@@ -54,6 +87,9 @@ export function routeDecision(
    * the two differ by a single character.
    */
   if (PATIENT_PREFIXES.some((p) => isUnder(pathname, p))) {
+    /* Reachable either way — see PATIENT_OPEN_ROUTES. */
+    if (PATIENT_OPEN_ROUTES.some((p) => isUnder(pathname, p))) return { kind: "pass" };
+
     const isPatientAuthRoute = PATIENT_AUTH_ROUTES.some((p) => isUnder(pathname, p));
 
     if (!cookies.patient && !isPatientAuthRoute) {
@@ -68,7 +104,13 @@ export function routeDecision(
   }
 
   if (!cookies.clinician && PROTECTED_PREFIXES.some((p) => isUnder(pathname, p))) {
-    return { kind: "redirect", to: "/login", keepNext: true };
+    /*
+     * 21R.1 — the admin console has its own door, and the staff form refuses a
+     * clinician's credentials. Sending somebody bounced off /admin to /login
+     * would send them to a form that will turn them away.
+     */
+    const to = isUnder(pathname, "/admin") ? STAFF_SIGN_IN : "/login";
+    return { kind: "redirect", to, keepNext: true };
   }
 
   if (cookies.clinician && !cookies.expired && AUTH_ROUTES.includes(pathname)) {

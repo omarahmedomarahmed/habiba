@@ -8,6 +8,7 @@ import { startNewSession, type SessionActionState } from "@/app/(app)/sessions/a
 import { Button, Field, Input } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 type PatientOption = { id: string; name: string; email: string | null };
 
@@ -15,9 +16,10 @@ const INITIAL: SessionActionState = {};
 
 function Submit() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" size="lg" variant="teal" full disabled={pending}>
-      {pending ? "Starting…" : "Start session now"}
+      {pending ? t("tnew.starting") : t("tnew.startNow")}
     </Button>
   );
 }
@@ -54,6 +56,7 @@ export function NewSessionForm({
   };
 }) {
   const [state, action] = useActionState(startNewSession, INITIAL);
+  const t = useT();
   const [modality, setModality] = useState<"in_person" | "video">("in_person");
   const [existing, setExisting] = useState<string>("");
   const [charge, setCharge] = useState(false);
@@ -69,9 +72,9 @@ export function NewSessionForm({
     <form action={action} className="space-y-6">
       {welcome ? (
         <div className="rounded-2xl bg-teal-50 px-4 py-3.5">
-          <p className="text-sm font-semibold text-teal-900">You are in.</p>
+          <p className="text-sm font-semibold text-teal-900">{t("tnew.welcome")}</p>
           <p className="mt-0.5 text-sm text-teal-800">
-            Start a session below — the first one is on us. Everything else can wait.
+            {t("tnew.welcomeBody")}
           </p>
         </div>
       ) : null}
@@ -85,27 +88,31 @@ export function NewSessionForm({
       <input type="hidden" name="modality" value={modality} />
 
       <div>
-        <p className="mb-2 text-sm font-medium text-slate-700">Session type</p>
+        <p className="mb-2 text-sm font-medium text-slate-700">{t("tnew.type")}</p>
         <div className="grid grid-cols-2 gap-2.5">
           <ModalityOption
             active={modality === "in_person"}
             onClick={() => setModality("in_person")}
             icon={<User className="h-5 w-5" aria-hidden />}
-            title="In person"
-            body="Record from this device"
+            title={t("tnew.inPerson")}
+            body={t("tnew.inPersonBody")}
           />
           <ModalityOption
             active={modality === "video"}
             onClick={() => setModality("video")}
             icon={<Video className="h-5 w-5" aria-hidden />}
-            title="Video"
-            body="Send a join link"
+            title={t("tnew.video")}
+            body={t("tnew.videoBody")}
           />
         </div>
       </div>
 
       {patients.length > 0 ? (
-        <Field label="Existing patient" htmlFor="patientId" hint="Or leave blank and type a name.">
+        <Field
+          label={t("tnew.existing")}
+          htmlFor="patientId"
+          hint={t("tnew.existingHint")}
+        >
           <select
             id="patientId"
             name="patientId"
@@ -113,7 +120,7 @@ export function NewSessionForm({
             onChange={(event) => setExisting(event.target.value)}
             className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
           >
-            <option value="">New patient</option>
+            <option value="">{t("tnew.newPatient")}</option>
             {patients.map((patient) => (
               <option key={patient.id} value={patient.id}>
                 {patient.name}
@@ -125,24 +132,45 @@ export function NewSessionForm({
 
       {!existing ? (
         <>
-          <Field label="Patient first name" htmlFor="guestName">
+          <Field label={t("tnew.firstName")} htmlFor="guestName">
             <Input
               id="guestName"
               name="guestName"
-              placeholder="Alex"
+              placeholder={t("tnew.firstNamePlaceholder")}
               autoComplete="off"
               autoCapitalize="words"
               required={!existing}
             />
           </Field>
 
+          {/*
+            🔴 25.18 — the mobile number, asked at the same moment as the name.
+
+            §3b makes the number the identity, and this is the one screen where
+            a clinician is looking at the person. Asking for it here is what
+            lets the invite that hands them their own record go out with the
+            session rather than from a page nobody visits twice.
+          */}
           <Field
-            label={modality === "video" ? "Patient email" : "Patient email (optional)"}
+            label={t("tnew.mobile")}
+            htmlFor="guestPhone"
+            hint={t("tnew.mobileHint")}
+          >
+            <Input
+              id="guestPhone"
+              name="guestPhone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              placeholder="+20 100 123 4567"
+            />
+          </Field>
+
+          <Field
+            label={modality === "video" ? t("tnew.email") : t("tnew.emailOptional")}
             htmlFor="guestEmail"
             hint={
-              modality === "video"
-                ? "We will email them the join link. You can also copy it in the room."
-                : "Only used if you choose to send them a summary afterwards."
+              modality === "video" ? t("tnew.emailHintVideo") : t("tnew.emailHintInPerson")
             }
           >
             <Input
@@ -151,7 +179,7 @@ export function NewSessionForm({
               type="email"
               inputMode="email"
               autoCapitalize="none"
-              placeholder="alex@example.com"
+              placeholder={t("tnew.emailPlaceholder")}
             />
           </Field>
         </>
@@ -175,17 +203,17 @@ export function NewSessionForm({
             />
             <span className="min-w-0">
               <span className="block text-sm font-medium text-slate-800">
-                Ask the patient to pay before joining
+                {t("tnew.charge")}
               </span>
               <span className="mt-0.5 block text-xs text-slate-500">
-                The link becomes a payment link. They cannot enter the room until it clears.
+                {t("tnew.chargeBody")}
               </span>
             </span>
           </label>
 
           {charge ? (
             <div className="mt-3 space-y-3">
-              <Field label="Price for this session" htmlFor="price">
+              <Field label={t("tnew.price")} htmlFor="price">
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-400">
                     $
@@ -218,9 +246,11 @@ export function NewSessionForm({
                  */
                 <p className="flex items-center gap-1.5 text-xs text-slate-600">
                   <DollarSign className="h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
-                  You keep {formatUsd(priceCents - cut)} — 24Therapy takes {formatUsd(cut)} (
-                  {payments.feeBps / 100}%). Your patient also pays VAT on top, set by their
-                  country.
+                  {t("tnew.split", {
+                    keep: formatUsd(priceCents - cut),
+                    fee: formatUsd(cut),
+                    percent: payments.feeBps / 100,
+                  })}
                 </p>
               ) : null}
             </div>
@@ -231,8 +261,7 @@ export function NewSessionForm({
       {modality === "video" ? (
         <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
           <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          Your patient joins from a private link — no account, no download. The link expires in 12
-          hours and stops working the moment the session ends.
+          {t("tnew.linkNote")}
         </p>
       ) : null}
 
@@ -240,7 +269,7 @@ export function NewSessionForm({
 
       <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
         <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        Confirm your patient has consented to being recorded before you start.
+        {t("tnew.consent")}
       </p>
     </form>
   );

@@ -114,7 +114,7 @@ async function main() {
         blocks: page.blocks,
         status: "published",
       });
-      console.log(`+ ${page.slug} [${locale}] — created (${page.blocks.length} blocks)`);
+      console.log(`+ ${page.slug} [${locale}], created (${page.blocks.length} blocks)`);
       continue;
     }
 
@@ -131,7 +131,7 @@ async function main() {
        * invisible to both.
        */
       console.log(
-        `· ${page.slug} — no row, already served from defaults (pass --create to make one)`,
+        `· ${page.slug}, no row, already served from defaults (pass --create to make one)`,
       );
       continue;
     }
@@ -152,7 +152,7 @@ async function main() {
       .where(eq(schema.contentPages.id, existing.id));
 
     console.log(
-      `✓ ${page.slug} [${locale}] — "${existing.title}" → "${page.title}"`,
+      `✓ ${page.slug} [${locale}], "${existing.title}" → "${page.title}"`,
     );
   }
 
@@ -173,7 +173,7 @@ async function main() {
   const secret = process.env.CRON_SECRET;
 
   if (!secret) {
-    console.log(`\n! CRON_SECRET is not set — could not refresh ${target}.`);
+    console.log(`\n! CRON_SECRET is not set, could not refresh ${target}.`);
     console.log("  The database is updated; the live site will keep serving cached pages.");
     return;
   }
@@ -186,7 +186,7 @@ async function main() {
     console.log(
       response.ok
         ? `\n✓ ${target} refreshed`
-        : `\n! ${target} refused the refresh (${response.status}) — pages may be stale`,
+        : `\n! ${target} refused the refresh (${response.status}), pages may be stale`,
     );
   } catch (error) {
     console.log(`\n! could not reach ${target}: ${(error as Error).message}`);

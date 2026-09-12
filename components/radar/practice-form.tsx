@@ -7,6 +7,7 @@ import { findPracticeLocation, savePractice } from "@/app/(app)/on-call/actions"
 import { Button, Card, Field, Input } from "@/components/ui";
 import { countryFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 type Hit = {
   lat: string;
@@ -42,6 +43,7 @@ export function PracticeForm(props: {
   acceptsWalkIns: boolean;
   confirmed: boolean;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [searching, setSearching] = useState(false);
 
@@ -126,10 +128,9 @@ export function PracticeForm(props: {
           <MapPin className="h-4 w-4" aria-hidden />
         </span>
         <div>
-          <p className="text-sm font-semibold text-slate-900">Your practice</p>
+          <p className="text-sm font-semibold text-slate-900">{t("tprac.title")}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            Optional. Adding it puts you on the map by city rather than just by country, and lets
-            you offer walk-in visits.
+            {t("tprac.blurb")}
           </p>
         </div>
       </div>
@@ -139,21 +140,21 @@ export function PracticeForm(props: {
           {error}
         </p>
       ) : null}
-      {saved ? <p className="text-sm text-teal-700">Saved.</p> : null}
+      {saved ? <p className="text-sm text-teal-700">{t("tset.savedDot")}</p> : null}
 
-      <Field label="Practice or clinic name" htmlFor="practiceName" hint="Shown to patients.">
+      <Field label={t("tprac.name")} htmlFor="practiceName" hint={t("tprac.nameHint")}>
         <Input
           id="practiceName"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nile Psychology Centre"
+          placeholder={t("tprac.namePlaceholder")}
         />
       </Field>
 
       <Field
-        label="Address"
+        label={t("tprac.address")}
         htmlFor="practiceAddress"
-        hint="Street, city, country — or paste coordinates from your maps app."
+        hint={t("tprac.addressHint")}
       >
         <div className="flex gap-2">
           <Input
@@ -166,11 +167,11 @@ export function PracticeForm(props: {
                 search();
               }
             }}
-            placeholder="12 Brazil St, Zamalek, Cairo, Egypt"
+            placeholder={t("tprac.addressPlaceholder")}
           />
           <Button variant="secondary" disabled={pending || query.trim().length < 4} onClick={search}>
             <Search className="h-4 w-4" aria-hidden />
-            {searching ? "Looking…" : "Find"}
+            {searching ? t("tprac.looking") : t("tprac.find")}
           </Button>
         </div>
       </Field>
@@ -178,7 +179,7 @@ export function PracticeForm(props: {
       {hits.length > 0 ? (
         <div className="space-y-1.5">
           <p className="text-xs font-semibold text-slate-600">
-            Which one is it? Nothing is published until you pick.
+            {t("tprac.whichOne")}
           </p>
           {hits.map((hit) => (
             <button
@@ -206,7 +207,7 @@ export function PracticeForm(props: {
         <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-3">
           <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-teal-700 uppercase">
             <Check className="h-3 w-3" aria-hidden />
-            Confirmed location
+            {t("tprac.confirmed")}
           </p>
           <p className="mt-1 text-sm leading-relaxed text-teal-900">
             {chosen.country ? `${countryFlag(chosen.country)} ` : ""}
@@ -218,7 +219,7 @@ export function PracticeForm(props: {
             rel="noreferrer"
             className="mt-1.5 inline-block text-xs font-semibold text-teal-700 underline"
           >
-            Open this pin in maps and check it
+            {t("tprac.openInMaps")}
           </a>
         </div>
       ) : null}
@@ -242,23 +243,21 @@ export function PracticeForm(props: {
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
             <DoorOpen className="h-3.5 w-3.5" aria-hidden />
-            Accept walk-in visits
+            {t("tprac.walkIns")}
           </span>
           <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
-            {chosen
-              ? "Your address becomes public on the radar and patients can get directions to it. Only turn this on for a place you are happy for a stranger to arrive at."
-              : "Confirm an address first."}
+            {chosen ? t("tprac.walkInsOn") : t("tprac.walkInsOff")}
           </span>
         </span>
       </label>
 
       <div className="flex gap-2">
         <Button full disabled={pending} onClick={save}>
-          {pending ? "Saving…" : "Save practice"}
+          {pending ? t("common.saving") : t("tprac.save")}
         </Button>
         {props.confirmed || chosen ? (
           <Button variant="secondary" disabled={pending} onClick={clear}>
-            Remove
+            {t("tprac.remove")}
           </Button>
         ) : null}
       </div>

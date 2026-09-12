@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+
+import { stripCommentsKeepingLines } from "./_dashes";
+
 /**
  * The shared reporting for every acceptance script. PLAN.md 19.0, C90.
  *
@@ -50,7 +54,7 @@ export function reporter(): Reporter {
   const check = (label: string, ok: boolean, detail = "") => {
     checks += 1;
     if (!ok) failures += 1;
-    console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+    console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
   };
 
   const skipUnless = async (
@@ -76,4 +80,88 @@ export function reporter(): Reporter {
   };
 
   return { check, skipUnless, finish, counts: () => ({ checks, failures, skips }) };
+}
+
+/* ------------------------------------------------------- the operator's half */
+
+/**
+ * 🔴 The endpoint nothing in this directory may write to.
+ *
+ * A Neon connection string names a compute endpoint, not a branch, so "is this
+ * a preview?" is unanswerable from the string alone. What *is* answerable is
+ * whether it is the one endpoint we must never touch: the read-write compute
+ * on `main`. It is refused by name.
+ *
+ * One constant rather than one per script, which is the whole reason this
+ * moved here: sprint 6 and sprint 10 each carried their own copy, sprints 25,
+ * 26 and 27 were written without one, and a rule that has to be remembered by
+ * every new file is a rule that lasts until somebody is in a hurry.
+ */
+const PRODUCTION_ENDPOINT = "ep-wild-lake-a6tgm2r6";
+
+/**
+ * Every verifier that WRITES starts here. PLAN.md C147.
+ *
+ * It prints the host either way, so a wrong database shows up in the output
+ * rather than in the data, and it refuses production by name.
+ */
+export function writesTo(): string {
+  const url = process.env.DATABASE_URL ?? "";
+  const host = url.match(/@([^/:?]+)/)?.[1] ?? "(none)";
+
+  if (!url) {
+    console.error("DATABASE_URL is not set.");
+    process.exit(1);
+  }
+
+  console.log(`writing to ${host}\n`);
+
+  if (host.includes(PRODUCTION_ENDPOINT)) {
+    console.error("Refusing to run: that is the production endpoint. Point at your branch.");
+    process.exit(1);
+  }
+
+  return host;
+}
+
+/**
+ * 🔴 A missing fixture is an OPERATOR mistake, and must read like one.
+ *
+ * Sprints 25, 26 and 27 each selected a therapist and dereferenced it without
+ * checking. Against the purged production database, which has one seeded admin
+ * and no therapist, all three died with
+ *
+ *     TypeError: Cannot read properties of undefined (reading 'organizationId')
+ *
+ * which tells the person running it that the code is broken. It is not: they
+ * pointed a verifier at a database with nothing in it. This says so, names
+ * what was missing, and exits 1 without a stack trace.
+ */
+export function required<T>(row: T | undefined | null, what: string): T {
+  if (row === undefined || row === null) {
+    console.error(
+      `\nRefusing to run: this database has no ${what}.\n` +
+        "That is an empty or freshly purged database rather than a failure. " +
+        "Point at a branch with seeded data, or run `npm run db:seed` against it first.",
+    );
+    process.exit(1);
+  }
+  return row;
+}
+
+/**
+ * Read a source file with its comments gone. C205, and §6.
+ *
+ * 🔴 Seven checkers have now passed or failed by matching the prose that
+ * describes the defect they hunt, and the seventh was written by somebody who
+ * had fixed the sixth an hour earlier. A rule forgotten seven times is not a
+ * rule, it is a hope. This is the function that cannot be called incorrectly,
+ * and `verify:sprint37l2` counts the verifiers that still read source without
+ * it, so the number can only go down.
+ *
+ * Line numbers survive: a removed comment leaves its newlines behind, so line
+ * N of the result is line N of the file.
+ */
+export function readSource(file: string): string {
+  return stripCommentsKeepingLines(readFileSync(file, "utf8"));
 }

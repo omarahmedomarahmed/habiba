@@ -3,6 +3,7 @@
 import { Clock } from "lucide-react";
 
 import { formatRemaining, type ClockStage } from "@/lib/session-clock";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The countdown, and it is the same one the patient sees.
@@ -33,6 +34,8 @@ export function SessionClockBar({
   stage: ClockStage;
   remainingSeconds: number;
 }) {
+  const t = useT();
+
   if (stage === "running") return null;
 
   const over = stage === "over";
@@ -57,15 +60,28 @@ export function SessionClockBar({
       />
       {over ? (
         <p className="min-w-0 flex-1 text-sm text-white/85">
-          <span className="font-semibold text-white">Time is up.</span> To keep going, end this
-          session and send them a link to a new one.
+          <span className="font-semibold text-white">{t("tclock.timeUp")}</span>{" "}
+          {t("tclock.timeUpBody")}
         </p>
       ) : (
         <p className="min-w-0 flex-1 text-sm text-white/80">
-          <span className="font-semibold tabular-nums text-white">
-            {formatRemaining(remainingSeconds)}
-          </span>{" "}
-          left. Your patient sees this too.
+          {/*
+            37L.2 — one sentence with the clock in a slot, not a bold number
+            glued to an English tail. Arabic does not put "left" after the
+            figure, and the tail was unreachable copy either way.
+          */}
+          {t("tclock.left", { time: "\u0000" })
+            .split("\u0000")
+            .flatMap((part, index) =>
+              index === 0
+                ? [part]
+                : [
+                    <span key="n" className="font-semibold tabular-nums text-white">
+                      {formatRemaining(remainingSeconds)}
+                    </span>,
+                    part,
+                  ],
+            )}
         </p>
       )}
     </div>

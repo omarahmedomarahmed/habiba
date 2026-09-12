@@ -10,6 +10,7 @@ import {
 } from "@/app/(app)/patients/actions";
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/client";
 
 /**
  * Handing a record to the person it describes. C19 / 6.10.
@@ -61,6 +62,7 @@ export function RecordAccess({
   /** 13R.4 / C88 — somebody is locked out of this record right now. */
   locked: boolean;
 }) {
+  const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -123,7 +125,7 @@ export function RecordAccess({
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Why — e.g. spoke to her, she typed her married name"
+            placeholder="Why, e.g. spoke to her, she typed her married name"
             className="mt-2 h-10 w-full rounded-xl border border-amber-300 bg-white px-3 text-sm"
           />
           <button
@@ -168,7 +170,7 @@ export function RecordAccess({
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" aria-hidden />
             <span>
               This person took ownership of their record
-              {claimedAt ? ` on ${formatDate(claimedAt, zone)}` : ""}. Your notes stay yours; what they
+              {claimedAt ? ` on ${formatDate(claimedAt, zone, locale)}` : ""}. Your notes stay yours; what they
               see is their own profile and the briefs you share.
             </span>
           </p>
@@ -198,7 +200,7 @@ export function RecordAccess({
               </button>
             </div>
             <p className="text-xs text-slate-500">
-              Copy it now — we store only a fingerprint of this link, so it cannot be shown again.
+              Copy it now, we store only a fingerprint of this link, so it cannot be shown again.
             </p>
           </>
         ) : openInvite ? (
@@ -206,8 +208,8 @@ export function RecordAccess({
             <p className="flex items-start gap-2 text-sm text-slate-600">
               <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
               <span>
-                A link issued on {formatDate(openInvite.issuedAt, zone)} is still unused. It expires{" "}
-                {formatDate(openInvite.expiresAt, zone)}. We cannot show it again.
+                A link issued on {formatDate(openInvite.issuedAt, zone, locale)} is still unused. It expires{" "}
+                {formatDate(openInvite.expiresAt, zone, locale)}. We cannot show it again.
               </span>
             </p>
             <div className="flex flex-wrap gap-2">

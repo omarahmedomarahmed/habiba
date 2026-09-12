@@ -6,6 +6,7 @@ import { AlertTriangle, FileText, Flag, ImageIcon, Mic, Volume2 } from "lucide-r
 import { Badge, Card } from "@/components/ui";
 import { isImage, searchabilityLabel } from "@/lib/documents/formats";
 import { formatDate } from "@/lib/utils";
+import { useT, useLocale } from "@/lib/i18n/client";
 
 /**
  * A person's documents, as a clinician or the person themselves sees them.
@@ -74,12 +75,14 @@ export function DocumentList({
   watermark: string;
   onFlag?: (documentId: string, reason: "outdated" | "wrong" | "not_mine") => Promise<void>;
 }) {
+  const locale = useLocale();
+  const t = useT();
+
   if (documents.length === 0) {
     return (
       <Card className="px-4 py-6">
         <p className="text-sm text-slate-500">
-          Nothing here yet. Letters, prescriptions, scans and old reports all belong here — a
-          photograph of a page is fine.
+          {t("pprofile.empty")}
         </p>
       </Card>
     );
@@ -106,6 +109,8 @@ function DocumentCard({
   watermark: string;
   onFlag?: (documentId: string, reason: "outdated" | "wrong" | "not_mine") => Promise<void>;
 }) {
+  const locale = useLocale();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [flagging, setFlagging] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -154,7 +159,7 @@ function DocumentCard({
             </p>
             {/* 8.7 — provenance, on the face of the row rather than behind it. */}
             <p className="mt-0.5 text-xs text-slate-500">
-              {formatDate(new Date(document.documentDate ?? document.createdAt), zone)} ·{" "}
+              {formatDate(new Date(document.documentDate ?? document.createdAt), zone, locale)} ·{" "}
               {document.addedBy}
             </p>
 
@@ -176,7 +181,7 @@ function DocumentCard({
               onClick={() => setOpen((v) => !v)}
               className="tap-target h-9 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200"
             >
-              {open ? "Close" : "Open"}
+              {open ? t("common.close") : t("tdl.open")}
             </button>
           ) : null}
 
@@ -188,7 +193,7 @@ function DocumentCard({
               className="tap-target flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
             >
               <Volume2 className="h-3.5 w-3.5" aria-hidden />
-              {speaking ? "Reading…" : "Read aloud"}
+              {speaking ? t("tdl.reading") : t("tdl.readAloud")}
             </button>
           ) : null}
 
@@ -199,7 +204,7 @@ function DocumentCard({
               className="tap-target ms-auto flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
             >
               <Flag className="h-3.5 w-3.5" aria-hidden />
-              Flag
+              {t("tdl.flag")}
             </button>
           ) : null}
         </div>
@@ -212,8 +217,7 @@ function DocumentCard({
               just found something upsetting in their own record.
             */}
             <p className="text-xs leading-relaxed text-slate-500">
-              This marks the document. It does not change or remove it — a clinical record has to
-              stay as it was written.
+              {t("tdl.flagNote")}
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(["outdated", "wrong", "not_mine"] as const).map((reason) => (
@@ -229,7 +233,11 @@ function DocumentCard({
                   }
                   className="tap-target h-9 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
-                  {reason === "not_mine" ? "Not about me" : `This is ${reason}`}
+                  {reason === "not_mine"
+                    ? t("tdl.notMine")
+                    : reason === "outdated"
+                      ? t("tdl.outdated")
+                      : t("tdl.wrong")}
                 </button>
               ))}
             </div>
@@ -271,7 +279,7 @@ function DocumentCard({
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500"
                     aria-hidden
                   />
-                  This file opens in a new tab. Everything you open is recorded against your name.
+                  {t("tdl.newTabNote")}
                 </p>
                 <a
                   href={`/api/documents/${document.id}`}

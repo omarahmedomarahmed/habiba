@@ -1,0 +1,11 @@
+import { browser, go, anatomy, text, shot, PHONE } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: PHONE, storageState: ".walkthrough2/state-patient.json" });
+const p = await ctx.newPage();
+await go(p, "/patient/claim");
+await p.getByRole("button", { name: /Send me a code/i }).click();
+await p.waitForTimeout(5000);
+console.log("### p07", p.url(), JSON.stringify(await anatomy(p)));
+console.log((await text(p)).slice(0,1500));
+await shot(p, "p07-claim-code");
+await b.close();

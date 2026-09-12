@@ -1,8 +1,11 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: model spend is our cost, measured once across the platform.
+ */
 import "server-only";
 
 import { and, count, desc, eq, gte, sql, sum } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import { aiRequestLogs, sessionPayments, sessions, users } from "@/lib/db/schema";
 
 /**

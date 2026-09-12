@@ -16,7 +16,8 @@ import {
   type ReservationOutcome,
 } from "@/lib/data/radar";
 import { createRadarSession } from "@/lib/data/sessions";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { sessions } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -31,6 +32,17 @@ import {
 } from "@/lib/rate-limit";
 import { fullName } from "@/lib/utils";
 import { createPrivateRoom } from "@/lib/video";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(public)/radar/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Booking limits.
@@ -138,14 +150,15 @@ export async function bookFromRadar(
     return {
       error: `Too many booking attempts. Try again in ${Math.ceil(attempt.retryAfter / 60)} minute${
         attempt.retryAfter > 60 ? "s" : ""
-      }, or call 988 if you need help right now.`,
+      }, or call your local emergency number if you need help right now.`,
     };
   }
 
   const ceiling = await globalCeiling("radar:book", GLOBAL_BOOKINGS_PER_MINUTE);
   if (!ceiling.allowed) {
     return {
-      error: "The radar is unusually busy. Please try again in a minute, or call 988 for help now.",
+      error:
+        "The radar is unusually busy. Please try again in a minute, or call your local emergency number if you need help now.",
     };
   }
 

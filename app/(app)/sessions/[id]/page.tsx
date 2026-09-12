@@ -4,12 +4,19 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 
 import { NoteReview } from "@/components/session/note-review";
+import { RiskAssessment } from "@/components/clinical/risk-assessment";
+import { SessionApproval } from "@/components/session/session-approval";
 import { Badge, Button, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
+import { personIdForPatient } from "@/lib/data/people";
 import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
+import { latestSummary } from "@/lib/data/summaries";
+import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+import { SessionBadge } from "@/components/sessions/status-badge";
 
 export const metadata: Metadata = { title: "Session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -19,6 +26,7 @@ export default async function SessionDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -38,7 +46,29 @@ export default async function SessionDetailPage({
     row.session.guestName ||
     "Unnamed patient";
 
+  /*
+   * 26.1 — the summary is filed against the PERSON, so a session whose patient
+   * row has no person yet cannot carry one. The panel says so rather than
+   * failing on submit.
+   */
+  const summaryPersonId = row.session.patientId
+    ? await personIdForPatient(row.session.patientId)
+    : null;
+  const previousSummary = summaryPersonId ? await latestSummary(summaryPersonId) : null;
+
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
+
+  /*
+   * 35.1 — the assessment, and the history beside it.
+   *
+   * 🔴 Two separate reads on purpose. The assessment is what a model found in
+   * THIS session; the history is what came before, and it reaches the clinician
+   * here and the classifier nowhere. See `lib/data/session-risk.ts` and C170.
+   */
+  const assessment = live ? null : await latestAssessment(id, actor, row.session.patientId);
+  const priorRisk = assessment
+    ? await priorRiskFor(id, row.session.therapistId, actor.organizationId)
+    : [];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -48,7 +78,7 @@ export default async function SessionDetailPage({
           className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Sessions
+          {t("portal.nav.sessions")}
         </Link>
       </div>
 
@@ -58,7 +88,7 @@ export default async function SessionDetailPage({
             {patientLabel}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone)}
+            {formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone, locale)}
             {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
             {row.session.modality === "video" ? " · Video" : " · In person"}
           </p>
@@ -74,31 +104,71 @@ export default async function SessionDetailPage({
             <p className="mt-1 text-xs text-amber-700">
               {row.session.autoEndedReason === "cap"
                 ? "Ended automatically at the 50 minute limit."
-                : "Ended automatically — the room went quiet after the paid time."}
+                : "Ended automatically, the room went quiet after the paid time."}
             </p>
           ) : null}
         </div>
-        <StatusBadge status={row.session.status} />
+        <SessionBadge status={row.session.status} />
       </div>
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {live ? (
           <Card className="flex flex-col items-start gap-3 p-4">
             <div>
-              <p className="text-sm font-semibold text-slate-900">This session has not finished</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {t("portal.session.unfinished")}
+              </p>
               <p className="mt-0.5 text-sm text-slate-500">
-                Head back into the room to record and end it.
+                {t("portal.session.unfinishedBody")}
               </p>
             </div>
             <Link href={`/sessions/${id}/room`}>
               <Button variant="teal">
-                Open room
+                {t("portal.session.openRoom")}
                 <ChevronRight className="h-4 w-4" aria-hidden />
               </Button>
             </Link>
           </Card>
         ) : (
+          <>
+          {assessment ? (
+            <RiskAssessment
+              level={assessment.level as "moderate" | "elevated" | "high" | "critical"}
+              source={assessment.source}
+              findings={assessment.findings}
+              recommendedAction={assessment.recommendedAction}
+              keywordIndicators={assessment.indicators}
+              prior={priorRisk}
+              unquoted={assessment.unquotedFindings}
+              zone={actor.timezone}
+            />
+          ) : null}
+          {/*
+            🔴 26.3 / C112 — the one approval surface. NoteReview keeps its
+            editors and loses its two approve buttons, because two ways to
+            approve the same document is the fatigue the ruling is about.
+          */}
+          <SessionApproval
+            sessionId={id}
+            clinicalSigned={note?.status === "approved"}
+            patientReleased={note?.patientStatus === "approved"}
+            hasNote={Boolean(note?.content)}
+            canSummarise={summaryPersonId !== null}
+            previousSummary={
+              previousSummary
+                ? {
+                    version: previousSummary.version,
+                    body: previousSummary.body,
+                    approvedByName: previousSummary.approvedByName,
+                    on: formatDateTime(previousSummary.approvedAt, actor.timezone, locale),
+                  }
+                : null
+            }
+            patientLabel={patientLabel}
+          />
+
           <NoteReview
+            approvals={false}
             sessionId={id}
             initialNote={note?.content ?? null}
             language={note?.language ?? "en"}
@@ -109,15 +179,16 @@ export default async function SessionDetailPage({
             noteStatus={row.session.noteStatus}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
-            dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone)}
+            dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone, locale)}
             reportSent={Boolean(row.session.reportSentAt)}
           />
+          </>
         )}
 
         {transcript.length > 0 ? (
           <details className="group rounded-2xl border border-slate-200 bg-white">
             <summary className="tap-target flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-800">
-              Transcript
+              {t("portal.session.transcript")}
               <span className="text-xs font-normal text-slate-400">
                 {transcript.length} segments
               </span>
@@ -132,7 +203,7 @@ export default async function SessionDetailPage({
           </details>
         ) : row.session.status === "completed" ? (
           <p className="px-1 text-sm text-slate-500">
-            No transcript was captured for this session.
+            {t("portal.session.noTranscript")}
           </p>
         ) : null}
       </div>
@@ -140,9 +211,3 @@ export default async function SessionDetailPage({
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "completed") return <Badge tone="green">Completed</Badge>;
-  if (status === "in_progress") return <Badge tone="red">Live</Badge>;
-  if (status === "cancelled") return <Badge tone="slate">Cancelled</Badge>;
-  return <Badge tone="amber">Not started</Badge>;
-}

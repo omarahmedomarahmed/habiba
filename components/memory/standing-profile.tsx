@@ -2,6 +2,8 @@ import { AlertTriangle, Clock, FileText, MessageSquare } from "lucide-react";
 
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n/config";
 
 /*
  * 12.3 / C70 — the zone this screen prints its dates in.
@@ -29,12 +31,15 @@ import { formatDate } from "@/lib/utils";
  * clinician is the one who decides which account is true, and they can only do
  * that if they know there is a question.
  */
-export function StandingProfile({
+export async function StandingProfile({
   profile,
   timeline,
   stale,
   zone,
+  locale,
 }: {
+  /** 37L.9 — the reader's language, a prop for the same reason the zone is. */
+  locale: Locale;
   /** The reader's own zone. 12.3. */
   zone: string | null;
   profile: {
@@ -53,14 +58,19 @@ export function StandingProfile({
   }[];
   stale: boolean;
 }) {
+  /*
+   * 🔴 C199 again, caught by the guard that exists because of it. This is a
+   * SERVER component (the page awaits it and hands it a zone and a locale),
+   * so `useT()` compiles, type-checks, builds, and 500s at request time.
+   * `getI18n()` is the server's translator.
+   */
+  const { t } = await getI18n();
+
   if (!profile || profile.sections.length === 0) {
     return (
       <Card className="px-4 py-6">
-        <p className="text-sm font-semibold text-slate-900">Standing profile</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-500">
-          Built automatically from sessions and documents after each one. There is nothing to build
-          from yet.
-        </p>
+        <p className="text-sm font-semibold text-slate-900">{t("tsp.title")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-500">{t("tsp.none")}</p>
       </Card>
     );
   }
@@ -73,11 +83,10 @@ export function StandingProfile({
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-amber-900">
-                The sessions and the history disagree
+                {t("tsp.conflict")}
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
-                Both are shown as they were recorded. Which one is right is yours to decide — we do
-                not choose.
+                {t("tsp.conflictBody")}
               </p>
               <ul className="mt-2 space-y-2">
                 {profile.conflicts.map((conflict, i) => (
@@ -97,14 +106,22 @@ export function StandingProfile({
       <Card>
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-900">Standing profile</p>
+            <p className="text-sm font-semibold text-slate-900">{t("tsp.title")}</p>
             <p className="mt-0.5 text-xs text-slate-500">
-              Rebuilt {formatDate(profile.generatedAt, zone)} from {profile.sessionCount} session
-              {profile.sessionCount === 1 ? "" : "s"} and {profile.documentCount} document
-              {profile.documentCount === 1 ? "" : "s"}. Not editable — it follows the record.
+              {t("tsp.rebuilt", {
+                date: formatDate(profile.generatedAt, zone, locale),
+                sessions:
+                  profile.sessionCount === 1
+                    ? t("tsp.sessionOne")
+                    : t("tsp.sessionMany", { count: profile.sessionCount }),
+                documents:
+                  profile.documentCount === 1
+                    ? t("tsp.documentOne")
+                    : t("tsp.documentMany", { count: profile.documentCount }),
+              })}
             </p>
           </div>
-          {stale ? <Badge tone="amber">Behind the record</Badge> : null}
+          {stale ? <Badge tone="amber">{t("tsp.behind")}</Badge> : null}
         </div>
 
         <div className="divide-y divide-slate-100">
@@ -128,9 +145,9 @@ export function StandingProfile({
       {timeline.length > 0 ? (
         <Card>
           <div className="border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-900">Timeline</p>
+            <p className="text-sm font-semibold text-slate-900">{t("tsp.timeline")}</p>
             <p className="mt-0.5 text-xs text-slate-500">
-              Dated by when things happened, not when they were written down.
+              {t("tsp.timelineBody")}
             </p>
           </div>
           <ol className="divide-y divide-slate-100">
@@ -146,7 +163,7 @@ export function StandingProfile({
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 text-xs text-slate-500">
                     <Clock className="h-3 w-3" aria-hidden />
-                    {formatDate(entry.observedAt, zone)}
+                    {formatDate(entry.observedAt, zone, locale)}
                     {entry.ref ? (
                       <span className="font-mono text-slate-400">{entry.ref}</span>
                     ) : null}

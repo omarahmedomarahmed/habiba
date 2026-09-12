@@ -5,6 +5,7 @@ import { Mic, Paperclip, PenLine } from "lucide-react";
 
 import { Card } from "@/components/ui";
 import { MAX_DOCUMENT_BYTES } from "@/lib/documents/formats";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Three ways in: upload, type, dictate. PLAN.md 8.1 / 8.2.
@@ -37,6 +38,7 @@ export function AddDocument({
   const [dictated, setDictated] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<{ stop: () => void } | null>(null);
@@ -47,7 +49,7 @@ export function AddDocument({
 
   const submitFile = () => {
     const file = fileRef.current?.files?.[0];
-    if (!file) return setError("Choose a file.");
+    if (!file) return setError(t("tdoc.chooseFile"));
 
     const data = new FormData();
     data.set("file", file);
@@ -132,7 +134,7 @@ export function AddDocument({
           className="tap-target flex h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 text-sm font-semibold text-white hover:bg-slate-800"
         >
           <Paperclip className="h-4 w-4" aria-hidden />
-          Add a file
+          {t("tdoc.addFile")}
         </button>
         <button
           type="button"
@@ -140,7 +142,7 @@ export function AddDocument({
           className="tap-target flex h-10 items-center gap-1.5 rounded-xl bg-white px-3.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
         >
           <PenLine className="h-4 w-4" aria-hidden />
-          Write or dictate
+          {t("tdoc.writeOrDictate")}
         </button>
       </div>
     );
@@ -151,7 +153,7 @@ export function AddDocument({
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={mode === "file" ? "What is this? (optional)" : "Title"}
+        placeholder={mode === "file" ? t("tdoc.whatIsThis") : t("tdoc.title")}
         className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
       />
 
@@ -163,8 +165,7 @@ export function AddDocument({
             className="mt-2 w-full text-sm text-slate-600 file:me-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold"
           />
           <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-            A photo of a page is fine. Up to {Math.floor(MAX_DOCUMENT_BYTES / (1024 * 1024))} MB.
-            Photos and scans are stored and shown, but the copilot cannot read inside them.
+            {t("tdoc.photoNote", { mb: Math.floor(MAX_DOCUMENT_BYTES / (1024 * 1024)) })}
           </p>
         </>
       ) : (
@@ -179,7 +180,7 @@ export function AddDocument({
               // from.
               setDictated(false);
             }}
-            placeholder="Their history, in your own words."
+            placeholder={t("tdoc.bodyPlaceholder")}
             className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm leading-relaxed"
           />
           {speechAvailable ? (
@@ -191,7 +192,7 @@ export function AddDocument({
               }`}
             >
               <Mic className="h-3.5 w-3.5" aria-hidden />
-              {listening ? "Stop dictating" : "Dictate"}
+              {listening ? t("tdoc.stopDictating") : t("tdoc.dictate")}
             </button>
           ) : null}
         </>
@@ -204,14 +205,14 @@ export function AddDocument({
           onClick={mode === "file" ? submitFile : submitText}
           className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? t("common.saving") : t("tdoc.save")}
         </button>
         <button
           type="button"
           onClick={reset}
           className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
       </div>
 

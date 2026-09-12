@@ -1,0 +1,14 @@
+import { readFileSync } from "node:fs";
+import { browser, go, anatomy, text, shot, PHONE } from "./lib.mjs";
+const link = readFileSync(".walkthrough2/invite.txt","utf8").trim();
+const b = await browser();
+const ctx = await b.newContext({ viewport: PHONE, storageState: ".walkthrough2/state-patient.json" });
+const p = await ctx.newPage();
+const step = async (n, chars=1400) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await p.goto(link, { waitUntil: "networkidle" });
+await step("p04-claim-screen");
+await p.getByRole("button", { name: /This is me, claim it/i }).click();
+await p.waitForTimeout(6000);
+await step("p05-after-claim");
+await ctx.storageState({ path: ".walkthrough2/state-patient.json" });
+await b.close();

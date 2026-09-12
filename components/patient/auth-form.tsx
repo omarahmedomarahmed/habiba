@@ -8,6 +8,7 @@ import { Button, Card, Field, Input } from "@/components/ui";
 import { PhoneField } from "@/components/forms/phone-field";
 import { TimezoneField } from "@/components/forms/timezone-field";
 import { countryFromLocale } from "@/lib/phone/e164";
+import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -38,6 +39,7 @@ export function PatientAuthForm({
   /** 13.4 — E.164, pre-filled and **not editable**. */
   lockedPhone?: string | null;
 }) {
+  const t = useT();
   const action = mode === "signup" ? patientSignUp : patientSignIn;
   const [state, formAction] = useActionState(action, {});
 
@@ -104,8 +106,7 @@ export function PatientAuthForm({
                     {lockedPhone}
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    The number your therapist sent this invite to. Your
-                    verification code goes here.
+                    {t("pauth.invitePhoneNote")}
                   </p>
                 </>
               ) : (
@@ -117,11 +118,10 @@ export function PatientAuthForm({
                     onCountryChange={setPhoneCountry}
                     name="phone"
                     countryName="phoneCountry"
-                    placeholder="Phone or WhatsApp"
+                    placeholder={t("pauth.phonePlaceholder")}
                   />
                   <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    This is how you sign in and how your therapist finds you.
-                    Your verification code goes to it.
+                    {t("pauth.phoneNote")}
                   </p>
                 </>
               )}
@@ -136,7 +136,20 @@ export function PatientAuthForm({
           </>
         ) : null}
 
-        <Field label="Password" htmlFor="password">
+        {/*
+          25.12 — optional on signup, because one handle is enough to be a
+          full patient user. The hint says what happens if it is left empty
+          rather than leaving somebody to guess whether the form will refuse.
+        */}
+        <Field
+          label={mode === "signup" ? "Password (optional)" : "Password"}
+          htmlFor="password"
+          hint={
+            mode === "signup"
+              ? "Leave it empty and sign in with a code instead, sent to the number or address above."
+              : undefined
+          }
+        >
           <Input
             id="password"
             name="password"
@@ -144,7 +157,7 @@ export function PatientAuthForm({
             autoComplete={
               mode === "signup" ? "new-password" : "current-password"
             }
-            required
+            required={mode === "signin"}
           />
         </Field>
 

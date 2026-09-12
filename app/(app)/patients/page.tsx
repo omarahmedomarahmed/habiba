@@ -7,17 +7,22 @@ import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { listPatients } from "@/lib/data/patients";
 import { fullName, initials, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Patients", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function PatientsPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const patients = await listPatients(actor);
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Patients" subtitle={`${patients.length} on your caseload`} />
+      <PageHeader
+        title={t("portal.patients.title")}
+        subtitle={t("portal.patients.subtitle", { count: patients.length })}
+      />
 
       <div className="space-y-3 px-4 pb-10 sm:px-6">
         {/* 12.4 — the first screen where a therapist can write somebody down. */}
@@ -27,8 +32,8 @@ export default async function PatientsPage() {
           <Card>
             <EmptyState
               icon={<Users className="h-5 w-5" aria-hidden />}
-              title="No patients yet"
-              body="Add one above, or a record is created the first time you start a session with somebody."
+              title={t("portal.patients.none")}
+              body={t("portal.patients.noneBody")}
             />
           </Card>
         ) : (
@@ -48,7 +53,7 @@ export default async function PatientsPage() {
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
                       {patient.sessionCount} session{patient.sessionCount === 1 ? "" : "s"}
-                      {patient.lastSessionAt ? ` · last ${relativeDay(patient.lastSessionAt, actor.timezone)}` : ""}
+                      {patient.lastSessionAt ? ` · last ${relativeDay(patient.lastSessionAt, actor.timezone, locale, t)}` : ""}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />

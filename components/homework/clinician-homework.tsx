@@ -6,6 +6,7 @@ import { Check, Plus, SkipForward, Trash2 } from "lucide-react";
 import { removeStep, setStep } from "@/app/(app)/patients/[id]/homework/actions";
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 /**
  * Homework, from the clinician's side. PLAN.md 9.5.
@@ -73,6 +74,8 @@ export function ClinicianHomework({
   drafted: { title: string; assigned: boolean }[];
   canAssign: boolean;
 }) {
+  const locale = useLocale();
+  const t = useT();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
@@ -95,13 +98,13 @@ export function ClinicianHomework({
     <Card>
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">Between sessions</p>
+          <p className="text-sm font-semibold text-slate-900">{t("thw.title")}</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            What they agreed to try. They close each one themselves — you cannot.
+            {t("thw.blurb")}
           </p>
         </div>
         {trend.skipStreak >= 3 ? (
-          <Badge tone="amber">{trend.skipStreak} skipped in a row</Badge>
+          <Badge tone="amber">{t("thw.skipStreak", { count: trend.skipStreak })}</Badge>
         ) : null}
       </div>
 
@@ -112,26 +115,26 @@ export function ClinicianHomework({
       */}
       <dl className="flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-100 px-4 py-2.5 text-xs">
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">Open</dt>
+          <dt className="text-slate-500">{t("thw.open")}</dt>
           <dd className="font-medium tabular-nums text-slate-800">{trend.open}</dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">Done</dt>
+          <dt className="text-slate-500">{t("thw.done")}</dt>
           <dd className="font-medium tabular-nums text-slate-800">{trend.done}</dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">Not done</dt>
+          <dt className="text-slate-500">{t("thw.notDone")}</dt>
           <dd className="font-medium tabular-nums text-slate-800">{trend.skipped}</dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">Completed</dt>
+          <dt className="text-slate-500">{t("thw.completed")}</dt>
           <dd className="font-medium tabular-nums text-slate-800">
             {/*
               Null, not 0%. A patient who has closed nothing has not failed
               everything — there is simply nothing to say yet, and those are
               different clinical facts.
             */}
-            {trend.completionRate === null ? "—" : `${Math.round(trend.completionRate * 100)}%`}
+            {trend.completionRate === null ? "-" : `${Math.round(trend.completionRate * 100)}%`}
           </dd>
         </div>
       </dl>
@@ -139,17 +142,17 @@ export function ClinicianHomework({
       {drafted.length > 0 && canAssign ? (
         <div className="border-b border-slate-100 px-4 py-3">
           <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-            Drafted from the note
+            {t("thw.drafted")}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Written by the note, not by you. Nothing is set until you set it.
+            {t("thw.draftedBody")}
           </p>
           <ul className="mt-2 space-y-1.5">
             {drafted.map((draft) => (
               <li key={draft.title} className="flex items-start gap-2">
                 <span className="min-w-0 flex-1 text-sm text-slate-700">{draft.title}</span>
                 {draft.assigned ? (
-                  <Badge tone="slate">Set</Badge>
+                  <Badge tone="slate">{t("thw.set")}</Badge>
                 ) : (
                   <button
                     type="button"
@@ -157,7 +160,7 @@ export function ClinicianHomework({
                     onClick={() => add({ title: draft.title, fromDraft: true })}
                     className="tap-target h-8 shrink-0 rounded-lg bg-slate-100 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
                   >
-                    Set this
+                    {t("thw.setThis")}
                   </button>
                 )}
               </li>
@@ -167,7 +170,7 @@ export function ClinicianHomework({
       ) : null}
 
       {items.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-slate-500">Nothing set yet.</p>
+        <p className="px-4 py-5 text-sm text-slate-500">{t("thw.none")}</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {items.map((item) => (
@@ -189,10 +192,12 @@ export function ClinicianHomework({
                     <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{item.detail}</p>
                   ) : null}
                   <p className="mt-0.5 text-xs text-slate-400">
-                    {item.source === "drafted" ? "From the note · " : ""}
-                    {formatDate(new Date(item.createdAt), zone)}
+                    {item.source === "drafted" ? `${t("thw.fromNote")} · ` : ""}
+                    {formatDate(new Date(item.createdAt), zone, locale)}
                     {item.completedAt
-                      ? ` · answered ${formatDate(new Date(item.completedAt), zone)}`
+                      ? ` · ${t("thw.answeredOn", {
+                          date: formatDate(new Date(item.completedAt), zone, locale),
+                        })}`
                       : ""}
                   </p>
                   {item.patientNote ? (
@@ -213,7 +218,7 @@ export function ClinicianHomework({
                         if (result.error) setError(result.error);
                       })
                     }
-                    aria-label="Withdraw this step"
+                    aria-label={t("thw.withdraw")}
                     className="tap-target shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
@@ -232,13 +237,13 @@ export function ClinicianHomework({
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Write down the three times you noticed the tight feeling starting"
+                placeholder={t("thw.titlePlaceholder")}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               />
               <input
                 value={detail}
                 onChange={(e) => setDetail(e.target.value)}
-                placeholder="When, or what counts as done (optional)"
+                placeholder={t("thw.detailPlaceholder")}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               />
               <div className="flex gap-2">
@@ -248,14 +253,14 @@ export function ClinicianHomework({
                   onClick={() => add({ title, detail })}
                   className="tap-target h-9 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  {pending ? "Saving…" : "Set it"}
+                  {pending ? t("common.saving") : t("thw.setIt")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAdding(false)}
                   className="tap-target h-9 rounded-lg px-3 text-sm font-medium text-slate-600"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             </div>
@@ -266,7 +271,7 @@ export function ClinicianHomework({
               className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-slate-100 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-200"
             >
               <Plus className="h-4 w-4" aria-hidden />
-              Set a step
+              {t("thw.addStep")}
             </button>
           )}
         </div>

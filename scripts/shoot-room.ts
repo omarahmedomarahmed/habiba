@@ -232,7 +232,7 @@ async function main() {
        * lines — enough to follow a conversation rather than to know one exists.
        */
       const check = (label: string, ok: boolean, detail = "") => {
-        console.log(`  ${ok ? "ok  " : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
+        console.log(`  ${ok ? "ok  " : "FAIL"} ${label}${detail ? `, ${detail}` : ""}`);
         if (!ok) failures += 1;
       };
 
@@ -342,7 +342,7 @@ async function main() {
           "in-session": /In a session/,
         };
         const ok = expected[label]!.test(name ?? "");
-        console.log(`  ${ok ? "ok  " : "FAIL"} orb state "${label}" — ${name}`);
+        console.log(`  ${ok ? "ok  " : "FAIL"} orb state "${label}", ${name}`);
         if (!ok) orbFailures += 1;
 
         await orb.click();

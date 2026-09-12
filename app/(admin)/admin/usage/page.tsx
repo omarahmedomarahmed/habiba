@@ -43,7 +43,7 @@ export default async function AdminUsagePage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Usage</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
-          Last 30 days. Model spend, audio minutes and what patients paid — no clinical content.
+          Last 30 days. Model spend, audio minutes and what patients paid, no clinical content.
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export default async function AdminUsagePage() {
         <Card className="p-4">
           <p className="text-sm text-slate-600">
             We took <strong>{formatUsd(totalFees)}</strong> and spent{" "}
-            <strong>{formatMicrocents(totalMicrocents)}</strong> on models — a gross margin of{" "}
+            <strong>{formatMicrocents(totalMicrocents)}</strong> on models, a gross margin of{" "}
             <strong>{Math.round((1 - totalMicrocents / 100_000 / (totalFees / 100)) * 100)}%</strong>{" "}
             before payment processing and infrastructure.
           </p>
@@ -95,7 +95,7 @@ export default async function AdminUsagePage() {
                     {Number(row.errors) > 0 ? (
                       <Badge tone="red">{Number(row.errors)}</Badge>
                     ) : (
-                      <span className="text-slate-300">—</span>
+                      <span className="text-slate-300">-</span>
                     )}
                   </Td>
                   <Td align="end" className="font-medium">

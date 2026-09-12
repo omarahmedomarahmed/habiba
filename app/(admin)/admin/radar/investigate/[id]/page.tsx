@@ -47,7 +47,7 @@ export default async function InvestigatePage({
     resourceType: "session",
     resourceId: report.sessionId,
     patientId: report.patientId,
-    reason: `Report ${report.id} — ${report.kind}`,
+    reason: `Report ${report.id}, ${report.kind}`,
   });
 
   return (
@@ -77,9 +77,9 @@ export default async function InvestigatePage({
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {report.therapistName} · session{" "}
-          {report.endedAt ? formatDate(report.endedAt, actor.timezone) : "in progress"}
+          {report.endedAt ? formatDate(report.endedAt, actor.timezone, "en") : "in progress"}
           {report.durationMinutes ? ` · ${report.durationMinutes} min` : ""} · filed{" "}
-          {formatDate(report.createdAt, actor.timezone)}
+          {formatDate(report.createdAt, actor.timezone, "en")}
         </p>
       </div>
 
@@ -110,7 +110,7 @@ export default async function InvestigatePage({
         ) : (
           <>
             <p className="mt-1 text-sm text-slate-600">
-              {gaps.length} {gaps.length === 1 ? "gap" : "gaps"} — the recording was off. We have
+              {gaps.length} {gaps.length === 1 ? "gap" : "gaps"}. The recording was off. We have
               the timings, not the words.
             </p>
             <ul className="mt-2 space-y-1">
@@ -137,7 +137,7 @@ export default async function InvestigatePage({
 
       <Card className="p-4">
         <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-          Transcript — {transcript.length} lines
+          Transcript, {transcript.length} lines
         </p>
         <div className="mt-2 max-h-[36rem] space-y-1.5 overflow-y-auto">
           {transcript.map((line, index) => (

@@ -4,11 +4,23 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { hashPassword as hashCode, verifyPassword as verifyCode } from "@/lib/auth/password";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, phoneChangeRequests, users } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/phone-change.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Changing the number an identity hangs on. PLAN.md 20.13–20.17, §3d.
@@ -76,7 +88,7 @@ export async function requestPhoneChange(input: {
     return { error: "We need your permission to contact the new number before we can check it." };
   }
   if (input.reason.trim().length < 10) {
-    return { error: "Tell us why, in your own words — a person reads this." };
+    return { error: "Tell us why, in your own words, a person reads this." };
   }
 
   const expanded = toE164(input.newPhone, input.country);
@@ -195,7 +207,7 @@ export async function approveChange(input: {
   note: string;
 }): Promise<ChangeResult> {
   if (input.note.trim().length < 5) {
-    return { error: "Record how you checked — a call, a message, what they said." };
+    return { error: "Record how you checked, a call, a message, what they said." };
   }
 
   const updated = await db

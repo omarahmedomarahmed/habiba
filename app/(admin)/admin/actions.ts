@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { CMS_TAG } from "@/lib/content/service";
+import { honestyMessage, honestyProblemsIn } from "@/lib/content/honesty";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
@@ -13,7 +14,8 @@ import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/data/admin";
 import { decideVerification } from "@/lib/data/verification";
 import { safeImageUrl } from "@/lib/content/url";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   contentPages,
   invoices,
@@ -26,6 +28,17 @@ import {
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 import { sendTherapistMessage } from "@/lib/mail";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export type AdminActionState = { error?: string; ok?: boolean };
 
@@ -80,6 +93,22 @@ export async function savePage(
 
   const blocks = sanitiseBlocks(input.blocks);
   if (!blocks) return { error: "The content structure is not valid. Check the block editor." };
+
+  /*
+   * 🔴 28.2 / 28.3 / C109 / C110 — two claims this product may not make.
+   *
+   * Refused at the save rather than caught by a reviewer, because a marketing
+   * sentence is written by whoever is writing marketing that afternoon and the
+   * arithmetic is not in front of them. The message names the sentence and
+   * says what the true version is, so the refusal is usable rather than
+   * merely correct.
+   *
+   * `verify:sprint28` scans the published ROWS as well: this stops the next
+   * one being written, and C148 is the reminder that it does nothing about
+   * the ones already in the database.
+   */
+  const dishonest = honestyProblemsIn(input.title.trim() || "this page", blocks);
+  if (dishonest.length > 0) return { error: honestyMessage(dishonest[0]!) };
 
   const [page] = await db
     .update(contentPages)
@@ -220,7 +249,7 @@ export async function applyInvoiceDiscount(
     action: "invoice.discount",
     resourceType: "invoice",
     resourceId: invoiceId,
-    reason: `${discountCents} cents — ${reason}`,
+    reason: `${discountCents} cents, ${reason}`,
   });
 
   revalidatePath("/admin/vault");
@@ -294,7 +323,7 @@ export async function announceToAllTherapists(
     category: "admin",
     action: "email.announcement",
     resourceType: "user",
-    reason: `${recipients.length} recipients — ${subject.trim().slice(0, 160)}`,
+    reason: `${recipients.length} recipients, ${subject.trim().slice(0, 160)}`,
   });
 
   const trimmedSubject = subject.trim();
@@ -343,7 +372,7 @@ export async function decideTherapistVerification(
 
   const trimmed = note.trim();
   if (!approve && !trimmed) {
-    return { error: "Say what is wrong — they see this word for word." };
+    return { error: "Say what is wrong. They see this word for word." };
   }
 
   const decided = await decideVerification({
@@ -380,7 +409,7 @@ export async function decideTherapistVerification(
         subject: approve ? "You are verified on 24Therapy" : "We need something else from you",
         body: approve
           ? `Your practice has been verified. You can start sessions, go on the Crisis Radar and take payments from patients right away.\n\nYour first completed session is on us.`
-          : `We could not verify your practice yet.\n\n${trimmed}\n\nSign in and update your details — it goes straight back to the front of our queue.`,
+          : `We could not verify your practice yet.\n\n${trimmed}\n\nSign in and update your details. It goes straight back to the front of our queue.`,
       }),
     );
   }
@@ -409,7 +438,7 @@ export async function editInvoice(
   const actor = await requireRole("super_admin");
 
   const trimmedReason = reason.trim();
-  if (!trimmedReason) return { error: "Say why — this ends up in the audit log." };
+  if (!trimmedReason) return { error: "Say why, this ends up in the audit log." };
 
   const [invoice] = await db
     .select()
@@ -456,7 +485,7 @@ export async function editInvoice(
     action: "invoice.edit",
     resourceType: "invoice",
     resourceId: invoiceId,
-    reason: `${JSON.stringify(patch)} — ${trimmedReason}`,
+    reason: `${JSON.stringify(patch)}, ${trimmedReason}`,
   });
 
   revalidatePath("/admin/vault");
@@ -479,7 +508,7 @@ export async function refundPatient(
   const actor = await requireRole("super_admin");
 
   const trimmed = reason.trim();
-  if (!trimmed) return { error: "Say why — this ends up in the audit log." };
+  if (!trimmed) return { error: "Say why, this ends up in the audit log." };
 
   const result = await refundSessionPayment({
     paymentId,
@@ -563,7 +592,7 @@ export async function adjustLedger(input: {
     action: "ledger.adjust",
     resourceType: "organization",
     resourceId: input.organizationId,
-    reason: `${input.account} ${input.amountCents} — ${input.reason.trim()}`,
+    reason: `${input.account} ${input.amountCents}, ${input.reason.trim()}`,
   });
 
   revalidatePath("/admin/vault");
@@ -586,7 +615,7 @@ export async function applyUpcomingDiscount(
     action: "subscription.upcoming_discount",
     resourceType: "organization",
     resourceId: organizationId,
-    reason: `${discountCents} cents — ${reason}`,
+    reason: `${discountCents} cents, ${reason}`,
   });
 
   revalidatePath("/admin/vault");
@@ -613,7 +642,7 @@ export async function emailPatientRecordToPatient(
 
   const explanation = reason.trim();
   if (explanation.length < 8) {
-    return { error: "Say why — this is written into the audit trail and shown to the clinician." };
+    return { error: "Say why. This is written into the audit trail and shown to the clinician." };
   }
 
   const { requestPatientExport, exportPath } = await import("@/lib/data/export");
@@ -754,7 +783,7 @@ export async function setRadarSuspension(
     });
   } else {
     const note = reason.trim();
-    if (note.length < 4) return { error: "Give a reason — the clinician is shown it." };
+    if (note.length < 4) return { error: "Give a reason. The clinician is shown it." };
     await suspendFromRadar(therapistUserId, hours, note);
     await audit({
       actor,
@@ -762,7 +791,7 @@ export async function setRadarSuspension(
       action: "radar.suspend",
       resourceType: "user",
       resourceId: therapistUserId,
-      reason: `${hours}h — ${note}`.slice(0, 200),
+      reason: `${hours}h, ${note}`.slice(0, 200),
     });
 
     const [therapist] = await db
@@ -776,7 +805,7 @@ export async function setRadarSuspension(
         to: therapist.email,
         firstName: therapist.firstName,
         subject: "You have been taken off the Crisis Radar",
-        body: `You are off the Crisis Radar for ${hours >= 24 * 365 ? "the time being" : `${hours} hours`}.\n\nReason given: ${note}\n\nYour own patients and everything in your portal are unaffected — this only stops new bookings from strangers on the radar. Reply to this email if you think it is wrong.`,
+        body: `You are off the Crisis Radar for ${hours >= 24 * 365 ? "the time being" : `${hours} hours`}.\n\nReason given: ${note}\n\nYour own patients and everything in your portal are unaffected, this only stops new bookings from strangers on the radar. Reply to this email if you think it is wrong.`,
       });
     }
   }

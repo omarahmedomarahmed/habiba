@@ -11,7 +11,9 @@
 import { eq, sql } from "drizzle-orm";
 
 import { hashPassword, validatePassword } from "../lib/auth/password";
-import { DEFAULT_PAGES } from "../lib/content/defaults";
+import { randomBytes } from "node:crypto";
+
+import { defaultsFor, localesWithDefaults } from "../lib/content/registry";
 import { connect, schema } from "./db";
 
 const {
@@ -80,7 +82,7 @@ const DEMO_NOTE = {
   observations:
     "Engaged and collaborative. Responded well to being shown the discrepancy between reported outcome and actual data. Mild fatigue evident but did not impair participation.",
   impressions:
-    "Consistent with the existing formulation of anxiety-maintained sleep disruption. No evidence of a new process. Impressions only — for clinician review, not a diagnosis.",
+    "Consistent with the existing formulation of anxiety-maintained sleep disruption. No evidence of a new process. Impressions only, for clinician review, not a diagnosis.",
   recommendations: [
     "Raise wind-down routine target to four nights per week with a simple written record",
     "Continue cognitive restructuring around performance-review catastrophising",
@@ -90,7 +92,7 @@ const DEMO_NOTE = {
   patientBrief:
     "We spent most of today on the nights you have been having, and on how much of the day gets spent bracing for the next bad one. You put it into words really clearly.\n\nThe part worth holding on to: on the two nights you did the wind-down, you slept better. You had written both of those off as flukes until we lined them up.",
   patientSteps: [
-    "Screens down an hour before bed, four nights this week — pick the nights now rather than deciding each evening.",
+    "Screens down an hour before bed, four nights this week, pick the nights now rather than deciding each evening.",
     "Get up at the same time even after a bad night. This is the one that does the most work and feels the most pointless.",
     "Jot down roughly when you fell asleep and when you woke. Not a diary, just two times.",
   ],
@@ -157,41 +159,64 @@ async function main() {
     }
 
     // ------------------------------------------------------------- CMS pages
-    for (const page of DEFAULT_PAGES) {
-      await db
-        .insert(contentPages)
-        .values({
-          slug: page.slug,
-          title: page.title,
-          description: page.description,
-          layout: page.layout,
-          navLabel: page.navLabel,
-          navOrder: page.navOrder,
-          blocks: page.blocks,
-          status: "published",
-          publishedAt: new Date(),
-        })
-        // Re-running the seed must not silently revert an admin's edits.
-        .onConflictDoUpdate({
-          target: contentPages.slug,
-          set: REFRESH_CONTENT
-            ? {
-                title: page.title,
-                description: page.description,
-                layout: page.layout,
-                navLabel: page.navLabel,
-                navOrder: page.navOrder,
-                blocks: page.blocks,
-                status: "published",
-                publishedAt: new Date(),
-                updatedAt: new Date(),
-              }
-            : // No-op update: leaves an admin's edits exactly as they are.
-              { slug: page.slug },
-        });
+
+    /*
+     * 🔴 22.1 — every locale the product ships defaults for, not just English.
+     *
+     * Two defects fixed here, both found by actually running the purge:
+     *
+     *   1. The conflict target was `slug`, and since sprint 19 the unique
+     *      index is `(slug, locale)`. Postgres refuses an `ON CONFLICT` that
+     *      names no matching constraint, so the **seed threw** — which means
+     *      `db:setup` and `reset.ts` have been broken since 19 and nobody had
+     *      run either against an empty database. The launch script failing at
+     *      the step that stands the site back up is exactly the failure sprint
+     *      22 exists to find, and it was found by running it.
+     *   2. Only the English pages were seeded. A purged database would have
+     *      come back monolingual, and 19.1 — "every page shipped in a language
+     *      has a row in that language" — would have been red on a database
+     *      nobody had edited.
+     */
+    let seeded = 0;
+    for (const locale of localesWithDefaults()) {
+      for (const page of defaultsFor(locale)) {
+        await db
+          .insert(contentPages)
+          .values({
+            slug: page.slug,
+            locale,
+            title: page.title,
+            description: page.description,
+            layout: page.layout,
+            navLabel: page.navLabel,
+            navOrder: page.navOrder,
+            blocks: page.blocks,
+            status: "published",
+            publishedAt: new Date(),
+          })
+          // Re-running the seed must not silently revert an admin's edits.
+          .onConflictDoUpdate({
+            target: [contentPages.slug, contentPages.locale],
+            set: REFRESH_CONTENT
+              ? {
+                  title: page.title,
+                  description: page.description,
+                  layout: page.layout,
+                  navLabel: page.navLabel,
+                  navOrder: page.navOrder,
+                  blocks: page.blocks,
+                  status: "published",
+                  publishedAt: new Date(),
+                  updatedAt: new Date(),
+                }
+              : // No-op update: leaves an admin's edits exactly as they are.
+                { slug: page.slug },
+          });
+        seeded += 1;
+      }
     }
     console.log(
-      `content pages: ${DEFAULT_PAGES.length} ${REFRESH_CONTENT ? "refreshed from defaults" : "ensured (existing edits preserved)"}`,
+      `content pages: ${seeded} across ${localesWithDefaults().join(", ")} ${REFRESH_CONTENT ? "refreshed from defaults" : "ensured (existing edits preserved)"}`,
     );
 
     if (!DEMO) {
@@ -286,6 +311,9 @@ async function main() {
             endedAt,
             durationMinutes: 50,
             noteStatus: "ready",
+            // 22.9 — NOT NULL since 0054, and the demo's feedback link needs
+            // one anyway: a seeded session with no token is a dead link.
+            feedbackToken: randomBytes(24).toString("base64url"),
           })
           .returning()
       )[0]!;

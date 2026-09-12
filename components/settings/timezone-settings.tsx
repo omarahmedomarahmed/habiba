@@ -7,6 +7,7 @@ import { saveTimezone } from "@/app/(app)/settings/actions";
 import { Card } from "@/components/ui";
 import { formatTime, zoneLabel } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The clinician's own time zone. PLAN.md 11R.2.
@@ -36,6 +37,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
    * both passes agree and the suggestion simply appears.
    */
   const detected = useReaderZone();
+  const t = useT();
 
   const [zone, setZone] = useState(initial ?? detected ?? "UTC");
   const [saved, setSaved] = useState(false);
@@ -61,16 +63,15 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
         <Globe className="h-4 w-4 text-slate-400" aria-hidden />
-        Your time zone
+        {t("tset.zone")}
       </p>
       <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
-        The hours you publish are read in this zone, and we will not send you or your patients a
-        reminder in the middle of the night here.
+        {t("tset.zoneBody")}
       </p>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <label className="block min-w-0 flex-1">
-          <span className="block text-xs font-medium text-slate-600">Time zone</span>
+          <span className="block text-xs font-medium text-slate-600">{t("tset.zoneLabel")}</span>
           <select
             value={zone}
             onChange={(e) => {
@@ -100,7 +101,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
           }
           className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? t("common.saving") : t("tset.save")}
         </button>
       </div>
 
@@ -110,14 +111,16 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
         here, before a patient does.
       */}
       <p className="mt-2 text-xs text-slate-500">
-        It is {formatTime(now, zone)} in {zoneLabel(zone)} right now.
-        {initial === null && detected ? ` We have not saved one yet — your browser says ${detected}.` : ""}
+        {t("tset.zoneNow", { time: formatTime(now, zone), place: zoneLabel(zone) })}
+        {initial === null && detected
+          ? ` ${t("tset.zoneNotSaved", { zone: detected })}`
+          : ""}
       </p>
 
       {saved ? (
         <p className="mt-1 flex items-center gap-1 text-xs text-teal-700">
           <Check className="h-3 w-3" aria-hidden />
-          Saved.
+          {t("tset.savedDot")}
         </p>
       ) : null}
 

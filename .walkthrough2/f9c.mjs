@@ -1,0 +1,10 @@
+import { browser, go, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+await go(p, "/patients/1602fb09-a0cd-418a-9c3e-08eeb7e6c6ab");
+const body = await text(p);
+console.log(body.slice(body.indexOf("Their own access"), body.indexOf("Their own access")+700));
+console.log("BUTTONS:", await p.evaluate(()=>[...document.querySelectorAll("button")].map(b=>b.innerText.trim()).filter(Boolean).join(" | ")));
+await shot(p, "t15-invite-after-navigate");
+await b.close();

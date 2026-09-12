@@ -42,7 +42,7 @@ export default async function AdminErrorsPage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Errors</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
           Server errors from the last {ERROR_RETENTION_DAYS} days, newest first. Paths have their
-          identifiers removed and messages have addresses stripped — this is a debugging tool and
+          identifiers removed and messages have addresses stripped. This is a debugging tool and
           must not become another way to read a chart. Repeats within ten minutes are recorded once.
         </p>
       </div>
@@ -66,11 +66,11 @@ export default async function AdminErrorsPage() {
                 {group.rows.length} {group.rows.length === 1 ? "time" : "times"}
               </Badge>
               <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">
-                {latest.method ?? "—"} {latest.route}
+                {latest.method ?? "-"} {latest.route}
               </code>
               <span className="text-xs text-slate-400">
-                last {formatDateTime(group.last, actor.timezone)}
-                {group.rows.length > 1 ? ` · first ${formatDateTime(group.first, actor.timezone)}` : ""}
+                last {formatDateTime(group.last, actor.timezone, "en")}
+                {group.rows.length > 1 ? ` · first ${formatDateTime(group.first, actor.timezone, "en")}` : ""}
               </span>
             </div>
 
@@ -78,7 +78,7 @@ export default async function AdminErrorsPage() {
 
             {latest.digest ? (
               <p className="mt-1 text-xs text-slate-400">
-                Digest <code className="font-mono">{latest.digest}</code> — this is the code a
+                Digest <code className="font-mono">{latest.digest}</code>. This is the code a
                 clinician sees on the error page, so a support message quoting it lands here.
               </p>
             ) : null}

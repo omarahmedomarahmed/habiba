@@ -12,8 +12,21 @@
  */
 import { and, eq, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import { patients, sessions, users } from "../lib/db/schema";
+import { writesTo, readSource } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+import { translator } from "../lib/i18n/server";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 let failures = 0;
 let checks = 0;
@@ -21,7 +34,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 function note(text: string) {
@@ -39,7 +52,10 @@ async function refused(fn: () => Promise<unknown>, constraint: string): Promise<
 }
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   const created: string[] = [];
 
@@ -48,7 +64,7 @@ async function main() {
 
     const { isGated } = await import("../lib/access/state");
     check(
-      "🔴 12.1 the copilot gate is on for everybody — no date, no grandfather",
+      "🔴 12.1 the copilot gate is on for everybody, no date, no grandfather",
       isGated("unclaimed_bare") &&
         !isGated("unclaimed_documented") &&
         !isGated("granted") &&
@@ -94,11 +110,24 @@ async function main() {
             status: "scheduled",
             modality: "video",
             guestName: "verify12-no-token",
-            feedbackToken: null,
+            // 🔴 Deliberately absent, past the type, to prove the DATABASE
+            // refuses it — a rule the compiler enforces is not the same rule.
+            feedbackToken: null as unknown as string,
           }),
-        "sessions_feedback_token_present",
+        /*
+         * 22.9 made the column `NOT NULL`, so the refusal now comes from the
+         * column rather than from the CHECK beside it. The claim under test is
+         * that the DATABASE refuses it — either message is that claim, and
+         * pinning the constraint's name would have made a strengthening of the
+         * rule look like a regression.
+         */
+        "feedback_token",
       );
-      check("🔴 12.2 the database refuses a session with no feedback token", tokenRefused);
+      check(
+        "🔴 12.2 the database refuses a session with no feedback token",
+        tokenRefused,
+        "refused by the NOT NULL column (0054) or the CHECK beside it",
+      );
 
       const [ok] = await db
         .insert(sessions)
@@ -118,7 +147,7 @@ async function main() {
         SELECT COUNT(*)::int AS n FROM sessions WHERE feedback_token IS NULL
       `);
       note(
-        `${(nulls.rows[0] as { n: number }).n} historical sessions still have no token. Never backfilled — a token minted today would assert a rating had been possible. The purge removes them.`,
+        `${(nulls.rows[0] as { n: number }).n} historical sessions still have no token. Never backfilled, a token minted today would assert a rating had been possible. The purge removes them.`,
       );
 
       /* ------------------------------------------- 12.4 the phone number */
@@ -153,7 +182,7 @@ async function main() {
       check(
         "12.4 …and so is a national number nobody could send a message to",
         shapeRefused,
-        "01001234567 — real in Egypt, Italy and Kenya, and a different person in each",
+        "01001234567, real in Egypt, Italy and Kenya, and a different person in each",
       );
 
       /*
@@ -173,7 +202,7 @@ async function main() {
         })
         .returning({ id: patients.id });
       check(
-        "12.4 §3b's fallback survives — a join-link patient may still arrive with only an email",
+        "12.4 §3b's fallback survives, a join-link patient may still arrive with only an email",
         Boolean(guest),
       );
       if (guest) {
@@ -201,14 +230,14 @@ async function main() {
 
     check(
       "🔴 12.3 the same instant renders as a different day in Cairo and in New York",
-      formatDate(at, "Africa/Cairo") !== formatDate(at, "America/New_York"),
-      `${formatDate(at, "Africa/Cairo")} vs ${formatDate(at, "America/New_York")}`,
+      formatDate(at, "Africa/Cairo", "en") !== formatDate(at, "America/New_York", "en"),
+      `${formatDate(at, "Africa/Cairo", "en")} vs ${formatDate(at, "America/New_York", "en")}`,
     );
 
     check(
       "12.3 a null zone is UTC, said rather than silently the server's clock",
-      formatDateTime(at, null) === formatDateTime(at, "UTC"),
-      formatDateTime(at, null),
+      formatDateTime(at, null, "en") === formatDateTime(at, "UTC", "en"),
+      formatDateTime(at, null, "en"),
     );
 
     /*
@@ -219,9 +248,9 @@ async function main() {
     const justAfterCairoMidnight = new Date(Date.now());
     check(
       "12.3 relativeDay counts days in the reader's zone, not the server's",
-      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati") === "Today" ||
-        relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati") === "Tomorrow",
-      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati"),
+      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati", "en", translator("en")) === "Today" ||
+        relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati", "en", translator("en")) === "Tomorrow",
+      relativeDay(justAfterCairoMidnight, "Pacific/Kiritimati", "en", translator("en")),
     );
 
     /*
@@ -321,7 +350,7 @@ async function main() {
     const targets = await tableNames(db as never);
 
     check(
-      "🔴 12.6 the reset's table list is public tables only — drizzle's ledger is unreachable",
+      "🔴 12.6 the reset's table list is public tables only, drizzle's ledger is unreachable",
       targets.length > 0 && targets.every((name) => !name.includes("drizzle_migrations")),
       `${targets.length} tables`,
     );
@@ -337,7 +366,7 @@ async function main() {
     );
 
     const { readFileSync } = await import("node:fs");
-    const reset = readFileSync("scripts/reset.ts", "utf8");
+    const reset = readSource("scripts/reset.ts");
     check(
       "12.6 the reset refuses to run without --i-mean-it and a typed host name",
       reset.includes("--i-mean-it") && reset.includes("Type the host to confirm"),

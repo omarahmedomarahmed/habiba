@@ -5,7 +5,8 @@ import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { hashPassword as hashCode, verifyPassword as verifyCode } from "@/lib/auth/password";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   supportAttachments,
   supportTicketEvents,
@@ -22,6 +23,17 @@ import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { callerKey, consume, globalCeiling } from "@/lib/rate-limit";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/support.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Support tickets. PLAN.md 18R.2–18R.5, and the queue 20.18–20.22 works from.
@@ -160,7 +172,7 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
   if (!verdict.allowed) {
     return {
       ok: false,
-      error: "You have sent us a few messages already. We have them — give us a little time to reply.",
+      error: "You have sent us a few messages already. We have them, give us a little time to reply.",
     };
   }
 
@@ -391,7 +403,7 @@ export async function replyReceived(input: { ticketId: string }): Promise<void> 
     ticketId: input.ticketId,
     kind: "replied",
     actorUserId: null,
-    note: "They replied — the clock restarts",
+    note: "They replied, the clock restarts",
   });
 }
 
@@ -456,7 +468,7 @@ export async function movedToWhatsapp(input: {
     ticketId: input.ticketId,
     kind: "moved",
     actorUserId: input.actorUserId,
-    note: "Continued on WhatsApp — a summary has to come back before this closes",
+    note: "Continued on WhatsApp, a summary has to come back before this closes",
   });
   return { ok: true };
 }
@@ -500,7 +512,7 @@ export async function closeTicket(input: {
   if (ticket.movedToWhatsappAt && (ticket.whatsappSummary ?? "").trim().length < 20) {
     return {
       error:
-        "This one moved to WhatsApp. Write up what was agreed there before closing it — a conversation we cannot see is not a record.",
+        "This one moved to WhatsApp. Write up what was agreed there before closing it, a conversation we cannot see is not a record.",
     };
   }
 

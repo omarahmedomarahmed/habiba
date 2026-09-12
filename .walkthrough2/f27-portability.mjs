@@ -1,0 +1,13 @@
+import { browser, go, text, shot, PHONE, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const pctx = await b.newContext({ viewport: PHONE, storageState: ".walkthrough2/state-patient.json" });
+const p = await pctx.newPage();
+await go(p, "/patient/consent");
+await p.getByRole("button", { name: /Invite a therapist/i }).click();
+await p.waitForTimeout(4000);
+const body = await text(p);
+console.log("=== after invite ===\n" + body.slice(0, 1400).replace(/\n{2,}/g,"\n"));
+const code = await p.evaluate(()=>{ const m = document.body.innerText.match(/\b[A-Z0-9]{6,10}\b/g); return m ? m.join(",") : null; });
+console.log("CODES SEEN:", code);
+await shot(p, "p23-invite-therapist");
+await b.close();

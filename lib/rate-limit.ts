@@ -1,9 +1,12 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: rate limiting is per caller and per process, not per jurisdiction.
+ */
 import "server-only";
 
 import { createHash } from "node:crypto";
 import { eq, lt, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import { rateLimits } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";

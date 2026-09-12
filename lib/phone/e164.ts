@@ -147,6 +147,34 @@ export function e164Problem(result: E164Result): string | null {
  * still shown, still changeable, and `toE164` still refuses without one. Guess
  * the default, ask for the answer.
  */
+
+/**
+ * The country a stored number belongs to, for the SELECTOR beside it.
+ *
+ * 🔴 Display only, and the distinction matters. `toE164` ignores the selector
+ * whenever the field already starts with `+`, so this cannot change a stored
+ * number; what it changes is a form that showed "United States" next to
+ * `+20 100 123 4567` until the second walkthrough noticed (37R.25). Where two
+ * countries share a dialling code the first in the table wins, which is fine
+ * for a label and is exactly why `lib/crisis/line.ts` does NOT reuse this:
+ * there, a tie must produce no answer rather than a plausible one.
+ */
+export function countryFromE164(e164: string | null | undefined): string | null {
+  const digits = (e164 ?? "").trim();
+  if (!digits.startsWith("+")) return null;
+  const national = digits.slice(1).replace(/\D/g, "");
+
+  let best: string | null = null;
+  let length = 0;
+  for (const [country, code] of Object.entries(DIALLING_CODES)) {
+    if (national.startsWith(code) && code.length > length) {
+      best = country;
+      length = code.length;
+    }
+  }
+  return best;
+}
+
 export function countryFromLocale(locale: string | null | undefined): string | null {
   if (!locale) return null;
   const region = locale.split(/[-_]/)[1]?.toUpperCase();

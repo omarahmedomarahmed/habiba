@@ -7,6 +7,7 @@ import { ArrowUpRight, Banknote, Clock, Wallet } from "lucide-react";
 import { openPayoutDashboard, payOutNow, type SettingsState } from "@/app/(app)/settings/actions";
 import { Card } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
+import { useT } from "@/lib/i18n/client";
 
 export type EarningsProps = {
   connected: boolean;
@@ -36,6 +37,7 @@ export type EarningsProps = {
  * If Stripe is unreachable we show no balance rather than a stale one.
  */
 export function EarningsCard(props: EarningsProps) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -66,12 +68,10 @@ export function EarningsCard(props: EarningsProps) {
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">
-                  {formatUsd(props.heldCents)} is waiting for you
+                  {t("tearn.waiting", { amount: formatUsd(props.heldCents) })}
                 </p>
                 <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
-                  Your patients have paid. We are holding your share because Stripe has not
-                  verified you yet — it goes to your account automatically the moment they do,
-                  and there is nothing to claim.
+                  {t("tearn.waitingBody")}
                 </p>
               </div>
             </div>
@@ -80,7 +80,7 @@ export function EarningsCard(props: EarningsProps) {
               className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
             >
               <Banknote className="h-4 w-4" aria-hidden />
-              Finish setting up payouts
+              {t("tearn.finishSetup")}
             </Link>
           </>
         ) : (
@@ -90,10 +90,9 @@ export function EarningsCard(props: EarningsProps) {
                 <Wallet className="h-4 w-4" aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900">Charge for your sessions</p>
+                <p className="text-sm font-semibold text-slate-900">{t("tearn.chargeTitle")}</p>
                 <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
-                  Set a price and the patient pays before they join. You can start today — if
-                  Stripe has not verified you yet we hold your share and send it on when they do.
+                  {t("tearn.chargeBody")}
                 </p>
               </div>
             </div>
@@ -102,7 +101,7 @@ export function EarningsCard(props: EarningsProps) {
               className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
             >
               <Banknote className="h-4 w-4" aria-hidden />
-              Set up payouts
+              {t("tpay.setUp")}
             </Link>
           </>
         )}
@@ -116,27 +115,29 @@ export function EarningsCard(props: EarningsProps) {
         <div className="px-5 pt-5 pb-4">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
             <Wallet className="h-3 w-3" aria-hidden />
-            Your earnings
+            {t("tearn.title")}
           </span>
 
           <p className="mt-3 text-3xl font-bold tracking-tight">
-            {props.availableCents === null ? "—" : formatUsd(props.availableCents)}
+            {props.availableCents === null ? "-" : formatUsd(props.availableCents)}
           </p>
           <p className="mt-0.5 text-sm text-white/70">
             {props.availableCents === null
-              ? "Balance unavailable — check your Stripe dashboard."
-              : `available now${
-                  props.pendingCents ? ` · ${formatUsd(props.pendingCents)} clearing` : ""
+              ? t("tearn.unavailable")
+              : `${t("tearn.availableNow")}${
+                  props.pendingCents
+                    ? ` · ${t("tearn.clearing", { amount: formatUsd(props.pendingCents) })}`
+                    : ""
                 }`}
           </p>
 
           <dl className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-white/60">Earned this month</dt>
+              <dt className="text-xs text-white/60">{t("tearn.thisMonth")}</dt>
               <dd className="mt-0.5 text-2xl font-bold">{formatUsd(props.thisMonthNetCents)}</dd>
             </div>
             <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-white/60">Paid sessions</dt>
+              <dt className="text-xs text-white/60">{t("tearn.paidSessions")}</dt>
               <dd className="mt-0.5 text-2xl font-bold">{props.paidSessionCount}</dd>
             </div>
           </dl>
@@ -151,11 +152,10 @@ export function EarningsCard(props: EarningsProps) {
               <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" aria-hidden />
               <div className="min-w-0">
                 <p className="text-sm font-semibold">
-                  {formatUsd(props.heldCents)} held by 24Therapy
+                  {t("tearn.heldBy", { amount: formatUsd(props.heldCents) })}
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-white/70">
-                  Taken on your behalf before Stripe finished verifying you. It moves to your
-                  account by itself — you do not have to ask.
+                  {t("tearn.heldBody")}
                 </p>
               </div>
             </div>
@@ -176,7 +176,7 @@ export function EarningsCard(props: EarningsProps) {
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-teal-700 disabled:opacity-50"
               >
                 <Banknote className="h-4 w-4" aria-hidden />
-                {pending ? "Requesting…" : "Pay out now"}
+                {pending ? t("tpay.requesting") : t("tearn.payOutNow")}
               </button>
             ) : null}
             <button
@@ -185,19 +185,23 @@ export function EarningsCard(props: EarningsProps) {
               onClick={() => run(openPayoutDashboard)}
               className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-white/15 px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
-              Stripe dashboard
+              {t("tpay.dashboard")}
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
             </button>
           </div>
         </div>
 
         <div className="border-t border-white/10 px-5 py-3 text-xs text-white/60">
-          Lifetime {formatUsd(props.lifetimeNetCents)} after {formatUsd(props.platformFeesCents)} in
-          24Therapy fees
           {props.settledFromEarningsCents > 0
-            ? ` · ${formatUsd(props.settledFromEarningsCents)} of your bills settled from earnings`
-            : ""}
-          .
+            ? t("tearn.lifetimeSettled", {
+                net: formatUsd(props.lifetimeNetCents),
+                fees: formatUsd(props.platformFeesCents),
+                settled: formatUsd(props.settledFromEarningsCents),
+              })
+            : t("tearn.lifetime", {
+                net: formatUsd(props.lifetimeNetCents),
+                fees: formatUsd(props.platformFeesCents),
+              })}
         </div>
       </div>
     </div>

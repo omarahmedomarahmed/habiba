@@ -3,6 +3,7 @@ import { MessageSquareQuote, Star } from "lucide-react";
 import { Card } from "@/components/ui";
 import { RATINGS_VISIBLE_AFTER } from "@/lib/data/feedback";
 import { cn, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 /*
  * 12.3 / C70 — the zone this screen prints its dates in.
@@ -26,7 +27,7 @@ import { cn, relativeDay } from "@/lib/utils";
  * veil, and is the honest limit of anonymity in a two-person conversation.
  * Nothing here says otherwise.
  */
-export function FeedbackCard({
+export async function FeedbackCard({
   therapistAverage,
   serviceAverage,
   total,
@@ -46,13 +47,14 @@ export function FeedbackCard({
     createdAt: Date;
   }[];
 }) {
+  const { t, locale } = await getI18n();
   if (total === 0) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Ratings</p>
+        <p className="text-sm font-semibold text-slate-900">{t("radar.ratings")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
           After a radar session your patient rates you to unlock their summary, so almost all of
-          them do. Nothing here yet — your score appears publicly once{" "}
+          them do. Nothing here yet, your score appears publicly once{" "}
           {RATINGS_VISIBLE_AFTER} people have rated you.
         </p>
       </Card>
@@ -62,7 +64,7 @@ export function FeedbackCard({
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <p className="text-sm font-semibold text-slate-900">Ratings</p>
+        <p className="text-sm font-semibold text-slate-900">{t("radar.ratings")}</p>
         <span className="flex items-center gap-1 text-lg font-bold text-amber-500">
           <Star className="h-4 w-4 fill-current" aria-hidden />
           {therapistAverage.toFixed(1)}
@@ -79,7 +81,7 @@ export function FeedbackCard({
 
       {total < RATINGS_VISIBLE_AFTER ? (
         <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-          Not shown to patients yet. A score goes public at {RATINGS_VISIBLE_AFTER} ratings — one
+          Not shown to patients yet. A score goes public at {RATINGS_VISIBLE_AFTER} ratings, one
           bad night should not follow you around at 1.0 stars, and one good one proves nothing.
         </p>
       ) : null}
@@ -100,7 +102,7 @@ export function FeedbackCard({
                   />
                 ))}
               </span>
-              <span className="text-[11px] text-slate-400">{relativeDay(entry.createdAt, zone)}</span>
+              <span className="text-[11px] text-slate-400">{relativeDay(entry.createdAt, zone, locale, t)}</span>
             </div>
 
             {entry.tags.length > 0 ? (

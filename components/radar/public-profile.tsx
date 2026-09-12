@@ -8,6 +8,7 @@ import type { RadarEntry } from "@/components/radar/types";
 import { countryFlag } from "@/lib/geo";
 import { cn, fullName, initials } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
+import { useT } from "@/lib/i18n/client";
 
 export type ProfileEntry = Omit<RadarEntry, "status"> & {
   status: RadarEntry["status"] | "offline";
@@ -30,6 +31,7 @@ export type ProfileEntry = Omit<RadarEntry, "status"> & {
 const REFRESH_MS = 5_000;
 
 export function PublicProfile({ initial }: { initial: ProfileEntry }) {
+  const t = useT();
   const [profile, setProfile] = useState(initial);
   const [booking, setBooking] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -120,14 +122,14 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
           <Row
             icon={MapPin}
             label="Walk-ins"
-            value={`${profile.practice.name ?? "Practice"} — ${profile.practice.address}`}
+            value={`${profile.practice.name ?? "Practice"}, ${profile.practice.address}`}
           />
         ) : null}
       </dl>
 
       {/* ------------------------------------------------------------- price */}
       <div className="mt-6 flex items-center justify-between rounded-2xl bg-navy-500 px-4 py-3.5 text-white">
-        <span className="text-sm">30 minutes, starting now</span>
+        <span className="text-sm">{t("radar.thirtyMinutes")}</span>
         <span className="text-xl font-bold">
           {profile.rateCents > 0 ? `$${(profile.rateCents / 100).toFixed(0)}` : "Free"}
         </span>
@@ -185,6 +187,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
  * deciding whether to wait needs to know which.
  */
 function AvailabilityLine({ status }: { status: ProfileEntry["status"] }) {
+  const t = useT();
   const map = {
     online: { dot: "bg-teal-500 live-dot", text: "Available now", tone: "text-teal-700 bg-teal-50" },
     pending: { dot: "bg-amber-500", text: "Someone is booking them", tone: "text-amber-700 bg-amber-50" },
@@ -214,6 +217,7 @@ function Row({
   label: string;
   value: string;
 }) {
+  const t = useT();
   return (
     <div className="flex gap-3">
       <dt className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-slate-500">

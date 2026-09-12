@@ -57,7 +57,7 @@ test("one bad page in ten makes the whole document unsupported", () => {
   assert.equal(isInterleaved([good, good, good, bad, good]), true);
 });
 
-test("a short page is not judged — there is nothing to measure", () => {
+test("a short page is not judged. There is nothing to measure", () => {
   const items = row(800, [
     { x: 60, width: 180 },
     { x: 340, width: 180 },
@@ -134,7 +134,7 @@ test("a PDF with no text layer is unsupported, like the scan it is", async (t) =
   assert.equal(text, null);
 });
 
-test("a legacy .doc is still stored-only — mammoth reads OOXML, not the binary", async () => {
+test("a legacy .doc is still stored-only, mammoth reads OOXML, not the binary", async () => {
   const { readabilityOf } = await import("../lib/documents/formats");
   assert.equal(readabilityOf("application/msword"), "stored_only");
   assert.equal(

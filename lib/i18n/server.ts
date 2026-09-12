@@ -1,27 +1,41 @@
 import { cookies, headers } from "next/headers";
 
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from "./config";
+import { LOCALE_HEADER } from "./paths";
 import { DICTIONARIES, type MessageKey } from "./messages";
 
 /**
- * Which language this request is in.
+ * Which language this request is in. PLAN.md 31.1, C103.
  *
- * A cookie rather than a `/ar/` URL prefix, and that is a real trade with a
- * real cost. Prefixed routes are better for search engines — Arabic pages get
- * their own indexable URLs — and worse for everything else here: they mean
- * restructuring every route in the app under a `[locale]` segment, which is a
- * large diff through the exact files that handle payments, join tokens and
- * clinical records.
+ * Four answers, in this order, and the order is the whole design:
  *
- * The deciding factor is what the Arabic site is *for* right now. It is beta
- * testing with clinics in the Gulf while the company is established in the US;
- * nobody is trying to rank for Arabic search terms yet. When that changes, the
- * prefix can be added in front of this without any caller changing, because
- * every call site asks this function rather than reading the cookie itself.
+ *   1. **The URL.** `/ar/pricing` is Arabic for everybody, cookie or no cookie.
+ *   2. **The cookie.** An explicit choice, remembered, for paths with no prefix.
+ *   3. **Accept-Language.** A browser default, which an explicit choice beats.
+ *   4. English.
  *
- * Accept-Language is consulted only when no cookie exists, so an explicit
- * choice always beats a browser default — somebody who switched to English on
- * an Arabic phone meant it.
+ * Until sprint 31 there was no (1): the language lived only in the cookie, so
+ * `/ar/pricing` was a **404** and no Arabic page could be linked, shared in a
+ * WhatsApp group or indexed — in the market this product is built for. The
+ * pages were there and rendered well; they simply had no address.
+ *
+ * The prefix went in *in front of* this function rather than through it, which
+ * is why no caller changed: every call site has always asked here instead of
+ * reading the cookie itself. That was the bet made when the cookie shipped, and
+ * it paid.
+ */
+/**
+ * 🔴 21.15 — a language turned off must not 404 anybody mid-visit.
+ *
+ * The behaviour, decided: **serve and stop advertising.** A reader whose
+ * cookie names a language that is no longer public keeps reading it for the
+ * rest of their visit; the switcher stops offering it, and the next person is
+ * never sent there. The alternative — redirecting mid-visit — throws somebody
+ * out of the page they were reading into a language they may not read, which
+ * on a crisis page is the worst possible moment to do it.
+ *
+ * The cookie is not cleared either: a language switched off for a fortnight
+ * and back on should find its readers where it left them.
  */
 export async function getLocale(): Promise<Locale> {
   /*
@@ -39,6 +53,17 @@ export async function getLocale(): Promise<Locale> {
    * throws **synchronously** outside a request, so the promise the first
    * version chained onto never existed.
    */
+  /*
+   * 🔴 The URL first. Set by the middleware's rewrite, never by a client.
+   *
+   * A header a browser could send would let a page be served in a language its
+   * URL does not claim — one document at one address rendering two ways. The
+   * middleware **deletes** it on every request before setting it, so what
+   * arrives here is what the path said and nothing else.
+   */
+  const fromUrl = await read(async () => (await headers()).get(LOCALE_HEADER), null);
+  if (isLocale(fromUrl)) return fromUrl;
+
   const chosen = await read(async () => (await cookies()).get(LOCALE_COOKIE)?.value, undefined);
   if (isLocale(chosen)) return chosen;
 
@@ -86,5 +111,21 @@ export function translator(locale: Locale): Translate {
 export async function getI18n(): Promise<{ locale: Locale; t: Translate; dir: "rtl" | "ltr" }> {
   const { dirFor } = await import("./config");
   const locale = await getLocale();
-  return { locale, t: translator(locale), dir: dirFor(locale) };
+
+  /*
+   * 21.1 / 21.4 / 21.6 — an admin override wins, the shipped dictionary is the
+   * default, and English is the floor.
+   *
+   * Read through `stringsFor`, which is cached by tag: a save invalidates it
+   * and nothing serves last hour's wording because a timer had not fired. If
+   * the override table is unreachable the dictionary answers on its own — the
+   * interface never goes blank because a query failed.
+   */
+  try {
+    const { stringsFor } = await import("./strings");
+    const { t } = await stringsFor(locale);
+    return { locale, t: t as Translate, dir: dirFor(locale) };
+  } catch {
+    return { locale, t: translator(locale), dir: dirFor(locale) };
+  }
 }

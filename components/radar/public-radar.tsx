@@ -11,6 +11,7 @@ import type { RadarEntry } from "@/components/radar/types";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The globe is a separate chunk, loaded after the page is interactive.
@@ -50,6 +51,7 @@ export type { RadarEntry };
  * person in crisis gets a globe, a list and a button, not a signup form.
  */
 export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
+  const t = useT();
   const [entries, setEntries] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
@@ -132,15 +134,14 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
 
       {entries.length === 0 ? (
         <Card className="p-6 text-center">
-          <p className="text-sm font-semibold text-slate-900">Nobody is on the radar yet</p>
+          <p className="text-sm font-semibold text-slate-900">{t("radar.nobodyYet")}</p>
           <p className="mt-1.5 text-sm text-slate-600">
-            Clinicians appear here the moment they go online. If you need help right now, call or
-            text 988.
+            {t("radar.nobodyYetBody")}
           </p>
         </Card>
       ) : visible.length === 0 ? (
         <Card className="p-6 text-center">
-          <p className="text-sm font-semibold text-slate-900">Nobody matching that is on shift</p>
+          <p className="text-sm font-semibold text-slate-900">{t("radar.nobodyMatchingTitle")}</p>
           <p className="mt-1.5 text-sm text-slate-600">
             {onlineCount} other {onlineCount === 1 ? "clinician is" : "clinicians are"} available
             right now.
@@ -150,7 +151,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
             onClick={() => setFilter(NO_FILTER)}
             className="mt-3 text-sm font-semibold text-brand-600"
           >
-            Show everyone
+            {t("radar.showEveryone")}
           </button>
         </Card>
       ) : (

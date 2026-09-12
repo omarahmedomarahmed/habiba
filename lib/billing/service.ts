@@ -2,12 +2,24 @@ import "server-only";
 
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { aiRequestLogs, invoices, payableCents, sessions, subscriptions } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 
 import { consumeCredit, currentTier, getCreditBalance } from "./credits";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/billing/service.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export async function getSubscription(organizationId: string) {
   const [row] = await db
@@ -101,7 +113,7 @@ export async function chargeForSession(opts: {
         sessionId: opts.sessionId,
         amountCents: 0,
         status: "waived",
-        description: "First session — on us",
+        description: "First session, on us",
       });
       return { status: "waived", amountCents: 0 };
     }
@@ -323,7 +335,7 @@ export async function recordCreditPurchaseInvoice(opts: {
     const { postInvoiceRaised, postInvoicePaidByCard, postInvoiceWrittenOff } = await import(
       "./ledger"
     );
-    const description = opts.description ?? "Unlimited — monthly subscription";
+    const description = opts.description ?? "Unlimited, monthly subscription";
     await postInvoiceRaised({
       id: created.id,
       organizationId: opts.organizationId,

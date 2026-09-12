@@ -5,13 +5,16 @@ import { useState, useTransition } from "react";
 import { savePrefs } from "@/app/(app)/assistant/actions";
 import { Card } from "@/components/ui";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
+/* 37L.2 — keys, resolved at render. */
 const VOICES = {
-  british_female: "British, female",
-  british_male: "British, male",
-  american_female: "American, female",
-  american_male: "American, male",
-} as const;
+  british_female: "tasst.voiceBritishF",
+  british_male: "tasst.voiceBritishM",
+  american_female: "tasst.voiceAmericanF",
+  american_male: "tasst.voiceAmericanM",
+} as const satisfies Record<string, MessageKey>;
 
 /**
  * Copilot preferences, editable. PLAN.md 10.6, second half.
@@ -38,18 +41,19 @@ export function AssistantPrefsSettings({
   const [voice, setVoice] = useState<keyof typeof VOICES>(initial.voice);
   const [speed, setSpeed] = useState(initial.voiceSpeed);
   const [saved, setSaved] = useState(false);
+  const t = useT();
   const [pending, startTransition] = useTransition();
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">Copilot</p>
+      <p className="text-sm font-semibold text-slate-900">{t("tasst.copilot")}</p>
       <p className="mt-0.5 text-sm text-slate-500">
-        What language answers come back in, and the voice that reads them aloud.
+        {t("tasst.copilotBody")}
       </p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <label className="block">
-          <span className="block text-xs font-medium text-slate-600">Answer in</span>
+          <span className="block text-xs font-medium text-slate-600">{t("tasst.answerIn")}</span>
           <select
             value={language}
             onChange={(e) => {
@@ -64,7 +68,7 @@ export function AssistantPrefsSettings({
               language is the setting most likely to be wrong for the next
               thing they type.
             */}
-            <option value="auto">Match my question</option>
+            <option value="auto">{t("tasst.matchQuestion")}</option>
             {Object.entries(NOTE_LANGUAGES).map(([code, label]) => (
               <option key={code} value={code}>
                 {label}
@@ -74,7 +78,7 @@ export function AssistantPrefsSettings({
         </label>
 
         <label className="block">
-          <span className="block text-xs font-medium text-slate-600">Read-aloud voice</span>
+          <span className="block text-xs font-medium text-slate-600">{t("tasst.voice")}</span>
           <select
             value={voice}
             onChange={(e) => {
@@ -85,7 +89,7 @@ export function AssistantPrefsSettings({
           >
             {Object.entries(VOICES).map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </select>
@@ -122,9 +126,9 @@ export function AssistantPrefsSettings({
           }
           className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? t("common.saving") : t("tdoc.save")}
         </button>
-        {saved ? <span className="text-xs text-teal-600">Saved</span> : null}
+        {saved ? <span className="text-xs text-teal-600">{t("common.saved")}</span> : null}
       </div>
     </Card>
   );

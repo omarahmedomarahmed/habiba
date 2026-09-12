@@ -28,6 +28,8 @@ import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { SessionRecorder } from "@/lib/audio/recorder";
 import type { Citation } from "@/lib/db/schema";
 import { cn, formatDate, formatDuration } from "@/lib/utils";
+import { useLocale, useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 export type ChatMessage = {
   id: string;
@@ -38,11 +40,11 @@ export type ChatMessage = {
 };
 
 const VOICES = [
-  { value: "british_female", label: "British · female" },
-  { value: "british_male", label: "British · male" },
-  { value: "american_female", label: "American · female" },
-  { value: "american_male", label: "American · male" },
-] as const;
+  { value: "british_female", label: "tcop.voiceBritishF" },
+  { value: "british_male", label: "tcop.voiceBritishM" },
+  { value: "american_female", label: "tcop.voiceAmericanF" },
+  { value: "american_male", label: "tcop.voiceAmericanM" },
+] as const satisfies readonly { value: string; label: MessageKey }[];
 
 export function CopilotChat({
   patientId,
@@ -85,6 +87,8 @@ export function CopilotChat({
   /** Standing corrections, shown so they can be seen rather than trusted. */
   guidance: string | null;
 }) {
+  const locale = useLocale();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
@@ -145,7 +149,7 @@ export function CopilotChat({
         return;
       }
       if (result.error || !result.answer) {
-        setError(result.error ?? "Something went wrong.");
+        setError(result.error ?? t("tcop.errGeneric"));
         setMessages((m) => m.filter((x) => x.id !== optimistic.id));
         return;
       }
@@ -189,9 +193,9 @@ export function CopilotChat({
           // Dropped into the box, not sent. The therapist reads it back and
           // edits before anything is asked.
           if (data.text) setDraft((d) => (d ? `${d} ${data.text}` : data.text!));
-          else setError("Nothing was picked up. Try again closer to the microphone.");
+          else setError(t("tcop.errNothingHeard"));
         } catch {
-          setError("Could not turn that into text. Try again.");
+          setError(t("tcop.errNoText"));
         } finally {
           setTranscribing(false);
         }
@@ -203,7 +207,7 @@ export function CopilotChat({
       recorderRef.current = recorder;
       setRecording(true);
     } catch {
-      setError("No microphone access. Allow the microphone and try again.");
+      setError(t("tcop.errNoMic"));
     }
   };
 
@@ -244,7 +248,7 @@ export function CopilotChat({
       await audio.play();
     } catch {
       setSpeakingId(null);
-      setError("Could not read that aloud.");
+      setError(t("tcop.errNoSpeech"));
     }
   };
 
@@ -267,11 +271,10 @@ export function CopilotChat({
           {messages.length === 0 ? (
             <Card className="px-5 py-8 text-center">
               <p className="text-base font-semibold text-slate-900">
-                Ask me about {patientName}
+                {t("tcop.askAbout", { name: patientName })}
               </p>
               <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500">
-                I have read every session in this chart and nothing outside it. Every answer will
-                show you exactly which moment it came from.
+                {t("tcop.intro")}
               </p>
             </Card>
           ) : (
@@ -313,14 +316,13 @@ export function CopilotChat({
           {exhausted ? (
             <Card className="p-4">
               <p className="text-sm font-semibold text-slate-900">
-                You have used all {quota.limit} messages for {patientName} this month
+                {t("tcop.exhausted", { limit: quota.limit ?? 0, name: patientName })}
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                Pay as you go includes {quota.limit} copilot messages per patient per month.
-                Unlimited removes the cap on every patient.
+                {t("tcop.exhaustedBody", { limit: quota.limit ?? 0 })}
               </p>
               <a href="/billing" className="mt-3 inline-block">
-                <Button>See Unlimited</Button>
+                <Button>{t("tcop.seeUnlimited")}</Button>
               </a>
             </Card>
           ) : (
@@ -332,7 +334,7 @@ export function CopilotChat({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(draft);
                 }}
-                placeholder={`Ask about ${patientName}…`}
+                placeholder={t("tcop.placeholder", { name: patientName })}
                 className="border-0 focus:ring-0"
               />
 
@@ -341,7 +343,7 @@ export function CopilotChat({
                   type="button"
                   onClick={recording ? stopVoice : startVoice}
                   aria-pressed={recording}
-                  aria-label={recording ? "Stop recording" : "Dictate a question"}
+                  aria-label={recording ? t("tcop.stopRecording") : t("tcop.dictate")}
                   className={cn(
                     "tap-target flex items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium",
                     recording
@@ -351,7 +353,7 @@ export function CopilotChat({
                 >
                   {recording ? (
                     <>
-                      <Square className="h-3.5 w-3.5" aria-hidden /> Stop
+                      <Square className="h-3.5 w-3.5" aria-hidden /> {t("tcop.stop")}
                     </>
                   ) : (
                     <Mic className="h-4 w-4" aria-hidden />
@@ -361,18 +363,18 @@ export function CopilotChat({
                 {transcribing ? (
                   <span className="flex items-center gap-1.5 text-xs text-slate-500">
                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                    Writing it out…
+                    {t("tcop.writingOut")}
                   </span>
                 ) : recording ? (
                   <span className="text-xs text-slate-500">
-                    Listening — press Stop and I will type it out for you to check.
+                    {t("tcop.listening")}
                   </span>
                 ) : null}
 
                 <span className="flex-1" />
 
                 {remaining !== null ? (
-                  <span className="text-xs text-slate-400">{remaining} left</span>
+                  <span className="text-xs text-slate-400">{t("tcop.left", { count: remaining })}</span>
                 ) : null}
 
                 <Button size="sm" disabled={pending || !draft.trim()} onClick={() => send(draft)}>
@@ -381,16 +383,14 @@ export function CopilotChat({
                   ) : (
                     <Send className="h-4 w-4" aria-hidden />
                   )}
-                  Ask
+                  {t("tcop.ask")}
                 </Button>
               </div>
             </div>
           )}
 
           <p className="px-1 pt-2 text-[11px] leading-relaxed text-slate-400">
-            Every answer cites the exact moment it came from, and a citation that does not match a
-            real transcript line is discarded rather than shown. It can still be wrong — read the
-            source before you rely on it, and correct it when it is.
+            {t("tcop.citeNote")}
           </p>
         </div>
       </div>
@@ -399,11 +399,13 @@ export function CopilotChat({
       <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
         <Card className="p-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Read aloud</p>
+            <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+              {t("tcop.readAloud")}
+            </p>
             <button
               type="button"
               onClick={() => setShowVoiceSettings((v) => !v)}
-              aria-label="Voice settings"
+              aria-label={t("tcop.voiceSettings")}
               className="tap-target flex items-center justify-center text-slate-400 hover:text-slate-700"
             >
               <Settings2 className="h-4 w-4" aria-hidden />
@@ -412,7 +414,7 @@ export function CopilotChat({
 
           {showVoiceSettings ? (
             <div className="mt-3 space-y-3">
-              <Field label="Voice" htmlFor="voice">
+              <Field label={t("tcop.voice")} htmlFor="voice">
                 <select
                   id="voice"
                   value={voice}
@@ -424,12 +426,12 @@ export function CopilotChat({
                 >
                   {VOICES.map((v) => (
                     <option key={v.value} value={v.value}>
-                      {v.label}
+                      {t(v.label)}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label={`Speed · ${speed.toFixed(2)}×`} htmlFor="speed">
+              <Field label={t("tcop.speed", { rate: speed.toFixed(2) })} htmlFor="speed">
                 <input
                   id="speed"
                   type="range"
@@ -447,13 +449,13 @@ export function CopilotChat({
             </div>
           ) : (
             <p className="mt-1 text-xs text-slate-500">
-              Press the speaker on any answer. Nothing speaks on its own.
+              {t("tcop.readAloudHint")}
             </p>
           )}
         </Card>
 
         <Card className="p-3">
-          <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Prompts</p>
+          <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">{t("tcop.prompts")}</p>
           <ul className="mt-2 space-y-1">
             {templates.map((template) => (
               <li key={template.label} className="flex items-center gap-1">
@@ -467,11 +469,11 @@ export function CopilotChat({
                 <button
                   type="button"
                   onClick={() => copy(template.text, template.label)}
-                  aria-label={`Copy "${template.label}" prompt`}
+                  aria-label={t("tcop.copyPrompt", { label: template.label })}
                   className="tap-target flex items-center justify-center rounded-lg text-slate-300 hover:text-slate-600"
                 >
                   {copied === template.label ? (
-                    <span className="text-[10px] font-semibold text-teal-600">copied</span>
+                    <span className="text-[10px] font-semibold text-teal-600">{t("tcop.copied")}</span>
                   ) : (
                     <Copy className="h-3.5 w-3.5" aria-hidden />
                   )}
@@ -513,6 +515,8 @@ function MessageBubble({
   onReadAloud: () => void;
   speaking: boolean;
 }) {
+  const locale = useLocale();
+  const t = useT();
   const [openCitation, setOpenCitation] = useState<number | null>(null);
 
   if (message.role === "therapist") {
@@ -529,7 +533,7 @@ function MessageBubble({
     return (
       <Card className="border-teal-200 bg-teal-50/60 px-4 py-3">
         <p className="text-[11px] font-bold tracking-wider text-teal-700 uppercase">
-          Noted during a session
+          {t("tcop.notedDuring")}
         </p>
         <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-teal-900">
           {message.content}
@@ -542,7 +546,7 @@ function MessageBubble({
     return (
       <Card className="border-amber-200 bg-amber-50/60 px-4 py-3">
         <p className="text-[11px] font-bold tracking-wider text-amber-700 uppercase">
-          You corrected me
+          {t("tcop.youCorrected")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-amber-900">{message.content}</p>
       </Card>
@@ -570,12 +574,12 @@ function MessageBubble({
             )}
           >
             <Info className="h-3 w-3" aria-hidden />
-            {formatDate(citation.sessionDate, zone)} · {formatDuration(citation.atSeconds)}
+            {formatDate(citation.sessionDate, zone, locale)} · {formatDuration(citation.atSeconds)}
           </button>
         ))}
 
         {message.citations.length === 0 ? (
-          <Badge tone="amber">No source — treat with care</Badge>
+          <Badge tone="amber">{t("tcop.noSource")}</Badge>
         ) : null}
 
         <span className="flex-1" />
@@ -583,7 +587,7 @@ function MessageBubble({
         <button
           type="button"
           onClick={onReadAloud}
-          aria-label={speaking ? "Stop reading" : "Read this aloud"}
+          aria-label={speaking ? t("tcop.stopReading") : t("tcop.readThis")}
           className={cn(
             "tap-target flex items-center justify-center rounded-lg px-2",
             speaking ? "text-brand-600" : "text-slate-300 hover:text-slate-600",
@@ -596,13 +600,16 @@ function MessageBubble({
       {openCitation !== null && message.citations[openCitation] ? (
         <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
           <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-            {message.citations[openCitation]!.speaker === "patient"
-              ? "The patient said"
-              : message.citations[openCitation]!.speaker === "therapist"
-                ? "You said"
-                : "Someone said"}{" "}
-            · {formatDate(message.citations[openCitation]!.sessionDate, zone)} at{" "}
-            {formatDuration(message.citations[openCitation]!.atSeconds)}
+            {t("tcop.citedAt", {
+              who:
+                message.citations[openCitation]!.speaker === "patient"
+                  ? t("tcop.patientSaid")
+                  : message.citations[openCitation]!.speaker === "therapist"
+                    ? t("tcop.youSaid")
+                    : t("tcop.someoneSaid"),
+              date: formatDate(message.citations[openCitation]!.sessionDate, zone, locale),
+              time: formatDuration(message.citations[openCitation]!.atSeconds),
+            })}
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-700 italic">
             “{message.citations[openCitation]!.quote}”
@@ -624,6 +631,8 @@ function MessageBubble({
  * wipe the chart, they find out before it runs, not after.
  */
 function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => void }) {
+  const locale = useLocale();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<{ removed: number; kept: number } | null>(null);
@@ -632,11 +641,13 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
   if (result) {
     return (
       <Card className="p-3">
-        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Fresh start</p>
+        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+          {t("tcop.freshStart")}
+        </p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-          {result.removed} message{result.removed === 1 ? "" : "s"} cleared. I kept {result.kept}{" "}
-          note{result.kept === 1 ? "" : "s"} I wrote during sessions, and every transcript — ask me
-          anything and I will build it back up from those.
+          {result.removed === 1
+            ? t("tcop.clearedOne", { kept: result.kept })
+            : t("tcop.clearedMany", { removed: result.removed, kept: result.kept })}
         </p>
       </Card>
     );
@@ -650,7 +661,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
         className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-start text-sm text-slate-600 hover:bg-slate-50"
       >
         <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        Start this chat over
+        {t("tcop.startOverButton")}
       </button>
     );
   }
@@ -658,11 +669,11 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
   return (
     <Card className="space-y-2.5 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">Start over</p>
+        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">{t("tcop.startOver")}</p>
         <button
           type="button"
           onClick={() => setConfirming(false)}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="tap-target flex items-center justify-center text-slate-300 hover:text-slate-600"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
@@ -674,19 +685,18 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
           <span aria-hidden className="text-red-500">
             −
           </span>
-          Your questions, my answers, and the corrections you gave me
+          {t("tcop.goes")}
         </li>
         <li className="flex gap-1.5">
           <span aria-hidden className="text-teal-600">
             +
           </span>
-          Kept: what I noted <em>during</em> each session, all transcripts, all notes
+          {t("tcop.kept")}
         </li>
       </ul>
 
       <p className="text-[11px] leading-relaxed text-slate-400">
-        Session notes are clinical record. They are not yours or mine to delete — I rebuild from
-        them.
+        {t("tcop.notesAreRecord")}
       </p>
 
       {error ? (
@@ -713,7 +723,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
           })
         }
       >
-        {pending ? "Clearing…" : "Clear the chat"}
+        {pending ? t("tcop.clearing") : t("tcop.clearChat")}
       </Button>
     </Card>
   );
@@ -731,6 +741,8 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
  * what it will do, and the prompt treats it as a rule.
  */
 function LanguageBox({ patientId, initial }: { patientId: string; initial: string }) {
+  const locale = useLocale();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [language, setLanguage] = useState(initial);
 
@@ -748,13 +760,13 @@ function LanguageBox({ patientId, initial }: { patientId: string; initial: strin
     <Card className="p-3">
       <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-400 uppercase">
         <Languages className="h-3.5 w-3.5" aria-hidden />
-        Answer in
+        {t("tcop.answerIn")}
       </p>
       <div className="mt-2 flex gap-1 rounded-xl bg-slate-100 p-1">
         {(
           [
-            ["auto", "Your language"],
-            ["en", "English"],
+            ["auto", t("tcop.yourLanguage")],
+            ["en", t("tcop.english")],
             ["ar", "العربية"],
           ] as const
         ).map(([code, label]) => (
@@ -775,16 +787,18 @@ function LanguageBox({ patientId, initial }: { patientId: string; initial: strin
       </div>
       <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
         {language === "auto"
-          ? "Answers come back in whatever language you asked in."
+          ? t("tcop.langAuto")
           : language === "ar"
-            ? "كل الإجابات بالعربية، مهما كانت لغة سؤالك."
-            : "Every answer in English, whatever language you ask in."}
+            ? t("tcop.langAr")
+            : t("tcop.langEn")}
       </p>
     </Card>
   );
 }
 
 function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: string | null }) {
+  const locale = useLocale();
+  const t = useT();
   const [removing, setRemoving] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>(() =>
     (guidance ?? "")
@@ -805,7 +819,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
         className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-start text-sm text-slate-600 hover:bg-slate-50"
       >
         <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        Change how I answer
+        {t("tcop.changeHow")}
       </button>
     );
   }
@@ -814,12 +828,12 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
     <Card className="space-y-2.5 p-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-          How I answer
+          {t("tcop.howIAnswer")}
         </p>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="tap-target flex items-center justify-center text-slate-300 hover:text-slate-600"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
@@ -842,7 +856,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
               <button
                 type="button"
                 disabled={removing === line}
-                aria-label={`Remove: ${line}`}
+                aria-label={t("tcop.removeLine", { line })}
                 onClick={() =>
                   startTransition(async () => {
                     setRemoving(line);
@@ -862,7 +876,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
 
       {done ? (
         <p className="text-sm text-teal-700">
-          Noted. I will read that before every answer about this patient from now on.
+          {t("tcop.correctionSaved")}
         </p>
       ) : (
         <>
@@ -879,10 +893,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
             history living in a settings field.
           */}
           <p className="text-xs leading-relaxed text-slate-500">
-            This changes how I write, not what I know. Tone, length, things to stop doing — those
-            belong here. Facts about the patient do not: I cannot cite a note left in this box, so
-            put their history and diagnosis on the patient&rsquo;s record instead. For what language
-            to answer in, use the setting above — it is more reliable than telling me here.
+            {t("tcop.correctionBody")}
           </p>
           <Input
             value={text}
@@ -891,7 +902,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
             // does. The old one — "the sister reference is a different client"
             // — was a fact about a patient, which is exactly what this box is
             // not for, so it invited the mistake the copy is trying to prevent.
-            placeholder="Keep answers to three sentences. Stop suggesting homework."
+            placeholder={t("tcop.correctionPlaceholder")}
           />
           <Button
             size="sm"
@@ -909,7 +920,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
               })
             }
           >
-            {pending ? "Saving…" : "Save correction"}
+            {pending ? t("common.saving") : t("tcop.saveCorrection")}
           </Button>
         </>
       )}

@@ -44,11 +44,29 @@ export const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "i
  * because a patient photographing a prescription for a support agent has sent
  * us a medical record and the door it arrived through does not change that.
  */
-export type UploadKind = "credential" | "headshot" | "support";
+export type UploadKind = "credential" | "headshot" | "support" | "avatar";
+
+/**
+ * 25.7 / C115 — a patient's own picture. 2 MB, images only.
+ *
+ * A tighter cap than a credential because the use is a 44px circle, and a cap
+ * is the only defence a private image store has against being used as one.
+ * Everything else about it is the credential path: the same opaque prefix, no
+ * public cache, and a read that goes through an authenticated route rather
+ * than the storage URL.
+ */
+export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+export function avatarUploadProblem(file: { size: number; type: string } | null): string | null {
+  if (!file || file.size === 0) return "Choose a photo.";
+  if (file.size > AVATAR_MAX_BYTES) return "That photo is over 2 MB, try a smaller one.";
+  if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) return "Upload a photo (JPEG, PNG, WebP or HEIC).";
+  return null;
+}
 
 export function uploadProblem(file: { size: number; type: string } | null): string | null {
   if (!file || file.size === 0) return "Choose a file.";
-  if (file.size > MAX_UPLOAD_BYTES) return "That image is over 8 MB — try a photo from your phone.";
+  if (file.size > MAX_UPLOAD_BYTES) return "That image is over 8 MB, try a photo from your phone.";
   if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) {
     return "Upload a photo (JPEG, PNG, WebP or HEIC).";
   }
@@ -117,7 +135,11 @@ export async function uploadDocument(opts: {
   }
 
   const problem =
-    opts.kind === "support" ? supportUploadProblem(opts.file) : uploadProblem(opts.file);
+    opts.kind === "support"
+      ? supportUploadProblem(opts.file)
+      : opts.kind === "avatar"
+        ? avatarUploadProblem(opts.file)
+        : uploadProblem(opts.file);
   if (problem) return { error: problem };
 
   const extension = extensionFor(opts.file.type);

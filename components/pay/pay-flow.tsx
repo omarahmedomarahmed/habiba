@@ -182,7 +182,7 @@ export function PayFlow({
                 the dollar. This rate is held for an hour.
                 {breakdown.rateSource === "static" ? (
                   <span className="mt-1 block text-amber-700">
-                    Indicative rate — your bank's final figure may differ slightly.
+                    Indicative rate, your bank's final figure may differ slightly.
                   </span>
                 ) : null}
               </p>

@@ -1,9 +1,14 @@
+"use client";
+
 import { CalendarClock, FileText, Zap } from "lucide-react";
 
 import { Card } from "@/components/ui";
 import type { PatientSession, SessionGroup } from "@/lib/data/patient-view";
 import { formatMoney } from "@/lib/billing/plans";
 import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { useLocale, useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
+import { localeTag } from "@/lib/i18n/config";
 
 /**
  * A patient's own sessions, in the four groups 15.3 names.
@@ -23,13 +28,15 @@ import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
  * this screen is `brief`, which is written *to* the patient and only appears
  * once their clinician has signed it.
  */
-const HEADINGS: Record<SessionGroup, { title: string; blurb: string }> = {
-  today: { title: "Today", blurb: "Coming up in the next day." },
-  upcoming: { title: "Booked", blurb: "Further ahead." },
-  past_scheduled: { title: "Past appointments", blurb: "Sessions you booked." },
+/* 37L.1 — keys, resolved at render. A heading written here in English is a
+   heading an Arabic reader meets in English. */
+const HEADINGS: Record<SessionGroup, { title: MessageKey; blurb: MessageKey }> = {
+  today: { title: "psessions.today", blurb: "psessions.todayBlurb" },
+  upcoming: { title: "psessions.booked", blurb: "psessions.bookedBlurb" },
+  past_scheduled: { title: "psessions.pastBooked", blurb: "psessions.pastBookedBlurb" },
   past_instant: {
-    title: "When you needed someone",
-    blurb: "Sessions you found on the radar, without booking.",
+    title: "psessions.radarGroup",
+    blurb: "psessions.radarGroupBody",
   },
 };
 
@@ -38,24 +45,28 @@ const ORDER: SessionGroup[] = ["today", "upcoming", "past_scheduled", "past_inst
 export function PatientSessionList({
   sessions,
   zone,
-  locale = "en-US",
 }: {
   sessions: PatientSession[];
   /** The account's own zone, from the server. 13.13 precedence, C84's rule. */
   zone: string | null;
-  /**
-   * 19.4 — the reader's language, from the server, for the same reason as the
-   * zone. Defaulted only because the public demo renders this component with
-   * invented rows and no reader; every real screen passes it.
-   */
-  locale?: string;
 }) {
+  const t = useT();
+  /*
+   * 37L.9 — the language is asked for, not passed in.
+   *
+   * It used to be an optional `locale?: string` prop defaulting to `"en-US"`,
+   * "because the demo has no reader". The demo is inside the provider like
+   * everything else, so the default bought nothing and cost the usual thing:
+   * the dates on this screen were the ones a patient reading Arabic met in
+   * English, because `formatWhen` was never given anything to be wrong with.
+   */
+  const locale = useLocale();
   if (sessions.length === 0) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">No sessions yet</p>
+        <p className="text-sm font-semibold text-slate-900">{t("psessions.none")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          When you book one, or find somebody on the radar, it appears here.
+          {t("psessions.noneBody")}
         </p>
       </Card>
     );
@@ -71,8 +82,8 @@ export function PatientSessionList({
 
         return (
           <section key={group}>
-            <h2 className="text-sm font-semibold text-slate-900">{HEADINGS[group].title}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">{HEADINGS[group].blurb}</p>
+            <h2 className="text-sm font-semibold text-slate-900">{t(HEADINGS[group].title)}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">{t(HEADINGS[group].blurb)}</p>
 
             <ul className="mt-2 space-y-2">
               {rows.map((session) => (
@@ -87,10 +98,10 @@ export function PatientSessionList({
                       {session.therapistName}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {formatWhen(session.at, resolved)}
+                      {formatWhen(session.at, resolved, locale)}
                       {session.priceCents > 0
-                        ? ` · ${formatMoney(session.priceCents, "USD", locale)}`
-                        : " · Free"}
+                        ? ` · ${formatMoney(session.priceCents, "USD", localeTag(locale))}`
+                        : ` · ${t("psessions.free")}`}
                     </p>
 
                     {session.brief ? (
@@ -102,7 +113,7 @@ export function PatientSessionList({
                     {session.briefPending ? (
                       <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
                         <FileText className="h-3 w-3" aria-hidden />
-                        Your therapist is still writing your summary.
+                        {t("psessions.writing")}
                       </p>
                     ) : null}
                   </Card>

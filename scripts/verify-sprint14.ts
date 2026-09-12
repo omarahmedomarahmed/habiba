@@ -9,8 +9,28 @@
  */
 import { and, eq, like, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
-import { patientCredits, patients, people, sessions, therapistRadar, users } from "../lib/db/schema";
+import {
+  organizations,
+  patientCredits,
+  patients,
+  people,
+  sessions,
+  therapistRadar,
+  users,
+} from "../lib/db/schema";
+import { writesTo, readSource } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 let failures = 0;
 let checks = 0;
@@ -18,7 +38,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 async function refused(fn: () => Promise<unknown>, fragment: string): Promise<boolean> {
@@ -31,20 +51,64 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 }
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   const made: string[] = [];
 
   try {
-    const clinicians = await db
+    /*
+     * 🔴 22.1 — the clinicians are PLANTED when the database has none.
+     *
+     * This borrowed the first three users it found and stopped dead when there
+     * were fewer than two, which is what a purged database looks like: after
+     * the purge there was one user, the seeded admin, and this verifier
+     * reported a missing fixture instead of checking the no-show ladder. Same
+     * lesson as C93, one table over — a gate that needs somebody else's data
+     * is a gate that fails the week before launch.
+     */
+    const found = await db
       .select({ id: users.id, organizationId: users.organizationId, rate: users.sessionRateCents })
       .from(users)
       .limit(3);
 
-    if (clinicians.length < 2) {
-      check("14 at least two clinicians exist", false);
-      return;
-    }
+    const [seedOrg] = await db.select({ id: organizations.id }).from(organizations).limit(1);
+    const organizationId =
+      found[0]?.organizationId ??
+      seedOrg?.id ??
+      (
+        await db
+          .insert(organizations)
+          .values({ name: "verify14 clinic", slug: `verify14-${Date.now()}` })
+          .returning({ id: organizations.id })
+      )[0]!.id;
+
+    const missing = Math.max(0, 2 - found.length);
+    const plantedUsers =
+      missing > 0
+        ? await db
+            .insert(users)
+            .values(
+              Array.from({ length: missing }, (_, index) => ({
+                organizationId,
+                email: `verify14-${index}-${Date.now()}@example.test`,
+                passwordHash: "x".repeat(60),
+                firstName: "verify14",
+                lastName: `${index}`,
+                role: "therapist" as const,
+                sessionRateCents: 3000,
+              })),
+            )
+            .returning({
+              id: users.id,
+              organizationId: users.organizationId,
+              rate: users.sessionRateCents,
+            })
+        : [];
+
+    const clinicians = [...found, ...plantedUsers];
 
     const [absent, cheaper] = clinicians;
 
@@ -155,7 +219,7 @@ async function main() {
       .where(eq(patientCredits.personId, person!.id))
       .limit(1);
     check(
-      "🔴 14.6 the difference becomes patient credit — $30 paid, $20 charged, $10 back",
+      "🔴 14.6 the difference becomes patient credit, $30 paid, $20 charged, $10 back",
       credit?.amount === 1000,
       `${credit?.amount ?? 0} cents`,
     );
@@ -221,7 +285,7 @@ async function main() {
     check(
       "🔴 14.3 the price ceiling is re-checked at the write, not only in the list",
       !overpriced.ok,
-      overpriced.ok ? "ACCEPTED — a let-down patient could be charged more" : overpriced.error,
+      overpriced.ok ? "ACCEPTED, a let-down patient could be charged more" : overpriced.error,
     );
 
     /* ------------------------------------------------------ 14.7 the score */
@@ -246,7 +310,7 @@ async function main() {
      * and the check below is that nothing clinical came with it.
      */
     const { readFileSync } = await import("node:fs");
-    const source = readFileSync("lib/ai/assistant.ts", "utf8");
+    const source = readSource("lib/ai/assistant.ts");
     const rosterBlock = source.slice(
       source.indexOf("export async function buildRoster"),
       source.indexOf("export async function buildRoster") + 3000,
@@ -264,6 +328,9 @@ async function main() {
     await db.delete(sessions).where(like(sessions.guestName, "verify14%"));
     await db.delete(patients).where(like(patients.firstName, "verify14%"));
     await db.delete(people).where(like(people.firstName, "verify14%"));
+    /* Last: the clinicians this run planted, never one it found. */
+    await db.delete(users).where(like(users.email, "verify14-%"));
+    await db.delete(organizations).where(like(organizations.name, "verify14 clinic"));
   }
 
   console.log(

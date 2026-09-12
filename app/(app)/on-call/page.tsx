@@ -12,15 +12,29 @@ import { requireUser } from "@/lib/auth/guard";
 import { ensureRadarProfile, radarSessionHistory } from "@/lib/data/radar";
 import { myHours } from "@/lib/data/scheduling";
 import { readTimezone } from "@/lib/data/timezone";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import { feedbackForTherapist } from "@/lib/data/feedback";
 import { activeTaxonomy } from "@/lib/data/taxonomy";
+import { getI18n } from "@/lib/i18n/server";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(app)/on-call/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = { title: "Crisis Radar", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function RadarConsolePage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [
@@ -56,8 +70,8 @@ export default async function RadarConsolePage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Crisis Radar"
-        subtitle="Fill a free half hour with someone who needs one now."
+        title={t("portal.nav.crisisRadar")}
+        subtitle={t("portal.oncall.subtitle")}
       />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
@@ -70,8 +84,8 @@ export default async function RadarConsolePage() {
           country={profile.country}
           rateCents={me?.rateCents ?? 0}
           chargesEnabled={me?.chargesEnabled ?? false}
-          languageOptions={languageOptions.map((o) => o.label)}
-          specialtyOptions={specialtyOptions.map((o) => o.label)}
+          languageOptions={languageOptions.map((o) => ({ code: o.code, label: o.label }))}
+          specialtyOptions={specialtyOptions.map((o) => ({ code: o.code, label: o.label }))}
           countryOptions={countryOptions.map((o) => ({
             code: o.code,
             name: o.label,
@@ -96,7 +110,8 @@ export default async function RadarConsolePage() {
           }))}
         />
 
-        <SessionHistory rows={history} zone={actor.timezone} />
+        <SessionHistory
+        locale={locale} rows={history} zone={actor.timezone} />
 
         <FeedbackCard
           zone={actor.timezone}
@@ -119,12 +134,24 @@ export default async function RadarConsolePage() {
         />
 
         <p className="text-xs leading-relaxed text-slate-500">
-          Radar sessions work exactly like any other: they are transcribed, they produce a note you
-          approve, and they open a copilot thread for that patient. See{" "}
-          <Link href="/radar" className="font-medium text-brand-600">
-            the public radar
-          </Link>{" "}
-          for what a patient sees.
+          {/*
+            37L.2 — the sentence is one dictionary row with a {link} slot, not
+            two half-sentences either side of an anchor. Arabic does not put
+            the clause in the same place English does, and a translator handed
+            "See" and "for what a patient sees" separately cannot fix that.
+          */}
+          {t("portal.oncall.body")
+            .split("{link}")
+            .flatMap((part, index) =>
+              index === 0
+                ? [part]
+                : [
+                    <Link key="link" href="/radar" className="font-medium text-brand-600">
+                      {t("portal.oncall.publicRadar")}
+                    </Link>,
+                    part,
+                  ],
+            )}
         </p>
       </div>
     </div>

@@ -1,0 +1,11 @@
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+const step = async (n, chars=1200) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await go(p, "/sessions/7886c48f-fe49-494f-8e80-ca4ff5be0b0a");
+await p.getByRole("button", { name: /Approve note/i }).click();
+await p.waitForTimeout(5000);
+await step("t20-note-approved");
+await go(p, "/notes"); await step("t21-notes-list");
+await b.close();

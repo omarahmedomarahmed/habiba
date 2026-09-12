@@ -164,7 +164,7 @@ async function main() {
         });
         console.log(`  ✓ ${dir}/${shot.name}`);
       } catch (error) {
-        console.log(`  ✗ ${dir}/${shot.name} — ${(error as Error).message.split("\n")[0]}`);
+        console.log(`  ✗ ${dir}/${shot.name}, ${(error as Error).message.split("\n")[0]}`);
       }
       await page.close();
     }
@@ -183,7 +183,7 @@ async function main() {
      * the reminder is printed rather than assumed to be remembered.
      */
     await shoot("admin", ADMIN_SHOTS, ".screens/admin.json");
-    console.log("\n  admin screens are gitignored — they are a map of the whole system.");
+    console.log("\n  admin screens are gitignored. They are a map of the whole system.");
   }
 
   await browser.close();

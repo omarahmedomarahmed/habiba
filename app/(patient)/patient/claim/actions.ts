@@ -10,11 +10,23 @@ import {
   verifyClaim,
   type ClaimSuggestion,
 } from "@/lib/data/claims";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { sendClaimCode as mailClaimCode } from "@/lib/mail";
 import { log } from "@/lib/logger";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/claim/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export type ClaimState = {
   error?: string;
@@ -33,13 +45,44 @@ export type ClaimState = {
 export async function mySuggestions(): Promise<ClaimSuggestion[]> {
   const actor = await requirePatient();
   const [account] = await db
-    .select({ email: patientAccounts.email, phone: patientAccounts.phone })
+    .select({
+      email: patientAccounts.email,
+      phone: patientAccounts.phone,
+      personId: patientAccounts.personId,
+      phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
+      emailVerifiedAt: patientAccounts.emailVerifiedAt,
+    })
     .from(patientAccounts)
     .where(eq(patientAccounts.id, actor.accountId))
     .limit(1);
 
   if (!account) return [];
-  return suggestionsFor({ email: account.email, phone: account.phone });
+
+  /*
+   * 🔴 25.14 / C121 — nothing is matched on an UNPROVEN handle.
+   *
+   * This matched on whatever number was typed at signup, and the screen then
+   * said "a therapist keeps notes for somebody with your phone number" over a
+   * redacted name. Type a stranger's number, sign up, and learn that they are
+   * in therapy and roughly what they are called. Two initials are something
+   * about a record. `openChallenges` has refused to speak without a proven
+   * handle since sprint 13; this is the screen people actually land on, and it
+   * did not.
+   *
+   * A handle proves itself by receiving a code (`lib/patient-auth/handle.ts`),
+   * and each handle proves only itself: a code that arrived by email does not
+   * make the number true.
+   */
+  const phone = account.phoneVerifiedAt ? account.phone : null;
+  const email = account.emailVerifiedAt ? account.email : null;
+  if (!phone && !email) return [];
+
+  return suggestionsFor({
+    email,
+    phone,
+    /* 22R — never offer somebody their own record as a therapist's. */
+    excludePersonId: account.personId,
+  });
 }
 
 /**

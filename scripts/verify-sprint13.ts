@@ -13,7 +13,6 @@
  */
 import { and, eq, like, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import {
   patientAccounts,
   patients,
@@ -21,6 +20,19 @@ import {
   personClaims,
   users,
 } from "../lib/db/schema";
+import { writesTo } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 let failures = 0;
 let checks = 0;
@@ -28,7 +40,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 function note(text: string) {
@@ -48,7 +60,10 @@ const PHONE_A = "+201300000131";
 const PHONE_B = "+201300000132";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   const madeAccounts: string[] = [];
   const madePeople: string[] = [];
@@ -143,7 +158,7 @@ async function main() {
       .values({
         organizationId: therapistA.organizationId,
         therapistId: therapistA.id,
-        firstName: "Yasmin",
+        firstName: "verify13-patient",
         personId: personOne!.id,
         phone: PHONE_A,
         source: "therapist",
@@ -156,7 +171,7 @@ async function main() {
           .values({
             organizationId: therapistB.organizationId,
             therapistId: therapistB.id,
-            firstName: "Yasmin",
+            firstName: "verify13-patient",
             personId: personOne!.id,
             phone: PHONE_A,
             source: "therapist",
@@ -183,9 +198,17 @@ async function main() {
       keys.join(",") === "attemptsLeft,claimId,patientId,stage,therapistName",
       keys.join(", "),
     );
+    /*
+     * 22R — the fixture's patient is named for the fixture, not with a common
+     * first name. This asserted on "Yasmin" and went red the day a real
+     * therapist called Yasmin existed in the database: `therapistName` is
+     * *supposed* to be in this payload, so the check was reading the right
+     * field and calling it the wrong thing.
+     */
     check(
       "13.8 …and no patient name appears anywhere in it",
-      !JSON.stringify(offered).includes("Yasmin"),
+      !JSON.stringify(offered).includes("verify13-"),
+      JSON.stringify(offered).slice(0, 80),
     );
 
     /* --------------------------------------------- a "no" is remembered */
@@ -324,7 +347,7 @@ async function main() {
       )
       .limit(1);
     check(
-      "🔴 13.10 passing the challenge does not itself claim the record — consent still runs",
+      "🔴 13.10 passing the challenge does not itself claim the record, consent still runs",
       claimRow?.status === "pending" && claimRow?.confirmed !== null,
       `status=${claimRow?.status}`,
     );
@@ -356,7 +379,7 @@ async function main() {
       String(patientRow?.timezone),
     );
 
-    note("13.9's email fallback shares this code path — the challenge is channel-agnostic.");
+    note("13.9's email fallback shares this code path. The challenge is channel-agnostic.");
   } finally {
     await db.delete(personClaims).where(
       sql`${personClaims.patientAccountId} IN (SELECT id FROM patient_accounts WHERE email LIKE 'verify13-%')`,

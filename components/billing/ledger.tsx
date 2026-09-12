@@ -13,6 +13,7 @@ import { payInvoices } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 export type LedgerInvoice = {
   id: string;
@@ -86,6 +87,7 @@ export function BillingLedger({
   payments: LedgerPayment[];
   billingEnabled: boolean;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -137,7 +139,9 @@ export function BillingLedger({
         <Card>
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold text-slate-900">
-              {due.length} invoice{due.length === 1 ? "" : "s"} outstanding
+              {due.length === 1
+                ? t("tled.outstandingOne")
+                : t("tled.outstandingMany", { count: due.length })}
             </p>
             <button
               type="button"
@@ -146,7 +150,7 @@ export function BillingLedger({
               }
               className="text-xs font-medium text-brand-600"
             >
-              {selected.size === due.length ? "Clear" : "Select all"}
+              {selected.size === due.length ? t("tled.clear") : t("tled.selectAll")}
             </button>
           </div>
 
@@ -180,7 +184,9 @@ export function BillingLedger({
                       <span className="block text-xs text-slate-500">
                         {invoice.issuedAt}
                         {invoice.discountCents > 0
-                          ? ` · ${formatUsd(invoice.discountCents)} credit applied`
+                          ? ` · ${t("tled.creditApplied", {
+                              amount: formatUsd(invoice.discountCents),
+                            })}`
                           : ""}
                       </span>
                     </span>
@@ -213,8 +219,10 @@ export function BillingLedger({
             >
               <CreditCard className="h-4 w-4" aria-hidden />
               {pending
-                ? "Opening checkout…"
-                : `Pay ${formatUsd(total)} · ${selected.size} invoice${selected.size === 1 ? "" : "s"}`}
+                ? t("tled.openingCheckout")
+                : selected.size === 1
+                  ? t("tled.payOne", { amount: formatUsd(total) })
+                  : t("tled.payMany", { amount: formatUsd(total), count: selected.size })}
             </Button>
           </div>
         </Card>
@@ -222,14 +230,14 @@ export function BillingLedger({
 
       <Card>
         <div className="border-b border-slate-100 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-900">Everything, in order</p>
+          <p className="text-sm font-semibold text-slate-900">{t("tled.title")}</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            Money you paid us and money patients paid you, in one list. Tap any row for the detail.
+            {t("tled.blurb")}
           </p>
         </div>
 
         {history.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500">Nothing has settled yet.</p>
+          <p className="px-4 py-6 text-sm text-slate-500">{t("tled.nothing")}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {history.map((entry) => {
@@ -261,7 +269,9 @@ export function BillingLedger({
                       <span className="block truncate text-sm font-medium text-slate-900">
                         {entry.kind === "invoice"
                           ? entry.invoice.description
-                          : `${entry.payment.payerName ?? "Patient"} paid you`}
+                          : t("tled.paidYou", {
+                              name: entry.payment.payerName ?? t("tled.patient"),
+                            })}
                       </span>
                       <span className="block text-xs text-slate-500">{entry.at}</span>
                     </span>
@@ -276,7 +286,7 @@ export function BillingLedger({
                         {entry.kind === "payment"
                           ? `+${formatUsd(entry.payment.therapistNetCents)}`
                           : entry.invoice.amountCents === 0
-                            ? "Free"
+                            ? t("tled.free")
                             : `−${formatUsd(
                                 Math.max(0, entry.invoice.amountCents - entry.invoice.discountCents),
                               )}`}
@@ -306,37 +316,45 @@ export function BillingLedger({
 }
 
 function StatusBadge({ entry }: { entry: Entry }) {
+  const t = useT();
   if (entry.kind === "payment") {
     const status = entry.payment.status;
-    if (status === "paid") return <Badge tone="green">Received</Badge>;
-    if (status === "pending") return <Badge tone="amber">Awaiting</Badge>;
-    if (status === "refunded") return <Badge tone="slate">Refunded</Badge>;
-    return <Badge tone="red">Failed</Badge>;
+    if (status === "paid") return <Badge tone="green">{t("tled.received")}</Badge>;
+    if (status === "pending") return <Badge tone="amber">{t("tled.awaiting")}</Badge>;
+    if (status === "refunded") return <Badge tone="slate">{t("tled.refunded")}</Badge>;
+    return <Badge tone="red">{t("tled.failed")}</Badge>;
   }
 
   const status = entry.invoice.status;
-  if (status === "paid") return <Badge tone="green">Paid</Badge>;
-  if (status === "due") return <Badge tone="amber">Due</Badge>;
-  if (status === "waived") return <Badge tone="teal">Free</Badge>;
-  if (status === "included") return <Badge tone="brand">Included</Badge>;
-  if (status === "void") return <Badge tone="slate">Void</Badge>;
-  return <Badge tone="red">Failed</Badge>;
+  if (status === "paid") return <Badge tone="green">{t("tled.paid")}</Badge>;
+  if (status === "due") return <Badge tone="amber">{t("tled.due")}</Badge>;
+  if (status === "waived") return <Badge tone="teal">{t("tled.free")}</Badge>;
+  if (status === "included") return <Badge tone="brand">{t("tled.included")}</Badge>;
+  if (status === "void") return <Badge tone="slate">{t("tled.void")}</Badge>;
+  return <Badge tone="red">{t("tled.failed")}</Badge>;
 }
 
 function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
+  const t = useT();
   const payable = Math.max(0, invoice.amountCents - invoice.discountCents);
   return (
     <dl className="space-y-1.5 text-sm">
-      <Line label="Invoice" value={<span className="font-mono text-xs">{invoice.id.slice(0, 8)}</span>} />
-      <Line label="Type" value={invoice.kind === "session" ? "Completed session" : "Subscription"} />
-      <Line label="Issued" value={invoice.issuedAt} />
+      <Line
+        label={t("tled.invoice")}
+        value={<span className="font-mono text-xs">{invoice.id.slice(0, 8)}</span>}
+      />
+      <Line
+        label={t("tled.type")}
+        value={invoice.kind === "session" ? t("tled.completedSession") : t("tled.subscription")}
+      />
+      <Line label={t("tled.issued")} value={invoice.issuedAt} />
       {invoice.periodStart && invoice.periodEnd ? (
-        <Line label="Period" value={`${invoice.periodStart} → ${invoice.periodEnd}`} />
+        <Line label={t("tled.period")} value={`${invoice.periodStart} → ${invoice.periodEnd}`} />
       ) : null}
-      <Line label="Amount" value={formatUsd(invoice.amountCents)} />
+      <Line label={t("tled.amount")} value={formatUsd(invoice.amountCents)} />
       {invoice.discountCents > 0 ? (
         <Line
-          label="Credit"
+          label={t("tled.credit")}
           value={
             <span className="text-teal-700">
               −{formatUsd(invoice.discountCents)}
@@ -346,10 +364,10 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
         />
       ) : null}
       <Line
-        label="You paid"
-        value={<span className="font-semibold">{invoice.paidAt ? formatUsd(payable) : "—"}</span>}
+        label={t("tled.youPaid")}
+        value={<span className="font-semibold">{invoice.paidAt ? formatUsd(payable) : "-"}</span>}
       />
-      {invoice.paidAt ? <Line label="Settled" value={invoice.paidAt} /> : null}
+      {invoice.paidAt ? <Line label={t("tled.settled")} value={invoice.paidAt} /> : null}
 
       {invoice.usage ? <UsageBreakdown usage={invoice.usage} /> : null}
     </dl>
@@ -367,14 +385,25 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
  * answering the question.
  */
 function UsageBreakdown({ usage }: { usage: NonNullable<LedgerInvoice["usage"]> }) {
+  const t = useT();
   const minutes = Math.round(usage.transcribedSeconds / 60);
   const items = [
-    minutes > 0 ? `${minutes} minute${minutes === 1 ? "" : "s"} transcribed` : null,
-    usage.noteWritten ? "Note written" : null,
-    usage.translated ? "Note translated" : null,
-    usage.riskScans > 0 ? `${usage.riskScans} risk scan${usage.riskScans === 1 ? "" : "s"}` : null,
+    minutes > 0
+      ? minutes === 1
+        ? t("tled.minutesOne")
+        : t("tled.minutesMany", { count: minutes })
+      : null,
+    usage.noteWritten ? t("tled.noteWritten") : null,
+    usage.translated ? t("tled.noteTranslated") : null,
+    usage.riskScans > 0
+      ? usage.riskScans === 1
+        ? t("tled.riskOne")
+        : t("tled.riskMany", { count: usage.riskScans })
+      : null,
     usage.copilotQuestions > 0
-      ? `${usage.copilotQuestions} copilot question${usage.copilotQuestions === 1 ? "" : "s"}`
+      ? usage.copilotQuestions === 1
+        ? t("tled.copilotOne")
+        : t("tled.copilotMany", { count: usage.copilotQuestions })
       : null,
   ].filter(Boolean) as string[];
 
@@ -383,7 +412,7 @@ function UsageBreakdown({ usage }: { usage: NonNullable<LedgerInvoice["usage"]> 
   return (
     <div className="mt-2.5 border-t border-slate-200 pt-2.5">
       <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-        What this covered
+        {t("tled.covered")}
       </p>
       <ul className="mt-1.5 space-y-1">
         {items.map((item) => (
@@ -398,27 +427,34 @@ function UsageBreakdown({ usage }: { usage: NonNullable<LedgerInvoice["usage"]> 
 }
 
 function PaymentDetail({ payment }: { payment: LedgerPayment }) {
+  const t = useT();
   const ourFee = payment.platformFeeCents - payment.settledInvoiceCents;
   return (
     <dl className="space-y-1.5 text-sm">
-      <Line label="Payment" value={<span className="font-mono text-xs">{payment.id.slice(0, 8)}</span>} />
-      <Line label="Patient paid" value={formatUsd(payment.grossCents)} />
-      <Line label="24Therapy fee" value={<span className="text-slate-500">−{formatUsd(ourFee)}</span>} />
+      <Line
+        label={t("tled.payment")}
+        value={<span className="font-mono text-xs">{payment.id.slice(0, 8)}</span>}
+      />
+      <Line label={t("tled.patientPaid")} value={formatUsd(payment.grossCents)} />
+      <Line
+        label={t("tled.fee")}
+        value={<span className="text-slate-500">−{formatUsd(ourFee)}</span>}
+      />
       {payment.settledInvoiceCents > 0 ? (
         <Line
-          label="Your bill, settled"
+          label={t("tled.billSettled")}
           value={<span className="text-slate-500">−{formatUsd(payment.settledInvoiceCents)}</span>}
         />
       ) : null}
       <Line
-        label={payment.capture === "destination" ? "Into your Stripe account" : "Held for you"}
+        label={payment.capture === "destination" ? t("tled.intoStripe") : t("tled.heldForYou")}
         value={
           <span className="font-semibold text-teal-700">
             {formatUsd(payment.therapistNetCents)}
           </span>
         }
       />
-      <Line label="Date" value={payment.paidAt ?? payment.createdAt} />
+      <Line label={t("tled.date")} value={payment.paidAt ?? payment.createdAt} />
       {/*
         Two payments, two true sentences. Printing the first one on a held
         payment would be the most consequential lie on the page — it says the
@@ -426,9 +462,7 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
       */}
       <p className="pt-1.5 text-xs leading-relaxed text-slate-500">
         <Receipt className="me-1 inline h-3 w-3" aria-hidden />
-        {payment.capture === "destination"
-          ? "Paid directly into your own Stripe account — we never held this money. Stripe pays it out to your bank on its own schedule."
-          : "Stripe had not finished verifying you when this was paid, so we took it and are holding your share. It moves to your account automatically the moment verification completes."}
+        {payment.capture === "destination" ? t("tled.directNote") : t("tled.heldNote")}
       </p>
     </dl>
   );

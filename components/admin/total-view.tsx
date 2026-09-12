@@ -309,7 +309,7 @@ function Now({
                       {row.clinician} &rarr; {row.person}
                     </span>
                     <span className="block truncate text-xs text-slate-500">
-                      {row.startedAt ? formatElapsed(minutesSince(row.startedAt)) : "—"}
+                      {row.startedAt ? formatElapsed(minutesSince(row.startedAt)) : "-"}
                       · {row.segments} segments
                       {row.lastActivityAt
                         ? ` · last words ${formatAgo(secondsSince(row.lastActivityAt))} ago`
@@ -431,7 +431,7 @@ function Timeline({
                       {row.kind}
                     </span>
                     <span className="font-medium text-slate-800">{row.who}</span>
-                    <span className="text-slate-600"> — {row.what}</span>
+                    <span className="text-slate-600">, {row.what}</span>
                   </span>
                 ))}
               </span>
@@ -509,7 +509,7 @@ function People({
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-slate-900">
-                    {p.names || "—"}
+                    {p.names || "-"}
                   </span>
                   <span className="block truncate text-xs text-slate-500">
                     {p.email ?? "no email on file"} · {p.therapists}
@@ -678,7 +678,7 @@ function ClinicianRow({ clinician }: { clinician: Clinician }) {
             Disclose their practice record
           </p>
           <p className="text-xs leading-relaxed text-slate-500">
-            Sessions and note status as a spreadsheet — no transcripts. The clinician is told it
+            Sessions and note status as a spreadsheet, no transcripts. The clinician is told it
             happened, and the reason below is kept in the audit record. You are blind-copied.
           </p>
           <Field label="Send to" htmlFor={`to-${clinician.id}`}>
@@ -787,7 +787,7 @@ function SessionDetail({ detail, onClose }: { detail: Detail; onClose: () => voi
               {detail.risks.map((r) => (
                 <p key={r.id} className="text-sm text-amber-900">
                   <span className="font-semibold capitalize">{r.level}</span>
-                  {r.detail ? ` — ${r.detail}` : ""}
+                  {r.detail ? `, ${r.detail}` : ""}
                 </p>
               ))}
             </div>

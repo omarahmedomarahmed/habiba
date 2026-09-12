@@ -7,6 +7,8 @@ import { MapPin, Radio, X } from "lucide-react";
 import { toggleClinicVisits, toggleRadar } from "@/app/(app)/on-call/actions";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * The orb: what the radar is doing, on every page, without going to look.
@@ -70,6 +72,7 @@ export function RadarOrb({
   practiceAddress: string | null;
   practiceConfirmed: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -102,13 +105,14 @@ export function RadarOrb({
           ? "live"
           : "off";
 
-  const LABEL: Record<string, string> = {
-    suspended: "Suspended from the radar",
-    session: "In a session",
-    booked: "Someone is booking you",
-    viewing: "Someone is looking at your profile",
-    live: "Live on the radar",
-    off: "Off the radar",
+  /* 37L.2 — keys, resolved below. The orb is on every page in the portal. */
+  const LABEL: Record<string, MessageKey> = {
+    suspended: "torb.suspended",
+    session: "trad.inSession",
+    booked: "trad.pending",
+    viewing: "torb.viewing",
+    live: "trad.on",
+    off: "trad.off",
   };
 
   const DOT: Record<string, string> = {
@@ -153,33 +157,33 @@ export function RadarOrb({
         <div
           ref={panelRef}
           role="dialog"
-          aria-label="Crisis Radar"
+          aria-label={t("portal.nav.crisisRadar")}
           className="animate-fade-rise pointer-events-auto w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl bg-white shadow-2xl shadow-navy-500/20 ring-1 ring-slate-200"
         >
           <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <span className={cn("h-2 w-2 shrink-0 rounded-full", DOT[tone])} />
-                {LABEL[tone]}
+                {t(LABEL[tone]!)}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">
                 {tone === "off"
-                  ? "Nobody can find you on the map."
+                  ? t("torb.offBody")
                   : tone === "live"
-                    ? "A stranger in crisis can reach you now."
+                    ? t("torb.liveBody")
                     : tone === "viewing"
-                      ? "You are showing as busy to everyone else."
+                      ? t("torb.viewingBody")
                       : tone === "booked"
-                        ? "Money is in flight. Open the room."
+                        ? t("torb.bookedBody")
                         : tone === "session"
-                          ? "You are unavailable to everyone else."
-                          : "An administrator has taken you off the radar."}
+                          ? t("torb.sessionBody")
+                          : t("torb.suspendedBody")}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Close"
+              aria-label={t("common.close")}
               className="tap-target -me-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
             >
               <X className="h-4 w-4" aria-hidden />
@@ -206,15 +210,15 @@ export function RadarOrb({
                 )}
               >
                 <Radio className="h-4 w-4" aria-hidden />
-                {pending ? "Working…" : tone === "off" ? "Go on the radar" : "Go off the radar"}
+                {pending ? t("common.working") : tone === "off" ? t("trad.goOnline") : t("torb.goOff")}
               </button>
             ) : null}
 
             <dl className="space-y-1.5 text-sm">
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-500">Your session rate</dt>
+                <dt className="text-slate-500">{t("torb.rate")}</dt>
                 <dd className="font-medium tabular-nums text-slate-900">
-                  {rateCents > 0 ? formatUsd(rateCents) : "Free"}
+                  {rateCents > 0 ? formatUsd(rateCents) : t("trad.free")}
                 </dd>
               </div>
               {rateCents > 0 && !chargesEnabled ? (
@@ -225,12 +229,18 @@ export function RadarOrb({
                  * without Connect is a rate nobody can pay.
                  */
                 <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
-                  Payouts are not set up, so this rate cannot be charged. Patients see you as
-                  free until you finish in{" "}
-                  <Link href="/settings" className="font-semibold underline">
-                    Settings
-                  </Link>
-                  .
+                  {t("torb.noPayouts")
+                    .split("{settings}")
+                    .flatMap((part, index) =>
+                      index === 0
+                        ? [part]
+                        : [
+                            <Link key="s" href="/settings" className="font-semibold underline">
+                              {t("portal.nav.settings")}
+                            </Link>,
+                            part,
+                          ],
+                    )}
                 </p>
               ) : null}
             </dl>
@@ -246,12 +256,10 @@ export function RadarOrb({
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-slate-800">
-                    Accept clinic visits
+                    {t("torb.walkIns")}
                   </span>
                   <span className="mt-0.5 block text-xs text-slate-500">
-                    {practiceConfirmed
-                      ? "Your address is shown on the map while this is on."
-                      : "Add and confirm your practice address first."}
+                    {practiceConfirmed ? t("torb.walkInsOn") : t("torb.walkInsOff")}
                   </span>
                 </span>
               </label>
@@ -280,7 +288,7 @@ export function RadarOrb({
               href="/on-call"
               className="block pt-1 text-center text-xs font-medium text-slate-500 hover:text-slate-800"
             >
-              Full radar settings
+              {t("torb.fullSettings")}
             </Link>
           </div>
         </div>
@@ -290,15 +298,35 @@ export function RadarOrb({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label={`${LABEL[tone]}. Open radar controls.`}
+        aria-label={t("torb.openControls", { status: t(LABEL[tone]!) })}
         className={cn(
-          "tap-target pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full shadow-lg ring-1 transition-colors",
+          "tap-target pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg ring-1 transition-colors",
           tone === "off"
             ? "bg-white ring-slate-200 hover:bg-slate-50"
             : "bg-navy-500 ring-navy-500/20 hover:bg-navy-600",
         )}
       >
-        <span className={cn("h-3 w-3 rounded-full", DOT[tone])} />
+        {/*
+          🔴 37R.25 / C187 — an icon, because a dot is not a control.
+
+          The collapsed state was a white circle with a 12px grey dot in it and
+          nothing else. On the walkthrough it read as a stray element or a
+          spinner: nothing on the screen said "radar", and a clinician who has
+          never opened it has no reason to press it. The dot stays — it is the
+          status, and its colour is the whole point — but it now sits on the
+          icon the sidebar uses for the same feature, so the two are visibly
+          the same thing.
+        */}
+        <Radio
+          className={cn("h-5 w-5", tone === "off" ? "text-slate-500" : "text-white")}
+          aria-hidden
+        />
+        <span
+          className={cn(
+            "absolute end-1 top-1 h-2.5 w-2.5 rounded-full ring-2 ring-white",
+            DOT[tone],
+          )}
+        />
       </button>
     </div>
   );

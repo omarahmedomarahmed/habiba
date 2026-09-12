@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { allRatings } from "@/lib/data/radar-admin";
 import { countryFlag } from "@/lib/geo";
 import { cn, relativeDay } from "@/lib/utils";
+import { translator } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Ratings", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -69,7 +70,7 @@ export default async function RatingsPage() {
                   <Score label="therapist" value={row.therapistStars} />
                   <Score label="us" value={row.serviceStars} />
                   <span className="ms-auto text-[11px] text-slate-400">
-                    {relativeDay(row.createdAt, actor.timezone)}
+                    {relativeDay(row.createdAt, actor.timezone, "en", translator("en"))}
                   </span>
                 </div>
 

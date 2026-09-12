@@ -11,7 +11,6 @@
  */
 import { and, eq, like, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import {
   patientAccounts,
   people,
@@ -20,7 +19,19 @@ import {
   supportTickets,
   users,
 } from "../lib/db/schema";
-import { reporter } from "./_verify";
+import { reporter, writesTo, readSource } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 const { check, finish } = reporter();
 
@@ -36,7 +47,10 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 const TAG = "verify20";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   const { readFileSync, readdirSync, writeFileSync, rmSync } = await import("node:fs");
 
@@ -83,12 +97,12 @@ async function main() {
     ];
 
     const staffPages = walk("app/(admin)/admin").filter((file) => {
-      const source = readFileSync(file, "utf8");
+      const source = readSource(file);
       return source.includes("requireStaff()") || source.includes("requireManager()");
     });
 
     const leaky = staffPages.filter((file) => {
-      const source = readFileSync(file, "utf8");
+      const source = readSource(file);
       return CLINICAL.some((needle) => source.includes(needle));
     });
 
@@ -114,14 +128,14 @@ async function main() {
           `export default async function Page() { await requireStaff(); return null; }\n`,
       );
       caught = walk("app/(admin)/admin")
-        .filter((file) => readFileSync(file, "utf8").includes("requireStaff()"))
-        .some((file) => CLINICAL.some((n) => readFileSync(file, "utf8").includes(n)));
+        .filter((file) => readSource(file).includes("requireStaff()"))
+        .some((file) => CLINICAL.some((n) => readSource(file).includes(n)));
     } finally {
       rmSync("app/(admin)/admin/_verify20-offender", { recursive: true, force: true });
     }
 
     check(
-      "🔴 20.9 CONTROL — the same walk CATCHES a staff page that imports one",
+      "🔴 20.9 CONTROL, the same walk CATCHES a staff page that imports one",
       caught,
       caught ? "planted, caught, removed" : "THE SCAN IS BLIND",
     );
@@ -161,7 +175,7 @@ async function main() {
     const therapistQueue = await queueFor("therapist");
 
     check(
-      "🔴 20.24 the two queues are separate — a payout chase never sorts above somebody in distress",
+      "🔴 20.24 the two queues are separate, a payout chase never sorts above somebody in distress",
       patientQueue.some((t) => t.reference === (patientTicket.ok ? patientTicket.reference : "")) &&
         therapistQueue.some(
           (t) => t.reference === (therapistTicket.ok ? therapistTicket.reference : ""),
@@ -216,7 +230,7 @@ async function main() {
       reason: "Still waiting on the bank to confirm the reference.",
     });
     check(
-      "🔴 20.20 one extension, and only one — an unlimited extension is not a deadline",
+      "🔴 20.20 one extension, and only one, an unlimited extension is not a deadline",
       first.ok === true && second.error !== undefined,
       second.error ?? "A SECOND EXTENSION WAS ACCEPTED",
     );
@@ -270,7 +284,7 @@ async function main() {
     const { readByToken } = await import("../lib/data/support");
     const wrongCode = await readByToken({ token: afterClose!.accessToken!, code: "000000" });
     check(
-      "🔴 20.22 the close link alone shows nothing — a code sent to their handle is required",
+      "🔴 20.22 the close link alone shows nothing, a code sent to their handle is required",
       wrongCode.error !== undefined && wrongCode.ticket === undefined,
       wrongCode.error ?? "THE LINK ALONE OPENED THE TICKET",
     );
@@ -285,7 +299,7 @@ async function main() {
      * that goes out carries a link and a code and **not one word of the
      * ticket**. Asserted on the source of the only function that sends it.
      */
-    const supportSource = readFileSync("lib/data/support.ts", "utf8");
+    const supportSource = readSource("lib/data/support.ts");
     const closeBody = supportSource.slice(
       supportSource.indexOf("export async function closeTicket"),
       supportSource.indexOf("export async function readByToken"),
@@ -383,7 +397,7 @@ async function main() {
       createdAt: new Date(Date.now() - 200 * 86_400_000),
     };
     check(
-      "🔴 20.14 a correction in the first 24 hours is NOT a change — a mistyped digit must not trap somebody",
+      "🔴 20.14 a correction in the first 24 hours is NOT a change, a mistyped digit must not trap somebody",
       lockUntil(brandNew) === null && lockUntil(settled) !== null,
       `new account: free · settled account: locked until ${lockUntil(settled)?.toISOString().slice(0, 10)}`,
     );
@@ -407,7 +421,7 @@ async function main() {
       .where(eq(patientAccounts.id, account!.id))
       .limit(1);
     check(
-      "🔴 20.16 approving does NOT move the account — only the code does",
+      "🔴 20.16 approving does NOT move the account, only the code does",
       afterApproval?.phone === "+201900000001",
       `still ${afterApproval?.phone}`,
     );
@@ -422,7 +436,7 @@ async function main() {
       .where(eq(phoneChangeRequests.id, request!.id))
       .limit(1);
     check(
-      "🔴 20.16 the code is HASHED — a staff member reading the table cannot finish the change they approved",
+      "🔴 20.16 the code is HASHED, a staff member reading the table cannot finish the change they approved",
       (withCode?.hash ?? "").length > 20 && !/^\d{6}$/.test(withCode?.hash ?? ""),
       `${(withCode?.hash ?? "").slice(0, 12)}…`,
     );
@@ -482,7 +496,7 @@ async function main() {
      * on its own, which is the shape a per-field check cannot see.
      */
     check(
-      "🔴 20.1 a price cap below the floor is refused — the check is on the whole configuration",
+      "🔴 20.1 a price cap below the floor is refused. The check is on the whole configuration",
       settingsProblem({
         ...before,
         session: { ...before.session, minPriceCents: 5_000, maxPriceCents: 100 },
@@ -497,7 +511,7 @@ async function main() {
     );
 
     check(
-      "🔴 20.3 a country with NEITHER rail is identifiable — that is a clinician nobody can pay",
+      "🔴 20.3 a country with NEITHER rail is identifiable. That is a clinician nobody can pay",
       countries.some((c) => !hasNoRail(c)),
       `${countries.filter(hasNoRail).length} of ${countries.length} have no rail`,
     );
@@ -549,11 +563,11 @@ async function main() {
     check(
       "🔴 20.6 …and the percentage is ABSENT, not zero, when nothing was collected",
       traction.marginBps === null || Number.isInteger(traction.marginBps),
-      traction.marginBps === null ? "null — nothing collected in 30 days" : `${traction.marginBps}bps`,
+      traction.marginBps === null ? "null, nothing collected in 30 days" : `${traction.marginBps}bps`,
     );
 
     /* 20.7 — the Total View sits on the same screen as the levers. */
-    const settingsPage = readFileSync("app/(admin)/admin/settings/page.tsx", "utf8");
+    const settingsPage = readSource("app/(admin)/admin/settings/page.tsx");
     check(
       "20.7 the margin is on the same page as the rates that produce it",
       settingsPage.includes("tractionMetrics") && settingsPage.includes("PricingEditor"),
@@ -591,7 +605,7 @@ async function main() {
     check(
       "🔴 20.19 / C82 no prompt-building module can reach a support ticket or its attachments",
       promptModules.every(
-        (file) => !/supportAttachments|data\/support/.test(readFileSync(file, "utf8")),
+        (file) => !/supportAttachments|data\/support/.test(readSource(file)),
       ),
     );
 
@@ -603,7 +617,7 @@ async function main() {
      */
     const extractors = [...walk("lib/documents"), ...walk("lib/data")].filter(
       (file) =>
-        /supportAttachments/.test(readFileSync(file, "utf8")) &&
+        /supportAttachments/.test(readSource(file)) &&
         !file.endsWith("lib/data/support.ts"),
     );
     check(

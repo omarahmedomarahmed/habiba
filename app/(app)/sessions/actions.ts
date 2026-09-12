@@ -11,6 +11,9 @@ import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { priceProblem } from "@/lib/billing/connect";
 import { getSettings } from "@/lib/settings";
 import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
+import { createInviteLink } from "@/app/(app)/patients/actions";
+import { normalisePhone, personIdForPatient } from "@/lib/data/people";
+import { publishSummary } from "@/lib/data/summaries";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
@@ -20,7 +23,8 @@ import {
   startSession,
   TransitionError,
 } from "@/lib/data/sessions";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   NOTE_LANGUAGES,
   patients,
@@ -35,6 +39,17 @@ import { finishSession } from "@/lib/session-finish";
 import { createPrivateRoom } from "@/lib/video";
 import { fullName } from "@/lib/utils";
 
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(app)/sessions/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
+
 export type SessionActionState = { error?: string; ok?: boolean; message?: string };
 
 export async function startNewSession(
@@ -47,6 +62,7 @@ export async function startNewSession(
   const modality = formData.get("modality") === "video" ? "video" : "in_person";
   const guestName = String(formData.get("guestName") ?? "").trim();
   const guestEmail = String(formData.get("guestEmail") ?? "").trim();
+  const guestPhone = String(formData.get("guestPhone") ?? "").trim();
   const patientId = String(formData.get("patientId") ?? "").trim() || null;
 
   if (!patientId && !guestName) {
@@ -75,15 +91,19 @@ export async function startNewSession(
    */
 
   let sessionId: string;
+  /** Set only when this call created the chart, so an existing patient is never re-invited. */
+  let newPatientId: string | null = null;
   try {
     const session = await createSession(actor, {
       modality,
       patientId,
       guestName: guestName || undefined,
       guestEmail: guestEmail || undefined,
+      guestPhone: guestPhone || undefined,
       priceCents,
     });
     sessionId = session.id;
+    if (!patientId && session.patientId) newPatientId = session.patientId;
 
     // Create the video room up front so the patient's link works the moment it
     // is sent, rather than only once the clinician presses Start. Whoever
@@ -118,6 +138,29 @@ export async function startNewSession(
   } catch (error) {
     log.error("session create failed", { reason: safeErrorMessage(error) });
     return { error: "Could not start the session. Please try again." };
+  }
+
+  /*
+   * 🔴 25.18 — the invite goes NOW, not from a second screen.
+   *
+   * Both halves of this already existed and were two pages apart: the chart is
+   * created above, and `createInviteLink` is the thing that makes the record
+   * the patient's own. A clinician starting a session with somebody new had to
+   * remember to walk to the patient page afterwards and press a second button,
+   * which is why most records were never handed over.
+   *
+   * Awaited rather than deferred to `after()`, because it reads the caller's
+   * session, and because a send that silently failed after the response would
+   * be invisible. `createInviteLink` reports whether it arrived rather than
+   * assuming; a failure here is logged and does not block the session, since
+   * the clinician can still send it from the patient page and the person in
+   * front of them is waiting.
+   */
+  if (newPatientId && normalisePhone(guestPhone)) {
+    const invited = await createInviteLink(newPatientId);
+    if ("error" in invited) {
+      log.warn("session invite not sent", { session: ref(sessionId), reason: invited.error });
+    }
   }
 
   redirect(`/sessions/${sessionId}/room`);
@@ -391,7 +434,7 @@ export async function approvePatientNote(sessionId: string): Promise<SessionActi
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
-  return { ok: true, message: "Approved — their summary is released" };
+  return { ok: true, message: "Approved. Their summary is released" };
 }
 
 /*
@@ -495,4 +538,111 @@ export async function setTranscriptLanguage(
     reason: next ?? "auto",
   });
   return { ok: true };
+}
+
+/* --------------------------------------------- 26.3 · C112 · one approval */
+
+export type ApprovalChoice = {
+  /** Sign the chart. */
+  clinical: boolean;
+  /** Release the patient's copy. Irreversible. */
+  patient: boolean;
+  /**
+   * The summary to publish as a new version, or null to publish nothing.
+   *
+   * 🔴 A string rather than a boolean plus a stored draft, because C112's rule
+   * is that **silence publishes nothing**. There is no draft summary sitting
+   * anywhere waiting to be released by inaction: if this is null, no version
+   * exists, and the patient's record is unchanged.
+   */
+  summary: string | null;
+};
+
+/**
+ * One screen, one action, three items. PLAN.md 26.3, C112.
+ *
+ * ## Why these three were merged and the actions were not
+ *
+ * Three separate approvals per session is how approvals become rubber stamps:
+ * by the third dialog nobody is reading. So the clinician sees all three
+ * together and presses once.
+ *
+ * Underneath, they stay three distinct writes with three distinct audit
+ * entries, because they are three different acts with three different
+ * consequences. Signing the chart is a professional attestation. Releasing the
+ * patient's copy puts text on somebody's phone and cannot be undone. Publishing
+ * a summary version writes an append-only row into a record that person owns
+ * and will still be reading in five years. Collapsing those into one row in the
+ * audit log would make the log worse to make the screen simpler.
+ *
+ * Partial failure is reported rather than rolled back. If the summary is
+ * rejected for reading like a clinical note (26.4) but the chart was signed,
+ * the honest answer is "signed, and the summary needs a rewrite", not undoing a
+ * signature the clinician meant.
+ */
+export async function approveSession(
+  sessionId: string,
+  choice: ApprovalChoice,
+): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const row = await getSession(actor, sessionId);
+  if (!row) return { error: "Session not found." };
+
+  const done: string[] = [];
+
+  /** Join the fragments and give the result a capital letter. */
+  const sentence = (parts: string[]) => {
+    const joined = parts.join(", ");
+    return joined.charAt(0).toUpperCase() + joined.slice(1);
+  };
+
+  if (choice.clinical) {
+    const result = await approveNote(sessionId);
+    if (result.error) return result;
+    done.push("chart signed");
+  }
+
+  if (choice.patient) {
+    const result = await approvePatientNote(sessionId);
+    if (result.error) return result;
+    done.push("their copy released");
+  }
+
+  if (choice.summary && choice.summary.trim()) {
+    const personId = row.session.patientId
+      ? await personIdForPatient(row.session.patientId)
+      : null;
+
+    if (!personId) {
+      return {
+        error:
+          done.length > 0
+            ? `${sentence(done)}. The summary could not be published: this session has no patient record attached to a person.`
+            : "This session has no patient record attached to a person, so there is nothing to add a summary to.",
+      };
+    }
+
+    const published = await publishSummary(actor, {
+      personId,
+      body: choice.summary,
+      sessionId,
+    });
+
+    if (!published.ok) {
+      return {
+        error: done.length > 0 ? `${sentence(done)}. ${published.error}` : published.error,
+      };
+    }
+
+    done.push(`summary version ${published.version} published`);
+  }
+
+  if (done.length === 0) return { ok: true, message: "Nothing published." };
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/notes");
+  /* 37R.25 — the list is assembled from fragments, so the sentence it becomes
+     needs its own capital. It read "chart signed, their copy released." on the
+     screen, which looks like a bug even though nothing was wrong underneath. */
+  return { ok: true, message: `${sentence(done)}.` };
 }

@@ -2,8 +2,11 @@ import "server-only";
 
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor } from "@/lib/db";
+import { regionOfPerson } from "@/lib/db/directory";
 import { patients, sessionNotes, sessions, users } from "@/lib/db/schema";
+
+
 
 /**
  * Everything a patient may see about their own sessions. PLAN.md 15.3, 15.4, 15.8.
@@ -65,6 +68,9 @@ export type PatientSession = {
  * person layer.
  */
 export async function sessionsForPatient(personId: string): Promise<PatientSession[]> {
+  /* 🔴 30.1 / C154 — the patient's own view, from the patient's own region. */
+  const db = dbFor(await regionOfPerson(personId));
+
   const rows = await db
     .select({
       id: sessions.id,

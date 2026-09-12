@@ -11,7 +11,6 @@
  */
 import { and, eq, like, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import {
   patients,
   people,
@@ -20,6 +19,19 @@ import {
   transcriptSegments,
   users,
 } from "../lib/db/schema";
+import { writesTo, readSource } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 let failures = 0;
 let checks = 0;
@@ -27,13 +39,16 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 const SECRET = "THE-PATIENT-MUST-NEVER-SEE-THIS";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   try {
     const [therapist] = await db
@@ -132,7 +147,7 @@ async function main() {
      */
     const payload = JSON.stringify(rows);
     check(
-      "🔴 15.8 NOTHING clinical reaches the patient's query — not the SOAP, the summary, the impressions, or a transcript line",
+      "🔴 15.8 NOTHING clinical reaches the patient's query, not the SOAP, the summary, the impressions, or a transcript line",
       !payload.includes(SECRET),
       payload.includes(SECRET) ? "THE SENTINEL LEAKED" : "sentinel absent from every field",
     );
@@ -151,11 +166,11 @@ async function main() {
       .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
       .where(eq(patients.personId, person!.id));
     check(
-      "🔴 15.8 CONTROL — the same assertion CATCHES a query one column wider",
+      "🔴 15.8 CONTROL, the same assertion CATCHES a query one column wider",
       JSON.stringify(widened).includes(SECRET),
       JSON.stringify(widened).includes(SECRET)
         ? "the sentinel surfaces, so the check above has teeth"
-        : "THE CHECK IS A FALSE GREEN — it cannot see a leak",
+        : "THE CHECK IS A FALSE GREEN, it cannot see a leak",
     );
 
     check(
@@ -185,7 +200,7 @@ async function main() {
 
     const unsigned = await sessionsForPatient(person!.id);
     check(
-      "🔴 15.4 an UNSIGNED brief is withheld — a draft is a machine's first attempt",
+      "🔴 15.4 an UNSIGNED brief is withheld, a draft is a machine's first attempt",
       unsigned[0]?.brief === null && unsigned[0]?.briefPending === true,
       `brief=${unsigned[0]?.brief === null ? "null" : "present"}`,
     );
@@ -246,23 +261,23 @@ async function main() {
     const offenders = walk("app/(patient)")
       .concat(walk("components/patient"))
       .filter((file) => {
-        const src = readFileSync(file, "utf8");
+        const src = readSource(file);
         return BANNED.some((table) => new RegExp(`\\b${table}\\b`).test(src));
       });
     check(
-      "🔴 C16 no patient screen touches a clinical table — the reuse boundary, not a convention",
+      "🔴 C16 no patient screen touches a clinical table, the reuse boundary, not a convention",
       offenders.length === 0,
       offenders.length === 0 ? `${BANNED.join(", ")} absent` : offenders.join(", "),
     );
 
     // …and the ban is a real ban: it must fire on a file that does touch one.
     const control = walk("app").filter((f) => f.includes("(app)")).find((file) =>
-      BANNED.some((t) => new RegExp(`\\b${t}\\b`).test(readFileSync(file, "utf8"))),
+      BANNED.some((t) => new RegExp(`\\b${t}\\b`).test(readSource(file))),
     );
     check(
-      "🔴 C16 CONTROL — the same scan FINDS a clinician screen that does",
+      "🔴 C16 CONTROL, the same scan FINDS a clinician screen that does",
       control !== undefined,
-      control ?? "NOTHING MATCHED — the scan proves nothing",
+      control ?? "NOTHING MATCHED, the scan proves nothing",
     );
   } finally {
     await db.delete(transcriptSegments).where(

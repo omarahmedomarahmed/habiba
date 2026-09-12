@@ -6,16 +6,29 @@ import { ArrowLeft, FileText } from "lucide-react";
 import { CopilotChat } from "@/components/copilot/chat";
 import { AccessBanner } from "@/components/patient/access-banner";
 import { Card } from "@/components/ui";
-import { PROMPT_TEMPLATES } from "@/lib/ai/patient-copilot";
+import { PROMPT_TEMPLATES, promptTemplateKeys } from "@/lib/ai/case-copilot";
 import { requireUser } from "@/lib/auth/guard";
 import { explain } from "@/lib/access/state";
 import { checkQuota, getMessages, getOrCreateThread } from "@/lib/data/copilot";
 import { accessFor } from "@/lib/data/grants";
 import { getPatientHistory } from "@/lib/data/patients";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { fullName, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(app)/copilot/[patientId]/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = { title: "Copilot", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -25,6 +38,7 @@ export default async function CopilotThreadPage({
 }: {
   params: Promise<{ patientId: string }>;
 }) {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { patientId } = await params;
 
@@ -49,7 +63,7 @@ export default async function CopilotThreadPage({
           className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Copilot
+          {t("portal.copilot.title")}
         </Link>
       </div>
 
@@ -83,7 +97,7 @@ export default async function CopilotThreadPage({
             <details>
               <summary className="tap-target flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-800">
                 <FileText className="h-4 w-4 text-slate-400" aria-hidden />
-                Session history and transcripts
+                {t("portal.copilot.history")}
                 <span className="ms-auto text-xs font-normal text-slate-400">
                   {history.length}
                 </span>
@@ -96,7 +110,7 @@ export default async function CopilotThreadPage({
                       className="block px-4 py-3 active:bg-slate-50"
                     >
                       <p className="text-sm font-medium text-slate-900">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                         {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
                       </p>
                       {session.noteSummary?.summary ? (
@@ -116,7 +130,16 @@ export default async function CopilotThreadPage({
           zone={actor.timezone}
           patientId={patientId}
           patientName={found.patient.firstName}
-          templates={PROMPT_TEMPLATES.map((t) => ({ label: t.label, text: t.text }))}
+          /*
+           * 45.6 — resolved here, where a translator exists. The template's
+           * key stays the identifier; the label is read and the text is what
+           * the thread records the clinician as having asked, so both are in
+           * the language they are working in.
+           */
+          templates={PROMPT_TEMPLATES.map(promptTemplateKeys).map((tpl) => ({
+            label: t(tpl.labelKey),
+            text: t(tpl.textKey),
+          }))}
           quota={{ used: quota.used, limit: quota.limit }}
           initialVoice={me?.profile?.voice ?? "british_female"}
           initialSpeed={me?.profile?.voiceSpeed ?? 1}

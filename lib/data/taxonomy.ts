@@ -1,17 +1,29 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE. One copy, read by every region.
+ *
+ * This module reads facts about the PRODUCT rather than about a person:
+ * settings, content, taxonomy, language, the operator console. There is one
+ * of each and Cairo reads the same rows as Virginia. The compiler would not
+ * let this file compile without making that choice explicitly.
+ */
 import "server-only";
 
 import { cache } from "react";
 import { and, eq } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db } from "@/lib/db";
 import { taxonomyEntries, type TaxonomyKind } from "@/lib/db/schema";
 import {
-  COUNTRY_OPTIONS,
+  countryOptions,
   RADAR_LANGUAGES,
   RADAR_SPECIALTIES,
   countryFlag,
   languageFlag,
 } from "@/lib/geo";
+import { getI18n } from "@/lib/i18n/server";
+import { en as ENGLISH, type MessageKey } from "@/lib/i18n/messages";
+import type { Translate } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * What the radar is allowed to offer, and who decides.
@@ -40,14 +52,53 @@ export type TaxonomyOption = {
  * strings a clinician picked from the same list, and inventing a parallel code
  * space for them buys nothing but a mapping to get wrong.
  */
-function builtIn(kind: TaxonomyKind): { code: string; label: string; flag: string }[] {
+/**
+ * The dictionary key for a taxonomy value, or null when there is not one. 37L.2.
+ *
+ * The stored value IS the English label for languages and specialties — that
+ * is the decision above, and it is not changed here: the allowlist, the
+ * database rows and the matching all still use the English string. What
+ * changes is what a reader is shown. A code with no key (an admin's custom
+ * specialty) falls back to its own value, which is the honest answer: nobody
+ * has translated it.
+ */
+function taxonomyKey(kind: TaxonomyKind, code: string): MessageKey | null {
+  if (kind === "country") return null;
+  const prefix = kind === "language" ? "lang" : "spec";
+  const slug = code
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((word, index) =>
+      index === 0
+        ? word[0]!.toLowerCase() + word.slice(1)
+        : word[0]!.toUpperCase() + word.slice(1),
+    )
+    .join("");
+  const key = `${prefix}.${slug}`;
+  return key in ENGLISH ? (key as MessageKey) : null;
+}
+
+function builtIn(
+  kind: TaxonomyKind,
+  t: Translate,
+  locale: Locale,
+): { code: string; label: string; flag: string }[] {
   if (kind === "country") {
-    return COUNTRY_OPTIONS.map((c) => ({ code: c.code, label: c.name, flag: c.flag }));
+    // 45.6 — named and collated in the reader's language, by ICU.
+    return countryOptions(locale).map((c) => ({ code: c.code, label: c.name, flag: c.flag }));
   }
   if (kind === "language") {
-    return RADAR_LANGUAGES.map((l) => ({ code: l, label: l, flag: languageFlag(l) }));
+    return RADAR_LANGUAGES.map((l) => ({
+      code: l,
+      label: taxonomyKey("language", l) ? t(taxonomyKey("language", l)!) : l,
+      flag: languageFlag(l),
+    }));
   }
-  return RADAR_SPECIALTIES.map((s) => ({ code: s, label: s, flag: "" }));
+  return RADAR_SPECIALTIES.map((s) => ({
+    code: s,
+    label: taxonomyKey("specialty", s) ? t(taxonomyKey("specialty", s)!) : s,
+    flag: "",
+  }));
 }
 
 /**
@@ -65,9 +116,10 @@ const overrides = cache(async (kind: TaxonomyKind) => {
 /** Everything in this kind, enabled or not — the admin view. */
 export async function taxonomy(kind: TaxonomyKind): Promise<TaxonomyOption[]> {
   const map = await overrides(kind);
+  const { t, locale } = await getI18n();
   const seen = new Set<string>();
 
-  const merged: TaxonomyOption[] = builtIn(kind).map((entry) => {
+  const merged: TaxonomyOption[] = builtIn(kind, t, locale).map((entry) => {
     seen.add(entry.code);
     const row = map.get(entry.code);
     return {
@@ -92,8 +144,12 @@ export async function taxonomy(kind: TaxonomyKind): Promise<TaxonomyOption[]> {
     });
   }
 
+  /*
+   * 45.6 — collated in the reader's language. `localeCompare` with no locale
+   * sorts Arabic by code point, which is not alphabetical in any language.
+   */
   return merged.sort(
-    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
+    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, locale),
   );
 }
 
@@ -170,7 +226,7 @@ export async function addTaxonomyEntry(
   if (trimmed.length < 2) return { error: "Too short." };
   if (trimmed.length > 48) return { error: "Keep it under 48 characters." };
   if (kind === "country") {
-    return { error: "Countries come from the map itself — ask us to add one." };
+    return { error: "Countries come from the map itself, ask us to add one." };
   }
 
   const existing = await taxonomy(kind);

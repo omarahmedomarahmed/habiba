@@ -2,10 +2,22 @@ import "server-only";
 
 import { desc, eq } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { transcriptSegments } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { MODELS, logUsage, openai, parseJson } from "./client";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/ai/copilot.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * In-session copilot.
@@ -30,7 +42,7 @@ const SYSTEM_PROMPT = `You are a quiet clinical copilot sitting beside a license
 You see the last few minutes of transcript. Offer at most two short prompts that would genuinely help *right now*.
 
 Rules:
-- LANGUAGE: every "text" must be in exactly the same language as the transcript you are given. Read it, identify the language the two people are actually speaking, and write in that language and no other. English transcript, English prompts. Arabic transcript, Arabic prompts. Never a third language. These are sentences the therapist will say out loud to this patient, so the wrong language is useless to both of them — and these instructions being in English is not a reason to write in English.
+- LANGUAGE: every "text" must be in exactly the same language as the transcript you are given. Read it, identify the language the two people are actually speaking, and write in that language and no other. English transcript, English prompts. Arabic transcript, Arabic prompts. Never a third language. These are sentences the therapist will say out loud to this patient, so the wrong language is useless to both of them, and these instructions being in English is not a reason to write in English.
 - Be brief. One sentence each, under 18 words. The therapist is reading this while listening to someone.
 - Suggest, never instruct. "Worth exploring…" not "You should…".
 - Only surface something if it is actually useful. Returning an empty list is the correct answer most of the time, and is strongly preferred over stating the obvious.

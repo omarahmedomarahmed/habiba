@@ -17,11 +17,16 @@
  *    **phone number ID** (a long integer, *not* the phone number) and a
  *    temporary 24-hour token. For production, make a System User with the
  *    `whatsapp_business_messaging` permission and mint a permanent token.
- * 3. WhatsApp → Message Templates: create the four templates named in
+ * 3. WhatsApp → Message Templates: create every template named in
  *    `lib/notify/whatsapp.ts`, in the language `WHATSAPP_TEMPLATE_LANGUAGE`
  *    is set to (`ar` by default), each with the numbered variables the
  *    mapping expects. **They must be approved before anything sends.**
  *    Approval is usually minutes and is occasionally refused.
+ *    ⚠️ `password_reset_code` (21R.4) is an **authentication** template, on
+ *    Meta's stricter track, and until it is approved a patient with no email
+ *    address cannot reset their password at all — which is the one failure in
+ *    this list that locks somebody out of their own clinical record. The reset
+ *    page says so while it is pending.
  * 4. The recipient must have messaged the business, or be on the test-number
  *    allowlist, until the number is out of sandbox.
  *
@@ -53,7 +58,7 @@ async function main() {
     const parsed = toE164(to, null);
     console.error(
       `"${to}" is not an E.164 number. ${e164Problem(parsed) ?? ""}\n` +
-        "Pass it the way Meta needs it: a plus, the country code, then the number — +201001234567.",
+        "Pass it the way Meta needs it: a plus, the country code, then the number, +201001234567.",
     );
     process.exit(1);
   }
@@ -61,7 +66,7 @@ async function main() {
   if (!whatsappConfigured()) {
     console.error(
       "WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not both set.\n" +
-        "Nothing is wired up yet — see the comment at the top of this file.",
+        "Nothing is wired up yet, see the comment at the top of this file.",
     );
     process.exit(1);
   }
@@ -80,7 +85,7 @@ async function main() {
     console.log("\nSENT. Check the handset.");
     console.log("If nothing arrives, the template is probably not approved yet.");
   } else {
-    console.log("\nNOT SENT — and this is the honest failure, not a crash.");
+    console.log("\nNOT SENT, and this is the honest failure, not a crash.");
     console.log("Most likely: the template name or its language does not match, or it is");
     console.log("awaiting approval. The rejection code is in the log line above.");
   }

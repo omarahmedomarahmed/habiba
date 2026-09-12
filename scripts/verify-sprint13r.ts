@@ -15,8 +15,20 @@
  */
 import { and, eq, like, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import { claimAttempts, patientAccounts, patients, people, personClaims, users } from "../lib/db/schema";
+import { writesTo, readSource } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 let failures = 0;
 let checks = 0;
@@ -24,7 +36,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 async function refused(fn: () => Promise<unknown>, fragment: string): Promise<boolean> {
@@ -39,7 +51,10 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 const P = (n: number) => `+2013100${String(n).padStart(5, "0")}`;
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   try {
     const [therapist] = await db
@@ -93,7 +108,7 @@ async function main() {
       })
       .returning({ id: patientAccounts.id });
     check(
-      "🔴 13R.6 TWO address-less accounts coexist — NULLS DISTINCT, not NOT DISTINCT",
+      "🔴 13R.6 TWO address-less accounts coexist, NULLS DISTINCT, not NOT DISTINCT",
       Boolean(noEmailTwo),
     );
 
@@ -226,9 +241,9 @@ async function main() {
       name: "Yasmin",
     });
     check(
-      "🔴 13R.1 / C87 a fresh code does NOT restore the budget — the fourth guess is refused",
+      "🔴 13R.1 / C87 a fresh code does NOT restore the budget, the fourth guess is refused",
       !fourth.ok && fourth.locked === true,
-      fourth.ok ? "ACCEPTED — the budget reset" : fourth.error,
+      fourth.ok ? "ACCEPTED, the budget reset" : fourth.error,
     );
 
     /* ------------------------------------------------ C88 the way out */
@@ -236,7 +251,7 @@ async function main() {
     const release = await releaseLock({
       patientId: record!.id,
       releasedByUserId: therapist.id,
-      reason: "verify13r — spoke to her, she typed her married name",
+      reason: "verify13r, spoke to her, she typed her married name",
     });
     check("13R.4 the therapist can release the lock", release.ok);
 
@@ -272,7 +287,7 @@ async function main() {
     );
 
     check(
-      "13R.4 a release with no reason is refused — it goes on the record",
+      "13R.4 a release with no reason is refused. It goes on the record",
       !(await releaseLock({ patientId: record!.id, releasedByUserId: therapist.id, reason: " " }))
         .ok,
     );
@@ -318,7 +333,7 @@ async function main() {
      * person in therapy.
      */
     const { readFileSync } = await import("node:fs");
-    const authSource = readFileSync("lib/patient-auth/actions.ts", "utf8");
+    const authSource = readSource("lib/patient-auth/actions.ts");
     const messages = [...authSource.matchAll(/error: "(That[^"]*)"/g)].map((m) => m[1]);
     check(
       "13R.9 sign-in has exactly one failure message, not one per handle",

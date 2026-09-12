@@ -10,6 +10,7 @@ import {
   AccessRefusedError,
   createPatient,
   getPatient,
+  patientsWithPhone,
   updatePatient,
 } from "@/lib/data/patients";
 import { ensurePersonForPatient } from "@/lib/data/people";
@@ -20,7 +21,12 @@ import { releaseLock } from "@/lib/data/challenge";
 import { audit } from "@/lib/audit";
 import { fullName } from "@/lib/utils";
 
-export type PatientActionState = { error?: string; ok?: boolean };
+export type PatientActionState = {
+  error?: string;
+  ok?: boolean;
+  /** The record this number already belongs to, when one does (C186). */
+  duplicateOf?: string;
+};
 
 export async function addPatient(
   _prev: PatientActionState,
@@ -46,6 +52,34 @@ export async function addPatient(
 
   const parsed = toE164(rawPhone, String(formData.get("phoneCountry") ?? "") || null);
   if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
+
+  /*
+   * 🔴 37R.25 / C186 — the same number twice is two records for one person.
+   *
+   * The second walkthrough added Layla twice, ten seconds apart, with the same
+   * number and the same address, and got two charts with no warning of any
+   * kind. In a product whose identity model is *the phone number is the
+   * handle* (§3b, C119) that is not a tidiness problem: the invite, the claim
+   * and the summary all attach to one of the two, and the clinician reading
+   * the other sees half a history and no sign that the rest exists.
+   *
+   * It is refused rather than merged, because merging two charts is a clinical
+   * decision nobody should make implicitly. And it is refused rather than made
+   * impossible by a unique index, because two people really can share a phone
+   * — a parent's number on a child's record is the ordinary case — so the
+   * refusal names the record that is already there and takes `duplicate=allow`
+   * from somebody who has read that sentence and meant it.
+   */
+  if (String(formData.get("duplicate") ?? "") !== "allow") {
+    const existing = await patientsWithPhone(actor, parsed.e164);
+    if (existing.length > 0) {
+      const who = [existing[0]!.firstName, existing[0]!.lastName].filter(Boolean).join(" ");
+      return {
+        error: `${who || "Somebody"} is already on your caseload with that number. Open their record instead, or tick the box to add a second person who shares this phone.`,
+        duplicateOf: existing[0]!.id,
+      };
+    }
+  }
 
   const patient = await createPatient(actor, {
     firstName,

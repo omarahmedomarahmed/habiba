@@ -72,7 +72,36 @@ export type Message = {
      */
     | "support.closed"
     /** 20.16 — the code that proves somebody holds the NEW number. */
-    | "phone.verify";
+    | "phone.verify"
+    /**
+     * 🔴 21R.4 — the code that lets a patient back into their own record.
+     *
+     * WhatsApp first and email as well, because most patients in this database
+     * have no address (§3b, C43): a reset that can only be emailed is a reset
+     * most of the people who need it cannot use.
+     */
+    | "password.reset_code"
+    /**
+     * 🔴 26.10 / C128 — the link to a full record extract.
+     *
+     * Email only. This is the most sensitive document the platform produces,
+     * and WhatsApp is the channel most likely to be read by somebody else
+     * holding the phone, forwarded in one tap, and backed up to an account the
+     * person does not control. The caller enforces it by passing no phone at
+     * all, so the fallback cannot fire.
+     */
+    | "record.export"
+    /**
+     * 🔴 27.6 / C107 — the patient is told on EVERY new grant.
+     *
+     * No preference switches this off. The threat model is coercion: somebody
+     * pressured into approving, or whose phone was held while somebody else
+     * did. The only defence a product can offer is that the fact is visible
+     * afterwards and revocation costs nothing.
+     */
+    | "consent.granted"
+    /** 27.7 / C108 — the old clinician's answer, including a refusal. */
+    | "history.answered";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

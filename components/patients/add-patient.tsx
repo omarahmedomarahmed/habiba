@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { UserPlus } from "lucide-react";
 
@@ -8,6 +9,7 @@ import { addPatient } from "@/app/(app)/patients/actions";
 import { PhoneField } from "@/components/forms/phone-field";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { countryFromLocale } from "@/lib/phone/e164";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Writing down a new patient. PLAN.md 12.4, §3b.
@@ -30,14 +32,16 @@ import { countryFromLocale } from "@/lib/phone/e164";
  */
 function Submit() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Add patient"}
+      {pending ? t("common.saving") : t("tap.saving")}
     </Button>
   );
 }
 
 export function AddPatient() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(addPatient, {});
 
@@ -54,7 +58,7 @@ export function AddPatient() {
         className="tap-target flex w-full items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 py-3.5 text-sm font-semibold text-slate-600 hover:border-slate-400 hover:bg-slate-50"
       >
         <UserPlus className="h-4 w-4 text-slate-400" aria-hidden />
-        Add a patient
+        {t("tap.addPatient")}
       </button>
     );
   }
@@ -63,15 +67,15 @@ export function AddPatient() {
     <Card className="p-4">
       <form action={formAction} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="First name" htmlFor="firstName">
+          <Field label={t("tauth.firstName")} htmlFor="firstName">
             <Input id="firstName" name="firstName" autoComplete="off" required />
           </Field>
-          <Field label="Last name (optional)" htmlFor="lastName">
+          <Field label={t("tap.lastNameOptional")} htmlFor="lastName">
             <Input id="lastName" name="lastName" autoComplete="off" />
           </Field>
         </div>
 
-        <Field label="Phone" htmlFor="phone">
+        <Field label={t("tap.phone")} htmlFor="phone">
           <PhoneField
             value={phone}
             country={phoneCountry}
@@ -85,14 +89,14 @@ export function AddPatient() {
             in an error after they have already skipped it.
           */}
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Required, so you can invite them to join by WhatsApp and hand them their own record.
+            {t("tap.phoneHint")}
           </p>
         </Field>
 
-        <Field label="Email (optional)" htmlFor="email">
+        <Field label={t("tap.emailOptional")} htmlFor="email">
           <Input id="email" name="email" type="email" autoComplete="off" />
           <p className="mt-1 text-xs text-slate-500">
-            A complete alternative to WhatsApp for everything — the invite, the code, the summary.
+            {t("tap.emailHint")}
           </p>
         </Field>
 
@@ -102,6 +106,33 @@ export function AddPatient() {
           </p>
         ) : null}
 
+        {/*
+          🔴 C186 — the way past a duplicate number, and it only appears once
+          somebody has been told what they are doing.
+
+          Two people really can share a phone: a parent's number on a child's
+          record is ordinary. What is not ordinary is two charts for one person,
+          which is what happened here before the check existed, so the second
+          record costs one deliberate tick and a link to the one that is
+          already open.
+        */}
+        {state.duplicateOf ? (
+          <div className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm text-amber-900">
+            <Link
+              href={`/patients/${state.duplicateOf}`}
+              className="font-semibold underline underline-offset-2"
+            >
+              {t("tap.openExisting")}
+            </Link>
+            <label className="mt-2 flex items-start gap-2 text-xs leading-relaxed">
+              <input type="checkbox" name="duplicate" value="allow" className="mt-0.5" />
+              <span>
+                {t("tap.differentPerson")}
+              </span>
+            </label>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap gap-2">
           <Submit />
           <button
@@ -109,7 +140,7 @@ export function AddPatient() {
             onClick={() => setOpen(false)}
             className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-slate-600"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       </form>

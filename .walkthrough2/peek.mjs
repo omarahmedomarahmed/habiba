@@ -1,0 +1,11 @@
+import { browser, context, go, anatomy, text, shot, LAPTOP, PHONE } from "./lib.mjs";
+const [path, wide, name] = process.argv.slice(2);
+const b = await browser();
+const ctx = await context(b, wide === "wide" ? LAPTOP : PHONE);
+const p = await ctx.newPage();
+const status = await go(p, path);
+console.log("status", status, JSON.stringify(await anatomy(p)));
+console.log("-----");
+console.log((await text(p)).slice(0, 3000));
+if (name) console.log("shot", await shot(p, name));
+await b.close();

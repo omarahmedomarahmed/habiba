@@ -66,7 +66,7 @@ export default async function Page({
         person:
           [row.patientFirstName, row.patientLastName].filter(Boolean).join(" ") ||
           row.guestName ||
-          "—",
+          "-",
         personEmail: row.patientEmail ?? row.guestEmail,
         clinician: [row.therapistFirstName, row.therapistLastName].filter(Boolean).join(" "),
         clinicianEmail: row.therapistEmail,
@@ -136,7 +136,7 @@ export default async function Page({
         at: a.createdAt.toISOString(),
         category: a.category,
         action: a.action,
-        who: [a.actorFirstName, a.actorLastName].filter(Boolean).join(" ") || a.actorEmail || "—",
+        who: [a.actorFirstName, a.actorLastName].filter(Boolean).join(" ") || a.actorEmail || "-",
         reason: a.reason,
       }))}
       detail={
@@ -149,7 +149,7 @@ export default async function Page({
               person:
                 [detail.patientFirstName, detail.patientLastName].filter(Boolean).join(" ") ||
                 detail.session.guestName ||
-                "—",
+                "-",
               startedAt: detail.session.startedAt?.toISOString() ?? null,
               endedAt: detail.session.endedAt?.toISOString() ?? null,
               durationMinutes: detail.session.durationMinutes,

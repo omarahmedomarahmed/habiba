@@ -12,6 +12,7 @@ import { billingSummary, listInvoices, usageBySession } from "@/lib/billing/serv
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { features } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Billing", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default async function BillingPage({
 }: {
   searchParams: Promise<{ checkout?: string }>;
 }) {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { checkout } = await searchParams;
 
@@ -46,24 +48,23 @@ export default async function BillingPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Billing" />
+      <PageHeader title={t("portal.billing.title")} />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {checkout && checkout !== "cancelled" ? (
           <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
-            Payment received — thank you.
+            {t("portal.billing.paid")}
           </p>
         ) : null}
         {checkout === "cancelled" ? (
           <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
-            Checkout cancelled — nothing was charged.
+            {t("portal.billing.cancelled")}
           </p>
         ) : null}
 
         {!features.billing ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-            Payments are not configured on this deployment, so nothing is being charged. Sessions
-            still record and notes are still written.
+            {t("portal.billing.noPayments")}
           </p>
         ) : null}
 
@@ -72,7 +73,7 @@ export default async function BillingPage({
           currentTierKey={summary.tier.key}
           creditsRemaining={summary.credits.remaining}
           creditsExpireOn={
-            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone) : null
+            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone, locale) : null
           }
           billingEnabled={features.billing}
           sessionsThisMonth={summary.sessionsThisMonth}
@@ -81,15 +82,15 @@ export default async function BillingPage({
 
         {!summary.subscription.trialSessionUsed ? (
           <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
-            Your first completed session is free.
+            {t("portal.billing.firstFree")}
           </p>
         ) : null}
 
         {summary.subscription.upcomingDiscountCents > 0 ? (
           <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
-            A credit is waiting on your next invoice
+            {t("portal.billing.creditWaiting")}
             {summary.subscription.upcomingDiscountReason
-              ? ` — ${summary.subscription.upcomingDiscountReason}`
+              ? `, ${summary.subscription.upcomingDiscountReason}`
               : ""}
             .
           </p>
@@ -112,11 +113,16 @@ export default async function BillingPage({
             <Wallet className="h-4 w-4" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-slate-900">Your earnings</span>
+            <span className="block text-sm font-semibold text-slate-900">{t("portal.billing.earnings")}</span>
             <span className="block truncate text-xs text-slate-500">
               {earnings.heldCents > 0
-                ? `${formatUsd(earnings.heldCents)} held for you, ${formatUsd(earnings.thisMonthNetCents)} earned this month`
-                : `${formatUsd(earnings.thisMonthNetCents)} earned this month`}
+                ? t("portal.billing.heldAndEarned", {
+                    held: formatUsd(earnings.heldCents),
+                    earned: formatUsd(earnings.thisMonthNetCents),
+                  })
+                : t("portal.billing.earnedThisMonth", {
+                    earned: formatUsd(earnings.thisMonthNetCents),
+                  })}
             </span>
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
@@ -138,11 +144,11 @@ export default async function BillingPage({
             discountCents: invoice.discountCents,
             discountReason: invoice.discountReason,
             status: invoice.status,
-            issuedAt: formatDate(invoice.issuedAt, actor.timezone),
+            issuedAt: formatDate(invoice.issuedAt, actor.timezone, locale),
             sortAt: invoice.issuedAt.toISOString(),
-            paidAt: invoice.paidAt ? formatDate(invoice.paidAt, actor.timezone) : null,
-            periodStart: invoice.periodStart ? formatDate(invoice.periodStart, actor.timezone) : null,
-            periodEnd: invoice.periodEnd ? formatDate(invoice.periodEnd, actor.timezone) : null,
+            paidAt: invoice.paidAt ? formatDate(invoice.paidAt, actor.timezone, locale) : null,
+            periodStart: invoice.periodStart ? formatDate(invoice.periodStart, actor.timezone, locale) : null,
+            periodEnd: invoice.periodEnd ? formatDate(invoice.periodEnd, actor.timezone, locale) : null,
             usage: invoice.sessionId ? (usage.get(invoice.sessionId) ?? null) : null,
           }))}
           payments={payments.map((payment) => ({
@@ -154,9 +160,9 @@ export default async function BillingPage({
             therapistNetCents: payment.therapistNetCents,
             status: payment.status,
             capture: payment.capture,
-            createdAt: formatDate(payment.createdAt, actor.timezone),
+            createdAt: formatDate(payment.createdAt, actor.timezone, locale),
             sortAt: (payment.paidAt ?? payment.createdAt).toISOString(),
-            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone) : null,
+            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone, locale) : null,
           }))}
         />
       </div>

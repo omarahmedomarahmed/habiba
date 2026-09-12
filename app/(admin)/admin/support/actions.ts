@@ -112,5 +112,5 @@ export async function close(_prev: SupportState, formData: FormData): Promise<Su
     resourceId: ticketId,
   });
   revalidatePath("/admin/support");
-  return { ok: true, note: "Closed. They have a link and a code — the reply itself stays here." };
+  return { ok: true, note: "Closed. They have a link and a code, the reply itself stays here." };
 }

@@ -129,7 +129,7 @@ const REPORT_STRINGS: Record<
     before: "Before we next meet",
     next: "Next session",
     closing:
-      "Questions about anything here? Bring them to your next session — that is exactly what it is for. If you are in crisis and need help now, call or text 988.",
+      "Questions about anything here? Bring them to your next session. That is exactly what it is for. If you are in crisis and need help now, call your local emergency number.",
     footer:
       "This message was sent by your therapist through 24Therapy.<br>If you were not expecting it, you can safely ignore it.",
   },
@@ -141,7 +141,7 @@ const REPORT_STRINGS: Record<
     before: "قبل لقائنا القادم",
     next: "الجلسة القادمة",
     closing:
-      "لديك سؤال عن أي شيء هنا؟ اطرحه في جلستك القادمة — فهي لهذا الغرض تمامًا. إذا كنت تمرّ بأزمة وتحتاج مساعدة الآن، تواصل مع خط المساعدة في بلدك فورًا.",
+      "لديك سؤال عن أي شيء هنا؟ اطرحه في جلستك القادمة، فهي لهذا الغرض تمامًا. إذا كنت تمرّ بأزمة وتحتاج مساعدة الآن، تواصل مع خط المساعدة في بلدك فورًا.",
     footer: "أرسلت هذه الرسالة من معالجك عبر 24Therapy.",
   },
   fr: {
@@ -152,7 +152,7 @@ const REPORT_STRINGS: Record<
     before: "D'ici notre prochaine séance",
     next: "Prochaine séance",
     closing:
-      "Des questions sur ce qui précède ? Apportez-les à votre prochaine séance — c'est exactement à cela qu'elle sert. En cas de crise, contactez immédiatement un service d'urgence.",
+      "Des questions sur ce qui précède ? Apportez-les à votre prochaine séance, c'est exactement à cela qu'elle sert. En cas de crise, contactez immédiatement un service d'urgence.",
     footer: "Ce message vous a été envoyé par votre thérapeute via 24Therapy.",
   },
   es: {
@@ -290,7 +290,7 @@ export async function sendRatingReminder(opts: {
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.7;">
        ${esc(opts.therapistFirstName)} has finished writing up your session on ${esc(
          formatCalendarDate(opts.sessionDate, resolveZone(opts.timezone).name, "en"),
-       )}. It is a short summary written for you — what you talked about and what you agreed to try — and it is waiting on the same link you used to join.
+       )}. It is a short summary written for you: what you talked about and what you agreed to try, and it is waiting on the same link you used to join.
      </p>
      <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open my summary</a>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.7;">
@@ -341,8 +341,8 @@ export async function sendTherapistMessage(opts: {
      <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
        ${
          opts.announcement
-           ? "This went to everyone using 24Therapy. Reply to this email if you need us — a person reads it."
-           : "Reply to this email if you need us — a person reads it."
+           ? "This went to everyone using 24Therapy. Reply to this email if you need us. A person reads it."
+           : "Reply to this email if you need us. A person reads it."
        }
      </p>`,
     "Sent by 24Therapy to the address on your clinician account.",
@@ -377,7 +377,7 @@ export async function sendClaimCode(opts: { to: string; code: string }): Promise
     `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your code</p>
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;">It expires in 30 minutes.</p>
      <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:6px;">${esc(opts.code)}</p>
-     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">If you did not ask for this, ignore this email — nothing has changed.</p>`,
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">If you did not ask for this, ignore this email. Nothing has changed.</p>`,
   );
   return send({ to: opts.to, subject: "Your 24Therapy verification code", html });
 }
@@ -411,7 +411,7 @@ export async function sendSessionInvite(opts: {
   const html = layout(
     "Your session link",
     `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your session is ready</p>
-     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(opts.therapistName)} has invited you to join. No account or download needed — just tap the button.</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(opts.therapistName)} has invited you to join. No account or download needed. Just tap the button.</p>
      ${priceRow}
      <a href="${esc(opts.joinUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${paid ? `Pay ${esc(amount)} and join` : "Join the session"}</a>
      ${
@@ -424,7 +424,7 @@ export async function sendSessionInvite(opts: {
 
   return send({
     to: opts.to,
-    subject: paid ? `Your therapy session — ${amount}` : "Your therapy session link",
+    subject: paid ? `Your therapy session: ${amount}` : "Your therapy session link",
     html,
   });
 }
@@ -456,15 +456,15 @@ export async function sendRecordExport(opts: {
      </p>
      <a href="${esc(opts.url)}" style="display:inline-block;background:#1F5EFF;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open your record</a>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
-       The link works for ${esc(opts.expiresInHours)} hours and then stops — save or print
+       The link works for ${esc(opts.expiresInHours)} hours and then stops, so save or print
        the page while it is open. It was generated automatically and nobody at
        24Therapy read it in order to send it to you.
      </p>
      <p style="margin:10px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
-       If you did not ask for this, tell ${esc(opts.clinicianName)} — and do not open
+       If you did not ask for this, tell ${esc(opts.clinicianName)}, and do not open
        the link, since it will be replaced the next time a copy is requested.
      </p>`,
-    "This message was sent by 24Therapy at the request of you or your therapist.<br>It contains a private link — please do not forward it.",
+    "This message was sent by 24Therapy at the request of you or your therapist.<br>It contains a private link, so please do not forward it.",
   );
 
   return send({ to: opts.to, bcc: opts.copyTo, subject: "Your 24Therapy record", html });
@@ -488,7 +488,7 @@ export async function sendClinicianHistory(opts: {
 }): Promise<boolean> {
   const html = layout(
     "Records request",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Records request — ${esc(opts.clinicianName)}</p>
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Records request for ${esc(opts.clinicianName)}</p>
      <p style="margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.7;">
        Attached is the session and note history held by 24Therapy for this clinician.
      </p>
@@ -507,7 +507,7 @@ export async function sendClinicianHistory(opts: {
   return send({
     to: opts.to,
     bcc: opts.copyTo,
-    subject: `24Therapy records — ${opts.clinicianName}`,
+    subject: `24Therapy records for ${opts.clinicianName}`,
     html,
     attachments: [
       {
@@ -549,7 +549,7 @@ export async function sendWalkInDirections(opts: {
          : ""
      }
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
-       Turning up is not an appointment — this clinician accepts walk-ins, but they may
+       Turning up is not an appointment, this clinician accepts walk-ins, but they may
        be with someone. Booking a session on the radar is the only way to be certain.
      </p>
      <p style="margin:10px 0 0;color:#64748b;font-size:13px;line-height:1.6;">

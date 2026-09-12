@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { __costing } from "../lib/ai/client";
-import { patientFacingCrisisMessage, scanForCrisisLanguage } from "../lib/ai/crisis";
-import { resolveCitations } from "../lib/ai/patient-copilot";
+import { patientFacingCrisisMessage, scanForCrisisLanguage } from "../lib/crisis/alerts";
+import { resolveCitations } from "../lib/ai/case-copilot";
 import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";
 import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/password";
@@ -60,7 +60,21 @@ test("patient-facing crisis message exposes no clinical detail", () => {
   const message = patientFacingCrisisMessage();
 
   assert.deepEqual(Object.keys(message).sort(), ["helpline", "message"]);
-  assert.equal(message.helpline, "988");
+
+  /*
+   * 🔴 C98 — no number unless we know one for that country.
+   *
+   * This asserted `helpline === "988"` for every patient in the world. 988 is
+   * the United States lifeline; dialled from Cairo it reaches nothing, so the
+   * test was pinning a defect in place. With no country there is no verified
+   * line, and the message says "your local emergency number" instead.
+   */
+  assert.equal(message.helpline, null);
+  assert.ok(message.message.includes("local emergency number"));
+
+  const american = patientFacingCrisisMessage("US");
+  assert.equal(american.helpline, "988");
+  assert.ok(american.message.includes("988"));
 
   const serialised = JSON.stringify(message).toLowerCase();
   for (const forbidden of ["risk", "level", "indicator", "critical", "high", "assessment"]) {
@@ -561,7 +575,7 @@ test("identifiers never reach the error log", async () => {
   assert.equal(
     scrubPath("/join/UyoBFkMyf8SELXgyyN1g0TAonuCqtTM6"),
     "/join/[token]",
-    "a join token is a live credential — it lets the holder into the room",
+    "a join token is a live credential, it lets the holder into the room",
   );
 
   assert.equal(

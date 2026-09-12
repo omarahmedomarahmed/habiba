@@ -1,0 +1,15 @@
+import { browser, go, text, shot, PHONE, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const pctx = await b.newContext({ viewport: PHONE, storageState: ".walkthrough2/state-patient.json" });
+const p = await pctx.newPage();
+await go(p, "/patient/consent");
+await p.getByRole("button", { name: /Yes, until I change my mind/i }).click();
+await p.waitForTimeout(4000);
+console.log("=== patient after granting ===\n" + (await text(p)).slice(0,700).replace(/\n{2,}/g,"\n"));
+await shot(p, "p25-granted");
+const tctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const t = await tctx.newPage();
+await go(t, "/patients/1602fb09-a0cd-418a-9c3e-08eeb7e6c6ab/evidence");
+console.log("\n=== evidence ===\n" + (await text(t)).split("Settings")[1]?.slice(0,1200).replace(/\n{2,}/g,"\n"));
+await shot(t, "t27-evidence-granted");
+await b.close();

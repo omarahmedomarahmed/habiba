@@ -28,3 +28,15 @@ docs/screens/admin/
 # Playwright storage states for the screens sweep. Session cookies.
 .screens/
 .render/
+
+# Synthesised eval audio. Regenerated on demand; never committed.
+.evals-audio/
+
+# C80 — admin console screens are swept from the walkthrough, never committed.
+docs/walkthrough-2/admin_*
+# The walkthrough harness itself: browser state, captured invite links, and the
+# sweep it produced. The report and the screenshots are the record.
+.walkthrough2/state-*.json
+.walkthrough2/invite.txt
+.walkthrough2/sweep.json
+.verify-tmp-*/

@@ -6,7 +6,8 @@ import { and, asc, eq, gt, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   availabilitySlots,
   organizations,
@@ -18,6 +19,17 @@ import {
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { HOLD_MS, isWholeHour, shouldAutoOffline } from "@/lib/scheduling/hours";
 import { parseDayKey, usable, zonedHourToUtc } from "@/lib/scheduling/tz";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/scheduling.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Bookable hours, and what happens when somebody takes one. PLAN.md 11.1–11.6.
@@ -74,7 +86,7 @@ export async function publishHours(input: {
   const from = Math.trunc(input.fromHour);
   const to = Math.trunc(input.toHour);
   if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > 24 || from >= to) {
-    return { ok: false, error: "That is not a range of hours — the end must be after the start." };
+    return { ok: false, error: "That is not a range of hours. The end must be after the start." };
   }
 
   const parsed = input.days.map(parseDayKey);
@@ -98,8 +110,8 @@ export async function publishHours(input: {
       ok: false,
       error:
         impossible > 0
-          ? "Those hours do not exist where you are — the clocks go forward that morning."
-          : "That is not a range of hours — the end must be after the start.",
+          ? "Those hours do not exist where you are, the clocks go forward that morning."
+          : "That is not a range of hours. The end must be after the start.",
     };
   }
 
@@ -805,7 +817,7 @@ export async function markReminded(slotId: string): Promise<void> {
 
 /** Guard used by the actions. The DB has the same CHECK; this is the message. */
 export function hourProblem(at: Date): string | null {
-  if (!isWholeHour(at)) return "Sessions start on the hour — 19:00, not 19:15.";
+  if (!isWholeHour(at)) return "Sessions start on the hour, 19:00, not 19:15.";
   if (at.getTime() <= Date.now()) return "That time has already passed.";
   return null;
 }

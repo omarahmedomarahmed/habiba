@@ -5,6 +5,7 @@ import { ArrowUpRight, Clock, CreditCard, Receipt, Undo2 } from "lucide-react";
 import { Card, EmptyState } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 export type PaymentRow = {
   id: string;
@@ -49,13 +50,15 @@ export function PaymentHistory({
   payments: PaymentRow[];
   transfers: TransferRow[];
 }) {
+  const t = useT();
+
   if (payments.length === 0 && transfers.length === 0) {
     return (
       <Card>
         <EmptyState
           icon={<Receipt className="h-5 w-5" aria-hidden />}
-          title="No patient payments yet"
-          body="Set a price on a session link or on the Crisis Radar and payments appear here."
+          title={t("tph.none")}
+          body={t("tph.noneBody")}
         />
       </Card>
     );
@@ -101,12 +104,14 @@ export function PaymentHistory({
                   <StatusChip status={payment.status} />
                   {payment.status === "paid" && payment.capture === "platform" ? (
                     <Chip tone="amber" icon={<Clock className="h-3 w-3" aria-hidden />}>
-                      Held until payouts open
+                      {t("tph.heldUntil")}
                     </Chip>
                   ) : null}
                   {payment.settledInvoiceCents > 0 ? (
                     <Chip tone="slate">
-                      {formatUsd(payment.settledInvoiceCents)} of your bills settled
+                      {t("tph.billsSettled", {
+                        amount: formatUsd(payment.settledInvoiceCents),
+                      })}
                     </Chip>
                   ) : null}
                   {payment.receiptUrl ? (
@@ -116,7 +121,7 @@ export function PaymentHistory({
                       rel="noreferrer noopener"
                       className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
                     >
-                      Receipt
+                      {t("tph.receipt")}
                       <ArrowUpRight className="h-3 w-3" aria-hidden />
                     </a>
                   ) : null}
@@ -130,7 +135,7 @@ export function PaymentHistory({
       {transfers.length > 0 ? (
         <Card className="overflow-hidden">
           <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-            Released to your Stripe account
+            {t("tph.released")}
           </p>
           <ul className="divide-y divide-slate-100">
             {transfers.map((transfer) => (
@@ -139,11 +144,11 @@ export function PaymentHistory({
                   <p className="text-sm text-slate-800">{transfer.paidAt ?? transfer.createdAt}</p>
                   {transfer.status === "failed" ? (
                     <p className="mt-0.5 text-xs leading-relaxed text-red-600">
-                      Did not go through — we will try again.
+                      {t("tph.failedTransfer")}
                       {transfer.failureReason ? ` ${transfer.failureReason}` : ""}
                     </p>
                   ) : transfer.status === "pending" ? (
-                    <p className="mt-0.5 text-xs text-amber-600">In flight</p>
+                    <p className="mt-0.5 text-xs text-amber-600">{t("tph.inFlight")}</p>
                   ) : null}
                 </div>
                 <p className="shrink-0 text-sm font-bold text-slate-900 tabular-nums">
@@ -159,16 +164,17 @@ export function PaymentHistory({
 }
 
 function StatusChip({ status }: { status: PaymentRow["status"] }) {
-  if (status === "paid") return <Chip tone="green">Paid</Chip>;
-  if (status === "pending") return <Chip tone="amber">Not completed</Chip>;
+  const t = useT();
+  if (status === "paid") return <Chip tone="green">{t("tph.paid")}</Chip>;
+  if (status === "pending") return <Chip tone="amber">{t("tph.notCompleted")}</Chip>;
   if (status === "refunded") {
     return (
       <Chip tone="slate" icon={<Undo2 className="h-3 w-3" aria-hidden />}>
-        Refunded
+        {t("tph.refunded")}
       </Chip>
     );
   }
-  return <Chip tone="red">Failed</Chip>;
+  return <Chip tone="red">{t("tph.failed")}</Chip>;
 }
 
 function Chip({

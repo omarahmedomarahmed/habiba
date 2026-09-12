@@ -138,7 +138,7 @@ function SessionDemoInner({ className }: { className?: string }) {
       </div>
 
       <p className="mt-4 text-center text-[11px] text-slate-400">
-        Simulated session with invented data — not a real patient.
+        Simulated session with invented data, not a real patient.
       </p>
     </div>
   );
@@ -155,7 +155,7 @@ function StaticFallback({ className }: { className?: string }) {
         <NoteCard note={DEMO_NOTE} status="draft" compact />
       </div>
       <p className="mt-4 text-center text-[11px] text-slate-400">
-        Simulated session with invented data — not a real patient.
+        Simulated session with invented data, not a real patient.
       </p>
     </div>
   );

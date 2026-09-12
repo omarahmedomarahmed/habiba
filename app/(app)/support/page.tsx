@@ -4,9 +4,22 @@ import { desc, eq } from "drizzle-orm";
 import { TherapistSupport } from "@/components/support/therapist-support";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { payoutRequests, sessions, supportTickets } from "@/lib/db/schema";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(app)/support/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = { title: "Support", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -21,6 +34,7 @@ export const dynamic = "force-dynamic";
  * else's.
  */
 export default async function TherapistSupportPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [recentSessions, payouts, mine] = await Promise.all([
@@ -57,25 +71,25 @@ export default async function TherapistSupportPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Support"
-        subtitle="A person reads this, and answers within a day."
+        title={t("portal.support.title")}
+        subtitle={t("portal.support.subtitle")}
       />
 
       <div className="px-4 pb-10 sm:px-6">
         <TherapistSupport
           sessions={recentSessions.map((row) => ({
             id: row.id,
-            label: formatDate(row.at ?? row.createdAt, actor.timezone),
+            label: formatDate(row.at ?? row.createdAt, actor.timezone, locale),
           }))}
           payouts={payouts.map((row) => ({
             id: row.id,
-            label: `$${(row.amountCents / 100).toFixed(2)} · ${row.status} · ${formatDate(row.requestedAt, actor.timezone)}`,
+            label: `$${(row.amountCents / 100).toFixed(2)} · ${row.status} · ${formatDate(row.requestedAt, actor.timezone, locale)}`,
           }))}
           mine={mine.map((row) => ({
             reference: row.reference,
             topic: row.topic,
             status: row.status,
-            atLabel: formatDate(row.createdAt, actor.timezone),
+            atLabel: formatDate(row.createdAt, actor.timezone, locale),
           }))}
         />
       </div>

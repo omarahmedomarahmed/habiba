@@ -10,11 +10,14 @@ import { getRadarProfile } from "@/lib/data/radar";
 import { countOpenDrafts, listSessions } from "@/lib/data/sessions";
 import { formatUsd } from "@/lib/billing/plans";
 import { fullName, relativeDay } from "@/lib/utils";
+import { formatDay, resolveZone } from "@/lib/scheduling/tz";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Home", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [sessions, drafts, billing, alerts, radar] = await Promise.all([
@@ -31,10 +34,16 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-2xl">
       <div className="px-4 pt-6 pb-4 sm:px-6">
         <p className="text-sm text-slate-500">
-          {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+          {/*
+            🔴 37L.9 — this was `toLocaleDateString(undefined, …)`, which is C84
+            twice over: `undefined` asks the *runtime* for the language, and no
+            `timeZone` asks it for the zone. On Vercel the runtime is UTC, so a
+            clinician in Dubai opening this at 01:00 was greeted with yesterday.
+          */}
+          {formatDay(new Date(), resolveZone(actor.timezone).name, locale)}
         </p>
         <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900">
-          Hello, {actor.firstName}
+          {t("portal.dash.hello", { name: actor.firstName })}
         </h1>
       </div>
 
@@ -45,9 +54,9 @@ export default async function DashboardPage() {
               <Plus className="h-5 w-5" aria-hidden />
             </span>
             <span className="flex-1">
-              <span className="block text-[15px] font-semibold">Start a session</span>
+              <span className="block text-[15px] font-semibold">{t("portal.dash.start")}</span>
               <span className="block text-xs text-white/70">
-                In person or video — recording begins straight away
+                {t("portal.dash.startBlurb")}
               </span>
             </span>
             <ChevronRight className="h-4 w-4 text-white/60" aria-hidden />
@@ -82,17 +91,17 @@ export default async function DashboardPage() {
             <span className="flex-1">
               <span className="block text-sm font-semibold text-slate-900">
                 {radar?.status === "online"
-                  ? "You are on the Crisis Radar"
+                  ? t("portal.dash.radarOnline")
                   : radar?.status === "pending"
-                    ? "Someone is booking you"
+                    ? t("portal.dash.radarPending")
                     : radar?.status === "in_session"
-                      ? "You are in a radar session"
-                      : "Crisis Radar"}
+                      ? t("portal.dash.radarInSession")
+                      : t("portal.nav.crisisRadar")}
               </span>
               <span className="block text-xs text-slate-500">
                 {radar?.status && radar.status !== "offline"
-                  ? "Patients can start a session with you right now"
-                  : "Go online and get paid for a free half hour"}
+                  ? t("portal.dash.radarOnBody")
+                  : t("portal.dash.radarOffBody")}
               </span>
             </span>
             <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden />
@@ -106,8 +115,8 @@ export default async function DashboardPage() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-red-900">
                   {crisisAlerts.length === 1
-                    ? "A session raised a risk alert"
-                    : `${crisisAlerts.length} sessions raised risk alerts`}
+                    ? t("portal.dash.alertOne")
+                    : t("portal.dash.alertMany", { count: crisisAlerts.length })}
                 </p>
                 {crisisAlerts.map((alert) => (
                   <Link
@@ -115,7 +124,7 @@ export default async function DashboardPage() {
                     href={alert.actionUrl ?? "/sessions"}
                     className="mt-1 block text-sm text-red-700 underline"
                   >
-                    Review the session
+                    {t("portal.dash.review")}
                   </Link>
                 ))}
               </div>
@@ -131,9 +140,11 @@ export default async function DashboardPage() {
               </span>
               <span className="flex-1">
                 <span className="block text-sm font-semibold text-slate-900">
-                  {drafts} note{drafts === 1 ? "" : "s"} waiting for you
+                  {drafts === 1
+                    ? t("portal.dash.draftsOne")
+                    : t("portal.dash.draftsMany", { count: drafts })}
                 </span>
-                <span className="block text-xs text-slate-500">Review and approve</span>
+                <span className="block text-xs text-slate-500">{t("portal.dash.reviewApprove")}</span>
               </span>
               <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden />
             </Card>
@@ -142,16 +153,16 @@ export default async function DashboardPage() {
 
         <Card>
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-900">Recent sessions</p>
+            <p className="text-sm font-semibold text-slate-900">{t("portal.dash.recent")}</p>
             <Link href="/sessions" className="text-xs font-medium text-brand-600">
-              All
+              {t("portal.all")}
             </Link>
           </div>
 
           {sessions.length === 0 ? (
             <EmptyState
-              title="Nothing here yet"
-              body="Your first session takes about thirty seconds to start."
+              title={t("portal.dash.empty")}
+              body={t("portal.dash.emptyBody")}
             />
           ) : (
             <ul className="divide-y divide-slate-100">
@@ -169,13 +180,15 @@ export default async function DashboardPage() {
                       <p className="truncate text-sm font-medium text-slate-900">
                         {fullName(session.patientFirstName, session.patientLastName, "") ||
                           session.guestName ||
-                          "Unnamed patient"}
+                          t("portal.unnamedPatient")}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                       </p>
                     </div>
-                    {session.status === "in_progress" ? <Badge tone="red">Live</Badge> : null}
+                    {session.status === "in_progress" ? (
+                      <Badge tone="red">{t("portal.status.live")}</Badge>
+                    ) : null}
                     <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
                   </Link>
                 </li>
@@ -191,10 +204,11 @@ export default async function DashboardPage() {
                 {billing.tier.name}
               </span>
               <span className="block text-xs text-slate-500">
-                {billing.sessionsThisMonth} session
-                {billing.sessionsThisMonth === 1 ? "" : "s"} this month
+                {billing.sessionsThisMonth === 1
+                  ? t("portal.dash.monthOne")
+                  : t("portal.dash.monthMany", { count: billing.sessionsThisMonth })}
                 {billing.outstandingCents > 0
-                  ? ` · ${formatUsd(billing.outstandingCents)} outstanding`
+                  ? ` · ${t("portal.dash.outstanding", { amount: formatUsd(billing.outstandingCents) })}`
                   : ""}
               </span>
             </span>

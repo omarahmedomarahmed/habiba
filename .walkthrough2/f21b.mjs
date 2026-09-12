@@ -1,0 +1,18 @@
+import { browser, go, text, shot, PHONE } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: PHONE });
+const p = await ctx.newPage();
+await go(p, "/patient/signup");
+await p.fill("input[name=firstName]", "Mahmoud");
+await p.selectOption("select[name=phoneCountry]", "EG").catch(()=>{});
+await p.fill("input[name=phone]", "1001234567");
+await p.fill("input[name=password]", "Walkthrough-2-stranger!");
+await p.getByRole("button", { name: /Create account/i }).click();
+await p.waitForTimeout(7000);
+const t = await text(p);
+const i = t.indexOf("Create an account");
+console.log("URL:", p.url());
+console.log(t.slice(0, 400));
+console.log("... ERROR/ALERT:", await p.evaluate(()=>[...document.querySelectorAll("[role=alert]")].map(e=>e.innerText).join(" | ")));
+await shot(p, "p09-stranger-number");
+await b.close();

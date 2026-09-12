@@ -5,6 +5,7 @@ import { Check, Quote, Sparkles, X } from "lucide-react";
 
 import { decideDiagnosis, proposeFromDocuments } from "@/app/(app)/patients/[id]/documents/actions";
 import { Badge, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Diagnoses read out of documents, and the human who confirms them. PLAN.md 8.9.
@@ -38,6 +39,7 @@ export function DiagnosisList({
   }[];
   canDecide: boolean;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -55,9 +57,9 @@ export function DiagnosisList({
     <Card>
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">Diagnoses in the documents</p>
+          <p className="text-sm font-semibold text-slate-900">{t("tdx.title")}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            Only what a document states in words. Never inferred from symptoms.
+            {t("tdx.blurb")}
           </p>
         </div>
         {canDecide ? (
@@ -74,15 +76,14 @@ export function DiagnosisList({
             className="tap-target flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            {pending ? "Reading…" : "Read documents"}
+            {pending ? t("tdx.reading") : t("tdx.readDocuments")}
           </button>
         ) : null}
       </div>
 
       {confirmed.length === 0 && proposed.length === 0 ? (
         <p className="px-4 py-5 text-sm text-slate-500">
-          Nothing yet. Add a letter or a report and read it here — anything stated as a diagnosis
-          will be offered for you to confirm.
+          {t("tdx.none")}
         </p>
       ) : null}
 
@@ -95,7 +96,7 @@ export function DiagnosisList({
                 {diagnosis.code ? (
                   <span className="font-mono text-xs text-slate-400">{diagnosis.code}</span>
                 ) : null}
-                <Badge tone="teal">Confirmed</Badge>
+                <Badge tone="teal">{t("tdx.confirmed")}</Badge>
                 {diagnosis.flags.map((flag) => (
                   <Badge key={flag.id} tone="amber">
                     {flag.reason.replace("_", " ")}
@@ -111,7 +112,7 @@ export function DiagnosisList({
       {proposed.length > 0 ? (
         <div className="border-t border-slate-100">
           <p className="px-4 pt-3 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-            Waiting for you to confirm
+            {t("tdx.waiting")}
           </p>
           <ul className="divide-y divide-slate-100">
             {proposed.map((diagnosis) => (
@@ -133,7 +134,7 @@ export function DiagnosisList({
                       className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
                     >
                       <Check className="h-3.5 w-3.5" aria-hidden />
-                      That is what it says
+                      {t("tdx.thatIsWhatItSays")}
                     </button>
                     <button
                       type="button"

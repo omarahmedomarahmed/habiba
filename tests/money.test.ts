@@ -43,7 +43,7 @@ test("a spread is added to the rate, never hidden in the amount", () => {
   assert.equal(rateWithSpread(48_000_000, 250), 49_200_000); // +2.5%
 });
 
-test("🔴 C76 — the EGP screen carries the rate and the dollars it settles", () => {
+test("🔴 C76, the EGP screen carries the rate and the dollars it settles", () => {
   const s = egpSettlement({
     usdCents: 4_000,
     marketRateMicro: 48_000_000,

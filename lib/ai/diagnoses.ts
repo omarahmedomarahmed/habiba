@@ -2,11 +2,23 @@ import "server-only";
 
 import { and, asc, eq } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { documentChunks, personDiagnoses, personDocuments } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 import { MODELS, logUsage, openai, parseJson } from "./client";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/ai/diagnoses.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Diagnoses, taken from documents. PLAN.md 8.9.
@@ -30,7 +42,7 @@ import { MODELS, logUsage, openai, parseJson } from "./client";
  */
 
 const SYSTEM = `RULE THAT OVERRIDES EVERYTHING BELOW:
-You extract diagnoses that are EXPLICITLY WRITTEN in the passages given to you. You never infer a diagnosis from symptoms, behaviour, medication, or context. If a passage describes low mood and poor sleep, that is NOT a diagnosis of depression — unless the passage says so in words.
+You extract diagnoses that are EXPLICITLY WRITTEN in the passages given to you. You never infer a diagnosis from symptoms, behaviour, medication, or context. If a passage describes low mood and poor sleep, that is NOT a diagnosis of depression, unless the passage says so in words.
 
 For each diagnosis actually written down, return:
   "label"          the diagnosis as the document words it, in the document's own language

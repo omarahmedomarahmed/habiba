@@ -19,6 +19,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import { features } from "@/lib/env";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Earnings", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export const dynamic = "force-dynamic";
  * pay rent should not have to read past an invoice list to find out.
  */
 export default async function EarningsPage() {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
 
   const [connect, earnings, payments, balance, transfers, held, method, requests, settings] =
@@ -67,12 +69,12 @@ export default async function EarningsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Earnings" subtitle="What your patients have paid you." />
+      <PageHeader title={t("portal.earnings.title")} subtitle={t("portal.earnings.subtitle")} />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {!features.billing ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-            Payments are not configured on this deployment, so nothing is being charged.
+            {t("portal.earnings.noPayments")}
           </p>
         ) : null}
 
@@ -100,17 +102,16 @@ export default async function EarningsPage() {
         {earnings.heldCents > 0 ? (
           <Card className="p-4">
             <p className="text-sm font-semibold text-slate-900">
-              Your held earnings pay your 24Therapy bills
+              {t("portal.earnings.heldPays")}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-slate-500">
-              While {formatUsd(earnings.heldCents)} is with us, any session bill you run up is
-              cleared from it automatically. Nothing to pay by card, and nothing to remember.
+              {t("portal.earnings.heldBody", { amount: formatUsd(earnings.heldCents) })}
             </p>
             <Link
               href="/billing"
               className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
             >
-              See what you owe
+              {t("portal.earnings.seeOwed")}
               <ChevronRight className="h-4 w-4" aria-hidden />
             </Link>
           </Card>
@@ -143,13 +144,13 @@ export default async function EarningsPage() {
               payoutAmountMinor: row.payoutAmountMinor,
               payoutCurrency: row.payoutCurrency,
               status: row.status,
-              requestedAtLabel: formatDate(row.requestedAt, actor.timezone),
+              requestedAtLabel: formatDate(row.requestedAt, actor.timezone, locale),
               movedAtLabel: row.confirmedAt
-                ? formatDate(row.confirmedAt, actor.timezone)
+                ? formatDate(row.confirmedAt, actor.timezone, locale)
                 : row.sentAt
-                  ? formatDate(row.sentAt, actor.timezone)
+                  ? formatDate(row.sentAt, actor.timezone, locale)
                   : row.approvedAt
-                    ? formatDate(row.approvedAt, actor.timezone)
+                    ? formatDate(row.approvedAt, actor.timezone, locale)
                     : null,
               proofUrl: row.proofUrl,
               rejectedReason: row.rejectedReason,
@@ -170,15 +171,15 @@ export default async function EarningsPage() {
             paymentBrand: payment.paymentBrand,
             paymentLast4: payment.paymentLast4,
             receiptUrl: payment.receiptUrl,
-            createdAt: formatDate(payment.createdAt, actor.timezone),
-            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone) : null,
+            createdAt: formatDate(payment.createdAt, actor.timezone, locale),
+            paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone, locale) : null,
           }))}
           transfers={transfers.map((transfer) => ({
             id: transfer.id,
             amountCents: transfer.amountCents,
             status: transfer.status,
-            createdAt: formatDate(transfer.createdAt, actor.timezone),
-            paidAt: transfer.paidAt ? formatDate(transfer.paidAt, actor.timezone) : null,
+            createdAt: formatDate(transfer.createdAt, actor.timezone, locale),
+            paidAt: transfer.paidAt ? formatDate(transfer.paidAt, actor.timezone, locale) : null,
             failureReason: transfer.failureReason,
           }))}
         />

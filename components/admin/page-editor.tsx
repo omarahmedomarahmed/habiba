@@ -29,14 +29,14 @@ const BACKGROUNDS = [
 const BLOCK_GUIDE: { type: string; what: string }[] = [
   { type: "hero", what: "The top of a page. Headline, a paragraph, one button, optionally a live product component beside it." },
   { type: "features", what: "A grid of short points with icons. Best at three or six." },
-  { type: "showcase", what: "One claim at a time, each paired with a live product component — the real transcript panel, the real note card, the patient's own session list." },
+  { type: "showcase", what: "One claim at a time, each paired with a live product component, the real transcript panel, the real note card, the patient's own session list." },
   { type: "faq", what: "Questions and answers. Kept below everything that sells." },
   { type: "cta", what: "A closing band with one button." },
   { type: "prose", what: "A heading and body text. Legal pages are mostly these." },
   {
     type: "pricing",
     what:
-      "The three rates. No numbers to edit here on purpose — every figure is read from platform settings at page load, so this page can never disagree with what a therapist is actually billed.",
+      "The three rates. No numbers to edit here on purpose, every figure is read from platform settings at page load, so this page can never disagree with what a therapist is actually billed.",
   },
   {
     type: "crisis",
@@ -111,7 +111,7 @@ export function PageEditor({
       if (result.error) setError(result.error);
       else {
         setStatus(effective);
-        setFeedback(effective === "published" ? "Published — live now" : "Saved as draft");
+        setFeedback(effective === "published" ? "Published, live now" : "Saved as draft");
       }
     });
 

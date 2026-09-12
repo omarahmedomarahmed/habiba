@@ -1,8 +1,11 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE: the error log is operational, and an operator watches one board.
+ */
 import "server-only";
 
 import { desc, lt, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db} from "@/lib/db";
 import { errorEvents } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 

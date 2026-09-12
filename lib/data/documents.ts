@@ -5,7 +5,8 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { dbFor } from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   contentFlags,
   documentChunks,
@@ -19,6 +20,23 @@ import {
 import { chunkText, type DocumentRef } from "@/lib/documents/chunk";
 import { documentProblem, extensionFor, readabilityOf } from "@/lib/documents/formats";
 import { log, ref as logRef, safeErrorMessage } from "@/lib/logger";
+
+/*
+ * ⚠️ 30.1 / C155 — NOT ROUTED YET, and for a reason worth naming.
+ *
+ * Half of this module is keyed on a `documentId` rather than on a person:
+ * `ownerOf`, `documentsByIds`, `extractPending`, `resolveRef`. **A lookup
+ * keyed on a row id cannot route**, because you need the row to know which
+ * region it is in, and you need the region to read the row. That is circular
+ * and no amount of care at the call site fixes it.
+ *
+ * The two honest exits are to put the region in the id, or to fan out with
+ * `acrossRegions`. Both are real work with real consequences for sprints 42
+ * and 43, so this stays pinned and counted rather than half-routed.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/documents.ts", "keyed on documentId, which cannot resolve a region without first reading the row (C155)"));
+
+
 
 /**
  * The personal profile: documents that belong to a person. PLAN.md 8.1–8.8.
@@ -385,7 +403,7 @@ export async function documentContext(
   for (const row of rows) {
     if (!seen.has(row.ordinal)) {
       const date = (row.documentDate ?? row.createdAt).toISOString().slice(0, 10);
-      parts.push(`\n=== D${row.ordinal} — ${row.title} (${date}) ===`);
+      parts.push(`\n=== D${row.ordinal}, ${row.title} (${date}) ===`);
       seen.add(row.ordinal);
     }
 

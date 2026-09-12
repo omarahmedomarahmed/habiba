@@ -60,7 +60,7 @@ export function HeldBalances({
             <p className="mt-0.5 text-sm text-red-700">
               Out by {formatUsd(Math.abs(outOfBalanceCents))}. Every transaction is posted through
               one function that rejects an unbalanced set of legs, so this means something else
-              wrote to the table. Do not adjust it away — find the writer.
+              wrote to the table. Do not adjust it away, find the writer.
             </p>
           </div>
         </div>
@@ -119,7 +119,7 @@ function HeldRowItem({ row }: { row: HeldRow }) {
         {!row.hasAccount ? (
           <Badge tone="red">No Stripe account</Badge>
         ) : row.payoutsEnabled ? (
-          <Badge tone="amber">Verified — should have released</Badge>
+          <Badge tone="amber">Verified, should have released</Badge>
         ) : (
           <Badge tone="slate">Awaiting Stripe verification</Badge>
         )}

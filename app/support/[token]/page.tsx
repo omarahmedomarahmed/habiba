@@ -33,7 +33,7 @@ export default async function SupportTicketPage({
         <h1 className="text-xl font-bold tracking-tight text-slate-900">Your message to us</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           Enter the code we sent you. We keep the conversation here rather than putting it in an
-          email — an email is not a safe place for what people tell us.
+          email, an email is not a safe place for what people tell us.
         </p>
       </div>
 

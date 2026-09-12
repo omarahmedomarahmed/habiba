@@ -11,7 +11,6 @@
  */
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import {
   invoices,
   ledgerEntries,
@@ -23,6 +22,19 @@ import {
   subscriptions,
   users,
 } from "../lib/db/schema";
+import { writesTo } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 let failures = 0;
 let checks = 0;
@@ -30,7 +42,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks += 1;
   if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? `, ${detail}` : ""}`);
 }
 
 async function refused(fn: () => Promise<unknown>, fragment: string): Promise<boolean> {
@@ -45,15 +57,52 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 const TAG = "verify16";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   try {
-    const [org] = await db.select({ id: organizations.id }).from(organizations).limit(1);
-    const staff = await db.select({ id: users.id }).from(users).limit(3);
-    if (!org || staff.length < 3) {
-      check("16 an organisation and three users exist", false);
-      return;
-    }
+    /*
+     * 🔴 22.1 — the fixtures are PLANTED, not borrowed.
+     *
+     * This used to take the first organisation and the first three users it
+     * found, which meant it only ran on a database somebody else had filled.
+     * After the purge there was one user — the seeded admin — and the whole
+     * verifier stopped at its first line, reporting a missing fixture as a
+     * failure and checking none of the twenty-nine things it exists to check.
+     * A gate that only works on a full database is a gate that stops working
+     * the week before launch.
+     */
+    const [org] =
+      (await db.select({ id: organizations.id }).from(organizations).limit(1)).length > 0
+        ? await db.select({ id: organizations.id }).from(organizations).limit(1)
+        : await db
+            .insert(organizations)
+            .values({ name: `${TAG} clinic`, slug: `${TAG}-${Date.now()}` })
+            .returning({ id: organizations.id });
+
+    const existing = await db.select({ id: users.id }).from(users).limit(3);
+    const wanted = 3 - existing.length;
+
+    const planted =
+      wanted > 0
+        ? await db
+            .insert(users)
+            .values(
+              Array.from({ length: wanted }, (_, index) => ({
+                organizationId: org!.id,
+                email: `${TAG}-${index}-${Date.now()}@example.test`,
+                passwordHash: "x".repeat(60),
+                firstName: `${TAG}`,
+                lastName: `${index}`,
+                role: "therapist" as const,
+              })),
+            )
+            .returning({ id: users.id })
+        : [];
+
+    const staff = [...existing, ...planted];
     const [payee, alice, bob] = staff as [{ id: string }, { id: string }, { id: string }];
 
     /* ------------------------------------------------ 16.9 · the entity */
@@ -255,7 +304,7 @@ async function main() {
     check(
       "🔴 C74 the person who EDITED the payout details cannot approve sending money to them",
       editorApproved.error !== undefined,
-      editorApproved.error ?? "ACCEPTED — a one-person fraud path is open",
+      editorApproved.error ?? "ACCEPTED, a one-person fraud path is open",
     );
 
     /*
@@ -265,7 +314,7 @@ async function main() {
      * database — by writing the forbidden row directly, past every code path.
      */
     check(
-      "🔴 C74 CONTROL — the same approval written STRAIGHT TO THE TABLE is refused by a CHECK",
+      "🔴 C74 CONTROL, the same approval written STRAIGHT TO THE TABLE is refused by a CHECK",
       await refused(
         () =>
           db
@@ -306,7 +355,7 @@ async function main() {
 
     const held = await (await import("../lib/billing/ledger")).heldForTherapist(payee.id);
     check(
-      "🔴 16.8 the money leaves the books when it leaves the bank — $100 held, $40 sent, $60 left",
+      "🔴 16.8 the money leaves the books when it leaves the bank, $100 held, $40 sent, $60 left",
       held === 6_000,
       `${held} cents`,
     );
@@ -511,7 +560,7 @@ async function main() {
       sessionId: plainSession!.id,
     });
     check(
-      "🔴 C69 CONTROL — a clinician we hold nothing for is still BILLED, not netted",
+      "🔴 C69 CONTROL, a clinician we hold nothing for is still BILLED, not netted",
       plainCharge?.status === "due",
       `${plainCharge?.status}`,
     );
@@ -519,7 +568,7 @@ async function main() {
     const { getSettings } = await import("../lib/settings");
     const settings = await getSettings();
     check(
-      "🔴 C69 netting exists as a setting, and is ON by default — 17's copy may describe it",
+      "🔴 C69 netting exists as a setting, and is ON by default, 17's copy may describe it",
       settings.payouts.netFeeFromHeldEarnings === true,
       `netFeeFromHeldEarnings=${settings.payouts.netFeeFromHeldEarnings}`,
     );
@@ -529,7 +578,7 @@ async function main() {
       `$${settings.payouts.twoPersonThresholdCents / 100} · ${settings.payouts.alertAfterHours}h`,
     );
     check(
-      "🔴 C76 the spread a therapist absorbs is zero by default — we take no margin on the rate",
+      "🔴 C76 the spread a therapist absorbs is zero by default. We take no margin on the rate",
       settings.payouts.egpSpreadBps === 0,
       `${settings.payouts.egpSpreadBps}bps`,
     );
@@ -563,6 +612,13 @@ async function main() {
     await db.delete(payoutRequests).where(like(payoutRequests.identifier, `${TAG}%`));
     await db.delete(payoutMethods).where(like(payoutMethods.identifier, `${TAG}%`));
     await db.delete(ledgerEntries).where(like(ledgerEntries.memo, `${TAG}%`));
+    /*
+     * Last, because everything above refers to them: the users and the
+     * organisation this run planted, and never one it found.
+     */
+    await db.delete(users).where(like(users.email, `${TAG}-%`));
+    await db.delete(organizations).where(like(organizations.name, `${TAG} clinic`));
+
   }
 
   console.log(

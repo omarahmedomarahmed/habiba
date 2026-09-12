@@ -1,0 +1,13 @@
+import { browser, go, anatomy, text, shot, PHONE } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: PHONE, storageState: ".walkthrough2/state-patient.json" });
+const p = await ctx.newPage();
+await go(p, "/patient");
+const orb = p.getByRole("button", { name: /Get help now/i }).first();
+console.log("orb visible:", await orb.isVisible());
+await orb.click();
+await p.waitForTimeout(2500);
+console.log("### p21-sos-open", p.url(), JSON.stringify(await anatomy(p)));
+console.log((await text(p)).slice(0,2000).replace(/\n{2,}/g,"\n"));
+await shot(p, "p21-sos-open");
+await b.close();

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { eq, inArray } from "drizzle-orm";
 
-import { db } from "../lib/db";
 import {
   organizations,
   rateLimits,
@@ -32,6 +31,18 @@ import {
   sweepRadar,
 } from "../lib/data/radar";
 import { createRadarSession } from "../lib/data/sessions";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
+
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
 /**
  * The Crisis Radar concurrency test.
@@ -376,7 +387,7 @@ test("the holder of a reservation can still book; nobody else can", async () => 
   assert.equal(
     await claimTherapist({ therapistUserId: therapistId, sessionId: mine, viewer: me }),
     true,
-    "I can book the clinician I am holding — this is the regression",
+    "I can book the clinician I am holding. This is the regression",
   );
 
   const state = await currentStatus();

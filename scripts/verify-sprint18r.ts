@@ -11,19 +11,28 @@
  */
 import { eq, like, sql } from "drizzle-orm";
 
-import { db } from "../lib/db";
-import { contentPages, supportTicketEvents, supportTickets } from "../lib/db/schema";
+import { supportTicketEvents, supportTickets } from "../lib/db/schema";
+import { withPublishedContent } from "./_content-ready";
+import { reporter, writesTo, readSource } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
 
-let failures = 0;
-let checks = 0;
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
 
-function check(label: string, ok: boolean, detail = "") {
-  checks += 1;
-  if (!ok) failures += 1;
-  console.log(`  ${ok ? "ok " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
-}
+const { check, skipUnless, finish } = reporter();
 
-async function refused(fn: () => Promise<unknown>, fragment: string): Promise<boolean> {
+async function refused(
+  fn: () => Promise<unknown>,
+  fragment: string,
+): Promise<boolean> {
   try {
     await fn();
     return false;
@@ -35,12 +44,16 @@ async function refused(fn: () => Promise<unknown>, fragment: string): Promise<bo
 const TAG = "verify18r";
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  /*
+   * 🔴 C147 — this script WRITES, so it says where and refuses production.
+   */
+  writesTo();
 
   try {
     /* ------------------------------------------- 18R.2 · a real ticket */
 
-    const { fileTicket, openTickets, FIRST_REPLY_HOURS } = await import("../lib/data/support");
+    const { fileTicket, openTickets, FIRST_REPLY_HOURS } =
+      await import("../lib/data/support");
 
     const filed = await fileTicket({
       name: `${TAG} Someone`,
@@ -48,7 +61,8 @@ async function main() {
       phone: null,
       country: null,
       topic: "my_record",
-      message: "I think my therapist has a record for me and I would like to claim it.",
+      message:
+        "I think my therapist has a record for me and I would like to claim it.",
       locale: "en",
       entity: "us",
     });
@@ -66,12 +80,13 @@ async function main() {
       .limit(1);
 
     check(
-      "🔴 18R.3 …with a topic, an age and a deadline — a queue, not an inbox",
+      "🔴 18R.3 …with a topic, an age and a deadline, a queue, not an inbox",
       row?.topic === "my_record" &&
         row?.status === "open" &&
         row?.dueAt !== null &&
-        Math.round((row!.dueAt.getTime() - row!.createdAt.getTime()) / 3_600_000) ===
-          FIRST_REPLY_HOURS,
+        Math.round(
+          (row!.dueAt.getTime() - row!.createdAt.getTime()) / 3_600_000,
+        ) === FIRST_REPLY_HOURS,
       `${row?.topic}, due in ${row ? Math.round((row.dueAt.getTime() - row.createdAt.getTime()) / 3_600_000) : "?"}h`,
     );
 
@@ -119,7 +134,7 @@ async function main() {
     );
 
     check(
-      "18R.3 a ticket closed with no date on it is refused — 'closed' with no time cannot be reported",
+      "18R.3 a ticket closed with no date on it is refused, 'closed' with no time cannot be reported",
       await refused(
         () =>
           db.insert(supportTickets).values({
@@ -138,9 +153,11 @@ async function main() {
     /* --------------------------------------------- 🔴 18R.4 · C82 */
 
     const queue = await openTickets();
-    const mine = queue.find((t) => t.reference === (filed.ok ? filed.reference : ""));
+    const mine = queue.find(
+      (t) => t.reference === (filed.ok ? filed.reference : ""),
+    );
     check(
-      "🔴 18R.4 the QUEUE cannot carry a message body — triage is topic, age and owner",
+      "🔴 18R.4 the QUEUE cannot carry a message body, triage is topic, age and owner",
       mine !== undefined && !("message" in mine),
       mine ? Object.keys(mine).sort().join(",") : "not in the queue",
     );
@@ -164,16 +181,19 @@ async function main() {
             : [],
       );
 
-    const promptModules = walk("lib/ai").concat(walk("lib/assistant").filter(Boolean));
+    const promptModules = walk("lib/ai").concat(
+      walk("lib/assistant").filter(Boolean),
+    );
     const importsSupport = promptModules.filter((file) =>
       /from\s+["'](@\/lib\/data\/support|\.\.\/data\/support|\.\/support)["']/.test(
-        readFileSync(file, "utf8"),
+        readSource(file),
       ),
     );
     check(
       "🔴 18R.4 / C82 no prompt-building module imports the support reader",
       importsSupport.length === 0,
-      importsSupport.join(", ") || `${promptModules.length} modules under lib/ai checked`,
+      importsSupport.join(", ") ||
+        `${promptModules.length} modules under lib/ai checked`,
     );
 
     /*
@@ -194,7 +214,7 @@ async function main() {
       );
       caughtPlanted = walk("lib/ai").some((file) =>
         /from\s+["'](@\/lib\/data\/support|\.\.\/data\/support|\.\/support)["']/.test(
-          readFileSync(file, "utf8"),
+          readSource(file),
         ),
       );
     } finally {
@@ -202,14 +222,16 @@ async function main() {
     }
 
     check(
-      "🔴 C82 CONTROL — the same walk FINDS a deliberate offender planted in lib/ai",
+      "🔴 C82 CONTROL, the same walk FINDS a deliberate offender planted in lib/ai",
       caughtPlanted,
       caughtPlanted ? "planted, caught, removed" : "THE SCAN IS BLIND",
     );
 
     check(
       "🔴 18R.4 a support message is never written to the application log",
-      !/log\.(info|warn|error)\([^)]*message/.test(readFileSync("lib/data/support.ts", "utf8")),
+      !/log\.(info|warn|error)\([^)]*message/.test(
+        readSource("lib/data/support.ts"),
+      ),
     );
 
     /* ------------------------------------------------ 18R.5 · the limit */
@@ -235,60 +257,84 @@ async function main() {
       `${flood.filter((r) => r.ok).length} of 5 accepted`,
     );
 
-    const contactForm = readFileSync("components/public/contact-form.tsx", "utf8");
+    const contactForm = readSource("components/public/contact-form.tsx");
     check(
       "🔴 18R.5 …without a third-party widget watching the reader",
-      !/recaptcha|hcaptcha|turnstile|googletagmanager|analytics/i.test(contactForm),
+      !/recaptcha|hcaptcha|turnstile|googletagmanager|analytics/i.test(
+        contactForm,
+      ),
     );
 
     /* ------------------------------------------ 18R.2, 18R.6–18R.8 · content */
 
-    const pages = await db
-      .select({
-        slug: contentPages.slug,
-        locale: contentPages.locale,
-        blocks: contentPages.blocks,
-      })
-      .from(contentPages)
-      .where(eq(contentPages.status, "published"));
+    /*
+     * 🔴 21R.9 / C93 — every check below reads published content, so every one
+     * of them is DEFERRABLE FROM THE START. Sprint 18R shipped these as hard
+     * failures three weeks after C90 ruled that they should not be, which is
+     * how a database with no content in it (an empty branch, or production
+     * between the purge and 22.8b) makes a whole gate red for a reason
+     * everybody already knows.
+     */
+    await withPublishedContent(
+      skipUnless,
+      { for: "18R.2 / 18R.6", what: "the contact page", slug: "contact" },
+      (content) => {
+        const contact = content.published.filter((p) => p.slug === "contact");
 
-    const contact = pages.filter((p) => p.slug === "contact");
-    check(
-      "18R.2 the contact page carries a real form, in BOTH locales",
-      contact.length >= 2 &&
-        contact.every((p) => p.blocks.some((b) => b.type === "contact_form")),
-      contact.map((p) => p.locale).join(", "),
+        check(
+          "18R.2 the contact page carries a real form, in BOTH locales",
+          contact.length >= 2 &&
+            contact.every((p) =>
+              p.blocks.some((b) => b.type === "contact_form"),
+            ),
+          contact.map((p) => p.locale).join(", "),
+        );
+
+        const companies = contact.map((p) =>
+          p.blocks.find((b) => b.type === "companies"),
+        );
+        check(
+          "🔴 18R.6 BOTH companies are named, in both locales, with contact details",
+          companies.every(
+            (block) =>
+              block !== undefined &&
+              "items" in block &&
+              block.items.length === 2 &&
+              block.items.some((i) => i.entity === "us") &&
+              block.items.some((i) => i.entity === "eg") &&
+              block.items.every(
+                (i) => (i.email ?? "").length > 3 && (i.hours ?? "").length > 3,
+              ),
+          ),
+          companies
+            .map((b) =>
+              b && "items" in b ? `${b.items.length} entities` : "missing",
+            )
+            .join(", "),
+        );
+      },
+    );
+
+    await withPublishedContent(
+      skipUnless,
+      { for: "18R.2", what: "any page" },
+      (content) => {
+        check(
+          "🔴 18R.2 …and no page anywhere still offers a mailto: link as the way to reach us",
+          !content.published.some((p) =>
+            JSON.stringify(p.blocks).includes("mailto:"),
+          ),
+          content.published
+            .filter((p) => JSON.stringify(p.blocks).includes("mailto:"))
+            .map((p) => `${p.slug}[${p.locale}]`)
+            .join(", ") || "none",
+        );
+      },
     );
 
     check(
-      "🔴 18R.2 …and no page anywhere still offers a mailto: link as the way to reach us",
-      !pages.some((p) =>
-        JSON.stringify(p.blocks).includes("mailto:"),
-      ),
-      pages
-        .filter((p) => JSON.stringify(p.blocks).includes("mailto:"))
-        .map((p) => `${p.slug}[${p.locale}]`)
-        .join(", ") || "none",
-    );
-
-    const companies = contact.map((p) => p.blocks.find((b) => b.type === "companies"));
-    check(
-      "🔴 18R.6 BOTH companies are named, in both locales, with contact details",
-      companies.every(
-        (block) =>
-          block !== undefined &&
-          "items" in block &&
-          block.items.length === 2 &&
-          block.items.some((i) => i.entity === "us") &&
-          block.items.some((i) => i.entity === "eg") &&
-          block.items.every((i) => (i.email ?? "").length > 3 && (i.hours ?? "").length > 3),
-      ),
-      companies.map((b) => (b && "items" in b ? `${b.items.length} entities` : "missing")).join(", "),
-    );
-
-    check(
-      "🔴 18R.6 …and every field of them is CONTENT — nothing about a company is hardcoded",
-      !readFileSync("components/public/blocks.tsx", "utf8").match(
+      "🔴 18R.6 …and every field of them is CONTENT, nothing about a company is hardcoded",
+      !readSource("components/public/blocks.tsx").match(
         /24Therapy (Inc|Egypt)|support@24therapy|egypt@24therapy/,
       ),
       "no company name, address or address-of-record in the renderer",
@@ -296,51 +342,86 @@ async function main() {
 
     check(
       "18R.7 the international entity is rendered first and the Egyptian one second, both always",
-      readFileSync("components/public/blocks.tsx", "utf8").includes(
+      readSource("components/public/blocks.tsx").includes(
         'return a.entity === "eg" ? 1 : -1;',
       ),
     );
 
+    /*
+     * 21R.8 moved these sentences out of the component and into the
+     * dictionary, so an Arabic reader gets the warning in Arabic. The check
+     * follows the words rather than the file, and gains something on the way:
+     * the Arabic must be its OWN sentence, not the English copied across.
+     */
+    const { en, ar } = await import("../lib/i18n/messages");
+
     check(
       "🔴 18R.4 the page says plainly not to send anything urgent, with the crisis route beside it",
-      /do not send anything urgent/i.test(contactForm) && contactForm.includes('href="/radar"'),
+      /do not send anything urgent/i.test(en["contact.urgentLead"]) &&
+        contactForm.includes('href="/radar"'),
+      "warning in the dictionary, radar link in the form",
+    );
+
+    check(
+      "🔴 18R.4 …and it says it in ARABIC too, in its own words",
+      ar["contact.urgentLead"] !== en["contact.urgentLead"] &&
+        /[\u0600-\u06FF]/.test(ar["contact.urgentBody"]) &&
+        /[\u0600-\u06FF]/.test(ar["contact.urgentLead"]),
+      ar["contact.urgentLead"],
     );
 
     check(
       "18R.8 the confirmation says what happens next and when, not just thanks",
-      /reference/i.test(contactForm) && /within \{state\.ok\.hours\} hours/.test(contactForm),
+      /\{reference\}/.test(en["contact.reference"]) &&
+        /within \{hours\} hours/.test(en["contact.reference"]) &&
+        /\{hours\}/.test(ar["contact.reference"]),
     );
 
     /* ------------------------------------------------------------ 18R.1 */
 
-    const publicPages = pages.filter((p) =>
-      ["home", "for-patients", "features", "pricing", "contact"].includes(p.slug),
-    );
-    const revamped = publicPages.filter((p) =>
-      p.blocks.some((b) =>
-        ["pricing", "crisis", "companies", "contact_form", "showcase"].includes(b.type),
-      ),
-    );
-    check(
-      "18R.1 every marketing page carries at least one of the revamp's blocks — none left in the old style",
-      revamped.length === publicPages.length,
-      publicPages
-        .filter((p) => !revamped.includes(p))
-        .map((p) => `${p.slug}[${p.locale}]`)
-        .join(", ") || `${publicPages.length} pages`,
+    await withPublishedContent(
+      skipUnless,
+      { for: "18R.1", what: "the marketing pages" },
+      (content) => {
+        const publicPages = content.published.filter((p) =>
+          ["home", "for-patients", "features", "pricing", "contact"].includes(
+            p.slug,
+          ),
+        );
+        const revamped = publicPages.filter((p) =>
+          p.blocks.some((b) =>
+            [
+              "pricing",
+              "crisis",
+              "companies",
+              "contact_form",
+              "showcase",
+            ].includes(b.type),
+          ),
+        );
+        check(
+          "18R.1 every marketing page carries at least one of the revamp's blocks, none left in the old style",
+          revamped.length === publicPages.length,
+          publicPages
+            .filter((p) => !revamped.includes(p))
+            .map((p) => `${p.slug}[${p.locale}]`)
+            .join(", ") || `${publicPages.length} pages`,
+        );
+      },
     );
   } finally {
-    await db.delete(supportTicketEvents).where(
-      sql`ticket_id IN (SELECT id FROM support_tickets WHERE name LIKE ${`${TAG}%`})`,
-    );
+    await db
+      .delete(supportTicketEvents)
+      .where(
+        sql`ticket_id IN (SELECT id FROM support_tickets WHERE name LIKE ${`${TAG}%`})`,
+      );
     await db.delete(supportTickets).where(like(supportTickets.name, `${TAG}%`));
-    await db.execute(sql`DELETE FROM rate_limits WHERE key LIKE '%support.ticket%'`);
+    await db.execute(
+      sql`DELETE FROM rate_limits WHERE key LIKE '%support.ticket%'`,
+    );
   }
 
-  console.log(
-    `\n${failures === 0 ? "sprint 18R: PASS" : `sprint 18R: ${failures} FAILED`} (${checks} checks)`,
-  );
-  process.exit(failures === 0 ? 0 : 1);
+  finish("sprint 18R");
 }
 
 main().catch((error) => {

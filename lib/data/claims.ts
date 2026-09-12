@@ -3,12 +3,31 @@ import "server-only";
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
-import { patients, people, personClaims, personInvites, users } from "@/lib/db/schema";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
+import {
+  patientAccounts,
+  patients,
+  people,
+  personClaims,
+  personInvites,
+  users,
+} from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
 import { applyClaimDecision } from "./grants";
 import { findMatches, redactName } from "./people";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/claims.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Claiming a record — §3's eight steps, and C19's third route.
@@ -75,15 +94,88 @@ export type ClaimSuggestion = {
 export async function suggestionsFor(input: {
   email?: string | null;
   phone?: string | null;
+  /**
+   * 🔴 22R — the person this account already owns, which is never a suggestion.
+   *
+   * Signing up creates a `people` row of your own (sprint 6), carrying the
+   * number you signed up with. `findMatches` matches on that number, so the
+   * claim screen offered the patient **their own row back**, worded as "a
+   * therapist keeps notes for someone with your phone number" — twice on the
+   * screen, once for the therapist's record and once for their own. Claiming
+   * it would have bound a claim to an empty record they already had, while
+   * they believed they had taken ownership of their therapist's notes.
+   *
+   * Found by signing up as the patient and reading the screen. Nothing about
+   * the query, the redaction or the claim machinery is wrong — only the set.
+   */
+  excludePersonId?: string | null;
 }): Promise<ClaimSuggestion[]> {
   const candidates = await findMatches(input);
 
-  const unclaimed = candidates.filter((c) => !c.claimed);
+  const unclaimed = candidates.filter(
+    (c) => !c.claimed && c.personId !== input.excludePersonId,
+  );
   return unclaimed.map((c) => ({
     personId: c.personId,
     redactedName: redactName(c.firstName, c.lastName),
     matchedOn: c.matchedOn,
   }));
+}
+
+
+/**
+ * 🔴 22R — the account follows the record it just claimed.
+ *
+ * Signing up creates a `people` row of your own; claiming attaches a
+ * *different* one — the therapist's. Nothing moved the account onto it, and
+ * `patient_accounts.person_id` is what every patient screen reads. So a
+ * patient who claimed their record was told, on their own home screen, "Your
+ * record — not claimed yet. No therapist files are attached to your account",
+ * with their session, their note and their summary sitting in the record they
+ * had just taken ownership of.
+ *
+ * Everything else about the claim was right: `people.claimed_at`, the
+ * `person_claims` row, the grant decision, the audit entry. It took signing up
+ * as the patient, claiming, and then looking at the screen.
+ *
+ * The old row is left in place rather than deleted: it is a fresh signup row
+ * with nothing attached, and `people` is referenced from enough places that
+ * deleting one inside a claim is a bigger promise than this fix needs to make.
+ * It is only re-pointed when the account's current person has no clinical
+ * record of its own — where it does, two people would have to be merged, and
+ * merging is exactly what sprint 5 ruled we never do silently.
+ */
+async function bindAccountToPerson(
+  tx: {
+    select: typeof db.select;
+    update: typeof db.update;
+  },
+  accountId: string,
+  personId: string,
+): Promise<"moved" | "already" | "kept"> {
+  const [account] = await tx
+    .select({ personId: patientAccounts.personId })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, accountId))
+    .limit(1);
+
+  if (!account) return "kept";
+  if (account.personId === personId) return "already";
+
+  const [existing] = await tx
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(patients)
+    .where(eq(patients.personId, account.personId));
+
+  // Their own row carries a clinical record too — that is a merge, not a move.
+  if ((existing?.n ?? 0) > 0) return "kept";
+
+  await tx
+    .update(patientAccounts)
+    .set({ personId, updatedAt: new Date() })
+    .where(eq(patientAccounts.id, accountId));
+
+  return "moved";
 }
 
 /* ------------------------------------------------- step 5: send a code -- */
@@ -279,6 +371,9 @@ export async function verifyClaim(input: {
       .update(personClaims)
       .set({ status: "expired", tokenHash: null })
       .where(and(eq(personClaims.personId, claim.personId), eq(personClaims.status, "pending")));
+
+    /* 🔴 22R — the same move, on the matching route. */
+    await bindAccountToPerson(tx as never, claim.accountId, claim.personId);
   });
 
   /*
@@ -485,6 +580,9 @@ export async function redeemInvite(input: {
       .from(patients)
       .where(eq(patients.personId, resolved.personId));
     patientsMoved = moved[0]?.n ?? 0;
+
+    /* 🔴 22R — and the account moves onto the record it just claimed. */
+    await bindAccountToPerson(tx as never, input.accountId, resolved.personId);
   });
 
   if (!claimed) return { ok: false, error: "That link has already been used." };

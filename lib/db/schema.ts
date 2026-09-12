@@ -1,4 +1,7 @@
 import { sql } from "drizzle-orm";
+
+import type { Region } from "./region";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   bigint,
   boolean,
@@ -6,6 +9,8 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -100,11 +105,21 @@ export const organizations = pgTable(
     /** Practice-level preferences. Was a whole `organization_settings` table. */
     settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
     stripeCustomerId: text("stripe_customer_id"),
+    /**
+     * 🔴 The jurisdiction this practice's own rows live in. 30.1, C118.
+     *
+     * `'us'` on every existing row, which is a statement of where they already
+     * are rather than a backfill. A practice's region governs its sessions,
+     * settings and payouts; a patient's chart is routed on the PATIENT (C154),
+     * because an Egyptian person seeing an American clinician is ordinary here.
+     */
+    region: text("region").$type<Region>().notNull().default("us"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
+    index("organizations_region_idx").on(t.region),
     uniqueIndex("organizations_slug_unique")
       .on(t.slug)
       .where(sql`deleted_at IS NULL`),
@@ -469,7 +484,13 @@ export const sessions = pgTable(
      * days forced the room key to stay valid for days. They have different
      * lifetimes and different audiences, so they are different secrets.
      */
-    feedbackToken: text("feedback_token"),
+    /**
+     * 🔴 22.9 — `NOT NULL` since 0054, once the purge made the scan free.
+     *
+     * All three functions that create a session mint one; the nullable column
+     * was a fact about the rows that existed in August, not about the rule.
+     */
+    feedbackToken: text("feedback_token").notNull(),
 
     videoRoomUrl: text("video_room_url"),
     videoRoomName: text("video_room_name"),
@@ -679,6 +700,17 @@ export const transcriptSegments = pgTable(
       .default("unknown"),
     /** True when the speaker was inferred from the words, not heard on a track. */
     speakerInferred: boolean("speaker_inferred").notNull().default(false),
+    /**
+     * 🔴 37.2 — which acoustic voice said this line, when one was separated.
+     *
+     * Null for every row written before sprint 37 and for every two-track
+     * capture, which needs no diarisation. When it is set, migration 0065's
+     * trigger refuses any `speaker` that disagrees with the voice: a voice
+     * nothing proves may only carry `unknown`.
+     */
+    voiceId: uuid("voice_id").references((): AnyPgColumn => sessionVoices.id, {
+      onDelete: "set null",
+    }),
     text: text("text").notNull(),
     startMs: integer("start_ms").notNull().default(0),
     endMs: integer("end_ms").notNull().default(0),
@@ -896,6 +928,31 @@ export const riskAssessments = pgTable(
     source: text("source").$type<"keyword" | "model">().notNull(),
     /** Matched phrases / model indicators. PHI — never logged. */
     indicators: jsonb("indicators").$type<string[]>().default([]).notNull(),
+
+    /**
+     * 🔴 35.1 — the findings, each with the sentence that produced it.
+     *
+     * `indicators` holds labels; this holds evidence. A clinician reading an
+     * alert needs the quote more than the label: "ideation" is a word a system
+     * produced, and "ideation, because he said *I just want to go to sleep and
+     * not wake up*" is something a person can act on or recognise as a misread
+     * idiom. Same rule as 8.9's source sentence and 33.1's evidence quote.
+     */
+    findings: jsonb("findings")
+      .$type<{ indicator: string; quote: string; confidence: number }[]>()
+      .default([])
+      .notNull(),
+    /** Which model said so. A record that cannot be audited backwards is not one. */
+    model: text("model"),
+    /**
+     * Findings dropped for quoting something the transcript does not contain.
+     *
+     * Counted because it is invisible by construction: a dropped finding leaves
+     * no trace in the output, so without this the rate at which the classifier
+     * invents a sentence is a number nobody has.
+     */
+    unquotedFindings: integer("unquoted_findings").notNull().default(0),
+
     recommendedAction: text("recommended_action"),
 
     /**
@@ -1035,6 +1092,18 @@ export const dataExports = pgTable(
     deliveredTo: text("delivered_to").notNull(),
     requestedBy: uuid("requested_by").references(() => users.id, { onDelete: "set null" }),
     requestedByRole: text("requested_by_role").$type<Role>(),
+    /**
+     * 26.9 / C127 — what a third party can check, and all they can check.
+     *
+     * Printed on the cover page and resolved on a public page. It attests what
+     * we can honestly attest: that this platform holds a record, how much of
+     * one, and when the extract was made. It never resolves to a name, a
+     * diagnosis or a note, because that is the difference between a record
+     * extract and the certificate this is not.
+     */
+    verificationCode: text("verification_code"),
+    /** The identity the extract is about. Null on rows predating sprint 26. */
+    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     firstOpenedAt: timestamp("first_opened_at", { withTimezone: true }),
     openCount: integer("open_count").default(0).notNull(),
@@ -1922,6 +1991,21 @@ export const auditLog = pgTable(
     action: text("action").notNull(),
     resourceType: text("resource_type"),
     resourceId: uuid("resource_id"),
+    /**
+     * 🔴 The resource that is **not** a row with a UUID.
+     *
+     * A settings group ("pricing"), a taxonomy entry ("language:ar"), a string
+     * override ("common.continue:ar"). Those are real resources with real
+     * audit trails and no UUID, and writing one into `resource_id` throws —
+     * which, because `audit()` deliberately does not swallow, means the whole
+     * action fails. Found in sprint 21 while auditing a string save; the
+     * taxonomy editor from sprint 1 had the same bug and every edit through it
+     * was failing at the audit write.
+     *
+     * `audit()` routes the value to whichever column can hold it, so no caller
+     * changes and both are queryable.
+     */
+    resourceKey: text("resource_key"),
     patientId: uuid("patient_id"),
     reason: text("reason"),
     ipAddress: text("ip_address"),
@@ -1978,6 +2062,16 @@ export const CONTENT_DEMOS = [
   "patient-sessions",
   "homework",
   "profile",
+  /*
+   * 28.6 — the two screens sprint 26 gave the patient, shown as themselves.
+   *
+   * The clinical summary is the portability argument made visible: two
+   * clinicians, two versions, both with names on them. The journal is the
+   * other half, what the person wrote. Both are real components driven by
+   * invented people, which is the only kind of demonstration this site ships.
+   */
+  "summary",
+  "journal",
   "none",
 ] as const;
 export type ContentDemo = (typeof CONTENT_DEMOS)[number];
@@ -2452,6 +2546,28 @@ export const people = pgTable(
     phone: text("phone"),
 
     /**
+     * Their own picture. PLAN.md 25.7, C115.
+     *
+     * A storage path, never a URL handed to a browser. C115 rules that a
+     * patient photo is served through an authenticated route like a clinical
+     * document rather than as a public object, so the only reader of this
+     * column is `/api/patient/avatar/[personId]`, and an admin can null it.
+     */
+    avatarUrl: text("avatar_url"),
+    avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
+
+    /**
+     * 🔴 Where this person's record lives. 30.1, C118, C154.
+     *
+     * On the PERSON rather than only on the practice, and that is the whole
+     * ruling: an Egyptian patient seeing a clinician registered elsewhere is
+     * the ordinary case on this product, and routing their chart to the
+     * clinician's country would put an Egyptian person's therapy record in the
+     * wrong jurisdiction while every test passed.
+     */
+    region: text("region").$type<Region>().notNull().default("us"),
+
+    /**
      * When this person took ownership of their own record. Null means nobody
      * has, which is most of them.
      */
@@ -2547,7 +2663,16 @@ export const patientAccounts = pgTable(
      * Unique **only over rows that have one** — see the index below.
      */
     email: text("email"),
-    passwordHash: text("password_hash").notNull(),
+    /**
+     * 🔴 25.11 / C119 — optional since 0056.
+     *
+     * A guest who joined with a phone number and no email has no password and
+     * never chose one. A code to a handle they have proven is a stronger
+     * factor than a password invented under time pressure at the end of a
+     * session, so a code is always a valid sign-in and a password is a
+     * convenience for the people who want one.
+     */
+    passwordHash: text("password_hash"),
     /** Null until they follow the link. Nothing is shared before this. */
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     /**
@@ -2633,6 +2758,60 @@ export const patientAuthSessions = pgTable(
     index("patient_auth_sessions_account_idx").on(t.patientAccountId),
   ],
 );
+
+/**
+ * A patient who cannot get back in. PLAN.md 21R.4, C94, §3b.
+ *
+ * ## 🔴 Why this table exists at all
+ *
+ * There was no patient password reset. Not a broken one — none: `auth_tokens`
+ * hangs off `users`, which is the clinician table, and nothing anywhere let
+ * somebody who signed up at `/patient/signup` back in. A person locked out of
+ * their own clinical record, with no route back to it, is the worst version of
+ * this product's failure mode, and it survived eight sprints because every
+ * check we had asserted about therapists.
+ *
+ * ## Why a code and not only a link
+ *
+ * §3b: the phone is the handle that is never missing and the email is a real
+ * second way in *when there is one*. Most patients in this database have no
+ * address at all, so a reset that emails a link is a reset most of them cannot
+ * use. The code goes over WhatsApp, and `channel` records which door it went
+ * out of — a reset that arrived by a channel the person does not read is a
+ * different failure from one that was never sent.
+ *
+ * `attempts` is bounded **by the database** rather than by the code path that
+ * increments it: a six-digit code with unlimited guesses is a four-hour brute
+ * force, and the ceiling belongs where no future caller can forget it.
+ */
+export const patientAuthTokens = pgTable(
+  "patient_auth_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientAccountId: uuid("patient_account_id")
+      .notNull()
+      .references(() => patientAccounts.id, { onDelete: "cascade" }),
+    purpose: text("purpose")
+      .$type<"password_reset" | "handle_verify">()
+      .notNull()
+      .default("password_reset"),
+    /** SHA-256 of the code or link token. The raw value is never stored. */
+    tokenHash: text("token_hash").notNull(),
+    /** Which door it went out of — 'whatsapp' or 'email'. */
+    channel: text("channel").$type<"whatsapp" | "email">().notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("patient_auth_tokens_hash_unique").on(t.tokenHash),
+    index("patient_auth_tokens_account_idx").on(t.patientAccountId, t.usedAt),
+  ],
+);
+
+/** How many wrong codes a reset survives. Enforced by a CHECK, not by hope. */
+export const RESET_CODE_ATTEMPTS = 5;
 
 /**
  * `locked` is 13R.2's, and it is not `expired`.
@@ -4062,3 +4241,549 @@ export const supportAttachments = pgTable(
 );
 
 export type SupportAttachment = typeof supportAttachments.$inferSelect;
+
+/* ------------------------------------------- §21 · strings and languages -- */
+
+/**
+ * A language the product can be authored in, and separately, offered in.
+ * PLAN.md 21.9, 21.13.
+ *
+ * ## 🔴 Two switches, deliberately
+ *
+ * `authoringEnabled` lets a content team start translating; `publicEnabled`
+ * decides whether a reader is ever offered it. They are separate because the
+ * whole point of 21.14 is that Spanish can be translated for six weeks while
+ * the site offers only Arabic and English, and the day it flips the site is
+ * already there. One switch would mean either publishing a half-translated
+ * language or having nowhere to put the work.
+ *
+ * The shipped `LOCALES` constant stays as the fallback for a database that has
+ * not been seeded, and as the compile-time key set that makes a missing
+ * Arabic string a type error (19.2). A row here can add a language; it cannot
+ * remove the guarantee.
+ */
+export const locales = pgTable("locales", {
+  /** BCP 47-ish: `en`, `ar`, `es`. Lower case. */
+  code: text("code").primaryKey(),
+  /** In English, for the admin list. */
+  name: text("name").notNull(),
+  /** In itself, for the switcher. A language is named in its own words. */
+  nativeName: text("native_name").notNull(),
+  direction: text("direction").$type<"ltr" | "rtl">().notNull().default("ltr"),
+
+  /** 21.9 — a content team may write in it. */
+  authoringEnabled: boolean("authoring_enabled").notNull().default(true),
+  /** 🔴 21.13 — a reader may be offered it. The bigger switch. */
+  publicEnabled: boolean("public_enabled").notNull().default(false),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type LocaleRow = typeof locales.$inferSelect;
+
+export const STRING_STATUSES = ["draft", "published"] as const;
+export type StringStatus = (typeof STRING_STATUSES)[number];
+
+/**
+ * One interface string, in one language. PLAN.md 21.1–21.8.
+ *
+ * ## The dictionary is still the default
+ *
+ * `lib/i18n/messages.ts` ships every string and is what `tsc` checks. A row
+ * here **overrides** it for one (key, locale) — and clearing the row restores
+ * the shipped wording rather than blanking a button (21.5). That is why the
+ * value column is not nullable: "no override" is the absence of a row, which
+ * is a state the editor can produce and cannot get wrong.
+ *
+ * ## 🔴 AI drafts, a human publishes (21.17)
+ *
+ * A machine translation lands as `status = 'draft'` and counts as *missing* on
+ * the completeness checklist until somebody approves it. `source` and `model`
+ * record what a reviewer is reading, so a bad batch can be found by its model
+ * name rather than by re-reading everything.
+ */
+export const uiStrings = pgTable(
+  "ui_strings",
+  {
+    key: text("key").notNull(),
+    locale: text("locale").notNull(),
+    value: text("value").notNull(),
+
+    status: text("status").$type<StringStatus>().notNull().default("published"),
+    /** `human` or a machine draft. 21.19. */
+    source: text("source").$type<"human" | "machine">().notNull().default("human"),
+    /** Which model produced a draft, so a bad batch is findable. */
+    model: text("model"),
+
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.key, t.locale] }),
+    index("ui_strings_locale_idx").on(t.locale, t.status),
+  ],
+);
+
+export type UiString = typeof uiStrings.$inferSelect;
+
+/**
+ * A clinician's QR code, for a clinic wall. PLAN.md 25.17, C120.
+ *
+ * 🔴 There is deliberately no patient column here, and there never will be. A
+ * printed code is public: whatever it carries, it carries to everyone who
+ * walks past the poster. It carries the clinician, and nothing else.
+ *
+ * Revocable, because a poster outlives the person on it. `revokedAt` rather
+ * than a delete, so a scan of a dead code can say "this code is no longer in
+ * use" instead of "not found", which is what somebody standing in a waiting
+ * room actually needs to read.
+ */
+export const therapistCodes = pgTable(
+  "therapist_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Eight characters, no ambiguous glyphs. Shaped by a CHECK in 0058. */
+    code: text("code").notNull(),
+    label: text("label"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: uuid("revoked_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    uniqueIndex("therapist_codes_code_unique").on(t.code),
+    index("therapist_codes_user_idx").on(t.userId, t.revokedAt),
+  ],
+);
+
+export type TherapistCode = typeof therapistCodes.$inferSelect;
+
+/**
+ * The patient's clinical summary, versioned. PLAN.md 26.1, C111.
+ *
+ * 🔴 Keyed on the **person**, not on a clinic's `patients` row. The summary is
+ * about somebody rather than about one clinician's file on them, and the whole
+ * portability argument collapses if moving practice means starting again.
+ *
+ * Append only, enforced by a trigger in migration 0059 rather than by everyone
+ * remembering. Therapist B writing version 2 leaves version 1, with therapist
+ * A's name on it, exactly where it was — and 26.2 is then free rather than
+ * built: revoking A's grant cannot retract a version, because nothing in this
+ * product can retract a version.
+ *
+ * The author is snapshotted by name and licence as well as by id. A clinician
+ * can leave or be deleted; a patient's record may not lose its author to that.
+ */
+export const clinicalSummaries = pgTable(
+  "clinical_summaries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    body: text("body").notNull(),
+
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    approvedByName: text("approved_by_name").notNull(),
+    approvedByCredentials: text("approved_by_credentials"),
+    approvedByLicenseBody: text("approved_by_license_body"),
+    approvedByLicenseNumber: text("approved_by_license_number"),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+
+    approvedAt: timestamp("approved_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("clinical_summaries_person_version").on(t.personId, t.version)],
+);
+
+export type ClinicalSummary = typeof clinicalSummaries.$inferSelect;
+
+/**
+ * A journal. PLAN.md 26.5 to 26.8, C123, C124.
+ *
+ * What replaced patient file uploads and patient-dictated clinical history. A
+ * person photographing a prescription was doing a clinician's filing; a person
+ * dictating "my history" was writing a clinical document about themselves.
+ * Neither is what somebody actually wants to do at eleven at night.
+ *
+ * 🔴 `riskLevel` and `riskIndicators` exist because C123 rules that a journal
+ * is scanned like a transcript: somebody writes "I want to die" into one at
+ * 3am and the clinician holding a grant is told. **Nothing on the patient's
+ * screen reads these columns**, and the page never says or implies that
+ * anybody is watching, because promising monitoring we cannot staff is the
+ * most dangerous thing this product could do.
+ */
+export const journals = pgTable(
+  "journals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** The patient account that wrote it. Points at `patient_accounts`. */
+    accountId: uuid("account_id").notNull(),
+    source: text("source").$type<"typed" | "dictated">().notNull().default("typed"),
+    body: text("body").notNull(),
+    riskLevel: text("risk_level").$type<RiskLevel | null>(),
+    riskIndicators: jsonb("risk_indicators").$type<string[]>().default([]).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("journals_person_idx").on(t.personId, t.createdAt)],
+);
+
+export type Journal = typeof journals.$inferSelect;
+
+/**
+ * A patient's invite to a clinician. PLAN.md 27.2, C102b.
+ *
+ * 🔴 Redeeming this does **not** create access. It creates a *request*, which
+ * the patient then approves in one tap. That is the whole design: the patient
+ * gets the initiative, and nobody gets a back door. The copy says "invite your
+ * therapist" and never "send your record", because the record does not move
+ * until its owner says so a second time, knowing who is asking.
+ *
+ * The code is short and hyphenated because it is read aloud across a desk.
+ */
+export const patientInvites = pgTable(
+  "patient_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** The patient account that made it. Points at `patient_accounts`. */
+    accountId: uuid("account_id").notNull(),
+    code: text("code").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    redeemedByUserId: uuid("redeemed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("patient_invites_code_unique").on(t.code),
+    index("patient_invites_person_idx").on(t.personId, t.createdAt),
+  ],
+);
+
+export type PatientInvite = typeof patientInvites.$inferSelect;
+
+export const HISTORY_ASK_STATUSES = ["pending", "added", "declined"] as const;
+export type HistoryAskStatus = (typeof HISTORY_ASK_STATUSES)[number];
+
+/**
+ * "Ask my previous therapist to add my history." PLAN.md 27.7, C108.
+ *
+ * 🔴 A row rather than a message, because the ruling is that a **silent
+ * request is worse than a refusal**. We cannot promise that an old clinician
+ * cooperates: they may have left, may want paying, may simply say no. What the
+ * product can promise is that the patient finds out. So the clinician sees it
+ * in a queue and either adds something or declines with a reason, and the
+ * database refuses a decline with no reason at all.
+ *
+ * The copy everywhere says "ask", never "get".
+ */
+export const historyAsks = pgTable(
+  "history_asks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").notNull(),
+    therapistUserId: uuid("therapist_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").$type<HistoryAskStatus>().notNull().default("pending"),
+    note: text("note"),
+    /** Read by the patient verbatim. Never null on a decline. */
+    declineReason: text("decline_reason"),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("history_asks_therapist_idx").on(t.therapistUserId, t.status),
+    index("history_asks_person_idx").on(t.personId, t.createdAt),
+  ],
+);
+
+export type HistoryAsk = typeof historyAsks.$inferSelect;
+
+/**
+ * A record of processing, one row per person. PLAN.md 30.3, C118.
+ *
+ * 🔴 A table rather than a document. A policy describing a transfer is written
+ * once; a transfer happens every time somebody books a session, and Egyptian
+ * enforcement lands October 2026 asking who agreed to what and when.
+ *
+ * The **wording** is frozen into the row rather than a version number pointing
+ * at editable text. A pointer proves nothing about what somebody actually
+ * read, which is the only thing a consent record is for.
+ */
+export const crossBorderConsents = pgTable(
+  "cross_border_consents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** Where they belong, and where they are actually being served from. */
+    homeRegion: text("home_region").$type<Region>().notNull(),
+    servingRegion: text("serving_region").$type<Region>().notNull(),
+    wording: text("wording").notNull(),
+    locale: text("locale").notNull(),
+    agreedAt: timestamp("agreed_at", { withTimezone: true }).defaultNow().notNull(),
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+  },
+  (t) => [index("cross_border_consents_person_idx").on(t.personId, t.agreedAt)],
+);
+
+export type CrossBorderConsent = typeof crossBorderConsents.$inferSelect;
+
+/**
+ * The clinical evidence layer. PLAN.md 33.1 to 33.6.
+ *
+ * ## 🔴 Not a key-value table. A fact with a history.
+ *
+ * The thing this replaces is `patients.clinical`, a JSON blob holding
+ * diagnoses and goals as strings. A blob can hold what the system believes and
+ * cannot hold **why**, **when it was true**, **who said so**, or **what it
+ * replaced** — so every downstream feature that reads it has to treat the
+ * contents as equally certain, and a model's guess from session 3 sits in the
+ * same array as a diagnosis a psychiatrist wrote.
+ *
+ * Every rule below is enforced by the database, in `0062_clinical_facts.sql`,
+ * and each is proved in `verify:sprint33` by attempting the write:
+ *
+ *   - The evidence quote is `NOT NULL` and non-blank. A fact nobody can trace
+ *     to a sentence cannot be stored at all.
+ *   - `source_priority` is CHECKed against `source_type`, so an extraction job
+ *     cannot write an `ai` row that outranks a clinician.
+ *   - An `ai` fact cannot be inserted already verified. Confidence is not
+ *     truth, and the agreement has to come from a person, afterwards.
+ *   - Value, quote, domain, field and person are immutable after the insert.
+ *     Disagreeing is a status change and a superseding row, never an edit.
+ *   - A lower-ranked source may not supersede a higher-ranked one.
+ *   - Superseding retires the old row to `historical` rather than deleting it.
+ *   - Deleting the evidence nulls the pointer and the fact becomes
+ *     `unsupported` in the same statement (33.5).
+ */
+export const FACT_SOURCES = ["clinician", "document", "patient", "ai"] as const;
+export type FactSource = (typeof FACT_SOURCES)[number];
+
+export const FACT_STATUSES = [
+  "active",
+  "resolved",
+  "historical",
+  "disputed",
+  /** 33.5 — the evidence behind it was deleted. Kept, never shown as current. */
+  "unsupported",
+] as const;
+export type FactStatus = (typeof FACT_STATUSES)[number];
+
+export const FACT_EVIDENCE_KINDS = ["segment", "chunk", "journal", "clinician"] as const;
+export type FactEvidenceKind = (typeof FACT_EVIDENCE_KINDS)[number];
+
+export const FACT_SENSITIVITIES = ["normal", "sensitive", "restricted"] as const;
+export type FactSensitivity = (typeof FACT_SENSITIVITIES)[number];
+
+export const patientClinicalFacts = pgTable(
+  "patient_clinical_facts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+
+    domain: text("domain").notNull(),
+    field: text("field").notNull(),
+    value: text("value").notNull(),
+
+    sourceType: text("source_type").$type<FactSource>().notNull(),
+    /** Lower wins. Derived from `sourceType` and CHECKed against it. */
+    sourcePriority: integer("source_priority").notNull(),
+    sourceId: uuid("source_id"),
+
+    /** 🔴 The sentence. NOT NULL, because a fact without one is a rumour. */
+    evidenceQuote: text("evidence_quote").notNull(),
+    evidenceKind: text("evidence_kind").$type<FactEvidenceKind>().notNull(),
+    segmentId: uuid("segment_id").references(() => transcriptSegments.id, {
+      onDelete: "set null",
+    }),
+    chunkId: uuid("chunk_id").references(() => documentChunks.id, { onDelete: "set null" }),
+    journalId: uuid("journal_id").references(() => journals.id, { onDelete: "set null" }),
+    enteredByUserId: uuid("entered_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    /** Only ever set for `ai`, and CHECKed that way. */
+    confidence: real("confidence"),
+
+    status: text("status").$type<FactStatus>().notNull().default("active"),
+
+    /** 🔴 33.3 — when it was TRUE, not when it was written. */
+    effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+    firstObservedAt: timestamp("first_observed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastObservedAt: timestamp("last_observed_at", { withTimezone: true }).defaultNow().notNull(),
+
+    supersedesId: uuid("supersedes_id"),
+
+    verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+
+    sensitivity: text("sensitivity").$type<FactSensitivity>().notNull().default("normal"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("clinical_facts_person_idx").on(t.personId, t.domain, t.field),
+    index("clinical_facts_active_idx").on(t.personId, t.status),
+    index("clinical_facts_supersedes_idx").on(t.supersedesId),
+  ],
+);
+
+export type ClinicalFact = typeof patientClinicalFacts.$inferSelect;
+
+/**
+ * Where a session's audio comes from. PLAN.md 36.1, and 41.1 made cheap.
+ *
+ * 🔴 The table is shaped so that sprint 41's hard rule — *the bot joins
+ * meetings 24Therapy created for a session, nothing else, ever* — is a
+ * property of the schema rather than a convention in a service. There is no
+ * column for a link somebody pasted and no column that could hold a calendar
+ * (C132); an external kind must carry `provisionedAt` and
+ * `provisionedByUserId`, enforced by CHECK; and the meeting identity is
+ * immutable after insert, so a source cannot be re-pointed at another meeting.
+ *
+ * See `drizzle/0064_session_sources.sql`, which names the residual honestly.
+ */
+export const SESSION_SOURCE_KINDS = [
+  "24t_room",
+  "google_meet",
+  "zoom",
+  "teams",
+  "in_person",
+  "upload",
+] as const;
+export type SessionSourceKind = (typeof SESSION_SOURCE_KINDS)[number];
+
+/** The kinds that describe a meeting inside somebody else's product. */
+export const EXTERNAL_SOURCE_KINDS: readonly SessionSourceKind[] = [
+  "google_meet",
+  "zoom",
+  "teams",
+];
+
+export const sessionSources = pgTable(
+  "session_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+
+    kind: text("kind").$type<SessionSourceKind>().notNull(),
+
+    /** Only ever set for a meeting WE created in a connected account. */
+    externalMeetingId: text("external_meeting_id"),
+    provisionedAt: timestamp("provisioned_at", { withTimezone: true }),
+    provisionedByUserId: uuid("provisioned_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+
+    /** 🔴 36.2 — the third door, hashed, expiring, revocable, counted. */
+    ingestTokenHash: text("ingest_token_hash"),
+    ingestTokenExpiresAt: timestamp("ingest_token_expires_at", { withTimezone: true }),
+    ingestTokenRevokedAt: timestamp("ingest_token_revoked_at", { withTimezone: true }),
+    ingestUses: integer("ingest_uses").notNull().default(0),
+    ingestLastUsedAt: timestamp("ingest_last_used_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("session_sources_session_unique").on(t.sessionId),
+    index("session_sources_org_idx").on(t.organizationId, t.createdAt),
+  ],
+);
+
+export type SessionSource = typeof sessionSources.$inferSelect;
+
+/* ------------------------------------------------------- sprint 37 voices -- */
+
+export const VOICE_ROLES = ["therapist", "patient"] as const;
+export type VoiceRoleColumn = (typeof VOICE_ROLES)[number];
+
+/**
+ * 🔴 How a voice acquired a person. There is no "model" and there must not be.
+ *
+ * `track` is the recording already knowing, because a video session captured
+ * two tracks. `operator` is a named human saying so. Sprint 37.2 — an
+ * unrecognised voice is a numbered speaker, never a guess — is only a rule
+ * anybody can rely on if there is no way to write down a guess.
+ */
+export const VOICE_BINDINGS = ["track", "operator"] as const;
+export type VoiceBinding = (typeof VOICE_BINDINGS)[number];
+
+export const sessionVoices = pgTable(
+  "session_voices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+
+    /** The provider's opaque label for this voice. Not a person. */
+    label: text("label").notNull(),
+    /** 1-based, in first-heard order. "Speaker 3" is ordinal 3. */
+    ordinal: integer("ordinal").notNull(),
+
+    /** Null means unrecognised, which is normal and permanent. */
+    role: text("role").$type<VoiceRoleColumn>(),
+    patientId: uuid("patient_id").references(() => patients.id, { onDelete: "restrict" }),
+    boundBy: text("bound_by").$type<VoiceBinding>(),
+    boundByUserId: uuid("bound_by_user_id").references(() => users.id, { onDelete: "restrict" }),
+    boundAt: timestamp("bound_at", { withTimezone: true }),
+
+    speakingMs: integer("speaking_ms").notNull().default(0),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("session_voices_label_unique").on(t.sessionId, t.label),
+    uniqueIndex("session_voices_ordinal_unique").on(t.sessionId, t.ordinal),
+  ],
+);
+
+export type SessionVoice = typeof sessionVoices.$inferSelect;

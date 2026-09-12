@@ -1,0 +1,17 @@
+import { readFileSync } from "node:fs";
+import { browser, context, go, anatomy, text, shot, fill, click, LAPTOP } from "./lib.mjs";
+const people = JSON.parse(readFileSync("/home/user/habiba/.walkthrough2/people.json", "utf8"));
+const t = people.therapist;
+const b = await browser();
+const ctx = await context(b, LAPTOP);
+const p = await ctx.newPage();
+const step = async (name) => { console.log(`\n### ${name}`, p.url()); console.log(JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,2000)); await shot(p, name); };
+await go(p, "/login");
+await fill(p, "Email", t.email);
+await fill(p, "Password", t.password);
+await click(p, "Sign in");
+await p.waitForURL((u)=>!u.pathname.includes("login"), { timeout: 20000 }).catch(()=>{});
+await p.waitForLoadState("networkidle").catch(()=>{});
+await step("t03-after-signin");
+await ctx.storageState({ path: "/home/user/habiba/.walkthrough2/state-therapist.json" });
+await b.close();

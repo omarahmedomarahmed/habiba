@@ -1,0 +1,10 @@
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+const step = async (n, chars=1400) => { console.log(`\n### ${n} ${p.url()}`, JSON.stringify(await anatomy(p))); console.log((await text(p)).slice(0,chars)); await shot(p, n); };
+await go(p, "/dashboard"); await step("t08-dashboard");
+await go(p, "/patients"); await step("t09-patients-empty");
+await go(p, "/sessions"); await step("t10-sessions-empty");
+await go(p, "/notes"); await step("t11-notes-empty");
+await b.close();

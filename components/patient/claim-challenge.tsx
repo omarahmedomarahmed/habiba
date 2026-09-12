@@ -6,6 +6,7 @@ import { ShieldQuestion } from "lucide-react";
 import { sayName, saySeen } from "@/app/(patient)/patient/claim/challenge-actions";
 import { Button, Card, Input } from "@/components/ui";
 import type { Challenge } from "@/lib/data/challenge";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Two questions, one record at a time. PLAN.md 13.6–13.7, §3b.
@@ -25,6 +26,7 @@ import type { Challenge } from "@/lib/data/challenge";
  * a form that takes both answers at once invites answering both the same way.
  */
 export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
+  const t = useT();
   const [index, setIndex] = useState(0);
   const [name, setName] = useState("");
   const [stage, setStage] = useState<"seen" | "name">(challenges[0]?.stage ?? "seen");
@@ -44,7 +46,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
   if (!current) {
     return done.length > 0 ? (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">That is everything</p>
+        <p className="text-sm font-semibold text-slate-900">{t("pclaim.everything")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {done.length === 1
             ? "Your record is yours now."
@@ -65,12 +67,10 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
       {stage === "seen" ? (
         <>
           <p className="mt-2 text-base leading-relaxed text-slate-800">
-            Have you seen{" "}
-            <span className="font-semibold">{current.therapistName}</span> before?
+            {t("pclaim.seenBefore", { name: current.therapistName })}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Your number matched a record they keep. If you have never seen them, say no — nothing
-            is shown to you either way.
+            {t("pclaim.seenBeforeBody")}
           </p>
 
           <div className="mt-4 flex gap-2">
@@ -99,7 +99,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
               }
               className="tap-target h-11 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
             >
-              No, I have not
+              {t("pclaim.noHaveNot")}
             </button>
           </div>
         </>
@@ -109,7 +109,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
             What first name did you give {current.therapistName}?
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Type it as you gave it to them. We will not show it to you.
+            {t("pclaim.typeName")}
           </p>
 
           <div className="mt-3 space-y-2">
@@ -117,7 +117,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="off"
-              placeholder="First name"
+              placeholder={t("pclaim.firstName")}
             />
             <div className="flex flex-wrap gap-2">
               <Button
@@ -144,7 +144,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
                 onClick={next}
                 className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-slate-600"
               >
-                Skip for now
+                {t("pclaim.skip")}
               </button>
             </div>
           </div>

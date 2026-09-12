@@ -10,6 +10,7 @@ import {
   messagesIn,
 } from "@/lib/ai/assistant";
 import { requireUser } from "@/lib/auth/guard";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Assistant", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -26,6 +27,7 @@ export default async function AssistantPage({
 }: {
   searchParams: Promise<{ thread?: string }>;
 }) {
+  const { t } = await getI18n();
   const actor = await requireUser();
   const { thread } = await searchParams;
 
@@ -47,10 +49,11 @@ export default async function AssistantPage({
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <div className="pb-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Assistant</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          {t("portal.assistant.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Your practice, not your patients&rsquo; records. For anything clinical, open that
-          patient&rsquo;s own copilot.
+          {t("portal.assistant.subtitle")}
         </p>
       </div>
 

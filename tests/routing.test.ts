@@ -51,7 +51,7 @@ test("holding a clinician cookie does not let you into a patient page", () => {
 
 /* ------------------------------------------------------- /patient vs /patients -- */
 
-test("/patients is the clinician's route and /patient is not — one character apart", () => {
+test("/patients is the clinician's route and /patient is not, one character apart", () => {
   // The clinician's patient list, with a clinician cookie: passes.
   assert.deepEqual(routeDecision("/patients", clinician), { kind: "pass" });
   // …and with only a patient cookie it is a protected clinician route.
@@ -133,5 +133,58 @@ test("every patient path returns from the patient block, whatever the cookies", 
         }
       }
     }
+  }
+});
+
+/**
+ * 🔴 21R.4 / C94 — the reset page a locked-out patient can actually reach.
+ *
+ * Somebody who cannot sign in has no patient cookie. If `/patient/
+ * forgot-password` is not an auth route, the middleware bounces them to
+ * `/patient/login` — the page they are on because they cannot use it. This is
+ * the check that the door is not locked from the inside.
+ */
+test("a patient with no cookie can reach the reset page", () => {
+  assert.deepEqual(routeDecision("/patient/forgot-password", nobody), { kind: "pass" });
+});
+
+test("…and a signed-in patient is sent to their own pages instead", () => {
+  assert.deepEqual(routeDecision("/patient/forgot-password", patient), {
+    kind: "redirect",
+    to: "/patient",
+    keepNext: false,
+  });
+});
+
+/** 21R.1 — an unauthenticated caller at an admin route gets the admin door. */
+test("the admin console bounces to the staff sign-in, not the clinician's", () => {
+  assert.deepEqual(routeDecision("/admin/payouts", nobody), {
+    kind: "redirect",
+    to: "/staff/sign-in",
+    keepNext: true,
+  });
+  assert.deepEqual(routeDecision("/sessions", nobody), {
+    kind: "redirect",
+    to: "/login",
+    keepNext: true,
+  });
+});
+
+/**
+ * 🔴 22R — the invite link works before there is an account.
+ *
+ * Found by opening it as the patient: with no cookie the middleware sent
+ * `/patient/invite/<token>` to `/patient/login`, so somebody handed a link in
+ * the room met a sign-in form for an account they do not have. The page is
+ * written for both cases; the router was not. It must pass either way — a
+ * signed-in patient opening the same link is how the claim completes.
+ */
+test("the invite link is reachable with and without a patient cookie", () => {
+  for (const cookies of [nobody, patient, clinician, both]) {
+    assert.deepEqual(
+      routeDecision("/patient/invite/abc123", { ...cookies, expired: false }),
+      { kind: "pass" },
+      JSON.stringify(cookies),
+    );
   }
 });

@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { askToChangeNumber, type AccountState } from "@/app/(patient)/patient/account/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: AccountState = {};
 
@@ -35,15 +36,15 @@ export function ChangeNumber({
   /** Null when it can be changed today. 20.14's ninety days. */
   lockedUntilLabel: string | null;
 }) {
+  const t = useT();
   const [state, action] = useActionState(askToChangeNumber, INITIAL);
 
   if (state.ok) {
     return (
       <Card className="border-teal-200 bg-teal-50 p-4">
-        <p className="text-sm font-semibold text-teal-900">We have your request</p>
+        <p className="text-sm font-semibold text-teal-900">{t("pnumber.requested")}</p>
         <p className="mt-1 text-sm leading-relaxed text-teal-900/90">
-          Somebody will contact the new number to check it is you, then send it a code. Enter that
-          code here and your account moves. Nothing changes until then.
+          {t("pnumber.requestedBody")}
         </p>
       </Card>
     );
@@ -51,31 +52,28 @@ export function ChangeNumber({
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">Your number</p>
-      <p className="mt-1 font-mono text-sm text-slate-700">{current ?? "—"}</p>
+      <p className="text-sm font-semibold text-slate-900">{t("pnumber.yours")}</p>
+      <p className="mt-1 font-mono text-sm text-slate-700">{current ?? "-"}</p>
 
       <p className="mt-2 text-xs leading-relaxed text-slate-500">
-        This is how we know it is you, so changing it takes a person and a day. We call or message
-        the new number first, then send it a code. Nobody here can move your account without that
-        code.
+        {t("pnumber.body")}
       </p>
 
       {lockedUntilLabel ? (
         <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-          Your number was confirmed recently, so it is locked until {lockedUntilLabel}. If you
-          cannot wait, write to us and a person will look at it.
+          {t("pnumber.locked", { date: lockedUntilLabel })}
         </p>
       ) : (
         <form action={action} className="mt-3 space-y-3">
-          <Field label="New number">
+          <Field label={t("pnumber.newNumber")}>
             <div className="flex gap-2">
               <select
                 name="country"
-                aria-label="Country"
+                aria-label={t("pnumber.country")}
                 defaultValue=""
                 className="h-12 w-32 rounded-xl border border-slate-200 bg-white px-2 text-sm"
               >
-                <option value="">Country</option>
+                <option value="">{t("pnumber.country")}</option>
                 {countries.map((country) => (
                   <option key={country.code} value={country.code}>
                     {country.name}
@@ -92,7 +90,7 @@ export function ChangeNumber({
 
           <label className="flex items-start gap-2 text-sm text-slate-700">
             <input type="checkbox" name="consent" className="mt-1" required />
-            You may call or message the new number to check it is me.
+            {t("pnumber.mayCall")}
           </label>
 
           {state.error ? (

@@ -24,10 +24,10 @@ const PHONE = "+201000000008";
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
-const skip = (name: string, why: string) => console.log(`  --   ${name} — NOT EXERCISED: ${why}`);
+const skip = (name: string, why: string) => console.log(`  --   ${name}, NOT EXERCISED: ${why}`);
 
 const TAG = `verify8-${randomUUID().slice(0, 8)}`;
 
@@ -174,7 +174,7 @@ async function main() {
       .from(documentChunks)
       .where(eq(documentChunks.documentId, first.documentId));
     check(
-      "8.3 re-chunking replaces the set — no stale passage keeps a live number",
+      "8.3 re-chunking replaces the set, no stale passage keeps a live number",
       after[0]?.n === 1,
       `${after[0]?.n} chunk(s)`,
     );
@@ -279,7 +279,7 @@ async function main() {
        * the copilot's own document assembly returns **nothing**, so the material
        * never enters the prompt. A model cannot leak what it was not given.
        */
-      const { __documentsForTest } = await import("../lib/ai/patient-copilot");
+      const { __documentsForTest } = await import("../lib/ai/case-copilot");
       const withheld = await __documentsForTest(patientId, access.capabilities);
       check(
         "🔴 C47 a revoked clinician's copilot is handed NO documents",

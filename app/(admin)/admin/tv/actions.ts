@@ -87,7 +87,7 @@ export async function mailClinicianHistory(input: {
   const reason = input.reason.trim();
   if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(to)) return { error: "Enter a valid address." };
   if (reason.length < 20) {
-    return { error: "Give the reason and the authority for this request — at least a sentence." };
+    return { error: "Give the reason and the authority for this request, at least a sentence." };
   }
 
   const { buildClinicianHistory } = await import("@/lib/console/history");
@@ -110,10 +110,15 @@ export async function mailClinicianHistory(input: {
     action: "console.export.clinician",
     resourceType: "user",
     resourceId: input.therapistId,
-    reason: `Sent to ${to}, copy to ${actor.email} — ${reason}`,
+    reason: `Sent to ${to}, copy to ${actor.email}, ${reason}`,
   });
 
-  const { db } = await import("@/lib/db");
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/tv/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const { notifications } = await import("@/lib/db/schema");
   await db.insert(notifications).values({
     userId: input.therapistId,

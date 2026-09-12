@@ -1,9 +1,21 @@
 import "server-only";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { auditLog, type AuditCategory } from "@/lib/db/schema";
 import { clientIp, clientUserAgent } from "@/lib/request";
 import type { Actor } from "@/lib/auth/session";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/audit.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 type AuditInput = {
   actor: Pick<Actor, "userId" | "organizationId"> | null;
@@ -34,6 +46,12 @@ type AuditInput = {
  * access and was in fact logging nothing. An audit trail that fails silently is
  * worse than no audit trail, because you plan around it.
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string | null | undefined): value is string {
+  return typeof value === "string" && UUID.test(value);
+}
+
 export async function audit(input: AuditInput): Promise<void> {
   const [ip, ua] = await Promise.all([clientIp(), clientUserAgent()]);
 
@@ -51,7 +69,21 @@ export async function audit(input: AuditInput): Promise<void> {
     category: input.category,
     action: input.action,
     resourceType: input.resourceType ?? null,
-    resourceId: input.resourceId ?? null,
+    /*
+     * 🔴 A UUID goes in the UUID column; anything else goes in `resource_key`.
+     *
+     * `resource_id` is typed `uuid`, and Postgres refuses `"pricing"` or
+     * `"common.continue:ar"` outright — which, because this function is
+     * deliberately allowed to throw, took the whole action down with it. The
+     * taxonomy editor had been failing that way since sprint 1: every save
+     * wrote its row and then threw at the audit, so the admin saw an error and
+     * the change looked lost.
+     *
+     * Routing here rather than at ~30 call sites means the next person to
+     * audit a non-row resource cannot reintroduce it.
+     */
+    resourceId: isUuid(input.resourceId) ? input.resourceId : null,
+    resourceKey: isUuid(input.resourceId) ? null : (input.resourceId ?? null),
     patientId: input.patientId ?? null,
     reason: input.reason ?? null,
     ipAddress: ip,

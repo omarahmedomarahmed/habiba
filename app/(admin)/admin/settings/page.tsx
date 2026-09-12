@@ -63,14 +63,14 @@ export default async function SettingsPage() {
             label="Margin %"
             value={
               traction.marginBps === null
-                ? "—"
+                ? "-"
                 : `${(traction.marginBps / 100).toFixed(1)}%`
             }
           />
         </dl>
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
           Cost is what the models actually charged us, summed from microcents and divided once
-          (C17). The percentage is absent rather than zero when nothing has been collected — a
+          (C17). The percentage is absent rather than zero when nothing has been collected, a
           margin on no revenue is a division by zero wearing a percent sign.
         </p>
       </Card>
@@ -81,7 +81,7 @@ export default async function SettingsPage() {
             {unreachable.length} countr{unreachable.length === 1 ? "y has" : "ies have"} no rail
           </p>
           <p className="mt-1 text-sm leading-relaxed text-amber-900/90">
-            {unreachable.map((c) => c.name).join(", ")} — nobody there can pay us and nobody there
+            {unreachable.map((c) => c.name).join(", ")}, nobody there can pay us and nobody there
             can be paid. A clinician who signs up in one of these is a person we cannot pay, not a
             gap in a spreadsheet.
           </p>

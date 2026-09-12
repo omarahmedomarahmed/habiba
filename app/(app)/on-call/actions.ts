@@ -7,7 +7,8 @@ import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { safeImageUrl } from "@/lib/content/url";
 import { eq } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import {
   getRadarProfile,
@@ -18,6 +19,17 @@ import {
   type RadarAttention,
 } from "@/lib/data/radar";
 import { validateSelections } from "@/lib/data/taxonomy";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(app)/on-call/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export type RadarState = { error?: string; ok?: boolean };
 
@@ -197,7 +209,7 @@ export async function findPracticeLocation(query: string): Promise<GeocodeResult
       hits: [
         {
           ...pasted,
-          displayName: `${pasted.lat}, ${pasted.lon} — the exact point you pasted`,
+          displayName: `${pasted.lat}, ${pasted.lon}, the exact point you pasted`,
           country: null,
           region: null,
           city: null,
@@ -210,7 +222,7 @@ export async function findPracticeLocation(query: string): Promise<GeocodeResult
   if (hits.length === 0) {
     return {
       error:
-        "Nothing found for that. Try a simpler version — building, street, city — or paste coordinates from your maps app.",
+        "Nothing found for that. Try a simpler version, building, street, city, or paste coordinates from your maps app.",
     };
   }
   return { hits };

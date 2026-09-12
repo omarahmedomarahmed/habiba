@@ -68,7 +68,7 @@ async function main() {
     const overCap = candidates.filter((c) => c.total > 160);
 
     console.log(
-      `${candidates.length} session(s) with unattributed segments — ` +
+      `${candidates.length} session(s) with unattributed segments, ` +
         `${stranded.length} with no patient track, ${partial.length} where a track dropped.\n` +
         `${segments} unattributed segment(s) in total.\n` +
         `${overCap.length} session(s) longer than the old 160-segment cap.`,
@@ -81,7 +81,7 @@ async function main() {
             `${c.patient > 0 ? "  (track dropped)" : ""}${c.total > 160 ? "  (over the old cap)" : ""}`,
         );
       }
-      console.log("\ndry run — nothing written");
+      console.log("\ndry run, nothing written");
       return;
     }
 

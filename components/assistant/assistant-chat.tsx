@@ -8,6 +8,7 @@ import { ask, removeThread, startThread } from "@/app/(app)/assistant/actions";
 import { Badge, Card } from "@/components/ui";
 import { linkRoster, type RosterEntry } from "@/lib/assistant/roster";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The general copilot. PLAN.md 10.1–10.5.
@@ -41,6 +42,7 @@ export function AssistantChat({
   used: number;
   limit: number;
 }) {
+  const t = useT();
   const [messages, setMessages] = useState(initial);
   const [question, setQuestion] = useState("");
   const [spent, setSpent] = useState(used);
@@ -96,7 +98,7 @@ export function AssistantChat({
           className="tap-target flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800"
         >
           <MessageSquarePlus className="h-4 w-4" aria-hidden />
-          New chat
+          {t("tach.newChat")}
         </button>
 
         <ul className="space-y-1">
@@ -115,7 +117,7 @@ export function AssistantChat({
               </Link>
               <button
                 type="button"
-                aria-label={`Delete ${thread.title}`}
+                aria-label={t("tach.deleteThread", { title: thread.title })}
                 onClick={() =>
                   startTransition(async () => {
                     await removeThread(thread.id);
@@ -136,7 +138,7 @@ export function AssistantChat({
         <Card className="flex min-h-[24rem] flex-col">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
             <p className="text-xs text-slate-500">
-              Your roster only — names, dates and what is waiting. Not clinical notes.
+              {t("tach.roster")}
             </p>
             {/*
               10.5. Shown as what is left rather than what is spent: a
@@ -149,9 +151,7 @@ export function AssistantChat({
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 ? (
               <p className="text-sm leading-relaxed text-slate-500">
-                Ask about your week. “Who have I not seen in a month?” “How many notes am I behind
-                on?” For anything about what a patient actually said, open their own copilot — this
-                one cannot see clinical records.
+                {t("tach.blurb")}
               </p>
             ) : (
               messages.map((message) => (
@@ -186,7 +186,7 @@ export function AssistantChat({
                     send();
                   }
                 }}
-                placeholder={threadId ? "Ask about your week…" : "Start a chat first"}
+                placeholder={threadId ? t("tach.askWeek") : t("tach.startFirst")}
                 disabled={!threadId || pending}
                 className="min-h-[3rem] flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
               />
@@ -194,7 +194,7 @@ export function AssistantChat({
                 type="button"
                 disabled={!threadId || pending || !question.trim()}
                 onClick={send}
-                aria-label="Send"
+                aria-label={t("tach.send")}
                 className="tap-target flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white disabled:opacity-40"
               >
                 <Send className="h-4 w-4" aria-hidden />

@@ -4,9 +4,16 @@ import { ShieldCheck } from "lucide-react";
 import { VerificationReview } from "@/components/admin/verification-review";
 import { Card } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/guard";
+import {
+  IDENTITY_KINDS,
+  IDENTITY_LABEL,
+  identityDocumentPath,
+  type IdentityKind,
+} from "@/lib/documents/identity-access";
 import { reviewQueue } from "@/lib/data/verification";
 import { countryFlag, countryName } from "@/lib/geo";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Verifications", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -16,15 +23,37 @@ export const dynamic = "force-dynamic";
  *
  * The documents are rendered inline rather than behind a link, because a
  * reviewer comparing a name on a licence to a name on an account should not be
- * opening four tabs per applicant. Their URLs are unguessable and this page is
- * super-admin only.
+ * opening four tabs per applicant.
+ *
+ * 🔴 29.1 — what they are rendered FROM changed. It used to be the stored blob
+ * URL, which is a secret and therefore not access control (H14): a screenshot
+ * of this page handed whoever received it a permanent, unrevocable, unaudited
+ * copy of a stranger's passport. Each image now points at
+ * `/api/uploads/<verification>.<kind>`, which carries no secret and asks who
+ * is calling on every request. "This page is super-admin only" was true and
+ * was never the thing protecting the file.
  */
+/**
+ * Which columns exist on the row, so an absent document is not offered as a
+ * broken link. 29.1.
+ */
+const URL_OF: Record<IdentityKind, (row: QueueRow) => string | null> = {
+  idFront: (row) => row.idFrontUrl,
+  idBack: (row) => row.idBackUrl,
+  licenseDoc: (row) => row.licenseDocUrl,
+  headshot: (row) => row.headshotUrl,
+};
+
+type QueueRow = Awaited<ReturnType<typeof reviewQueue>>[number];
+
 export default async function VerificationsPage({
   searchParams,
 }: {
   searchParams: Promise<{ state?: string }>;
 }) {
   const actor = await requireStaff();
+  // 45.6 — country names are ICU's, in the reader's language.
+  const { locale } = await getI18n();
   const { state } = await searchParams;
 
   const bucket =
@@ -80,7 +109,7 @@ export default async function VerificationsPage({
               organizationName={row.organizationName}
               countryLabel={
                 row.country
-                  ? `${countryFlag(row.country)} ${countryName(row.country) ?? row.country}`
+                  ? `${countryFlag(row.country)} ${countryName(row.country, locale) ?? row.country}`
                   : "Not given"
               }
               licenseBody={row.licenseBody}
@@ -88,13 +117,28 @@ export default async function VerificationsPage({
               licenseExpiry={row.licenseExpiry}
               specialties={row.specialties}
               languages={row.languages}
-              documents={[
-                { label: "ID — front", url: row.idFrontUrl },
-                { label: "ID — back", url: row.idBackUrl },
-                { label: "Licence", url: row.licenseDocUrl },
-                { label: "Headshot (public)", url: row.headshotUrl },
-              ]}
-              submittedAt={row.submittedAt ? formatDate(row.submittedAt, actor.timezone) : null}
+              /*
+               * 🔴 29.1 / H14 — the reference, never the stored URL.
+               *
+               * These four lines used to put a blob URL for a real person's
+               * passport into the HTML of an admin page. A URL in a page stops
+               * being a secret the moment the page is screenshotted, forwarded
+               * or pasted into a support ticket, and a blob URL is the only
+               * thing that was protecting the file.
+               *
+               * `identityDocumentPath` carries no secret at all: the route
+               * asks who is calling on every request and audits before the
+               * bytes. The "(public)" on the headshot is gone too, because it
+               * was describing a different column (`therapist_radar.photo_url`)
+               * and telling a reviewer to treat this one casually.
+               */
+              documents={IDENTITY_KINDS.filter((kind) => URL_OF[kind](row) !== null).map(
+                (kind) => ({
+                  label: IDENTITY_LABEL[kind],
+                  url: identityDocumentPath(row.id, kind),
+                }),
+              )}
+              submittedAt={row.submittedAt ? formatDate(row.submittedAt, actor.timezone, "en") : null}
               reviewNote={row.reviewNote}
               decided={bucket !== "submitted"}
             />

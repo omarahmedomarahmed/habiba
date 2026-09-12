@@ -7,7 +7,7 @@ import { PatientEditor } from "@/components/patient/patient-editor";
 import { AccessBanner } from "@/components/patient/access-banner";
 import { RecordAccess } from "@/components/patient/record-access";
 import { lockedOn } from "@/lib/data/challenge";
-import { Badge, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { explain } from "@/lib/access/state";
 import { recordAccess } from "@/lib/data/claims";
@@ -15,6 +15,8 @@ import { accessFor } from "@/lib/data/grants";
 import { getPatient, getPatientHistory } from "@/lib/data/patients";
 import { personIdForPatient } from "@/lib/data/people";
 import { fullName, relativeDay } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+import { SessionBadge } from "@/components/sessions/status-badge";
 
 export const metadata: Metadata = {
   title: "Patient",
@@ -23,6 +25,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -54,7 +57,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Patients
+          {t("portal.patients.title")}
         </Link>
       </div>
 
@@ -63,8 +66,10 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           {fullName(patient.firstName, patient.lastName)}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          {history.length} session{history.length === 1 ? "" : "s"}
-          {patient.source === "join_link" ? " · joined by link" : ""}
+          {history.length === 1
+            ? t("portal.patient.sessionsOne")
+            : t("portal.patient.sessionsMany", { count: history.length })}
+          {patient.source === "join_link" ? ` · ${t("portal.patient.joinedByLink")}` : ""}
         </p>
       </div>
 
@@ -98,9 +103,29 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900">Profile and documents</p>
+              <p className="text-sm font-medium text-slate-900">{t("portal.patient.profileDocs")}</p>
               <p className="mt-0.5 text-xs text-slate-500">
-                Letters, prescriptions, history and the diagnoses they state.
+                {t("portal.patient.profileDocsBlurb")}
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+          </Link>
+        </Card>
+
+        {/*
+          33.6 — why the system believes what it believes.
+          A separate screen rather than a panel on this one, because it is long
+          by design: every fact carries the sentence that produced it.
+        */}
+        <Card>
+          <Link
+            href={`/patients/${patient.id}/evidence`}
+            className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">{t("portal.patient.beliefs")}</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {t("portal.patient.beliefsBlurb")}
               </p>
             </div>
             <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
@@ -118,10 +143,10 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
 
         <Card>
           <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-            Session history
+            {t("portal.patient.history")}
           </p>
           {history.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-slate-500">No sessions yet.</p>
+            <p className="px-4 py-6 text-sm text-slate-500">{t("portal.patient.historyNone")}</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {history.map((session) => (
@@ -132,8 +157,10 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-slate-900">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone)}
-                        {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
+                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
+                        {session.durationMinutes
+                          ? ` · ${t("portal.minutes", { count: session.durationMinutes })}`
+                          : ""}
                       </p>
                       {session.noteSummary?.summary ? (
                         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
@@ -141,8 +168,15 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                         </p>
                       ) : null}
                     </div>
+                    {/*
+                      37L.2 — this printed `session.status.replace("_", " ")`:
+                      a database enum shown to a clinician as interface copy,
+                      which no dictionary can reach and which reads as
+                      "in progress" in every language. One badge, four words,
+                      both languages.
+                    */}
                     {session.status !== "completed" ? (
-                      <Badge tone="amber">{session.status.replace("_", " ")}</Badge>
+                      <SessionBadge status={session.status} />
                     ) : null}
                     <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
                   </Link>

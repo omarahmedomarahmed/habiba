@@ -20,6 +20,7 @@ import {
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { cn, formatDuration } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 type Speaker = "therapist" | "patient" | "unknown";
 
@@ -58,6 +59,7 @@ type RoomProps = {
 
 export function SessionRoom(props: RoomProps) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
 
   const [live, setLive] = useState(props.initialStatus === "in_progress");
@@ -222,7 +224,7 @@ export function SessionRoom(props: RoomProps) {
       await recorder.start();
       remoteRecorder.current = recorder;
     } catch {
-      setError("Could not capture the patient's audio. Their side may not be transcribed.");
+      setError(t("troom.errPatientAudio"));
     }
   }, [uploadChunk]);
 
@@ -249,7 +251,7 @@ export function SessionRoom(props: RoomProps) {
          */
         if (had && liveRef.current) {
           setError(
-            "Your patient's audio dropped. The session is still recording, but from here we work out who said what from the words rather than from their microphone.",
+            t("troom.audioDropped"),
           );
         }
         return;
@@ -379,7 +381,7 @@ export function SessionRoom(props: RoomProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Could not copy. Long-press the link to copy it manually.");
+      setError(t("troom.errCopy"));
     }
   };
 
@@ -400,7 +402,7 @@ export function SessionRoom(props: RoomProps) {
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{props.patientLabel}</p>
           <p className="text-xs text-slate-400">
-            {props.modality === "video" ? "Video session" : "In person"}
+            {props.modality === "video" ? t("troom.videoSession") : t("troom.inPerson")}
             {live ? ` · ${formatDuration(clock.elapsedSeconds)}` : ""}
           </p>
         </div>
@@ -414,7 +416,7 @@ export function SessionRoom(props: RoomProps) {
               )}
             />
             <span className="text-[11px] font-medium text-white">
-              {offRecord ? "Off record" : "Live"}
+              {offRecord ? t("troom.offRecord") : t("troom.live")}
             </span>
           </span>
         ) : null}
@@ -497,11 +499,12 @@ export function SessionRoom(props: RoomProps) {
                 <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-black px-6 text-center">
                   <Video className="h-6 w-6 text-slate-500" aria-hidden />
                   <p className="text-sm font-medium text-slate-300">
-                    {props.videoConfigured ? "Setting up the room…" : "Video is not configured"}
+                    {props.videoConfigured
+                      ? t("troom.settingUp")
+                      : t("troom.videoNotConfigured")}
                   </p>
                   <p className="max-w-xs text-xs text-slate-500">
-                    The session is still recorded and transcribed. Add a Daily.co API key to enable
-                    video calls.
+                    {t("troom.videoNote")}
                   </p>
                 </div>
               )}
@@ -551,11 +554,11 @@ export function SessionRoom(props: RoomProps) {
                 >
                   {copied ? (
                     <>
-                      <Copy className="h-3.5 w-3.5" aria-hidden /> Copied
+                      <Copy className="h-3.5 w-3.5" aria-hidden /> {t("troom.copied")}
                     </>
                   ) : (
                     <>
-                      <Link2 className="h-3.5 w-3.5" aria-hidden /> Copy join link
+                      <Link2 className="h-3.5 w-3.5" aria-hidden /> {t("troom.copyLink")}
                     </>
                   )}
                 </button>
@@ -572,8 +575,7 @@ export function SessionRoom(props: RoomProps) {
           {micDenied ? (
             <div className="mx-4 mt-3 rounded-xl bg-amber-500/10 px-3.5 py-2.5">
               <p className="text-sm text-amber-200">
-                No microphone access, so nothing is being transcribed. Allow the microphone and
-                reload to record this session.
+                {t("troom.noMic")}
               </p>
             </div>
           ) : null}
@@ -612,11 +614,11 @@ export function SessionRoom(props: RoomProps) {
             live={live}
             paused={offRecord}
             className="min-h-0 flex-1"
-            emptyTitle={live ? "Listening…" : "Ready when you are"}
+            emptyTitle={live ? t("ttr.listening") : t("troom.readyWhen")}
             emptyBody={
               live
-                ? "What is said in the room appears here within a few seconds."
-                : "Press Start session to begin recording and transcribing."
+                ? t("troom.appearsHere")
+                : t("troom.pressStart")
             }
           />
         </div>
@@ -649,13 +651,13 @@ export function SessionRoom(props: RoomProps) {
           {live ? (
             <div className="mb-2.5 flex items-center gap-1.5">
               <span className="text-[10px] font-bold tracking-wider text-white/35 uppercase">
-                Spoken
+                {t("troom.spoken")}
               </span>
               <div className="flex flex-1 gap-1 rounded-xl bg-white/5 p-0.5">
                 {(
                   [
-                    [null, "Detect"],
-                    ["en", "English"],
+                    [null, t("troom.detect")],
+                    ["en", t("tcop.english")],
                     ["ar", "العربية"],
                   ] as const
                 ).map(([code, label]) => (
@@ -700,11 +702,11 @@ export function SessionRoom(props: RoomProps) {
               >
                 {offRecord ? (
                   <>
-                    <MicOff className="h-4 w-4" aria-hidden /> Resume
+                    <MicOff className="h-4 w-4" aria-hidden /> {t("troom.resume")}
                   </>
                 ) : (
                   <>
-                    <Mic className="h-4 w-4" aria-hidden /> Off record
+                    <Mic className="h-4 w-4" aria-hidden /> {t("troom.offRecord")}
                   </>
                 )}
               </button>
@@ -717,25 +719,23 @@ export function SessionRoom(props: RoomProps) {
               >
                 {ending ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Ending…
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t("troom.ending")}
                   </>
                 ) : (
                   <>
-                    <Square className="h-4 w-4" aria-hidden /> End session
+                    <Square className="h-4 w-4" aria-hidden /> {t("troom.endSession")}
                   </>
                 )}
               </button>
             </div>
           ) : (
             <Button size="lg" variant="teal" full onClick={handleStart} disabled={pending}>
-              {pending ? "Starting…" : "Start session"}
+              {pending ? t("troom.starting") : t("troom.startSession")}
             </Button>
           )}
 
           <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">
-            {live
-              ? "Your note is written the moment you end the session."
-              : "Make sure your patient has consented to recording."}
+            {live ? t("troom.noteOnEnd") : t("troom.consentFirst")}
           </p>
         </div>
       </div>

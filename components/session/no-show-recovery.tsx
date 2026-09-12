@@ -11,6 +11,8 @@ import {
 } from "@/app/(patient)/sessions/[id]/recovery-actions";
 import { Button, Card } from "@/components/ui";
 import { formatMoney } from "@/lib/billing/plans";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { localeTag } from "@/lib/i18n/config";
 
 /**
  * What a patient sees while nobody is joining. PLAN.md 14.1–14.4.
@@ -33,22 +35,23 @@ export function NoShowRecovery({
   sessionId,
   startedAt,
   waitMinutes,
-  locale = "en-US",
 }: {
   sessionId: string;
   /** Non-null once the therapist joined — this component then never appears. */
   startedAt: string | null;
   /** How long they have been here. Server-computed, so the clock is one clock. */
   waitMinutes: number;
-  /**
-   * 19.4 — the reader's language. This screen is shown to a patient whose
-   * therapist has not turned up, and it quotes money at them; formatting it in
-   * the runtime's locale would differ between the server pass and the browser.
-   */
-  locale?: string;
 }) {
   const [view, setView] = useState<RecoveryView>({ state: "waiting" });
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
+  /*
+   * 37L.9 — asked for, not passed in. This was `locale?: string = "en-US"`:
+   * the same optional-prop shape as `PatientSessionList`, on the screen a
+   * patient sees when their therapist has not turned up and money is being
+   * quoted at them.
+   */
+  const locale = localeTag(useLocale());
   const [pending, startTransition] = useTransition();
 
   /*
@@ -75,10 +78,10 @@ export function NoShowRecovery({
       <Card className="p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <Clock className="h-4 w-4 text-slate-400" aria-hidden />
-          Joining shortly
+          {t("tshow.joining")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Your therapist has not joined yet. Stay here — this page will open the moment they do.
+          {t("tshow.joiningBody")}
         </p>
       </Card>
     );
@@ -88,14 +91,14 @@ export function NoShowRecovery({
     return (
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">
-          {view.outcome === "reassigned" ? "You are in good hands" : "You have been refunded"}
+          {view.outcome === "reassigned" ? t("tshow.reassigned") : t("tshow.refunded")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {view.outcome === "reassigned"
-            ? "They have been told and are joining now."
-            : "The full amount is on its way back, including our fee. We are sorry."}
+          {view.outcome === "reassigned" ? t("tshow.reassignedBody") : t("tshow.refundedBody")}
           {view.creditCents
-            ? ` They charge less, so ${formatMoney(view.creditCents, "USD", locale)} is waiting as credit on your next session.`
+            ? ` ${t("tshow.creditWaiting", {
+                amount: formatMoney(view.creditCents, "USD", locale),
+              })}`
             : ""}
         </p>
       </Card>
@@ -105,10 +108,9 @@ export function NoShowRecovery({
   if (view.state === "none") {
     return (
       <Card className="border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm font-semibold text-amber-900">Nobody is free right now</p>
+        <p className="text-sm font-semibold text-amber-900">{t("tshow.nobody")}</p>
         <p className="mt-1 text-sm leading-relaxed text-amber-800">
-          We could not find another therapist who is online. This is our failure, not yours — take
-          your money back and we will be sorry about it properly.
+          {t("tshow.nobodyBody")}
         </p>
         <Button
           className="mt-3"
@@ -121,7 +123,7 @@ export function NoShowRecovery({
             })
           }
         >
-          Refund me in full
+          {t("tshow.refund")}
         </Button>
         {error ? (
           <p role="alert" className="mt-2 text-xs text-red-700">
@@ -136,11 +138,10 @@ export function NoShowRecovery({
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
         <HeartHandshake className="h-4 w-4 text-teal-500" aria-hidden />
-        Somebody else can see you now
+        {t("tshow.someoneElse")}
       </p>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">
-        Your therapist has not joined. These people are online and free, and none of them costs
-        more than you have already paid.
+        {t("tshow.someoneElseBody")}
       </p>
 
       <ul className="mt-3 space-y-2">
@@ -185,7 +186,7 @@ export function NoShowRecovery({
         }
         className="tap-target mt-3 h-10 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-700"
       >
-        None of these — refund me instead
+        {t("tshow.noneRefund")}
       </button>
 
       {error ? (

@@ -151,7 +151,7 @@ test("absurd dates are model mis-parses, not facts", () => {
   assert.deepEqual(tooNew, []);
 });
 
-test("a date inside the next year is allowed — a planned discharge is real", () => {
+test("a date inside the next year is allowed, a planned discharge is real", () => {
   const soon = keepDatedObservations(
     [{ date: "2026-11-01", text: "Discharge planned.", ref: "S2:14" }],
     material,

@@ -4,9 +4,21 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { audit, auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { ensurePersonForPatient } from "@/lib/data/people";
 import { patients, sessionNotes, sessions, type PatientClinical } from "@/lib/db/schema";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/data/patients.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 function scope(actor: Actor) {
   const base = and(
@@ -18,6 +30,22 @@ function scope(actor: Actor) {
   return actor.role === "super_admin"
     ? base
     : and(base, eq(patients.therapistId, actor.userId));
+}
+
+/**
+ * 🔴 Records on this caseload that already hold a number. C186, 37R.25.
+ *
+ * Scoped by `scope(actor)`, so it answers about the caseload the clinician can
+ * already see and never reveals that another practice holds that number —
+ * which would turn a duplicate check into a lookup service for whether a phone
+ * belongs to somebody in therapy.
+ */
+export async function patientsWithPhone(actor: Actor, e164: string) {
+  return db
+    .select({ id: patients.id, firstName: patients.firstName, lastName: patients.lastName })
+    .from(patients)
+    .where(and(scope(actor), eq(patients.phone, e164)))
+    .limit(2);
 }
 
 export async function listPatients(actor: Actor) {

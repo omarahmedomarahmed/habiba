@@ -6,6 +6,7 @@ import { Sparkles } from "lucide-react";
 import { buyCredits } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
+import { useT } from "@/lib/i18n/client";
 
 export type TierRow = { key: string; name: string; rateCents: number; minimumSessions: number };
 
@@ -67,6 +68,7 @@ export function PlanCard({
   const tierFor = (qty: number) =>
     tiers.reduce((chosen, t) => (t.minimumSessions <= qty ? t : chosen), tiers[0]!);
 
+  const t = useT();
   const chosen = tierFor(quantity);
   const total = chosen.rateCents * quantity;
   const current = tiers.find((t) => t.key === currentTierKey) ?? payg;
@@ -84,23 +86,25 @@ export function PlanCard({
         <div>
           <p className="text-sm font-semibold text-slate-900">{current.name}</p>
           <p className="mt-0.5 text-sm text-slate-500">
-            {formatUsd(current.rateCents)} per completed session.
+            {t("tplan.perSession", { amount: formatUsd(current.rateCents) })}
           </p>
         </div>
         {creditsRemaining > 0 ? (
           <Badge tone="teal">
-            {creditsRemaining} credit{creditsRemaining === 1 ? "" : "s"} left
+            {creditsRemaining === 1
+              ? t("tplan.creditsOne")
+              : t("tplan.creditsMany", { count: creditsRemaining })}
           </Badge>
         ) : null}
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <dt className="text-xs text-slate-500">Sessions this month</dt>
+          <dt className="text-xs text-slate-500">{t("tplan.sessionsThisMonth")}</dt>
           <dd className="mt-0.5 text-2xl font-bold text-slate-900">{sessionsThisMonth}</dd>
         </div>
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <dt className="text-xs text-slate-500">Paid this month</dt>
+          <dt className="text-xs text-slate-500">{t("tplan.paidThisMonth")}</dt>
           <dd className="mt-0.5 text-2xl font-bold text-slate-900">
             {formatUsd(spentThisMonthCents)}
           </dd>
@@ -109,18 +113,16 @@ export function PlanCard({
 
       {creditsRemaining > 0 && creditsExpireOn ? (
         <p className="mt-3 text-xs text-slate-500">
-          Your credits are used before anything is billed. The next batch expires{" "}
-          {creditsExpireOn}.
+          {t("tplan.creditsExpire", { date: creditsExpireOn })}
         </p>
       ) : null}
 
       <div className="mt-5 rounded-2xl border border-slate-200 p-4">
         <label htmlFor="credit-quantity" className="text-sm font-semibold text-slate-900">
-          Buy sessions in advance
+          {t("tplan.buyAhead")}
         </label>
         <p className="mt-0.5 text-xs text-slate-500">
-          The more you buy at once, the less each one costs. They never expire before you have had
-          a year to use them.
+          {t("tplan.buyAheadBody")}
         </p>
 
         <div className="mt-3 flex items-center gap-3">
@@ -135,7 +137,7 @@ export function PlanCard({
             className="h-2 flex-1 cursor-pointer accent-brand-500"
           />
           <span className="w-20 shrink-0 text-end text-sm font-semibold tabular-nums text-slate-900">
-            {quantity} session{quantity === 1 ? "" : "s"}
+            {quantity === 1 ? t("tplan.sessionOne") : t("tplan.sessionMany", { count: quantity })}
           </span>
         </div>
 
@@ -146,11 +148,13 @@ export function PlanCard({
         */}
         <dl className="mt-3 space-y-1 text-sm">
           <div className="flex justify-between">
-            <dt className="text-slate-500">{chosen.name} rate</dt>
-            <dd className="tabular-nums text-slate-900">{formatUsd(chosen.rateCents)} each</dd>
+            <dt className="text-slate-500">{t("tplan.tierRate", { tier: chosen.name })}</dt>
+            <dd className="tabular-nums text-slate-900">
+              {t("tplan.each", { amount: formatUsd(chosen.rateCents) })}
+            </dd>
           </div>
           <div className="flex justify-between font-semibold">
-            <dt className="text-slate-900">Total today</dt>
+            <dt className="text-slate-900">{t("tplan.totalToday")}</dt>
             <dd className="tabular-nums text-slate-900">{formatUsd(total)}</dd>
           </div>
         </dl>
@@ -164,7 +168,11 @@ export function PlanCard({
           onClick={() => run(() => buyCredits(quantity))}
         >
           <Sparkles className="h-4 w-4" aria-hidden />
-          {pending ? "Opening checkout…" : `Buy ${quantity} for ${formatUsd(total)}`}
+          {pending
+            ? t("tled.openingCheckout")
+            : quantity === 1
+              ? t("tplan.buyOne", { amount: formatUsd(total) })
+              : t("tplan.buyMany", { count: quantity, amount: formatUsd(total) })}
         </Button>
       </div>
     </Card>

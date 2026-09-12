@@ -61,12 +61,12 @@ export function VerificationReview(props: {
       </div>
 
       <dl className="grid gap-x-6 gap-y-2 px-4 py-3 text-sm sm:grid-cols-2">
-        <Row label="Regulator">{props.licenseBody ?? "—"}</Row>
-        <Row label="Licence no.">{props.licenseNumber ?? "—"}</Row>
-        <Row label="Expires">{props.licenseExpiry ?? "—"}</Row>
+        <Row label="Regulator">{props.licenseBody ?? "-"}</Row>
+        <Row label="Licence no.">{props.licenseNumber ?? "-"}</Row>
+        <Row label="Expires">{props.licenseExpiry ?? "-"}</Row>
         <Row label="Country">{props.countryLabel}</Row>
-        <Row label="Languages">{props.languages.join(", ") || "—"}</Row>
-        <Row label="Works with">{props.specialties.join(", ") || "—"}</Row>
+        <Row label="Languages">{props.languages.join(", ") || "-"}</Row>
+        <Row label="Works with">{props.specialties.join(", ") || "-"}</Row>
       </dl>
 
       <div className="grid grid-cols-2 gap-2 px-4 pb-3 sm:grid-cols-4">
@@ -118,7 +118,7 @@ export function VerificationReview(props: {
             aria-label="Note to the clinician"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Required to reject — they see this word for word"
+            placeholder="Required to reject. They see this word for word"
           />
 
           <div className="flex flex-wrap gap-2">

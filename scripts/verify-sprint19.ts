@@ -9,13 +9,24 @@
  * check says so and names the surface — an honest red is worth more than a
  * green that measured the wrong thing.
  */
-import { eq, like, notLike } from "drizzle-orm";
+import { stagedPages, withPublishedContent } from "./_content-ready";
+import { readFileSync } from "node:fs";
 
-import { db } from "../lib/db";
-import { contentPages } from "../lib/db/schema";
-import { reporter } from "./_verify";
+import { reporter, readSource } from "./_verify";
+import { dbFor } from "../lib/db";
+import { DEFAULT_REGION } from "../lib/db/region";
 
-const { check, finish } = reporter();
+/*
+ * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
+ *
+ * `dbFor(DEFAULT_REGION)` rather than a bare handle, because after this
+ * sprint there is no bare handle: a script that plants fixtures is planting
+ * them in a jurisdiction, and saying which one is the point. When Cairo is
+ * live a script that needs to touch it passes "eg" and nothing else changes.
+ */
+const db = dbFor(DEFAULT_REGION);
+
+const { check, skipUnless, finish } = reporter();
 
 const walk = async (dir: string): Promise<string[]> => {
   const { readdirSync } = await import("node:fs");
@@ -32,7 +43,8 @@ const walkDeep = async (dir: string): Promise<string[]> => {
   const { readdirSync } = await import("node:fs");
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) out.push(...(await walkDeep(`${dir}/${entry.name}`)));
+    if (entry.isDirectory())
+      out.push(...(await walkDeep(`${dir}/${entry.name}`)));
     else if (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts")) {
       out.push(`${dir}/${entry.name}`);
     }
@@ -49,17 +61,23 @@ const walkDeep = async (dir: string): Promise<string[]> => {
  * single most common way a "localised" interface announces that nobody
  * localised it.
  */
-const PHYSICAL = /\b(ml|mr|pl|pr)-[0-9.]+|\b(left|right)-[0-9.]+|\btext-(left|right)\b/;
+const PHYSICAL =
+  /\b(ml|mr|pl|pr)-[0-9.]+|\b(left|right)-[0-9.]+|\btext-(left|right)\b/;
 
 async function main() {
-  console.log(`checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`);
+  console.log(
+    `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
+  );
 
-  const { readFileSync } = await import("node:fs");
 
   /* ------------------------------------------------------ 19.0 · C90 */
 
-  const verifiers = (await walk("scripts")).filter((f) => f.includes("verify-sprint"));
-  const usingReporter = verifiers.filter((f) => readFileSync(f, "utf8").includes('from "./_verify"'));
+  const verifiers = (await walk("scripts")).filter((f) =>
+    f.includes("verify-sprint"),
+  );
+  const usingReporter = verifiers.filter((f) =>
+    readSource(f).includes('from "./_verify"'),
+  );
   check(
     "🔴 19.0 the two verifiers that were permanently red now SKIP with a reason",
     ["verify-sprint17", "verify-sprint18"].every((name) =>
@@ -70,13 +88,10 @@ async function main() {
 
   /* ----------------------------------------------------- 19.0a · C89 */
 
-  const staged = await db
-    .select({ slug: contentPages.slug, locale: contentPages.locale })
-    .from(contentPages)
-    .where(like(contentPages.locale, "%-x-staging"));
+  const staged = await stagedPages();
 
   check(
-    "🔴 19.0a sprints 17 and 18 have been RENDERED somewhere — staging rows exist to render",
+    "🔴 19.0a sprints 17 and 18 have been RENDERED somewhere, staging rows exist to render",
     staged.length >= 12,
     `${staged.length} staged rows across ${new Set(staged.map((r) => r.locale)).size} locales`,
   );
@@ -87,40 +102,55 @@ async function main() {
    * locale and collapses by slug, so a staged page with a nav label would have
    * appeared in the live menu of the running deployment.
    */
-  const stagedInNav = await db
-    .select({ slug: contentPages.slug })
-    .from(contentPages)
-    .where(like(contentPages.locale, "%-x-staging"));
   const withNav = await db.execute(
     `SELECT COUNT(*)::int AS n FROM content_pages WHERE locale LIKE '%-x-staging' AND nav_label IS NOT NULL`,
   );
   check(
     "🔴 19.0a …and no staged row can reach the live navigation",
-    Number((withNav as unknown as { rows: { n: number }[] }).rows[0]?.n ?? 0) === 0 &&
-      readFileSync("lib/content/service.ts", "utf8").includes('notLike(contentPages.locale, "%-x-staging")'),
-    `${stagedInNav.length} staged rows, none with a nav label, and the query excludes them`,
+    Number(
+      (withNav as unknown as { rows: { n: number }[] }).rows[0]?.n ?? 0,
+    ) === 0 &&
+      readSource("lib/content/service.ts").includes(
+        'notLike(contentPages.locale, "%-x-staging")',
+      ),
+    `${staged.length} staged rows, none with a nav label, and the query excludes them`,
   );
 
   /* ------------------------------------------------------------- 19.1 */
 
-  const live = await db
-    .select({ slug: contentPages.slug, locale: contentPages.locale })
-    .from(contentPages)
-    .where(notLike(contentPages.locale, "%-x-staging"));
+  const { localesForSlug, localesWithDefaults } =
+    await import("../lib/content/registry");
 
-  const { localesForSlug, localesWithDefaults } = await import("../lib/content/registry");
-  const slugs = [...new Set(live.map((p) => p.slug))];
+  /*
+   * 🔴 21R.9 / C93 — deferrable from the start, like every check that reads
+   * published content, and structurally so: the rows only exist inside this
+   * callback. On an empty database the old shape passed *vacuously* — "every
+   * page is bilingual" about no pages at all — which is worse than red,
+   * because it is a green that measured nothing.
+   */
+  await withPublishedContent(
+    skipUnless,
+    { for: "19.1", what: "the page corpus" },
+    (content) => {
+      const live = content.published;
+      const slugs = [...new Set(live.map((p) => p.slug))];
 
-  const missing = slugs.flatMap((slug) =>
-    localesForSlug(slug)
-      .filter((locale) => !live.some((p) => p.slug === slug && p.locale === locale))
-      .map((locale) => `${slug}[${locale}]`),
-  );
+      const missingPages = slugs.flatMap((slug) =>
+        localesForSlug(slug)
+          .filter(
+            (locale) =>
+              !live.some((p) => p.slug === slug && p.locale === locale),
+          )
+          .map((locale) => `${slug}[${locale}]`),
+      );
 
-  check(
-    "🔴 19.1 every page SHIPPED in a language has a row in that language",
-    missing.length === 0,
-    missing.join(", ") || `${slugs.length} pages across ${localesWithDefaults().join(", ")}`,
+      check(
+        "🔴 19.1 every page SHIPPED in a language has a row in that language",
+        missingPages.length === 0,
+        missingPages.join(", ") ||
+          `${slugs.length} pages across ${localesWithDefaults().join(", ")}`,
+      );
+    },
   );
 
   /*
@@ -132,7 +162,8 @@ async function main() {
   check(
     "19.1 …and the legal pages are declared English-only rather than silently missing",
     ["privacy", "terms", "hipaa", "security"].every(
-      (slug) => localesForSlug(slug).length === 1 && localesForSlug(slug)[0] === "en",
+      (slug) =>
+        localesForSlug(slug).length === 1 && localesForSlug(slug)[0] === "en",
     ),
     ["privacy", "terms", "hipaa", "security"]
       .map((s) => `${s}:${localesForSlug(s).join("+")}`)
@@ -152,7 +183,9 @@ async function main() {
 
   check(
     "19.6 …and an English fallback for a missing Arabic string is impossible, not merely absent",
-    readFileSync("lib/i18n/messages.ts", "utf8").includes("Record<MessageKey, string>"),
+    readSource("lib/i18n/messages.ts").includes(
+      "Record<MessageKey, string>",
+    ),
     "the Arabic dictionary is typed against the English key set, so tsc is the gate",
   );
 
@@ -163,45 +196,55 @@ async function main() {
     ...(await walkDeep("components/patient")),
     ...(await walkDeep("components/money")),
   ];
-  const physical = surfaces.filter((file) => PHYSICAL.test(readFileSync(file, "utf8")));
+  const physical = surfaces.filter((file) =>
+    PHYSICAL.test(readSource(file)),
+  );
 
   check(
-    "🔴 19.3 no public or patient component pins a physical side — Arabic is a layout, not a translation",
+    "🔴 19.3 no public or patient component pins a physical side, Arabic is a layout, not a translation",
     physical.length === 0,
     physical.map((f) => f.replace("components/", "")).join(", ") ||
       `${surfaces.length} components use logical properties only`,
   );
 
   check(
-    "🔴 19.3 CONTROL — the same scan CATCHES a physical class",
-    PHYSICAL.test('<div className="ml-4 text-left">') && !PHYSICAL.test('<div className="ms-4 text-start">'),
+    "🔴 19.3 CONTROL, the same scan CATCHES a physical class",
+    PHYSICAL.test('<div className="ml-4 text-left">') &&
+      !PHYSICAL.test('<div className="ms-4 text-start">'),
   );
 
   check(
     "19.3 …and the document direction comes from the locale, on the html element",
-    readFileSync("app/layout.tsx", "utf8").includes("dir={dirFor(locale)}"),
+    readSource("app/layout.tsx").includes("dir={dirFor(locale)}"),
   );
 
   /* --------------------------------------------------- 19.4 · the locale */
 
-  const money = readFileSync("lib/billing/plans.ts", "utf8");
+  const money = readSource("lib/billing/plans.ts");
   check(
     "🔴 19.4 money takes the locale as a REQUIRED argument, fed from the server",
-    /export function formatMoney\(cents: number, currency: string, locale: string\)/.test(money),
+    /export function formatMoney\(cents: number, currency: string, locale: string\)/.test(
+      money,
+    ),
   );
   check(
     "🔴 19.4 …and an omitted locale falls back to a PINNED tag, never to the runtime's",
     money.includes('locale || "en-US"'),
-    "toLocaleString(undefined) means 'ask the machine' — the C84 bug in one argument",
+    "toLocaleString(undefined) means 'ask the machine', the C84 bug in one argument",
   );
 
   const clientCallers = (
     await Promise.all(
-      [...surfaces, ...(await walkDeep("components/billing")), ...(await walkDeep("components/pay"))].map(
-        async (file) => ({ file, source: readFileSync(file, "utf8") }),
-      ),
+      [
+        ...surfaces,
+        ...(await walkDeep("components/billing")),
+        ...(await walkDeep("components/pay")),
+      ].map(async (file) => ({ file, source: readSource(file) })),
     )
-  ).filter(({ source }) => source.includes('"use client"') && source.includes("formatMoney("));
+  ).filter(
+    ({ source }) =>
+      source.includes('"use client"') && source.includes("formatMoney("),
+  );
 
   /*
    * The rule is **never omit**, not "always a prop".
@@ -215,6 +258,17 @@ async function main() {
    */
   const named = ({ source }: { source: string }) =>
     /locale[?]?: string/.test(source) ||
+    /*
+     * 37L.2 — a third shape, and the best of the three: the component asks.
+     *
+     * `localeTag(useLocale())` cannot be omitted by a call site because there
+     * is no call site to omit it. Two components that carried
+     * `locale?: string = "en-US"` were changed to this in 37L.9/37L.2, and the
+     * rule this check enforces is "never let the runtime answer", not "always
+     * a prop" — so asking satisfies it more completely than passing does.
+     */
+    /localeTag\(\s*useLocale\(\)\s*\)/.test(source) ||
+    /const locale = useLocale\(\)/.test(source) ||
     // `[^;]*?` rather than `[^)]*`: a real call contains nested parentheses —
     // `formatMoney(x, row.currency.toUpperCase(), "en-US")` — and the first
     // version of this pattern stopped at the inner one and reported a file
@@ -222,7 +276,7 @@ async function main() {
     /formatMoney\([^;]*?"[a-z]{2}-[A-Z]{2}"\s*\)/.test(source);
 
   check(
-    "🔴 19.4 every client component that formats money NAMES its locale — a prop, or an explicit tag",
+    "🔴 19.4 every client component that formats money NAMES its locale, a prop, or an explicit tag",
     clientCallers.every(named),
     clientCallers
       .filter((caller) => !named(caller))
@@ -234,15 +288,16 @@ async function main() {
 
   const { CONTENT_DEFAULTS } = await import("../lib/content/registry");
   check(
-    "🔴 19.7 the shipped content is a MAP keyed by locale — adding a third language adds an entry",
+    "🔴 19.7 the shipped content is a MAP keyed by locale, adding a third language adds an entry",
     typeof CONTENT_DEFAULTS === "object" && !Array.isArray(CONTENT_DEFAULTS),
     `${Object.keys(CONTENT_DEFAULTS).join(", ")}`,
   );
 
-  const republish = readFileSync("scripts/republish.ts", "utf8");
+  const republish = readSource("scripts/republish.ts");
   check(
     "🔴 19.7 …and the publisher takes a LOCALE, not an --ar boolean",
-    republish.includes("--locale=") && republish.includes("localesWithDefaults()"),
+    republish.includes("--locale=") &&
+      republish.includes("localesWithDefaults()"),
     "a two-state flag cannot express a third language",
   );
 
@@ -261,17 +316,27 @@ async function main() {
     source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
   const hardcoded = (await walkDeep("lib/i18n")).filter((file) => {
-    const code = withoutComments(readFileSync(file, "utf8"));
-    return /\[\s*"en"\s*,\s*"ar"\s*\]/.test(code.replace(/export const LOCALES[^;]*;/, ""));
+    const code = withoutComments(readSource(file));
+    return /\[\s*"en"\s*,\s*"ar"\s*\]/.test(
+      code.replace(/export const LOCALES[^;]*;/, ""),
+    );
   });
   check(
     "19.7 no code outside the LOCALES declaration pins the pair",
     hardcoded.length === 0,
-    hardcoded.join(", ") || "only LOCALES names the languages, and it is a list",
+    hardcoded.join(", ") ||
+      "only LOCALES names the languages, and it is a list",
   );
 
   check(
-    "🔴 19.7 CONTROL — the same scan, run WITHOUT stripping comments, would have failed on prose",
+    "🔴 19.7 CONTROL, the same scan, run WITHOUT stripping comments, would have failed on prose",
+    /*
+     * 🔴 `readFileSync`, deliberately, and the ONE place in this file where it
+     * is right. C205's sweep moved every source read onto `readSource`, which
+     * strips; this check exists to prove that stripping is what makes the
+     * check above mean anything, so reading the stripped text here would make
+     * it assert nothing and pass forever.
+     */
     (await walkDeep("lib/i18n")).some((file) =>
       /\btwo languages\b/i.test(readFileSync(file, "utf8")),
     ),

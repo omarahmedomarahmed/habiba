@@ -31,7 +31,7 @@ type JournalEntry = { idx: number; when: number; tag: string };
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
 
@@ -87,7 +87,7 @@ async function main() {
          */
         const present = await objectsPresent(db, entry.tag);
         if (!present) {
-          console.log(`  --   ${entry.tag} — objects NOT present, leaving it to run normally`);
+          console.log(`  --   ${entry.tag}, objects NOT present, leaving it to run normally`);
           continue;
         }
 
@@ -95,7 +95,7 @@ async function main() {
           sql`INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
               VALUES (${hashes.get(entry.tag)!}, ${entry.when})`,
         );
-        console.log(`  ++   ${entry.tag} — recorded as applied (objects verified present)`);
+        console.log(`  ++   ${entry.tag}, recorded as applied (objects verified present)`);
       }
 
       const after = await db
@@ -162,7 +162,7 @@ async function main() {
     check(
       "11R.19 no UNAPPLIED migration carries more than one constraint per DO $$ block",
       live.length === 0,
-      live.length ? live.join(", ") : "swept 0029–latest",
+      live.length ? live.join(", ") : "swept 0029-latest",
     );
     if (legacy.length > 0) {
       console.log(
@@ -209,6 +209,45 @@ async function main() {
       "H1 every table the schema declares exists in the database",
       absent.length === 0,
       absent.length ? `missing: ${absent.join(", ")}` : `${present.size} tables`,
+    );
+
+    /*
+     * 🔴 22.9 — no CHECK is left `NOT VALID`.
+     *
+     * `NOT VALID` binds new writes and skips the scan, which is the right
+     * trade the day a rule arrives after the data. As a resting state it
+     * records a rule the schema does not assert: the planner will not use it,
+     * and "does every row obey this?" has no answer but "nobody looked". The
+     * purge made every scan free, 0054 validated all fifteen, and this is what
+     * stops the next one being added and left that way.
+     */
+    const unvalidated = await db
+      .execute<{ tbl: string; conname: string }>(
+        sql`SELECT conrelid::regclass::text AS tbl, conname
+              FROM pg_constraint
+             WHERE contype = 'c' AND NOT convalidated
+             ORDER BY 1, 2`,
+      )
+      .then((r) => r.rows);
+
+    check(
+      "🔴 22.9 every CHECK constraint is VALIDATED, none is a rule the schema does not assert",
+      unvalidated.length === 0,
+      unvalidated.map((row) => `${row.tbl}.${row.conname}`).join(", ") ||
+        "all validated, scanned against real rows",
+    );
+
+    const [feedback] = await db
+      .execute<{ is_nullable: string }>(
+        sql`SELECT is_nullable FROM information_schema.columns
+             WHERE table_name = 'sessions' AND column_name = 'feedback_token'`,
+      )
+      .then((r) => r.rows);
+
+    check(
+      "22.9 …and sessions.feedback_token is NOT NULL, not a CHECK standing in for a column type",
+      feedback?.is_nullable === "NO",
+      `is_nullable=${feedback?.is_nullable}`,
     );
   } finally {
     await pool.end();

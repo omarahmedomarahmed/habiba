@@ -1,0 +1,14 @@
+import { browser, go, anatomy, text, shot, LAPTOP } from "./lib.mjs";
+const b = await browser();
+const ctx = await b.newContext({ viewport: LAPTOP, storageState: ".walkthrough2/state-therapist.json" });
+const p = await ctx.newPage();
+await go(p, "/patients");
+await p.getByRole("link", { name: /Layla/i }).first().click().catch(async()=>{ await p.getByText("Layla").first().click(); });
+await p.waitForTimeout(2000);
+await p.getByRole("button", { name: /Create an invite link/i }).click();
+await p.waitForTimeout(3000);
+console.log("### t14-invite", p.url(), JSON.stringify(await anatomy(p)));
+const body = await text(p);
+console.log(body.slice(body.indexOf("Their own access"), body.indexOf("Their own access")+900));
+await shot(p, "t14-invite-created");
+await b.close();

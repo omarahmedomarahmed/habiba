@@ -29,6 +29,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import { countryName } from "@/lib/geo";
 import { cn, fullName } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 /** Must match RESERVATION_SECONDS on the server. */
 const HOLD_SECONDS = 60;
@@ -38,6 +39,7 @@ const RENEW_MS = 20_000;
 const INITIAL: BookingState = {};
 
 function Submit({ rateCents }: { rateCents: number }) {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <button
@@ -69,6 +71,8 @@ export function BookingSheet({
   entry: RadarEntry;
   onClose: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [state, action] = useActionState(bookFromRadar, INITIAL);
   const [viewer] = useState(() => viewerId());
   const [outcome, setOutcome] = useState<"held" | "taken" | "unavailable" | null>(null);
@@ -169,13 +173,13 @@ export function BookingSheet({
       aria-modal="true"
       aria-label={`${fullName(entry.firstName, entry.lastName, "Clinician")} profile`}
     >
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0" />
+      <button type="button" aria-label={t("common.close")} onClick={onClose} className="absolute inset-0" />
 
       <div className="animate-fade-rise relative my-auto max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="tap-target absolute top-3 end-3 flex items-center justify-center text-slate-400 hover:text-slate-700"
         >
           <X className="h-5 w-5" aria-hidden />
@@ -208,7 +212,7 @@ export function BookingSheet({
             {entry.specialties.join(", ") || "Not listed"}
           </Row>
           <Row icon={<Globe2 className="h-3.5 w-3.5" aria-hidden />} label="Based in">
-            {[entry.city, entry.region, countryName(entry.country)].filter(Boolean).join(", ") ||
+            {[entry.city, entry.region, countryName(entry.country, locale)].filter(Boolean).join(", ") ||
               "Not shared"}
           </Row>
         </dl>
@@ -225,7 +229,7 @@ export function BookingSheet({
           href={`/t/${entry.userId}`}
           className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700"
         >
-          See their full profile
+          {t("pbook.fullProfile")}
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />
         </a>
 
@@ -257,7 +261,7 @@ export function BookingSheet({
                     <Clock className="h-3.5 w-3.5" aria-hidden />
                     Held for you · {secondsLeft}s
                   </p>
-                  <p className="text-[11px] text-teal-700">You are the only one who can book them</p>
+                  <p className="text-[11px] text-teal-700">{t("pbook.onlyYou")}</p>
                 </div>
                 <div
                   className="mt-2 h-1.5 overflow-hidden rounded-full bg-teal-200"
@@ -265,7 +269,7 @@ export function BookingSheet({
                   aria-valuenow={secondsLeft}
                   aria-valuemin={0}
                   aria-valuemax={HOLD_SECONDS}
-                  aria-label="Time left to complete this booking"
+                  aria-label={t("pbook.timeLeft")}
                 >
                   <div
                     className={cn(
@@ -276,8 +280,7 @@ export function BookingSheet({
                   />
                 </div>
                 <p className="mt-2 text-[11px] leading-relaxed text-teal-800">
-                  This therapist now shows as busy to everyone else. Finish your booking, or close
-                  this page so someone else can reach them.
+                  {t("pbook.heldBody")}
                 </p>
               </div>
             ) : (
@@ -289,9 +292,7 @@ export function BookingSheet({
                 was there at all.
               */
               <p className="rounded-2xl bg-amber-50 px-3.5 py-3 text-xs leading-relaxed text-amber-800">
-                {outcome === "taken"
-                  ? "Someone else is on this profile right now. You can still try — if they do not go ahead, this clinician frees up within a minute."
-                  : "This clinician has just become unavailable. Close this and pick someone else — the board updates every few seconds."}
+                {outcome === "taken" ? t("pbook.taken") : t("pbook.unavailable")}
               </p>
             )}
 
@@ -302,7 +303,7 @@ export function BookingSheet({
             ) : null}
 
             <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3 text-white">
-              <span className="text-sm text-white/70">30 minutes, starting now</span>
+              <span className="text-sm text-white/70">{t("radar.thirtyMinutes")}</span>
               <span className="text-2xl font-bold tracking-tight">
                 {entry.rateCents > 0 ? formatUsd(entry.rateCents) : "Free"}
               </span>
@@ -319,7 +320,7 @@ export function BookingSheet({
               />
             </Field>
 
-            <Field label="Email" htmlFor="radar-email" hint="Optional — for your receipt.">
+            <Field label="Email" htmlFor="radar-email" hint="Optional, for your receipt.">
               <Input
                 id="radar-email"
                 name="email"
@@ -334,14 +335,13 @@ export function BookingSheet({
 
             <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              No account needed. Payment goes to your therapist through Stripe — we never see your
-              card. If you are in immediate danger, call your local emergency number or text 988.
+              {t("pbook.noAccount")}
             </p>
           </form>
         ) : (
           <p className="mt-5 rounded-xl bg-slate-100 px-3.5 py-3 text-sm text-slate-600">
             {entry.status === "pending"
-              ? "Someone is with them on this page right now. If they do not go ahead, this clinician is back on the radar within a minute — this page updates by itself."
+              ? "Someone is with them on this page right now. If they do not go ahead, this clinician is back on the radar within a minute, this page updates by itself."
               : "They are in a session at the moment. They will reappear on the radar as soon as they are free."}
           </p>
         )}
@@ -360,6 +360,7 @@ function Row({
   label: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="flex gap-2">
       <dt className="flex w-24 shrink-0 items-center gap-1.5 text-slate-400">
@@ -386,6 +387,7 @@ function Row({
  * closed tab.
  */
 function WalkIn({ entry }: { entry: RadarEntry }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -411,7 +413,7 @@ function WalkIn({ entry }: { entry: RadarEntry }) {
     <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50/60 p-3.5">
       <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-teal-700 uppercase">
         <DoorOpen className="h-3 w-3" aria-hidden />
-        Accepts walk-in visits
+        {t("pbook.walkIns")}
       </p>
       {practice.name ? (
         <p className="mt-1.5 text-sm font-semibold text-teal-900">{practice.name}</p>
@@ -426,7 +428,7 @@ function WalkIn({ entry }: { entry: RadarEntry }) {
           className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700"
         >
           <Navigation className="h-3.5 w-3.5" aria-hidden />
-          Get directions
+          {t("pbook.directions")}
         </a>
         {!open && !sent ? (
           <button
@@ -435,13 +437,13 @@ function WalkIn({ entry }: { entry: RadarEntry }) {
             className="inline-flex items-center gap-1.5 rounded-xl border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50"
           >
             <Mail className="h-3.5 w-3.5" aria-hidden />
-            Email me the address
+            {t("pbook.emailAddress")}
           </button>
         ) : null}
       </div>
 
       {sent ? (
-        <p className="mt-2 text-xs text-teal-800">Sent. Check your inbox.</p>
+        <p className="mt-2 text-xs text-teal-800">{t("pbook.addressSent")}</p>
       ) : open ? (
         <div className="mt-2.5 space-y-1.5">
           {error ? (
@@ -451,13 +453,13 @@ function WalkIn({ entry }: { entry: RadarEntry }) {
           ) : null}
           <div className="flex gap-2">
             <Input
-              aria-label="Where to send the directions"
+              aria-label={t("pbook.whereToSend")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
               inputMode="email"
               autoCapitalize="none"
-              placeholder="you@example.com"
+              placeholder={t("room.emailPlaceholder")}
               className="h-10 text-sm"
             />
             <button
@@ -466,19 +468,17 @@ function WalkIn({ entry }: { entry: RadarEntry }) {
               onClick={send}
               className="shrink-0 rounded-xl bg-teal-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
             >
-              {sending ? "Sending…" : "Send"}
+              {sending ? t("pbook.sending") : t("pbook.send")}
             </button>
           </div>
           <p className="text-[11px] leading-relaxed text-teal-700">
-            We send the address and nothing else, once. It is not stored and you are not signed up
-            to anything.
+            {t("pbook.addressOnce")}
           </p>
         </div>
       ) : null}
 
       <p className="mt-2.5 text-[11px] leading-relaxed text-teal-700">
-        Turning up is not an appointment. Booking a session above is the only way to be certain
-        someone is free.
+        {t("pbook.notAnAppointment")}
       </p>
     </div>
   );

@@ -2,7 +2,8 @@ import "server-only";
 
 import { asc, desc, eq, inArray } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   documentChunks,
   observations,
@@ -17,6 +18,17 @@ import {
 import { log, ref as logRef, safeErrorMessage } from "@/lib/logger";
 
 import { MODELS, logUsage, openai, parseJson } from "./client";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/ai/profile.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * The rolling profile and the observation timeline. PLAN.md 9.1–9.4.
@@ -44,20 +56,20 @@ import { MODELS, logUsage, openai, parseJson } from "./client";
 
 const SYSTEM = `RULE THAT OVERRIDES EVERYTHING BELOW:
 1. Every sentence you write must be supported by material you were given, and must carry the reference marker of that material. A sentence you cannot cite is a sentence you must not write.
-2. When the sessions and the historical documents disagree, THE SESSIONS WIN — but you must NOT smooth the disagreement away. Put it in "conflicts", quoting both sides with both references. Never resolve a conflict yourself, never average two accounts, never omit one because the other is more recent.
+2. When the sessions and the historical documents disagree, THE SESSIONS WIN, but you must NOT smooth the disagreement away. Put it in "conflicts", quoting both sides with both references. Never resolve a conflict yourself, never average two accounts, never omit one because the other is more recent.
 3. You do not diagnose. You do not predict. You describe what is in the record.
 
 You are given two kinds of material about one person:
-  [S<n>:<m>]  a segment of a therapy session — what was said, recently, by them
-  [D<n>:<m>]  a passage from a document — letters, reports, history
+  [S<n>:<m>]  a segment of a therapy session, what was said, recently, by them
+  [D<n>:<m>]  a passage from a document, letters, reports, history
 
 Write a short standing profile a clinician can read in a minute before a session.
 
 Sections, only where there is material for them:
-  "Presenting problem"  — what brings them, in their own framing where possible
-  "History"             — what the documents establish, marked as historical
-  "What has helped"     — anything the record shows working
-  "Watch for"           — risks and patterns that are stated, not inferred
+  "Presenting problem" , what brings them, in their own framing where possible
+  "History"            , what the documents establish, marked as historical
+  "What has helped"    , anything the record shows working
+  "Watch for"          , risks and patterns that are stated, not inferred
 
 Each section carries "refs": the exact markers you used, copied character for character.
 
@@ -68,7 +80,7 @@ Respond with JSON:
   "observations": [{"date": "YYYY-MM-DD", "text": "one dated thing that happened or was reported", "ref": "S2:14"}]
 }
 
-"observations" are dated events for a timeline — a hospital admission, a bereavement, starting or stopping a medication. Use the date the thing HAPPENED, not the date it was written down. Omit any you cannot date from the material.`;
+"observations" are dated events for a timeline, a hospital admission, a bereavement, starting or stopping a medication. Use the date the thing HAPPENED, not the date it was written down. Omit any you cannot date from the material.`;
 
 const MAX_SESSIONS = 8;
 const MAX_SEGMENTS = 120;
@@ -175,7 +187,7 @@ async function gather(personId: string): Promise<Material> {
 
       if (segments.length === 0 && !note?.content?.summary) continue;
 
-      parts.push(`\n=== Session ${number} — ${when.toISOString().slice(0, 10)} ===`);
+      parts.push(`\n=== Session ${number}, ${when.toISOString().slice(0, 10)} ===`);
       if (note?.content?.summary) parts.push(`Note summary: ${note.content.summary}`);
 
       for (const segment of segments) {

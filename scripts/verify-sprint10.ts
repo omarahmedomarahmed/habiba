@@ -22,15 +22,16 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 
 import { connect, schema } from "./db";
+import { readSource } from "./_verify";
 
 const { assistantMessages, assistantThreads, patients, people } = schema;
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
-const skip = (name: string, why: string) => console.log(`  --   ${name} — NOT EXERCISED: ${why}`);
+const skip = (name: string, why: string) => console.log(`  --   ${name}, NOT EXERCISED: ${why}`);
 
 const TAG = `verify10-${randomUUID().slice(0, 8)}`;
 
@@ -79,7 +80,7 @@ async function main() {
      * that assembles the general copilot's context does not import any table
      * that carries clinical text.
      */
-    const source = readFileSync("lib/ai/assistant.ts", "utf8");
+    const source = readSource("lib/ai/assistant.ts");
 
     /*
      * The **import block**, not the whole file. The first version of this
@@ -145,7 +146,7 @@ async function main() {
       } else {
         const keys = Object.keys(roster[0]!).sort();
         check(
-          "🔴 10.2 a roster row is names, dates and a count — nothing else",
+          "🔴 10.2 a roster row is names, dates and a count, nothing else",
           JSON.stringify(keys) ===
             JSON.stringify(["draftNotes", "lastSessionAt", "name", "nextSessionAt", "patientId"]),
           keys.join(", "),

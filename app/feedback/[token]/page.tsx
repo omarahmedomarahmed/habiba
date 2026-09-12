@@ -4,6 +4,8 @@ import Link from "next/link";
 import { RatingForm } from "@/components/feedback/rating-form";
 import { Card } from "@/components/ui";
 import { feedbackContext } from "@/lib/data/feedback";
+import { getI18n } from "@/lib/i18n/server";
+import { optionalPatient } from "@/lib/patient-auth/guard";
 
 export const metadata: Metadata = { title: "Your session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -20,8 +22,12 @@ export default async function FeedbackPage({
 }: {
   params: Promise<{ token: string }>;
 }) {
+  const { t } = await getI18n();
   const { token } = await params;
-  const context = await feedbackContext(token);
+  const [context, signedIn] = await Promise.all([
+    feedbackContext(token),
+    optionalPatient().then((patient) => patient !== null),
+  ]);
 
   if (!context) {
     return (
@@ -66,9 +72,39 @@ export default async function FeedbackPage({
         ratedApp={context.ratedApp}
       />
 
+      {/*
+        🔴 25.13 / C130 — the guest is asked to sign in, honestly.
+
+        The sentence everybody writes here is "create an account to save your
+        notes", and it is false. The clinician holds this record either way;
+        nothing is about to be lost, and implying it is uses a person's fear of
+        losing their own therapy to close a signup. What an account actually
+        changes is who can READ it, which is worth saying plainly and is also
+        the whole argument of this product.
+
+        Shown only to somebody who is not already signed in, because asking a
+        patient to create the account they already have is how a product tells
+        you it is not paying attention.
+      */}
+      {signedIn ? null : (
+        <Card className="mt-6 p-5">
+          <p className="text-sm font-semibold text-slate-900">Do you want to see this yourself?</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+            Your therapist keeps this record whether or not you make an account. Nothing here is
+            about to disappear. What an account changes is that <strong>you</strong> can read your
+            own sessions, and that the record travels with you if you ever see somebody else.
+          </p>
+          <Link
+            href="/patient/signup"
+            className="mt-4 inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+          >
+            Make it mine
+          </Link>
+        </Card>
+      )}
+
       <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
-        If you are in immediate danger, call your local emergency number. In the US, call or text
-        988.
+        {t("urgent.footer")}
       </p>
     </Shell>
   );

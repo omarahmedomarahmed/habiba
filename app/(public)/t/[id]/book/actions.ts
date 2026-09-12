@@ -93,7 +93,7 @@ export async function book(input: {
   if (!email && !rawPhone) {
     return {
       error:
-        "We need an email or a phone number — otherwise we cannot send you the link or tell you if anything changes.",
+        "We need an email or a phone number, otherwise we cannot send you the link or tell you if anything changes.",
     };
   }
 
@@ -149,7 +149,7 @@ export async function book(input: {
    * trust while deciding when to leave the house.
    */
   const zone = resolveZone(input.timezone, result.therapistTimezone);
-  const when = formatWhenWithCaveat(result.startsAt, zone);
+  const when = formatWhenWithCaveat(result.startsAt, zone, "en");
 
   const delivery = await notify(
     { email, phone, timezone: input.timezone ?? null },

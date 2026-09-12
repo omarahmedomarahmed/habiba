@@ -25,7 +25,7 @@ export type DefaultPage = {
 export const DEFAULT_PAGES: DefaultPage[] = [
   {
     slug: "home",
-    title: "24Therapy — your session notes, written for you",
+    title: "24Therapy: your session notes, written for you",
     description:
       "Record a therapy session on your phone and walk away with a SOAP note, clinical insights and a report you can send to your patient.",
     layout: "marketing",
@@ -39,7 +39,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "Crisis Radar",
         heading: "Talk to a real therapist in the next sixty seconds",
-        body: "Every dot is a licensed clinician who is online this minute. Filter by language or what you need help with, pick someone, tell them what to call you — and you are in a session. No account, no waiting list, no form about your insurance.",
+        body: "Every dot is a licensed clinician who is online this minute. Filter by language or what you need help with, pick someone, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance.",
         demo: "radar",
       },
       {
@@ -70,7 +70,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             title: "Risk language is never missed",
-            body: "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified — so it survives a failed delivery.",
+            body: "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified, so it survives a failed delivery.",
             icon: "shield",
             demo: "risk",
           },
@@ -88,7 +88,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Start",
-            body: "Tap New session, type a first name, tap Start. In-person or video — no scheduling, no forms, no setup wizard.",
+            body: "Tap New session, type a first name, tap Start. In-person or video, no scheduling, no forms, no setup wizard.",
             icon: "zap",
           },
           {
@@ -157,7 +157,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "for-patients",
     title: "For patients",
     description:
-      "How to find a therapist, what the Crisis Radar is, what happens in a session, and exactly what your therapist can and cannot see.",
+      "Your therapy record, owned by you and readable by nobody until you say so. What the intelligence does, what it never does, and how the record moves with you.",
     layout: "marketing",
     navLabel: "For patients",
     navOrder: 0,
@@ -165,13 +165,83 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "hero",
         eyebrow: "For patients",
-        heading: "A real therapist, without the waiting list",
-        body: "You do not need an account to talk to somebody. Open the radar, see who is online this minute, pick a person, tell them what to call you — and you are in a session. Everything below is what happens next, in the order people ask about it.",
+        heading: "Your therapy record, and it is actually yours",
+        body: "Most people who have had therapy cannot lay their hands on a single page of it. Here the record has your name on it, you can read it, you can take it to the next therapist in one tap, and you can take that back just as fast. Below is how each of those works, and what we refuse to do with any of it.",
         ctaLabel: "See who is online now",
         ctaHref: "/radar",
         demo: "none",
-        icon: "users",
+        icon: "shield",
         backgroundImage: "/backgrounds/waves.svg",
+      },
+      {
+        type: "features",
+        heading: "It moves with you",
+        items: [
+          {
+            title: "One record, however many therapists",
+            body: "A second therapist does not start you from nothing. Your clinical summary is versioned and every version stays, with the name of whoever wrote it, so the new person reads what the last one thought rather than asking you to say it all again.",
+            icon: "users",
+          },
+          {
+            title: "You hand it over, nobody takes it",
+            body: "You generate a code and read it to your therapist. That asks you whether they may read your history. Nothing about you moves until you answer, and the code on its own shows them nothing at all.",
+            icon: "lock",
+          },
+          {
+            title: "Taking it back costs one tap and no explanation",
+            body: "Who can read your history is a permanent screen in the app, with the date each person got access and a button to end it. You are never asked why, and they are never told why.",
+            icon: "shield",
+          },
+          {
+            title: "A copy you can keep",
+            body: "Every session, every note a clinician signed, every version of your summary, what you wrote yourself. Emailed to you, never over WhatsApp, with the licence of whoever signed each note printed on it.",
+            icon: "fileText",
+          },
+        ],
+      },
+      {
+        type: "showcase",
+        heading: "The two screens that argument rests on",
+        items: [
+          {
+            title: "Your summary, with both therapists on it",
+            body: "This is the real screen, with invented people on it. Version two is a clinician who picked you up from somebody else; version one is still there with the first name on it. Nobody can edit or delete a version, including us.",
+            icon: "fileText",
+            demo: "summary",
+          },
+          {
+            title: "What you wrote, between sessions",
+            body: "A week is a long time to remember. You write or say whatever you want to keep, and a therapist you have given access to can read it. Nobody else, and nothing on that screen pretends somebody is watching it.",
+            icon: "heart",
+            demo: "journal",
+          },
+        ],
+      },
+      {
+        type: "features",
+        heading: "You never talk to the AI",
+        items: [
+          {
+            title: "There is no chatbot here, and there will not be one",
+            body: "You cannot message the intelligence, and it cannot message you. There is no screen in the patient app where you are typing to a model. That is enforced in the code rather than promised in a paragraph: nothing a patient can open is allowed to reach it, even indirectly.",
+            icon: "lock",
+          },
+          {
+            title: "What it does instead",
+            body: "It reads what happened in your sessions and what you wrote, and it puts that in front of the clinician who is treating you, with the sentence it came from attached so they can disagree with it.",
+            icon: "brain",
+          },
+          {
+            title: "Only a clinician you chose can ask it anything",
+            body: "And only about you, and only while you have given them access. Take the access back and the assistant stops being able to read your history that same second.",
+            icon: "shield",
+          },
+          {
+            title: "Nothing written by a machine reaches you unsigned",
+            body: "The summary after a session is drafted by software and does not leave the building until the person who was in the room with you has read it and put their name on it.",
+            icon: "check",
+          },
+        ],
       },
       {
         type: "features",
@@ -179,7 +249,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "The Crisis Radar",
-            body: "A live map of clinicians who are online right now. Filter by language or by what you need help with. Nobody on it is a bot, a queue or a callback — they are people with a session open.",
+            body: "A live map of clinicians who are online right now. Filter by language or by what you need help with. Nobody on it is a bot, a queue or a callback. They are people with a session open.",
             icon: "zap",
           },
           {
@@ -233,7 +303,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             title: "Your record is yours to claim",
-            body: "If a therapist has already been seeing you, the record has your name on it and you can claim it with your phone number. We ask you two questions first — proving a phone number is not proving a person.",
+            body: "If a therapist has already been seeing you, the record has your name on it and you can claim it with your phone number. We ask you two questions first, proving a phone number is not proving a person.",
             icon: "shield",
           },
         ],
@@ -248,7 +318,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "Can I pay in Egyptian pounds?",
-            a: "Yes. The price is shown in both, at the rate of the day, and the rate you were shown is the rate you are charged — it is fixed onto the payment rather than recalculated later.",
+            a: "Yes. The price is shown in both, at the rate of the day, and the rate you were shown is the rate you are charged. It is fixed onto the payment rather than recalculated later.",
           },
           {
             q: "What if the therapist does not turn up?",
@@ -257,6 +327,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             q: "Do I need an account?",
             a: "Not to have a session. You need one to keep your history, see the notes written to you, and claim a record a therapist already keeps about you.",
+          },
+          {
+            q: "If I stop using 24Therapy, do I lose everything?",
+            a: "No. Ask for a copy of your record and it is emailed to you: every session, every signed note, every version of your summary, and the licence of the clinician behind each. It is a record extract rather than a certificate, which means it says what we hold and when, and does not claim that a diagnosis in it is correct.",
+          },
+          {
+            q: "Can a therapist read my record without me agreeing?",
+            a: "No, and there is no screen anywhere that ends in them having access. Every grant needs you, signed in, answering a question. You are sent a message every time one starts, so if somebody ever pressured you into it you will see it afterwards, and ending it takes one tap.",
           },
         ],
       },
@@ -267,7 +345,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "features",
     title: "How 24Therapy works",
     description:
-      "Live transcription, automatic SOAP notes, crisis-language alerts and patient reports — on your phone.",
+      "Live transcription, automatic SOAP notes, crisis-language alerts and patient reports, on your phone.",
     layout: "marketing",
     navLabel: "Features",
     navOrder: 1,
@@ -276,11 +354,11 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "Features",
         heading: "The whole product is one screen",
-        body: "Most clinical software asks you to learn it. This asks you to press Start. Everything below is the real component, running on invented data — not a picture of one.",
+        body: "Most clinical software asks you to learn it. This asks you to press Start. Everything below is the real component, running on invented data, not a picture of one.",
         // 18R.1 — the same CTA pair as the header: the clinician's action is
         // the button, and the patient's route is one line away rather than
         // absent (18.4).
-        ctaLabel: "Start free — for therapists",
+        ctaLabel: "Start free for therapists",
         ctaHref: "/signup",
         demo: "session-room",
         backgroundImage: "/backgrounds/grid.svg",
@@ -303,7 +381,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             title: "Crisis language raises a flag",
-            body: "Alerts go to you and only to you. A patient on a join link never sees a risk level — only a supportive message and a crisis line.",
+            body: "Alerts go to you and only to you. A patient on a join link never sees a risk level, only a supportive message and a crisis line.",
             icon: "alert",
             demo: "risk",
           },
@@ -346,7 +424,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "How does it know who is speaking?",
-            a: "On video, each participant is on a separate audio track — no voice recognition or enrolment involved, so two similar voices are never confused. In person there is a single microphone, so the live transcript is unattributed and the note works out roles from context.",
+            a: "On video, each participant is on a separate audio track, no voice recognition or enrolment involved, so two similar voices are never confused. In person there is a single microphone, so the live transcript is unattributed and the note works out roles from context.",
           },
           {
             q: "What happens if I lose signal mid-session?",
@@ -368,7 +446,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "The patient has an app too",
-            body: "Their own sessions, the ones they booked and the ones they found on the radar, and the note you wrote to them once you signed it. It has no field that could hold your clinical note — that is a property of the query, not of the screen.",
+            body: "Their own sessions, the ones they booked and the ones they found on the radar, and the note you wrote to them once you signed it. It has no field that could hold your clinical note. That is a property of the query, not of the screen.",
             icon: "users",
             demo: "patient-sessions",
           },
@@ -388,7 +466,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       },
       {
         type: "cta",
-        heading: "Start free — your first session is on us",
+        heading: "Start free. Your first session is on us",
         body: "Or if you are looking for a therapist rather than software, the radar has people online now.",
         ctaLabel: "Sign up free",
         ctaHref: "/signup",
@@ -401,7 +479,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "pricing",
     title: "Pricing",
     description:
-      "Join free and pay per session, only when you run one — each session including its copilot questions about that patient. Your first session is free.",
+      "Join free and pay per session, only when you run one, each session including its copilot questions about that patient. Your first session is free.",
     layout: "marketing",
     navLabel: "Pricing",
     navOrder: 2,
@@ -427,7 +505,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "What does the session rate actually include?",
-            a: "The full session — live transcription, the SOAP note, the patient report and crisis alerts — plus the copilot questions about that patient shown on the cards above, for every session you run with them, and unused ones roll over. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not.",
+            a: "The full session, live transcription, the SOAP note, the patient report and crisis alerts, plus the copilot questions about that patient shown on the cards above, for every session you run with them, and unused ones roll over. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not.",
           },
           {
             q: "What if a session was a mistake?",
@@ -435,11 +513,11 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "What do you take when a patient pays me?",
-            a: "The percentage shown on the cards above, and nothing else. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not — Egypt, today — we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
+            a: "The percentage shown on the cards above, and nothing else. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not, as in Egypt today, we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
           },
           {
             q: "Can I pay my 24Therapy bill out of my earnings?",
-            a: "Yes. When we are holding your earnings the session fee comes out of them automatically. If your patients pay straight into your own Stripe account, anything you owe can instead be settled out of the next payment rather than a card — never more than what that session would have paid you, and you can turn it off.",
+            a: "Yes. When we are holding your earnings the session fee comes out of them automatically. If your patients pay straight into your own Stripe account, anything you owe can instead be settled out of the next payment rather than a card, never more than what that session would have paid you, and you can turn it off.",
           },
           {
             q: "What happens to sessions I bought and did not use?",
@@ -478,19 +556,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             title: "24Therapy Inc.",
             entity: "us",
             body: "The international entity. Card payments, Stripe payouts, and everything outside Egypt.",
-            address: "Set your registered address in admin → content → contact.",
+            address: "",
             phone: "",
             email: "support@24therapy.ai",
-            hours: "Sunday to Thursday, 09:00–18:00 UTC",
+            hours: "Sunday to Thursday, 09:00-18:00 UTC",
           },
           {
             title: "24Therapy Egypt",
             entity: "eg",
             body: "The Egyptian entity. Payments in Egyptian pounds, and payouts by InstaPay or wallet.",
-            address: "Set your registered address in admin → content → contact.",
+            address: "",
             phone: "",
             email: "egypt@24therapy.ai",
-            hours: "Sunday to Thursday, 10:00–19:00 Cairo",
+            hours: "Sunday to Thursday, 10:00-19:00 Cairo",
           },
         ],
       },
@@ -524,12 +602,37 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       },
       {
         type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
+      },
+      {
+        type: "features",
+        heading: "The short version",
+        items: [
+          {
+            title: "Your notes are yours",
+            body: "A clinician sees the patients they treat. Nobody else at 24Therapy reads a note unless you ask us to look at something.",
+            icon: "lock",
+          },
+          {
+            title: "Nothing trains a model",
+            body: "Session audio and text go to our AI provider so the note can be written, and are never used to train anything.",
+            icon: "shield",
+          },
+          {
+            title: "You can take it or delete it",
+            body: "A patient can export their record or ask us to erase it, and we do both rather than pointing at a clinician.",
+            icon: "check",
+          },
+        ],
+      },
+      {
+        type: "prose",
         body: "This page is a starting point maintained by your administrator, not legal advice. Review it with counsel before you accept a real patient.",
       },
       {
         type: "prose",
         heading: "What we store",
-        body: "Account details for clinicians (name, email, hashed password, licence details you choose to add). For patients: a first name, optionally a last name and email, plus the clinical record created by sessions — transcripts, notes, and risk assessments.",
+        body: "Account details for clinicians (name, email, hashed password, licence details you choose to add). For patients: a first name, optionally a last name and email, plus the clinical record created by sessions, transcripts, notes, and risk assessments.",
       },
       {
         type: "prose",
@@ -563,6 +666,10 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         demo: "none",
         icon: "fileText",
         backgroundImage: "/backgrounds/grid.svg",
+      },
+      {
+        type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
       },
       {
         type: "prose",
@@ -622,25 +729,29 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "hero",
         eyebrow: "Compliance",
-        heading: "HIPAA — in progress",
+        heading: "HIPAA, in progress",
         demo: "none",
         icon: "shield",
         backgroundImage: "/backgrounds/contours.svg",
       },
       {
         type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
+      },
+      {
+        type: "prose",
         heading: "Where we are today",
-        body: "24Therapy is in closed beta and is not yet HIPAA compliant. We are incorporating in the United States, and business associate agreements with each of our infrastructure providers are the next step after that — a BAA is a contract, and a contract needs a legal entity to sign it. Until every row in the table below reads signed, do not put protected health information into this product. We will tell you the day that changes rather than leaving you to check.",
+        body: "24Therapy is in closed beta and is not yet HIPAA compliant. We are incorporating in the United States, and business associate agreements with each of our infrastructure providers are the next step after that, a BAA is a contract, and a contract needs a legal entity to sign it. Until every row in the table below reads signed, do not put protected health information into this product. We will tell you the day that changes rather than leaving you to check.",
       },
       {
         type: "prose",
         heading: "The subprocessors, and where each one stands",
-        body: "Vercel — hosting and compute. HIPAA-eligible on their Enterprise plan; BAA available; not yet signed. Neon — the database holding every clinical record. HIPAA-eligible on their Business plan; BAA available; not yet signed. OpenAI — transcription and note generation. Zero-retention and a BAA are available on their enterprise terms; not yet signed. Daily — video. HIPAA-eligible plan with a BAA available; not yet signed. Stripe — payments; a BAA is available and payment data is not PHI in our architecture, since we never see a card. Resend — transactional email; a BAA is available. Every one of these is a company we can sign with, which is why they were chosen; none of them is signed yet, which is why this page says in progress rather than compliant.",
+        body: "Vercel, hosting and compute. HIPAA-eligible on their Enterprise plan; BAA available; not yet signed. Neon, the database holding every clinical record. HIPAA-eligible on their Business plan; BAA available; not yet signed. OpenAI, transcription and note generation. Zero-retention and a BAA are available on their enterprise terms; not yet signed. Daily, video. HIPAA-eligible plan with a BAA available; not yet signed. Stripe, payments; a BAA is available and payment data is not PHI in our architecture, since we never see a card. Resend, transactional email; a BAA is available. Every one of these is a company we can sign with, which is why they were chosen; none of them is signed yet, which is why this page says in progress rather than compliant.",
       },
       {
         type: "prose",
         heading: "What the beta means for you",
-        body: "Our first customers are a small number of practices who know exactly what this is: a product being tested, priced for that, with the compliance work openly unfinished. Their patients are told too — the recording consent step is real, it stores what was agreed and when, and refusing it costs the patient nothing. If you are a US covered entity and you are not comfortable being one of those first practices, wait for the table above to go green. That is a reasonable position and we will not argue you out of it.",
+        body: "Our first customers are a small number of practices who know exactly what this is: a product being tested, priced for that, with the compliance work openly unfinished. Their patients are told too, the recording consent step is real, it stores what was agreed and when, and refusing it costs the patient nothing. If you are a US covered entity and you are not comfortable being one of those first practices, wait for the table above to go green. That is a reasonable position and we will not argue you out of it.",
       },
       {
         type: "prose",
@@ -650,7 +761,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "Where your data is held",
-        body: "Amazon Web Services in Oregon, United States (us-west-2). If your regulator requires patient data to remain inside your own country — as the UAE does for health information under Federal Law No. 2 of 2019 — this deployment does not meet that requirement, and a region inside your jurisdiction is available on request. HIPAA is a United States statute and does not itself govern a practice in Dubai or Riyadh; we are meeting the US standard first because it is the higher bar, and because clearing it makes everything that follows easier to answer.",
+        body: "Amazon Web Services in Oregon, United States (us-west-2). If your regulator requires patient data to remain inside your own country, as the UAE does for health information under Federal Law No. 2 of 2019, this deployment does not meet that requirement, and a region inside your jurisdiction is available on request. HIPAA is a United States statute and does not itself govern a practice in Dubai or Riyadh; we are meeting the US standard first because it is the higher bar, and because clearing it makes everything that follows easier to answer.",
       },
       {
         type: "prose",
@@ -677,13 +788,38 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       },
       {
         type: "prose",
+        body: "هذه الصفحة بالإنجليزية، لأن النص الملزم قانونًا هو النص الإنجليزي. إن أردت شرحًا لها بالعربية فاكتب إلينا من صفحة التواصل وسيشرحها لك شخص.",
+      },
+      {
+        type: "features",
+        heading: "The short version",
+        items: [
+          {
+            title: "Every read is written down",
+            body: "Opening a chart appends a row to a log nobody can edit, including us.",
+            icon: "shield",
+          },
+          {
+            title: "A role is a list, not a rank",
+            body: "An unrecognised role is denied rather than quietly allowed, and every clinical query is scoped to one practice.",
+            icon: "lock",
+          },
+          {
+            title: "We say what is not finished",
+            body: "The compliance work still in progress is named on this page rather than implied to be done.",
+            icon: "alert",
+          },
+        ],
+      },
+      {
+        type: "prose",
         heading: "Authentication",
         body: "Sessions are opaque tokens stored as hashes, held in an httpOnly, Secure, SameSite cookie. There is no token in browser storage for a script to read. Signing out, changing a password or resetting a password revokes every existing session immediately.",
       },
       {
         type: "prose",
         heading: "Authorisation",
-        body: "Roles are an explicit allowlist, not a hierarchy of numbers — an unrecognised role is denied rather than silently permitted. Every query for clinical data is scoped to the practice that owns it, and the scoping is applied by the data layer rather than remembered by each caller.",
+        body: "Roles are an explicit allowlist rather than a hierarchy of numbers, so an unrecognised role is denied rather than silently permitted. Every query for clinical data is scoped to the practice that owns it, and the scoping is applied by the data layer rather than remembered by each caller.",
       },
       {
         /*

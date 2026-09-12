@@ -155,13 +155,13 @@ async function rails(db: ReturnType<typeof connect>["db"]) {
     if (existing.entity === "us" && seedRow.entity === "eg") patch.entity = "eg";
 
     if (Object.keys(patch).length === 0) {
-      console.log(`· ${seedRow.code} — already configured, left alone`);
+      console.log(`· ${seedRow.code}, already configured, left alone`);
       continue;
     }
 
     await db.update(countrySettings).set(patch).where(eq(countrySettings.code, seedRow.code));
     filled += 1;
-    console.log(`✓ ${seedRow.code} — filled ${Object.keys(patch).join(", ")}`);
+    console.log(`✓ ${seedRow.code}, filled ${Object.keys(patch).join(", ")}`);
   }
 
   console.log(`\n${filled} countries configured. Empty fields only; nothing was overwritten.`);

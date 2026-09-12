@@ -2,7 +2,8 @@ import "server-only";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   earningsTransfers,
   invoices,
@@ -16,6 +17,17 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
 import { quoteFor } from "./fx";
 import { getStripe } from "./stripe";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/billing/connect.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 /**
  * Therapist earnings on Stripe Connect Express.
@@ -419,7 +431,7 @@ export async function createSessionPaymentCheckout(opts: {
     });
     return {
       error:
-        "This therapist has not finished setting up payouts yet, so we cannot take a payment for this session. They can finish in Settings — it takes a couple of minutes — or send you a free link in the meantime.",
+        "This therapist has not finished setting up payouts yet, so we cannot take a payment for this session. They can finish in Settings. It takes a couple of minutes, or send you a free link in the meantime.",
     };
   }
 
@@ -438,7 +450,7 @@ export async function createSessionPaymentCheckout(opts: {
   if (!country) {
     return {
       error:
-        "We cannot take payments in that country yet. Ask your therapist for a free link — the session itself works exactly the same.",
+        "We cannot take payments in that country yet. Ask your therapist for a free link, the session itself works exactly the same.",
     };
   }
 
@@ -552,7 +564,7 @@ export async function createSessionPaymentCheckout(opts: {
               // Held capture: no transfer and no application fee, because
               // there is nowhere to send either yet. The split is recorded on
               // our own books instead and released later.
-              description: "Therapy session — held pending clinician payout setup",
+              description: "Therapy session, held pending clinician payout setup",
             },
       // The checkout id rides back on the redirect so the join page can confirm
       // without waiting for a webhook — Stripe cannot reach a preview
@@ -940,7 +952,7 @@ export async function releaseHeldEarnings(
         amount: held,
         currency: "usd",
         destination: account.accountId,
-        description: "24Therapy — session earnings held during payout setup",
+        description: "24Therapy, session earnings held during payout setup",
         metadata: { therapistId, transferId: transfer.id },
       },
       // Stripe deduplicates on this, so a retry after a timeout cannot send the

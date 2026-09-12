@@ -52,7 +52,16 @@ async function bounceToLogin(): Promise<never> {
   const next = path.startsWith("/") && !path.startsWith("//") ? path : "";
 
   const query = next ? `?next=${encodeURIComponent(next)}` : "";
-  redirect(hasCookie ? `/session-expired${query}` : `/login${query}`);
+
+  /*
+   * 21R.1 / C94 — somebody bounced off an admin route is sent to the admin
+   * door, not the clinician's. Two audiences, two forms (and the staff form
+   * refuses a therapist's credentials with a sentence pointing back here), so
+   * sending an admin to /login would be sending them somewhere that will turn
+   * them away.
+   */
+  const door = next.startsWith("/admin") ? "/staff/sign-in" : "/login";
+  redirect(hasCookie ? `/session-expired${query}` : `${door}${query}`);
 }
 
 /**

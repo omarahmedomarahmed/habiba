@@ -16,6 +16,7 @@ import {
 import raw from "@/lib/world-110m.json";
 import { countryFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 type Country = { n: string; c: [number, number]; b: [number, number, number, number]; p: number[][] };
 const WORLD = raw as unknown as Record<string, Country>;
@@ -55,6 +56,7 @@ export function Globe({
   onPick: (entry: RadarEntry) => void;
   className?: string;
 }) {
+  const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const view = useRef<Viewpoint>({ lon: 10, lat: 18, radius: BASE_RADIUS, cx: CX, cy: CY });
   const paths = useRef(new Map<string, SVGPathElement>());
@@ -318,7 +320,7 @@ export function Globe({
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         className="h-full w-full cursor-grab touch-none select-none active:cursor-grabbing"
         role="img"
-        aria-label="A globe showing where therapists are online right now"
+        aria-label={t("radar.globeLabel")}
       >
         <defs>
           <radialGradient id="globe-ocean" cx="34%" cy="28%" r="82%">
@@ -433,7 +435,7 @@ export function Globe({
                 strokeWidth="1.4"
                 filter="url(#globe-glow)"
               />
-              <title>{`${entry.firstName} — ${entry.status === "online" ? "available now" : entry.status === "pending" ? "being booked" : "in a session"}`}</title>
+              <title>{`${entry.firstName}, ${entry.status === "online" ? "available now" : entry.status === "pending" ? "being booked" : "in a session"}`}</title>
             </g>
           ))}
         </g>
@@ -459,7 +461,7 @@ export function Globe({
           </p>
           <p className="text-[11px] text-teal-300">
             {hoveredCount > 0
-              ? `${hoveredCount} online now — tap to filter`
+              ? `${hoveredCount} online now, tap to filter`
               : "Nobody here right now"}
           </p>
         </div>
@@ -467,7 +469,7 @@ export function Globe({
 
       {!ready ? (
         <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-xs text-white/40">Spinning up…</p>
+          <p className="text-xs text-white/40">{t("radar.spinningUp")}</p>
         </div>
       ) : null}
     </div>

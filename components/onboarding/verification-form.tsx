@@ -18,22 +18,34 @@ import {
   type RequirementOverrides,
 } from "@/lib/regulators";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 const INITIAL: OnboardingState = {};
 
 export type DocSlot = {
   key: "idFront" | "idBack" | "licenseDoc" | "headshot";
-  label: string;
-  hint: string;
+  /**
+   * 45.6 / C207 — the label and hint arrive as dictionary keys.
+   *
+   * `lib/regulators.ts` is a lib module with no translator in scope, so it
+   * names the key and this component resolves it. `label` is the escape
+   * hatch: a per-country label an administrator typed into the country
+   * config, which is a document's name rather than a string in the product.
+   */
+  labelKey: MessageKey;
+  hintKey: MessageKey;
+  label?: string;
   required: boolean;
   url: string | null;
 };
 
 function SaveButton() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save details"}
+      {pending ? t("common.saving") : t("tset.saveDetails")}
     </Button>
   );
 }
@@ -78,11 +90,21 @@ export function VerificationForm({
   };
   documents: DocSlot[];
   countryOptions: { code: string; name: string; flag: string }[];
-  languageOptions: readonly string[];
-  specialtyOptions: readonly string[];
+  /*
+   * 🔴 37L.2 — code AND label, never one string doing both jobs.
+   *
+   * These used to be `readonly string[]`, and the string was the checkbox's
+   * value, the thing stored on the row, the allowlist entry and the words on
+   * screen all at once. Translating the words would have silently changed what
+   * gets stored, so a clinician picking "القلق" would have saved a specialty
+   * the allowlist does not contain.
+   */
+  languageOptions: { code: string; label: string }[];
+  specialtyOptions: { code: string; label: string }[];
   uploadsEnabled: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const [formState, formAction] = useActionState(saveVerificationDetails, INITIAL);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -136,11 +158,11 @@ export function VerificationForm({
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
         </span>
-        <p className="mt-4 text-lg font-bold tracking-tight text-slate-900">With us for review</p>
+        <p className="mt-4 text-lg font-bold tracking-tight text-slate-900">
+          {t("tver.underReview")}
+        </p>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-          A person is checking your documents — usually within a working day. We will email you the
-          moment it is done. You can look around the product in the meantime; sessions unlock as
-          soon as you are approved.
+          {t("tver.underReviewBody")}
         </p>
       </Card>
     );
@@ -150,33 +172,32 @@ export function VerificationForm({
     <div className="space-y-4">
       {state === "rejected" && reviewNote ? (
         <Card className="border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-semibold text-red-900">We could not verify you yet</p>
+          <p className="text-sm font-semibold text-red-900">{t("tver.rejected")}</p>
           <p className="mt-1 text-sm leading-relaxed text-red-800">{reviewNote}</p>
           <p className="mt-2 text-xs text-red-700">
-            Fix what is described above and submit again — it goes back to the front of the queue.
+            {t("tver.rejectedBody")}
           </p>
         </Card>
       ) : null}
 
       {!uploadsEnabled ? (
         <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
-          File storage is not configured on this deployment, so uploads will fail. Set
-          BLOB_READ_WRITE_TOKEN.
+          {t("tver.noUploads")}
         </p>
       ) : null}
 
       {/* ------------------------------------------------------ your details */}
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">About your practice</p>
+        <p className="text-sm font-semibold text-slate-900">{t("tver.aboutPractice")}</p>
 
         <form action={formAction} className="mt-3 space-y-4">
           {formState.ok ? <p className="text-sm text-emerald-700">{formState.message}</p> : null}
           {formState.error ? <p className="text-sm text-red-600">{formState.error}</p> : null}
 
           <Field
-            label="Country you practise in"
+            label={t("tver.country")}
             htmlFor="country"
-            hint="This decides which documents we ask for and where you appear on the radar."
+            hint={t("tver.countryHint")}
           >
             <select
               id="country"
@@ -186,7 +207,7 @@ export function VerificationForm({
               disabled={locked}
               className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
             >
-              <option value="">Choose a country</option>
+              <option value="">{t("tver.chooseCountry")}</option>
               {countryOptions.map((country) => (
                 <option key={country.code} value={country.code}>
                   {country.flag} {country.name}
@@ -197,9 +218,9 @@ export function VerificationForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
-              label="Regulator or licensing body"
+              label={t("tver.regulator")}
               htmlFor="licenseBody"
-              hint="Whoever issued your licence."
+              hint={t("tver.regulatorHint")}
             >
               <Input
                 id="licenseBody"
@@ -207,7 +228,7 @@ export function VerificationForm({
                 value={licenseBody}
                 onChange={(event) => setLicenseBody(event.target.value)}
                 disabled={locked}
-                placeholder={suggestion || "Whoever issued your licence"}
+                placeholder={suggestion || t("tver.regulatorHint")}
               />
               {/*
                 Offered, not imposed. There are many routes to practising in
@@ -240,7 +261,7 @@ export function VerificationForm({
                 </div>
               ) : null}
             </Field>
-            <Field label="Licence number" htmlFor="licenseNumber">
+            <Field label={t("tver.licenceNumber")} htmlFor="licenseNumber">
               <Input
                 id="licenseNumber"
                 name="licenseNumber"
@@ -250,7 +271,11 @@ export function VerificationForm({
             </Field>
           </div>
 
-          <Field label="Licence expiry" htmlFor="licenseExpiry" hint="Optional. YYYY-MM if you know it.">
+          <Field
+            label={t("tver.licenceExpiry")}
+            htmlFor="licenseExpiry"
+            hint={t("tver.licenceExpiryHint")}
+          >
             <Input
               id="licenseExpiry"
               name="licenseExpiry"
@@ -261,14 +286,14 @@ export function VerificationForm({
           </Field>
 
           <ChipGroup
-            legend="Languages you can work in"
+            legend={t("tver.languages")}
             name="languages"
             options={languageOptions}
             selected={initial.languages}
             disabled={locked}
           />
           <ChipGroup
-            legend="What you work with"
+            legend={t("tver.specialties")}
             name="specialties"
             options={specialtyOptions}
             selected={initial.specialties}
@@ -281,20 +306,21 @@ export function VerificationForm({
 
       {/* --------------------------------------------------------- documents */}
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Documents</p>
+        <p className="text-sm font-semibold text-slate-900">{t("tver.documents")}</p>
         <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
-          Photos are fine — take them with your phone. Everything except the headshot is private
-          to our compliance team and is never shown to patients or other clinicians.
+          {t("tver.documentsBody")}
         </p>
 
         {country ? (
           <p className="mt-2 text-xs font-medium text-brand-700">
-            Showing what {countryOptions.find((c) => c.code === country)?.name ?? "this country"}{" "}
-            needs.
+            {t("tver.showingFor", {
+              country:
+                countryOptions.find((c) => c.code === country)?.name ?? t("tver.thisCountry"),
+            })}
           </p>
         ) : (
           <p className="mt-2 text-xs text-amber-700">
-            Choose your country above and these change to the documents it actually issues.
+            {t("tver.chooseCountryFirst")}
           </p>
         )}
 
@@ -309,7 +335,7 @@ export function VerificationForm({
       <Card className="p-4">
         {missing.length > 0 ? (
           <>
-            <p className="text-sm font-semibold text-slate-900">Nearly there</p>
+            <p className="text-sm font-semibold text-slate-900">{t("tver.nearlyThere")}</p>
             {/*
               Say which copy of the truth this list is reading.
 
@@ -321,9 +347,18 @@ export function VerificationForm({
               with one sentence.
             */}
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              This is what we have saved. If you have just filled something in above, press
-              <span className="font-semibold text-slate-700"> Save details </span>
-              first and this list will catch up.
+              {t("tver.savedListNote")
+                .split("{save}")
+                .flatMap((part, index) =>
+                  index === 0
+                    ? [part]
+                    : [
+                        <span key="save" className="font-semibold text-slate-700">
+                          {t("tset.saveDetails")}
+                        </span>,
+                        part,
+                      ],
+                )}
             </p>
             <ul className="mt-2 space-y-1">
               {missing.map((item) => (
@@ -337,7 +372,7 @@ export function VerificationForm({
         ) : (
           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
             <Check className="h-4 w-4" aria-hidden />
-            Everything is here.
+            {t("tver.everythingHere")}
           </p>
         )}
 
@@ -362,7 +397,7 @@ export function VerificationForm({
           }
         >
           <ShieldCheck className="h-4 w-4" aria-hidden />
-          {pending ? "Submitting…" : "Submit for verification"}
+          {pending ? t("tver.submitting") : t("tver.submit")}
         </Button>
       </Card>
     </div>
@@ -378,6 +413,7 @@ export function VerificationForm({
  */
 function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
   const router = useRouter();
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -421,11 +457,11 @@ function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
 
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
-            {doc.label}
-            {doc.required ? null : <Badge tone="slate">optional</Badge>}
-            {url ? <Badge tone="teal">uploaded</Badge> : null}
+            {doc.label ?? t(doc.labelKey)}
+            {doc.required ? null : <Badge tone="slate">{t("tver.optional")}</Badge>}
+            {url ? <Badge tone="teal">{t("tver.uploaded")}</Badge> : null}
           </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{doc.hint}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{t(doc.hintKey)}</p>
           {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
         </div>
 
@@ -440,7 +476,7 @@ function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
           ) : (
             <Upload className="h-3.5 w-3.5" aria-hidden />
           )}
-          {url ? "Replace" : "Upload"}
+          {url ? t("tver.replace") : t("tver.upload")}
         </button>
       </div>
 
@@ -468,7 +504,7 @@ function ChipGroup({
 }: {
   legend: string;
   name: string;
-  options: readonly string[];
+  options: { code: string; label: string }[];
   selected: string[];
   disabled: boolean;
 }) {
@@ -479,17 +515,17 @@ function ChipGroup({
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <label
-            key={option}
+            key={option.code}
             className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-500 has-checked:bg-brand-50 has-checked:text-brand-700"
           >
             <input
               type="checkbox"
               name={name}
-              value={option}
-              defaultChecked={chosen.has(option)}
+              value={option.code}
+              defaultChecked={chosen.has(option.code)}
               className="sr-only"
             />
-            {option}
+            {option.label}
           </label>
         ))}
       </div>

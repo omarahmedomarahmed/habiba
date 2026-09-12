@@ -8,6 +8,7 @@ import {
   CreditCard,
   FileText,
   Home,
+  KeyRound,
   MessageSquare,
   MoreHorizontal,
   Plus,
@@ -21,6 +22,8 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * Bottom navigation — the primary navigation on every screen size up to
@@ -35,30 +38,75 @@ import { cn } from "@/lib/utils";
  *
  * Targets are 44px minimum; the previous bar shipped ~40px.
  */
+/*
+ * 37L.2 — keys, not words.
+ *
+ * These were English strings in a module-level constant, which is the shape
+ * this project keeps finding: copy in a place no translator is looking and no
+ * hook can reach. The label is resolved where it is rendered.
+ */
 const PRIMARY = [
-  { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/sessions", label: "Sessions", icon: CalendarDays },
-  { href: "/patients", label: "Patients", icon: Users },
-] as const;
+  { href: "/dashboard", label: "portal.nav.home", icon: Home },
+  { href: "/sessions", label: "portal.nav.sessions", icon: CalendarDays },
+  { href: "/patients", label: "portal.nav.patients", icon: Users },
+] as const satisfies readonly { href: string; label: MessageKey; icon: typeof Home }[];
 
 const MORE = [
-  { href: "/copilot", label: "Copilot", icon: MessageSquare, hint: "Ask about a patient" },
+  {
+    href: "/copilot",
+    label: "portal.nav.copilot",
+    icon: MessageSquare,
+    hint: "portal.nav.hintCopilot",
+  },
   /*
    * Named for what it is *not* allowed to see, because the two copilots are
    * one tap apart and a clinician who asks the wrong one gets a refusal
    * instead of an answer. "Assistant · your practice" beside "Copilot · ask
    * about a patient" is the whole distinction.
    */
-  { href: "/assistant", label: "Assistant", icon: Sparkles, hint: "Your week, not your notes" },
-  { href: "/notes", label: "Notes", icon: FileText, hint: "Drafts waiting for you" },
-  { href: "/on-call", label: "Crisis Radar", icon: Radio, hint: "Go online, get booked" },
-  { href: "/earnings", label: "Earnings", icon: Wallet, hint: "What patients paid you" },
-  { href: "/billing", label: "Billing", icon: CreditCard, hint: "What you owe 24Therapy" },
-  { href: "/settings", label: "Settings", icon: Settings, hint: "Profile, payouts, licence" },
-] as const;
+  {
+    href: "/assistant",
+    label: "portal.nav.assistant",
+    icon: Sparkles,
+    hint: "portal.nav.hintAssistant",
+  },
+  { href: "/notes", label: "portal.nav.notes", icon: FileText, hint: "portal.nav.hintNotes" },
+  /* 27.2 / 27.7 — the two things a patient starts and a clinician answers. */
+  { href: "/connect", label: "portal.nav.connect", icon: KeyRound, hint: "portal.nav.hintConnect" },
+  {
+    href: "/on-call",
+    label: "portal.nav.crisisRadar",
+    icon: Radio,
+    hint: "portal.nav.hintRadar",
+  },
+  {
+    href: "/earnings",
+    label: "portal.nav.earnings",
+    icon: Wallet,
+    hint: "portal.nav.hintEarnings",
+  },
+  {
+    href: "/billing",
+    label: "portal.nav.billing",
+    icon: CreditCard,
+    hint: "portal.nav.hintBilling",
+  },
+  {
+    href: "/settings",
+    label: "portal.nav.settings",
+    icon: Settings,
+    hint: "portal.nav.hintSettings",
+  },
+] as const satisfies readonly {
+  href: string;
+  label: MessageKey;
+  icon: typeof Home;
+  hint: MessageKey;
+}[];
 
 export function BottomNav({ cleared = true }: { cleared?: boolean }) {
   const pathname = usePathname();
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   // A sheet that survives navigation is a sheet covering the page you just
@@ -84,25 +132,25 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
   if (!cleared) {
     return (
       <nav
-        aria-label="Primary"
+        aria-label={t("portal.nav.primary")}
         className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
       >
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 pt-1">
           <NavItem
             href="/onboarding"
-            label="Verify"
+            label={t("portal.nav.verify")}
             icon={ShieldCheck}
             active={isActive("/onboarding")}
           />
           <NavItem
             href="/billing"
-            label="Billing"
+            label={t("portal.nav.billing")}
             icon={CreditCard}
             active={isActive("/billing")}
           />
           <NavItem
             href="/settings"
-            label="Settings"
+            label={t("portal.nav.settings")}
             icon={Settings}
             active={isActive("/settings")}
           />
@@ -117,17 +165,19 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t("portal.nav.closeMenu")}
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-navy-500/50 backdrop-blur-sm"
           />
           <div className="safe-bottom animate-fade-rise absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-3 pb-24">
             <div className="mb-1 flex items-center justify-between px-2 py-1">
-              <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">More</p>
+              <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+                {t("portal.nav.more")}
+              </p>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="tap-target flex items-center justify-center text-slate-400"
               >
                 <X className="h-5 w-5" aria-hidden />
@@ -152,8 +202,8 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
                   <item.icon className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-slate-900">{item.label}</span>
-                  <span className="block truncate text-xs text-slate-500">{item.hint}</span>
+                  <span className="block text-sm font-semibold text-slate-900">{t(item.label)}</span>
+                  <span className="block truncate text-xs text-slate-500">{t(item.hint)}</span>
                 </span>
               </Link>
             ))}
@@ -162,31 +212,43 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
       ) : null}
 
       <nav
-        aria-label="Primary"
+        aria-label={t("portal.nav.primary")}
         className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
       >
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 pt-1">
           {PRIMARY.slice(0, 2).map((item) => (
-            <NavItem key={item.href} {...item} active={isActive(item.href)} />
+            <NavItem
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={t(item.label)}
+              active={isActive(item.href)}
+            />
           ))}
 
           <Link
             href="/sessions/new"
-            aria-label="Start a session"
+            aria-label={t("portal.dash.start")}
             className="tap-target -mt-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-lg shadow-brand-500/30 active:bg-brand-600"
           >
             <Plus className="h-6 w-6" aria-hidden />
           </Link>
 
           {PRIMARY.slice(2).map((item) => (
-            <NavItem key={item.href} {...item} active={isActive(item.href)} />
+            <NavItem
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={t(item.label)}
+              active={isActive(item.href)}
+            />
           ))}
 
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
-            aria-label="More"
+            aria-label={t("portal.nav.more")}
             className={cn(
               "tap-target flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5",
               open || moreActive ? "text-brand-600" : "text-slate-400",
@@ -196,7 +258,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
             <span
               className={cn("text-[10px]", open || moreActive ? "font-semibold" : "font-medium")}
             >
-              More
+              {t("portal.nav.more")}
             </span>
           </button>
         </div>

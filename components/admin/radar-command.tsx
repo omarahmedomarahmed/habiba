@@ -25,6 +25,7 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 import type { CommandRow, CommandView } from "@/lib/data/radar-admin";
 import { countryFlag, countryName, languageFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/client";
 
 const Globe = dynamicImport(() => import("@/components/radar/globe").then((m) => m.Globe), {
   ssr: false,
@@ -57,6 +58,9 @@ export function RadarCommand({
   /** The admin's own zone, from the server. 12.3 / C84 — never read here. */
   zone: string | null;
 }) {
+  // 45.6 / C206 — this component asks for its own language rather than
+  // being handed one, so no call site can forget to pass it.
+  const locale = useLocale();
   const [view, setView] = useState(initial);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState<string | null>(null);
@@ -220,7 +224,7 @@ export function RadarCommand({
           <option value="">Everywhere</option>
           {view.byCountry.map((entry) => (
             <option key={entry.country} value={entry.country}>
-              {countryFlag(entry.country)} {countryName(entry.country) ?? entry.country} ·{" "}
+              {countryFlag(entry.country)} {countryName(entry.country, locale) ?? entry.country} ·{" "}
               {entry.online}/{entry.total}
             </option>
           ))}
@@ -284,11 +288,11 @@ export function RadarCommand({
                     {row.country ? (
                       <>
                         <span aria-hidden>{countryFlag(row.country)}</span>{" "}
-                        {row.city ?? countryName(row.country) ?? row.country}
+                        {row.city ?? countryName(row.country, locale) ?? row.country}
                         <span className="block text-[11px] text-slate-400">{row.region ?? ""}</span>
                       </>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </Td>
                   <Td>
@@ -302,12 +306,12 @@ export function RadarCommand({
                         <span className="text-slate-400">({row.rating.count})</span>
                       </span>
                     ) : (
-                      <span className="text-slate-300">—</span>
+                      <span className="text-slate-300">-</span>
                     )}
                   </Td>
                   <Td className="text-end tabular-nums text-slate-600">{row.sessions30d}</Td>
                   <Td className="text-end tabular-nums font-medium text-slate-900">
-                    {row.feeCents30d > 0 ? formatUsd(row.feeCents30d) : "—"}
+                    {row.feeCents30d > 0 ? formatUsd(row.feeCents30d) : "-"}
                   </Td>
                   <Td>
                     <Controls row={row} />
@@ -379,7 +383,7 @@ function State({ row, zone }: { row: CommandRow; zone: string | null }) {
           suspended
         </span>
         <span className="mt-0.5 text-[10px] text-slate-400">
-          until {formatDate(row.suspendedUntil, zone)}
+          until {formatDate(row.suspendedUntil, zone, "en")}
         </span>
       </span>
     );
@@ -483,7 +487,7 @@ function Controls({ row }: { row: CommandRow }) {
         aria-label="Reason"
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        placeholder="Reason — they see this"
+        placeholder="Reason. They see this"
         className="h-8 text-xs"
       />
       <div className="flex flex-wrap gap-1">
@@ -573,9 +577,9 @@ function Detail({
           <Row label="Our cut 30d">{formatUsd(row.feeCents30d)}</Row>
           <Row label="Walk-ins">{row.acceptsWalkIns ? "Yes" : "No"}</Row>
           <Row label="Last seen">
-            {row.lastSeenAt ? formatDateTime(row.lastSeenAt, zone) : "never"}
+            {row.lastSeenAt ? formatDateTime(row.lastSeenAt, zone, "en") : "never"}
           </Row>
-          <Row label="Languages">{row.languages.join(", ") || "—"}</Row>
+          <Row label="Languages">{row.languages.join(", ") || "-"}</Row>
         </dl>
 
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">

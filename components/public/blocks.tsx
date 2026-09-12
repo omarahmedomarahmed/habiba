@@ -6,6 +6,16 @@ import { SessionDemo } from "@/components/demo/session-demo";
 import { ContentIconMark } from "@/components/public/icons";
 import { ContactForm } from "@/components/public/contact-form";
 import { getDemoContent, type DemoContent } from "@/lib/content/demo";
+import { getI18n, type Translate } from "@/lib/i18n/server";
+
+/** The dictionary for a named language, when the caller knows which. */
+async function stringsForLocale(
+  locale: string,
+): Promise<{ locale: string; t: Translate }> {
+  const { stringsFor } = await import("@/lib/i18n/strings");
+  const { t } = await stringsFor(locale);
+  return { locale, t: t as Translate };
+}
 import { getCountries } from "@/lib/settings";
 import { PricingTiers } from "@/components/public/pricing-tiers";
 import { RadarHero } from "@/components/radar/radar-hero";
@@ -21,7 +31,26 @@ import type { ContentBlock } from "@/lib/db/schema";
  * though they were validated on save — a value that reached the database some
  * other way still cannot reach the page.
  */
-export async function BlockRenderer({ blocks }: { blocks: ContentBlock[]; slug?: string }) {
+export async function BlockRenderer({
+  blocks,
+  locale,
+}: {
+  blocks: ContentBlock[];
+  slug?: string;
+  /**
+   * 🔴 21R.8 — the language of the *row*, when the caller already knows it.
+   *
+   * In the running app this is not passed and must not be: the chrome follows
+   * the *reader*, which is what `getI18n()` reads from the cookie. That is the
+   * right answer even when the row falls back — an Arabic reader on an
+   * English-only legal page should still get Arabic buttons around it.
+   *
+   * It exists for the render check, which has no cookie: it picks a row by
+   * locale and would otherwise assert about Arabic content wrapped in whatever
+   * language a script happened to default to, which is a test of the script.
+   */
+  locale?: string;
+}) {
   /*
    * 18.13 — the words inside the live components are content too, read once
    * here and handed down. One query for the whole page rather than one per
@@ -29,12 +58,41 @@ export async function BlockRenderer({ blocks }: { blocks: ContentBlock[]; slug?:
    * can reach a database, which is what makes a real product component safe on
    * an anonymous page.
    */
-  const demo = await getDemoContent();
+  /*
+   * 🔴 28.1 — the demo is read in the SAME language the chrome is.
+   *
+   * It used to ask the runtime, which throws outside a request, so every
+   * script-rendered Arabic page fell through to the English constant: Arabic
+   * paragraphs around a transcript panel holding an English conversation.
+   * That is worse than a screenshot, because it looks like the product cannot
+   * do Arabic. The locale arrives as a prop for exactly this reason (C84), so
+   * the demo takes it too.
+   */
+  const demo = await getDemoContent(locale);
+
+  /*
+   * 🔴 21R.8 — the reader's language, resolved once here and handed down.
+   *
+   * The CMS blocks were translated from sprint 19; the *chrome* around them
+   * was not, so an Arabic page rendered Arabic paragraphs between English
+   * buttons — including the two buttons under the crisis panel. Read once,
+   * like `demo` above, because nothing below this line may reach a database
+   * or ask the runtime what language it is (C84).
+   */
+  const i18n = locale ? await stringsForLocale(locale) : await getI18n();
+  const t = i18n.t;
 
   return (
     <>
       {blocks.map((block, i) => (
-        <Block key={i} block={block} first={i === 0} demo={demo} />
+        <Block
+          key={i}
+          block={block}
+          first={i === 0}
+          demo={demo}
+          t={t}
+          locale={i18n.locale}
+        />
       ))}
     </>
   );
@@ -44,14 +102,19 @@ function Block({
   block,
   first,
   demo,
+  t,
+  locale,
 }: {
   block: ContentBlock;
   first: boolean;
   demo: DemoContent;
+  t: Translate;
+  /** The language everything below renders in — the row's, or the reader's. */
+  locale: string;
 }) {
   switch (block.type) {
     case "hero":
-      return <Hero block={block} first={first} />;
+      return <Hero block={block} first={first} t={t} />;
     case "features":
       return <Features block={block} />;
     case "showcase":
@@ -72,29 +135,60 @@ function Block({
      * second copy of a number.
      */
     case "pricing":
-      return <PricingTiers compact={block.compact} />;
+      return <PricingTiers compact={block.compact} locale={locale} />;
     /* 🔴 18.3 — help now, on the page, never behind a signup. */
     case "crisis":
-      return <Crisis block={block} />;
+      return <Crisis block={block} t={t} />;
     /* 18R.6 — two companies, both always visible. */
     case "companies":
-      return <Companies block={block} />;
+      return <Companies block={block} t={t} />;
     /* 18R.2 — a real form, not a mailto: link. */
     case "contact_form":
-      return <ContactBlock block={block} />;
+      return <ContactBlock block={block} t={t} />;
     default:
       return null;
   }
 }
 
-function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>; first: boolean }) {
+function Hero({
+  block,
+  first,
+  t,
+}: {
+  block: Extract<ContentBlock, { type: "hero" }>;
+  first: boolean;
+  t: Translate;
+}) {
   /*
    * The radar hero is not a panel beside some copy — the live map is the
    * background of the whole fold and the clinicians on it are clickable. So it
    * owns its own <section> rather than being slotted into this one.
    */
   if (block.demo === "radar") {
-    return <RadarHero heading={block.heading} body={block.body} eyebrow={block.eyebrow} />;
+    return (
+      <RadarHero
+        heading={block.heading}
+        body={block.body}
+        eyebrow={block.eyebrow}
+        strings={{
+          checking: t("radar.checking"),
+          online: t("radar.online", { count: "{count}" }),
+          private: t("radar.private"),
+          noAccount: t("radar.noAccount"),
+          fromPrice: t("radar.fromPrice", { price: "{price}" }),
+          free: t("radar.free"),
+          goOnRadar: t("radar.goOnRadar"),
+          full: t("radar.full"),
+          finding: t("radar.finding"),
+          nobody: t("radar.nobody"),
+          nobodyMatching: t("radar.nobodyMatching"),
+          appearWhenOnline: t("radar.appearWhenOnline"),
+          othersAvailable: t("radar.othersAvailable", { count: "{count}" }),
+          showEveryone: t("radar.showEveryone"),
+          notEmergency: t("crisis.notEmergency"),
+        }}
+      />
+    );
   }
 
   const image = safeImageUrl(block.backgroundImage);
@@ -127,27 +221,55 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div>
+          {/*
+            🔴 C95 / 21R.10 — the icon sits WITH the text, never on a line of
+            its own.
+
+            It used to render as a block between the eyebrow and the heading,
+            so every hero opened with a floating square: the founder found it
+            by looking at the live site, which is the whole argument for 22R.
+            It now shares a row with the eyebrow, and when there is no eyebrow
+            it shares one with the heading itself — so there is no arrangement
+            of hero content that puts it alone.
+
+            The row is `flex`, not a margin: `gap` and `items-center` are
+            direction-agnostic, so Arabic gets the icon on the right of the
+            text without a second rule. Anything using `ms-`/`me-` would have
+            been correct too; anything using `ml-`/`mr-` would have looked
+            fixed in English and wrong in Arabic, which is where this kind of
+            thing hides (19.3).
+          */}
           {block.eyebrow ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
-              {block.eyebrow}
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {block.icon ? (
+                <ContentIconMark name={block.icon} tone="light" />
+              ) : null}
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
+                <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+                {block.eyebrow}
+              </span>
+            </div>
           ) : null}
 
-          {block.icon ? <ContentIconMark name={block.icon} tone="light" className="mt-5" /> : null}
-
-          {first ? (
-            <h1 className="mt-5 text-balance text-[2.1rem] leading-[1.1] font-bold tracking-tight text-white sm:text-5xl">
-              {block.heading}
-            </h1>
-          ) : (
-            <h2 className="mt-5 text-balance text-3xl leading-tight font-bold tracking-tight text-white sm:text-4xl">
-              {block.heading}
-            </h2>
-          )}
+          <div className="mt-5 flex items-center gap-3">
+            {block.icon && !block.eyebrow ? (
+              <ContentIconMark name={block.icon} tone="light" />
+            ) : null}
+            {first ? (
+              <h1 className="text-balance text-[2.1rem] leading-[1.1] font-bold tracking-tight text-white sm:text-5xl">
+                {block.heading}
+              </h1>
+            ) : (
+              <h2 className="text-balance text-3xl leading-tight font-bold tracking-tight text-white sm:text-4xl">
+                {block.heading}
+              </h2>
+            )}
+          </div>
 
           {block.body ? (
-            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-white/65">{block.body}</p>
+            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-white/65">
+              {block.body}
+            </p>
           ) : null}
 
           {block.ctaLabel && block.ctaHref ? (
@@ -165,7 +287,7 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
                   full
                   className="text-white hover:bg-white/10 sm:w-auto"
                 >
-                  Sign in
+                  {t("nav.signIn")}
                 </Button>
               </Link>
             </div>
@@ -178,7 +300,11 @@ function Hero({ block, first }: { block: Extract<ContentBlock, { type: "hero" }>
   );
 }
 
-function Features({ block }: { block: Extract<ContentBlock, { type: "features" }> }) {
+function Features({
+  block,
+}: {
+  block: Extract<ContentBlock, { type: "features" }>;
+}) {
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
@@ -194,8 +320,12 @@ function Features({ block }: { block: Extract<ContentBlock, { type: "features" }
               className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-sm"
             >
               <ContentIconMark name={item.icon} />
-              <p className="mt-3.5 text-base font-semibold text-slate-900">{item.title}</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{item.body}</p>
+              <p className="mt-3.5 text-base font-semibold text-slate-900">
+                {item.title}
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                {item.body}
+              </p>
             </div>
           ))}
         </div>
@@ -232,7 +362,10 @@ function Showcase({
               className="grid items-center gap-6 lg:grid-cols-2 lg:gap-14"
             >
               <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
-                <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "teal" : "brand"} />
+                <ContentIconMark
+                  name={item.icon}
+                  tone={i % 2 === 1 ? "teal" : "brand"}
+                />
                 <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                   {item.title}
                 </h3>
@@ -264,8 +397,12 @@ function Faq({ block }: { block: Extract<ContentBlock, { type: "faq" }> }) {
         <dl className="mt-8 divide-y divide-slate-200 border-t border-slate-200">
           {block.items.map((item, i) => (
             <div key={i} className="py-5">
-              <dt className="text-base font-semibold text-slate-900">{item.q}</dt>
-              <dd className="mt-1.5 text-sm leading-relaxed text-slate-600">{item.a}</dd>
+              <dt className="text-base font-semibold text-slate-900">
+                {item.q}
+              </dt>
+              <dd className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                {item.a}
+              </dd>
             </div>
           ))}
         </dl>
@@ -317,14 +454,17 @@ function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
     <section className="px-4 sm:px-6">
       <div className="mx-auto max-w-3xl py-5">
         {block.heading ? (
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900">{block.heading}</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+            {block.heading}
+          </h2>
         ) : null}
-        <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{block.body}</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
+          {block.body}
+        </p>
       </div>
     </section>
   );
 }
-
 
 /**
  * 🔴 18.3 — getting help now.
@@ -338,27 +478,32 @@ function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
  * knows better must be able to fix them without a deploy) but the block itself
  * carries no configurable *destination*: a fire exit does not move.
  */
-function Crisis({ block }: { block: Extract<ContentBlock, { type: "crisis" }> }) {
+function Crisis({
+  block,
+  t,
+}: {
+  block: Extract<ContentBlock, { type: "crisis" }>;
+  t: Translate;
+}) {
   return (
     <section className="px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-3xl rounded-3xl border-2 border-rose-200 bg-rose-50 p-6">
         <h2 className="text-lg font-bold tracking-tight text-rose-900">
-          {block.heading ?? "If you need help right now"}
+          {block.heading ?? t("crisis.headingDefault")}
         </h2>
         <p className="mt-2 text-[15px] leading-relaxed text-rose-900/90">
-          {block.body ??
-            "If you are in immediate danger, call your local emergency number now — this is not an emergency service and nobody here can reach you fast enough. If you can wait a few minutes, the radar has clinicians online this minute and you do not need an account to use it."}
+          {block.body ?? t("crisis.bodyDefault")}
         </p>
         <div className="mt-4 flex flex-wrap gap-2.5">
           <Link href="/radar">
-            <Button>Find someone online now</Button>
+            <Button>{t("crisis.findSomeone")}</Button>
           </Link>
           <Link href="/for-patients">
-            <Button variant="secondary">What happens in a session</Button>
+            <Button variant="secondary">{t("crisis.whatHappens")}</Button>
           </Link>
         </div>
         <p className="mt-3 text-xs text-rose-900/70">
-          No account, no card, no form. You give a first name and you are in a session.
+          {t("crisis.noAccountLine")}
         </p>
       </div>
     </section>
@@ -379,7 +524,13 @@ function Crisis({ block }: { block: Extract<ContentBlock, { type: "crisis" }> })
  * dealing with has not been told, and the point of naming two companies is
  * that they can choose.
  */
-function Companies({ block }: { block: Extract<ContentBlock, { type: "companies" }> }) {
+function Companies({
+  block,
+  t,
+}: {
+  block: Extract<ContentBlock, { type: "companies" }>;
+  t: Translate;
+}) {
   const ordered = [...block.items].sort((a, b) => {
     if (a.entity === b.entity) return 0;
     return a.entity === "eg" ? 1 : -1;
@@ -389,29 +540,47 @@ function Companies({ block }: { block: Extract<ContentBlock, { type: "companies"
     <section className="px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-4xl">
         {block.heading ? (
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{block.heading}</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            {block.heading}
+          </h2>
         ) : null}
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {ordered.map((company) => (
-            <div key={company.title} className="rounded-3xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-bold text-slate-900">{company.title}</p>
+            <div
+              key={company.title}
+              className="rounded-3xl border border-slate-200 bg-white p-5"
+            >
+              <p className="text-sm font-bold text-slate-900">
+                {company.title}
+              </p>
               {company.body ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">{company.body}</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {company.body}
+                </p>
               ) : null}
 
               <dl className="mt-3 space-y-1.5 text-sm">
                 {company.address ? (
                   <div>
-                    <dt className="text-xs text-slate-400">Address</dt>
-                    <dd className="whitespace-pre-line text-slate-700">{company.address}</dd>
+                    <dt className="text-xs text-slate-400">
+                      {t("blocks.address")}
+                    </dt>
+                    <dd className="whitespace-pre-line text-slate-700">
+                      {company.address}
+                    </dd>
                   </div>
                 ) : null}
                 {company.phone ? (
                   <div>
-                    <dt className="text-xs text-slate-400">Phone</dt>
+                    <dt className="text-xs text-slate-400">
+                      {t("blocks.phone")}
+                    </dt>
                     <dd>
-                      <a href={`tel:${company.phone.replace(/\s/g, "")}`} className="text-brand-600">
+                      <a
+                        href={`tel:${company.phone.replace(/\s/g, "")}`}
+                        className="text-brand-600"
+                      >
                         {company.phone}
                       </a>
                     </dd>
@@ -419,9 +588,14 @@ function Companies({ block }: { block: Extract<ContentBlock, { type: "companies"
                 ) : null}
                 {company.email ? (
                   <div>
-                    <dt className="text-xs text-slate-400">Email</dt>
+                    <dt className="text-xs text-slate-400">
+                      {t("blocks.email")}
+                    </dt>
                     <dd>
-                      <a href={`mailto:${company.email}`} className="text-brand-600">
+                      <a
+                        href={`mailto:${company.email}`}
+                        className="text-brand-600"
+                      >
                         {company.email}
                       </a>
                     </dd>
@@ -429,7 +603,9 @@ function Companies({ block }: { block: Extract<ContentBlock, { type: "companies"
                 ) : null}
                 {company.hours ? (
                   <div>
-                    <dt className="text-xs text-slate-400">Hours</dt>
+                    <dt className="text-xs text-slate-400">
+                      {t("blocks.hours")}
+                    </dt>
                     <dd className="text-slate-700">{company.hours}</dd>
                   </div>
                 ) : null}
@@ -445,10 +621,54 @@ function Companies({ block }: { block: Extract<ContentBlock, { type: "companies"
 /** 18R.2 — the form, with the country list the product actually supports. */
 async function ContactBlock({
   block,
+  t,
 }: {
   block: Extract<ContentBlock, { type: "contact_form" }>;
+  t: Translate;
 }) {
   const countries = await getCountries();
+
+  /*
+   * 21R.8 — every word of the form, resolved here. Listed by key rather than
+   * spread from the dictionary so that a string the form needs and nobody
+   * translated is a *type* error in `messages.ts`, not a blank label.
+   */
+  const strings = Object.fromEntries(
+    (
+      [
+        "contact.urgentLead",
+        "contact.urgentBody",
+        "contact.radarWord",
+        "contact.name",
+        "contact.reply",
+        "contact.replyHint",
+        "contact.country",
+        "contact.countryAria",
+        "contact.phone",
+        "contact.topic",
+        "contact.topic.account",
+        "contact.topic.billing",
+        "contact.topic.my_record",
+        "contact.topic.a_session",
+        "contact.topic.a_therapist",
+        "contact.topic.joining_as_a_therapist",
+        "contact.topic.something_else",
+        "contact.entity",
+        "contact.entityHint",
+        "contact.entityUs",
+        "contact.entityEg",
+        "contact.message",
+        "contact.attach",
+        "contact.attachHint",
+        "contact.send",
+        "contact.sending",
+        "contact.kept",
+        "contact.received",
+        "contact.reference",
+        "contact.attachmentFailed",
+      ] as const
+    ).map((key) => [key, t(key)]),
+  );
 
   return (
     <section className="px-4 py-8 sm:px-6">
@@ -456,7 +676,11 @@ async function ContactBlock({
         <ContactForm
           heading={block.heading}
           body={block.body}
-          countries={countries.map((country) => ({ code: country.code, name: country.name }))}
+          countries={countries.map((country) => ({
+            code: country.code,
+            name: country.name,
+          }))}
+          strings={strings}
         />
       </div>
     </section>

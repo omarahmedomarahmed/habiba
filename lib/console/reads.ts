@@ -1,8 +1,16 @@
+/*
+ * 🔴 30.1 — the CONTROL PLANE. One copy, read by every region.
+ *
+ * This module reads facts about the PRODUCT rather than about a person:
+ * settings, content, taxonomy, language, the operator console. There is one
+ * of each and Cairo reads the same rows as Virginia. The compiler would not
+ * let this file compile without making that choice explicitly.
+ */
 import "server-only";
 
 import { and, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { controlDb as db } from "@/lib/db";
 import {
   auditLog,
   copilotMessages,
@@ -161,7 +169,7 @@ export async function timeline(opts: { sinceHours?: number; limit?: number } = {
       UNION ALL
       SELECT r.created_at, 'risk',
              concat_ws(' ', u.first_name, u.last_name),
-             concat('Risk ', r.level, coalesce(concat(' — ', left(r.recommended_action, 100)), '')),
+             concat('Risk ', r.level, coalesce(concat(', ', left(r.recommended_action, 100)), '')),
              r.session_id::text
         FROM risk_assessments r
         JOIN users u ON u.id = r.therapist_id
@@ -171,7 +179,7 @@ export async function timeline(opts: { sinceHours?: number; limit?: number } = {
       SELECT f.created_at, 'rating',
              concat_ws(' ', u.first_name, u.last_name),
              concat(coalesce(f.therapist_stars, 0), '/5',
-                    coalesce(concat(' — ', left(f.comment, 120)), '')),
+                    coalesce(concat(', ', left(f.comment, 120)), '')),
              f.session_id::text
         FROM session_feedback f
         JOIN users u ON u.id = f.therapist_id
@@ -184,7 +192,7 @@ export async function timeline(opts: { sinceHours?: number; limit?: number } = {
   return (rows.rows as Record<string, string>[]).map((row) => ({
     at: new Date(row.at!),
     kind: row.kind!,
-    who: row.who || "—",
+    who: row.who || "-",
     what: row.what!,
     ref: row.ref ?? null,
   })) satisfies TimelineEvent[];

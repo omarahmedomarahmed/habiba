@@ -1,11 +1,14 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 
 import { acceptInvite } from "@/app/(patient)/patient/claim/actions";
 import { Button, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Redeeming a therapist's invite.
@@ -20,6 +23,8 @@ import { Button, Card } from "@/components/ui";
  * not change that.
  */
 export function InviteFlow({ token, redactedName }: { token: string; redactedName: string }) {
+  const t = useT();
+  const router = useRouter();
   const [keepsAccess, setKeepsAccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -30,7 +35,7 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
       <Card className="p-5">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <Check className="h-4 w-4 text-teal-600" aria-hidden />
-          That record is yours now
+          {t("pclaim.doneTitle")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {keepsAccess
@@ -38,7 +43,7 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
             : "Your therapist keeps the notes they wrote, but can no longer see your live profile."}
         </p>
         <Link href="/patient" className="mt-4 block">
-          <Button full>Go to my sessions</Button>
+          <Button full>{t("pclaim.goToSessions")}</Button>
         </Link>
       </Card>
     );
@@ -47,11 +52,9 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
   return (
     <Card className="space-y-4 p-5">
       <div>
-        <p className="text-sm font-semibold text-slate-900">Take ownership of your record</p>
+        <p className="text-sm font-semibold text-slate-900">{t("pinvite.takeTitle")}</p>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Your therapist keeps notes under the name{" "}
-          <span className="font-mono font-semibold tracking-wider">{redactedName}</span>. Claiming
-          it means the record is yours: it travels with you, and you decide who reads it.
+          {t("pinvite.takeBody", { masked: redactedName })}
         </p>
       </div>
 
@@ -65,11 +68,10 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
           />
           <span className="min-w-0">
             <span className="block text-sm font-medium text-slate-800">
-              Let this therapist keep seeing my profile
+              {t("pinvite.keepAccess")}
             </span>
             <span className="mt-1 block text-xs leading-relaxed text-slate-500">
-              Off by default, even though they sent you this link. If you leave it off they keep
-              the notes they already wrote and nothing else. You can change it whenever you like.
+              {t("pinvite.keepAccessBody")}
             </span>
           </span>
         </label>
@@ -88,12 +90,30 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
           startTransition(async () => {
             setError(null);
             const r = await acceptInvite({ token, therapistKeepsAccess: keepsAccess });
-            if (r.error) setError(r.error);
-            else setDone(true);
+            if (r.error) {
+              setError(r.error);
+              return;
+            }
+            setDone(true);
+            /*
+             * 🔴 22R — leave the invite page immediately.
+             *
+             * The success card below used to appear and be replaced, within
+             * the same second, by "This link is no longer valid — it may have
+             * been used already": the action revalidates, the page re-runs on
+             * the server, and a single-use token that has just been used no
+             * longer resolves. Everything worked, and the last thing the
+             * patient saw was an error page.
+             *
+             * Found by claiming a record as the patient and looking at the
+             * screen. No verifier could have: the claim, the grant and the
+             * audit row were all exactly right.
+             */
+            router.replace(`/patient?claimed=${keepsAccess ? "kept" : "1"}`);
           })
         }
       >
-        {pending ? "Working…" : "This is me — claim it"}
+        {pending ? "Working…" : "This is me, claim it"}
       </Button>
     </Card>
   );

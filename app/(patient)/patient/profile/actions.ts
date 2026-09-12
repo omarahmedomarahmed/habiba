@@ -1,70 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 
-import {
-  addTextDocument,
-  addUploadedDocument,
-  extractPending,
-  raiseFlag,
-} from "@/lib/data/documents";
+import { raiseFlag } from "@/lib/data/documents";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import type { FlagReason } from "@/lib/db/schema";
 
 export type ProfileState = { error?: string; ok?: boolean };
 
-/**
- * The person adding to their own record. PLAN.md 8.1 / 13.x.
+/*
+ * 🔴 26.5 — `addOwnFile` and `addOwnNote` were here, and they are gone.
  *
- * No consent check, because there is nobody to ask: this is their record. The
- * person id comes from the signed-in actor and never from the request, so
- * there is no id to tamper with.
+ * They let a patient upload files and dictate clinical history onto their own
+ * record. Deleted rather than hidden behind a flag, because a server action
+ * that no component renders is still a function somebody re-wires next sprint,
+ * and the point of 26.5 is not that the button is invisible. It is that we
+ * stopped asking a person in therapy to be their own medical records clerk.
+ *
+ * What replaced them is `writeJournal` (`lib/data/journals.ts`), which asks a
+ * different question: not "give us your history" but "how was your week".
+ * A clinician adding a document to somebody's record is unchanged.
  */
-export async function addOwnFile(formData: FormData): Promise<ProfileState> {
-  const actor = await requirePatient();
-
-  const file = formData.get("file");
-  if (!(file instanceof File)) return { error: "Choose a file." };
-
-  const result = await addUploadedDocument({
-    personId: actor.personId,
-    title: String(formData.get("title") ?? "").trim() || file.name,
-    file,
-    byAccountId: actor.accountId,
-  });
-
-  if (!result.ok) return { error: result.error };
-
-  // Bounded nudge; the cron is the guarantee. See the clinician-side action.
-  after(async () => {
-    await extractPending(1);
-  });
-
-  revalidatePath("/patient/profile");
-  return { ok: true };
-}
-
-export async function addOwnNote(input: {
-  title: string;
-  body: string;
-  dictated?: boolean;
-}): Promise<ProfileState> {
-  const actor = await requirePatient();
-
-  const result = await addTextDocument({
-    personId: actor.personId,
-    source: input.dictated ? "dictated" : "typed",
-    title: input.title,
-    body: input.body,
-    byAccountId: actor.accountId,
-  });
-
-  if (!result.ok) return { error: result.error };
-
-  revalidatePath("/patient/profile");
-  return { ok: true };
-}
 
 /**
  * 8.8 — the person saying "that is outdated" about their own record.

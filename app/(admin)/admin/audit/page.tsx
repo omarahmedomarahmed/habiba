@@ -25,7 +25,7 @@ export default async function AdminAuditPage({
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audit log</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Append-only. Patient identifiers are shown as references, never names — a compliance tool
+          Append-only. Patient identifiers are shown as references, never names, a compliance tool
           should not itself be a way to browse charts.
         </p>
       </div>
@@ -49,7 +49,7 @@ export default async function AdminAuditPage({
         {entries.map((entry) => (
           <div key={entry.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
             <span className="font-mono text-xs text-slate-400">
-              {formatDateTime(entry.createdAt, actor.timezone)}
+              {formatDateTime(entry.createdAt, actor.timezone, "en")}
             </span>
             <Badge tone={entry.category === "phi_access" ? "brand" : "slate"}>
               {entry.category.replace("_", " ")}

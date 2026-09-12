@@ -20,10 +20,10 @@ const { availabilitySlots, patients, people, sessions } = schema;
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${ok ? "  ok  " : "FAIL  "}${name}${detail ? `, ${detail}` : ""}`);
   if (!ok) failures += 1;
 };
-const skip = (name: string, why: string) => console.log(`  --   ${name} — NOT EXERCISED: ${why}`);
+const skip = (name: string, why: string) => console.log(`  --   ${name}, NOT EXERCISED: ${why}`);
 
 const TAG = `verify11-${randomUUID().slice(0, 8)}`;
 /** Far enough out that nothing real is near it. */
@@ -199,7 +199,7 @@ async function main() {
             .limit(1);
 
           check(
-            "🔴 11.2 the session is SCHEDULED, not started — the gap sprint 12 reads",
+            "🔴 11.2 the session is SCHEDULED, not started, the gap sprint 12 reads",
             session?.scheduledAt?.getTime() === HOUR.getTime() && session?.startedAt === null,
             `scheduledAt=${session?.scheduledAt?.toISOString()} startedAt=${session?.startedAt}`,
           );

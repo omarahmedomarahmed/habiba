@@ -55,7 +55,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
                   <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
                     explore
                   </span>
-                  Two of seven nights went better — worth naming that back.
+                  Two of seven nights went better, worth naming that back.
                 </li>
                 <li className="text-sm leading-snug text-slate-100">
                   <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
@@ -123,6 +123,50 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
                 <p className="text-sm leading-snug text-slate-700">{row.text}</p>
               </li>
             ))}
+        </ul>
+      );
+
+    /*
+     * 🔴 28.6 — the portability argument, shown rather than asserted.
+     *
+     * Two versions with two different clinicians' names on them. That is the
+     * whole claim of this product to a patient, and a paragraph saying "your
+     * record follows you" is worth less than the picture of it having done so.
+     * Invented people, a real layout.
+     */
+    case "summary":
+      return (
+        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto rounded-2xl bg-white p-3 shadow-lg">
+          {(content?.summaryVersions ?? []).map((version) => (
+            <li key={version.version} className="rounded-xl border border-slate-200 p-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                <p className="text-sm font-semibold text-slate-900">{version.author}</p>
+                <p className="text-[11px] text-slate-400">
+                  Version {version.version}
+                  {version.on ? ` · ${version.on}` : ""}
+                </p>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">{version.body}</p>
+            </li>
+          ))}
+        </ul>
+      );
+
+    /*
+     * The journal, and note what is NOT drawn beside it: no shield, no "your
+     * therapist is reading this", no reassurance. C123 governs the real screen
+     * and it governs the picture of the screen, because a demonstration that
+     * promises a watch is the same false promise in a smaller frame.
+     */
+    case "journal":
+      return (
+        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto rounded-2xl bg-slate-50 p-3 shadow-lg">
+          {(content?.journalEntries ?? []).map((entry) => (
+            <li key={entry.on} className="rounded-xl bg-white p-3">
+              <p className="text-[11px] text-slate-400">{entry.on}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-700">{entry.text}</p>
+            </li>
+          ))}
         </ul>
       );
 

@@ -3,7 +3,8 @@ import "server-only";
 import { asc, eq } from "drizzle-orm";
 
 import { recordSessionNote } from "@/lib/data/copilot";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   NOTE_LANGUAGES,
   patients,
@@ -14,6 +15,17 @@ import {
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { MODELS, logUsage, openai, parseJson } from "./client";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("lib/ai/notes.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 const EMPTY_NOTE: NoteContent = {
   soap: { subjective: "", objective: "", assessment: "", plan: "" },
@@ -28,7 +40,9 @@ const EMPTY_NOTE: NoteContent = {
   patientNext: "",
 };
 
-const SYSTEM_PROMPT = `You are a clinical documentation assistant for a licensed psychotherapist.
+const SYSTEM_PROMPT = `RULE THAT OVERRIDES EVERYTHING BELOW: the note describes THIS SESSION. Anything under "KNOWN BEFORE THIS SESSION" is background, not evidence: it may not go in the note on its own authority, and you must not name a diagnosis it implies. Where the transcript disagrees with it, the transcript is what happened and the background is out of date - follow the transcript and note the change in "assessment". Where the transcript says the same thing, write it from the transcript: background must never make you leave out what the session covered.
+
+You are a clinical documentation assistant for a licensed psychotherapist.
 
 You are given a transcript of one therapy session and minimal context. Produce documentation the clinician can review and sign.
 
@@ -39,19 +53,20 @@ Rules:
 - Never address the patient. Never include advice written to the patient.
 - Refer to the person as "the patient". Do not use any name, even if one appears in the transcript.
 - If the transcript contains language suggesting risk of harm to self or others, say so plainly in "assessment" and in "impressions".
-- Lines marked "Speaker" come from a single microphone in a shared room and are not attributed. Work out from context who is speaking — the clinician asks, reflects and summarises; the patient discloses and describes their own experience — and attribute correctly in your write-up. Where a line is genuinely ambiguous, do not guess in a way that changes clinical meaning.
+- 🔴 A section headed "KNOWN BEFORE THIS SESSION" is BACKGROUND, not evidence. Nothing in it may be written into the note as something observed, said or agreed today. If the transcript does not support it, it does not go in the note. Where the transcript contradicts it, follow the transcript and say in "assessment" that it differs from what was on record.
+- Lines marked "Speaker" come from a single microphone in a shared room and are not attributed. Work out from context who is speaking, the clinician asks, reflects and summarises; the patient discloses and describes their own experience, and attribute correctly in your write-up. Where a line is genuinely ambiguous, do not guess in a way that changes clinical meaning.
 
 LANGUAGE
 - Write the note in the language the session was conducted in. If the transcript is in Arabic, the note is in Arabic; if it is in Spanish, the note is in Spanish. Do not translate the clinical record into English.
 - Use the clinical register a professional in that language would actually write in, not a literal translation of English phrasing.
 - Report the language you wrote in as a two-letter ISO 639-1 code in "language".
-- If the session mixes languages, use the one the patient mostly spoke in — the record should read naturally to the clinician who was in the room.
+- If the session mixes languages, use the one the patient mostly spoke in, the record should read naturally to the clinician who was in the room.
 
 THE PATIENT'S COPY
-Three fields — "patientBrief", "patientSteps", "patientNext" — are the only part the patient ever reads, and they are written *to them*: second person, plain words, no clinical vocabulary, no diagnosis, no impressions, no risk language, no labels. Write them in the same language as the rest of the note. All three must be true to the session, and must be something the person could read alone at midnight without feeling described.
-- "patientBrief": two or three short paragraphs. What you talked about, and what you worked out together. Not a transcript and not a compliment — the point is that they recognise their own session in it.
+Three fields, "patientBrief", "patientSteps", "patientNext", are the only part the patient ever reads, and they are written *to them*: second person, plain words, no clinical vocabulary, no diagnosis, no impressions, no risk language, no labels. Write them in the same language as the rest of the note. All three must be true to the session, and must be something the person could read alone at midnight without feeling described.
+- "patientBrief": two or three short paragraphs. What you talked about, and what you worked out together. Not a transcript and not a compliment. The point is that they recognise their own session in it.
 - "patientSteps": what to actually do before the next session. Two or three items, never more than four. Each one concrete enough to do on a Tuesday evening and small enough to finish: "write down the three times this week you noticed the tight feeling starting" rather than "practise mindfulness". Only include something that was actually agreed or suggested in the session. If nothing was, return an empty array rather than inventing homework.
-- "patientNext": one sentence about what happens next — when to come back, and what to do in the meantime if things get harder. No risk language: "if it gets heavier before then, book sooner" and not "if you experience suicidal ideation".
+- "patientNext": one sentence about what happens next, when to come back, and what to do in the meantime if things get harder. No risk language: "if it gets heavier before then, book sooner" and not "if you experience suicidal ideation".
 
 Respond with a single JSON object with exactly these keys:
 {
@@ -106,6 +121,7 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
       modality: sessions.modality,
       durationMinutes: sessions.durationMinutes,
       clinical: patients.clinical,
+      personId: patients.personId,
     })
     .from(sessions)
     .leftJoin(patients, eq(patients.id, sessions.patientId))
@@ -121,6 +137,39 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
     const goals = row.clinical?.goals ?? [];
     if (diagnoses.length) contextParts.push(`Working diagnoses: ${diagnoses.join("; ")}`);
     if (goals.length) contextParts.push(`Treatment goals: ${goals.join("; ")}`);
+  }
+
+  /*
+   * 🔴 34.1 — the two lines above became a record. PLAN.md 34.1.
+   *
+   * `patients.clinical` is a JSON blob of strings with no date, no source and
+   * no way to disagree with it, and until this sprint it was the entire memory
+   * a note generator had. The evidence layer replaces it with facts that carry
+   * when they were true and who said so, which is what turns an isolated SOAP
+   * generator into longitudinal documentation.
+   *
+   * The blob is deliberately still sent. It is what a clinician typed into the
+   * old field and it is still on thousands of rows; dropping it on the day the
+   * new layer ships would quietly make every existing note worse. It goes when
+   * the facts are extracted from it, not before, and nothing here backfills.
+   *
+   * One failing lookup degrades this section rather than failing the note: a
+   * session whose patient has no person row is the ordinary case for a join
+   * link, and it must still produce documentation.
+   */
+  if (row?.personId) {
+    try {
+      const { factsFor } = await import("@/lib/data/facts");
+      const { factsPrompt } = await import("@/lib/clinical/context");
+      const facts = await factsFor(row.personId);
+      const block = factsPrompt(facts, new Date());
+      if (block) contextParts.push("", block);
+    } catch (error) {
+      log.warn("note context could not read the evidence layer", {
+        session: ref(sessionId),
+        reason: safeErrorMessage(error),
+      });
+    }
   }
 
   const segments = await db
@@ -146,6 +195,63 @@ export class EmptyTranscriptError extends Error {
   }
 }
 
+/**
+ * 🔴 The model call, with no database on either side of it. PLAN.md 32.1.
+ *
+ * Split out of `generateNoteContent` so `evals/` can exercise **this prompt**
+ * — the one that ships — against a synthetic transcript. The alternative was
+ * an eval that rebuilt the request from an exported constant, which measures a
+ * copy of the pipeline and drifts from it silently. That is C84's shape, and
+ * an eval suite measuring a copy is worse than none: it reports a number about
+ * code nobody runs.
+ *
+ * Usage is returned rather than logged, because the caller is the thing that
+ * knows whose organisation to bill. An eval has none and logs nothing.
+ */
+export async function noteFromTranscript(input: {
+  context: string;
+  transcript: string;
+}): Promise<{
+  content: NoteContent;
+  language: string;
+  raw: Record<string, unknown>;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}> {
+  const completion = await openai().chat.completions.create({
+    model: MODELS.note,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    max_tokens: 3000,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `${input.context ? `Context:\n${input.context}\n\n` : ""}Transcript:\n${input.transcript}`,
+      },
+    ],
+  });
+
+  const raw = parseJson<Record<string, unknown>>(
+    completion.choices[0]?.message?.content,
+    {},
+    "note-generation",
+  );
+
+  const content = normaliseNote(raw);
+
+  return {
+    content,
+    /* The tag is checked against what was actually written. See C169. */
+    language: normaliseLanguage(raw.language, noteWords(content)),
+    raw,
+    model: MODELS.note,
+    inputTokens: completion.usage?.prompt_tokens ?? 0,
+    outputTokens: completion.usage?.completion_tokens ?? 0,
+  };
+}
+
 export async function generateNoteContent(opts: {
   sessionId: string;
   organizationId: string;
@@ -157,40 +263,21 @@ export async function generateNoteContent(opts: {
   if (transcript.trim().length < 80) throw new EmptyTranscriptError();
 
   try {
-    const completion = await openai().chat.completions.create({
-      model: MODELS.note,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      max_tokens: 3000,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `${context ? `Context:\n${context}\n\n` : ""}Transcript:\n${transcript}`,
-        },
-      ],
-    });
+    const generated = await noteFromTranscript({ context, transcript });
 
     await logUsage({
       organizationId: opts.organizationId,
       userId: opts.userId,
       sessionId: opts.sessionId,
       kind: "note",
-      model: MODELS.note,
-      inputTokens: completion.usage?.prompt_tokens ?? 0,
-      outputTokens: completion.usage?.completion_tokens ?? 0,
+      model: generated.model,
+      inputTokens: generated.inputTokens,
+      outputTokens: generated.outputTokens,
       durationMs: Date.now() - started,
       status: "success",
     });
 
-    const raw = parseJson<Record<string, unknown>>(
-      completion.choices[0]?.message?.content,
-      {},
-      "note-generation",
-    );
-
-    const content = normaliseNote(raw);
-    const language = normaliseLanguage(raw.language);
+    const { content, language } = generated;
 
     // English sessions are already English; asking for a translation would
     // spend money to produce the same text.
@@ -231,10 +318,62 @@ export async function generateNoteContent(opts: {
  * Only a language we can actually render and label. Anything else is English:
  * a note tagged `xy` would give the viewer no way to pick a direction or a
  * font, and guessing wrong on right-to-left is very visible.
+ *
+ * ## 🔴 C169 — the model's word is checked against the script it wrote in
+ *
+ * The grounding eval caught a note for an English session, written in English,
+ * reported as **`es`**. The word "metro" in the transcript is the likely pull.
+ * Two things follow from a wrong tag and neither is cosmetic: the viewer gets
+ * the wrong direction and font for the note, and `generateNoteContent` sees a
+ * non-English language and spends a second model call translating an English
+ * note into English.
+ *
+ * So the claim is checked against the evidence. The script is decidable: a note
+ * in Arabic characters is Arabic whatever the tag says, and a note in Latin
+ * characters is not Arabic whatever the tag says. That closes the failure that
+ * matters — right-to-left rendered left-to-right, which is the most visible way
+ * an interface announces nobody localised it (C150, 21.x).
+ *
+ * **The residual, named:** `en` mislabelled as `es` shares a script, so this
+ * cannot see it, and the eval still records it. Distinguishing two Latin
+ * languages needs actual language identification, which is a dependency and a
+ * sprint, and the harm is one wasted call rather than an unreadable note.
  */
-export function normaliseLanguage(raw: unknown): string {
+/** Every string in a note, for the script check. */
+function noteWords(note: NoteContent): string {
+  return [
+    note.soap.subjective,
+    note.soap.objective,
+    note.soap.assessment,
+    note.soap.plan,
+    note.summary,
+    note.observations,
+    note.impressions,
+    note.patientBrief,
+    note.patientNext,
+    ...note.talkingPoints,
+    ...note.recommendations,
+    ...note.patientSteps,
+  ].join(" ");
+}
+
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F]/g;
+
+export function normaliseLanguage(raw: unknown, text?: string): string {
   const tag = typeof raw === "string" ? raw.trim().toLowerCase().slice(0, 2) : "";
-  return tag in NOTE_LANGUAGES ? tag : "en";
+  const claimed = tag in NOTE_LANGUAGES ? tag : "en";
+
+  if (!text) return claimed;
+
+  const arabic = (text.match(ARABIC_SCRIPT) ?? []).length;
+  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
+
+  /* Written in Arabic, tagged as something else. The tag loses. */
+  if (arabic > latin && arabic > 40) return "ar";
+  /* Tagged Arabic, written in Latin script. The tag loses again. */
+  if (claimed === "ar" && latin > arabic) return "en";
+
+  return claimed;
 }
 
 async function translateNote(opts: {

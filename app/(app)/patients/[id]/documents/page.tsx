@@ -14,14 +14,28 @@ import { explain } from "@/lib/access/state";
 import { requireUser } from "@/lib/auth/guard";
 import { listDiagnoses } from "@/lib/data/diagnoses";
 import { listDocuments } from "@/lib/data/documents";
+import { journalsForClinician } from "@/lib/data/journals";
 import { draftedStepsFor, homeworkTrend, listHomework } from "@/lib/data/homework";
 import { isStale, profileFor, timelineFor } from "@/lib/data/memory";
 import { accessFor } from "@/lib/data/grants";
 import { getPatient } from "@/lib/data/patients";
 import { personIdForPatient } from "@/lib/data/people";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { sessions, users } from "@/lib/db/schema";
-import { fullName } from "@/lib/utils";
+import { formatDate, fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(app)/patients/[id]/documents/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = { title: "Profile", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -44,6 +58,7 @@ export default async function PatientDocumentsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
 
@@ -54,6 +69,15 @@ export default async function PatientDocumentsPage({
   const access = await accessFor(actor, id);
 
   const all = personId ? await listDocuments(personId) : [];
+  /*
+   * 26.6 — journals, behind the same capability as the patient's files.
+   *
+   * `patientFiles` is the grant-derived capability, so a revoked clinician
+   * sees none of these, and there is no second door: the copilot is gated on
+   * the same flag in `journalsFor`.
+   */
+  const journals =
+    personId && access.capabilities.patientFiles ? await journalsForClinician(personId) : [];
   const diagnoses = personId ? await listDiagnoses(personId) : [];
 
   /*
@@ -133,9 +157,9 @@ export default async function PatientDocumentsPage({
       </div>
 
       <div className="px-4 pt-3 pb-4 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Profile</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("portal.docs.profile")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Letters, prescriptions, scans and history. These belong to the person, not to one clinic.
+          {t("portal.docs.blurb")}
         </p>
       </div>
 
@@ -156,6 +180,7 @@ export default async function PatientDocumentsPage({
           before a session. Conflicts sit above even that.
         */}
         <StandingProfile
+        locale={locale}
           zone={actor.timezone}
           profile={
             profile
@@ -172,18 +197,43 @@ export default async function PatientDocumentsPage({
           stale={isStale(profile, { sessions: profile?.sessionCount ?? 0, documents: all.length })}
         />
 
+        {journals.length > 0 ? (
+          <Card className="p-4">
+            <p className="text-sm font-semibold text-slate-900">{t("portal.docs.journals")}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+              {t("portal.docs.journalsBlurb")}
+            </p>
+            <ul className="mt-3 space-y-3">
+              {journals.map((entry) => (
+                <li key={entry.id} className="border-s-2 border-slate-200 ps-3">
+                  <p className="text-xs text-slate-400">
+                    {formatDate(entry.createdAt, actor.timezone, locale)}
+                    {entry.source === "dictated" ? ` · ${t("portal.docs.spoken")}` : ""}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                    {entry.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
+
         {personId ? (
           <DocumentPanel
             zone={actor.timezone}
             patientId={id}
             documents={rows}
-            watermark={`${fullName(patient.firstName, patient.lastName)} · viewed by ${actor.email ?? actor.userId.slice(0, 8)}`}
+            watermark={t("portal.docs.viewedBy", {
+              name: fullName(patient.firstName, patient.lastName),
+              who: actor.email ?? actor.userId.slice(0, 8),
+            })}
             canAdd={access.state !== "revoked"}
           />
         ) : (
           <Card className="px-4 py-6">
             <p className="text-sm text-slate-500">
-              This patient has no personal record yet. Adding a document creates one.
+              {t("portal.docs.noRecord")}
             </p>
           </Card>
         )}

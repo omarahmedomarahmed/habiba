@@ -2,13 +2,25 @@ import type { Metadata } from "next";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { Card } from "@/components/ui";
-import { db } from "@/lib/db";
+import { dbFor} from "@/lib/db";
+import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientCredits, patients, sessionPayments, sessions, users } from "@/lib/db/schema";
 import { formatMoney } from "@/lib/billing/plans";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDate } from "@/lib/utils";
+
+/*
+ * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
+ *
+ * `pinnedToDefaultRegion` returns the default region and registers this
+ * module so `verify:sprint30` can print it. The alternative, `dbFor("us")`
+ * with a comment, compiles and is indistinguishable from a decision, which
+ * is the "seam by convention" this sprint exists to prevent.
+ */
+const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/billing/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
 
 export const metadata: Metadata = { title: "Billing", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -33,6 +45,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PatientBillingPage() {
   const actor = await requirePatient();
+  const { t } = await getI18n();
   // 19.4 — the reader's language, once, on the server.
   const { locale } = await getI18n();
   const tag = localeTag(locale);
@@ -83,9 +96,9 @@ export default async function PatientBillingPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Billing</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pbilling.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          What you paid, and exactly where it went.
+          {t("pbilling.body")}
         </p>
       </div>
 
@@ -96,16 +109,16 @@ export default async function PatientBillingPage() {
           </p>
           <p className="mt-1 text-xs leading-relaxed text-teal-800">
             {credits[0]?.reason} It comes off your next session automatically, and it lasts until{" "}
-            {formatDate(credits[0]?.expiresAt ?? null, actor.timezone)}.
+            {formatDate(credits[0]?.expiresAt ?? null, actor.timezone, locale)}.
           </p>
         </Card>
       ) : null}
 
       {paid.length === 0 ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">Nothing paid yet</p>
+          <p className="text-sm font-semibold text-slate-900">{t("pbilling.none")}</p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            Sessions you pay for appear here with the full breakdown.
+            {t("pbilling.noneBody")}
           </p>
         </Card>
       ) : (
@@ -124,7 +137,7 @@ export default async function PatientBillingPage() {
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {formatDate(row.at, actor.timezone)}
+                  {formatDate(row.at, actor.timezone, locale)}
                   {row.presented !== null && row.rateMicro
                     ? ` · charged at ${(row.rateMicro / 1_000_000).toFixed(2)} ${(row.presentedCurrency ?? "").toUpperCase()} to the ${(row.currency ?? "usd").toUpperCase()}`
                     : ""}
@@ -149,9 +162,7 @@ export default async function PatientBillingPage() {
       )}
 
       <p className="text-xs leading-relaxed text-slate-400">
-        The headline figure is what you were actually charged, in the currency you paid in, at the
-        rate quoted at the time. The breakdown is in the currency your therapist is paid in — that
-        is the amount a refund would return.
+        {t("pbilling.note")}
       </p>
     </main>
   );
