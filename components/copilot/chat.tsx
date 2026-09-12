@@ -95,6 +95,41 @@ export function CopilotChat({
   const [error, setError] = useState<string | null>(null);
   const [exhausted, setExhausted] = useState(false);
   const [used, setUsed] = useState(quota.used);
+
+  /*
+   * 48.9 — polling, not websockets (the founder's ruling).
+   *
+   * Fifteen seconds is the cadence the radar already uses for the same class
+   * of question. The interval is cleared on unmount, and a failed poll is
+   * silently ignored rather than surfaced: "we could not tell whether your
+   * patient is in a session" is not a sentence worth putting on a clinician's
+   * screen, and the panel in the room is where the session actually is.
+   */
+  const [liveSession, setLiveSession] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const response = await fetch(`/copilot/live?patient=${patientId}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const body = (await response.json()) as { sessionId: string | null };
+        if (!cancelled) setLiveSession(body.sessionId);
+      } catch {
+        /* A missed poll is not worth a message. */
+      }
+    };
+
+    void poll();
+    const timer = setInterval(() => void poll(), 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [patientId]);
   const [suggested, setSuggested] = useState<string[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -267,6 +302,30 @@ export function CopilotChat({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
       <div className="flex min-h-0 flex-col">
+        {/*
+          🔴 48.9 — the live indicator, by polling.
+
+          It says both things a clinician needs, because saying only the first
+          would make the second look like a bug: the questions are free while
+          the session runs (C210), and the answers stop at the moment it
+          started (C211).
+        */}
+        {liveSession ? (
+          <Card className="mb-3 border-teal-200 bg-teal-50 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-semibold text-teal-900">
+              <span className="live-dot h-2 w-2 rounded-full bg-teal-500" aria-hidden />
+              {t("tcop.liveNow")}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-teal-800">{t("tcop.liveFree")}</p>
+            <a
+              href={`/sessions/${liveSession}/room`}
+              className="mt-1.5 inline-flex text-xs font-semibold text-teal-900 underline underline-offset-2"
+            >
+              {t("tcop.goToRoom")}
+            </a>
+          </Card>
+        ) : null}
+
         <div className="flex-1 space-y-3">
           {messages.length === 0 ? (
             <Card className="px-5 py-8 text-center">

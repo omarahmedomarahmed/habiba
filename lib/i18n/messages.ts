@@ -2088,6 +2088,69 @@ export const en = {
   "note.origin.patientTranscript": "You turned the AI on for this session",
   "note.origin.patientPartial": "Part of this session was not recorded",
   "note.origin.patientClinician": "This session was not recorded",
+
+  /*
+   * 🔴 48.1, 48.3, 48.5, 48.10 — the copilot in the room, and the patient's
+   * own control over the microphone.
+   *
+   * `troom.ask.bound` is the sentence C211 asks for, and it is deliberately
+   * NOT the founder's exact wording. 48.5 says "This session is not being
+   * recorded. I only know what came before it", and the first half is false
+   * half the time: the bound applies identically when consent was GRANTED. A
+   * therapist who reads "not being recorded" during a session that IS being
+   * recorded stops trusting the panel, and a panel nobody trusts is worse than
+   * no panel. What is true in all three cases is the second half.
+   *
+   * `troom.ask.free` says the quiet part out loud. A therapist whose patient
+   * declined has already paid the platform fee and may reasonably assume the
+   * help is gone too; C210's whole point is that it is not.
+   */
+  "troom.ask.open": "Ask the copilot",
+  "troom.ask.close": "Hide",
+  "troom.ask.title": "Ask about this patient",
+  "troom.ask.placeholder": "What has changed since we started?",
+  "troom.ask.send": "Ask",
+  "troom.ask.thinking": "Reading the record…",
+  "troom.ask.free": "Free during a session",
+  "troom.ask.bound": "I only know what came before this session.",
+  "troom.ask.prepare": "Prepare me",
+  "troom.ask.prepareOnce": "Once per session",
+  "troom.ask.preparePrompt": "Prepare me for this session. What should I have in mind?",
+  "troom.ask.empty": "Nothing asked yet.",
+  "troom.offRecordPatient": "Stop recording",
+  "troom.offRecordPatientOn": "Recording is off",
+  "troom.offRecordPatientWhy": "Audio stops now. What was already captured stays in your record, because a note that rewrites itself is worse than one with a gap.",
+
+  /*
+   * 48.10 — the recording strip, in the reader's language.
+   *
+   * These were two English literals in `components/join/patient-room.tsx`, on
+   * the strip directly above a patient's own video. The second said "paused by
+   * your therapist", which stopped being true the moment 48.10 gave the
+   * patient the same button: a person who has just stopped their own recording
+   * and is told their therapist did it would reasonably conclude the control
+   * did nothing.
+   */
+  "proom.recording": "Recording, for your therapist's notes",
+  "proom.recordingStopped": "Recording has stopped",
+
+  /*
+   * 48.9 — the live indicator on /copilot, by polling.
+   *
+   * The founder ruled polling rather than websockets, and the reason holds:
+   * this is a clinician's own screen refreshing a boolean, not a signalling
+   * problem, and a websocket for it is a connection to keep alive for the rest
+   * of the product's life.
+   *
+   * It says BOTH things a clinician needs and they are easy to separate: the
+   * questions are free (C210), and the answers stop at the moment the session
+   * started (C211). Saying only the first would make the second look like a
+   * bug the first time the copilot did not know something said ten minutes
+   * ago.
+   */
+  "tcop.liveNow": "This patient is in a session right now",
+  "tcop.liveFree": "Questions are free while it runs, and answer from the record as it was when the session started.",
+  "tcop.goToRoom": "Open the room",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -3981,6 +4044,32 @@ export const ar: Record<MessageKey, string> = {
   "note.origin.patientTranscript": "شغّلت الذكاء الاصطناعي في هذه الجلسة",
   "note.origin.patientPartial": "جزء من هذه الجلسة لم يُسجَّل",
   "note.origin.patientClinician": "لم تُسجَّل هذه الجلسة",
+
+  /* 🔴 48.1, 48.3, 48.5, 48.10 — the copilot in the room. */
+  "troom.ask.open": "اسأل المساعد",
+  "troom.ask.close": "إخفاء",
+  "troom.ask.title": "اسأل عن هذا المريض",
+  "troom.ask.placeholder": "ما الذي تغيّر منذ أن بدأنا؟",
+  "troom.ask.send": "اسأل",
+  "troom.ask.thinking": "يقرأ السجل…",
+  "troom.ask.free": "مجاني أثناء الجلسة",
+  "troom.ask.bound": "لا أعرف سوى ما سبق هذه الجلسة.",
+  "troom.ask.prepare": "جهّزني",
+  "troom.ask.prepareOnce": "مرة واحدة لكل جلسة",
+  "troom.ask.preparePrompt": "جهّزني لهذه الجلسة. ما الذي ينبغي أن يكون في ذهني؟",
+  "troom.ask.empty": "لم تسأل شيئًا بعد.",
+  "troom.offRecordPatient": "أوقف التسجيل",
+  "troom.offRecordPatientOn": "التسجيل متوقف",
+  "troom.offRecordPatientWhy": "يتوقف الصوت الآن. ما سُجّل بالفعل يبقى في سجلك، لأن ملاحظة تعيد كتابة نفسها أسوأ من ملاحظة فيها فجوة.",
+
+  /* 48.10 — the recording strip, in the reader's language. */
+  "proom.recording": "جارٍ التسجيل، لملاحظات معالجك",
+  "proom.recordingStopped": "توقف التسجيل",
+
+  /* 48.9 — the live indicator on /copilot, by polling. */
+  "tcop.liveNow": "هذا المريض في جلسة الآن",
+  "tcop.liveFree": "الأسئلة مجانية أثناء الجلسة، وتُجيب من السجل كما كان عند بدايتها.",
+  "tcop.goToRoom": "افتح الغرفة",
 };
 
 export const DICTIONARIES = { en, ar } as const;

@@ -64,6 +64,12 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
   return (
     <SessionRoom
       sessionId={row.session.id}
+      /*
+       * 48.1 — the copilot panel is per PATIENT, because the record it reads
+       * is the patient's. Null for a guest session with no chart, where there
+       * is nothing to ask about and the panel does not render.
+       */
+      patientId={row.session.patientId}
       patientLabel={patientLabel}
       therapistName={therapistName}
       modality={row.session.modality}

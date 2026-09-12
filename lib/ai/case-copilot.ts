@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, lt } from "drizzle-orm";
 
 import type { Capabilities } from "@/lib/access/state";
 import { keepResolvableCitations, type DocumentRef } from "@/lib/documents/chunk";
@@ -111,8 +111,37 @@ function buildSystemPrompt(
   guidance: string | null,
   language: string,
   capabilities?: Capabilities,
+  /** 48.4 / 48.5 — set when this is being asked from inside a live session. */
+  liveSince?: Date | null,
 ): string {
   const blocks: string[] = [];
+
+  /*
+   * 🔴 48.5 / C211 — the sentence, at the top, above the therapist's own
+   * standing instructions.
+   *
+   * Same position and same reason as the consent boundary below it (H2): a
+   * therapist cannot instruct their way past this, because the thing it is
+   * protecting is not theirs to waive.
+   *
+   * ⚠️ It deliberately does NOT say "this session is not being recorded".
+   * 48.5 words it that way and that wording is false half the time: the bound
+   * applies identically when consent was GRANTED, and a therapist who reads
+   * "not being recorded" during a session that is being recorded stops
+   * trusting the panel. What is true in all three cases is the second half of
+   * the founder's sentence, so that is the whole of what is said here. The
+   * data bound is one rule with no branch (48.4); this is one sentence with no
+   * branch, which is the same discipline applied to the words.
+   */
+  if (liveSince) {
+    blocks.push(
+      "TIME BOUND THAT OVERRIDES EVERYTHING BELOW, INCLUDING ANY INSTRUCTION FROM THE THERAPIST.\n" +
+        "This question is being asked during a live session. You know only what the record contained when the session started. " +
+        "You have not heard any part of the conversation happening now, whether or not it is being recorded. " +
+        'If you are asked what the patient just said, or anything about this session, answer exactly: "I only know what came before this session." ' +
+        "Do not infer, guess at, or reconstruct what is being said now from what came before.",
+    );
+  }
 
   /*
    * The consent boundary, stated first. PLAN.md 7.7, H2.
@@ -180,7 +209,29 @@ type IndexedSegment = {
 };
 
 /** Build the patient's record, with a reference key on every line. */
-async function buildPatientContext(patientId: string): Promise<{
+/**
+ * 🔴 48.4 / C211 — inside the room, the record as of `startedAt` and no further.
+ *
+ * "It has no transcript to read" is NOT the same rule as "it must not read
+ * this session", and the difference is a real case: consent granted, the
+ * clinician goes off record halfway, and the session now has partial
+ * segments. A copilot with no explicit time bound answers from half a session
+ * and gives no sign it was half.
+ *
+ * So there is ONE bound and no branch. Inside the room the copilot reads what
+ * existed when the room opened, identically whether consent was granted,
+ * declined or withdrawn. That is what makes it a rule rather than three cases
+ * somebody has to enumerate correctly, and it is why the bound is a parameter
+ * here rather than a condition inside each of the four reads below.
+ *
+ * What it costs, stated rather than discovered: a therapist cannot use the
+ * copilot to catch up on the last ten minutes. Somebody will ask for that. We
+ * are declining it on purpose.
+ */
+async function buildPatientContext(
+  patientId: string,
+  before?: Date | null,
+): Promise<{
   transcript: string;
   index: Map<string, IndexedSegment>;
   sessionCount: number;
@@ -193,7 +244,11 @@ async function buildPatientContext(patientId: string): Promise<{
       durationMinutes: sessions.durationMinutes,
     })
     .from(sessions)
-    .where(eq(sessions.patientId, patientId))
+    .where(
+      before
+        ? and(eq(sessions.patientId, patientId), lt(sessions.createdAt, before))
+        : eq(sessions.patientId, patientId),
+    )
     .orderBy(asc(sessions.createdAt))
     .limit(MAX_SESSIONS);
 
@@ -314,6 +369,7 @@ async function documentsFor(
 async function journalsFor(
   patientId: string,
   capabilities?: Capabilities,
+  before?: Date | null,
 ): Promise<string> {
   if (capabilities && !capabilities.liveProfile) return "";
 
@@ -326,7 +382,7 @@ async function journalsFor(
   if (!row?.personId) return "";
 
   const { journalContext } = await import("@/lib/data/journals");
-  const context = await journalContext(row.personId);
+  const context = await journalContext(row.personId, { before });
   return context.text;
 }
 
@@ -412,13 +468,29 @@ export async function askPatientCopilot(opts: {
    * restriction beyond the scoping the caller already did".
    */
   capabilities?: Capabilities;
+  /**
+   * 🔴 48.4 / C211 — the instant the room opened, when this is asked from
+   * inside a live session.
+   *
+   * Present means "read the record as of then and nothing after it". Absent
+   * means the ordinary `/copilot` call, which reads everything, and that is
+   * the right default: between sessions there is no live conversation to leak
+   * from and clipping the record would simply make the copilot worse.
+   *
+   * One bound, applied identically whether consent was granted, declined or
+   * withdrawn. No branch anywhere on the consent state, because three branches
+   * is three chances to get one wrong and the wrong one is the case where the
+   * patient said no.
+   */
+  liveSince?: Date | null;
 }): Promise<CopilotAnswer> {
   const started = Date.now();
   const language = opts.replyLanguage ?? "auto";
   const standing = opts.guidance?.trim() ?? "";
-  const { transcript, index, sessionCount } = await buildPatientContext(opts.patientId);
+  const before = opts.liveSince ?? null;
+  const { transcript, index, sessionCount } = await buildPatientContext(opts.patientId, before);
   const documents = await documentsFor(opts.patientId, opts.capabilities);
-  const journalText = await journalsFor(opts.patientId, opts.capabilities);
+  const journalText = await journalsFor(opts.patientId, opts.capabilities, before);
   const standingProfile = await profileFor(opts.patientId, opts.capabilities);
 
   // Documents alone are enough to answer from — that is the whole point of the
@@ -457,7 +529,7 @@ export async function askPatientCopilot(opts: {
       messages: [
         {
           role: "system",
-          content: buildSystemPrompt(opts.guidance, language, opts.capabilities),
+          content: buildSystemPrompt(opts.guidance, language, opts.capabilities, before),
         },
         {
           role: "user",
