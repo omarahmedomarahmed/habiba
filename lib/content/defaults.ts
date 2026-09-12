@@ -567,15 +567,35 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "What do you take when a patient pays me?",
-            a: "The percentage shown on the cards above, and nothing else. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not, as in Egypt today, we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
+            /*
+             * 🔴 51.1 — "the percentage shown on the cards above" pointed at
+             * a number 46.9 moved.
+             *
+             * There are two fees and they are not the same thing: what we
+             * charge YOU per session, which the cards state as an amount, and
+             * our share of what a PATIENT pays you, which is a percentage
+             * stated below them. Sending a reader to the cards for the
+             * percentage sends them somewhere it is not.
+             */
+            a: "A share of what that session paid you, stated as a percentage on the pricing page, and nothing else. That is separate from the per-session fee on the cards, which is what you pay us to use 24Therapy. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not, as in Egypt today, we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
           },
           {
             q: "Can I pay my 24Therapy bill out of my earnings?",
             a: "Yes. When we are holding your earnings the session fee comes out of them automatically. If your patients pay straight into your own Stripe account, anything you owe can instead be settled out of the next payment rather than a card, never more than what that session would have paid you, and you can turn it off.",
           },
+          /*
+           * 🔴 51.1 — this described the BUNDLE model, which sprint 46
+           * replaced.
+           *
+           * You do not buy sessions here and there are no bundles to move
+           * between. You add credit, credit is money, and what it buys is a
+           * lower AI rate that stays yours. The old question asked about a
+           * thing that no longer exists, and its answer pointed at "the cards
+           * above" for a rule the cards no longer state.
+           */
           {
-            q: "What happens to sessions I bought and did not use?",
-            a: "They last as long as the cards above say, and are always spent before anything new is billed, so moving to a smaller bundle never strands what you already paid for.",
+            q: "What happens to credit I added and did not spend?",
+            a: "Credit is money, not a number of sessions. It lasts as long as the pricing page says, it pays for session fees and AI fees alike, and it is always spent before anything new is billed. The lower AI rate it unlocked stays yours whether or not you top it up again.",
           },
         ],
       },
@@ -632,7 +652,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           { title: "Getting started", body: "Setting up your practice and running your first session.", icon: "zap" },
           { title: "Compliance", body: "BAAs, subprocessors and how patient data is handled.", icon: "shield" },
-          { title: "Billing", body: "Bundles, invoices, payouts and anything that looks wrong on your bill.", icon: "chart" },
+          /* 51.1 — "bundles" is the pre-46 word. Credit, plans, invoices. */
+          { title: "Billing", body: "Credit, plans, invoices, payouts and anything that looks wrong on your bill.", icon: "chart" },
         ],
       },
       { type: "crisis" },

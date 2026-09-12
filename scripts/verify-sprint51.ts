@@ -400,6 +400,79 @@ async function main() {
     "one line for this reader, or the sentence that is true everywhere",
   );
 
+  /*
+   * The shipped copy, comments stripped. `readSource` removes them while
+   * keeping line numbers, which matters here: the paragraphs BELOW explaining
+   * why "bundle" is banned contain the word, and a scan that read them would
+   * fail on its own documentation. That has happened seven times in this
+   * repository and is why stripping is the default rather than a detail.
+   */
+  const cmsEnRaw = readSource("lib/content/defaults.ts");
+  const cmsArRaw = readSource("lib/content/defaults-ar.ts");
+  const dictionary = readSource("lib/i18n/messages.ts");
+
+  /* --------------------------- 51.1 · copy that describes a product we no longer sell -- */
+
+  /*
+   * 🔴 A page describing a product we no longer sell is worse than no page.
+   *
+   * Sprint 46 replaced BUNDLES with credit and a plan: you do not buy a number
+   * of sessions here, you add credit, credit is money, and what it buys is a
+   * lower AI rate that stays yours. Three places still used the old word, and
+   * the worst of them was `pricing.credits` in the shipped dictionary, on the
+   * pricing page, one paragraph away from `pricing.creditIsMoney` contradicting
+   * it.
+   *
+   * Retired vocabulary is the cheapest thing in a content sprint to check and
+   * the easiest to miss by reading, because it reads fine. It only looks wrong
+   * if you know what changed.
+   */
+  /*
+   * 🔴 The Arabic patterns are anchored, and the first draft was not.
+   *
+   * `باق` as a prefix also matches `باقٍ`, which means "remaining" and is an
+   * ordinary word this sprint used in a sentence about a record still being
+   * there. A banned-word list that catches a different word is how a
+   * vocabulary rule turns into people editing good copy to please a scan.
+   */
+  const RETIRED = [
+    { word: "\\bbundles?\\b", why: "46 replaced bundles with credit and a plan" },
+    { word: "باقة", why: "the same word in Arabic" },
+    { word: "الباقات", why: "the same word in Arabic, plural and definite" },
+  ];
+
+  const stillSaying = RETIRED.filter(({ word }) =>
+    [cmsEnRaw, cmsArRaw, dictionary].some((body) =>
+      new RegExp(word, "i").test(body),
+    ),
+  );
+
+  check(
+    "🔴 51.1 no shipped copy still describes the pre-46 bundle model",
+    stillSaying.length === 0,
+    stillSaying.length === 0
+      ? "credit is money, and nothing calls it a bundle"
+      : stillSaying.map((r) => `${r.word} (${r.why})`).join(", "),
+  );
+
+  /*
+   * 🔴 CONTROL — and the scan can see the word it is looking for.
+   *
+   * Three regexes over three files that all fail to match is exactly what a
+   * broken path produces, and it prints the same green line.
+   */
+  check(
+    "🔴 CONTROL the retired-vocabulary scan matches the word it bans",
+    RETIRED.every(({ word }) =>
+      new RegExp(word, "i").test(
+        word.startsWith("\\b") ? "moving to a smaller bundle never strands it" : `الانتقال إلى ${word} أصغر`,
+      ),
+    ) &&
+      // 🔴 …and does NOT match the ordinary Arabic word for "remaining".
+      !RETIRED.some(({ word }) => new RegExp(word, "i").test("الملف باقٍ بعد سنوات")),
+    "each banned word is caught in a planted sentence, and a different word is not",
+  );
+
   /* ---------------------------------------------- 51.9 · sell what we already built -- */
 
   /*
@@ -414,8 +487,8 @@ async function main() {
    * exact sentence, so a rewrite of the copy does not break the check while
    * dropping the item silently would.
    */
-  const cmsEn = readSource("lib/content/defaults.ts");
-  const cmsAr = readSource("lib/content/defaults-ar.ts");
+  const cmsEn = cmsEnRaw;
+  const cmsAr = cmsArRaw;
 
   const SOLD: { what: string; en: RegExp; ar: RegExp }[] = [
     {

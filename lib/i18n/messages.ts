@@ -156,7 +156,6 @@ export const en = {
   "pricing.tier.starter": "Starter",
   "pricing.tier.growth": "Growth",
   "pricing.payg": "Pay for the sessions you actually run. Nothing up front.",
-  "pricing.bundle": "Buy {count} or more at once.",
   "pricing.includes":
     "The session and {count} copilot questions about that patient, each answer citing the session and timestamp it came from.",
   "pricing.feature.transcription": "Live transcription, Arabic and English",
@@ -168,11 +167,10 @@ export const en = {
     "Get paid by patients, through the Crisis Radar and paid session links",
   "pricing.feature.baa": "HIPAA BAA included",
   "pricing.signUp": "Sign up free",
-  "pricing.orBundle": "or buy a bundle of {count}",
   "pricing.noFees":
     "Joining is free. No subscription, no seat fee, no setup fee.",
   "pricing.credits":
-    "You pay per session, only when you run one, and your first completed session is free. Credits last {months} months and are always spent before anything new is billed, so moving to a smaller bundle never strands what you paid for.",
+    "You pay per session, only when you run one, and your first completed session is free. Credit lasts {months} months and is always spent before anything new is billed, so it is never stranded by a change of mind.",
   "pricing.radarLead": "Get booked on the Crisis Radar.",
   "pricing.radarBody":
     "Patients find you and book you, and we take {percent}% of what that session paid you, and nothing else.",
@@ -2007,7 +2005,7 @@ export const en = {
   "tsup.picksUp":
     "A named person picks this up and answers within {hours} hours. When it is closed you get a link to read the reply. We do not put it in an email.",
   "tsup.about": "What is this about?",
-  "tsup.topicBilling": "Billing, bundles, invoices, what I was charged",
+  "tsup.topicBilling": "Billing, credit, invoices, what I was charged",
   "tsup.topicSession": "A session that went wrong",
   "tsup.topicAccount": "Verification or my account",
   "tsup.topicOther": "Something else",
@@ -2415,7 +2413,6 @@ export const ar: Record<MessageKey, string> = {
   "pricing.tier.starter": "البداية",
   "pricing.tier.growth": "التوسّع",
   "pricing.payg": "ادفع عن الجلسات التي تجريها فعلًا. لا شيء مقدمًا.",
-  "pricing.bundle": "اشترِ {count} جلسات أو أكثر دفعة واحدة.",
   "pricing.includes":
     "الجلسة و{count} أسئلة للمساعد عن هذا المريض، وكل إجابة تشير إلى الجلسة والدقيقة التي جاءت منها.",
   "pricing.feature.transcription": "تفريغ مباشر بالعربية والإنجليزية",
@@ -2427,11 +2424,10 @@ export const ar: Record<MessageKey, string> = {
     "تقاضَ أجرك من المرضى، عبر رادار الأزمات وروابط الجلسات المدفوعة",
   "pricing.feature.baa": "اتفاقية HIPAA مشمولة",
   "pricing.signUp": "أنشئ حسابك مجانًا",
-  "pricing.orBundle": "أو اشترِ باقة من {count} جلسة",
   "pricing.noFees":
     "الانضمام مجاني. بلا اشتراك، وبلا رسوم مقعد، وبلا رسوم تجهيز.",
   "pricing.credits":
-    "تدفع عن الجلسة حين تجريها فقط، وأول جلسة مكتملة مجانية. ورصيدك يبقى {months} شهرًا ويُصرف قبل أي محاسبة جديدة، فالانتقال إلى باقة أصغر لا يضيّع ما دفعته.",
+    "تدفع عن الجلسة حين تجريها فقط، وأول جلسة مكتملة مجانية. ورصيدك يبقى {months} شهرًا ويُصرف قبل أي محاسبة جديدة، فلا يضيع منك مهما غيّرت رأيك.",
   "pricing.radarLead": "احجز مكانك على رادار الأزمات.",
   "pricing.radarBody":
     "يجدك المرضى ويحجزون معك، ونأخذ {percent}% مما دفعته تلك الجلسة لك، ولا شيء غير ذلك.",
@@ -4133,7 +4129,7 @@ export const ar: Record<MessageKey, string> = {
   "tsup.picksUp":
     "يتولّاها شخص باسمه ويردّ خلال {hours} ساعة. وعند إغلاقها يصلك رابط لقراءة الرد. ولا نضعه في بريد إلكتروني.",
   "tsup.about": "عمّ يدور هذا؟",
-  "tsup.topicBilling": "الفوترة والباقات والفواتير وما خُصم مني",
+  "tsup.topicBilling": "الفوترة والرصيد والفواتير وما خُصم مني",
   "tsup.topicSession": "جلسة سارت على غير ما يجب",
   "tsup.topicAccount": "التحقّق أو حسابي",
   "tsup.topicOther": "شيء آخر",
