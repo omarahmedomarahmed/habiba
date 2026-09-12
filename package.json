@@ -2,7 +2,7 @@
   "name": "24therapy",
   "version": "2.0.0",
   "private": true,
-  "description": "24Therapy \u2014 AI clinical documentation for therapists. Single mobile-first Next.js app.",
+  "description": "24Therapy — AI clinical documentation for therapists. Single mobile-first Next.js app.",
   "engines": {
     "node": ">=20"
   },
@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "verify:nul": "node --import tsx scripts/verify-nul.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
