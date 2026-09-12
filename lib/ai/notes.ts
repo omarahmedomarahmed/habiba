@@ -257,6 +257,8 @@ export async function generateNoteContent(opts: {
   sessionId: string;
   organizationId: string;
   userId: string;
+  /** 49.14a — who the note is about, for cost by patient. Null on a guest session. */
+  patientId: string | null;
 }): Promise<{ content: NoteContent; language: string; contentEn: NoteContent | null; model: string }> {
   const started = Date.now();
   const { context, transcript } = await buildContext(opts.sessionId);
@@ -270,6 +272,7 @@ export async function generateNoteContent(opts: {
       organizationId: opts.organizationId,
       userId: opts.userId,
       sessionId: opts.sessionId,
+      patientId: opts.patientId,
       kind: "note",
       model: generated.model,
       inputTokens: generated.inputTokens,
@@ -301,6 +304,7 @@ export async function generateNoteContent(opts: {
       organizationId: opts.organizationId,
       userId: opts.userId,
       sessionId: opts.sessionId,
+      patientId: opts.patientId,
       kind: "note",
       model: MODELS.note,
       durationMs: Date.now() - started,
@@ -539,6 +543,7 @@ export async function generateAndStoreNote(opts: {
     });
 
     const { content, language, contentEn, model } = await generateNoteContent({
+      patientId: opts.patientId,
       sessionId: opts.sessionId,
       organizationId: opts.organizationId,
       userId: opts.therapistId,

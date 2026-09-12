@@ -41,6 +41,17 @@ export const MODELS = {
 type TokenRate = { inPerMTok: number; outPerMTok: number };
 type AudioRate = { perAudioMinute: number };
 
+/**
+ * 🔴 49.14b — the SHIPPED rates, and no longer the only ones.
+ *
+ * These moved into `platform_settings.aiRates`, so a provider changing a price
+ * is an edit rather than a deploy. They stay here as the floor: a settings row
+ * that cannot be parsed falls back to exactly these, because an empty rate
+ * table silently reprices the entire product.
+ *
+ * `cost_microcents` is still frozen on the row at write time, so changing a
+ * rate prices the NEXT call and never rewrites history.
+ */
 const TOKEN_RATES: Record<string, TokenRate> = {
   "gpt-4o": { inPerMTok: 250, outPerMTok: 1000 },
   "gpt-4o-mini": { inPerMTok: 15, outPerMTok: 60 },
@@ -63,14 +74,16 @@ const AUDIO_RATES: Record<string, AudioRate> = {
  * shows up as free and gets believed. This is the failure mode H12 describes,
  * and the fallback is the belt to the fix's braces.
  */
-function dearestTokenRate(): TokenRate {
-  return Object.values(TOKEN_RATES).reduce((a, b) => (b.inPerMTok > a.inPerMTok ? b : a));
+function dearestTokenRate(table: Record<string, TokenRate> = TOKEN_RATES): TokenRate {
+  const rows = Object.values(table);
+  if (rows.length === 0) return dearestTokenRate(TOKEN_RATES);
+  return rows.reduce((a, b) => (b.inPerMTok > a.inPerMTok ? b : a));
 }
 
-function dearestAudioRate(): AudioRate {
-  return Object.values(AUDIO_RATES).reduce((a, b) =>
-    b.perAudioMinute > a.perAudioMinute ? b : a,
-  );
+function dearestAudioRate(table: Record<string, AudioRate> = AUDIO_RATES): AudioRate {
+  const rows = Object.values(table);
+  if (rows.length === 0) return dearestAudioRate(AUDIO_RATES);
+  return rows.reduce((a, b) => (b.perAudioMinute > a.perAudioMinute ? b : a));
 }
 
 let client: OpenAI | null = null;
@@ -124,6 +137,12 @@ type UsageInput = {
   organizationId: string | null;
   userId: string | null;
   sessionId: string | null;
+  /**
+   * 49.14a — who the call was ABOUT. Optional because several kinds genuinely
+   * concern nobody: a translation of a CMS page, a speech synthesis of an
+   * admin string. Absent is a real answer and is recorded as such (49.14c).
+   */
+  patientId?: string | null;
   kind: UsageKind;
   model: string;
   inputTokens?: number;
@@ -135,12 +154,13 @@ type UsageInput = {
 };
 
 export async function logUsage(input: UsageInput): Promise<void> {
-  const microcents = estimateCostMicrocents(input);
+  const microcents = estimateCostMicrocents(input, await ratesInForce());
   try {
     await db.insert(aiRequestLogs).values({
       organizationId: input.organizationId,
       userId: input.userId,
       sessionId: input.sessionId,
+      patientId: input.patientId ?? null,
       kind: input.kind,
       model: input.model,
       inputTokens: input.inputTokens ?? 0,
@@ -187,7 +207,41 @@ export async function logUsage(input: UsageInput): Promise<void> {
  */
 type CostInput = Pick<UsageInput, "kind" | "model" | "inputTokens" | "outputTokens" | "audioSeconds">;
 
-function estimateCostMicrocents(input: CostInput): number {
+/** The rate tables in force, from settings, falling back to the shipped ones. */
+type Rates = { tokens: Record<string, TokenRate>; audio: Record<string, AudioRate> };
+
+const SHIPPED: Rates = { tokens: TOKEN_RATES, audio: AUDIO_RATES };
+
+/**
+ * 49.14b — read once per call, from settings.
+ *
+ * `getSettings` is cached, so this is not a query per model call. It is
+ * deliberately not cached HERE: a rate an operator corrects at nine o'clock
+ * should price the ten o'clock call, and a second cache in front of a cached
+ * read is a stale price nobody can explain.
+ *
+ * Failure falls back to the shipped table rather than to nothing, for the
+ * reason in `dearestTokenRate` one level down: a missing price must overstate,
+ * never zero.
+ */
+async function ratesInForce(): Promise<Rates> {
+  try {
+    const { getSettings } = await import("@/lib/settings");
+    const { aiRates } = await getSettings();
+    return {
+      tokens: Object.fromEntries(
+        aiRates.tokens.map((r) => [r.model, { inPerMTok: r.inPerMTok, outPerMTok: r.outPerMTok }]),
+      ),
+      audio: Object.fromEntries(
+        aiRates.audio.map((r) => [r.model, { perAudioMinute: r.perAudioMinute }]),
+      ),
+    };
+  } catch {
+    return SHIPPED;
+  }
+}
+
+function estimateCostMicrocents(input: CostInput, rates: Rates = SHIPPED): number {
   if (input.kind === "transcribe") {
     /*
      * H12, fixed.
@@ -206,11 +260,11 @@ function estimateCostMicrocents(input: CostInput): number {
      * which has the same shape of bug one model away. Both branches now look
      * the model up, and both fall back loudly rather than cheaply.
      */
-    const rate = AUDIO_RATES[input.model] ?? dearestAudioRate();
+    const rate = rates.audio[input.model] ?? dearestAudioRate(rates.audio);
     return Math.round(((input.audioSeconds ?? 0) / 60) * rate.perAudioMinute * 1000);
   }
 
-  const rate = TOKEN_RATES[input.model] ?? dearestTokenRate();
+  const rate = rates.tokens[input.model] ?? dearestTokenRate(rates.tokens);
   const inCost = ((input.inputTokens ?? 0) / 1_000_000) * rate.inPerMTok;
   const outCost = ((input.outputTokens ?? 0) / 1_000_000) * rate.outPerMTok;
   return Math.round((inCost + outCost) * 1000);

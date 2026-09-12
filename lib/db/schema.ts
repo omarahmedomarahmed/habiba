@@ -1452,6 +1452,32 @@ export const aiRequestLogs = pgTable(
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
     /**
+     * 🔴 49.14a / C221 — who the call was ABOUT, which is not who made it.
+     *
+     * `userId` is the clinician whose request it was. This is the person the
+     * model was reasoning about, and without it 49.8's per-patient cost cannot
+     * be computed at all: a copilot call and a note generation both belong to
+     * a therapist and to a patient, and only one of those was recorded.
+     *
+     * ## 🔴 C280 — what this column makes possible, and what it must never do
+     *
+     * A timestamped record of every model call concerning a person, queryable
+     * by person. That is a new kind of row in this database and it is worth
+     * naming before somebody finds a use for it: the shape of somebody's care
+     * is legible in the timing and volume of these rows even though not one of
+     * them contains a clinical word.
+     *
+     * It exists for INTERNAL COST ACCOUNTING and nothing else. Never
+     * patient-facing, never clinic-facing, never sponsor-facing, and inside
+     * C244 from the day sponsors exist: no screen may join it to a sponsor.
+     *
+     * `set null` rather than `cascade`, deliberately. Deleting a patient must
+     * not delete what their care cost us, because a cost that disappears when
+     * a row does is how a margin goes wrong quietly (C221) and because the
+     * money is ours rather than theirs.
+     */
+    patientId: uuid("patient_id").references(() => patients.id, { onDelete: "set null" }),
+    /**
      * Every kind of model call we make.
      *
      * Widened past the original four because the union was quietly incomplete:
@@ -1480,11 +1506,28 @@ export const aiRequestLogs = pgTable(
     outputTokens: integer("output_tokens").notNull().default(0),
     audioSeconds: integer("audio_seconds").notNull().default(0),
     /**
-     * Kept, and no longer the number anything reads.
+     * ⚠️ DEPRECATED. 49.14 / C279. Do not read this column.
      *
      * Rounding every cost into whole cents recorded zero for 91% of calls —
      * a transcription chunk is 0.15 cents and a mini copilot call is 0.014.
-     * See `costMicrocents`.
+     * `costMicrocents` replaced it and every reporting path reads that.
+     *
+     * 🔴 It said "no longer the number anything reads", and that was not true:
+     * `lib/data/admin.ts` summed it in three places while `lib/data/vault.ts`
+     * summed `costMicrocents`, so two admin screens reported different totals
+     * for the same calls, in production, for four sprints. Measured on the
+     * verification database: 6 cents against 4, over twelve calls, with six of
+     * them rounded to zero.
+     *
+     * The error runs in BOTH directions, which is why neither screen looked
+     * obviously wrong. `Math.round(microcents / 1000)` per row sends a 0.6c
+     * call up to 1c and a 0.4c call down to 0, so the lossy total is higher
+     * than the true one on a run of medium calls and lower on a run of tiny
+     * ones. A comment claiming nothing reads a column is not a fact about the
+     * code; `verify:sprint49` now asserts it.
+     *
+     * Still WRITTEN, because something outside this repository may read it and
+     * a column that silently stops moving is worse than one nobody reads.
      */
     costCents: integer("cost_cents").notNull().default(0),
     /**
@@ -1504,6 +1547,8 @@ export const aiRequestLogs = pgTable(
     index("ai_request_logs_org_idx").on(t.organizationId, t.createdAt),
     index("ai_request_logs_session_idx").on(t.sessionId),
     index("ai_request_logs_kind_idx").on(t.kind, t.createdAt),
+    // 49.8 — cost by patient, over a range, which is the query Total View asks.
+    index("ai_request_logs_patient_idx").on(t.patientId, t.createdAt),
   ],
 );
 

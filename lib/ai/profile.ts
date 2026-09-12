@@ -244,6 +244,14 @@ export async function regenerateProfile(input: {
       organizationId: input.organizationId,
       userId: input.userId,
       sessionId: null,
+      /*
+       * 49.14c — a profile rebuild is about a PERSON, and a person can hold
+       * several patient charts across several practices. There is no single
+       * patient this call is about, so it records none rather than picking
+       * one: an invented attribution is worse than an honest platform row,
+       * because it is wrong in a direction nobody can see.
+       */
+      patientId: null,
       kind: "profile",
       model: MODELS.note,
       inputTokens: completion.usage?.prompt_tokens ?? 0,

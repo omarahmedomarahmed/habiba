@@ -55,7 +55,21 @@ export async function platformStats() {
   const [ai] = await db
     .select({
       calls: count(),
-      costCents: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int`,
+      /*
+       * 🔴 C279 — `cost_microcents`, never `cost_cents`.
+       *
+       * This summed the lossy column while `lib/data/vault.ts` summed the
+       * precise one, so two admin screens reported different totals for the
+       * same calls, in production, for four sprints. Measured: 6 cents against
+       * 4, over twelve calls, six of them rounded to zero.
+       *
+       * The error runs BOTH ways, which is why neither screen looked wrong.
+       * `Math.round(microcents / 1000)` per row sends a 0.6c call up to 1c and
+       * a 0.4c call down to 0, so this figure was higher than the truth on
+       * medium calls and lower on tiny ones. Rounding once, at the end, is the
+       * only version that is merely imprecise rather than biased.
+       */
+      costCents: sql<number>`ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int`,
       errors: sql<number>`COALESCE(SUM(CASE WHEN ${aiRequestLogs.status} = 'error' THEN 1 ELSE 0 END), 0)::int`,
     })
     .from(aiRequestLogs)
@@ -379,7 +393,8 @@ export async function therapistAiSpend(userId: string) {
     .select({
       kind: aiRequestLogs.kind,
       calls: count(),
-      costCents: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int`,
+      // C279 — the precise column. See the first of these, above.
+      costCents: sql<number>`ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int`,
       errors: sql<number>`COALESCE(SUM(CASE WHEN ${aiRequestLogs.status} = 'error' THEN 1 ELSE 0 END), 0)::int`,
     })
     .from(aiRequestLogs)
@@ -408,7 +423,8 @@ export async function aiUsageByDay(days = 14) {
     .select({
       day: sql<string>`to_char(date_trunc('day', ${aiRequestLogs.createdAt}), 'YYYY-MM-DD')`,
       calls: count(),
-      costCents: sql<number>`COALESCE(SUM(${aiRequestLogs.costCents}), 0)::int`,
+      // C279 — the precise column. See the first of these, above.
+      costCents: sql<number>`ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int`,
     })
     .from(aiRequestLogs)
     .where(gte(aiRequestLogs.createdAt, new Date(Date.now() - days * 24 * 60 * 60 * 1000)))

@@ -593,6 +593,8 @@ export async function askPatientCopilot(opts: {
       organizationId: opts.organizationId,
       userId: opts.userId,
       sessionId: null,
+      // 49.14a / 49.8 - who the call was about, for cost by patient.
+      patientId: opts.patientId,
       kind: "patient_copilot",
       model: MODELS.note,
       inputTokens: completion.usage?.prompt_tokens ?? 0,
@@ -635,6 +637,8 @@ export async function askPatientCopilot(opts: {
       organizationId: opts.organizationId,
       userId: opts.userId,
       sessionId: null,
+      // 49.14a / 49.8 - who the call was about, for cost by patient.
+      patientId: opts.patientId,
       kind: "patient_copilot",
       model: MODELS.note,
       durationMs: Date.now() - started,

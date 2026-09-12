@@ -81,6 +81,29 @@ export type PlatformSettings = {
     /** A gap this long past the running time means everyone has left. */
     silenceSeconds: number;
   };
+  /**
+   * 🔴 49.14b / C221 — what a model call costs us, per million tokens.
+   *
+   * These were constants in `lib/ai/client.ts`, so correcting a price a
+   * provider had changed meant a deploy. They are settings now, for the reason
+   * every other figure is: an operator should be able to fix a number that has
+   * gone wrong in the world without waiting for a release.
+   *
+   * 🔴 `cost_microcents` stays FROZEN on the row at write time, so a rate
+   * change prices the NEXT call and never rewrites history. That is the same
+   * rule `session_credits.rate_cents` follows and the same reason: an admin
+   * lowering a rate next March must not change what last week cost.
+   *
+   * Rates are in **hundredths of a cent per million tokens** so they stay
+   * integers. Money in floating point is the bug family `cost_microcents`
+   * exists to avoid, reintroduced one layer up.
+   */
+  aiRates: {
+    /** By model id, per million tokens. */
+    tokens: { model: string; inPerMTok: number; outPerMTok: number }[];
+    /** By model id, per minute of audio. */
+    audio: { model: string; perAudioMinute: number }[];
+  };
   copilot: {
     /** Per patient, per session, rolling over on that patient. */
     messagesPerPatientPerSession: number;
@@ -165,6 +188,24 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     runningMinutes: 50,
     countdownMinutes: 10,
     silenceSeconds: 90,
+  },
+  /*
+   * 49.14b — the same figures `lib/ai/client.ts` held, moved rather than
+   * changed. Verified against the shipped constants by `verify:sprint49`, so a
+   * transcription that cost 0.3c a minute yesterday costs 0.3c a minute today.
+   */
+  aiRates: {
+    tokens: [
+      { model: "gpt-4o", inPerMTok: 250, outPerMTok: 1000 },
+      { model: "gpt-4o-mini", inPerMTok: 15, outPerMTok: 60 },
+    ],
+    audio: [
+      { model: "gpt-4o-mini-transcribe", perAudioMinute: 0.3 },
+      // Whisper is not wired up, but its rate is public and being here is what
+      // makes switching to it a configuration change rather than a silent
+      // mispricing.
+      { model: "whisper-1", perAudioMinute: 0.6 },
+    ],
   },
   copilot: {
     messagesPerPatientPerSession: 10,
@@ -317,6 +358,52 @@ export function parseGroup<G extends SettingsGroup>(
         minPriceCents: int(v.minPriceCents, d.session.minPriceCents, { min: 0, max: 1_000_000 }),
         maxPriceCents: int(v.maxPriceCents, d.session.maxPriceCents, { min: 1, max: 10_000_000 }),
       } as PlatformSettings[G];
+
+    case "aiRates": {
+      /*
+       * 🔴 A rate that cannot be parsed falls back to the SHIPPED table, never
+       * to an empty one.
+       *
+       * An empty table sends every model to `dearestRate()`, which overstates
+       * rather than understates and is the safe direction (H12) — but it also
+       * silently reprices the whole product because somebody mistyped a model
+       * id. The shipped defaults are the honest floor.
+       */
+      const tokens = Array.isArray(v.tokens)
+        ? v.tokens
+            .map((raw) => {
+              const t = record(raw);
+              const model = str(t.model, "");
+              if (!model) return null;
+              return {
+                model,
+                inPerMTok: int(t.inPerMTok, 0, { min: 0, max: 1_000_000 }),
+                outPerMTok: int(t.outPerMTok, 0, { min: 0, max: 1_000_000 }),
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null)
+        : [];
+
+      const audio = Array.isArray(v.audio)
+        ? v.audio
+            .map((raw) => {
+              const a = record(raw);
+              const model = str(a.model, "");
+              if (!model) return null;
+              const per = Number(a.perAudioMinute);
+              return {
+                model,
+                perAudioMinute: Number.isFinite(per) && per >= 0 ? per : 0,
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null)
+        : [];
+
+      return {
+        tokens: tokens.length > 0 ? tokens : d.aiRates.tokens,
+        audio: audio.length > 0 ? audio : d.aiRates.audio,
+      } as PlatformSettings[G];
+    }
 
     case "clock":
       return {

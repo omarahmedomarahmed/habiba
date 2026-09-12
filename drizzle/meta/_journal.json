@@ -484,6 +484,13 @@
       "when": 1789600000034,
       "tag": "0068_journal_inference",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1789600000035,
+      "tag": "0069_usage_attribution",
+      "breakpoints": true
     }
   ]
 }
