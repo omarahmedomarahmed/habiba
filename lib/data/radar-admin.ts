@@ -57,7 +57,7 @@ export type CommandRow = {
   demo: boolean;
   suspendedUntil: string | null;
   suspendedReason: string | null;
-  rateCents: number;
+  sessionRateCents: number;
   chargesEnabled: boolean;
   acceptsWalkIns: boolean;
   lastSeenAt: string | null;
@@ -108,7 +108,7 @@ export async function radarCommandView(): Promise<CommandView> {
       email: users.email,
       organizationId: users.organizationId,
       organizationName: organizations.name,
-      rateCents: users.sessionRateCents,
+      sessionRateCents: users.sessionRateCents,
       chargesEnabled: users.chargesEnabled,
 
       country: therapistRadar.country,
@@ -189,7 +189,7 @@ export async function radarCommandView(): Promise<CommandView> {
       demo: row.demo,
       suspendedUntil: suspended ? row.suspendedUntil!.toISOString() : null,
       suspendedReason: suspended ? row.suspendedReason : null,
-      rateCents: row.rateCents,
+      sessionRateCents: row.sessionRateCents,
       chargesEnabled: row.chargesEnabled,
       acceptsWalkIns: row.acceptsWalkIns,
       lastSeenAt: row.lastSeenAt?.toISOString() ?? null,

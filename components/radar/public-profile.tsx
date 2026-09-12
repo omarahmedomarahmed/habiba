@@ -131,7 +131,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
       <div className="mt-6 flex items-center justify-between rounded-2xl bg-navy-500 px-4 py-3.5 text-white">
         <span className="text-sm">{t("radar.thirtyMinutes")}</span>
         <span className="text-xl font-bold">
-          {profile.rateCents > 0 ? `$${(profile.rateCents / 100).toFixed(0)}` : "Free"}
+          {profile.sessionRateCents > 0 ? `$${(profile.sessionRateCents / 100).toFixed(0)}` : "Free"}
         </span>
       </div>
 

@@ -130,7 +130,7 @@ export function RadarCommand({
           region: row.region,
           city: row.city,
           practice: null,
-          rateCents: row.rateCents,
+          sessionRateCents: row.sessionRateCents,
           rating: row.rating,
           status: row.status as "online" | "pending" | "in_session",
           reservedByYou: false,
@@ -570,7 +570,7 @@ function Detail({
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <Row label="Rate">{row.rateCents > 0 ? formatUsd(row.rateCents) : "Free"}</Row>
+          <Row label="Rate">{row.sessionRateCents > 0 ? formatUsd(row.sessionRateCents) : "Free"}</Row>
           <Row label="Payouts">{row.chargesEnabled ? "Connected" : "Not connected"}</Row>
           <Row label="Sessions 30d">{row.sessions30d}</Row>
           <Row label="Gross 30d">{formatUsd(row.grossCents30d)}</Row>

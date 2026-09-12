@@ -167,7 +167,7 @@ export function NoShowRecovery({
                 ) : null}
               </span>
               <span className="shrink-0 text-xs font-medium text-slate-500">
-                {formatMoney(person.rateCents, "USD", locale)}
+                {formatMoney(person.sessionRateCents, "USD", locale)}
               </span>
             </button>
           </li>

@@ -60,7 +60,7 @@ export const CREDIT_MONTHS = 12;
 export type Replacement = {
   userId: string;
   name: string;
-  rateCents: number;
+  sessionRateCents: number;
   headline: string | null;
 };
 
@@ -82,7 +82,7 @@ export async function replacementsFor(input: {
       userId: users.id,
       firstName: users.firstName,
       lastName: users.lastName,
-      rateCents: users.sessionRateCents,
+      sessionRateCents: users.sessionRateCents,
       headline: therapistRadar.headline,
     })
     .from(therapistRadar)
@@ -105,7 +105,7 @@ export async function replacementsFor(input: {
   return rows.map((row) => ({
     userId: row.userId,
     name: [row.firstName, row.lastName].filter(Boolean).join(" "),
-    rateCents: row.rateCents ?? 0,
+    sessionRateCents: row.sessionRateCents ?? 0,
     headline: row.headline,
   }));
 }
@@ -157,7 +157,7 @@ export async function reassignSession(input: {
   }
 
   const [replacement] = await db
-    .select({ rateCents: users.sessionRateCents, organizationId: users.organizationId })
+    .select({ sessionRateCents: users.sessionRateCents, organizationId: users.organizationId })
     .from(users)
     .where(and(eq(users.id, input.toUserId), isNull(users.deletedAt)))
     .limit(1);
@@ -171,7 +171,7 @@ export async function reassignSession(input: {
    * clinician who raised their price between the two, or an id typed by hand,
    * must not be able to charge a let-down patient more than they already paid.
    */
-  const rate = replacement.rateCents ?? 0;
+  const rate = replacement.sessionRateCents ?? 0;
   if (rate > row.priceCents) {
     return { ok: false, error: "That clinician charges more than this session was paid for." };
   }

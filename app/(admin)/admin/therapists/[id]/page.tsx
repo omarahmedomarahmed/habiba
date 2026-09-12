@@ -143,7 +143,7 @@ export default async function TherapistDetailPage({
         licence={[therapist.profile?.licenseType, therapist.profile?.licenseNumber, therapist.profile?.licenseState]
           .filter(Boolean)
           .join(" · ")}
-        rateCents={therapist.sessionRateCents}
+        sessionRateCents={therapist.sessionRateCents}
         payoutsEnabled={therapist.payoutsEnabled}
         earnings={{
           lifetimeNetCents: earnings.lifetimeNetCents,

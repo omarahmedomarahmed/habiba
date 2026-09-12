@@ -38,7 +38,7 @@ const RENEW_MS = 20_000;
 
 const INITIAL: BookingState = {};
 
-function Submit({ rateCents }: { rateCents: number }) {
+function Submit({ sessionRateCents }: { sessionRateCents: number }) {
   const t = useT();
   const { pending } = useFormStatus();
   return (
@@ -47,11 +47,11 @@ function Submit({ rateCents }: { rateCents: number }) {
       disabled={pending}
       className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
     >
-      {rateCents > 0 ? <CreditCard className="h-4 w-4" aria-hidden /> : null}
+      {sessionRateCents > 0 ? <CreditCard className="h-4 w-4" aria-hidden /> : null}
       {pending
         ? "Connecting…"
-        : rateCents > 0
-          ? `Pay ${formatUsd(rateCents)} and start now`
+        : sessionRateCents > 0
+          ? `Pay ${formatUsd(sessionRateCents)} and start now`
           : "Start now"}
     </button>
   );
@@ -305,7 +305,7 @@ export function BookingSheet({
             <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3 text-white">
               <span className="text-sm text-white/70">{t("radar.thirtyMinutes")}</span>
               <span className="text-2xl font-bold tracking-tight">
-                {entry.rateCents > 0 ? formatUsd(entry.rateCents) : "Free"}
+                {entry.sessionRateCents > 0 ? formatUsd(entry.sessionRateCents) : "Free"}
               </span>
             </div>
 
@@ -331,7 +331,7 @@ export function BookingSheet({
               />
             </Field>
 
-            <Submit rateCents={entry.rateCents} />
+            <Submit sessionRateCents={entry.sessionRateCents} />
 
             <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

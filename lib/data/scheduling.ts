@@ -341,7 +341,7 @@ export async function bookSlot(input: {
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
       therapistTimezone: users.timezone,
-      rateCents: users.sessionRateCents,
+      sessionRateCents: users.sessionRateCents,
     })
     .from(availabilitySlots)
     .innerJoin(users, eq(users.id, availabilitySlots.therapistUserId))
@@ -391,8 +391,8 @@ export async function bookSlot(input: {
        * created. The database now refuses a session without one.
        */
       feedbackToken: randomBytes(24).toString("base64url"),
-      priceCents: slot.rateCents ?? 0,
-      paymentStatus: (slot.rateCents ?? 0) > 0 ? "pending" : "not_required",
+      priceCents: slot.sessionRateCents ?? 0,
+      paymentStatus: (slot.sessionRateCents ?? 0) > 0 ? "pending" : "not_required",
     })
     .returning({ id: sessions.id });
 

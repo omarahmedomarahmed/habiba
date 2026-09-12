@@ -130,7 +130,7 @@ export function RadarHero({
   const bookable = visible.filter((entry) => entry.status === "online");
   const cheapest = bookable.reduce<number | null>(
     (low, entry) =>
-      low === null || entry.rateCents < low ? entry.rateCents : low,
+      low === null || entry.sessionRateCents < low ? entry.sessionRateCents : low,
     null,
   );
   const selected = all.find((entry) => entry.userId === selectedId) ?? null;

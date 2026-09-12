@@ -82,7 +82,7 @@ export default async function Page({
         where: [row.city, row.country].filter(Boolean).join(", "),
         lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
         suspended: Boolean(row.suspendedUntil && row.suspendedUntil > new Date()),
-        rateCents: row.rateCents,
+        sessionRateCents: row.sessionRateCents,
         demo: row.demo,
       }))}
       events={events.map((event) => ({

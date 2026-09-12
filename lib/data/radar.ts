@@ -92,7 +92,7 @@ export type RadarTherapist = {
     lat: string | null;
     lon: string | null;
   } | null;
-  rateCents: number;
+  sessionRateCents: number;
   /**
    * Star rating, or null until enough people have rated them.
    *
@@ -280,7 +280,7 @@ async function queryBoard() {
       firstName: users.firstName,
       lastName: users.lastName,
       profile: users.profile,
-      rateCents: users.sessionRateCents,
+      sessionRateCents: users.sessionRateCents,
       // 12.3 / C84 — the zone the booking calendar renders in until the
       // visitor's browser tells us its own. Better than UTC by a mile: an
       // anonymous reader looking at this therapist is usually near them.
@@ -403,7 +403,7 @@ function shapeBoard(
        * goes through either way — held by the platform if it has to be — so
        * there is no longer a price nobody can pay.
        */
-      rateCents: row.rateCents,
+      sessionRateCents: row.sessionRateCents,
       rating: (() => {
         const found = ratings.get(row.userId);
         return found && found.count >= RATINGS_VISIBLE_AFTER
@@ -485,7 +485,7 @@ export async function publicProfile(
       firstName: users.firstName,
       lastName: users.lastName,
       profile: users.profile,
-      rateCents: users.sessionRateCents,
+      sessionRateCents: users.sessionRateCents,
       // 12.3 / C84 — the zone the booking calendar renders in until the
       // visitor's browser tells us its own. Better than UTC by a mile: an
       // anonymous reader looking at this therapist is usually near them.

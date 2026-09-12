@@ -61,9 +61,9 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
   );
   const [currency, setCurrency] = useState(state.rateCurrency);
 
-  const rateCents = Math.round((Number(rate) || 0) * 100);
-  const cut = Math.floor((rateCents * state.feeBps) / 10_000);
-  const keep = Math.max(0, rateCents - cut);
+  const sessionRateCents = Math.round((Number(rate) || 0) * 100);
+  const cut = Math.floor((sessionRateCents * state.feeBps) / 10_000);
+  const keep = Math.max(0, sessionRateCents - cut);
 
   const run = (fn: () => Promise<SettingsState>) =>
     startTransition(async () => {
@@ -221,7 +221,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           </div>
         </Field>
 
-        {rateCents > 0 ? (
+        {sessionRateCents > 0 ? (
           <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm">
             <div className="flex items-baseline justify-between">
               <span className="text-slate-600">{t("tpay.youKeep")}</span>

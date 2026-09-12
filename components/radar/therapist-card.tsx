@@ -116,7 +116,7 @@ export function TherapistCard({
 
       <span className="shrink-0 text-end">
         <span className={cn("block text-sm font-bold", dark ? "text-white" : "text-slate-900")}>
-          {entry.rateCents > 0 ? formatUsd(entry.rateCents) : "Free"}
+          {entry.sessionRateCents > 0 ? formatUsd(entry.sessionRateCents) : "Free"}
         </span>
         <span className={cn("block text-[10px]", dark ? "text-white/40" : "text-slate-400")}>
           30 min

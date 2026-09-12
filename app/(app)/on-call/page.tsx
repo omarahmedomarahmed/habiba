@@ -52,7 +52,7 @@ export default async function RadarConsolePage() {
     ensureRadarProfile(actor),
     db
       .select({
-        rateCents: users.sessionRateCents,
+        sessionRateCents: users.sessionRateCents,
         chargesEnabled: users.chargesEnabled,
         profile: users.profile,
       })
@@ -85,7 +85,7 @@ export default async function RadarConsolePage() {
           languages={profile.languages}
           specialties={profile.specialties}
           country={profile.country}
-          rateCents={me?.rateCents ?? 0}
+          sessionRateCents={me?.sessionRateCents ?? 0}
           chargesEnabled={me?.chargesEnabled ?? false}
           countryClosed={Boolean(profile.country && closedCountries.has(profile.country))}
           languageOptions={languageOptions.map((o) => ({ code: o.code, label: o.label }))}

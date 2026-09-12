@@ -42,7 +42,7 @@ type RadarRow = {
   where: string;
   lastSeenAt: string | null;
   suspended: boolean;
-  rateCents: number;
+  sessionRateCents: number;
   demo: boolean;
 };
 
@@ -352,7 +352,7 @@ function Now({
                 <span className="block truncate text-xs text-slate-500">
                   {row.email}
                   {row.where ? ` · ${row.where}` : ""}
-                  {row.rateCents > 0 ? ` · ${formatUsd(row.rateCents)}` : " · free"}
+                  {row.sessionRateCents > 0 ? ` · ${formatUsd(row.sessionRateCents)}` : " · free"}
                 </span>
               </span>
               {row.demo ? <Badge tone="slate">Fixture</Badge> : null}

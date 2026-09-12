@@ -76,7 +76,7 @@ export async function radarNow() {
       city: therapistRadar.city,
       lastSeenAt: therapistRadar.lastSeenAt,
       suspendedUntil: therapistRadar.suspendedUntil,
-      rateCents: users.sessionRateCents,
+      sessionRateCents: users.sessionRateCents,
       demo: therapistRadar.demo,
     })
     .from(therapistRadar)

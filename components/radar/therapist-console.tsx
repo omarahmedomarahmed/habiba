@@ -37,7 +37,7 @@ export type ConsoleProps = {
   languages: string[];
   specialties: string[];
   country: string | null;
-  rateCents: number;
+  sessionRateCents: number;
   chargesEnabled: boolean;
   /**
    * 🔴 50.3 — the country they practise in has been closed to new bookings.
@@ -129,7 +129,7 @@ export function TherapistConsole(props: ConsoleProps) {
    *
    * What is left is a disclosure, not a block.
    */
-  const held = props.rateCents > 0 && !props.chargesEnabled;
+  const held = props.sessionRateCents > 0 && !props.chargesEnabled;
 
   return (
     <div className="space-y-4">
@@ -193,14 +193,14 @@ export function TherapistConsole(props: ConsoleProps) {
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/50">{t("trad.rate")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-white">
-                {props.rateCents > 0 ? formatUsd(props.rateCents) : t("trad.free")}
+                {props.sessionRateCents > 0 ? formatUsd(props.sessionRateCents) : t("trad.free")}
               </dd>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/50">{t("trad.youKeep")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-teal-300">
-                {props.rateCents > 0
-                  ? formatUsd(props.rateCents - Math.floor((props.rateCents * 1000) / 10_000))
+                {props.sessionRateCents > 0
+                  ? formatUsd(props.sessionRateCents - Math.floor((props.sessionRateCents * 1000) / 10_000))
                   : "-"}
               </dd>
             </div>

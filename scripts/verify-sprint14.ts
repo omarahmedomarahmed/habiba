@@ -131,8 +131,8 @@ async function main() {
     });
     check(
       "🔴 14.3 a clinician who charges MORE than the patient paid is not offered",
-      tooDear.every((r) => r.rateCents <= 3000),
-      `${tooDear.length} offered, dearest ${Math.max(0, ...tooDear.map((r) => r.rateCents))}`,
+      tooDear.every((r) => r.sessionRateCents <= 3000),
+      `${tooDear.length} offered, dearest ${Math.max(0, ...tooDear.map((r) => r.sessionRateCents))}`,
     );
 
     /* ------------------------------------ 14.5 / 14.6 the move and the credit */

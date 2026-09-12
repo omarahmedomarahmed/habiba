@@ -202,7 +202,7 @@ export async function bookFromRadar(
       therapistId: therapist.userId,
       guestName: name,
       guestEmail: email || null,
-      priceCents: therapist.rateCents,
+      priceCents: therapist.sessionRateCents,
     });
   } catch (error) {
     log.error("radar session create failed", { reason: safeErrorMessage(error) });
@@ -270,7 +270,7 @@ export async function bookFromRadar(
     // patient who has just filled in a form does not meet the same form again.
     const joinUrl = `${env.appUrl}/join/${session.joinToken}?booked=1`;
 
-    if (therapist.rateCents <= 0) {
+    if (therapist.sessionRateCents <= 0) {
       // Nothing to pay, so the booking is real immediately.
       await markInSession(session.id);
       return { joinUrl };

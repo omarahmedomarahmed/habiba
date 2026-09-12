@@ -96,7 +96,7 @@ export function RadarPresence({
    * which is the one thing on the screen that must not have two answers.
    */
   orb?: {
-    rateCents: number;
+    sessionRateCents: number;
     chargesEnabled: boolean;
     acceptsWalkIns: boolean;
     practiceAddress: string | null;
@@ -408,7 +408,7 @@ export function RadarPresence({
           booked={booking}
           suspended={Boolean(suspended)}
           liftedForBooking={booking}
-          rateCents={orb.rateCents}
+          sessionRateCents={orb.sessionRateCents}
           chargesEnabled={orb.chargesEnabled}
           acceptsWalkIns={orb.acceptsWalkIns}
           practiceAddress={orb.practiceAddress}

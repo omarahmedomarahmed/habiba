@@ -56,7 +56,7 @@ export function RadarOrb({
    */
   liftedForBooking,
   suspended,
-  rateCents,
+  sessionRateCents,
   chargesEnabled,
   acceptsWalkIns,
   practiceAddress,
@@ -66,7 +66,7 @@ export function RadarOrb({
   booked: boolean;
   liftedForBooking?: boolean;
   suspended: boolean;
-  rateCents: number;
+  sessionRateCents: number;
   chargesEnabled: boolean;
   acceptsWalkIns: boolean;
   practiceAddress: string | null;
@@ -218,10 +218,10 @@ export function RadarOrb({
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-slate-500">{t("torb.rate")}</dt>
                 <dd className="font-medium tabular-nums text-slate-900">
-                  {rateCents > 0 ? formatUsd(rateCents) : t("trad.free")}
+                  {sessionRateCents > 0 ? formatUsd(sessionRateCents) : t("trad.free")}
                 </dd>
               </div>
-              {rateCents > 0 && !chargesEnabled ? (
+              {sessionRateCents > 0 && !chargesEnabled ? (
                 /*
                  * Said here because this is where they set the price. Since
                  * sprint 1.8 a payment is refused outright when payouts are not

@@ -64,11 +64,11 @@ export async function TherapistPageBody({ id }: { id: string }) {
         that fetched its own would show a figure the checkout does not agree
         with, and C37 refuses a pair we cannot price rather than guessing one.
       */}
-      {profile.rateCents > 0 ? (
+      {profile.sessionRateCents > 0 ? (
         <div className="mx-auto max-w-2xl px-4 pt-2 sm:px-6">
           <p className="flex items-center gap-2 text-sm text-slate-500">
             {t("radar.oneHour")}
-            <PriceTag usdCents={profile.rateCents} rateMicro={egpRate} locale={tag} />
+            <PriceTag usdCents={profile.sessionRateCents} rateMicro={egpRate} locale={tag} />
           </p>
         </div>
       ) : null}
@@ -78,7 +78,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
           slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString() }))}
           therapistName={profile.firstName}
           therapistTimezone={profile.timezone}
-          rateLabel={profile.rateCents > 0 ? formatUsd(profile.rateCents) : "Free"}
+          rateLabel={profile.sessionRateCents > 0 ? formatUsd(profile.sessionRateCents) : "Free"}
         />
       </div>
     </>

@@ -235,7 +235,7 @@ export default async function AppLayout({
           see the prop's own comment for why there is not a second poller.
         */
         orb={{
-          rateCents: me?.sessionRateCents ?? 0,
+          sessionRateCents: me?.sessionRateCents ?? 0,
           chargesEnabled: me?.chargesEnabled ?? false,
           acceptsWalkIns: radar?.acceptsWalkIns ?? false,
           practiceAddress: radar?.practiceAddress ?? null,

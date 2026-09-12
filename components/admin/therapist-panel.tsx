@@ -101,7 +101,7 @@ export function TherapistAdminPanel(props: {
   verification: string;
   credentials: string | null;
   licence: string;
-  rateCents: number;
+  sessionRateCents: number;
   payoutsEnabled: boolean;
   earnings: { lifetimeNetCents: number; platformFeesCents: number; paidSessionCount: number };
   patients: Patient[];
@@ -154,7 +154,7 @@ export function TherapistAdminPanel(props: {
           payments={props.payments}
           organizationId={props.organizationId}
           earnings={props.earnings}
-          rateCents={props.rateCents}
+          sessionRateCents={props.sessionRateCents}
           payoutsEnabled={props.payoutsEnabled}
         />
       ) : null}
@@ -460,14 +460,14 @@ function Billing({
   payments,
   organizationId,
   earnings,
-  rateCents,
+  sessionRateCents,
   payoutsEnabled,
 }: {
   invoices: InvoiceRow[];
   payments: PaymentRow[];
   organizationId: string;
   earnings: { lifetimeNetCents: number; platformFeesCents: number; paidSessionCount: number };
-  rateCents: number;
+  sessionRateCents: number;
   payoutsEnabled: boolean;
 }) {
   return (
@@ -483,7 +483,7 @@ function Billing({
           <Mini label="Paid sessions" value={String(earnings.paidSessionCount)} />
           <Mini
             label="Rate · 30 min"
-            value={rateCents > 0 ? formatUsd(rateCents) : "Free"}
+            value={sessionRateCents > 0 ? formatUsd(sessionRateCents) : "Free"}
             sub={payoutsEnabled ? "payouts on" : "payouts off"}
           />
         </dl>
