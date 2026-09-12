@@ -191,6 +191,119 @@ async function main() {
     `${seen.length} of 2 planted dashes caught`,
   );
 
+  /* ------------------------------------------------------ 51.7 · the bookings page -- */
+
+  /*
+   * 🔴 The three rules 51.7 asks for that were ALREADY BUILT, pinned here so
+   * the next person does not rebuild them as this sprint nearly did.
+   *
+   * "A confirmed booking blocks the radar" is a `NOT EXISTS` inside
+   * `reachable()`, which is the one predicate the listing, the reservation and
+   * the claim all share. Sprint 51 grepped for `inBookedWindow`, found only a
+   * verifier calling it, believed a doc comment that said "Read by the radar",
+   * and wired a duplicate into the board before reading `reachable()`. That is
+   * the founder's own note about the two hardest rulings: searching for a
+   * field name instead of reading the code that uses it.
+   *
+   * Asserted against the SQL rather than against the function name, because
+   * the function name is exactly what misled.
+   */
+  const radar = readSource("lib/data/radar.ts");
+  check(
+    "🔴 51.7 a confirmed booking takes a clinician off the radar",
+    /NOT EXISTS/.test(radar) &&
+      /a\.status = 'booked'/.test(radar) &&
+      /interval '15 minutes'/.test(radar),
+    "enforced in reachable(), so they are unbookable rather than merely hidden",
+  );
+
+  const schema = readSource("lib/db/schema.ts");
+  check(
+    "🔴 51.7 double booking is refused by the database, not by a form",
+    /uniqueIndex\("availability_slots_hour_unique"\)/.test(schema),
+    "a unique index on (therapist, hour), so a race has a loser who is told",
+  );
+
+  const cron = readSource("app/api/cron/[job]/route.ts");
+  check(
+    "51.7 the day-before reminder runs, on WhatsApp and email both",
+    /bookingsNeedingReminder/.test(cron) && /isQuietHour/.test(cron) && /notify\(/.test(cron),
+    "hourly, holding anything landing in a quiet hour until the morning",
+  );
+
+  /*
+   * 🔴 And the part that was genuinely missing: the page.
+   *
+   * `/on-call` had fourteen day chips and a flat list, which is a form for
+   * publishing availability rather than a calendar. Three views, and a way to
+   * put an existing patient into a future hour.
+   */
+  const calendar = readSource("components/scheduling/calendar.tsx");
+  check(
+    "🔴 51.7 the calendar has day, week and month views",
+    /"day", "week", "month"/.test(calendar) || /\["day", "week", "month"\]/.test(calendar),
+    "one selection, shared across all three, so switching view loses nothing",
+  );
+
+  /*
+   * 🔴 Every day key in the CLINICIAN's zone.
+   *
+   * `toISOString().slice(0, 10)` is the bug 11R.2 fixed on the server side: at
+   * 23:30 in Cairo the UTC date is still yesterday, so the evening's hours
+   * land on the wrong day and a clinician publishes Tuesday believing they
+   * published Wednesday.
+   */
+  check(
+    "🔴 51.7 the calendar keys every day in the clinician's own zone",
+    /dayKey\(/.test(calendar) && !/toISOString\(\)\.slice\(0, 10\)/.test(calendar),
+    "dayKey(at, zone), never a UTC date",
+  );
+
+  /*
+   * 🔴 An existing patient is invited by ID, never found by name.
+   *
+   * `bookSlot`'s public path finds or creates a patient from a typed name,
+   * which is right for a stranger off the radar and would mint a duplicate
+   * file for somebody already in the caseload. The clinician would discover it
+   * when half the history was missing from the room.
+   */
+  const bookingActions = readSource("app/(app)/bookings/actions.ts");
+  check(
+    "🔴 51.7 inviting an existing patient passes their id, so no duplicate file is made",
+    /patientId: input\.patientId/.test(bookingActions) &&
+      /getPatient\(/.test(bookingActions) &&
+      /accessFor\(/.test(bookingActions),
+    "two gates, and the patient row taken as given rather than matched on a name",
+  );
+
+  /*
+   * 🔴 The invitation is an invitation: they are TOLD.
+   *
+   * A clinician quietly placing an appointment into somebody else's week,
+   * which they discover from a reminder the night before, is a different
+   * product. A failed notification is reported rather than hidden behind a
+   * green tick, because the clinician is the only person who can fix it.
+   */
+  check(
+    "🔴 51.7 an invited patient is told, and a failure to reach them is reported",
+    /notify\(/.test(bookingActions) && /if \(!delivery\.sent\)/.test(bookingActions),
+    "the hour is held either way, and the clinician is told nobody could be reached",
+  );
+
+  /*
+   * 🔴 A booked hour is never closed from this screen.
+   *
+   * `withdrawHour` is conditional on `status = 'open'`, and rendering a
+   * control the data layer will refuse is how a clinician learns to distrust
+   * a screen. An appointment somebody is planning their week around is
+   * cancelled with a message, elsewhere.
+   */
+  check(
+    "🔴 51.7 only an open hour can be closed from the calendar",
+    /slot\.status === "open" \?/.test(calendar),
+    "a booked hour is cancelled with a message, not deleted out from under somebody",
+  );
+
   /* ---------------------------------------------- 51.4 · the SOS orb, everywhere -- */
 
   /*

@@ -219,9 +219,26 @@ export async function openHours(therapistUserId: string, days = 21): Promise<Pub
 /**
  * 11.5 — is this clinician about to be, or currently, in a booked hour?
  *
- * Read by the radar. Computed rather than stored: a boolean column would need
- * something to flip it, and whatever flipped it would be late exactly when it
- * mattered.
+ * 🔴 NOT read by the radar, whatever this comment used to say.
+ *
+ * The radar enforces the same rule in SQL, inside `reachable()` in
+ * `lib/data/radar.ts`, as a `NOT EXISTS` over booked slots in the one shared
+ * predicate the listing, the reservation and the claim all use. That is the
+ * better place for it: a clinician is then unbookable even by a direct call to
+ * the action, rather than merely hidden from a board that was shaped in
+ * TypeScript.
+ *
+ * This function is the same window expressed for a single clinician, and its
+ * live caller is `verify:sprint11`, which proves the rule holds at the three
+ * boundaries. Sprint 51 read the old "Read by the radar" line, grepped for
+ * call sites, found only a verifier, and spent an hour wiring a duplicate into
+ * the board before reading `reachable()`. A comment asserting a wiring the
+ * code does not have is worse than no comment: the next person believes it and
+ * stops checking.
+ *
+ * Computed rather than stored, in both places, for the reason the SQL version
+ * repeats: a boolean column would need something to flip it, and whatever
+ * flipped it would be late exactly when it mattered.
  */
 export async function inBookedWindow(therapistUserId: string, now = new Date()): Promise<boolean> {
   const soon = await db
@@ -241,6 +258,41 @@ export async function inBookedWindow(therapistUserId: string, now = new Date()):
     );
 
   return shouldAutoOffline(soon, now);
+}
+
+/**
+ * 51.7 — who is in each booked hour, for the clinician's own calendar.
+ *
+ * 🔴 Scoped to the actor's own slots, and the name comes from the `patients`
+ * row the session points at. A booking made from a public profile by somebody
+ * who is not yet in the caseload still has a patient row by then, because
+ * `bookSlot` creates one, so there is no anonymous case to render around.
+ *
+ * A separate query rather than widening `myHours`, which is read by the
+ * availability editor too: that screen has no business carrying patient names,
+ * and a select list is the enforcement rather than the intention (15.8).
+ */
+export async function bookedNames(actor: Actor): Promise<Map<string, string>> {
+  const rows = await db
+    .select({
+      slotId: availabilitySlots.id,
+      firstName: patients.firstName,
+      lastName: patients.lastName,
+    })
+    .from(availabilitySlots)
+    .innerJoin(sessions, eq(sessions.id, availabilitySlots.sessionId))
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .where(
+      and(
+        eq(availabilitySlots.therapistUserId, actor.userId),
+        eq(availabilitySlots.status, "booked"),
+        gte(availabilitySlots.startsAt, new Date()),
+      ),
+    );
+
+  return new Map(
+    rows.map((row) => [row.slotId, `${row.firstName} ${row.lastName ?? ""}`.trim()]),
+  );
 }
 
 /** 11.6 — the next booked hours, for the room's warning. */
@@ -327,6 +379,21 @@ export async function bookSlot(input: {
   patientTimezone?: string | null;
   accountId?: string | null;
   note?: string | null;
+  /**
+   * 🔴 51.7 — an EXISTING patient, when the clinician is doing the booking.
+   *
+   * The public path finds or creates a patient row from a name and an email,
+   * which is right for a stranger off the radar and wrong for somebody already
+   * in the caseload: matching on a name they typed slightly differently would
+   * mint a second file for a person who already has one, and the clinician
+   * would find out when half their history was missing from the room.
+   *
+   * When this is set, the row is taken as given and `findOrCreatePatient` is
+   * not consulted at all. The caller is responsible for having established
+   * that the patient belongs to this clinician, which is what the action's
+   * `getPatient` gate does.
+   */
+  patientId?: string | null;
 }): Promise<BookResult> {
   const now = new Date();
 
@@ -361,14 +428,16 @@ export async function bookSlot(input: {
    * clinician's caseload only — never across organisations, which is the
    * merge C39 measured going wrong.
    */
-  const patientId = await findOrCreatePatient({
-    organizationId: slot.organizationId,
-    therapistId: slot.therapistUserId,
-    name,
-    email: input.patientEmail ?? null,
-    phone: input.patientPhone ?? null,
-    timezone: input.patientTimezone ?? null,
-  });
+  const patientId =
+    input.patientId ??
+    (await findOrCreatePatient({
+      organizationId: slot.organizationId,
+      therapistId: slot.therapistUserId,
+      name,
+      email: input.patientEmail ?? null,
+      phone: input.patientPhone ?? null,
+      timezone: input.patientTimezone ?? null,
+    }));
 
   const [created] = await db
     .insert(sessions)

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  CalendarClock,
   CalendarDays,
   CreditCard,
   FileText,
@@ -130,6 +131,17 @@ export default async function AppLayout({
           </SidebarLink>
           <SidebarLink href="/sessions" icon={CalendarDays}>
             {t("portal.nav.sessions")}
+          </SidebarLink>
+          {/*
+            51.7 — the calendar, beside the sessions it fills.
+
+            Separate from /sessions on purpose: that page is what HAS happened
+            and what is about to, this one is the hours nobody has taken yet.
+            Folding them together is how availability becomes a setting
+            somebody edits once and never looks at again.
+          */}
+          <SidebarLink href="/bookings" icon={CalendarClock}>
+            {t("portal.nav.bookings")}
           </SidebarLink>
           <SidebarLink href="/patients" icon={Users}>
             {t("portal.nav.patients")}
