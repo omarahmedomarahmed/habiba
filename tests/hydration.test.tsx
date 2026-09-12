@@ -53,8 +53,28 @@ import React from "react";
 import { formatDate, formatDateTime, relativeDay } from "../lib/utils";
 import { formatMoney } from "../lib/billing/plans";
 import { readerZone } from "../lib/scheduling/tz";
+import { DICTIONARIES } from "../lib/i18n/messages";
 
 const AT = new Date("2026-09-12T23:30:00.000Z");
+
+/*
+ * 🔴 The translator this harness hands to relativeDay.
+ *
+ * 37L.9 moved "Today" and "Yesterday" out of lib/utils.ts and into the
+ * dictionary, so relativeDay takes a locale and a translator. This block
+ * renders from a STRING, which TypeScript never typechecks, so the signature
+ * change did not break the build here. It made both C84 assertions throw
+ * "t is not a function" instead of comparing anything, for however many
+ * sprints. A test that throws is not a test that passes, and it is not a test
+ * that fails usefully either.
+ *
+ * Reading the real dictionary rather than stubbing it keeps the harness honest
+ * about the thing it is checking: the same words the product renders.
+ */
+const t = (key: string, values?: Record<string, string | number>) =>
+  String(DICTIONARIES.en[key] ?? key).replace(/\{(\w+)\}/g, (whole, name: string) =>
+    values && name in values ? String(values[name]) : whole,
+  );
 
 /** The shape every client component uses now: the zone arrives as a prop. */
 function AsProp({ zone }: { zone: string | null }) {
@@ -62,7 +82,7 @@ function AsProp({ zone }: { zone: string | null }) {
     <div>
       <span>{formatDate(AT, zone)}</span>
       <span>{formatDateTime(AT, zone)}</span>
-      <span>{relativeDay(AT, zone)}</span>
+      <span>{relativeDay(AT, zone, "en", t as never)}</span>
       <span>{formatMoney(123450, "USD", "en-US")}</span>
       <span>{formatMoney(123450, "USD", undefined)}</span>
     </div>

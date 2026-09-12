@@ -207,11 +207,27 @@ async function main() {
 
   /* ------------------------------------------------------ the standing rails */
 
+  /*
+   * 🔴 Read from the LEDGER, not pasted here.
+   *
+   * This line held a hardcoded 85 while `scripts/_region-pins.json` held the
+   * same number, which meant one figure in two places and the usual result:
+   * sprint 48 added a pin, neither was updated, and both `verify:sprint30`
+   * and this check failed on main for eight sprints without anybody reading
+   * the output. Two copies of a ratchet is one ratchet and one stale number.
+   *
+   * `verify:sprint30` is the check that OWNS this figure and refuses a raise
+   * that is not a deliberate edit. This one now asserts the same fact against
+   * the same source, so it cannot disagree with it.
+   */
   const pins = scanRegionPins();
+  const pinMark = JSON.parse(readFileSync("scripts/_region-pins.json", "utf8")) as {
+    callSites: number;
+  };
   check(
     "30.1 the pin count did not move in this sprint",
-    pins.length === 85,
-    `${pins.length} pinned call sites`,
+    pins.length === pinMark.callSites,
+    `${pins.length} pinned call sites against a recorded ${pinMark.callSites}`,
   );
 
   const unvalidated = await db.execute(sql`

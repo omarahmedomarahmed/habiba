@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { controlDb } from "@/lib/db";
@@ -10,6 +10,7 @@ import {
   assessmentAssignments,
   assessmentResponses,
   instruments,
+  patients,
   type AssignmentMode,
   type Instrument,
   type InstrumentQuestion,
@@ -167,12 +168,72 @@ export async function assignInstrument(input: {
  */
 const MAX_HONEST_ANSWER_MS = 5 * 60 * 1000;
 
+/**
+ * 🔴 The one assignment this person is allowed to touch.
+ *
+ * A person is not a patient row. `people` is the identity; `patients` is one
+ * clinician's file about them, and one person can have several. An assignment
+ * hangs off a patient row, so every patient-facing call resolves through
+ * `patients.person_id` and matches nothing when the id belongs to somebody
+ * else — the same conditional-scope rule `closeStep` uses in homework.ts, for
+ * the same reason: without it an assignment id is a bearer token for answering
+ * a stranger's PHQ-9.
+ */
+async function ownedAssignment(
+  assignmentId: string,
+  personId: string,
+): Promise<{ id: string; instrumentId: string; status: string } | null> {
+  const [row] = await db
+    .select({
+      id: assessmentAssignments.id,
+      instrumentId: assessmentAssignments.instrumentId,
+      status: assessmentAssignments.status,
+    })
+    .from(assessmentAssignments)
+    .innerJoin(patients, eq(patients.id, assessmentAssignments.patientId))
+    .where(and(eq(assessmentAssignments.id, assignmentId), eq(patients.personId, personId)))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function recordAnswer(input: {
   assignmentId: string;
+  personId: string;
   questionKey: string;
   value: number;
   answerMs?: number | null;
-}): Promise<void> {
+}): Promise<{ ok?: boolean; error?: string }> {
+  const owned = await ownedAssignment(input.assignmentId, input.personId);
+  if (!owned) return { error: "That assessment is not yours to answer." };
+
+  /*
+   * 🔴 A completed assignment is frozen. The score is on a chart and the
+   * per-answer timings are the record of how it was arrived at; reopening it
+   * would silently change both.
+   */
+  if (owned.status === "completed") {
+    return { error: "That assessment is already finished." };
+  }
+
+  const [instrument] = await controlDb
+    .select({ questions: instruments.questions })
+    .from(instruments)
+    .where(eq(instruments.id, owned.instrumentId))
+    .limit(1);
+
+  /*
+   * The question and the value have to belong to the instrument. A client can
+   * send anything, and a value outside the option set does not fail loudly —
+   * it lands in a SUM and comes out as a score somebody reads as meaning.
+   */
+  const question = (instrument?.questions as InstrumentQuestion[] | undefined)?.find(
+    (q) => q.key === input.questionKey,
+  );
+  if (!question) return { error: "That question is not part of this assessment." };
+  if (!question.options.some((option) => option.value === input.value)) {
+    return { error: "That is not one of the answers offered." };
+  }
+
   const ms =
     typeof input.answerMs === "number" &&
     Number.isFinite(input.answerMs) &&
@@ -211,6 +272,8 @@ export async function recordAnswer(input: {
         eq(assessmentAssignments.status, "assigned"),
       ),
     );
+
+  return { ok: true };
 }
 
 /**
@@ -224,13 +287,13 @@ export async function recordAnswer(input: {
  * concept; `bandFor` is a separate call that a patient screen has no reason to
  * make (56.9).
  */
-export async function completeAssignment(assignmentId: string): Promise<number | null> {
-  const [assignment] = await db
-    .select()
-    .from(assessmentAssignments)
-    .where(eq(assessmentAssignments.id, assignmentId))
-    .limit(1);
+export async function completeAssignment(
+  assignmentId: string,
+  personId: string,
+): Promise<number | null> {
+  const assignment = await ownedAssignment(assignmentId, personId);
   if (!assignment) return null;
+  if (assignment.status === "completed") return null;
 
   const answers = await db
     .select({ value: assessmentResponses.value })
@@ -268,12 +331,23 @@ export function bandFor(instrument: Instrument, score: number): string | null {
   return instrument.bands.find((band) => score >= band.min && score <= band.max)?.label ?? null;
 }
 
-/** 56.5 — what the clinician polls while the patient is answering. */
-export async function assignmentProgress(assignmentId: string): Promise<{
+/**
+ * 56.5 — what the clinician polls while the patient is answering.
+ *
+ * 🔴 Scoped to the patient whose file is open, not to the assignment id alone.
+ * The caller has already established that this clinician may see this patient;
+ * without the second condition an assignment id from anywhere would answer,
+ * and what it answers with is how far through a PHQ-9 somebody is.
+ */
+export async function assignmentProgress(
+  assignmentId: string,
+  patientId: string,
+): Promise<{
   status: string;
   answered: number;
   total: number;
   score: number | null;
+  instrumentKey: string;
 } | null> {
   const [assignment] = await db
     .select({
@@ -282,12 +356,17 @@ export async function assignmentProgress(assignmentId: string): Promise<{
       instrumentId: assessmentAssignments.instrumentId,
     })
     .from(assessmentAssignments)
-    .where(eq(assessmentAssignments.id, assignmentId))
+    .where(
+      and(
+        eq(assessmentAssignments.id, assignmentId),
+        eq(assessmentAssignments.patientId, patientId),
+      ),
+    )
     .limit(1);
   if (!assignment) return null;
 
   const [instrument] = await controlDb
-    .select({ questions: instruments.questions })
+    .select({ key: instruments.key, questions: instruments.questions })
     .from(instruments)
     .where(eq(instruments.id, assignment.instrumentId))
     .limit(1);
@@ -302,16 +381,85 @@ export async function assignmentProgress(assignmentId: string): Promise<{
     answered: count?.answered ?? 0,
     total: (instrument?.questions as InstrumentQuestion[] | undefined)?.length ?? 0,
     score: assignment.score,
+    instrumentKey: instrument?.key ?? "",
   };
 }
 
 /**
- * 56.9 — a patient's own history: their answers and their trend.
+ * 56.5 — every assessment on this patient's file, for the clinician.
+ *
+ * Unlike `historyForPerson` this one DOES carry the score and the instrument,
+ * because a clinician reading a chart is the audience the band exists for. It
+ * is still not a band: `bandFor` is called deliberately, on a completed score,
+ * at the point of rendering.
+ */
+export async function assessmentsForPatient(patientId: string) {
+  return db
+    .select({
+      id: assessmentAssignments.id,
+      instrumentId: assessmentAssignments.instrumentId,
+      mode: assessmentAssignments.mode,
+      status: assessmentAssignments.status,
+      score: assessmentAssignments.score,
+      createdAt: assessmentAssignments.createdAt,
+      completedAt: assessmentAssignments.completedAt,
+    })
+    .from(assessmentAssignments)
+    .where(eq(assessmentAssignments.patientId, patientId))
+    .orderBy(desc(assessmentAssignments.createdAt))
+    .limit(50);
+}
+
+/**
+ * 56.7 — the per-answer timings, for one completed assessment.
+ *
+ * 🔴 The reason this sprint exists. Somebody who answers eight questions in
+ * four seconds each and then sits on item 9 for ninety has told the clinician
+ * something no transcript would have carried, and a total that says "19" says
+ * nothing about it.
+ *
+ * A null `answerMs` is shown as unknown rather than as zero or as fast: it
+ * means the client sent something implausible and `recordAnswer` declined to
+ * pretend otherwise.
+ */
+export async function answerTimings(assignmentId: string, patientId: string) {
+  const [owned] = await db
+    .select({ id: assessmentAssignments.id })
+    .from(assessmentAssignments)
+    .where(
+      and(
+        eq(assessmentAssignments.id, assignmentId),
+        eq(assessmentAssignments.patientId, patientId),
+      ),
+    )
+    .limit(1);
+  if (!owned) return [];
+
+  return db
+    .select({
+      questionKey: assessmentResponses.questionKey,
+      value: assessmentResponses.value,
+      answerMs: assessmentResponses.answerMs,
+    })
+    .from(assessmentResponses)
+    .where(eq(assessmentResponses.assignmentId, assignmentId))
+    .orderBy(assessmentResponses.answeredAt);
+}
+
+/**
+ * 56.9 — a person's own history: their answers and their trend.
  *
  * 🔴 No band, no label, no clinical word. A number and a date, over time,
- * which is a true thing about their own answers and is theirs to see.
+ * which is a true thing about their own answers and is theirs to see. The band
+ * is not filtered out of this shape further down; it was never selected, so no
+ * later component can render one by reaching into a field that happened to be
+ * there.
+ *
+ * Person-scoped rather than patient-scoped, and deliberately so: a person
+ * seeing two clinicians has two `patients` rows and one history. Their own
+ * answers do not become somebody else's to partition.
  */
-export async function historyForPatient(patientId: string) {
+export async function historyForPerson(personId: string) {
   const rows = await db
     .select({
       id: assessmentAssignments.id,
@@ -320,16 +468,96 @@ export async function historyForPatient(patientId: string) {
       instrumentId: assessmentAssignments.instrumentId,
     })
     .from(assessmentAssignments)
+    .innerJoin(patients, eq(patients.id, assessmentAssignments.patientId))
     .where(
-      and(
-        eq(assessmentAssignments.patientId, patientId),
-        eq(assessmentAssignments.status, "completed"),
-      ),
+      and(eq(patients.personId, personId), eq(assessmentAssignments.status, "completed")),
     )
     .orderBy(desc(assessmentAssignments.completedAt))
     .limit(50);
 
   return rows;
+}
+
+/**
+ * Names for a set of instruments, in one round trip.
+ *
+ * A separate query rather than a join because `instruments` is control-plane
+ * content and assignments are regional (30.1): the two live on different
+ * connections by design, and a join here would quietly pin one to the other.
+ */
+export async function instrumentNames(ids: string[]): Promise<Map<string, Record<string, string>>> {
+  if (ids.length === 0) return new Map();
+
+  const rows = await controlDb
+    .select({ id: instruments.id, name: instruments.name })
+    .from(instruments)
+    .where(inArray(instruments.id, ids));
+
+  return new Map(rows.map((row) => [row.id, row.name as Record<string, string>]));
+}
+
+/** 56.3 / 56.6 — what is waiting for this person to answer. */
+export async function openAssignmentsForPerson(personId: string) {
+  return db
+    .select({
+      id: assessmentAssignments.id,
+      instrumentId: assessmentAssignments.instrumentId,
+      mode: assessmentAssignments.mode,
+      createdAt: assessmentAssignments.createdAt,
+    })
+    .from(assessmentAssignments)
+    .innerJoin(patients, eq(patients.id, assessmentAssignments.patientId))
+    .where(
+      and(
+        eq(patients.personId, personId),
+        sql`${assessmentAssignments.status} in ('assigned', 'started')`,
+      ),
+    )
+    .orderBy(desc(assessmentAssignments.createdAt))
+    .limit(20);
+}
+
+/**
+ * 56.3 — one assignment, its questions, and the answers so far.
+ *
+ * 🔴 Returns no band and no score. The patient answering a questionnaire has
+ * no business being shown a running total: a visible number changes the next
+ * answer, which is the one thing that would make the instrument stop measuring
+ * what it measures.
+ */
+export async function assignmentForAnswering(assignmentId: string, personId: string) {
+  const owned = await ownedAssignment(assignmentId, personId);
+  if (!owned) return null;
+
+  const [instrument] = await controlDb
+    .select({
+      key: instruments.key,
+      name: instruments.name,
+      attribution: instruments.attribution,
+      questions: instruments.questions,
+    })
+    .from(instruments)
+    .where(eq(instruments.id, owned.instrumentId))
+    .limit(1);
+  if (!instrument) return null;
+
+  const answers = await db
+    .select({
+      questionKey: assessmentResponses.questionKey,
+      value: assessmentResponses.value,
+    })
+    .from(assessmentResponses)
+    .where(eq(assessmentResponses.assignmentId, assignmentId));
+
+  return {
+    id: owned.id,
+    status: owned.status,
+    instrumentKey: instrument.key,
+    name: instrument.name as Record<string, string>,
+    attribution: instrument.attribution,
+    questions: instrument.questions as InstrumentQuestion[],
+    answers: Object.fromEntries(answers.map((a) => [a.questionKey, a.value])),
+  };
 }
 
 /**

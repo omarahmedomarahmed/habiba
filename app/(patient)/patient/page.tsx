@@ -9,6 +9,7 @@ import { PatientAvatar } from "@/components/patient/avatar";
 import { TherapistCard } from "@/components/patient/therapist-card";
 import { categories, topRated } from "@/lib/data/discover";
 import { pendingRequestsFor } from "@/lib/data/grants";
+import { openAssignmentsForPerson } from "@/lib/data/assessments";
 import { nextStepFor } from "@/lib/data/homework";
 import { sessionsForPatient } from "@/lib/data/patient-view";
 import { PatientSessionList } from "@/components/patient/session-list";
@@ -73,12 +74,19 @@ export default async function PatientHomePage({
    */
   const { claimed } = await searchParams;
 
-  const [waiting, next, sessions, cats, best, person, attached, i18n] = await Promise.all([
+  const [waiting, next, openAssessments, sessions, cats, best, person, attached, i18n] =
+    await Promise.all([
     // 7.4 — an unanswered request is the one thing on this page waiting on them.
     pendingRequestsFor(actor.personId),
     // 9.5 — one step, and `nextStepFor` cannot return a rate, a streak or a
     // history, which is how the rule is enforced rather than remembered.
     nextStepFor(actor.personId),
+    /*
+     * 56.6 — what is waiting to be answered. Ids and modes; no score, no band
+     * and no history, for the same reason `nextStepFor` cannot return a
+     * streak: the shape of the query is the rule.
+     */
+    openAssignmentsForPerson(actor.personId),
     // 15.3 — their own sessions, in four groups, through the one query whose
     // select list is the 15.8 enforcement.
     sessionsForPatient(actor.personId),
@@ -207,6 +215,35 @@ export default async function PatientHomePage({
                   count: `${next.othersWaiting}${next.othersWaiting === 9 ? "+" : ""}`,
                 })
               : t("home.openIt")}
+          </Link>
+        </Card>
+      ) : null}
+
+      {/*
+        🔴 56.6 — an assessment lands where homework lands.
+
+        Not in a new "assessments" tab somebody has to discover. The thing the
+        therapist asked for between sessions is one idea to a patient, and
+        splitting it across two places is how a set of questions goes
+        unanswered for a fortnight. Same card shape, same position, directly
+        under the step they were already going to see.
+
+        No score and no band here either: this is a door, not a result.
+      */}
+      {openAssessments.length > 0 ? (
+        <Card className="border border-brand-200 p-4">
+          <p className="text-xs font-semibold tracking-wide text-brand-600 uppercase">
+            {t("home.beforeNext")}
+          </p>
+          <p className="mt-1.5 text-base leading-relaxed font-medium text-slate-900">
+            {t("passess.title")}
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("passess.body")}</p>
+          <Link
+            href="/patient/assessments"
+            className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
+          >
+            {t("passess.start")}
           </Link>
         </Card>
       ) : null}

@@ -1,6 +1,7 @@
 {
   "comment": "The region-pin high-water mark. PLAN.md 30.1, C157. A pin is debt: verify:sprint30 FAILS when this number goes up, so adding one is a deliberate edit to a checked-in figure rather than a drift. Routing a module lowers it. Measured statically by scripts/_region-pins.ts, never by a runtime registry.",
-  "callSites": 85,
-  "files": 82,
-  "measuredOn": "2026-09-13"
+  "callSites": 87,
+  "files": 83,
+  "measuredOn": "2026-09-12",
+  "raisedInSprint56": "🔴 Two raises recorded here at once, and the first one is an admission. 85 to 86 happened in SPRINT 48, which added a fifth pin to app/join/[token]/actions.ts and never touched this file, so verify:sprint30 has been failing on main ever since and the sprint 48 report did not say so. The ratchet worked; the person running it did not run it. 86 to 87 is sprint 56's own: lib/data/assessments.ts is pinned because assessment surfaces are not region-threaded yet, the same reason the other fifty modules under lib are. Both are debt and both are now legible."
 }

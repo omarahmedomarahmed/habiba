@@ -6,12 +6,18 @@ import { desc, eq, inArray } from "drizzle-orm";
 
 import { AccessBanner } from "@/components/patient/access-banner";
 import { DiagnosisList } from "@/components/documents/diagnosis-list";
+import { ClinicianAssessments } from "@/components/assessments/clinician-assessments";
 import { ClinicianHomework } from "@/components/homework/clinician-homework";
 import { StandingProfile } from "@/components/memory/standing-profile";
 import { DocumentPanel } from "@/components/documents/document-panel";
 import { Card } from "@/components/ui";
 import { explain } from "@/lib/access/state";
 import { requireUser } from "@/lib/auth/guard";
+import {
+  assessmentsForPatient,
+  instrumentNames,
+  publishedInstruments,
+} from "@/lib/data/assessments";
 import { listDiagnoses } from "@/lib/data/diagnoses";
 import { listDocuments } from "@/lib/data/documents";
 import { journalsForClinician } from "@/lib/data/journals";
@@ -19,6 +25,7 @@ import { draftedStepsFor, homeworkTrend, listHomework } from "@/lib/data/homewor
 import { isStale, profileFor, timelineFor } from "@/lib/data/memory";
 import { accessFor } from "@/lib/data/grants";
 import { getPatient } from "@/lib/data/patients";
+import { liveSessionForPatient } from "@/lib/data/sessions";
 import { personIdForPatient } from "@/lib/data/people";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -104,6 +111,25 @@ export default async function PatientDocumentsPage({
     .orderBy(desc(sessions.createdAt))
     .limit(1);
   const drafted = lastSession ? await draftedStepsFor(lastSession.id) : [];
+
+  /*
+   * 56.4 / 56.5 — the instruments that may be sent, this patient's assessments
+   * so far, and whether there is a live room to share one into.
+   *
+   * `publishedInstruments` is the only list this page offers, and it is
+   * published-only by its own WHERE: a licensed instrument waiting for
+   * paperwork exists in the table and cannot be picked here, because the
+   * constraint in 0070 refuses to publish it in the first place.
+   */
+  const [available, assessments, live] = await Promise.all([
+    publishedInstruments(),
+    assessmentsForPatient(id),
+    liveSessionForPatient(actor, id),
+  ]);
+
+  const assessmentNames = await instrumentNames([
+    ...new Set(assessments.map((row) => row.instrumentId)),
+  ]);
 
   /*
    * The filter that makes the degraded state real on this page. Not a
@@ -254,6 +280,37 @@ export default async function PatientDocumentsPage({
           trend={trend}
           drafted={drafted}
           canAssign={access.state !== "revoked"}
+        />
+
+        {/*
+          56.5 — the clinician's assessments, beside their homework.
+
+          Same page, same position, because to a clinician "what I asked this
+          person to do between sessions" is one thought. 56.6 puts the two in
+          the same place on the patient's side for the same reason.
+        */}
+        <ClinicianAssessments
+          patientId={id}
+          instruments={available.map((instrument) => ({
+            key: instrument.key,
+            name:
+              (instrument.name as Record<string, string>)[locale] ??
+              (instrument.name as Record<string, string>).en ??
+              instrument.key,
+          }))}
+          assignments={assessments.map((assignment) => ({
+            id: assignment.id,
+            instrumentName:
+              assessmentNames.get(assignment.instrumentId)?.[locale] ??
+              assessmentNames.get(assignment.instrumentId)?.en ??
+              "",
+            mode: assignment.mode,
+            status: assignment.status,
+            score: assignment.score,
+            createdAt: assignment.createdAt.toISOString(),
+          }))}
+          liveSessionId={live?.id ?? null}
+          canSend={access.state !== "revoked"}
         />
 
         <DiagnosisList

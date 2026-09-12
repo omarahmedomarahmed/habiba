@@ -183,11 +183,22 @@ async function main() {
      * And the shape itself, so a future widening fails here rather than
      * shipping. Same technique as 10.2's roster key set.
      */
+    /*
+     * 🔴 `provenance` was added by SPRINT 47 and this frozen set was not
+     * updated, so this check has been failing on main ever since and the
+     * sprint 47 report did not say so. The pin did its job; the person running
+     * it did not run it. Recorded here deliberately rather than quietly
+     * widened: `NOTE_PROVENANCES` is the three-value enum "transcript",
+     * "partial", "clinician", so it cannot hold a sentence of any kind, let
+     * alone a clinical one. That is why it is admitted, and the sentinel
+     * CONTROL above is what proves this assertion can still catch one that
+     * could.
+     */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
       keys ===
-        "at,brief,briefPending,group,id,modality,paymentStatus,priceCents,therapistName",
+        "at,brief,briefPending,group,id,modality,paymentStatus,priceCents,provenance,therapistName",
       keys,
     );
 

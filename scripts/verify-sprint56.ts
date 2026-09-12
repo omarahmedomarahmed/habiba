@@ -25,6 +25,8 @@
  * against a database where somebody had dropped the constraint by hand, and
  * reading the service would pass against a second write path that skips it.
  */
+import { randomUUID } from "node:crypto";
+
 import { and, eq, sql } from "drizzle-orm";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
@@ -232,10 +234,17 @@ async function main() {
       await db
         .select({ id: patients.id, organizationId: patients.organizationId, personId: patients.personId })
         .from(patients)
+        // 🔴 A patient row with a PERSON on it. `patients.person_id` is
+        // nullable, and every patient-facing call in this sprint scopes
+        // through it, so a fixture without one would make the ownership
+        // checks below pass by matching nothing.
+        .where(sql`${patients.personId} is not null`)
         .limit(1)
     )[0],
-    "patient to assign an assessment to",
+    "patient with a person to assign an assessment to",
   );
+
+  const personId = required(patient.personId, "person id on the fixture patient");
 
   const instrument = required(
     (
@@ -261,13 +270,13 @@ async function main() {
   const assignmentId = required(assignment, "assignment").id;
 
   try {
-    await recordAnswer({ assignmentId, questionKey: "interest", value: 2, answerMs: 4_000 });
-    await recordAnswer({ assignmentId, questionKey: "down", value: 3, answerMs: 3_500 });
+    await recordAnswer({ assignmentId, personId, questionKey: "interest", value: 2, answerMs: 4_000 });
+    await recordAnswer({ assignmentId, personId, questionKey: "down", value: 3, answerMs: 3_500 });
     /*
      * 🔴 The hesitation this whole table exists for: ninety seconds on item 9.
      * No transcript would have carried it.
      */
-    await recordAnswer({ assignmentId, questionKey: "selfHarm", value: 1, answerMs: 90_000 });
+    await recordAnswer({ assignmentId, personId, questionKey: "selfHarm", value: 1, answerMs: 90_000 });
 
     const answers = await db
       .select({ questionKey: assessmentResponses.questionKey, answerMs: assessmentResponses.answerMs })
@@ -287,7 +296,7 @@ async function main() {
      * person thinking. Recorded as null, because an honest absence beats a
      * number that will be read as meaning.
      */
-    await recordAnswer({ assignmentId, questionKey: "sleep", value: 1, answerMs: 45 * 60 * 1000 });
+    await recordAnswer({ assignmentId, personId, questionKey: "sleep", value: 1, answerMs: 45 * 60 * 1000 });
 
     const [implausible] = await db
       .select({ answerMs: assessmentResponses.answerMs })
@@ -309,9 +318,94 @@ async function main() {
      * Changing an answer updates it. Two rows for one question double-count in
      * the score, and the score reaches a chart.
      */
-    await recordAnswer({ assignmentId, questionKey: "interest", value: 0, answerMs: 2_000 });
+    await recordAnswer({ assignmentId, personId, questionKey: "interest", value: 0, answerMs: 2_000 });
 
-    const score = await completeAssignment(assignmentId);
+    /* ------------------------------------- ownership, and the shape of an answer -- */
+
+    /*
+     * 🔴 A borrowed assignment id answers nothing.
+     *
+     * An assignment hangs off a `patients` row, and the patient surface has a
+     * PERSON. Without scoping through `patients.person_id` the id is a bearer
+     * token: anybody holding one could answer a stranger's PHQ-9, and item 9
+     * of a stranger's PHQ-9 is not a row to tidy up later.
+     */
+    const strangerAnswer = await recordAnswer({
+      assignmentId,
+      personId: randomUUID(),
+      questionKey: "down",
+      value: 0,
+      answerMs: 1_000,
+    });
+
+    check(
+      "🔴 somebody else's assignment id answers nothing",
+      strangerAnswer.error !== undefined,
+      strangerAnswer.error ?? "RECORDED",
+    );
+
+    /*
+     * A value outside the option set does not fail loudly. It lands in a SUM
+     * and comes out as a score somebody reads as meaning.
+     */
+    const offScale = await recordAnswer({
+      assignmentId,
+      personId,
+      questionKey: "down",
+      value: 99,
+      answerMs: 1_000,
+    });
+
+    check(
+      "an answer outside the instrument's own option set is refused",
+      offScale.error !== undefined,
+      offScale.error ?? "RECORDED 99",
+    );
+
+    const bogusQuestion = await recordAnswer({
+      assignmentId,
+      personId,
+      questionKey: "not-a-phq9-question",
+      value: 1,
+      answerMs: 1_000,
+    });
+
+    check(
+      "an answer to a question the instrument does not contain is refused",
+      bogusQuestion.error !== undefined,
+      bogusQuestion.error ?? "RECORDED",
+    );
+
+    /*
+     * 🔴 CONTROL — and the owner's own valid answer still records.
+     *
+     * Three refusals above would all pass against a `recordAnswer` that had
+     * simply stopped writing, which is the §6 family exactly. This is the
+     * bracket that says the guards refuse the right things and nothing else.
+     */
+    const ownAnswer = await recordAnswer({
+      assignmentId,
+      personId,
+      questionKey: "down",
+      value: 3,
+      answerMs: 3_500,
+    });
+
+    check(
+      "🔴 CONTROL the person's own valid answer still records, so the guards refuse only what they should",
+      ownAnswer.ok === true,
+      ownAnswer.error ?? "one stranger, one off-scale value and one unknown question refused; the real answer kept",
+    );
+
+    const strangerComplete = await completeAssignment(assignmentId, randomUUID());
+
+    check(
+      "🔴 somebody else's assignment id cannot be scored either",
+      strangerComplete === null,
+      strangerComplete === null ? "refused" : `SCORED ${strangerComplete}`,
+    );
+
+    const score = await completeAssignment(assignmentId, personId);
 
     check(
       "56.1 a changed answer updates rather than duplicating, so the score is the answers kept",
