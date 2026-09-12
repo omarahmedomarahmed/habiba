@@ -21,6 +21,8 @@
 
 export const en = {
   /* ------------------------------------------------------------ generic -- */
+  /* 51.3 — the divider between two ways of doing the same thing. */
+  "common.or": "or",
   "common.continue": "Continue",
   "common.cancel": "Cancel",
   "common.back": "Back",
@@ -2304,6 +2306,7 @@ export type MessageKey = keyof typeof en;
  * rather than as unfinished.
  */
 export const ar: Record<MessageKey, string> = {
+  "common.or": "أو",
   "common.continue": "متابعة",
   "common.cancel": "إلغاء",
   "common.back": "رجوع",

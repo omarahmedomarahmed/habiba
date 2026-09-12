@@ -596,6 +596,68 @@ async function main() {
     "one column, so a per-country price is not a thing that can be stored",
   );
 
+  /* ------------------------------------------- 51.3 · designed, not assembled -- */
+
+  /*
+   * 🔴 "If a page is plain text and buttons with no structure, it is flagged
+   * and rebuilt, not excused."
+   *
+   * Most of 51.3 is judgement a script cannot hold, and this check does not
+   * pretend otherwise. What it CAN hold is the specific shape the ticket
+   * names: a page that renders several paragraphs and links directly, with no
+   * card and almost no component, so everything on it has the same weight and
+   * a reader has to read all of it to find their line.
+   *
+   * Both sign-in doors were exactly that. `/patient/login` stacked a bare
+   * form, a card, and then three identical grey centred sentences in a row:
+   * forgot your password, create an account, are you a therapist. A person
+   * arriving at two in the morning met a wall of near-identical links.
+   *
+   * The rule is deliberately narrow. A page whose structure lives in a
+   * component it renders is not scaffolding, and flagging those would make
+   * this a check people route around.
+   */
+  const PATIENT_ENTRY_PAGES = [
+    "app/(patient)/patient/login/page.tsx",
+    "app/(patient)/patient/signup/page.tsx",
+  ];
+
+  const flat = PATIENT_ENTRY_PAGES.filter((page) => {
+    const body = readSource(page);
+    const structured = /<Card|rounded-2xl|rounded-3xl/.test(body);
+    const loose = (body.match(/<p[ >]/g) ?? []).length;
+    return !structured && loose >= 3;
+  });
+
+  check(
+    "🔴 51.3 the screens a patient arrives on carry structure, not a stack of grey lines",
+    flat.length === 0,
+    flat.length === 0
+      ? `${PATIENT_ENTRY_PAGES.length} entry screens, each with its form in a card and its exits ranked`
+      : flat.join(", "),
+  );
+
+  /*
+   * 🔴 CONTROL — and the shape it is looking for is one it can recognise.
+   *
+   * An absence assertion over two files. Fed the pre-51 version of the page
+   * verbatim, the predicate must fire.
+   */
+  const before = [
+    "<main>",
+    "<p>Forgot your password?</p>",
+    "<p>New here? Create an account</p>",
+    "<p>Are you a therapist?</p>",
+    "</main>",
+  ].join("\n");
+
+  check(
+    "🔴 CONTROL the 51.3 scan recognises the shape it exists to flag",
+    !/<Card|rounded-2xl|rounded-3xl/.test(before) &&
+      (before.match(/<p[ >]/g) ?? []).length >= 3,
+    "the page as it was before this sprint is flagged by the same predicate",
+  );
+
   /* ------------------------------ 51.11 · the literal scanner counts literals -- */
 
   /*

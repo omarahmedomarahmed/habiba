@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getI18n } from "@/lib/i18n/server";
+import { Card } from "@/components/ui";
 import { PatientAuthForm } from "@/components/patient/auth-form";
 import { resolveInvite } from "@/lib/data/claims";
 
@@ -36,29 +37,51 @@ export default async function PatientSignupPage({
             : t("pauth.signUpBody")}
         </p>
       </div>
-      <PatientAuthForm
-        mode="signup"
-        inviteToken={invited ? invite! : null}
-        lockedPhone={invited?.phone ?? null}
-      />
-      <p className="text-center text-sm text-slate-500">
-        {t("pauth.alreadyHaveOne")}{" "}
-        <Link href="/patient/login" className="font-semibold text-brand-600 hover:underline">
-          {t("pauth.signIn")}
-        </Link>{" "}
-        ·{" "}
-        <Link href="/patient/forgot-password" className="hover:text-slate-800">
-          {t("pauth.forgot")}
-        </Link>
-      </p>
+      {/*
+        🔴 51.3 — the same structure as the sign-in page, deliberately.
 
-      {/* 21R.2 — three audiences, three doors, each pointing at the others. */}
-      <p className="text-center text-sm text-slate-500">
-        {t("pauth.areYouTherapist")}{" "}
-        <Link href="/signup" className="font-semibold text-brand-600 hover:underline">
-          {t("pauth.practiceSignUp")}
-        </Link>
-      </p>
+        These two screens are one step apart and a person often sees both in
+        the same minute. When they are laid out differently the second one
+        reads as a different product, and the form they are looking for has
+        moved. A card, then the ways out, in the same order, at the same
+        weight.
+      */}
+      <Card className="p-5">
+        <PatientAuthForm
+          mode="signup"
+          inviteToken={invited ? invite! : null}
+          lockedPhone={invited?.phone ?? null}
+        />
+      </Card>
+
+      <div className="space-y-3 pt-2">
+        {/*
+          Two links that were separated by a middot, which reads as one
+          sentence and is a menu. Signing in is what somebody on the wrong page
+          needs; recovering a password is what somebody who tried needs. They
+          are different situations, so they are different lines.
+        */}
+        <p className="text-center text-sm text-slate-600">
+          {t("pauth.alreadyHaveOne")}{" "}
+          <Link href="/patient/login" className="font-semibold text-brand-600 hover:underline">
+            {t("pauth.signIn")}
+          </Link>
+        </p>
+
+        <p className="text-center text-sm text-slate-500">
+          <Link href="/patient/forgot-password" className="hover:text-slate-800">
+            {t("pauth.forgot")}
+          </Link>
+        </p>
+
+        {/* 21R.2 — three audiences, three doors, each pointing at the others. */}
+        <p className="border-t border-slate-100 pt-3 text-center text-xs text-slate-400">
+          {t("pauth.areYouTherapist")}{" "}
+          <Link href="/signup" className="font-medium text-slate-500 hover:text-slate-700">
+            {t("pauth.practiceSignUp")}
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }
