@@ -177,6 +177,24 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C206 | 37L.2 | **Two components carried `locale?: string = "en-US"`, and the default was the whole defect.** `PatientSessionList` ("because the public demo renders this with invented rows and no reader") and `NoShowRecovery` — the screen a patient sees when their therapist has not turned up and money is being quoted at them. Both are inside the locale provider like everything else, so the default bought nothing and cost the usual thing. **Ruling: a component asks for its own language rather than being handed one.** There is then no call site to forget. `verify:sprint19`'s money check knew two correct shapes — a `locale` prop and an explicit tag — and failed on the third; the rule it enforces is *never let the runtime answer*, and asking satisfies it more completely than passing does, so the check learned the shape rather than the code reverting. **What it costs:** a component that asks cannot be rendered outside a provider, which is a real constraint on the marketing demo and the right one. 2026-09-11. | minor | 37L.2 | **ruled and fixed — 37L.2** |
 | C207 | 37L.2 | ⚠️ **Three bodies of clinician-facing copy are still English, named rather than absorbed.** (1) The verification form's document slots — their labels and hints — come from `lib/regulators.ts` and from per-country admin configuration, so translating them means the dictionary reaching into a lib module and into editable config. (2) The copilot's six prompt templates live in `lib/ai/case-copilot.ts` because the same strings are the prompts sent to the model; translating the label without the prompt splits one constant into two. (3) About two hundred country names in `lib/geo.ts`, which a patient reads on the public radar and a clinician reads on the verification form. The IANA time-zone identifiers in the settings picker are deliberately *not* on this list: they are technical strings and should stay as they are. **This row exists so the number 79 on the shared surface is not read as "nearly nothing left".** 2026-09-11. | minor | 37L.2 | **⚠️ open — named, not fixed** || C208 | 37L.2 | ⚠️ **`verify:sprint7` cannot be run twice.** Found while running every verifier in the repository to prove C205's sweep broke nothing: it crashes on `patient_accounts_phone_unique` for `+201300070001`, a fixture it inserts and never removes, and the run before the crash reported a 24-hour grant window as `0h` from state a previous run left behind. It is **not** caused by this sprint — `scripts/verify-sprint7.ts` has not been touched since sprint 24 — and it is named here rather than fixed because cleaning fixtures out of the shared verification database at the end of an unrelated sprint is the wrong moment to be guessing which rows are somebody's. **What it costs:** one of forty gates is unrunnable, and the person who next needs it will find out the hard way unless they read this row. 2026-09-11. | minor | 37L.2 | **⚠️ open — named, not fixed, and not caused by this sprint** |
 
+| C209 | 46 | 🔴 **`chargeForSession` bills the same amount whether or not any AI ran.** Verified at `lib/billing/service.ts:62`: no consent check, no transcript check, one line item, called once from `lib/session-finish.ts`. Two things follow that are both bad. A therapist who wants the fee to go away has a reason to lean on a patient about consent, which is a coercion channel pointed at the most vulnerable person in the room. And a therapist who never seeks consent gets unlimited hosted HIPAA-grade video for nothing. **Ruling: split the fee.** A **platform fee of $1** on every session, always, including free ones, in person ones and declined ones; and an **AI fee of $1 to $3** charged only when the patient consented. Two line items on one invoice, both visible. The platform fee buys the record, the booking, the reminders, the radar placement, the note storage and the in-room copilot, which is why it survives a session with no video at all. **What it costs:** the pricing page stops being one number, and every screen quoting a session cost has to quote two. 2026-09-12. | blocker | founder | **ruled — sprint 46** |
+| C210 | 48 | 🔴 **Ticket 23.3 says the in-room copilot is "spent by the same counter as `/copilot`. One allowance, two doors." The founder has overturned it.** The reason is the declined session. If in-room questions came out of the AI allowance, a therapist whose patient declined recording would be locked out of the one thing that still helps them, on the session where they need it most, having already paid the platform fee. **Ruling: the in-room copilot and the Prepare me button are free and uncounted, carried by the $1 platform fee, never by the AI fee.** They are the only AI in the product a patient's refusal does not switch off, because they read the record that already existed rather than the session happening now. 23.3 is struck and replaced. **What it costs:** real model spend on a session that earns $1, and no meter on it. C224 draws the boundary that keeps that bounded. 2026-09-12. | major | founder | **ruled — sprint 48, strikes 23.3** |
+| C211 | 48 | 🔴 **"It has no transcript to read" is not the same rule as "it must not read this session".** A session where consent was granted and the clinician then went off record halfway has partial segments, so a copilot with no explicit time bound would answer from half a session and give no sign it was half. **Ruling: inside the room, the copilot reads the record as of the session's `startedAt` and nothing after it.** One bound, one test, and it holds identically whether consent was granted, declined or withdrawn mid-session, which is what makes it a rule rather than a branch. The panel says so in words: "This session is not being recorded. I only know what came before it." A therapist who asks what the patient just said must get that sentence, not an answer about last month. **What it costs:** a therapist cannot use the copilot to catch up on the last ten minutes, which is a feature somebody will ask for and which we are declining on purpose. 2026-09-12. | major | review | **ruled — sprint 48** |
+| C212 | 47 | 🔴 **Nothing records whether a note was drafted from a transcript or written from memory, so the record cannot be read honestly.** `sessions.recording_consent` knows the answer; `session_notes` has no column for it and no screen shows it. A future therapist reading a patient's history sees eight notes and has no way to tell that three of them rest on a colleague's recollection of a session nobody recorded. That is the difference between evidence and hearsay, presented identically. **Ruling: a note carries its own provenance, stamped at save from the session's consent state, and it is shown everywhere a note is shown** including the clinician's view, the next clinician's view, the patient's own record, the export and the evidence screen. Three states: drafted from a full transcript, drafted from a partial one, written by the clinician with no recording. **What it costs:** an additive migration and four display surfaces, and some clinicians will not enjoy the third badge. It is still the truth. 2026-09-12. | major | founder | **ruled — sprint 47** |
+| C213 | 47 | **The part-recorded session has no name.** Consent granted, clinician presses off record for ten minutes, note drafted from what was captured. `offRecordGaps()` in `lib/data/feedback.ts:474` already computes exactly this and is read only by the radar investigation screen. **Ruling: the same function feeds the note's stamp.** A note from a session with gaps says so and says how long, because "partially recorded" without a duration is a badge nobody can act on. **What it costs:** one more read on the note save path. 2026-09-12. | minor | review | **ruled — sprint 47** |
+| C214 | 47 | 🔴 **A patient with no therapist journals, and the copilot would happily draft a diagnosis from it.** Verified today: `lib/data/facts.ts` and `lib/clinical/context.ts` do not reference journals at all, so nothing leaks through the evidence layer yet. But the lone-journaller flow is being built, and the moment journals become an evidence source, the first therapist that patient ever meets is handed a conclusion drawn from a stranger's diary by a machine, and anchoring is the best documented failure mode in clinical judgement. **Ruling: journals may be summarised, quoted and cited. They may never produce a diagnosis, a risk level, or any statement phrased as a conclusion about the person.** The bound belongs in the evidence layer, not in a prompt, so that a future prompt change cannot lift it. **What it costs:** the copilot is deliberately less useful on an unclaimed journalling patient than the model is capable of being. 2026-09-12. | major | founder | **ruled — sprint 47** |
+| C215 | 41 | 🔴 **Whoever creates the meeting holds the link, and a therapist holding it will eventually send it straight to the patient.** Not maliciously. Because it is one fewer step on a busy afternoon, and the consent screen then never happens. This is why sprint 36 built `session_sources` with no column that can hold a pasted link and why an external source requires `provisioned_at` and `provisioned_by_user_id`: a therapist pasting their own Zoom link is structurally excluded, and that was a decision rather than an omission. **Ruling: 24Therapy creates the meeting inside the therapist's connected account, or there is no external meeting.** A therapist who cannot connect Zoom uses the 24Therapy room, which already works. The therapist sees their own join link for their calendar and a line saying the patient gets a different one. **What it costs:** every external session needs an OAuth connection first, and clinics that block third-party Zoom apps cannot use this at all, which the Integrations page must say before they try rather than after. 2026-09-12. | major | founder | **ruled — sprint 41** |
+| C216 | 41 | 🔴 **There is no bot button, and that is the design.** A button a therapist can forget is a session that silently went untranscribed; a button they can press is a bot that can be sent somewhere it should not go. **Ruling: the bot is dispatched by the patient's consent and by nothing else.** It joins at the moment consent is given, which is before the patient reaches the meeting, so the bot is already in the room when they arrive and nobody watches it appear mid-conversation. A decline dispatches no bot at all, not a bot that joins and stays quiet. This also settles the cost question the "knock like Google Meet" design loses on: Recall.ai bills per bot-hour, so joining at meeting creation means paying for bots on sessions that were declined. **The order for a paid session is: pay, then the AI question, then in, and declining still admits them.** Consent first would let them consent and then not pay; a consent wall after payment would be pressure applied to somebody who has already spent money. **What it costs:** the therapist has no manual override, so a session where consent arrives verbally and never through our page is a session with no transcript. 2026-09-12. | major | founder | **ruled — sprint 41** |
+| C217 | 45 | 🔴 **Admin cannot edit one word of the patient app or the therapist portal, and the strings editor implies otherwise.** Measured: `app/(admin)/admin/strings` writes `ui_strings`, which is imported by exactly four files, all of them public marketing surfaces. Every other screen reads `lib/i18n/messages.ts`, a code file with 1,116 keys read by 142 components through `DICTIONARIES`. Neither path reads the other. So an admin who changes a button's words in the editor sees the change on the website and nowhere a patient or a therapist will ever look, with no error and no warning. **Ruling: one dictionary with two layers.** `messages.ts` becomes the shipped default in both languages for every key; `ui_strings` becomes an override layer keyed by the same `MessageKey`; the resolver reads the override first and falls back to the default. The admin editor lists every key in the product, grouped, searchable, showing the default beside the override in both languages, and says plainly which keys have been changed. **A key with no Arabic default is a build error, not a blank screen.** **What it costs:** a read on the hot path for every render, so the override layer is cached and invalidated on publish, and a bad override can now break a screen that used to be a constant. 2026-09-12. | blocker | founder | **ruled — sprint 45** |
+| C218 | 50 | 🔴 **`country_settings.enabled` is written by admin and read by nobody.** Verified by grep across `lib/`, `app/` and `components/`: the only readers are the settings editor that renders the checkbox and the audit line that records the change. The founder switched a country off, the audit log recorded it, and the country stayed on the map and stayed clickable, because nothing anywhere asks. **Ruling: a switch that is written and never read is worse than a missing feature**, because a missing feature does not tell an operator they have done something. Either it governs or it goes. It governs. **What it costs:** every country-scoped read gains a filter, and a country switched off while clinicians are standing in it needs a defined answer, which C219 gives. 2026-09-12. | blocker | founder | **ruled — sprint 50** |
+| C219 | 50 | 🔴 **The radar has no country filter at all, and two different switches both claim to be one.** `app/api/radar/route.ts` contains no country condition of any kind. Onboarding reads `activeTaxonomy`, so the taxonomy switch governs the signup form; the radar ignores it; and `country_settings.enabled` governs nothing anywhere. Three surfaces, two switches, zero agreement. **Ruling: one source of truth for whether a country is open, and it is the taxonomy entry**, because that is the one an operator already uses and the one onboarding already honours. `country_settings.enabled` is removed rather than wired up, so there is no second switch to disagree later. A closed country disappears from the globe, from the radar list, from the radar filters and from onboarding, and its dots are not rendered and not clickable. **A clinician already live in a country that closes is taken off the radar and told why; their existing patients and sessions are untouched.** The same rule governs languages: a language an admin hides disappears from the radar, from its filters and from onboarding, and a clinician who had selected it keeps the row but stops being matched on it. **What it costs:** a migration that drops a column an admin screen currently renders, and a closed country is now a real operational act with a message attached rather than a checkbox. 2026-09-12. | blocker | founder | **ruled — sprint 50** |
+| C220 | 49 | 🔴 **`/admin/tv` predates eighteen sprints and answers none of the questions the business actually asks.** It cannot say how many sessions ran today, what share of patients consent to AI, what any of this costs us, or which therapist drives the most revenue. **Ruling: Total View is rebuilt as the operating picture of the company**, live counts, lifetime counts, today and custom ranges, revenue by source, cost by account, consent rate, and every one of them filterable by country and by date. The globe is the frame: clicking a country scopes the entire screen to it, and clearing returns to platform wide. **Every figure is a real query against the ledger and the usage tables, never a number computed in a component.** **What it costs:** several of these figures do not exist to be queried yet. C221 and C222 are the two that need new recording before the screen can be honest. 2026-09-12. | major | founder | **ruled — sprint 49** |
+| C221 | 49 | 🔴 **We cannot say what a session costs us, because token usage is not recorded per model.** Total View is asked for cost by account and to spot a high-usage therapist, and there is nothing to spot it with. **Ruling: every model call records the exact model, input tokens, output tokens, the priced cost at the rate in force, and what it was for**, attributed to an organization, a therapist, a patient and where applicable a session. Prices live in settings so a rate change does not rewrite history, and a historical row keeps the cost it was priced at. **A call that cannot be attributed is still recorded, attributed to the platform, because an unattributable cost that silently disappears is how a margin goes wrong quietly.** **What it costs:** a write on every model call, and the free in-room copilot from C210 becomes a visible cost centre with no revenue line against it, which is the point. 2026-09-12. | major | founder | **ruled — sprint 49** |
+| C222 | 49 | **"Revenue this patient influenced" is a real number and an easy one to state dishonestly.** A patient pays their therapist, not us; we earn the platform fee and, when they consent, the AI fee. So a patient does influence our revenue, and reporting it as *their* revenue would misdescribe who paid whom. **Ruling: three separate figures, never summed into one.** What the patient paid their therapist; what we earned in platform fees on their sessions; what we earned in AI fees they unlocked by consenting. The third is the one that makes the consent rate a commercial number rather than only an ethical one. **What it costs:** three columns where a dashboard would prefer one, and a briefing that has to explain the difference. 2026-09-12. | minor | founder | **ruled — sprint 49** |
+| C223 | 46 | **Tiers are stored as session bundles and the founder is selling rate locks.** `SETTINGS_DEFAULTS.pricing.tiers` holds `{ rateCents, minimumSessions }`, which encodes "ten sessions at $3". The offer is now "$30 buys $30 of credit and unlocks the $2 AI rate". Those are different objects and the second cannot be expressed in the first. **Ruling: a tier is a price threshold and an AI rate, never a session count.** $30 unlocks $2 per AI session; $60 unlocks $1. The money bought is credit, spendable on any line item, platform fee or AI fee alike. The rate is what the money bought and it does not expire with the credit. **What it costs:** a migration on an existing settings blob, and the word "sessions" leaves the pricing page entirely. 2026-09-12. | major | founder | **ruled — sprint 46** |
+| C224 | 48 | **Free means a therapist can open a room and never close it.** The in-room copilot costs real money and now has no meter on it, so the boundary has to be something other than a count. **Ruling: the free window is the session.** It opens when the room opens and closes when the session ends, Prepare me is one click per session, and outside a live session the ordinary earned allowance applies unchanged. A room left open past the session clock closes with it. **What it costs:** a therapist who wants to think about a case at midnight spends a credit, which is the existing behaviour and the correct one. 2026-09-12. | minor | review | **ruled — sprint 48** |
+| C225 | 52 | 🔴 **The promo films are the first artifact of this product that leaves the building, and they are made of screenshots of a clinical system.** A single real name, a real phone number or a real face in one frame of a marketing video is a disclosure that cannot be recalled, and the admin screens sweep is already a standing rule for exactly this reason. **Ruling: synthetic people only, generated by the seed, with names that cannot be mistaken for real ones, and the entire capture runs against a freshly purged database.** Every frame of all four films is reviewed against the same rule that governs the walkthrough screenshots, and the raw captures of admin surfaces are gitignored. **What it costs:** the films cannot be shot against any environment a real patient has ever touched, which means the last walkthrough and the capture run share one seeded database and one run. 2026-09-12. | major | review | **ruled — sprint 52** |
+
 ---
 
 ## §3 · THE MODEL
@@ -451,6 +469,55 @@ blocker, and not as something anybody gets to be surprised by later.
 
 ---
 
+### 🔴 What a session costs, and who a fee belongs to
+
+*C209, C223, ruled by the founder 2026-09-12. Until sprint 46 ships,
+`chargeForSession` bills the same amount whether or not any AI ran.*
+
+**One session raises two line items, and only one of them is conditional.**
+
+| | Charged to | When |
+|---|---|---|
+| **Platform fee, $1** | The therapist | **Every session.** Free ones, in person ones, and ones where the patient refused AI |
+| **AI fee, $1 to $3** | The therapist | **Only when the patient turned AI on** |
+
+The platform fee is not a fee for the video. It buys the record, the booking,
+the reminders, the radar placement, the note storage and the free in-room
+copilot, which is why it survives a session with no video in it at all. Zero
+would mean a therapist who never seeks consent gets unlimited hosted
+HIPAA-grade video for nothing, and a fee that vanishes on refusal would give a
+therapist a reason to lean on the most vulnerable person in the room.
+
+**The patient never pays us.** They pay their therapist. We take the platform
+fee and the tax.
+
+**Plans are rate locks, not session bundles.** The money buys credit; what the
+threshold buys is a cheaper AI rate, and that rate does not expire when the
+credit does.
+
+| | Unlocks | Then a session costs |
+|---|---|---|
+| Pay as you go | | $1 + $3 with AI, $1 without |
+| **$30 of credit** | **$2 per AI session** | $1 + $2 with AI, $1 without |
+| **$60 of credit** | **$1 per AI session** | $1 + $1 with AI, $1 without |
+
+Credit is money and spends against any line item, platform fee or AI fee
+alike. The word "sessions" does not appear in the offer, because $30 does not
+buy ten of anything.
+
+**A bill is settled from one of three places, and the therapist picks the
+order**: their session credit, their held earnings, or a card. Netting from
+held earnings is the mechanic C69 already ruled on and 16.6a already built;
+what is new is that the therapist chooses which balance goes first.
+
+🔴 **The in-room copilot and the Prepare me button are carried by the platform
+fee, never by the AI fee** (C210). They are the only AI in the product a
+patient's refusal does not switch off, because they read the record that
+already existed rather than the session happening now. A therapist whose
+patient declined has still paid $1 and still gets help.
+
+---
+
 ## §3d · THE BACK OFFICE
 
 Three things in this product are deliberately done by a person, not by code,
@@ -543,6 +610,7 @@ in §3b, §3c and THE RESET below.
 | **The storefront** | 17 pricing story · 18 revamp and show the product · 19 both languages | Needs 16 first, so a price can be shown in either currency |
 | **Control** | 20 admin back office · 21 admin content, strings and languages | Last, so it can be verified against everything that exists |
 | **Launch** | 22 purge, rotate, verify | Not code. The gate before a real patient is invited |
+| **🔴 The 2026-09-12 rulings** | **45 every string admin editable · 46 the split fee · 47 the honest record · 48 the copilot in the room · 49 Total View · 50 the switches that do nothing · 51 content and design · 52 the films** | Added after the founder ruled on the flows in §3c. **45 blocks 46 to 52**, because every one of them adds copy and today none of it is editable (C217). **52 runs last, on a purged database, and shares one run with the final walkthrough** (C225) |
 
 **Marked incomplete until their sprint lands:** anything WhatsApp until the
 Meta setup is done · every price in EGP and every therapist paying us in EGP
@@ -1868,8 +1936,12 @@ existing.*
       second screen. The question a therapist wants to ask happens in the room
 - [ ] **23.2** The four access states from §3, unchanged — this is a new
       surface on the existing machinery, never a second set of rules
-- [ ] **23.3** The per-session, per-patient allowance from C14, spent by the
-      same counter as `/copilot`. One allowance, two doors
+- [x] ~~**23.3** The per-session, per-patient allowance from C14, spent by the
+      same counter as `/copilot`. One allowance, two doors~~ 🔴 **STRUCK by
+      C210, 2026-09-12.** The founder has ruled the in-room allowance **free
+      and uncounted**, carried by the platform fee. A shared counter would lock
+      a therapist out of the copilot on exactly the session where the patient
+      refused recording. **Sprint 48 absorbs and replaces this whole sprint.**
 - [ ] **23.4** Citations resolve exactly as they do elsewhere, or the answer is
       dropped (sprint 8's rule)
 - **Accept:** a therapist runs a whole session, asks two questions from inside
@@ -2431,6 +2503,61 @@ uses is English.*
       hard stop** · two simultaneous sessions never cross · recording without
       consent is refused processing · out-of-order transcript reconciled
 
+- [ ] **41.8** 🔴 **There is no bot button, and that is the design** (C216). A
+      button a therapist can forget is a session that silently went
+      untranscribed; a button they can press is a bot that can be sent
+      somewhere it should not go. The bot is dispatched by the patient's
+      consent and by nothing else
+- [ ] **41.9** Every new string via 45.8, both languages, admin editable
+
+**🔴 The sequence, decided 2026-09-12. Nothing here is left to a build choice.**
+
+*Whoever creates the meeting holds the link, and a therapist holding it will
+eventually send it straight to the patient, not maliciously but because it is
+one fewer step on a busy afternoon. The consent screen then never happens.
+This is why sprint 36 built `session_sources` with no column that can hold a
+pasted link and why an external source requires `provisioned_at` and
+`provisioned_by_user_id` (C175, C215): a therapist pasting their own Zoom link
+is structurally excluded, and that was a decision rather than an omission.*
+
+**Once, ever:** `Settings → Integrations → Connect Zoom → approve → back`. A
+therapist who cannot connect uses the 24Therapy room, which already works, and
+the Integrations page says so **before** they try, because many clinics block
+third-party Zoom apps.
+
+**Every session:** `New session → patient → Where: Zoom → [x] Transcribe →
+Create`. We create the meeting **inside their account**. The therapist sees
+their own join link for their calendar and a line saying the patient gets a
+different one.
+
+**At the time:**
+
+| Who | Does |
+|---|---|
+| Therapist | Clicks **Join**. Straight into Zoom |
+| Patient | Opens **our** link. Sees who they are meeting, pays if the session is paid, answers the AI question, is forwarded to Zoom |
+| Bot | Joins **at the moment consent is given**, before the patient arrives |
+
+🔴 **The bot joins on consent, not on invite.** It lands in the right order
+anyway, since the patient consents on our page before reaching the meeting, so
+the bot is already in the room when they arrive and nobody watches it appear
+mid-conversation. It also settles the cost question the "knock like Google
+Meet" design loses on: Recall.ai bills per bot-hour, so joining at meeting
+creation means paying for bots on sessions that were then declined. **A
+decline dispatches no bot at all**, not a bot that joins and stays quiet.
+
+🔴 **The order for a paid session is: pay, then the AI question, then in, and
+declining still admits them.** Consent first would let them consent and then
+not pay. A consent wall after payment would be pressure applied to somebody who
+has already spent money. Payment buys the session; consent turns on the AI; the
+split fee in §3c is what makes those two separate things rather than a slogan.
+
+**The therapist's screen says "the patient chose not to turn the AI on."** In
+those words. Not "consent declined", which reads like a failure.
+
+**Couples, one consents and one does not: any decline means no AI.** Cheaper to
+state than to litigate.
+
 ### Sprint 42 — The partner plane · ~3 weeks
 
 - [ ] **42.1** `partners`, `partner_api_keys` (hashed, scoped, rotatable),
@@ -2466,6 +2593,309 @@ uses is English.*
       window
 - [ ] **44.2** 🔴 **A check-in asks. It never interprets.** A worrying reply
       goes to the crisis path, never to a copilot
+
+### Sprint 45 — Every string, both languages, admin editable · ~2 weeks · 🔴 BLOCKS 46 TO 52
+
+*C217. Everything after this sprint adds copy, and until this is built there is
+no honest way to say a new string is admin editable, because today none of them
+are. Measured before this was written: the strings editor writes `ui_strings`,
+read by four public marketing files; every other screen reads `messages.ts`,
+read by 142 components. An admin changing a button's words sees nothing change
+anywhere a patient or a therapist will ever look.*
+
+- [ ] **45.1** 🔴 `messages.ts` stays the **shipped default** and gains an
+      Arabic entry for every key it does not have. A key with an English
+      default and no Arabic one is a **build error**, not a blank screen
+- [ ] **45.2** `ui_strings` becomes an **override layer** keyed by the same
+      `MessageKey`. Same key space, same type, no parallel vocabulary
+- [ ] **45.3** The resolver in `lib/i18n/client.tsx` and `lib/i18n/server.ts`
+      reads the override first and falls back to the default. Cached, and
+      invalidated on publish, because this is on every render
+- [ ] **45.4** 🔴 The admin editor lists **every key in the product**, grouped
+      by surface, searchable, showing the default beside the override in both
+      languages, and marking which keys have been overridden
+- [ ] **45.5** Draft and published states, as `ui_strings` already has. A
+      broken override can now break a screen that used to be a constant, so
+      publishing is a deliberate act and reverting to default is one click
+- [ ] **45.6** 🔴 **Absorb the three bodies of copy named in C207**: the
+      verification document slots from `lib/regulators.ts`, the copilot's six
+      prompt templates in `lib/ai/case-copilot.ts` (label and prompt split into
+      two constants), and the country names in `lib/geo.ts`
+- [ ] **45.7** The ratchet in `scripts/_i18n-coverage.json` counts **overridable
+      keys reaching a screen**, not imports. C157's defect was counting the
+      wrong thing and it is the defect family in §6
+- [ ] **45.8** 🔴 **Every ticket in sprints 46 to 52 that adds a word to any
+      screen adds it as a `MessageKey` with an English and an Arabic default.**
+      A verifier fails the sprint on a literal string in a rendered component
+- **Accept:** an admin changes the words on the patient app's session button,
+      publishes, and a patient sees the new words in both languages without a
+      deploy.
+
+### Sprint 46 — The split fee, plans and credits · ~2 weeks
+
+*C209, C223. Today `chargeForSession` bills identically whether or not any AI
+ran, which is a coercion channel and a free video giveaway at the same time.*
+
+- [ ] **46.1** 🔴 **Two line items on one invoice.** A **platform fee** on
+      every session, always, including free, in person and declined ones; and
+      an **AI fee** only where `recording_consent = 'granted'`. Additive
+      migration; existing rows become a platform fee plus an AI fee so history
+      does not change value
+- [ ] **46.2** Defaults in settings, not in code: platform fee **$1**; AI fee
+      **$3** pay as you go, **$2** on the $30 plan, **$1** on the $60 plan
+- [ ] **46.3** 🔴 **A tier is a price threshold and an AI rate, never a session
+      count.** `{ key, name, unlockCents, aiRateCents }` replaces
+      `{ rateCents, minimumSessions }`. The word "sessions" leaves the offer
+- [ ] **46.4** **Credit is money, spendable on any line.** $30 buys $30 of
+      credit, usable against platform fees and AI fees alike. The **rate the
+      money unlocked does not expire when the credit does**
+- [ ] **46.5** 🔴 **The therapist chooses which balance settles a bill first**:
+      session credit, or held earnings. A new setting per therapist, honoured
+      by the netting path in `lib/billing/service.ts`, with a default and a
+      plain sentence saying what it means
+- [ ] **46.6** Neither balance covers it, so Stripe in USD or the Egyptian
+      gateway in EGP, unchanged from §3c
+- [ ] **46.7** 🔴 **The plan page inside the portal**: the plan they are on,
+      **their AI rate per session in words**, their credit balance, their held
+      earnings, what they have spent this month split by line item, and the
+      upgrade. Upgrading is a purchase, takes effect immediately, and never
+      touches credit already bought
+- [ ] **46.8** Downgrade holds the credit and drops the rate at the end of the
+      period. 37R.6 already walks upgrade then downgrade holding unused credit
+- [ ] **46.9** 🔴 The public pricing page, rewritten: **"$1 per session. AI
+      from $1 more, only when your patient turns it on."** The two plans as
+      dollar figures with what each unlocks. `lib/content/honesty.ts` gains the
+      new true sentence and keeps rejecting the old false one
+- [ ] **46.10** 🔴 **Never put "the patient pays nothing for AI" and "raise
+      your price because you use AI" on the same page.** Both are true and only
+      the first is ours to say. We never suggest what a therapist should charge
+- [ ] **46.11** Every new string via 45.8, both languages, admin editable
+- **Accept:** a declined session raises **one** line for $1; a consented
+      session on the $60 plan raises **two**, $1 and $1; and a verifier proves
+      the $1 line **is present** on the declined one, because a check that only
+      asserts the absence of the AI fee passes against code that charges
+      nothing at all (§6).
+
+### Sprint 47 — The honest record · ~1.5 weeks
+
+*C212, C213, C214. A future therapist reads eight notes and cannot tell that
+three of them rest on a colleague's recollection of a session nobody recorded.*
+
+- [ ] **47.1** 🔴 `session_notes` gains **provenance**, stamped at save from
+      the session's consent state. Three values: `transcript`, `partial`,
+      `clinician`. Additive; existing rows are backfilled from
+      `sessions.recording_consent` and rows with no answer become `clinician`,
+      which is the honest default rather than the flattering one
+- [ ] **47.2** `partial` carries the **minutes off record**, from
+      `offRecordGaps()` in `lib/data/feedback.ts`, which computes this already
+      and is read only by the radar investigation screen
+- [ ] **47.3** 🔴 Shown on **every surface a note appears on**: the clinician's
+      own view, the next clinician's view, the patient's record, the export,
+      and the evidence screen. Five places, one component
+- [ ] **47.4** The patient sees which of their own sessions were transcribed.
+      It is their record and their choice that produced it
+- [ ] **47.5** The evidence screen keeps `clinician` as source priority 1. A
+      hand-written note is not weaker evidence, it is **differently sourced**,
+      and the screen says which rather than demoting it
+- [ ] **47.6** 🔴 **Journals may be summarised, quoted and cited. They may
+      never produce a diagnosis, a risk level, or any statement phrased as a
+      conclusion about the person.** The bound lives in the evidence layer, not
+      in a prompt, so a future prompt change cannot lift it. Proved against a
+      planted journal that invites exactly that conclusion
+- [ ] **47.7** The lone journaller: a patient on no therapist's list writes
+      journals. They are scanned as today, **the crisis line is always on
+      screen rather than triggered**, and no page says or implies anybody is
+      reading. Promising a watch we do not staff is the most dangerous thing
+      this product could do
+- [ ] **47.8** Every new string via 45.8, both languages, admin editable
+- **Accept:** a session where the patient declined produces a note badged as
+      clinician-written, visible to the patient and to the next therapist, and
+      the copilot can cite it while being unable to draw a diagnosis from any
+      journal.
+
+### Sprint 48 — The copilot in the room, free · ~1.5 weeks
+
+*Absorbs and replaces sprint 23. C210 strikes 23.3 outright: the founder has
+ruled the in-room allowance free rather than shared. C211, C224.*
+
+- [ ] **48.1** 🔴 An ask-anything panel **inside** the session room, on the
+      therapist's side. Minimised it shows live suggestions; expanded it is the
+      full chat. The question a therapist wants to ask happens in the room
+- [ ] **48.2** 🔴 **Free and uncounted, carried by the platform fee.**
+      `checkQuota` in `lib/data/copilot.ts` stops counting in-room messages.
+      This replaces 23.3, which said the opposite
+- [ ] **48.3** 🔴 **Prepare me**, one click, free, one per session. Absorbs
+      39.1, which was scheduled eighteen months out as a separate screen
+- [ ] **48.4** 🔴 **The copilot reads the record as of `startedAt` and nothing
+      after it**, identically whether consent was granted, declined or
+      withdrawn. One bound, one test, no branch
+- [ ] **48.5** 🔴 The panel says so: **"This session is not being recorded. I
+      only know what came before it."** A therapist asking what the patient
+      just said gets that sentence, not an answer about last month
+- [ ] **48.6** The free window **is the session**. It opens with the room and
+      closes when the session ends. Outside a live session the earned allowance
+      applies unchanged
+- [ ] **48.7** The four access states from §3 unchanged. This is a new surface
+      on existing machinery, never a second set of rules
+- [ ] **48.8** Citations resolve exactly as they do elsewhere, or the answer is
+      dropped (sprint 8's rule)
+- [ ] **48.9** The live-session indicator appears on `/copilot` the moment the
+      patient joins. **Polling, not websockets** (founder's ruling)
+- [ ] **48.10** 🔴 **The patient's own off-record button**, in the patient
+      room. `offRecord` exists at `components/session/session-room.tsx:78` and
+      is a clinician control. Audio stops; what was already captured stays,
+      because a chart that rewrites itself is worse than one with a gap
+- [ ] **48.11** Every new string via 45.8, both languages, admin editable
+- **Accept:** a patient declines, the therapist opens the panel in the room,
+      asks two questions, gets cited answers about the past and the refusal
+      sentence about the present, spends **zero** credits, writes the note by
+      hand, and the invoice shows one $1 line.
+
+### Sprint 49 — Total View · ~3 weeks
+
+*C220, C221, C222. `/admin/tv` predates eighteen sprints and cannot answer a
+single question the business asks.*
+
+- [ ] **49.1** 🔴 **The globe is the frame.** Clicking a country scopes the
+      **entire screen** to it; clearing returns to platform wide. Closed
+      countries are not rendered and not clickable (sprint 50)
+- [ ] **49.2** **Live now**: therapists online, sessions in progress
+- [ ] **49.3** **Sessions**: today, lifetime, custom range. AI-assisted
+      sessions on the same three
+- [ ] **49.4** 🔴 **Consent rate**: what share of sessions patients turned AI
+      on for and what share they did not, by range and by country. This is the
+      single number that says whether the split fee works
+- [ ] **49.5** **Revenue**: to date, today, custom range, **split by source**:
+      plan purchases versus pay-as-you-go session billing, and platform fee
+      versus AI fee
+- [ ] **49.6** **By therapist**: sessions, AI usage, total and breakdown, what
+      they have paid us, and what we spent serving them
+- [ ] **49.7** 🔴 **Cost, metered honestly.** Every model call records the
+      exact model, input and output tokens, the cost at the rate in force, and
+      what it was for, attributed to an organization, a therapist, a patient
+      and where applicable a session. Rates live in settings; a historical row
+      keeps the cost it was priced at. **An unattributable call is recorded
+      against the platform, never dropped**
+- [ ] **49.8** **By patient**: claimed or not, facts, context, past sessions,
+      transcriptions held, and 🔴 **three separate revenue figures, never
+      summed**: what they paid their therapist, what we earned in platform fees
+      on their sessions, and what we earned in AI fees they unlocked by
+      consenting (C222)
+- [ ] **49.9** 🔴 **Two charts, always on screen.** Where platform revenue
+      comes from, and where usage and cost come from by account. Either can be
+      switched to a **list sorted highest first**, or to **horizontal bars**,
+      by the admin, and the choice persists
+- [ ] **49.10** Everything on this screen filters by country and by date range
+      and sorts, including both charts and both lists
+- [ ] **49.11** 🔴 **Every figure is a query against the ledger and the usage
+      tables.** No number computed in a component, no number derived from
+      another number on screen
+- [ ] **49.12** Every new string via 45.8, both languages, admin editable
+- **Accept:** an operator answers, without leaving the screen and without
+      asking anybody, what share of Egyptian patients consented to AI last
+      month, which five therapists cost us the most, and what we earned from
+      each of them.
+
+### Sprint 50 — The switches that do nothing · ~1 week · 🔴 LIVE DEFECT
+
+*C218, C219. The founder switched a country off, the audit log recorded it, and
+the country stayed on the map and stayed clickable.*
+
+- [ ] **50.1** 🔴 **One source of truth for whether a country is open, and it
+      is the taxonomy entry**, because onboarding already honours it.
+      `country_settings.enabled` is **removed**, not wired up, so there is no
+      second switch to disagree later
+- [ ] **50.2** 🔴 A closed country disappears from **the globe, the radar list,
+      the radar filters and onboarding**. Its dots are not rendered and not
+      clickable. `app/api/radar/route.ts` has **no country condition of any
+      kind** today, which is where this starts
+- [ ] **50.3** 🔴 A clinician already live in a country that closes is **taken
+      off the radar and told why**. Their existing patients, sessions, notes
+      and money are untouched
+- [ ] **50.4** 🔴 The same rule for languages: a hidden language disappears
+      from the radar, its filters and onboarding, and a clinician who had
+      selected it **keeps the row and stops being matched on it**
+- [ ] **50.5** A verifier that switches a country off, queries the radar API,
+      and asserts zero rows. Then switches it back on and asserts the rows
+      return, because a check that only proves absence passes against a radar
+      that returns nothing at all (§6)
+- [ ] **50.6** Every new string via 45.8, both languages, admin editable
+- **Accept:** the founder closes a country in admin, reloads the public radar,
+      and it is gone from the map, from the filters and from the signup form.
+
+### Sprint 51 — Content and design, everything · ~3 weeks
+
+*The CMS defaults were written before eleven sprints of product changes, and
+37R.8 is still expected to answer whether the patient app looks like the best
+mental-health app anybody has built or like scaffolding.*
+
+- [ ] **51.1** 🔴 **Re-read every CMS default in both languages against what
+      the product now is** and rewrite it. The split fee, the plans, the
+      consent story, portability, the meeting bot, the EHR position. A page
+      describing a product we no longer sell is worse than no page
+- [ ] **51.2** Both entities' contact details and a working contact form, USA
+      and Egypt, admin-editable, with no invented address anywhere
+      (`lib/content/defaults.ts` ships empty rather than instructional)
+- [ ] **51.3** 🔴 **The patient app, designed rather than assembled.** Every
+      screen, both directions. If a page is plain text and buttons with no
+      structure, it is flagged and rebuilt, not excused
+- [ ] **51.4** 🔴 **The SOS orb** on every patient screen including a live
+      session. Draggable, two taps, verified numbers only, a plain `tel:` link
+      that works when our API does not
+- [ ] **51.5** The therapist portal and the admin surfaces get the same pass at
+      the same standard. A therapist looks at this all day
+- [ ] **51.6** 🔴 **Every route the code can reach has a page a human can
+      reach.** `session_sources` and `session_voices` both have tables and no
+      interface (37R.21, 37R.22, C179). Either a screen exists or a ticket owns
+      it. No third option
+- [ ] **51.7** 🔴 **The bookings page**, which is a third built: therapist
+      calendar with day, week and month views; tap a date to edit that day's
+      availability; invite a patient to a **future scheduled** session; a
+      confirmed booking **blocks the radar and blocks double booking**;
+      reminders on WhatsApp, paid by us
+- [ ] **51.8** The U+2014 and U+2013 ban holds across every new string, every
+      CMS default and every email (C117)
+- [ ] **51.9** Every new string via 45.8, both languages, admin editable
+- **Accept:** a person who has never seen this product uses every screen in
+      both languages without asking a question, and nobody looking at the
+      patient app calls it scaffolding.
+
+### Sprint 52 — The last walkthrough and the four films · ~2.5 weeks · 🔴 LAST
+
+*Runs only when every sprint above is done and every end-to-end flow works.
+C225 governs the whole capture.*
+
+- [ ] **52.1** 🔴 **A fresh purge and a single seeded database**, synthetic
+      people only, names that cannot be mistaken for real ones. The walkthrough
+      and the capture share one run, because the films must never be shot
+      against an environment a real patient has touched
+- [ ] **52.2** 🔴 **The full walkthrough, every user type, both languages**, on
+      the complete product: the split fee on a declined session, the free
+      in-room copilot, note provenance, the meeting bot sequence, plans and
+      upgrade, Total View, and a closed country
+- [ ] **52.3** **Write down what was hard, not only what was broken.** Buttons
+      nobody could find, steps where it was unclear what happens next. No
+      verifier in this repository can report this, and it is why 22R existed
+- [ ] **52.4** Fix what the sweep finds. Then the films
+- [ ] **52.5** 🔴 **Three promo films, one per user type**: patient, therapist,
+      admin. Promo in style, complete in coverage: **every screen and every
+      interaction captured click by click**, cut for pace, showing the value
+      rather than narrating the interface
+- [ ] **52.6** 🔴 **A fourth film, split screen**: the patient's side and the
+      therapist's side of **every flow we have**, at the same time, click by
+      click. Claim, invite, consent, the session, the note, the summary, the
+      invoice. This is the one that proves the product is one system
+- [ ] **52.7** 🔴 **On-screen explainer text in Arabic and English** on all
+      four, correct in both directions
+- [ ] **52.8** 🔴 **A written voiceover script, per screen, in Arabic and
+      English**, timed to the cut, so the VO can be recorded to match the
+      picture exactly without a re-edit
+- [ ] **52.9** Every frame reviewed against C225. Raw captures of admin
+      surfaces gitignored (C80)
+- **Accept:** four films anybody can watch end to end, a VO script in two
+      languages that matches them frame for frame, and a plain answer to
+      whether this product is ready for a beta user who has never seen it.
+
 
 
 ## §5 · BUILD LOG
@@ -2651,6 +3081,16 @@ watched fail is a check nobody knows the meaning of.
 | **`stripComments` before any scan of source, without exception.** Seven checkers have now matched the prose describing the defect they hunt, and the seventh was written by somebody who had just fixed the sixth (C205) | Hard |
 | **A component asks for its own language rather than being handed one.** Then there is no call site to forget (C206) | Hard |
 | **One tag cannot be right for dates and for money.** `dateTag` is `en-GB`; `localeTag` is `en-US`. A single "locale" that silently means two things is how the wrong one gets used (C202) | Hard |
+| 🔴 **Every word a person reads is a `MessageKey` with an English default, an Arabic default, and an admin override.** From sprint 45 on there is no third kind of string. A literal in a rendered component fails the sprint (C217, 45.8) | Hard |
+| 🔴 **A switch an operator can set is read by the code, or it does not exist.** `country_settings.enabled` was written, audited and read by nobody, so an operator closed a country and watched it stay on the map. A dead control is worse than a missing feature, because a missing feature does not tell somebody they have acted (C218) | Hard |
+| 🔴 **One source of truth per operator decision.** Two switches claiming to govern the same thing will disagree, and the one nobody wired up wins by silence. Remove the loser, never wire both (C219) | Hard |
+| 🔴 **The platform fee is charged on every session and the AI fee only on consent.** A fee that vanishes when a patient refuses gives a therapist a reason to lean on them; a fee of zero gives away hosted video (C209) | Hard |
+| 🔴 **In the session room the copilot reads the record as of `startedAt` and nothing after it**, identically whether consent was granted, declined or withdrawn. One bound, no branch (C211) | Hard |
+| 🔴 **A note carries how it was made.** Transcript, partial, or the clinician's own memory, shown everywhere the note is shown. Evidence and recollection presented identically is the defect (C212) | Hard |
+| 🔴 **Journals may be summarised, quoted and cited, and may never produce a diagnosis, a risk level, or any conclusion about the person.** The bound lives in the evidence layer, not in a prompt (C214) | Hard |
+| 🔴 **24Therapy creates the meeting, or there is no external meeting.** Whoever holds the link controls whether consent happens, and a therapist in a hurry will send it directly (C215) | Hard |
+| 🔴 **Every model call records its exact model, its tokens and its cost, attributed to somebody.** A call that cannot be attributed is booked to the platform, never dropped, because an unattributable cost that disappears is how a margin goes wrong quietly (C221) | Hard |
+| 🔴 **A test that asserts a thing is absent must also assert the thing that should be present.** "No AI fee on a declined session" passes against code that charges nothing at all. This is the §6 family in its billing costume (46, 50.5) | Process |
 
 ---
 
