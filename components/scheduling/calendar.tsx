@@ -10,8 +10,7 @@ import {
 } from "@/app/(app)/bookings/actions";
 import { Card } from "@/components/ui";
 import { useLocale, useT } from "@/lib/i18n/client";
-import { dateTag } from "@/lib/i18n/config";
-import { dayKey, formatTime, zoneLabel } from "@/lib/scheduling/tz";
+import { dayKey, formatTime, formatWeekday, zoneLabel } from "@/lib/scheduling/tz";
 
 /**
  * The clinician's calendar. PLAN.md 51.7.
@@ -126,12 +125,18 @@ export function Calendar({
       setState(await invitePatient({ slotId, patientId: invitee }));
     });
 
-  const dayLabel = new Intl.DateTimeFormat(dateTag(locale), {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: zone,
-  });
+  /*
+   * 🔴 37L.9 / C84 — through the helper, not an `Intl.DateTimeFormat` built
+   * here.
+   *
+   * The first draft constructed one with `dateTag(locale)` and `timeZone:
+   * zone`, which is correct on both axes and still wrong: the rule is that
+   * formatting lives in one place, because a component that builds its own
+   * formatter is one `timeZone` away from rendering a Vercel server's idea of
+   * Thursday and nothing would catch it. `verify:sprint12` and
+   * `verify:sprint37l2` both refused it, which is the rule working.
+   */
+  const dayLabel = (at: Date) => formatWeekday(at, zone, locale);
 
   return (
     <div className="space-y-4">
@@ -221,7 +226,7 @@ export function Calendar({
               }
             >
               <span className="block text-xs font-medium text-slate-900">
-                {dayLabel.format(day.at)}
+                {dayLabel(day.at)}
               </span>
               {/*
                 A count, not a list, in month view. Nine hours rendered inside

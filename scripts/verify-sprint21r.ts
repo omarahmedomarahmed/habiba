@@ -21,15 +21,24 @@ import React from "react";
 
 import {
   LIVE_URL,
-  PRICE_IN_PROSE,
   REVERSED_CLAIM,
   readLiveSite,
 } from "./check-live";
+import { ar, en } from "../lib/i18n/messages";
 import { renderMarkup, stubModules } from "./_render";
 import { reporter, writesTo, readSource } from "./_verify";
 import { stripComments, undeferredContentReads } from "./_scan-deferrals";
 import type { LivePage } from "./_content-ready";
 
+
+/**
+ * 🔴 A price TYPED into copy, as opposed to one interpolated from settings.
+ *
+ * `{amount}` and `{ai}` are placeholders the pricing component fills from
+ * `platform_settings`, so a line carrying one cannot go stale. A bare number
+ * beside a currency can, and does, on the day the platform fee changes.
+ */
+const LITERAL_PRICE = /(?:\$|USD|EGP|جنيه|دولار)\s?\d|\d+\s?(?:\$|USD|EGP)/;
 
 const { check, skipUnless, finish } = reporter();
 
@@ -240,11 +249,54 @@ async function main() {
           `${live.length} live pages read`,
       );
 
-      const priced = live.filter((page) => PRICE_IN_PROSE.test(page.text));
+      /*
+       * 🔴 This check used to run `PRICE_IN_PROSE` over the LIVE HTML, and it
+       * was structurally incapable of the thing it claimed to measure.
+       *
+       * "The cards carry the numbers" means a price must come from
+       * `platform_settings` through the pricing component, not be typed into
+       * an editable CMS body where it goes stale the day the fee changes.
+       * Rendered HTML cannot tell those two apart: `$1 per session` looks
+       * identical whether it was interpolated a millisecond ago or typed in
+       *2025. So the live scan condemned `pricing.headline`, which 46.9 asked
+       * for and whose numbers ARE `money(platformFeeCents)` and
+       * `money(payg.aiRateCents)` read live.
+       *
+       * It also only ever fired in English, because `$\d+` does not match the
+       * Arabic money format. A rule that holds in one language is a tell.
+       *
+       * The question is answerable at the source, so it is asked there:
+       * no CMS default, in either language, may contain a literal currency
+       * amount. That is exactly the defect, and nothing else.
+       */
+      const cmsWithPrices = (["lib/content/defaults.ts", "lib/content/defaults-ar.ts"] as const)
+        .flatMap((file) => {
+          const body = readSource(file);
+          return body
+            .split("\n")
+            .map((line, index) => ({ line, at: `${file}:${index + 1}` }))
+            .filter(({ line }) => LITERAL_PRICE.test(line))
+            .map(({ at }) => at);
+        });
+
       check(
-        "🔴 21R.6 …and none of them writes a price into prose, the cards carry the numbers",
-        priced.length === 0,
-        priced.map((p) => `${p.path}[${p.locale}]`).join(", ") || "none",
+        "🔴 21R.6 no CMS default writes a price into prose, the cards carry the numbers",
+        cmsWithPrices.length === 0,
+        cmsWithPrices.join(", ") || "both dictionaries free of typed prices",
+      );
+
+      /*
+       * 🔴 CONTROL — and the source scan can see one.
+       *
+       * The check above is an absence assertion over two files. A regex typo
+       * or a path that stops resolving both produce "none" and a green line,
+       * which is how the version it replaced survived for eleven sprints.
+       */
+      check(
+        "🔴 21R.6 CONTROL the price scan catches a typed price and clears an interpolated one",
+        LITERAL_PRICE.test('body: "It is $30 a session, every time."') &&
+          !LITERAL_PRICE.test('"pricing.headline": "{amount} per session. AI from {ai} more."'),
+        "a typed number is caught, a settings placeholder is not",
       );
 
       const pricing = live.filter((page) => page.path === "/pricing");
@@ -258,11 +310,42 @@ async function main() {
        * refusal fires is a check that teaches people to ignore it. What makes
        * a pricing page a pricing page is the per-session cards.
        */
+      /*
+       * 🔴 The marker is DERIVED from the dictionary, not typed here again.
+       *
+       * This asserted on `/ session|الجلسة`. Sprint 46.9 rewrote the card to
+       * "{amount} every session" and the English check went red against a
+       * correct page, while the Arabic went green for the wrong reason:
+       * `الجلسة` appears elsewhere in that page's copy and never in a card, so
+       * it would have passed with no cards at all.
+       *
+       * A hardcoded marker for copy the product owns goes stale on the next
+       * rewrite, and the second failure mode is worse than the first: a
+       * red check gets looked at, a false green does not.
+       *
+       * `pricing.platformLine` IS the card, so the wording around its
+       * placeholder is the marker, in each language, taken from the same
+       * dictionary the page renders from.
+       */
+      const cardMarker = (locale: "en" | "ar") =>
+        (locale === "en" ? en : ar)["pricing.platformLine"]
+          .replace(/\{\w+\}/g, "")
+          .trim();
+
+      const carded = pricing.filter((page) =>
+        page.text.includes(cardMarker(page.locale as "en" | "ar")),
+      );
+
       check(
         "21R.6 the live pricing page carries the tier cards, one per rate",
-        pricing.length > 0 && pricing.every((page) => /\/ session|الجلسة/.test(page.text)),
+        pricing.length > 0 && carded.length === pricing.length,
         pricing
-          .map((p) => `${p.locale}:${/\/ session|الجلسة/.test(p.text) ? "cards" : "PROSE"}`)
+          .map(
+            (p) =>
+              `${p.locale}:${
+                p.text.includes(cardMarker(p.locale as "en" | "ar")) ? "cards" : "MISSING"
+              }`,
+          )
           .join(", "),
       );
     },
