@@ -71,13 +71,15 @@ export default async function BillingPage({
         <PlanCard
           tiers={summary.tiers}
           currentTierKey={summary.tier.key}
-          creditsRemaining={summary.credits.remaining}
+          creditRemainingCents={summary.credits.remainingCents}
           creditsExpireOn={
             summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone, locale) : null
           }
           billingEnabled={features.billing}
-          sessionsThisMonth={summary.sessionsThisMonth}
-          spentThisMonthCents={summary.spentThisMonthCents}
+          platformFeeCents={summary.platformFeeCents}
+          spentPlatformCents={summary.spentPlatformCents}
+          spentAiCents={summary.spentAiCents}
+          heldEarningsCents={summary.heldEarningsCents}
         />
 
         {!summary.subscription.trialSessionUsed ? (
@@ -153,7 +155,7 @@ export default async function BillingPage({
           }))}
           payments={payments.map((payment) => ({
             id: payment.id,
-            payerName: payment.payerName,
+            patientName: payment.patientName,
             grossCents: payment.grossCents,
             platformFeeCents: payment.grossCents - payment.therapistNetCents,
             settledInvoiceCents: payment.settledInvoiceCents,

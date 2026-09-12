@@ -15,16 +15,21 @@ export type BillingActionState = { error?: string };
  * from anything the form sent. The old endpoint this replaces took no quantity
  * at all because there was one product; this one must not take a price.
  */
-export async function buyCredits(quantity: number): Promise<BillingActionState> {
+export async function buyCredits(amountCents: number): Promise<BillingActionState> {
   const actor = await requireUser();
-  if (!Number.isSafeInteger(quantity) || quantity < 1) {
-    return { error: "Choose how many sessions to buy." };
+  /*
+   * 46.4 — an amount of credit, in cents. The server still prices it from
+   * `platform_settings` through `quoteCredits` and never from what the form
+   * sent; what the client chooses is how much to add, not what it costs.
+   */
+  if (!Number.isSafeInteger(amountCents) || amountCents < 100) {
+    return { error: "Choose how much credit to add." };
   }
 
   const result = await createCreditCheckout({
     organizationId: actor.organizationId,
     email: actor.email,
-    quantity,
+    amountCents,
   });
   if (result.error || !result.url) return { error: result.error ?? "Could not start checkout." };
   redirect(result.url);

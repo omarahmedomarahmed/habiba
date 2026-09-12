@@ -124,6 +124,31 @@ export async function heldForTherapist(therapistId: string): Promise<number> {
 }
 
 /**
+ * 🔴 46.7 — the same balance, for a whole practice.
+ *
+ * The plan page shows a therapist what we hold for them beside what they owe
+ * us, because 46.5 lets them choose which of the two settles a bill first and
+ * a choice between two numbers is not a choice until both are on the screen.
+ *
+ * Scoped by organisation rather than by user, because the bill is the
+ * practice's: an invoice is raised against `organizationId`, so netting it
+ * against one clinician's personal balance inside a two-person practice would
+ * quietly take one clinician's earnings to pay the other's session.
+ */
+export async function heldForTherapistOrg(organizationId: string): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int` })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.account, "therapist_payable"),
+        eq(ledgerEntries.organizationId, organizationId),
+      ),
+    );
+  return zero(-(row?.total ?? 0));
+}
+
+/**
  * Negating a zero balance produces `-0`, which is not a curiosity here.
  *
  * `-0 === 0` is true but `Object.is(-0, 0)` is false, so a strict assertion

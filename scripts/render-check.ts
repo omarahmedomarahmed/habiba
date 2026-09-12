@@ -125,21 +125,37 @@ async function main() {
   check(
     "🔴 17.10 the rendered pricing page carries the rates from platform_settings",
     settings.pricing.tiers.every((tier) =>
-      pricing.includes(`$${(tier.rateCents / 100).toFixed(0)}`),
+      pricing.includes(`$${(tier.aiRateCents / 100).toFixed(0)}`),
     ),
-    `looking for ${settings.pricing.tiers.map((t) => `$${t.rateCents / 100}`).join(", ")} · found ${
+    `looking for ${settings.pricing.tiers.map((t) => `$${t.aiRateCents / 100}`).join(", ")} · found ${
       settings.pricing.tiers.filter((t) =>
-        pricing.includes(`$${(t.rateCents / 100).toFixed(0)}`),
+        pricing.includes(`$${(t.aiRateCents / 100).toFixed(0)}`),
       ).length
     }`,
   );
 
+  /*
+   * 🔴 46.9 — the platform fee is on the page, and the word "sessions" is not.
+   *
+   * This replaces 17.4's assertion that the page carried a bundle slider
+   * starting at a session minimum. That control is gone and so is the offer it
+   * described: $30 does not buy ten of anything (C223).
+   *
+   * The second half is the one that earns its keep. A pricing page that still
+   * says "10 sessions" after this sprint is a page describing a product we no
+   * longer sell, and it would render perfectly and pass every other check
+   * here.
+   */
   check(
-    "17.4 …and the slider, starting at the bundle minimum",
-    /type="range"/.test(pricing) &&
-      pricing.includes(
-        `min="${settings.pricing.tiers.filter((t) => t.minimumSessions > 0).pop()?.minimumSessions}"`,
-      ),
+    "🔴 46.9 the rendered pricing page carries the platform fee, charged on every session",
+    pricing.includes(`$${(settings.session.platformFeeCents / 100).toFixed(0)}`),
+    `platform fee $${settings.session.platformFeeCents / 100}`,
+  );
+
+  check(
+    "🔴 46.3 …and the word `sessions` has left the offer",
+    !/\b\d+\s+sessions\b/i.test(pricing),
+    "no `N sessions` anywhere in the rendered page",
   );
 
   check(
@@ -156,7 +172,7 @@ async function main() {
   check(
     "🔴 17.7 the rendered HOMEPAGE carries the same prices, one component, two pages",
     cheapest !== undefined &&
-      home.includes(`$${(cheapest.rateCents / 100).toFixed(0)}`),
+      home.includes(`$${(cheapest.aiRateCents / 100).toFixed(0)}`),
   );
 
   const patients = html["for-patients.en-x-staging"] ?? "";

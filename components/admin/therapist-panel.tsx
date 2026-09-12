@@ -75,7 +75,8 @@ type InvoiceRow = {
 
 type PaymentRow = {
   id: string;
-  payerName: string | null;
+  /** 46.15 / C243 — the patient from the chart, never the payer. */
+  patientName: string | null;
   grossCents: number;
   therapistNetCents: number;
   settledInvoiceCents: number;
@@ -523,7 +524,7 @@ function Billing({
               <li key={payment.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-slate-900">
-                    {payment.payerName ?? "Patient"}
+                    {payment.patientName ?? "Patient"}
                   </span>
                   <span className="block text-xs text-slate-500">
                     {payment.when}

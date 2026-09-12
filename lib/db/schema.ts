@@ -1574,6 +1574,82 @@ export const invoices = pgTable(
 );
 
 /**
+ * What a session bill is made of. PLAN.md 46.1, 46.13, C209, C251.
+ *
+ * ## Why a child table and not two invoices
+ *
+ * 46.1 asked for "two line items on one invoice" as an additive migration.
+ * It cannot be one. `invoices_session_unique` above permits exactly one
+ * invoice row per session, and it is not decoration: it exists because the
+ * reconciler cron and a live completion raced each other and produced two
+ * charges for one session, and it plus `ON CONFLICT DO NOTHING` is what makes
+ * that race a no-op.
+ *
+ * So there were two options and only one of them is safe. Dropping the index
+ * buys the shape and gives back the double charge. This keeps the index, keeps
+ * one invoice per session, and puts the composition underneath it.
+ *
+ * ## What a line is
+ *
+ *   platform   🔴 charged on EVERY session. Free ones, in-person ones, and the
+ *              ones where the patient refused recording. It buys the record,
+ *              the booking, the reminders, the radar placement, the note
+ *              storage and the free in-room copilot.
+ *   ai         charged only where `sessions.recording_consent = 'granted'`.
+ *
+ * The split is not a pricing tweak. A single fee that vanishes when a patient
+ * declines gives a therapist a financial reason to lean on the most vulnerable
+ * person in the room, and a fee of zero gives away hosted HIPAA-grade video to
+ * anybody who never asks for consent. The platform fee being **unavoidable**
+ * is the whole protection (C209); the AI fee being conditional is not.
+ *
+ * `amountCents` on the parent stays the total and stays the thing the ledger,
+ * the checkout and every existing report read, so nothing downstream had to
+ * learn about this table to keep working.
+ */
+export const INVOICE_LINE_KINDS = ["platform", "ai"] as const;
+export type InvoiceLineKind = (typeof INVOICE_LINE_KINDS)[number];
+
+export const invoiceLines = pgTable(
+  "invoice_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+
+    kind: text("kind").$type<InvoiceLineKind>().notNull(),
+    amountCents: integer("amount_cents").notNull(),
+
+    /**
+     * The tier in force when this line was raised, and what it unlocked.
+     *
+     * Copied in rather than looked up, for the reason `session_credits` gives:
+     * the rate is a fact about the moment the session completed. An admin who
+     * changes the AI rate changes what the *next* session bills; this line is
+     * already history.
+     */
+    tierKey: text("tier_key"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * 🔴 One line of each kind per invoice.
+     *
+     * The same argument as `invoices_session_unique` one level down: the
+     * reconciler (46.14) now backfills a MISSING line rather than a missing
+     * invoice, so it races a live completion in exactly the way the parent
+     * used to. Without this, a session whose AI fee was slow gets two AI fees.
+     */
+    uniqueIndex("invoice_lines_invoice_kind_unique").on(t.invoiceId, t.kind),
+    index("invoice_lines_kind_idx").on(t.kind, t.createdAt),
+  ],
+);
+
+export type InvoiceLine = typeof invoiceLines.$inferSelect;
+
+/**
  * Where a session came from.
  *
  *   direct     a link the clinician sent, free to join
@@ -2431,6 +2507,27 @@ export const sessionCredits = pgTable(
     rateCents: integer("rate_cents").notNull(),
     quantity: integer("quantity").notNull(),
     consumed: integer("consumed").notNull().default(0),
+
+    /**
+     * 🔴 46.4 / C223 — credit is MONEY, and these two columns are that.
+     *
+     * `quantity`/`consumed` counted sessions, which is the bundle C223 struck:
+     * $30 does not buy ten of anything, it buys $30 of credit spendable
+     * against any line, platform fee and AI fee alike.
+     *
+     * Added rather than replacing, and **nothing is backfilled**. A row bought
+     * before this sprint has `creditCents` NULL and is worth
+     * `(quantity - consumed) * rateCents`, which `remainingCentsOf` computes.
+     * Rewriting those rows would be re-deriving somebody's purchase from
+     * settings that have since changed, which is the mistake `rateCents`
+     * exists to prevent one column up.
+     *
+     * `spentCents` defaults to 0 and is safe on a legacy row precisely because
+     * that row's spending is recorded in `consumed` instead; the helper reads
+     * whichever pair the row actually uses and never mixes them.
+     */
+    creditCents: integer("credit_cents"),
+    spentCents: integer("spent_cents").notNull().default(0),
 
     /** Purchase time plus `pricing.creditExpiryMonths`. */
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

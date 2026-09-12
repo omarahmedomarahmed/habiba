@@ -38,19 +38,20 @@ export async function savePricing(
 
   const tiers: PricingTier[] = [];
   for (const key of ["payg", "starter", "growth"]) {
+    // 46.3 — an AI rate and a spend threshold. Never a session count.
     const rate = Number(String(formData.get(`${key}Rate`) ?? ""));
-    const minimum = Number(String(formData.get(`${key}Min`) ?? ""));
+    const unlock = Number(String(formData.get(`${key}Unlock`) ?? ""));
     const name = String(formData.get(`${key}Name`) ?? "").trim();
 
     if (!Number.isFinite(rate) || rate < 0) return { error: `${key}: that rate is not a number.` };
-    if (!Number.isFinite(minimum) || minimum < 0) {
-      return { error: `${key}: that minimum is not a number.` };
+    if (!Number.isFinite(unlock) || unlock < 0) {
+      return { error: `${key}: that threshold is not a number.` };
     }
     tiers.push({
       key,
       name: name || key,
-      rateCents: Math.round(rate * 100),
-      minimumSessions: Math.round(minimum),
+      aiRateCents: Math.round(rate * 100),
+      unlockCents: Math.round(unlock * 100),
     });
   }
 
@@ -75,7 +76,7 @@ export async function savePricing(
     action: "settings.pricing",
     resourceType: "platform_settings",
     resourceId: "pricing",
-    reason: tiers.map((t) => `${t.key}=${t.rateCents}@${t.minimumSessions}`).join(" "),
+    reason: tiers.map((t) => `${t.key}=${t.aiRateCents}@${t.unlockCents}`).join(" "),
   });
 
   revalidatePath("/admin/settings");
@@ -98,8 +99,16 @@ export async function saveSession(
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) return { error: "Those prices are not numbers." };
 
+  // 46.2 — the platform fee, charged on every session. settingsProblem
+  // refuses zero, because zero is the giveaway half of C209.
+  const platformFee = Number(String(formData.get("platformFee") ?? ""));
+  if (!Number.isFinite(platformFee) || platformFee <= 0) {
+    return { error: "The platform fee is what makes the AI fee safe to make conditional." };
+  }
+
   const value = {
     platformFeeBps: Math.round(feePercent * 100),
+    platformFeeCents: Math.round(platformFee * 100),
     minPriceCents: Math.round(min * 100),
     maxPriceCents: Math.round(max * 100),
   };

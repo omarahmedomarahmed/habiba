@@ -8,7 +8,7 @@ import { sessionCredits } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings, type PricingTier } from "@/lib/settings";
 
-import { quoteForQuantity, tierForQuantity } from "./plans";
+import { quoteForSpend, tierForSpend } from "./plans";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -36,13 +36,42 @@ const db = dbFor(pinnedToDefaultRegion("lib/billing/credits.ts", "not routed yet
  */
 
 export type CreditBalance = {
-  /** Unspent, unexpired credits. */
-  remaining: number;
+  /**
+   * 🔴 46.4 — unspent, unexpired credit, IN CENTS.
+   *
+   * This counted sessions. Credit is money now and spends against any line,
+   * platform fee and AI fee alike, so a therapist with $2.50 left can cover
+   * two platform fees and part of an AI fee rather than "half a session",
+   * which was never a thing anybody could spend.
+   */
+  remainingCents: number;
   /** The tier the next credit was bought at, or null when there are none. */
   tierKey: string | null;
   /** When the soonest batch runs out. */
   nextExpiryAt: Date | null;
 };
+
+/**
+ * 🔴 What one credit row is still worth, in cents, whichever era it is from.
+ *
+ * Nothing was backfilled, on purpose: rewriting a pre-46 row would re-derive
+ * somebody's purchase from settings that have since changed, which is the
+ * mistake `rate_cents` exists to prevent. So a row is read in the units it was
+ * written in, and the two are never mixed.
+ *
+ *   after 46   `credit_cents - spent_cents`
+ *   before 46  `(quantity - consumed) * rate_cents`
+ */
+export function remainingCentsOf(row: {
+  creditCents: number | null;
+  spentCents: number;
+  quantity: number;
+  consumed: number;
+  rateCents: number;
+}): number {
+  if (row.creditCents !== null) return Math.max(0, row.creditCents - row.spentCents);
+  return Math.max(0, (row.quantity - row.consumed) * row.rateCents);
+}
 
 /**
  * What is actually spendable right now.
@@ -59,6 +88,9 @@ export async function getCreditBalance(organizationId: string): Promise<CreditBa
       tierKey: sessionCredits.tierKey,
       quantity: sessionCredits.quantity,
       consumed: sessionCredits.consumed,
+      rateCents: sessionCredits.rateCents,
+      creditCents: sessionCredits.creditCents,
+      spentCents: sessionCredits.spentCents,
       expiresAt: sessionCredits.expiresAt,
     })
     .from(sessionCredits)
@@ -67,74 +99,159 @@ export async function getCreditBalance(organizationId: string): Promise<CreditBa
         eq(sessionCredits.organizationId, organizationId),
         eq(sessionCredits.status, "active"),
         gt(sessionCredits.expiresAt, new Date()),
-        gt(sessionCredits.quantity, sessionCredits.consumed),
       ),
     )
     .orderBy(asc(sessionCredits.expiresAt));
 
-  const remaining = rows.reduce((sum, r) => sum + (r.quantity - r.consumed), 0);
-  const next = rows[0];
+  /*
+   * The "still has something left" test moved out of SQL and into
+   * `remainingCentsOf`, because it is now two different tests depending on
+   * which era the row is from and a single `WHERE` cannot ask both. The rows
+   * per organisation are a handful of purchases, so this is not a scan worth
+   * pushing back down.
+   */
+  const live = rows.filter((row) => remainingCentsOf(row) > 0);
+  const remainingCents = live.reduce((sum, row) => sum + remainingCentsOf(row), 0);
+  const next = live[0];
   return {
-    remaining,
+    remainingCents,
     tierKey: next?.tierKey ?? null,
     nextExpiryAt: next?.expiresAt ?? null,
   };
 }
 
 /**
- * Spend one credit, or report that there was none.
+ * 🔴 46.4 — spend up to `amountCents` of credit, soonest-expiring first.
  *
- * A single conditional UPDATE against the soonest-expiring batch. Not a read
- * followed by a write: two sessions completing at the same instant would both
- * see "1 remaining" and both spend it, and the therapist would have paid for
- * one session and received two. The `consumed < quantity` predicate is what
- * makes the second one fail, and it is enforced by Postgres rather than by the
- * order the two requests happened to arrive in.
+ * A single conditional UPDATE per batch. Not a read followed by a write: two
+ * sessions completing at the same instant would both see the balance and both
+ * spend it, and the therapist would have paid once and been billed nothing
+ * twice. The `spent_cents + N <= credit_cents` predicate is what makes the
+ * second one fail, and it is enforced by Postgres rather than by the order the
+ * two requests happened to arrive in.
  *
- * Soonest-expiring first is deliberate: spending the batch that is about to
- * lapse wastes the least of what the therapist paid for.
+ * Soonest-expiring first is deliberate: spending the batch about to lapse
+ * wastes the least of what the therapist paid for.
+ *
+ * 🔴 Partial spending is the point, and is new. A $1 platform fee against a
+ * batch with $0.60 left takes the $0.60 and reports it, and the caller bills
+ * the remaining $0.40 elsewhere. Under the old model a credit was one session
+ * and there was nothing to split; under money there is, and refusing to split
+ * would strand every balance that is not an exact multiple of a fee.
+ *
+ * A legacy row (`credit_cents` NULL) is spent in whole sessions through
+ * `consumed`, in the units it was bought in, because re-pricing it would be
+ * re-deriving a past purchase from present settings.
  */
-export async function consumeCredit(
+export async function spendCredit(
   organizationId: string,
-): Promise<{ spent: boolean; tierKey: string | null; rateCents: number | null }> {
-  const [row] = await db
-    .update(sessionCredits)
-    .set({ consumed: sql`${sessionCredits.consumed} + 1`, updatedAt: new Date() })
-    .where(
-      eq(
-        sessionCredits.id,
-        sql`(
-          SELECT id FROM ${sessionCredits}
-          WHERE organization_id = ${organizationId}
-            AND status = 'active'
-            AND expires_at > now()
-            AND consumed < quantity
-          ORDER BY expires_at ASC, created_at ASC
-          LIMIT 1
-        )`,
-      ),
-    )
-    .returning({ tierKey: sessionCredits.tierKey, rateCents: sessionCredits.rateCents });
+  amountCents: number,
+): Promise<{ spentCents: number; tierKey: string | null }> {
+  let outstanding = Math.max(0, Math.floor(amountCents));
+  if (outstanding === 0) return { spentCents: 0, tierKey: null };
 
-  if (!row) return { spent: false, tierKey: null, rateCents: null };
-  return { spent: true, tierKey: row.tierKey, rateCents: row.rateCents };
+  let spentTotal = 0;
+  let tierKey: string | null = null;
+
+  /*
+   * Bounded rather than `while (outstanding > 0)`. A row that reports value
+   * and refuses to yield it — a shape nobody has written but which a future
+   * migration could — would otherwise spin forever on the session-completion
+   * path, which is the worst possible place for an unbounded loop.
+   */
+  for (let attempt = 0; attempt < 20 && outstanding > 0; attempt += 1) {
+    const [batch] = await db
+      .select({
+        id: sessionCredits.id,
+        tierKey: sessionCredits.tierKey,
+        quantity: sessionCredits.quantity,
+        consumed: sessionCredits.consumed,
+        rateCents: sessionCredits.rateCents,
+        creditCents: sessionCredits.creditCents,
+        spentCents: sessionCredits.spentCents,
+      })
+      .from(sessionCredits)
+      .where(
+        and(
+          eq(sessionCredits.organizationId, organizationId),
+          eq(sessionCredits.status, "active"),
+          gt(sessionCredits.expiresAt, new Date()),
+        ),
+      )
+      .orderBy(asc(sessionCredits.expiresAt), asc(sessionCredits.createdAt))
+      .limit(1);
+
+    if (!batch) break;
+
+    const available = remainingCentsOf(batch);
+    if (available <= 0) break;
+
+    if (batch.creditCents !== null) {
+      const take = Math.min(available, outstanding);
+      const [claimed] = await db
+        .update(sessionCredits)
+        .set({ spentCents: sql`${sessionCredits.spentCents} + ${take}`, updatedAt: new Date() })
+        .where(
+          and(
+            eq(sessionCredits.id, batch.id),
+            // The race guard: only if this much is still there.
+            sql`${sessionCredits.spentCents} + ${take} <= ${sessionCredits.creditCents}`,
+          ),
+        )
+        .returning({ tierKey: sessionCredits.tierKey });
+
+      if (!claimed) continue; // Somebody else took it. Look again.
+      spentTotal += take;
+      outstanding -= take;
+      tierKey = tierKey ?? claimed.tierKey;
+      continue;
+    }
+
+    /*
+     * A pre-46 row. One whole session at the rate it was bought at, which may
+     * be more than the caller asked for — that is what buying a session in
+     * advance meant, and honouring it is more correct than refusing to spend
+     * it because the arithmetic no longer matches.
+     */
+    const [claimed] = await db
+      .update(sessionCredits)
+      .set({ consumed: sql`${sessionCredits.consumed} + 1`, updatedAt: new Date() })
+      .where(
+        and(
+          eq(sessionCredits.id, batch.id),
+          sql`${sessionCredits.consumed} < ${sessionCredits.quantity}`,
+        ),
+      )
+      .returning({ tierKey: sessionCredits.tierKey });
+
+    if (!claimed) continue;
+    const take = Math.min(batch.rateCents, outstanding);
+    spentTotal += take;
+    outstanding -= take;
+    tierKey = tierKey ?? claimed.tierKey;
+  }
+
+  return { spentCents: spentTotal, tierKey };
 }
 
 /**
  * Price a purchase without making one.
  *
- * The quantity is a slider, not a fixed pack: above a tier's minimum a
- * therapist buys as many as they like at that rate, so the quote is computed
- * from the quantity rather than chosen from a list of products.
+ * 🔴 46.4 — the amount is money, and the money bought is the money spent.
+ *
+ * The slider used to choose a number of sessions and multiply. It chooses an
+ * amount now: $30 buys $30 of credit and unlocks whatever rate that threshold
+ * reaches. There is no multiplication left to get wrong, and `creditCents ===
+ * totalCents` is the offer rather than an oversight.
  */
-export async function quoteCredits(quantity: number): Promise<{
+export async function quoteCredits(amountCents: number): Promise<{
   tier: PricingTier;
-  quantity: number;
+  creditCents: number;
   totalCents: number;
   expiresAt: Date;
 }> {
   const settings = await getSettings();
-  const quote = quoteForQuantity(settings.pricing.tiers, quantity);
+  const quote = quoteForSpend(settings.pricing.tiers, amountCents);
   return { ...quote, expiresAt: expiryFrom(new Date(), settings.pricing.creditExpiryMonths) };
 }
 
@@ -147,19 +264,34 @@ export async function quoteCredits(quantity: number): Promise<{
  */
 export async function createPendingPurchase(input: {
   organizationId: string;
-  quantity: number;
+  amountCents: number;
   stripeCheckoutSessionId: string;
 }): Promise<{ id: string; totalCents: number; tier: PricingTier } | null> {
-  const quote = await quoteCredits(input.quantity);
-  if (quote.quantity <= 0) return null;
+  const quote = await quoteCredits(input.amountCents);
+  if (quote.creditCents <= 0) return null;
 
   const [row] = await db
     .insert(sessionCredits)
     .values({
       organizationId: input.organizationId,
       tierKey: quote.tier.key,
-      rateCents: quote.tier.rateCents,
-      quantity: quote.quantity,
+      /*
+       * `rateCents` is the AI rate this purchase unlocked, frozen at the
+       * moment of the quote. It is no longer what a session costs — the
+       * platform fee is the other half — but it is still the thing an admin
+       * lowering a rate next March must not be able to change retroactively,
+       * which is the whole reason the column is copied in rather than
+       * looked up.
+       */
+      rateCents: quote.tier.aiRateCents,
+      creditCents: quote.creditCents,
+      /*
+       * The session columns are written as zeroes rather than left out. They
+       * are NOT NULL and they are how `remainingCentsOf` tells a pre-46 row
+       * from a post-46 one: a row with `credit_cents` set is read in money and
+       * these are never consulted.
+       */
+      quantity: 0,
       expiresAt: quote.expiresAt,
       status: "pending",
       stripeCheckoutSessionId: input.stripeCheckoutSessionId,
@@ -216,24 +348,55 @@ export async function activatePurchase(input: {
 }
 
 /**
- * The tier a therapist is currently on.
+ * 🔴 46.4 / C223 — the tier a therapist is on, and why it outlives the credit.
  *
- * Derived from what they hold rather than stored as their identity: a therapist
- * with Growth credits is on Growth until those credits run out, and then they
- * are on PAYG, with no state change and nothing to keep in sync.
- * `subscriptions.plan` is kept updated alongside for display and for the admin
- * list, but this is the answer that decides what a session costs.
+ * This used to read the balance: hold Growth credits, be on Growth; spend the
+ * last one, drop to pay as you go. That was right when a tier was a bundle and
+ * is wrong now that it is a **rate lock**. The money bought credit; what the
+ * threshold bought is the rate, and a rate that evaporated the moment the
+ * credit ran out would be a discount on a bundle wearing a rate lock's name.
+ *
+ * So the tier is derived from **lifetime spend**, which never goes down: a
+ * therapist who has ever put $60 through this holds the $1 AI rate afterwards,
+ * with an empty balance, forever.
+ *
+ * Two consequences worth stating rather than discovering:
+ *
+ *   - Expired credit still counts toward the threshold. They paid it; the rate
+ *     is what they bought with it. Expiry takes the unspent money, not the
+ *     standing.
+ *   - `void` rows do not count. A refunded purchase is money returned, and a
+ *     refund that left the rate behind would be a free upgrade.
+ *
+ * Legacy rows are valued in the units they were bought in by
+ * `remainingCentsOf`'s sibling arithmetic below, for the same reason nothing
+ * was backfilled.
  */
 export async function currentTier(organizationId: string): Promise<PricingTier> {
-  const [settings, balance] = await Promise.all([
+  const [settings, rows] = await Promise.all([
     getSettings(),
-    getCreditBalance(organizationId),
+    db
+      .select({
+        quantity: sessionCredits.quantity,
+        rateCents: sessionCredits.rateCents,
+        creditCents: sessionCredits.creditCents,
+      })
+      .from(sessionCredits)
+      .where(
+        and(
+          eq(sessionCredits.organizationId, organizationId),
+          // Paid for. `pending` is an abandoned checkout; `void` is refunded.
+          eq(sessionCredits.status, "active"),
+        ),
+      ),
   ]);
-  if (balance.tierKey) {
-    const held = settings.pricing.tiers.find((t) => t.key === balance.tierKey);
-    if (held) return held;
-  }
-  return tierForQuantity(settings.pricing.tiers, 0);
+
+  const lifetimeCents = rows.reduce(
+    (sum, row) => sum + (row.creditCents ?? row.quantity * row.rateCents),
+    0,
+  );
+
+  return tierForSpend(settings.pricing.tiers, lifetimeCents);
 }
 
 /** Purchase date plus N months, clamped so 31 January + 1 month is not 3 March. */

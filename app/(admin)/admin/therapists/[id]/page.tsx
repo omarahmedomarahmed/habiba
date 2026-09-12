@@ -200,7 +200,7 @@ export default async function TherapistDetailPage({
         }))}
         payments={payments.map((p) => ({
           id: p.id,
-          payerName: p.payerName,
+          patientName: p.patientName,
           grossCents: p.grossCents,
           therapistNetCents: p.therapistNetCents,
           settledInvoiceCents: p.settledInvoiceCents,

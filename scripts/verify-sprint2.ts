@@ -90,7 +90,7 @@ async function main() {
         .set({
           value: {
             ...pricing,
-            tiers: pricing.tiers.map((t) => ({ ...t, rateCents: t.rateCents + 999 })),
+            tiers: pricing.tiers.map((t) => ({ ...t, aiRateCents: t.aiRateCents + 999 })),
           } as never,
         })
         .where(eq(platformSettings.key, "pricing"));
@@ -131,7 +131,7 @@ async function main() {
         .where(eq(platformSettings.key, "pricing"));
       check(
         "settings restored",
-        parseGroup("pricing", restored?.value).tiers.find((t) => t.key === "payg")?.rateCents ===
+        parseGroup("pricing", restored?.value).tiers.find((t) => t.key === "payg")?.aiRateCents ===
           400,
       );
     }

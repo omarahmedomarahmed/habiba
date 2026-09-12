@@ -4,11 +4,19 @@ import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { aiRequestLogs, invoices, payableCents, sessions, subscriptions } from "@/lib/db/schema";
+import {
+  aiRequestLogs,
+  invoiceLines,
+  invoices,
+  payableCents,
+  sessions,
+  subscriptions,
+} from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 
-import { consumeCredit, currentTier, getCreditBalance } from "./credits";
+import { currentTier, getCreditBalance, spendCredit } from "./credits";
+import { sessionLines } from "./plans";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -67,34 +75,40 @@ export async function chargeForSession(opts: {
     await getSubscription(opts.organizationId);
 
     /*
-     * Credits first, always.
+     * 🔴 46.1 — the consent state decides the AI line and nothing else.
      *
-     * §3: unused credits are consumed before any rate applies, so a therapist
-     * who bought thirty sessions at the Growth rate and then dropped to PAYG
-     * spends what they paid for before they are charged $4 for anything. The
-     * spend is a conditional UPDATE inside `consumeCredit` — see the comment
-     * there for why this is not a read followed by a write.
-     *
-     * Note the order relative to the free first session below: a credit is
-     * spent in preference to the freebie. That is the right way round. The free
-     * session exists to remove the risk from a therapist's *first* session, and
-     * somebody who has already bought a bundle has plainly cleared that bar;
-     * burning their trial on a session they had already paid for would be a
-     * gift of nothing.
+     * Read from the session rather than passed in, so a caller cannot get it
+     * wrong and so the reconciler (46.14) reaches the same answer hours later.
+     * Anything other than `granted` means no AI fee: declined, withdrawn, and
+     * the null of a session that never asked are all "the patient did not turn
+     * it on", and treating them alike is what makes this a rule rather than a
+     * branch nobody can enumerate.
      */
-    const credit = await consumeCredit(opts.organizationId);
-    if (credit.spent) {
-      await raiseInvoice({
-        organizationId: opts.organizationId,
-        kind: "session",
-        sessionId: opts.sessionId,
-        amountCents: 0,
-        status: "included",
-        description: "Session · from your credits",
-      });
-      return { status: "included", amountCents: 0 };
-    }
+    const [session] = await db
+      .select({ consent: sessions.recordingConsent })
+      .from(sessions)
+      .where(eq(sessions.id, opts.sessionId))
+      .limit(1);
 
+    const aiConsented = session?.consent === "granted";
+
+    const settings = await getSettings();
+    const tier = await currentTier(opts.organizationId);
+    const { lines, totalCents } = sessionLines({
+      settings,
+      tierKey: tier.key,
+      aiConsented,
+    });
+
+    /*
+     * 🔴 The free first session waives the bill; it does not delete the lines.
+     *
+     * A waived invoice still records what the session WOULD have cost, in both
+     * kinds, because "this therapist's first session was free" and "this
+     * session had no AI" are different facts and sprint 49 has to be able to
+     * tell them apart when it reports the consent rate. A waiver that erased
+     * the AI line would make every trial session look like a refusal.
+     */
     const claimed = await db
       .update(subscriptions)
       .set({ trialSessionUsed: true, updatedAt: new Date() })
@@ -114,49 +128,74 @@ export async function chargeForSession(opts: {
         amountCents: 0,
         status: "waived",
         description: "First session, on us",
+        lines: lines.map((line) => ({ ...line, amountCents: 0, tierKey: tier.key })),
       });
       return { status: "waived", amountCents: 0 };
     }
 
-    // No credits and no trial left: their tier's rate, read from
-    // `platform_settings` at the moment the session completed. An admin who
-    // changes the rate changes what the *next* session bills; this invoice is
-    // already a fact.
-    const tier = await currentTier(opts.organizationId);
+    /*
+     * Credit first, always.
+     *
+     * §3: credit is spent before any rate applies, so a therapist who bought
+     * $60 and then let it lapse toward pay as you go spends what they paid for
+     * before they are charged for anything. The spend is a conditional UPDATE
+     * inside `spendCredit`, for the reason given there.
+     *
+     * 🔴 46.4 — credit is money and covers ANY line, so a partial cover is a
+     * real outcome now. $0.60 of credit against a $1 platform fee pays $0.60
+     * and bills $0.40. The old model had nothing to split: a credit was one
+     * session, and it either covered it or did not.
+     *
+     * The order relative to the trial above is reversed from what it was, and
+     * deliberately. A credit used to be spent in preference to the freebie,
+     * which was right when a credit was a session somebody had bought. Now
+     * that credit is money, spending real money on a session we had promised
+     * to give away is simply taking it.
+     */
+    const credit = await spendCredit(opts.organizationId, totalCents);
+    const outstanding = Math.max(0, totalCents - credit.spentCents);
+
+    if (outstanding === 0) {
+      await raiseInvoice({
+        organizationId: opts.organizationId,
+        kind: "session",
+        sessionId: opts.sessionId,
+        amountCents: 0,
+        status: "included",
+        description: "Session · from your credit",
+        lines: lines.map((line) => ({ ...line, tierKey: tier.key })),
+      });
+      return { status: "included", amountCents: 0 };
+    }
 
     /*
-     * 🔴 C69 / 16.6a — netting, when we are already holding their money.
+     * 🔴 C69 / 16.6a / 46.5 — netting, when we are already holding their money.
      *
-     * Sprint 16 is the first sprint in which this is possible: before it the
-     * platform never held a clinician's funds, so "the session pays for itself
-     * out of your earnings" described a mechanic that did not exist and §6
-     * forbids publishing such a sentence. Now, when we hold enough, the fee
-     * comes out of the held balance in one ledger transaction — we owe them
-     * less, they owe us nothing new, and no money moves anywhere.
-     *
-     * Behind `payouts.netFeeFromHeldEarnings` (on by default) because whether
-     * to net is a business decision, not a technical one. Off, this branch
-     * never runs and the bill is raised exactly as it always was — and 17's
-     * pricing copy must not claim otherwise.
+     * When we hold enough, the fee comes out of the held balance in one ledger
+     * transaction: we owe them less, they owe us nothing new, and no money
+     * moves anywhere. Behind `payouts.netFeeFromHeldEarnings` because whether
+     * to net is a business decision rather than a technical one.
      */
-    if (tier.rateCents > 0) {
+    if (outstanding > 0) {
       const netted = await netFeeFromEarnings({
         organizationId: opts.organizationId,
         sessionId: opts.sessionId,
-        amountCents: tier.rateCents,
+        amountCents: outstanding,
+        lines: lines.map((line) => ({ ...line, tierKey: tier.key })),
       });
-      if (netted) return { status: "netted", amountCents: tier.rateCents };
+      if (netted) return { status: "netted", amountCents: outstanding };
     }
 
     await raiseInvoice({
       organizationId: opts.organizationId,
       kind: "session",
       sessionId: opts.sessionId,
-      amountCents: tier.rateCents,
+      amountCents: outstanding,
       status: "due",
       description: "Completed session",
+      lines: lines.map((line) => ({ ...line, tierKey: tier.key })),
     });
-    return { status: "due", amountCents: tier.rateCents };
+    return { status: "due", amountCents: outstanding };
   } catch (error) {
     // Billing must never block a clinician finishing a session. The reconciler
     // picks up anything missed.
@@ -181,6 +220,8 @@ async function netFeeFromEarnings(input: {
   organizationId: string;
   sessionId: string;
   amountCents: number;
+  /** 46.13 — a netted bill has the same composition as any other. */
+  lines?: { kind: "platform" | "ai"; amountCents: number; tierKey?: string | null }[];
 }): Promise<boolean> {
   const settings = await getSettings();
   if (!settings.payouts.netFeeFromHeldEarnings) return false;
@@ -204,6 +245,7 @@ async function netFeeFromEarnings(input: {
     status: "paid",
     description: "Completed session · taken from your earnings",
     postToLedger: false,
+    lines: input.lines,
   });
 
   await postFeeNettedFromHeld({
@@ -233,6 +275,15 @@ async function raiseInvoice(input: {
    * would invent a cash receipt that never happened.
    */
   postToLedger?: boolean;
+  /**
+   * 🔴 46.13 — what the bill is made of.
+   *
+   * Written as children of the invoice rather than as separate invoices,
+   * because `invoices_session_unique` permits one invoice per session and that
+   * index is what stopped a real double charge. See the `invoice_lines`
+   * comment in the schema.
+   */
+  lines?: { kind: "platform" | "ai"; amountCents: number; tierKey?: string | null }[];
 }) {
   const [created] = await db
     .insert(invoices)
@@ -250,6 +301,34 @@ async function raiseInvoice(input: {
     })
     .onConflictDoNothing({ target: invoices.sessionId })
     .returning({ id: invoices.id });
+
+  /*
+   * 🔴 46.13 — the lines, written only when the invoice was.
+   *
+   * Guarded on `created` for the same reason the ledger post below is: an
+   * empty result means the reconciler and a live completion raced and this one
+   * lost, so the invoice already exists and already has its lines. Writing
+   * them here anyway is how one session acquires two platform fees.
+   *
+   * `onConflictDoNothing` on top of that, because the two guards answer
+   * different questions: `created` says this call made the invoice, the
+   * conflict target says nobody has written this line kind, and 46.14's
+   * reconciler relies on the second when it adds a line to an invoice it did
+   * not create.
+   */
+  if (created && input.lines && input.lines.length > 0) {
+    await db
+      .insert(invoiceLines)
+      .values(
+        input.lines.map((line) => ({
+          invoiceId: created.id,
+          kind: line.kind,
+          amountCents: line.amountCents,
+          tierKey: line.tierKey ?? null,
+        })),
+      )
+      .onConflictDoNothing();
+  }
 
   /*
    * Only a real bill reaches the ledger.
@@ -485,13 +564,40 @@ export async function billingSummary(organizationId: string) {
     .from(invoices)
     .where(and(eq(invoices.organizationId, organizationId), eq(invoices.status, "due")));
 
+  /*
+   * 🔴 46.7 — this month's spend, split by line item.
+   *
+   * A single total cannot answer the question a therapist actually has, which
+   * is "what is the AI costing me". It also cannot answer the one sprint 49
+   * needs, which is what share of sessions patients consented to. Both come
+   * off the same two numbers.
+   *
+   * Read from `invoice_lines` rather than derived from the invoice total,
+   * because the total is one number and the composition is the point.
+   */
+  const [split] = await db
+    .select({
+      platformCents: sql<number>`COALESCE(SUM(${invoiceLines.amountCents}) FILTER (WHERE ${invoiceLines.kind} = 'platform'), 0)::int`,
+      aiCents: sql<number>`COALESCE(SUM(${invoiceLines.amountCents}) FILTER (WHERE ${invoiceLines.kind} = 'ai'), 0)::int`,
+    })
+    .from(invoiceLines)
+    .innerJoin(invoices, eq(invoices.id, invoiceLines.invoiceId))
+    .where(and(eq(invoices.organizationId, organizationId), gte(invoices.issuedAt, startOfMonth)));
+
+  const { heldForTherapistOrg } = await import("./ledger");
+  const heldEarningsCents = await heldForTherapistOrg(organizationId).catch(() => 0);
+
   return {
     subscription,
     tier,
     tiers: settings.pricing.tiers,
     credits,
+    platformFeeCents: settings.session.platformFeeCents,
     sessionsThisMonth: month?.sessionsThisMonth ?? 0,
     spentThisMonthCents: month?.spentCents ?? 0,
+    spentPlatformCents: split?.platformCents ?? 0,
+    spentAiCents: split?.aiCents ?? 0,
+    heldEarningsCents,
     outstandingCents: outstanding?.dueCents ?? 0,
     outstandingCount: outstanding?.dueCount ?? 0,
   };
@@ -522,6 +628,28 @@ export async function sumPayable(
   return { totalCents, rows };
 }
 
+/**
+ * 🔴 46.14 / C251 — the reconciler asks per LINE KIND, not per invoice.
+ *
+ * It used to ask "has this session an invoice". With one bill per session that
+ * was the whole question. With two lines it is the wrong one and fails
+ * silently in the direction nobody notices: a session whose platform fee
+ * posted and whose AI fee did not **has** an invoice, so it is not an orphan,
+ * so it is never looked at again. We would under-bill, indefinitely, and every
+ * dashboard would agree that nothing was wrong.
+ *
+ * So there are two passes, and the second is the new one:
+ *
+ *   1. A completed session with no invoice at all. The original case.
+ *   2. A session invoice whose composition does not match what the session
+ *      should have raised. The missing line is added to the invoice that
+ *      exists, and `invoice_lines_invoice_kind_unique` makes that idempotent
+ *      against a live completion doing the same thing.
+ *
+ * Pass 2 deliberately does not re-run `chargeForSession`: that would spend
+ * credit and claim the free session a second time. It repairs the composition
+ * of a bill that has already been decided.
+ */
 export async function reconcileMissingCharges(): Promise<number> {
   const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
@@ -538,7 +666,93 @@ export async function reconcileMissingCharges(): Promise<number> {
     await chargeForSession({ organizationId: orphan.organizationId, sessionId: orphan.id });
   }
 
-  return orphans.length;
+  const repaired = await reconcileMissingLines(since);
+  return orphans.length + repaired;
+}
+
+/**
+ * Pass 2: invoices that exist and are missing a line.
+ *
+ * The platform line is owed by every session invoice, without exception, so a
+ * missing one is unambiguous. The AI line is owed only where the patient
+ * consented, which is read from the session exactly as `chargeForSession`
+ * reads it, so the two cannot drift into disagreeing about what should be
+ * there.
+ */
+async function reconcileMissingLines(since: Date): Promise<number> {
+  const rows = await db
+    .select({
+      invoiceId: invoices.id,
+      organizationId: invoices.organizationId,
+      status: invoices.status,
+      consent: sessions.recordingConsent,
+      sessionId: sessions.id,
+    })
+    .from(invoices)
+    .innerJoin(sessions, eq(sessions.id, invoices.sessionId))
+    .where(
+      and(
+        eq(invoices.kind, "session"),
+        eq(sessions.status, "completed"),
+        gte(sessions.endedAt, since),
+      ),
+    )
+    .limit(100);
+
+  if (rows.length === 0) return 0;
+
+  const existing = await db
+    .select({ invoiceId: invoiceLines.invoiceId, kind: invoiceLines.kind })
+    .from(invoiceLines)
+    .where(
+      inArray(
+        invoiceLines.invoiceId,
+        rows.map((row) => row.invoiceId),
+      ),
+    );
+
+  const have = new Set(existing.map((line) => `${line.invoiceId}:${line.kind}`));
+  let repaired = 0;
+
+  for (const row of rows) {
+    const settings = await getSettings();
+    const tier = await currentTier(row.organizationId);
+    const { lines } = sessionLines({
+      settings,
+      tierKey: tier.key,
+      aiConsented: row.consent === "granted",
+    });
+
+    const missing = lines.filter((line) => !have.has(`${row.invoiceId}:${line.kind}`));
+    if (missing.length === 0) continue;
+
+    await db
+      .insert(invoiceLines)
+      .values(
+        missing.map((line) => ({
+          invoiceId: row.invoiceId,
+          kind: line.kind,
+          /*
+           * A waived or included invoice is composed of zeroes: the bill was
+           * already settled, and adding a priced line to it would invent a
+           * receivable that nobody owes. What is being repaired is the record
+           * of what the session was made of, not the amount.
+           */
+          amountCents:
+            row.status === "waived" || row.status === "included" ? 0 : line.amountCents,
+          tierKey: tier.key,
+        })),
+      )
+      .onConflictDoNothing();
+
+    log.warn("invoice line reconciled", {
+      session: ref(row.sessionId),
+      kinds: missing.map((line) => line.kind).join(","),
+    });
+    repaired += 1;
+  }
+
+  return repaired;
 }
 
 /* ------------------------------------------------------------------ admin -- */

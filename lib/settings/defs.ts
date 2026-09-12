@@ -23,14 +23,31 @@
  * platform fee.
  */
 
-/** A rate a therapist can buy at, and the quantity that unlocks it. */
+/**
+ * 🔴 46.3 / C223 — a tier is a price threshold and an AI rate, never a count.
+ *
+ * It used to be `{ rateCents, minimumSessions }`, which encodes "ten sessions
+ * at three dollars". That is a session bundle, and the offer is not a bundle:
+ * **$30 buys $30 of credit and unlocks the $2 AI rate.** Those are different
+ * objects and the second cannot be written in the first, because the money
+ * buys credit spendable on any line and the rate is what the threshold bought.
+ *
+ * The consequence somebody will trip over: **the rate does not expire when the
+ * credit does.** A therapist who spent their $60 still has the $1 AI rate. The
+ * threshold was a purchase, not a subscription.
+ *
+ * The word "sessions" leaves the offer entirely, which is also why the public
+ * pricing page is rewritten in the same sprint rather than later: $30 does not
+ * buy ten of anything and a page that says it does is the false sentence
+ * `lib/content/honesty.ts` exists to reject.
+ */
 export type PricingTier = {
   key: string;
   name: string;
-  /** What one session costs the therapist at this tier. */
-  rateCents: number;
-  /** Sessions they must buy at once to get the rate. 0 is pay-as-you-go. */
-  minimumSessions: number;
+  /** What a therapist must spend, once, to hold this rate. 0 is pay as you go. */
+  unlockCents: number;
+  /** What one AI-assisted session costs them at this tier. */
+  aiRateCents: number;
 };
 
 export type PlatformSettings = {
@@ -42,6 +59,16 @@ export type PlatformSettings = {
   session: {
     /** Our cut of a patient payment, in basis points. */
     platformFeeBps: number;
+    /**
+     * 🔴 46.1 / 46.2 / C209 — charged on EVERY session, without exception.
+     *
+     * Free ones, in-person ones, and the ones where the patient declined
+     * recording. This is the number that makes the AI fee safe to make
+     * conditional: if the whole bill vanished on a refusal, a therapist would
+     * have a financial reason to lean on the most vulnerable person in the
+     * room.
+     */
+    platformFeeCents: number;
     /** Below this, the card processing fee eats the whole charge. */
     minPriceCents: number;
     maxPriceCents: number;
@@ -113,15 +140,24 @@ export type PlatformSettings = {
  */
 export const SETTINGS_DEFAULTS: PlatformSettings = {
   pricing: {
+    /*
+     * 46.2 / 46.3 — the figures, and the arithmetic that keeps them honest.
+     *
+     * The all-in cost of an AI session is unchanged at every tier: $1 platform
+     * plus $3, $2 or $1 of AI is the $4, $3 and $2 that shipped. What changed
+     * is that a session with no AI now costs $1 instead of $4, and a session
+     * with AI is two visible lines instead of one opaque one.
+     */
     tiers: [
-      { key: "payg", name: "Pay as you go", rateCents: 400, minimumSessions: 0 },
-      { key: "starter", name: "Starter", rateCents: 300, minimumSessions: 10 },
-      { key: "growth", name: "Growth", rateCents: 200, minimumSessions: 30 },
+      { key: "payg", name: "Pay as you go", unlockCents: 0, aiRateCents: 300 },
+      { key: "starter", name: "Starter", unlockCents: 3000, aiRateCents: 200 },
+      { key: "growth", name: "Growth", unlockCents: 6000, aiRateCents: 100 },
     ],
     creditExpiryMonths: 12,
   },
   session: {
     platformFeeBps: 1500,
+    platformFeeCents: 100,
     minPriceCents: 500,
     maxPriceCents: 50_000,
   },
@@ -192,10 +228,43 @@ function parseTiers(value: unknown): PricingTier[] {
     tiers.push({
       key,
       name: str(t.name, key),
+      /*
+       * 🔴 46.3 — read the new shape, and CONVERT the old one rather than
+       * reinterpreting its numbers.
+       *
+       * A database seeded before this sprint holds `{ rateCents,
+       * minimumSessions }`, and settings are parsed on every read, so without
+       * this the first read after deploy gives every therapist a free tier
+       * until somebody re-saves the group.
+       *
+       * The first version of this fallback read `minimumSessions` as if it
+       * were `unlockCents`, which turned "10 sessions" into ten cents. The
+       * sprint 46 verifier printed `starter: $0.1` and that is how it was
+       * caught. A field's number does not carry its unit; two fields that mean
+       * different things need arithmetic between them, not an `??`.
+       *
+       * The honest conversion is the money the old bundle actually cost:
+       *
+       *   unlockCents = minimumSessions × rateCents   10 × $3 = $30
+       *   aiRateCents = rateCents − platformFeeCents  $3 − $1 = $2
+       *
+       * Which reproduces the founder's $30 and $60 thresholds exactly, and
+       * keeps the all-in price of an AI session unchanged at every tier. That
+       * is not a coincidence: the old rate WAS the all-in price, and the split
+       * only says which part of it is conditional.
+       */
+      unlockCents: int(
+        t.unlockCents ?? Number(t.minimumSessions ?? 0) * Number(t.rateCents ?? 0),
+        0,
+        { min: 0, max: 10_000_000 },
+      ),
       // A rate of zero is a real answer — a promotional tier — so the floor is
       // 0 rather than 1. There is no sensible ceiling below the price cap.
-      rateCents: int(t.rateCents, 0, { min: 0, max: 1_000_000 }),
-      minimumSessions: int(t.minimumSessions, 0, { min: 0, max: 100_000 }),
+      aiRateCents: int(
+        t.aiRateCents ?? Number(t.rateCents ?? 0) - SETTINGS_DEFAULTS.session.platformFeeCents,
+        0,
+        { min: 0, max: 1_000_000 },
+      ),
     });
   }
 
@@ -203,8 +272,8 @@ function parseTiers(value: unknown): PricingTier[] {
   // leave a therapist with no rate to be billed at.
   if (tiers.length === 0) return SETTINGS_DEFAULTS.pricing.tiers;
 
-  // Cheapest last is how they are shown and how `tierForQuantity` walks them.
-  return tiers.sort((a, b) => a.minimumSessions - b.minimumSessions);
+  // Cheapest last is how they are shown and how `tierForSpend` walks them.
+  return tiers.sort((a, b) => a.unlockCents - b.unlockCents);
 }
 
 /** Merge one stored group over its defaults, field by field. */
@@ -230,6 +299,21 @@ export function parseGroup<G extends SettingsGroup>(
         // 10_000 bps is the entire payment. A fee of 100% is not a
         // configuration, it is a therapist who gets nothing.
         platformFeeBps: int(v.platformFeeBps, d.session.platformFeeBps, { min: 0, max: 9_000 }),
+        /*
+         * 🔴 46.2 — the floor is 1 cent, not 0, and the default answers for
+         * every row seeded before this sprint.
+         *
+         * A stored `session` blob written before 46 has no such key, so
+         * without this it parsed to `undefined` and every fee arithmetic
+         * downstream produced NaN. The sprint 46 verifier caught exactly that
+         * on its first run, which is what the pure check at the top of it is
+         * there for: a NaN platform fee would have made every invoice in the
+         * product NaN cents, and it would have shipped looking like nothing.
+         */
+        platformFeeCents: int(v.platformFeeCents, d.session.platformFeeCents, {
+          min: 1,
+          max: 100_000,
+        }),
         minPriceCents: int(v.minPriceCents, d.session.minPriceCents, { min: 0, max: 1_000_000 }),
         maxPriceCents: int(v.maxPriceCents, d.session.maxPriceCents, { min: 1, max: 10_000_000 }),
       } as PlatformSettings[G];
@@ -301,8 +385,17 @@ export function settingsProblem(settings: PlatformSettings): string | null {
   if (settings.session.maxPriceCents < settings.session.minPriceCents) {
     return "The price cap is below the minimum chargeable price.";
   }
-  if (!settings.pricing.tiers.some((t) => t.minimumSessions === 0)) {
-    return "No tier has a minimum of zero, so a therapist who has bought nothing has no rate.";
+  if (!settings.pricing.tiers.some((t) => t.unlockCents === 0)) {
+    return "No tier has a threshold of zero, so a therapist who has bought nothing has no AI rate.";
+  }
+  /*
+   * 🔴 46.2 — a platform fee of zero is a configuration, not a typo, and it is
+   * the one C209 forbids. Zero means a therapist who never seeks consent gets
+   * unlimited hosted video for nothing, which is half the defect this sprint
+   * exists to fix. An admin who wants a promotion lowers the AI rate.
+   */
+  if (settings.session.platformFeeCents <= 0) {
+    return "The platform fee is what makes the AI fee safe to make conditional. It cannot be zero.";
   }
   return null;
 }

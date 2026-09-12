@@ -28,19 +28,23 @@ export type { PricingTier };
 /**
  * The rate a therapist gets for buying `quantity` sessions at once.
  *
- * Walks to the best tier they qualify for. Tiers arrive sorted by minimum
- * ascending (`parseTiers` guarantees it), so the last one whose minimum they
- * meet is the cheapest one they have earned.
+ * 🔴 46.3 — the threshold is MONEY SPENT, not sessions bought.
  *
- * A quantity below every minimum still returns a tier — the zero-minimum one —
- * because "bought nothing" is pay-as-you-go, not "no rate". `settingsProblem`
- * refuses a configuration with no zero-minimum tier for exactly this reason.
+ * This walked a session count. It walks cents now, and the difference is the
+ * whole of C223: $30 does not buy ten of anything, it buys $30 of credit and
+ * unlocks the $2 AI rate. Tiers arrive sorted by threshold ascending
+ * (`parseTiers` guarantees it), so the last one they have reached is the
+ * cheapest they have earned.
+ *
+ * A spend below every threshold still returns a tier — the zero one — because
+ * "bought nothing" is pay as you go, not "no rate". `settingsProblem` refuses
+ * a configuration with no zero-threshold tier for exactly this reason.
  */
-export function tierForQuantity(tiers: PricingTier[], quantity: number): PricingTier {
-  const qty = Math.max(0, Math.floor(quantity));
+export function tierForSpend(tiers: PricingTier[], spentCents: number): PricingTier {
+  const spent = Math.max(0, Math.floor(spentCents));
   let best = tiers[0]!;
   for (const tier of tiers) {
-    if (tier.minimumSessions <= qty) best = tier;
+    if (tier.unlockCents <= spent) best = tier;
   }
   return best;
 }
@@ -48,35 +52,61 @@ export function tierForQuantity(tiers: PricingTier[], quantity: number): Pricing
 export function tierByKey(tiers: PricingTier[], key: string | null | undefined): PricingTier {
   // Fail closed to the most expensive tier a therapist could be on rather than
   // the cheapest: an unrecognised key must never silently grant the best rate.
-  return tiers.find((t) => t.key === key) ?? tierForQuantity(tiers, 0);
-}
-
-/** What buying `quantity` sessions at once costs, and at what rate. */
-export function quoteForQuantity(
-  tiers: PricingTier[],
-  quantity: number,
-): { tier: PricingTier; quantity: number; totalCents: number } {
-  const qty = Math.max(0, Math.floor(quantity));
-  const tier = tierForQuantity(tiers, qty);
-  return { tier, quantity: qty, totalCents: tier.rateCents * qty };
+  return tiers.find((t) => t.key === key) ?? tierForSpend(tiers, 0);
 }
 
 /**
- * What this session costs the therapist.
+ * 🔴 46.4 — what spending `amountCents` buys.
  *
- * A therapist with credits pays nothing now — the credit was paid for when it
- * was bought — and one without pays their tier's rate. Credits are consumed
- * before the rate applies, which is what §3 means by "keep every unused credit,
- * they are consumed first".
+ * Credit is money. Spending $30 buys $30 of credit, spendable against any
+ * line, platform fee and AI fee alike, and unlocks whatever rate that
+ * threshold reaches. `totalCents === creditCents` is not a placeholder for
+ * arithmetic that is coming: the money bought is the money spent, and the
+ * thing the threshold bought is the rate.
  */
-export function sessionCharge(input: {
+export function quoteForSpend(
+  tiers: PricingTier[],
+  amountCents: number,
+): { tier: PricingTier; creditCents: number; totalCents: number } {
+  const spend = Math.max(0, Math.floor(amountCents));
+  const tier = tierForSpend(tiers, spend);
+  return { tier, creditCents: spend, totalCents: spend };
+}
+
+/**
+ * 🔴 46.1 / C209 — what one session costs the therapist, as two lines.
+ *
+ * The platform fee is on **every** session. Free ones, in-person ones, and the
+ * ones where the patient declined recording. It buys the record, the booking,
+ * the reminders, the radar placement, the note storage and the free in-room
+ * copilot, which is why it survives a session with no video in it at all.
+ *
+ * The AI fee exists only where the patient turned the AI on.
+ *
+ * 🔴 The protection against coercion is the FIRST of those, not the second. A
+ * single fee that vanished on a refusal would give a therapist a reason to
+ * lean on the most vulnerable person in the room; a fee of zero would give
+ * away hosted HIPAA-grade video to anybody who never asks. Making the AI fee
+ * conditional is only safe because the platform fee is unavoidable.
+ *
+ * Pure, and takes the consent state rather than reading it, so the rule can be
+ * asserted without a database.
+ */
+export type SessionLine = { kind: "platform" | "ai"; amountCents: number };
+
+export function sessionLines(input: {
   settings: PlatformSettings;
   tierKey: string | null;
-  creditsRemaining: number;
-}): { source: "credit" | "rate"; amountCents: number; tier: PricingTier } {
+  aiConsented: boolean;
+}): { lines: SessionLine[]; totalCents: number; tier: PricingTier } {
   const tier = tierByKey(input.settings.pricing.tiers, input.tierKey);
-  if (input.creditsRemaining > 0) return { source: "credit", amountCents: 0, tier };
-  return { source: "rate", amountCents: tier.rateCents, tier };
+
+  const lines: SessionLine[] = [
+    { kind: "platform", amountCents: input.settings.session.platformFeeCents },
+  ];
+  if (input.aiConsented) lines.push({ kind: "ai", amountCents: tier.aiRateCents });
+
+  return { lines, totalCents: lines.reduce((sum, line) => sum + line.amountCents, 0), tier };
 }
 
 /**

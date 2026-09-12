@@ -466,7 +466,7 @@ async function main() {
      */
     const before = await getSettings();
     const bumped = before.pricing.tiers.map((tier) =>
-      tier.key === "payg" ? { ...tier, rateCents: tier.rateCents + 100 } : tier,
+      tier.key === "payg" ? { ...tier, aiRateCents: tier.aiRateCents + 100 } : tier,
     );
 
     try {
@@ -478,9 +478,9 @@ async function main() {
       const after = await (await import(`../lib/settings/index.ts?bump=${Date.now()}`)).getSettings();
       check(
         "🔴 20.1 a rate edited in admin is the rate the rest of the product reads",
-        after.pricing.tiers.find((t: { key: string }) => t.key === "payg")?.rateCents ===
-          (before.pricing.tiers.find((t) => t.key === "payg")?.rateCents ?? 0) + 100,
-        `${before.pricing.tiers[0]?.rateCents} → ${after.pricing.tiers[0]?.rateCents}`,
+        after.pricing.tiers.find((t: { key: string }) => t.key === "payg")?.aiRateCents ===
+          (before.pricing.tiers.find((t) => t.key === "payg")?.aiRateCents ?? 0) + 100,
+        `${before.pricing.tiers[0]?.aiRateCents} → ${after.pricing.tiers[0]?.aiRateCents}`,
       );
     } finally {
       await writeSettingsGroup({

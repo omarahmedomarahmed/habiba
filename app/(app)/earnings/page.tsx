@@ -162,14 +162,12 @@ export default async function EarningsPage() {
         <PaymentHistory
           payments={payments.map((payment) => ({
             id: payment.id,
-            payerName: payment.payerName,
+            patientName: payment.patientName,
             grossCents: payment.grossCents,
             therapistNetCents: payment.therapistNetCents,
             settledInvoiceCents: payment.settledInvoiceCents,
             status: payment.status,
             capture: payment.capture,
-            paymentBrand: payment.paymentBrand,
-            paymentLast4: payment.paymentLast4,
             receiptUrl: payment.receiptUrl,
             createdAt: formatDate(payment.createdAt, actor.timezone, locale),
             paidAt: payment.paidAt ? formatDate(payment.paidAt, actor.timezone, locale) : null,

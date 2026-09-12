@@ -49,7 +49,15 @@ export type LedgerInvoice = {
 
 export type LedgerPayment = {
   id: string;
-  payerName: string | null;
+  /**
+   * 🔴 46.15 / C243 — the patient, from the chart. Never the payer.
+   *
+   * This was `payerName` off the payment row. A pot payment has no cardholder,
+   * so that column would have shown the employer's name on sponsored sessions
+   * or the bare word "Patient" on them, which is a sorted list of who a
+   * sponsor pays for on a screen the therapist opens every month.
+   */
+  patientName: string | null;
   grossCents: number;
   platformFeeCents: number;
   settledInvoiceCents: number;
@@ -270,7 +278,7 @@ export function BillingLedger({
                         {entry.kind === "invoice"
                           ? entry.invoice.description
                           : t("tled.paidYou", {
-                              name: entry.payment.payerName ?? t("tled.patient"),
+                              name: entry.payment.patientName ?? t("tled.patient"),
                             })}
                       </span>
                       <span className="block text-xs text-slate-500">{entry.at}</span>

@@ -80,13 +80,14 @@ async function ensureCustomer(organizationId: string, email: string): Promise<st
 export async function createCreditCheckout(opts: {
   organizationId: string;
   email: string;
-  quantity: number;
+  /** 46.4 — an amount of credit to buy, in cents. Never a session count. */
+  amountCents: number;
 }): Promise<{ url?: string; error?: string }> {
   const client = getStripe();
   if (!client) return { error: "Payments are not configured on this deployment." };
 
-  const quote = await quoteCredits(opts.quantity);
-  if (quote.quantity <= 0) return { error: "Choose how many sessions to buy." };
+  const quote = await quoteCredits(opts.amountCents);
+  if (quote.creditCents <= 0) return { error: "Choose how much credit to add." };
 
   const customerId = await ensureCustomer(opts.organizationId, opts.email);
   if (!customerId) return { error: "Stripe could not identify your account." };
@@ -102,8 +103,15 @@ export async function createCreditCheckout(opts: {
             currency: "usd",
             unit_amount: quote.totalCents,
             product_data: {
-              name: `24Therapy, ${quote.quantity} sessions`,
-              description: `${quote.tier.name} rate · $${(quote.tier.rateCents / 100).toFixed(2)} per session · valid until ${quote.expiresAt.toISOString().slice(0, 10)}`,
+              name: `24Therapy credit, $${(quote.creditCents / 100).toFixed(2)}`,
+              /*
+               * 🔴 46.3 — the word "sessions" is gone from the offer, and this
+               * line is where somebody would put it back. What was bought is
+               * credit; what the threshold unlocked is the AI rate; the rate
+               * outlives the credit, which is why the expiry sentence is about
+               * the money alone.
+               */
+              description: `${quote.tier.name}: $${(quote.tier.aiRateCents / 100).toFixed(2)} per AI session, yours to keep. Credit valid until ${quote.expiresAt.toISOString().slice(0, 10)}`,
             },
           },
         },
@@ -113,7 +121,7 @@ export async function createCreditCheckout(opts: {
       metadata: {
         kind: "credit_purchase",
         organizationId: opts.organizationId,
-        quantity: String(quote.quantity),
+        creditCents: String(quote.creditCents),
       },
     });
 
@@ -124,7 +132,7 @@ export async function createCreditCheckout(opts: {
     // webhook may well arrive before the browser comes back.
     const pending = await createPendingPurchase({
       organizationId: opts.organizationId,
-      quantity: quote.quantity,
+      amountCents: quote.creditCents,
       stripeCheckoutSessionId: checkout.id,
     });
     if (!pending) return { error: "Could not record the purchase. Nothing has been charged." };

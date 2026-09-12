@@ -58,7 +58,7 @@ export function PricingEditor({
   tiers,
   creditExpiryMonths,
 }: {
-  tiers: { key: string; name: string; rateCents: number; minimumSessions: number }[];
+  tiers: { key: string; name: string; unlockCents: number; aiRateCents: number }[];
   creditExpiryMonths: number;
 }) {
   const [state, action] = useActionState(savePricing, INITIAL);
@@ -67,9 +67,15 @@ export function PricingEditor({
   return (
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">What a clinician pays us</p>
+      {/*
+        🔴 46.3 — a tier is a spend threshold and an AI rate, never a count.
+        The platform fee lives on the session group below, because it is
+        charged on every session at every tier and is not a tier figure at all.
+      */}
       <p className="mt-1 text-xs text-slate-500">
-        These are the figures on the pricing page, on the homepage and on every invoice. There is
-        no second copy.
+        These are the figures on the pricing page, on the homepage and on every invoice, with no
+        second copy. A threshold is what a clinician spends once to hold that AI rate, and the rate
+        is theirs afterwards: it does not expire when the credit does.
       </p>
 
       <form action={action} className="mt-3 space-y-3">
@@ -80,23 +86,24 @@ export function PricingEditor({
               <Field label={`${key}, name`} htmlFor={`${key}Name`}>
                 <Input id={`${key}Name`} name={`${key}Name`} defaultValue={tier?.name ?? key} />
               </Field>
-              <Field label="Rate ($ per session)" htmlFor={`${key}Rate`}>
+              <Field label="AI rate ($ per consented session)" htmlFor={`${key}Rate`}>
                 <Input
                   id={`${key}Rate`}
                   name={`${key}Rate`}
                   type="number"
                   step="0.01"
                   min="0"
-                  defaultValue={((tier?.rateCents ?? 0) / 100).toFixed(2)}
+                  defaultValue={((tier?.aiRateCents ?? 0) / 100).toFixed(2)}
                 />
               </Field>
-              <Field label="Minimum sessions" htmlFor={`${key}Min`}>
+              <Field label="Unlocked by spending ($)" htmlFor={`${key}Unlock`}>
                 <Input
-                  id={`${key}Min`}
-                  name={`${key}Min`}
+                  id={`${key}Unlock`}
+                  name={`${key}Unlock`}
                   type="number"
+                  step="1"
                   min="0"
-                  defaultValue={tier?.minimumSessions ?? 0}
+                  defaultValue={((tier?.unlockCents ?? 0) / 100).toFixed(0)}
                 />
               </Field>
             </div>
@@ -106,7 +113,7 @@ export function PricingEditor({
         <Field
           label="Credits last (months)"
           htmlFor="creditExpiryMonths"
-          hint="Bought sessions are always spent before anything new is billed."
+          hint="Credit is always spent before anything new is billed. The rate it unlocked outlives it."
         >
           <Input
             id="creditExpiryMonths"
@@ -126,10 +133,12 @@ export function PricingEditor({
 
 export function SessionEditor({
   platformFeeBps,
+  platformFeeCents,
   minPriceCents,
   maxPriceCents,
 }: {
   platformFeeBps: number;
+  platformFeeCents: number;
   minPriceCents: number;
   maxPriceCents: number;
 }) {
@@ -139,6 +148,28 @@ export function SessionEditor({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">What we take from a patient payment</p>
       <form action={action} className="mt-3 grid gap-2 sm:grid-cols-3">
+        {/*
+          🔴 46.2 / C209 — the platform fee, on every session without
+          exception, and the field refuses zero. Zero means a clinician who
+          never seeks consent gets unlimited hosted video for nothing, and a
+          bill that vanished on a refusal would give them a reason to lean on
+          the patient. This number is what makes the AI fee safe to make
+          conditional.
+        */}
+        <Field
+          label="Platform fee ($ per session)"
+          htmlFor="platformFee"
+          hint="Charged on every session, including free, in person and declined ones."
+        >
+          <Input
+            id="platformFee"
+            name="platformFee"
+            type="number"
+            step="0.01"
+            min="0.01"
+            defaultValue={(platformFeeCents / 100).toFixed(2)}
+          />
+        </Field>
         <Field label="Our cut (%)" htmlFor="platformFeePercent">
           <Input
             id="platformFeePercent"

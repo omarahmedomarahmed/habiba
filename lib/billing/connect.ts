@@ -7,6 +7,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   earningsTransfers,
   invoices,
+  patients,
   payableCents,
   sessionPayments,
   sessions,
@@ -1124,24 +1125,54 @@ export async function earningsSummary(therapistId: string): Promise<Earnings> {
   };
 }
 
+/**
+ * 🔴 46.15 / C243 — the therapist's ledger shows the PATIENT, never the PAYER.
+ *
+ * This selected `payerName`, and `components/billing/ledger.tsx` rendered it
+ * as `payerName ?? "Patient"`. That is the single worst line in the codebase
+ * for what sprint 53 is about to build, and it would have defeated the entire
+ * corporate wall on its own.
+ *
+ * A pot payment has no cardholder. So either the sponsor's name lands in that
+ * column and every sponsored session is labelled with the employer, or it is
+ * null and the therapist's own ledger shows a real name on every private
+ * patient and the word "Patient" on every corporate one. The second is not the
+ * softer failure: it is a **sorted, complete, self-updating list** of which of
+ * their caseload an employer is paying for, on a screen they open every month.
+ *
+ * 🔴 And the verifier C242 asks for would have passed against it. "No
+ * therapist-facing query reaches a sponsor row" is true here. The leak is a
+ * null. That is why this lands now, in the sprint that rewrites the charge
+ * path, months before there is a sponsor to leak.
+ *
+ * The patient's name from the chart is what the therapist actually needs, is
+ * what they already have every right to see, and is identical whoever paid.
+ * The card brand and last four go with it: they were selected and never
+ * rendered, which is a leak waiting for somebody to add a column to a table.
+ */
 export async function recentPayments(therapistId: string, limit = 20) {
   return db
     .select({
       id: sessionPayments.id,
       sessionId: sessionPayments.sessionId,
-      payerName: sessionPayments.payerName,
+      /*
+       * From `patients`, joined through the session. Not from the payment.
+       * A left join because a session can be paid before a chart exists, and
+       * a row with no name reads as an unnamed session rather than vanishing.
+       */
+      patientName: sql<string | null>`NULLIF(trim(COALESCE(${patients.firstName}, '') || ' ' || COALESCE(${patients.lastName}, '')), '')`,
       grossCents: sessionPayments.grossCents,
       therapistNetCents: sessionPayments.therapistNetCents,
       settledInvoiceCents: sessionPayments.settledInvoiceCents,
       status: sessionPayments.status,
       capture: sessionPayments.capture,
-      paymentBrand: sessionPayments.paymentBrand,
-      paymentLast4: sessionPayments.paymentLast4,
       receiptUrl: sessionPayments.receiptUrl,
       createdAt: sessionPayments.createdAt,
       paidAt: sessionPayments.paidAt,
     })
     .from(sessionPayments)
+    .leftJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
     .where(eq(sessionPayments.therapistId, therapistId))
     .orderBy(desc(sessionPayments.createdAt))
     .limit(limit);

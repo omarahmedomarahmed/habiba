@@ -70,15 +70,55 @@ async function main() {
     const clock = parseGroup("clock", groups.find((g) => g.key === "clock")?.value);
     const copilot = parseGroup("copilot", groups.find((g) => g.key === "copilot")?.value);
 
-    check("1.6 PAYG is $4.00", pricing.tiers.find((t) => t.key === "payg")?.rateCents === 400);
-    check("1.6 Starter is $3.00 from 10", (() => {
+    /*
+     * 🔴 AMENDED BY 46.3 / C223. These asserted "$3.00 from 10 sessions" and
+     * "$2.00 from 30", which is the session bundle the founder struck: $30
+     * does not buy ten of anything, it buys $30 of credit and unlocks the $2
+     * AI rate. The old assertions were correct about code that is now wrong,
+     * so they are rewritten rather than deleted, and the ARITHMETIC is checked
+     * below because that is the part that had better not have moved.
+     */
+    check(
+      "1.6 / 46.2 pay as you go is $3.00 per AI session, at no threshold",
+      (() => {
+        const t = pricing.tiers.find((x) => x.key === "payg");
+        return t?.aiRateCents === 300 && t.unlockCents === 0;
+      })(),
+    );
+    check("1.6 / 46.3 $30 unlocks $2.00 per AI session", (() => {
       const t = pricing.tiers.find((x) => x.key === "starter");
-      return t?.rateCents === 300 && t.minimumSessions === 10;
+      return t?.aiRateCents === 200 && t.unlockCents === 3000;
     })());
-    check("1.6 Growth is $2.00 from 30", (() => {
+    check("1.6 / 46.3 $60 unlocks $1.00 per AI session", (() => {
       const t = pricing.tiers.find((x) => x.key === "growth");
-      return t?.rateCents === 200 && t.minimumSessions === 30;
+      return t?.aiRateCents === 100 && t.unlockCents === 6000;
     })());
+
+    /*
+     * 🔴 The all-in cost of an AI session did not change at any tier.
+     *
+     * $1 platform + $3/$2/$1 of AI is the $4/$3/$2 that shipped. What changed
+     * is that a session with NO AI now costs $1 instead of $4. Asserted rather
+     * than assumed, because the split fee would be a silent price rise if any
+     * of these three numbers had drifted, and a price rise nobody decided is
+     * the kind of thing that is discovered by a customer.
+     */
+    check(
+      "🔴 46.1 the all-in price of an AI session is unchanged at every tier",
+      pricing.tiers.every((t) => {
+        const allIn = session.platformFeeCents + t.aiRateCents;
+        return { payg: 400, starter: 300, growth: 200 }[t.key] === allIn;
+      }),
+      pricing.tiers
+        .map((t) => `${t.key}=${session.platformFeeCents + t.aiRateCents}`)
+        .join(" "),
+    );
+
+    check(
+      "🔴 46.2 / C209 the platform fee is charged on every session and is not zero",
+      session.platformFeeCents > 0,
+      `${session.platformFeeCents}c, which is what makes the AI fee safe to make conditional`,
+    );
     check("1.6 the platform cut is 15%", session.platformFeeBps === 1500);
     check("1.6 the price cap is $500", session.maxPriceCents === 50_000);
 
@@ -110,7 +150,7 @@ async function main() {
         value: {
           ...pricing,
           tiers: pricing.tiers.map((t) =>
-            t.key === "payg" ? { ...t, rateCents: oddRate } : t,
+            t.key === "payg" ? { ...t, aiRateCents: oddRate } : t,
           ),
         } as never,
       })
@@ -123,29 +163,39 @@ async function main() {
     const rereadPricing = parseGroup("pricing", reread?.value);
     check(
       "acceptance: the new rate is what the database now returns",
-      rereadPricing.tiers.find((t) => t.key === "payg")?.rateCents === oddRate,
-      `${rereadPricing.tiers.find((t) => t.key === "payg")?.rateCents}`,
+      rereadPricing.tiers.find((t) => t.key === "payg")?.aiRateCents === oddRate,
+      `${rereadPricing.tiers.find((t) => t.key === "payg")?.aiRateCents}`,
     );
 
     /*
      * And it is the rate a bill would be raised at.
      *
      * `chargeForSession` is `server-only`, so rather than importing it this
-     * asserts the property it depends on: `currentTier` picks the zero-minimum
-     * tier for an organisation holding no credits, and that tier's rate is the
-     * one just written. If those two agree, the invoice amount follows.
+     * asserts the property it depends on: `currentTier` picks the zero-threshold
+     * tier for an organisation that has spent nothing, and that tier's AI rate
+     * is the one just written. If those two agree, the invoice amount follows.
+     *
+     * 46.3 — credit is money now, so "what is spendable" is cents, and a
+     * legacy row is still valued in the units it was bought in.
      */
     const credits = await db
       .select()
       .from(sessionCredits)
       .where(and(eq(sessionCredits.organizationId, org.id), eq(sessionCredits.status, "active")));
-    const spendable = credits.reduce((n, c) => n + (c.quantity - c.consumed), 0);
+    const spendableCents = credits.reduce(
+      (n, c) =>
+        n +
+        (c.creditCents !== null
+          ? Math.max(0, c.creditCents - c.spentCents)
+          : Math.max(0, (c.quantity - c.consumed) * c.rateCents)),
+      0,
+    );
     const wouldBill =
-      spendable > 0 ? 0 : rereadPricing.tiers.find((t) => t.minimumSessions === 0)!.rateCents;
+      spendableCents > 0 ? 0 : rereadPricing.tiers.find((t) => t.unlockCents === 0)!.aiRateCents;
     check(
       "acceptance: the next session would bill at the new rate, with no deploy",
-      wouldBill === (spendable > 0 ? 0 : oddRate),
-      spendable > 0 ? `${spendable} credits, so $0` : `${wouldBill} cents`,
+      wouldBill === (spendableCents > 0 ? 0 : oddRate),
+      spendableCents > 0 ? `${spendableCents}c of credit, so $0` : `${wouldBill} cents`,
     );
 
     // Put it back exactly as it was.
@@ -158,9 +208,33 @@ async function main() {
       .select()
       .from(platformSettings)
       .where(eq(platformSettings.key, "pricing"));
+    /*
+     * 🔴 AMENDED BY 46.3. This asserted 400, which was the all-in price of a
+     * session before the fee split. It is now the AI rate, and the stored row
+     * in this database still holds the pre-46 shape, so `parseTiers` converts:
+     *
+     *   aiRateCents = rateCents - platformFeeCents = 400 - 100 = 300
+     *
+     * The conversion is the point rather than an accident of this check. A
+     * database seeded before the split reads correctly without a backfill, and
+     * the all-in price a therapist pays is unchanged.
+     */
+    const restoredPayg = parseGroup("pricing", restored?.value).tiers.find((t) => t.key === "payg");
+    /*
+     * The fee comes from `parseGroup` on the stored row, not from
+     * `lib/settings`, which is `server-only` and would not load here. This
+     * file has always read settings this way for that reason.
+     */
+    const [sessionRow] = await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.key, "session"));
+    const feeNow = parseGroup("session", sessionRow?.value).platformFeeCents;
+
     check(
       "acceptance: the schedule is restored",
-      parseGroup("pricing", restored?.value).tiers.find((t) => t.key === "payg")?.rateCents === 400,
+      restoredPayg !== undefined && restoredPayg.aiRateCents + feeNow === 400,
+      `${restoredPayg?.aiRateCents}c of AI + ${feeNow}c platform`,
     );
 
     /* ------------------------------------- 1.8 no platform-held money is new */

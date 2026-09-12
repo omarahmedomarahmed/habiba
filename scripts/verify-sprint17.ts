@@ -299,39 +299,64 @@ async function main() {
   const nodes = await flatten(await PricingTiers({}));
   const text = textOf(nodes);
 
-  const prices = nodes
-    .filter((n) => n.name === "PriceTag")
-    .map((n) => n.props.usdCents as number);
+  /*
+   * 🔴 AMENDED BY 46.9. 17.10 asserted that every rendered price is a tier
+   * rate, when the page rendered one PriceTag per tier. The page now leads
+   * with the two FEES, and the tier thresholds are a second row beneath them,
+   * so the assertion is about the figures rather than about the component: no
+   * money on this page may be a number written in a file.
+   */
+  const figures = [
+    ...text.matchAll(/\$(\d+(?:\.\d{2})?)/g),
+  ].map((m) => Math.round(Number(m[1]) * 100));
+
+  const fromSettings = new Set<number>([
+    settings.session.platformFeeCents,
+    ...settings.pricing.tiers.map((t) => t.aiRateCents),
+    ...settings.pricing.tiers.map((t) => t.unlockCents),
+  ]);
+
   check(
-    "🔴 17.10 every price the page renders IS a rate from platform_settings",
-    prices.length === settings.pricing.tiers.length &&
-      prices.every((cents) =>
-        settings.pricing.tiers.some((t) => t.rateCents === cents),
-      ),
-    `rendered ${prices.join(", ")} · settings ${settings.pricing.tiers.map((t) => t.rateCents).join(", ")}`,
+    "🔴 17.10 / 46.9 every figure the pricing page renders comes from platform_settings",
+    figures.length > 0 && figures.every((cents) => fromSettings.has(cents)),
+    `rendered ${figures.join(", ")} · settings ${[...fromSettings].join(", ")}`,
+  );
+
+  /*
+   * 🔴 46.9 — the platform fee is ON the page, not merely consistent with it.
+   *
+   * The check above passes against a page that renders nothing at all, which
+   * is the §6 family in its pricing costume. This is the half that says the
+   * unconditional fee is actually in front of the reader.
+   */
+  check(
+    "🔴 46.9 the unconditional platform fee is on the page",
+    figures.includes(settings.session.platformFeeCents),
+    `$${settings.session.platformFeeCents / 100} every session`,
+  );
+
+  /*
+   * 🔴 46.3 — and the bundle is gone from the words as well as the code.
+   *
+   * Deleting `BundleSlider` is not the same as removing the offer: a page that
+   * still reads "10 sessions" describes a product we no longer sell, renders
+   * perfectly, and passes every other check in this file.
+   */
+  check(
+    "🔴 46.3 the word `sessions` has left the offer",
+    !/\b\d+\s+sessions\b/i.test(text),
+    "no `N sessions` in the rendered text",
   );
 
   check(
-    "17.8 …and each of them carries the EGP toggle, with a rate quoted on the server",
-    nodes
-      .filter((n) => n.name === "PriceTag")
-      .every((n) => "rateMicro" in n.props),
-  );
-
-  const slider = nodes.find((n) => n.name === "BundleSlider");
-  const bundles = settings.pricing.tiers.filter((t) => t.minimumSessions > 0);
-  const cheapest = bundles[bundles.length - 1];
-  check(
-    "🔴 17.4 the slider starts at the bundle's own minimum and prices from settings",
-    slider?.props.minimum === cheapest?.minimumSessions &&
-      slider?.props.rateCents === cheapest?.rateCents &&
-      slider?.props.paygRateCents === settings.pricing.tiers[0]?.rateCents,
-    `min ${slider?.props.minimum} at ${slider?.props.rateCents}, payg ${slider?.props.paygRateCents}`,
+    "46.10 the page never suggests what a therapist should charge a patient",
+    !/raise your (price|rate|fee)/i.test(text) && !/charge (more|extra)/i.test(text),
+    "both sentences are true and only one of them is ours to say",
   );
 
   check(
-    "17.6 the call to action is 'Sign up free', with a bundle as the secondary",
-    text.includes("Sign up free") && text.includes("or buy a bundle"),
+    "17.6 the call to action is 'Sign up free'",
+    text.includes("Sign up free"),
   );
   check(
     "🔴 17.6 …and the page never says 'choose a plan', because there are no plans",

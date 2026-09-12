@@ -9,14 +9,22 @@ import { useT } from "@/lib/i18n/client";
 
 export type PaymentRow = {
   id: string;
-  payerName: string | null;
+  /**
+   * 🔴 46.15 / C243 — the patient from the chart, never the payer.
+   *
+   * This was `payerName`, and the card brand and last four sat beside it.
+   * Those are facts about whoever held the card, and once a pot can pay for a
+   * session the person holding the card is an employer. A therapist who can
+   * see "no card, no name" on some rows and "Visa ·4242, Mona Hassan" on the
+   * rest can read off which of their caseload is corporate, every month,
+   * sorted.
+   */
+  patientName: string | null;
   grossCents: number;
   therapistNetCents: number;
   settledInvoiceCents: number;
   status: "pending" | "paid" | "refunded" | "failed";
   capture: "destination" | "platform";
-  paymentBrand: string | null;
-  paymentLast4: string | null;
   receiptUrl: string | null;
   createdAt: string;
   paidAt: string | null;
@@ -77,17 +85,17 @@ export function PaymentHistory({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-[15px] font-semibold text-slate-900">
-                      {payment.payerName || "A patient"}
+                      {payment.patientName || "A patient"}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                      {/*
+                        46.15 — the card is gone from this line entirely.
+                        What the therapist needs is when they were paid and how
+                        much; how the patient paid is between the patient and
+                        their bank, and after sprint 53 it is sometimes not a
+                        patient's card at all.
+                      */}
                       <span>{payment.paidAt ?? payment.createdAt}</span>
-                      {payment.paymentBrand ? (
-                        <span className="inline-flex items-center gap-1 capitalize">
-                          <CreditCard className="h-3 w-3" aria-hidden />
-                          {payment.paymentBrand}
-                          {payment.paymentLast4 ? ` ·${payment.paymentLast4}` : ""}
-                        </span>
-                      ) : null}
                     </p>
                   </div>
                   <div className="shrink-0 text-end">

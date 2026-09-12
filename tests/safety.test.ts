@@ -8,7 +8,7 @@ import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";
 import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/password";
 import { priceProblem } from "../lib/billing/connect";
-import { quoteForQuantity, tierByKey, tierForQuantity } from "../lib/billing/plans";
+import { quoteForSpend, sessionLines, tierByKey, tierForSpend } from "../lib/billing/plans";
 import {
   convertAtRate,
   parseGroup,
@@ -183,29 +183,90 @@ test("development is not gated by the production requirements", () => {
 const TIERS = SETTINGS_DEFAULTS.pricing.tiers;
 const BOUNDS = SETTINGS_DEFAULTS.session;
 
-test("the seeded schedule is the one §3 asks for", () => {
+test("the seeded schedule is the one §3c asks for, after the split", () => {
   assert.deepEqual(
-    TIERS.map((t) => [t.key, t.rateCents, t.minimumSessions]),
+    TIERS.map((t) => [t.key, t.aiRateCents, t.unlockCents]),
     [
-      ["payg", 400, 0],
-      ["starter", 300, 10],
-      ["growth", 200, 30],
+      ["payg", 300, 0],
+      ["starter", 200, 3000],
+      ["growth", 100, 6000],
     ],
   );
+  assert.equal(BOUNDS.platformFeeCents, 100, "a dollar, on every session");
   assert.equal(BOUNDS.platformFeeBps, 1500, "the platform cut is 15%");
   assert.equal(BOUNDS.maxPriceCents, 50_000, "the price cap is $500");
   assert.equal(settingsProblem(SETTINGS_DEFAULTS), null);
 });
 
-test("a quantity gets the best rate its size has earned, and never a better one", () => {
-  assert.equal(tierForQuantity(TIERS, 0).key, "payg");
-  assert.equal(tierForQuantity(TIERS, 9).key, "payg");
-  assert.equal(tierForQuantity(TIERS, 10).key, "starter");
-  assert.equal(tierForQuantity(TIERS, 29).key, "starter");
-  assert.equal(tierForQuantity(TIERS, 30).key, "growth");
-  // Above a minimum they buy as many as they like at the same rate — a slider,
-  // not a fixed pack.
-  assert.equal(tierForQuantity(TIERS, 500).key, "growth");
+/**
+ * 🔴 46.1 — the all-in price did not move, and the free session got cheaper.
+ *
+ * $1 platform + $3/$2/$1 of AI is the $4/$3/$2 that shipped before the split.
+ * If any of these three drifted, the split fee would be a price rise nobody
+ * decided, which is the kind of thing a customer discovers rather than a
+ * changelog.
+ */
+test("splitting the fee did not change what an AI session costs", () => {
+  assert.deepEqual(
+    TIERS.map((t) => BOUNDS.platformFeeCents + t.aiRateCents),
+    [400, 300, 200],
+  );
+});
+
+/**
+ * 🔴 C209, as arithmetic rather than as prose.
+ *
+ * The coercion channel this sprint closes is a bill that gets CHEAPER when the
+ * patient refuses. It still does, and it must: the AI fee is what the AI
+ * costs. What must never happen is the bill going to zero, because a fee that
+ * vanishes on refusal gives a therapist a reason to lean on the most
+ * vulnerable person in the room, and a fee of zero gives away hosted video to
+ * anybody who simply never asks.
+ */
+test("a declined session still raises the platform fee, at every tier", () => {
+  for (const tier of TIERS) {
+    const declined = sessionLines({
+      settings: SETTINGS_DEFAULTS,
+      tierKey: tier.key,
+      aiConsented: false,
+    });
+    assert.equal(declined.lines.length, 1, `${tier.key}: one line`);
+    assert.equal(declined.lines[0]!.kind, "platform");
+    assert.equal(
+      declined.totalCents,
+      BOUNDS.platformFeeCents,
+      `${tier.key}: a refusal never bills zero`,
+    );
+    assert.ok(declined.totalCents > 0, `${tier.key}: never free`);
+  }
+});
+
+test("a consented session raises both lines, and the AI line is the tier's", () => {
+  for (const tier of TIERS) {
+    const consented = sessionLines({
+      settings: SETTINGS_DEFAULTS,
+      tierKey: tier.key,
+      aiConsented: true,
+    });
+    assert.deepEqual(
+      consented.lines.map((l) => [l.kind, l.amountCents]),
+      [
+        ["platform", BOUNDS.platformFeeCents],
+        ["ai", tier.aiRateCents],
+      ],
+      tier.key,
+    );
+  }
+});
+
+test("spend gets the best rate it has reached, and never a better one", () => {
+  assert.equal(tierForSpend(TIERS, 0).key, "payg");
+  assert.equal(tierForSpend(TIERS, 2999).key, "payg");
+  assert.equal(tierForSpend(TIERS, 3000).key, "starter");
+  assert.equal(tierForSpend(TIERS, 5999).key, "starter");
+  assert.equal(tierForSpend(TIERS, 6000).key, "growth");
+  // Spending more than the top threshold does not buy a fourth tier.
+  assert.equal(tierForSpend(TIERS, 50_000).key, "growth");
 });
 
 test("an unknown tier key fails closed to the most expensive rate", () => {
@@ -217,13 +278,38 @@ test("an unknown tier key fails closed to the most expensive rate", () => {
   assert.equal(tierByKey(TIERS, "growth").key, "growth");
 });
 
-test("a quote is the tier rate times the quantity, and refuses nonsense", () => {
-  assert.equal(quoteForQuantity(TIERS, 10).totalCents, 3000);
-  assert.equal(quoteForQuantity(TIERS, 30).totalCents, 6000);
-  assert.equal(quoteForQuantity(TIERS, 1).totalCents, 400);
-  assert.equal(quoteForQuantity(TIERS, 0).totalCents, 0);
-  assert.equal(quoteForQuantity(TIERS, -5).quantity, 0);
-  assert.equal(quoteForQuantity(TIERS, 10.7).quantity, 10, "a fraction of a session is not a thing");
+/**
+ * 🔴 46.4 — the money bought IS the credit. There is no multiplication left.
+ *
+ * $30 buys $30 of credit and unlocks the $2 AI rate. Anything that made
+ * `creditCents` differ from what was paid would be a bundle wearing a rate
+ * lock's name, which is what C223 struck.
+ */
+test("a quote is the money, and the threshold is what buys the rate", () => {
+  assert.equal(quoteForSpend(TIERS, 3000).creditCents, 3000);
+  assert.equal(quoteForSpend(TIERS, 3000).totalCents, 3000);
+  assert.equal(quoteForSpend(TIERS, 3000).tier.key, "starter");
+  assert.equal(quoteForSpend(TIERS, 6000).tier.key, "growth");
+  assert.equal(quoteForSpend(TIERS, 100).tier.key, "payg");
+  assert.equal(quoteForSpend(TIERS, 0).creditCents, 0);
+  assert.equal(quoteForSpend(TIERS, -500).creditCents, 0);
+});
+
+/**
+ * 🔴 46.2 — a platform fee of zero is the giveaway half of C209.
+ *
+ * An admin can set every other figure to anything. This one has a floor,
+ * because zero means a clinician who never seeks consent gets unlimited hosted
+ * HIPAA-grade video for nothing.
+ */
+test("settings refuse a platform fee of zero", () => {
+  assert.match(
+    settingsProblem({
+      ...SETTINGS_DEFAULTS,
+      session: { ...SETTINGS_DEFAULTS.session, platformFeeCents: 0 },
+    }) ?? "",
+    /platform fee/i,
+  );
 });
 
 /* ------------------------------------------------------- settings integrity */
@@ -250,7 +336,7 @@ test("settings that cannot be true are refused rather than applied", () => {
 
   const noBase = {
     ...SETTINGS_DEFAULTS,
-    pricing: { ...SETTINGS_DEFAULTS.pricing, tiers: TIERS.filter((t) => t.minimumSessions > 0) },
+    pricing: { ...SETTINGS_DEFAULTS.pricing, tiers: TIERS.filter((t) => t.unlockCents > 0) },
   };
   assert.ok(settingsProblem(noBase), "somebody who has bought nothing must still have a rate");
 });

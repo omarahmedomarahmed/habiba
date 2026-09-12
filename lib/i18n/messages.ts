@@ -2010,6 +2010,61 @@ export const en = {
    */
   "trad.countryClosed": "We have paused new bookings in {country}, so you are not on the radar at the moment. Nothing else has changed: your patients, your sessions, your notes and your money are exactly where they were, and you can still work with everyone on your list.",
   "trad.countryClosedTitle": "Bookings paused where you practise",
+
+  /*
+   * 🔴 46.7 — the plan page, after the fee split.
+   *
+   * "Per session" stopped being one number, so the card stops quoting one. The
+   * platform fee is stated as unconditional and the AI fee as conditional, in
+   * that order, because that order IS the protection C209 is built on: a
+   * therapist who reads "nothing when they do not" next to a fee that is
+   * charged anyway has no reason to lean on a patient about consent.
+   *
+   * 🔴 `tplan.rateKept` is the sentence nobody would guess. The money buys
+   * credit; the threshold buys the rate; the rate outlives the credit. Leaving
+   * that to be discovered would make a rate lock look like a bundle discount
+   * that quietly lapsed.
+   */
+  "tplan.platformEvery": "{amount} per session, always",
+  "tplan.platformWhat": "The record, the booking, the reminders, your place on the radar, and the copilot inside the room.",
+  "tplan.aiRate": "{amount} more when your patient turns the AI on",
+  "tplan.aiNever": "Nothing when they do not.",
+  "tplan.creditBalance": "Credit left",
+  "tplan.spentPlatform": "Session fees this month",
+  "tplan.spentAi": "AI fees this month",
+  "tplan.heldEarnings": "Your earnings we hold",
+  "tplan.topUp": "Add credit",
+  "tplan.topUpBody": "Credit is money. It pays for session fees and AI fees alike, and reaching a threshold lowers your AI rate for good.",
+  "tplan.unlocks": "Unlocks {amount} per AI session",
+  "tplan.rateKept": "The rate is yours to keep. It does not expire when the credit does.",
+  "tplan.addAmount": "Add {amount}",
+  "tplan.creditExpiresOn": "Credit expires {date}",
+  "tplan.settleFirst": "Pay a bill from",
+  "tplan.settleCredit": "My credit first",
+  "tplan.settleEarnings": "My held earnings first",
+  "tplan.settleBody": "Whichever you pick, we try the other one next, and only then your card.",
+
+  /*
+   * 🔴 46.9 — the pricing page, after the split.
+   *
+   * "One rate per session" was the offer and is no longer true, so the page
+   * stops saying it. Two lines, in this order: the fee that is always charged,
+   * then the fee that is not.
+   *
+   * 🔴 46.10 — what is deliberately absent. "The patient pays nothing for AI"
+   * is here and true. "Raise your price because you use AI" is NOT here and
+   * never will be: both sentences are true and only the first is ours to say,
+   * because we do not tell a clinician what to charge a patient.
+   */
+  "pricing.headline": "{amount} per session. AI from {ai} more, only when your patient turns it on.",
+  "pricing.platformLine": "{amount} every session",
+  "pricing.platformWhat": "The record, the booking, the reminders, your place on the radar, and the copilot inside the room. Charged whether or not the AI ran.",
+  "pricing.aiLine": "+ {amount} with AI",
+  "pricing.aiWhat": "Only when your patient turns it on. Nothing when they do not, and nothing changes for them either way.",
+  "pricing.unlockBy": "Add {amount} of credit",
+  "pricing.unlockGets": "and AI sessions cost {amount}",
+  "pricing.creditIsMoney": "Credit is money. It pays for session fees and AI fees alike, and the rate it unlocks is yours to keep.",
+  "pricing.patientPaysNothing": "Your patient never pays us anything.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -3861,6 +3916,37 @@ export const ar: Record<MessageKey, string> = {
   /* 🔴 50.3 — a clinician taken off the radar is told why. */
   "trad.countryClosed": "أوقفنا مؤقتًا الحجوزات الجديدة في {country}، لذلك لا تظهر على الرادار حاليًا. لم يتغير أي شيء آخر: مرضاك وجلساتك وملاحظاتك وأموالك كما هي تمامًا، ويمكنك مواصلة العمل مع كل من في قائمتك.",
   "trad.countryClosedTitle": "الحجوزات متوقفة مؤقتًا في بلد ممارستك",
+
+  /* 🔴 46.7 — the plan page, after the fee split. */
+  "tplan.platformEvery": "{amount} لكل جلسة، دائمًا",
+  "tplan.platformWhat": "السجل والحجز والتذكيرات ومكانك على الرادار والمساعد داخل الغرفة.",
+  "tplan.aiRate": "{amount} إضافية عندما يُشغّل مريضك الذكاء الاصطناعي",
+  "tplan.aiNever": "ولا شيء عندما لا يفعل.",
+  "tplan.creditBalance": "الرصيد المتبقي",
+  "tplan.spentPlatform": "رسوم الجلسات هذا الشهر",
+  "tplan.spentAi": "رسوم الذكاء الاصطناعي هذا الشهر",
+  "tplan.heldEarnings": "أرباحك المحتفظ بها لدينا",
+  "tplan.topUp": "أضف رصيدًا",
+  "tplan.topUpBody": "الرصيد نقود. يغطي رسوم الجلسات ورسوم الذكاء الاصطناعي على حد سواء، وبلوغ حد معيّن يخفض سعر الذكاء الاصطناعي لديك نهائيًا.",
+  "tplan.unlocks": "يفتح سعر {amount} لكل جلسة بالذكاء الاصطناعي",
+  "tplan.rateKept": "السعر يبقى لك. لا ينتهي بانتهاء الرصيد.",
+  "tplan.addAmount": "أضف {amount}",
+  "tplan.creditExpiresOn": "ينتهي الرصيد في {date}",
+  "tplan.settleFirst": "سدّد الفاتورة من",
+  "tplan.settleCredit": "رصيدي أولًا",
+  "tplan.settleEarnings": "أرباحي المحتفظ بها أولًا",
+  "tplan.settleBody": "أيًّا كان اختيارك، نجرّب الآخر بعده، ثم بطاقتك في النهاية.",
+
+  /* 🔴 46.9 — the pricing page, after the split. */
+  "pricing.headline": "{amount} لكل جلسة. والذكاء الاصطناعي من {ai} إضافية، فقط عندما يُشغّله مريضك.",
+  "pricing.platformLine": "{amount} لكل جلسة",
+  "pricing.platformWhat": "السجل والحجز والتذكيرات ومكانك على الرادار والمساعد داخل الغرفة. تُحتسب سواء عمل الذكاء الاصطناعي أم لا.",
+  "pricing.aiLine": "+ {amount} مع الذكاء الاصطناعي",
+  "pricing.aiWhat": "فقط عندما يُشغّله مريضك. ولا شيء عندما لا يفعل، ولا يتغير شيء بالنسبة له في الحالتين.",
+  "pricing.unlockBy": "أضف رصيدًا بقيمة {amount}",
+  "pricing.unlockGets": "وتصبح جلسات الذكاء الاصطناعي بـ {amount}",
+  "pricing.creditIsMoney": "الرصيد نقود. يغطي رسوم الجلسات ورسوم الذكاء الاصطناعي على حد سواء، والسعر الذي يفتحه يبقى لك.",
+  "pricing.patientPaysNothing": "مريضك لا يدفع لنا شيئًا أبدًا.",
 };
 
 export const DICTIONARIES = { en, ar } as const;
