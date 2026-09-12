@@ -400,6 +400,129 @@ async function main() {
     "one line for this reader, or the sentence that is true everywhere",
   );
 
+  /* ---------------------------------------------- 51.9 · sell what we already built -- */
+
+  /*
+   * 🔴 Four things this product does today and no page has ever mentioned.
+   *
+   * §7's own list. Each is a capability that has shipped for sprints and has
+   * never appeared in copy, which is the most expensive kind of gap: the code
+   * is paid for and the value is not collected. The Arabic-speaking diaspora
+   * is the largest of them and needs no code at all.
+   *
+   * Asserted by the IDEA appearing in both dictionaries rather than by an
+   * exact sentence, so a rewrite of the copy does not break the check while
+   * dropping the item silently would.
+   */
+  const cmsEn = readSource("lib/content/defaults.ts");
+  const cmsAr = readSource("lib/content/defaults-ar.ts");
+
+  const SOLD: { what: string; en: RegExp; ar: RegExp }[] = [
+    {
+      what: "an Arabic-speaking therapist for the diaspora",
+      en: /first language|speaks? your language/i,
+      ar: /لغتك الأولى/,
+    },
+    {
+      what: "a psychiatrist and a therapist on one record",
+      en: /psychiatrist and a therapist/i,
+      ar: /طبيب نفسي ومعالج/,
+    },
+    {
+      what: "a verified badge a clinician can show off-platform",
+      en: /verified page you can show/i,
+      ar: /صفحة موثّقة/,
+    },
+    {
+      what: "a record that is still there years later",
+      en: /still there in three years/i,
+      ar: /بعد ثلاث سنوات/,
+    },
+  ];
+
+  const unsold = SOLD.filter((item) => !(item.en.test(cmsEn) && item.ar.test(cmsAr)));
+
+  check(
+    "🔴 51.9 the four things we built and never mentioned are on a page, in both languages",
+    unsold.length === 0,
+    unsold.length === 0
+      ? `${SOLD.length} of ${SOLD.length} sold, English and Arabic`
+      : unsold.map((item) => item.what).join("; "),
+  );
+
+  /*
+   * 🔴 CONTROL — the scan is reading real files and can miss something.
+   *
+   * Four regexes over two files that all happen to match is indistinguishable
+   * from four regexes over two EMPTY strings that all happen not to. This
+   * asserts the negative case directly.
+   */
+  check(
+    "🔴 CONTROL the 51.9 scan would notice an item that was dropped",
+    SOLD.every((item) => !item.en.test("") && !item.ar.test("")) && cmsEn.length > 1000,
+    "each pattern fails against nothing, and the file being read is the real one",
+  );
+
+  /* ------------------------------------------------------- 51.10 · the four rules -- */
+
+  /*
+   * 🔴 C275 — "24/7" describes the RADAR, never a response time.
+   *
+   * The radar is genuinely always on: clinicians are on it at every hour. What
+   * is never true is that somebody answers within any particular time, and a
+   * marketing page promising one to a person in crisis is the worst promise in
+   * this product to break. So the phrase may not appear beside response
+   * language anywhere in shipped copy.
+   */
+  const RESPONSE_PROMISE =
+    /24\s*\/\s*7[^.]{0,60}(?:respond|reply|answer|available to you|within)|(?:respond|reply|answer)[^.]{0,60}24\s*\/\s*7/i;
+
+  const promising = [cmsEn, cmsAr, readSource("lib/i18n/messages.ts")].filter((body) =>
+    RESPONSE_PROMISE.test(body),
+  );
+
+  check(
+    "🔴 51.10 / C275 no shipped copy turns 24/7 into a response time",
+    promising.length === 0,
+    promising.length === 0 ? "the radar is always on; nobody is promised an answer" : "FOUND",
+  );
+
+  check(
+    "🔴 CONTROL the 24/7 scan catches the sentence it exists to stop",
+    RESPONSE_PROMISE.test("Our therapists are available 24/7 and respond within minutes.") &&
+      !RESPONSE_PROMISE.test("The radar is live 24/7. Who is on it changes hour by hour."),
+    "a promised response is caught, a description of the radar is cleared",
+  );
+
+  /*
+   * 🔴 C273 — a rating is withheld below a volume floor.
+   *
+   * One bad night at 1.0 stars follows somebody around, and a single
+   * five-star rating is not evidence of anything. A missing number is more
+   * honest than a meaningless one.
+   */
+  const feedback = readSource("lib/data/feedback.ts");
+  check(
+    "🔴 51.10 / C273 a star rating is withheld until enough people have given one",
+    /RATINGS_VISIBLE_AFTER\s*=\s*[1-9]/.test(feedback),
+    "a missing number is more honest than a meaningless one",
+  );
+
+  /*
+   * 🔴 C274 — one price per clinician, never geo-priced.
+   *
+   * `users.sessionRateCents` is a single column and there is no second one
+   * keyed by country. Charging an Egyptian patient less than a Gulf one for
+   * the same clinician's hour is a decision this product does not get to make
+   * on a clinician's behalf, and the schema is what keeps it that way.
+   */
+  check(
+    "🔴 51.10 / C274 a clinician has ONE price, with no geo-priced second column",
+    /sessionRateCents: integer\("session_rate_cents"\)/.test(schema) &&
+      !/sessionRateCentsBy|rateCentsFor(?:Country|Region)|geoRate/i.test(schema),
+    "one column, so a per-country price is not a thing that can be stored",
+  );
+
   /* ------------------------------ 51.11 · the literal scanner counts literals -- */
 
   /*

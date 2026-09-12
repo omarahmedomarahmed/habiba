@@ -116,6 +116,21 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             body: "Therapists work from their phone, so this was designed for one. Desktop is the enhancement, not the other way round.",
             icon: "clock",
           },
+          /*
+           * 🔴 51.9 — the verified badge, which we check and never sell.
+           *
+           * Verification has been a real adapter-backed check since sprint 40:
+           * a licence number, confirmed against a register, by us. Every
+           * clinician who passes it gets a page at /t/:id they can put in an
+           * Instagram bio, and no page has ever told them that is worth
+           * something. It is the one thing here that helps a clinician
+           * off-platform, which is exactly why it earns trust on it.
+           */
+          {
+            title: "A verified page you can show anywhere",
+            body: "We check your licence against the register before you see a patient. Once you pass, you get a page of your own with your name, your languages and your hours on it, that works as a link in a bio or a message. Being checked is worth something outside this product too.",
+            icon: "shield",
+          },
         ],
       },
       /*
@@ -262,6 +277,20 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             body: "If you are not in a hurry, every clinician has a calendar. Pick an hour that suits you and you will get a reminder before it.",
             icon: "clock",
           },
+          /*
+           * 🔴 51.9 — the largest unsold group we have, and it needs no code.
+           *
+           * Somebody in Toronto or Dubai who would rather cry in Arabic than
+           * explain in English is not a feature request. The language filter
+           * has been on the radar since sprint 8 and no page has ever said who
+           * it is for. §7 calls this the biggest thing we built and never
+           * mention.
+           */
+          {
+            title: "A therapist who speaks your first language",
+            body: "Filter the radar by language. If you grew up in Arabic and live somewhere that does not, you can talk to somebody in the language you think in rather than the one you translate into. They are licensed, they are online now, and the distance does not matter.",
+            icon: "users",
+          },
         ],
       },
       {
@@ -305,6 +334,31 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             title: "Your record is yours to claim",
             body: "If a therapist has already been seeing you, the record has your name on it and you can claim it with your phone number. We ask you two questions first, proving a phone number is not proving a person.",
             icon: "shield",
+          },
+          /*
+           * 🔴 51.9 — a psychiatrist and a therapist on one record.
+           *
+           * Multi-grant has done this since sprint 7 and no page has ever said
+           * so. It is the single most common shape of real care in this market
+           * and the one people assume no software handles, because none of the
+           * software they have used did.
+           */
+          {
+            title: "A psychiatrist and a therapist, on one record",
+            body: "Most people who see two clinicians have to carry the story between them. Here you grant each of them access yourself, separately, and take either one back on its own. They see what you gave them and nothing else, and neither of them has to ask you to repeat the last year.",
+            icon: "users",
+          },
+          /*
+           * 🔴 51.9 — a record that is still there years later.
+           *
+           * Portability is §7's whole go-to-market and every page describes it
+           * as moving between therapists. Nobody says the other half: it is
+           * still yours when you are not in therapy at all.
+           */
+          {
+            title: "It is still there in three years",
+            body: "If you stop, nothing is deleted and nothing expires. Come back after a year, or after five, and the record is where you left it, still yours, still readable, and still something you can hand to somebody new. Stopping therapy is not the same as starting again.",
+            icon: "clock",
           },
         ],
       },
