@@ -238,6 +238,16 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C266 | 43 | **Whose EHR connection is it, and what happens when the therapist leaves.** The founder wants a clinic to connect the hospital's EHR once for all its clinicians, and a solo therapist to connect their own. `ehr_connections` (43.1) has no owner concept for either. And a clinician who leaves a clinic leaves behind a connection that was never theirs, holding tokens that reach a hospital's patient records. **Ruling: a connection is owned by the organization, and a solo therapist is an organization of one**, which is already how tenancy works and needs no second mechanism. A therapist leaving a clinic loses the connection with the clinic, immediately and without a question, because the credential was the hospital's. Their own record of their own patients is untouched, which is C234's rule in a different setting. **What it costs:** a solo clinician who later joins a clinic reconnects once. 2026-09-12. | major | founder | **ruled — sprints 43 and 54** |
 | C267 | 54 | 🔴 **A clinic cannot vouch for a licence.** The obvious build lets a hospital add its therapists and mark them verified, because the hospital employs them and already checked. Accept that once and the entire "only certified therapists" claim becomes "certified, or somebody said so", and the database invariant from C106 is bypassed by the most credible-looking route available. **Ruling: an invited clinician verifies themselves exactly as a solo one does, and the clinic's word is not evidence.** The clinic sees that verification is pending and can chase; it can never complete it. **What it costs:** friction in the exact moment a hospital is onboarding twenty people and wants it to be quick, which is the moment the rule is most needed. 2026-09-12. | blocker | founder | **ruled — sprint 54** |
 | C268 | 52 | **Six portals is six design surfaces, and 37R.8 has still not answered whether even one of them looks finished.** The films in sprint 52 were scoped for three user types when there were three. **Ruling: the final walkthrough covers all six and the split-screen film covers every cross-portal flow**, of which there are now several that did not exist: a sponsor funding a session a patient never pays for, a clinic seeing an appointment its therapist just booked, a partner's call landing in a chart. **What it costs:** sprint 52 grows, and it was already the longest thing at the end of the plan. 2026-09-12. | major | review | **ruled — sprint 52** |
+| C269 | 48 | **The second-opinion clinician can read but cannot ask.** Copilot credit is earned by completed sessions, so a clinician a patient invites purely to review a history has our best feature switched off on the one visit where it matters. Today a floor applies to everyone by accident rather than by decision. **Ruling: a grant with no session carries a small, fixed, free, read-only allowance, deliberately, capped and non-rolling.** It is enough to form a view and not enough to run a practice on. **What it costs:** model spend on a clinician who may never book, which is the cost of the portability pitch being real. 2026-09-12. | major | founder | **ruled — sprint 48** |
+| C270 | 47 | 🔴 **Couples and family: one transcript, two people, two charts, and nobody decided whose.** Diarisation shipped in 37, so the recording works and the question is now live. Splitting the transcript across both charts puts each partner's disclosures in the other's record, permanently, discoverable by any future clinician either of them ever grants. **Ruling: a couples session belongs to one chart, the person who booked.** The other participant is a **named voice, never a second patient record**. Two charts requires two patients, two grants and two consents, which is a later product and not a default. **And the booking screen says which chart it lands in, before the session.** **What it costs:** the partner who did not book has no record of a session they were in, which is the correct trade and will be asked about. 2026-09-12. | major | founder | **ruled — sprint 47** |
+| C271 | 54 | **Supervision is a real Egyptian market and there is no supervisor.** Training institutes carry many supervised practitioners, and selling one institute sells its whole cohort. **Ruling: a supervisor is a clinician holding a grant, like anybody else. No role ever grants clinical access.** What the institute gets is the C260 clinic view: schedules, usage, bills, names and times. The clinical read happens because a patient granted it to a named, verified clinician, and for no other reason. **What it costs:** an institute cannot review a trainee's notes without the patient's involvement, which is a constraint some of them will not accept. 2026-09-12. | major | founder | **ruled — sprint 54** |
+| C272 | 51 | **A therapist who dies, emigrates or simply stops has a caseload nobody maintains**, and those patients' records sit behind an account that will never answer. **Ruling: a caseload with no active clinician for a set period raises an admin alert, and those patients are told they can claim their record.** They are never told why. A clinician can also hand a caseload over deliberately, which is the same mechanism used on purpose. **What it costs:** a dormancy threshold somebody has to choose, and it will be wrong for the clinician on parental leave. 2026-09-12. | minor | founder | **ruled — sprint 51** |
+| C273 | 51 | **One five-star rating outranks forty at 4.8.** A marketplace ranked on an average with no volume floor rewards the newest account, which is the opposite of what a patient in distress needs. **Ruling: no public rating below a volume threshold, and rank is never rating alone.** We already never reveal who wrote one. **What it costs:** a genuinely excellent new clinician looks unrated for a while. 2026-09-12. | minor | review | **ruled — sprint 51** |
+| C274 | 51 | **Diaspora pricing arbitrage.** The same Egyptian clinician could charge $20 to a patient in Dubai and $8 in Cairo, and the obvious feature request is for us to do it for them. **Ruling: a clinician sets one price, shown before booking. We never geo-price on their behalf, and we never hide that a clinician is abroad.** **What it costs:** we decline a revenue optimisation that would work, because the version of this product where the price depends on where you are standing is not one a patient can trust. 2026-09-12. | minor | founder | **ruled — sprint 51** |
+| C275 | 51 | 🔴 **"24/7" is in the company name and we cannot staff it.** A patient reading it at 3am is entitled to think somebody is there. **Ruling: 24/7 describes the radar being open, never that anybody will answer, and no response-time promise appears anywhere in this product, ever.** The crisis line is the thing that is always on, and it is not us. **What it costs:** the strongest-sounding version of our own name is the one we may not use. 2026-09-12. | major | founder | **ruled — sprint 51** |
+| C276 | 47 | **A patient holding two grants is either getting a second opinion or shopping for a different answer, and we cannot tell which.** **Ruling: not our call, and not hidden either. Each clinician sees that co-treatment exists; who the other clinician is stays private.** Concealing it is how somebody ends up double-prescribed, and every paper chart in the world records concurrent care. **What it costs:** a patient loses the ability to see somebody in complete secrecy from their existing clinician, which is a real thing some people want and a worse thing to build. 2026-09-12. | major | founder | **ruled — sprint 47** |
+| C277 | 55 | **The partner plane collides with the patient's ownership claim.** If a platform embeds us, whose patient is it? **Ruling: the record is the patient's. A partner's clinician holds a grant exactly like any other clinician: scoped, revocable, and the patient can claim the record and leave.** Otherwise our one promise is false for every partner-sourced patient, which is most of them if the partner plane works. **What it costs:** a partner cannot be sold "your patients stay yours", and the honest pitch is the opposite one. 2026-09-12. | major | founder | **ruled — sprint 55** |
+| C278 | 56 | 🔴 **Assessments are licensed instruments and a score is not a diagnosis.** PHQ-9 and GAD-7 are free to use; Beck's inventories are licensed and cost money, and shipping one without a licence is a legal problem with a rights-holder attached. Separately, a number shown to a patient beside the word "depression" is a conclusion reaching them without a clinician, which C113 forbids. **Ruling: only free-to-use instruments in v1, each naming its source on the screen; and a patient sees their answers and their trend, never a verdict.** The word "depression" never appears next to a number on a patient screen. **What it costs:** the instrument a clinician asks for first may be one we cannot ship. 2026-09-12. | major | founder | **ruled — sprint 56** |
 
 ---
 
@@ -870,6 +880,7 @@ in §3b, §3c and THE RESET below.
 | **🔴 The 2026-09-12 rulings** | **45 every string admin editable · 46 the split fee · 47 the honest record · 48 the copilot in the room · 49 Total View · 50 the switches that do nothing · 51 content and design · 52 the films** | Added after the founder ruled on the flows in §3c. **45 blocks 46 to 52**, because every one of them adds copy and today none of it is editable (C217). **52 runs last, on a purged database, and shares one run with the final walkthrough** (C225) |
 | **🔴 The cheque** | **53 corporate: companies and universities** | Added 2026-09-12. One deal delivers hundreds of funded patients, which is the only credible thing to tell a therapist being asked to join a new platform. **Needs 45 and 46 first**, because it adds copy and it settles money. The wall in §3e is the sprint; everything else in it is plumbing |
 | **🔴 The other doors** | **54 clinics and hospitals · 55 the partner portal and the API use cases** | Added 2026-09-12. §3f names six portals and three of them did not exist a week ago. 55 ships beside 53 because the corporate flow is the API's first customer (C255), and 55.1 rewrites the router **once for all six** rather than bolting a principal on per sprint (C264) |
+| **🔴 The gap sweep** | **56 assessments** | Added 2026-09-12 after a completeness sweep found it had **no ticket anywhere**, despite being dictated by the founder as a core flow. It is also the only thing in the product that gives the copilot structured data a transcript cannot produce |
 
 **Marked incomplete until their sprint lands:** anything WhatsApp until the
 Meta setup is done · every price in EGP and every therapist paying us in EGP
@@ -3170,7 +3181,15 @@ mental-health app anybody has built or like scaffolding.*
       reminders on WhatsApp, paid by us
 - [ ] **51.8** The U+2014 and U+2013 ban holds across every new string, every
       CMS default and every email (C117)
-- [ ] **51.9** Every new string via 45.8, both languages, admin editable
+- [ ] **51.9** 🔴 **Sell what we already built and never mention** (§7): an
+      Arabic-speaking therapist for the diaspora, which needs no code and is
+      the largest unsold group we have; a psychiatrist and a therapist on one
+      record, which multi-grant already does; a verified badge a clinician can
+      show off-platform; and a record that is still there years later
+- [ ] **51.10** Rating volume floor (C273) · one price per clinician, never
+      geo-priced (C274) · 🔴 **"24/7" describes the radar, never a response
+      time** (C275) · dormant caseloads and deliberate handover (C272)
+- [ ] **51.11** Every new string via 45.8, both languages, admin editable
 - **Accept:** a person who has never seen this product uses every screen in
       both languages without asking a question, and nobody looking at the
       patient app calls it scaffolding.
@@ -3274,6 +3293,46 @@ of these is a flow with a screen at one end.*
 - **Accept:** a developer signs up, reads the docs, calls each of the seven use
       cases against the sandbox, and a verifier proves no key can enumerate
       anything and no webhook carries a word of content.
+
+### Sprint 56 — Assessments · ~2.5 weeks
+
+*Founder requirement from the flows dictation, and it had no ticket anywhere in
+this plan until 2026-09-12. C278. It is the one thing in the product that gives
+the copilot structured data a transcript cannot produce.*
+
+- [ ] **56.1** `instruments`, `assessment_assignments`, `assessment_responses`.
+      An instrument is **content**, not code, so a new one is added without a
+      deploy
+- [ ] **56.2** 🔴 **Free-to-use instruments only** (C278), each naming its
+      source on screen. PHQ-9 and GAD-7 ship; anything licensed waits for a
+      licence
+- [ ] **56.3** 🔴 **Gamified, interactive and rewarding**, not a survey with
+      radio buttons. One question at a time, progress, a streak. The founder's
+      test is whether somebody finishes it
+- [ ] **56.4** A clinician **shares an assessment into the live room**, and the
+      patient does it on their phone while the session runs
+- [ ] **56.5** The clinician watches progress live and can ask about it as it
+      happens. **Polling, not websockets** (founder's ruling)
+- [ ] **56.6** Assigned as **homework** instead, landing in the homework
+      surface that already exists, with its reminders
+- [ ] **56.7** 🔴 **Per-answer timings are data.** Which answer, and how long
+      it took, folded into the session record beside the transcript. This is
+      the structured signal the product has never had
+- [ ] **56.8** The copilot may cite a score and its date. 🔴 **It may never
+      turn a score into a conclusion about the person**, which is C214's bound
+      in a second costume and enforced the same way, on the fact's domain
+- [ ] **56.9** 🔴 **A patient sees their answers and their trend, never a
+      verdict** (C278, C113). No clinical word appears beside a number on a
+      patient screen
+- [ ] **56.10** An assessment result is a fact with provenance, like every
+      other clinical fact since 33
+- [ ] **56.11** Every new string via 45.8, both languages, admin editable.
+      **Instruments are translated as content**, and a mistranslated clinical
+      instrument is not a typo, so an instrument's Arabic is reviewed by a
+      named person before it publishes
+- **Accept:** a clinician assigns GAD-7 in the room, the patient finishes it on
+      their phone without being told how, the clinician sees it land, and the
+      copilot can cite the score and cannot conclude from it.
 
 ### Sprint 52 — The last walkthrough and the four films · ~2.5 weeks · 🔴 LAST
 
