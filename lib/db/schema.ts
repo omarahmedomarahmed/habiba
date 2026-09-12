@@ -4779,7 +4779,21 @@ export const FACT_STATUSES = [
 ] as const;
 export type FactStatus = (typeof FACT_STATUSES)[number];
 
-export const FACT_EVIDENCE_KINDS = ["segment", "chunk", "journal", "clinician"] as const;
+/**
+ * 56.10 — `assessment` joins the four.
+ *
+ * A completed instrument is evidence like any other: it has a quote (the
+ * question and the answer), a date, and a source that is the patient
+ * themselves. What it is NOT is a conclusion, and 56.8 bounds it exactly as
+ * C214 bounds a journal, on the same CHECK and for the same reason.
+ */
+export const FACT_EVIDENCE_KINDS = [
+  "segment",
+  "chunk",
+  "journal",
+  "clinician",
+  "assessment",
+] as const;
 export type FactEvidenceKind = (typeof FACT_EVIDENCE_KINDS)[number];
 
 export const FACT_SENSITIVITIES = ["normal", "sensitive", "restricted"] as const;
@@ -4813,6 +4827,8 @@ export const patientClinicalFacts = pgTable(
     }),
     chunkId: uuid("chunk_id").references(() => documentChunks.id, { onDelete: "set null" }),
     journalId: uuid("journal_id").references(() => journals.id, { onDelete: "set null" }),
+    /** 56.10 — the completed instrument a score came from. */
+    assessmentId: uuid("assessment_id"),
     enteredByUserId: uuid("entered_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -4915,6 +4931,233 @@ export const sessionSources = pgTable(
 );
 
 export type SessionSource = typeof sessionSources.$inferSelect;
+
+/* --------------------------------------------------- sprint 56 assessments -- */
+
+/**
+ * 🔴 56.2 / C278 — what we are allowed to ship.
+ *
+ * PHQ-9 and GAD-7 are free to use and say so on their own face. Beck's
+ * inventories, the Y-BOCS and most of the rest are licensed instruments that
+ * cost money per administration, and shipping one without a licence is not a
+ * product decision, it is copyright infringement inside a clinical record.
+ *
+ * The licence is a column rather than a convention, and `instruments_free_only`
+ * in the migration refuses a PUBLISHED row that is not free. A licensed
+ * instrument can exist in the table, unpublished, waiting for the paperwork;
+ * it cannot reach a patient.
+ */
+export const INSTRUMENT_LICENCES = [
+  /** No restriction. PHQ-9, GAD-7. */
+  "public_domain",
+  /** Free to use, attribution required on screen. */
+  "free_with_attribution",
+  /** 🔴 Cannot be published until a licence exists. */
+  "licensed",
+] as const;
+export type InstrumentLicence = (typeof INSTRUMENT_LICENCES)[number];
+
+/** One question. Content, so a new instrument needs no deploy (56.1). */
+export type InstrumentQuestion = {
+  /** Stable across translations and versions. The identifier, never the text. */
+  key: string;
+  /** By locale. A missing locale falls back to English at render (21.6). */
+  text: Record<string, string>;
+  /** The answers, in order. `value` scores; `label` is read. C203. */
+  options: { value: number; label: Record<string, string> }[];
+};
+
+/**
+ * An instrument, as content. PLAN.md 56.1, 56.2, 56.11.
+ *
+ * 🔴 Content rather than code, so adding one is an edit. The questions, the
+ * options and the scoring bands all live in the row, which is what makes
+ * 56.11's rule enforceable: an instrument's Arabic is reviewed by a named
+ * person before it publishes, and a reviewer is a column here rather than a
+ * promise in a process document.
+ *
+ * A mistranslated clinical instrument is not a typo. "Feeling down, depressed,
+ * or hopeless" rendered loosely in Arabic changes what is being measured, and
+ * a score computed from it is a number with no meaning attached to a person's
+ * chart forever.
+ */
+export const instruments = pgTable(
+  "instruments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** `phq9`, `gad7`. Stable, and what a fact cites. */
+    key: text("key").notNull(),
+    /** Bumped when the questions change. A response names the version it answered. */
+    version: integer("version").notNull().default(1),
+
+    name: jsonb("name").$type<Record<string, string>>().notNull(),
+    /** 🔴 56.2 — shown on screen, beside the questions. */
+    attribution: text("attribution").notNull(),
+    licence: text("licence").$type<InstrumentLicence>().notNull(),
+    /**
+     * 56.11 — which languages this publishes in, stated rather than inferred.
+     *
+     * `instruments_translation_reviewed` reads it: publishing anything beyond
+     * English requires a named reviewer. Explicit because the alternative was
+     * counting the keys of `name`, which Postgres refuses inside a CHECK and
+     * which was a proxy regardless: an instrument's NAME being English-only
+     * says nothing about its questions.
+     */
+    locales: text("locales").array().notNull().default(["en"]),
+
+    questions: jsonb("questions").$type<InstrumentQuestion[]>().notNull(),
+    /**
+     * Bands, for the CLINICIAN's screen only.
+     *
+     * 🔴 56.9 — a patient never sees one of these. "Moderately severe
+     * depression" beside a number on somebody's phone at eleven at night is a
+     * diagnosis delivered by a form, and C113 already rules that a machine
+     * never tells a person what is wrong with them.
+     */
+    bands: jsonb("bands")
+      .$type<{ min: number; max: number; label: string }[]>()
+      .notNull()
+      .default([]),
+
+    /**
+     * 🔴 56.11 — who read the translation, and when.
+     *
+     * Null means nobody has. The publish path refuses a row with a non-English
+     * locale and no reviewer, because "the AI may draft it, but a person
+     * publishes" is the founder's rule about clinical Arabic and this is the
+     * only place it can be held.
+     */
+    translationReviewedBy: uuid("translation_reviewed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    translationReviewedAt: timestamp("translation_reviewed_at", { withTimezone: true }),
+
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("instruments_key_version").on(t.key, t.version)],
+);
+
+export type Instrument = typeof instruments.$inferSelect;
+
+export const ASSIGNMENT_MODES = ["room", "homework"] as const;
+export type AssignmentMode = (typeof ASSIGNMENT_MODES)[number];
+
+export const ASSIGNMENT_STATUSES = ["assigned", "started", "completed", "cancelled"] as const;
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+
+/**
+ * One instrument, given to one person, once. PLAN.md 56.4, 56.5, 56.6.
+ *
+ * `sessionId` is set when the clinician shared it into a live room and null
+ * when it was set as homework. That is the whole difference between the two
+ * modes at this level: the same assignment, reached from two places, and 56.6
+ * lands the homework one in the surface that already exists rather than
+ * building a second one.
+ */
+export const assessmentAssignments = pgTable(
+  "assessment_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    instrumentId: uuid("instrument_id")
+      .notNull()
+      .references(() => instruments.id, { onDelete: "restrict" }),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    assignedByUserId: uuid("assigned_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** Set for a room assignment, null for homework. */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+
+    mode: text("mode").$type<AssignmentMode>().notNull(),
+    status: text("status").$type<AssignmentStatus>().notNull().default("assigned"),
+
+    /**
+     * The score, computed on completion and stored.
+     *
+     * Frozen for the same reason `session_credits.rate_cents` is: an
+     * instrument's scoring can be corrected in a later version, and a score on
+     * somebody's chart must keep meaning what it meant the day it was taken.
+     */
+    score: integer("score"),
+    /** The version answered, so a re-scored instrument does not rewrite history. */
+    instrumentVersion: integer("instrument_version").notNull().default(1),
+
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("assessment_assignments_patient_idx").on(t.patientId, t.createdAt),
+    index("assessment_assignments_session_idx").on(t.sessionId),
+    // 56.5 — the clinician's live poll reads this.
+    index("assessment_assignments_status_idx").on(t.status, t.updatedAt),
+  ],
+);
+
+export type AssessmentAssignment = typeof assessmentAssignments.$inferSelect;
+
+/**
+ * One answer, and how long it took. PLAN.md 56.7.
+ *
+ * 🔴 `answerMs` is the point of this table, and it is the structured signal
+ * the product has never had.
+ *
+ * A transcript says what somebody said. It cannot say that they answered eight
+ * questions in four seconds each and then sat on "thoughts that you would be
+ * better off dead" for ninety. That hesitation is clinical information no
+ * amount of conversation reliably surfaces, and it is free: the only way to
+ * lose it is not to record it.
+ *
+ * ⚠️ It is DATA, not a conclusion. 56.8 bounds what may be drawn from it by
+ * the same CHECK that bounds a journal (C214): a copilot may cite that an
+ * answer took ninety seconds; it may not conclude anything about the person
+ * from that.
+ */
+export const assessmentResponses = pgTable(
+  "assessment_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assessmentAssignments.id, { onDelete: "cascade" }),
+
+    /** The question's stable key, never its text. C203. */
+    questionKey: text("question_key").notNull(),
+    /** The option's `value`. What scores. */
+    value: integer("value").notNull(),
+
+    /**
+     * Milliseconds from the question appearing to the answer being chosen.
+     *
+     * Nullable because a resumed assignment cannot honestly time the question
+     * that was on screen when the app was closed, and a fabricated duration is
+     * worse than a missing one.
+     */
+    answerMs: integer("answer_ms"),
+
+    answeredAt: timestamp("answered_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * 🔴 One answer per question per assignment.
+     *
+     * A patient going back to change an answer UPDATES; two rows for one
+     * question would double-count in the score, and the score is the thing
+     * that reaches a chart.
+     */
+    uniqueIndex("assessment_responses_unique").on(t.assignmentId, t.questionKey),
+  ],
+);
+
+export type AssessmentResponse = typeof assessmentResponses.$inferSelect;
 
 /* ------------------------------------------------------- sprint 37 voices -- */
 
