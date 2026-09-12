@@ -6,6 +6,7 @@ import { Card } from "@/components/ui";
 import { feedbackContext } from "@/lib/data/feedback";
 import { getI18n } from "@/lib/i18n/server";
 import { optionalPatient } from "@/lib/patient-auth/guard";
+import { SosOrb } from "@/components/patient/sos-orb";
 
 export const metadata: Metadata = { title: "Your session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -114,6 +115,15 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-slate-50">
       <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">{children}</div>
+      {/*
+        🔴 51.4 — in the Shell rather than in either branch.
+
+        This page has two returns: the feedback form, and the expired-link
+        card. A person who has just been told their link is dead is exactly
+        the person who should still have the orb, and putting it on the happy
+        path only is how "every patient screen" quietly becomes "most".
+      */}
+      <SosOrb />
     </div>
   );
 }

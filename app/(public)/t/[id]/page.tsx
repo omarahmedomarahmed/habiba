@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { TherapistPageBody } from "@/components/radar/therapist-page";
 import { publicProfile } from "@/lib/data/radar";
 import { fullName } from "@/lib/utils";
+import { SosOrb } from "@/components/patient/sos-orb";
 
 /**
  * A clinician's shareable page.
@@ -52,5 +53,18 @@ export default async function TherapistProfilePage({
    * inside the patient app at `/patient/t/:id`, where the marketing header
    * this route sits under would be the wrong chrome entirely.
    */
-  return <TherapistPageBody id={id} />;
+  /*
+   * 🔴 51.4 — the orb, on the PUBLIC route only.
+   *
+   * `TherapistPageBody` is shared with `/patient/t/[id]`, which already gets
+   * the orb from the patient layout, so putting it in the body would render
+   * two of them inside the app. This is the door a stranger comes through from
+   * the radar, and it is a patient screen even though nobody has signed in.
+   */
+  return (
+    <>
+      <TherapistPageBody id={id} />
+      <SosOrb />
+    </>
+  );
 }

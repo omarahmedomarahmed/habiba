@@ -10,6 +10,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { SosOrb } from "@/components/patient/sos-orb";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -70,6 +71,15 @@ export default async function PayPage({
   const tag = localeTag(locale);
 
   return (
+    <>
+    {/*
+      🔴 51.4 — a payment screen is a patient screen.
+
+      Somebody paying for a session they booked off the radar is often
+      somebody who needed one an hour ago, and the orb is never conditional on
+      having paid: 🔴 the crisis path does not depend on money.
+    */}
+    <SosOrb />
     <PayFlow
       locale={tag}
       token={token}
@@ -83,5 +93,6 @@ export default async function PayPage({
       */
       countries={countries.map((c) => ({ code: c.code, name: c.name, currency: c.currency }))}
     />
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { TicketReader } from "@/components/support/ticket-reader";
+import { SosOrb } from "@/components/patient/sos-orb";
 
 export const metadata: Metadata = { title: "Your message", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -38,6 +39,13 @@ export default async function SupportTicketPage({
       </div>
 
       <TicketReader token={token} />
+
+      {/*
+        🔴 51.4 — somebody writing to support is often somebody in distress,
+        and this page is reached from an email at the moment they decided to
+        tell us something. The orb is two taps and a `tel:` link away.
+      */}
+      <SosOrb />
     </main>
   );
 }

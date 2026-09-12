@@ -191,6 +191,102 @@ async function main() {
     `${seen.length} of 2 planted dashes caught`,
   );
 
+  /* ---------------------------------------------- 51.4 · the SOS orb, everywhere -- */
+
+  /*
+   * 🔴 "On every patient screen including a live session."
+   *
+   * That is a claim about ROUTES, and a claim about routes is exactly the kind
+   * that decays: the orb is rendered by `PatientChrome`, so every page inside
+   * the `(patient)` group gets it for free and every patient-facing page
+   * OUTSIDE that group has to remember. Five had forgotten, and one of them
+   * was the public radar, which is the page a person in crisis actually lands
+   * on. It carried a disclaimer saying this is not an emergency service and
+   * offered nothing to do about it.
+   *
+   * Listed explicitly rather than derived, because "which pages are patient
+   * screens" is a judgement. A marketing page is not one; a payment screen is.
+   */
+  const PATIENT_PAGES_OUTSIDE_THE_GROUP = [
+    "app/(public)/radar/page.tsx",
+    "app/(public)/t/[id]/page.tsx",
+    "app/pay/[token]/page.tsx",
+    "app/feedback/[token]/page.tsx",
+    "app/support/[token]/page.tsx",
+    "app/j/[code]/page.tsx",
+    "app/join/[token]/page.tsx",
+  ];
+
+  const missingOrb = PATIENT_PAGES_OUTSIDE_THE_GROUP.filter((page) => {
+    const body = readSource(page);
+    // Either the orb directly, or the chrome that renders one.
+    return !/SosOrb|PatientChrome/.test(body);
+  });
+
+  check(
+    "🔴 51.4 every patient screen outside the (patient) group carries the orb",
+    missingOrb.length === 0,
+    missingOrb.length === 0
+      ? `${PATIENT_PAGES_OUTSIDE_THE_GROUP.length} pages, each with an orb or the chrome that renders one`
+      : missingOrb.join(", "),
+  );
+
+  /*
+   * 🔴 CONTROL — the scan discriminates.
+   *
+   * `/SosOrb|PatientChrome/` over a file would pass for every page if
+   * `readSource` ever returned something unexpected, and an all-green list is
+   * indistinguishable from a working one. A marketing page has no orb by
+   * design and must be seen not to have one.
+   */
+  const marketing = readSource("app/(public)/for-clinics/page.tsx");
+  check(
+    "🔴 CONTROL the orb scan can tell a page WITHOUT an orb from one with it",
+    !/SosOrb|PatientChrome/.test(marketing),
+    "a marketing page is not a patient screen and does not match",
+  );
+
+  /*
+   * 🔴 …and the layout still renders it for the group itself, which is the
+   * half that covers the other fifteen patient pages. Asserting only the list
+   * above would pass against a layout somebody had emptied.
+   */
+  check(
+    "🔴 51.4 …and the (patient) layout renders the chrome for every page inside it",
+    /PatientChrome/.test(readSource("app/(patient)/layout.tsx")) &&
+      /SosOrb/.test(readSource("components/patient/chrome.tsx")),
+    "one orb for the whole group, so a new page cannot forget it",
+  );
+
+  /*
+   * 🔴 The crisis path does not depend on money, on an account, or on our API.
+   *
+   * A `fetch`, a server action or an analytics call in this component's path
+   * would make the orb depend on the thing most likely to be broken in the
+   * minute somebody reaches for it. It is plain `tel:` links over numbers
+   * compiled into the page.
+   */
+  const orb = readSource("components/patient/sos-orb.tsx");
+  check(
+    "🔴 51.4 the orb reaches a dialler with no network call in the path",
+    /href={`tel:/.test(orb) && !/fetch\(|use server|\baction=/.test(orb),
+    "plain tel: links, no fetch, no server action",
+  );
+
+  /*
+   * 🔴 C98 / C125 / C184 — verified numbers only, and only the READER's.
+   *
+   * `lineForNumber` is the function that refuses unless the dialling code
+   * leaves exactly one verified line. The orb calling `CRISIS_LINES` directly
+   * is the 37R.25 defect: it printed `988 · United States` to a patient whose
+   * number starts +20, which looks like help and reaches nothing.
+   */
+  check(
+    "🔴 C184 the orb asks for the reader's own line, never the whole table",
+    /lineForNumber\(/.test(orb) && !/Object\.(keys|values|entries)\(CRISIS_LINES\)/.test(orb),
+    "one line for this reader, or the sentence that is true everywhere",
+  );
+
   /* ------------------------------ 51.11 · the literal scanner counts literals -- */
 
   /*

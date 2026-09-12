@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console";
 import { listRadar } from "@/lib/data/radar";
+import { SosOrb } from "@/components/patient/sos-orb";
 
 export const metadata: Metadata = {
   title: "Crisis Radar, talk to a therapist now",
@@ -36,6 +37,20 @@ export default async function RadarPage() {
     <div className="bg-[#04101f]">
       <RadarConsole initial={therapists} />
       <RadarSafetyLine />
+      {/*
+        🔴 51.4 — the orb belongs HERE most of all.
+
+        This is the page a person in crisis actually lands on, and until now it
+        carried a disclaimer ("this is not an emergency service") and no way to
+        act on it. A sentence telling somebody what this is not, with no button
+        for what they should do instead, is the worst version of that line.
+
+        No `phone`: a visitor here is anonymous, so `lineForNumber(null)`
+        returns null and the sheet shows the sentence that is true everywhere.
+        That is the honest answer rather than a degraded one, and it is a
+        plain `tel:` away from a dialler either way.
+      */}
+      <SosOrb />
     </div>
   );
 }
