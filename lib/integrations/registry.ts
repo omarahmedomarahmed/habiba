@@ -110,13 +110,22 @@ export const INTEGRATIONS: Integration[] = [
     slug: "zoom-and-meet",
     name: "Zoom and Google Meet",
     category: "Meetings",
-    state: "planned",
-    summary: "Not built. A bot that joins a session you created here, and nothing else.",
+    /*
+     * 🔴 41 — `partial`, and the entry says which half.
+     *
+     * Not `live`: Zoom works and Google Meet and Teams do not, and this
+     * registry's whole argument is that the state is a fact about the code
+     * rather than a marketing decision. Calling it live because one of three
+     * providers works is the twelve-logos-in-a-grid page with one logo
+     * removed.
+     */
+    state: "partial",
+    summary: "Zoom works. A recorder that joins a session you created here, and nothing else.",
     today:
-      "Nothing works today. When it does, one rule governs it: the bot joins meetings 24Therapy created for a session, and never anything else. No calendar is ever read, because a tool that watches a calendar eventually records a supervision call or a conversation with an accountant.",
+      "Connect a Zoom account once in Settings and 24Therapy creates the meeting inside it for each session, so the link stays ours until the patient has answered the recording question. The recorder joins the moment they agree, and a refusal sends no recorder at all rather than one that sits quietly in the room. One rule governs all of it: the bot joins meetings 24Therapy created for a session and never anything else. No calendar is ever read, and no calendar permission is even requested, because a tool that watches a calendar eventually records a supervision call or a conversation with an accountant.",
     limits:
-      "It needs the patient's link to remain ours, so the consent screen still happens before they are forwarded to the meeting. It also needs a transcript to tell two voices apart on one mixed stream, which is why it cannot ship before that does.",
-    waitingOn: "sprints 37 and 41",
+      "Google Meet and Teams can be connected and cannot yet create a meeting, so those sessions run in the 24Therapy room. Many clinics block third-party Zoom apps at the account level, which no setting here can change, and the Settings page says so before you try. There is no way to point the recorder at a meeting you made yourself, which is deliberate rather than missing.",
+    waitingOn: "Google Meet and Teams meeting creation",
   },
   {
     slug: "clinic-systems",

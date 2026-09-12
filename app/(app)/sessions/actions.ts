@@ -59,7 +59,42 @@ export async function startNewSession(
   // The one action that puts a real person in front of this clinician.
   const actor = await requireVerified();
 
-  const modality = formData.get("modality") === "video" ? "video" : "in_person";
+  /*
+   * 🔴 41.2 — "Where", which subsumes the old two-way modality toggle.
+   *
+   * `where` is a `SESSION_SOURCE_KIND`: the 24Therapy room, one of the three
+   * meeting providers, or in person. `modality` is derived from it rather than
+   * asked separately, because a clinician answering both would eventually
+   * answer them inconsistently, and every downstream rule — pricing, the
+   * paywall, the room — reads `modality`.
+   *
+   * `upload` is a kind of `session_sources` and deliberately NOT an option
+   * here: it is the third door of 36.2, reached by issuing a credential on an
+   * existing session, not by choosing it in advance.
+   */
+  const whereRaw = String(formData.get("where") ?? "").trim();
+  const where = (
+    ["24t_room", "zoom", "google_meet", "teams", "in_person"] as const
+  ).includes(whereRaw as never)
+    ? (whereRaw as "24t_room" | "zoom" | "google_meet" | "teams" | "in_person")
+    : formData.get("modality") === "video"
+      ? "24t_room"
+      : "in_person";
+
+  const modality = where === "in_person" ? "in_person" : "video";
+
+  /*
+   * 41.2 — the Record tick. Default ON, because transcription is why most
+   * clinicians are here and a default that silently loses a session's note is
+   * worse than one they have to untick.
+   *
+   * 🔴 It does not decide whether to record. The PATIENT decides, on their own
+   * screen, and 41.8 dispatches the bot on their answer and nothing else. What
+   * this decides is whether we ask at all: a clinician who knows this session
+   * should not be transcribed should not have their patient asked a question
+   * whose answer will be ignored.
+   */
+  const transcribe = formData.get("transcribe") !== "off";
   const guestName = String(formData.get("guestName") ?? "").trim();
   const guestEmail = String(formData.get("guestEmail") ?? "").trim();
   const guestPhone = String(formData.get("guestPhone") ?? "").trim();
@@ -93,6 +128,8 @@ export async function startNewSession(
   let sessionId: string;
   /** Set only when this call created the chart, so an existing patient is never re-invited. */
   let newPatientId: string | null = null;
+  /** 41.2 — the clinician's own link, when the session is in somebody else's product. */
+  let externalJoinUrl: string | null = null;
   try {
     const session = await createSession(actor, {
       modality,
@@ -105,10 +142,73 @@ export async function startNewSession(
     sessionId = session.id;
     if (!patientId && session.patientId) newPatientId = session.patientId;
 
+    /*
+     * 🔴 41.1 / 41.2 — the meeting, created inside THEIR account, by US.
+     *
+     * > *Whoever creates the meeting holds the link, and a therapist holding
+     * > it will eventually send it straight to the patient, not maliciously
+     * > but because it is one fewer step on a busy afternoon. The consent
+     * > screen then never happens.*
+     *
+     * `setSessionSource` is what makes it ours: the external kinds require
+     * `provisioned_at` and `provisioned_by_user_id`, enforced in 0064, and
+     * 0071 refuses a bot on a row without them. So a session recorded in Zoom
+     * is one we made, and there is no column anywhere that could hold a link a
+     * clinician pasted.
+     *
+     * A failure here falls back to the 24Therapy room rather than failing the
+     * session. The clinician has a patient in front of them; a connection that
+     * has expired is our problem to surface later, not a reason they cannot
+     * work.
+     */
+    if (where !== "in_person" && where !== "24t_room") {
+      const { createMeeting } = await import("@/lib/meetings/create");
+      const { setSessionSource } = await import("@/lib/data/session-sources");
+
+      const made = await createMeeting({
+        userId: actor.userId,
+        provider: where,
+        /*
+         * 🔴 Never the patient's name. A meeting titled "Session with Sara
+         * Ahmed" puts a patient's name into a calendar entry, a notification
+         * and every participant list the provider renders.
+         */
+        topic: "24Therapy session",
+      });
+
+      if (made.ok) {
+        await setSessionSource({
+          sessionId: session.id,
+          organizationId: actor.organizationId,
+          patientId: session.patientId ?? null,
+          kind: where,
+          provisioned: { externalMeetingId: made.meeting.joinUrl, byUserId: actor.userId },
+        });
+        externalJoinUrl = made.meeting.joinUrl;
+      } else {
+        log.warn("meeting creation fell back to the 24Therapy room", { provider: where });
+      }
+    }
+
+    /*
+     * 41.2 — the clinician said not to transcribe this one.
+     *
+     * The same switch the off-record button uses, set at creation. It is what
+     * `answerConsent` and the transcript webhook both already read, so one
+     * stamp turns the whole path off rather than a second flag every future
+     * call site has to remember.
+     */
+    if (!transcribe) {
+      await db
+        .update(sessions)
+        .set({ recordingPausedAt: new Date() })
+        .where(eq(sessions.id, session.id));
+    }
+
     // Create the video room up front so the patient's link works the moment it
     // is sent, rather than only once the clinician presses Start. Whoever
     // arrives first should never find an empty room.
-    if (modality === "video") {
+    if (modality === "video" && !externalJoinUrl) {
       const room = await createPrivateRoom(session.id);
       if (room) {
         await db

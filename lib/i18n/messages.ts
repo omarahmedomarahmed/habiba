@@ -959,6 +959,42 @@ export const en = {
   "portal.voices.saving": "Saving…",
   /* 51.7 — the bookings page. */
   "portal.nav.bookings": "Calendar",
+  /*
+   * Sprint 41 — meeting bots.
+   *
+   * 🔴 Not one of these offers to paste anything. 41.3 and §7: a therapist
+   * holding an API key is a therapist who got lost in our product, and the way
+   * to keep that true is for there to be no field.
+   */
+  "portal.meet.title": "Meeting accounts",
+  "portal.meet.body": "Connect an account and 24Therapy creates the meeting for you, inside it. You get the join link for your calendar and your patient gets a different one.",
+  "portal.meet.connect": "Connect {name}",
+  "portal.meet.connected": "Connected as {account}",
+  "portal.meet.connectedOn": "Connected {date}",
+  "portal.meet.disconnect": "Disconnect",
+  "portal.meet.none": "No meeting account is connected. Sessions run in the 24Therapy room, which needs nothing set up.",
+  /*
+   * 🔴 41.3 — said BEFORE they try, not after an OAuth round trip.
+   *
+   * A Connect button that fails on a clinic IT policy nobody here can change
+   * is a clinician who now believes the product is broken.
+   */
+  "portal.meet.mayBlock": "Before you try",
+  "portal.meet.fallback": "If it will not connect, the 24Therapy room already works and needs nothing set up. Nothing about your sessions depends on this.",
+  "portal.meet.unavailable": "Meeting recording is not switched on for this deployment, so there is nothing to connect yet.",
+  /*
+   * 🔴 41.1 / C132 — the rule, on the screen where somebody would wonder.
+   */
+  "portal.meet.neverCalendar": "We never read your calendar. The recorder joins meetings 24Therapy created for a session and nothing else, ever.",
+  "portal.new.where": "Where",
+  "portal.new.whereRoom": "The 24Therapy room",
+  "portal.new.whereInPerson": "In person",
+  "portal.new.record": "Transcribe this session",
+  "portal.new.recordBody": "Your patient is asked first, on their own screen. If they say no, the session runs exactly the same way without a transcript.",
+  "portal.new.yourLink": "Your link, for your calendar",
+  "portal.new.patientLinkDiffers": "Your patient gets a different link. Theirs asks the recording question and then forwards them here, which is why we create the meeting rather than you.",
+  "portal.new.connectFirst": "Connect an account in Settings to run sessions there.",
+  "portal.session.patientDeclined": "The patient chose not to turn the AI on.",
   "portal.book.title": "Your calendar",
   "portal.book.body": "The hours you open here are what a patient can book, on your profile and off the radar.",
   "portal.book.day": "Day",
@@ -3128,6 +3164,26 @@ export const ar: Record<MessageKey, string> = {
   "portal.voices.unbindBody": "إزالة الاسم تعيد أيضًا كل سطر نُسب إلى ذلك الشخص إلى «غير مسمى»، فيتوقف النص عن تأكيد شيء قلت للتو إنه خطأ.",
   "portal.voices.saving": "جارٍ الحفظ…",
   "portal.nav.bookings": "التقويم",
+  "portal.meet.title": "حسابات الاجتماعات",
+  "portal.meet.body": "اربط حسابًا وينشئ 24Therapy الاجتماع نيابة عنك داخله. تحصل أنت على رابط الانضمام لتقويمك، ويحصل مريضك على رابط مختلف.",
+  "portal.meet.connect": "اربط {name}",
+  "portal.meet.connected": "مرتبط باسم {account}",
+  "portal.meet.connectedOn": "رُبط في {date}",
+  "portal.meet.disconnect": "فك الارتباط",
+  "portal.meet.none": "لا يوجد حساب اجتماعات مرتبط. تعمل الجلسات في غرفة 24Therapy، وهي لا تحتاج أي إعداد.",
+  "portal.meet.mayBlock": "قبل أن تحاول",
+  "portal.meet.fallback": "إن تعذّر الربط فغرفة 24Therapy تعمل بالفعل ولا تحتاج إعدادًا. لا شيء في جلساتك يتوقف على هذا.",
+  "portal.meet.unavailable": "تسجيل الاجتماعات غير مفعّل في هذه النسخة، فلا يوجد ما تربطه بعد.",
+  "portal.meet.neverCalendar": "نحن لا نقرأ تقويمك أبدًا. المسجّل ينضم إلى الاجتماعات التي أنشأها 24Therapy لجلسة، ولا شيء غير ذلك، أبدًا.",
+  "portal.new.where": "أين",
+  "portal.new.whereRoom": "غرفة 24Therapy",
+  "portal.new.whereInPerson": "حضوريًا",
+  "portal.new.record": "فرّغ هذه الجلسة نصًا",
+  "portal.new.recordBody": "يُسأل مريضك أولًا على شاشته. وإن رفض، تجري الجلسة كما هي تمامًا بلا نص.",
+  "portal.new.yourLink": "رابطك، لتقويمك",
+  "portal.new.patientLinkDiffers": "يحصل مريضك على رابط مختلف. رابطه يسأل سؤال التسجيل ثم يحوّله إلى هنا، ولهذا ننشئ نحن الاجتماع لا أنت.",
+  "portal.new.connectFirst": "اربط حسابًا من الإعدادات لتجري الجلسات هناك.",
+  "portal.session.patientDeclined": "اختار المريض ألا يشغّل الذكاء الاصطناعي.",
   "portal.book.title": "تقويمك",
   "portal.book.body": "الساعات التي تفتحها هنا هي ما يستطيع المريض حجزه، من صفحتك ومن الرادار.",
   "portal.book.day": "يوم",

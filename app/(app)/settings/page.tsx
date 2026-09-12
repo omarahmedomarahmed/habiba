@@ -154,6 +154,26 @@ export default async function SettingsPage({
               {t("portal.settings.openCodes")}
             </Link>
           </Card>
+
+          {/*
+            🔴 41.3 — meeting accounts, beside the rest of "you".
+
+            Not a top-level nav item: connecting Zoom is a once-ever act, and a
+            permanent place in the sidebar for something done once is how a
+            product teaches people to stop reading it.
+          */}
+          <Card className="p-4">
+            <p className="text-sm font-semibold text-slate-900">{t("portal.meet.title")}</p>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              {t("portal.meet.body")}
+            </p>
+            <Link
+              href="/settings/integrations"
+              className="mt-3 inline-flex text-sm font-semibold text-brand-600"
+            >
+              {t("portal.meet.title")}
+            </Link>
+          </Card>
         </SettingsSection>
 
         <SettingsSection

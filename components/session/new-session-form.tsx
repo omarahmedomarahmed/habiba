@@ -32,13 +32,25 @@ function Submit() {
  * no waiting room. The equivalent flow before this involved a nine-step
  * onboarding wizard, an admin approval, and a separate patient record.
  */
+type WhereOption = "in_person" | "24t_room" | "zoom" | "google_meet" | "teams";
+
 export function NewSessionForm({
   patients,
   welcome,
+  connectedProviders = [],
   payments,
 }: {
   patients: PatientOption[];
   welcome?: boolean;
+  /**
+   * 41.2 — the providers this clinician has actually connected.
+   *
+   * 🔴 Only connected ones are offered. A Zoom option for somebody with no
+   * Zoom connection creates a session that quietly falls back to the
+   * 24Therapy room, and they find out when their patient is already in the
+   * wrong place.
+   */
+  connectedProviders?: { provider: "zoom" | "google_meet" | "teams"; name: string }[];
   /** Absent when the therapist has not finished Stripe onboarding. */
   /**
    * The live figures, handed down rather than imported.
@@ -57,7 +69,13 @@ export function NewSessionForm({
 }) {
   const [state, action] = useActionState(startNewSession, INITIAL);
   const t = useT();
-  const [modality, setModality] = useState<"in_person" | "video">("in_person");
+  /*
+   * 41.2 — one question. `modality` is derived, never asked, so the two cannot
+   * disagree.
+   */
+  const [where, setWhere] = useState<WhereOption>("in_person");
+  const [transcribe, setTranscribe] = useState(true);
+  const modality = where === "in_person" ? "in_person" : "video";
   const [existing, setExisting] = useState<string>("");
   const [charge, setCharge] = useState(false);
   const [price, setPrice] = useState(
@@ -86,26 +104,83 @@ export function NewSessionForm({
       ) : null}
 
       <input type="hidden" name="modality" value={modality} />
+      <input type="hidden" name="where" value={where} />
+      <input type="hidden" name="transcribe" value={transcribe ? "on" : "off"} />
 
+      {/*
+        🔴 41.2 — "Where", which replaces the old two-way modality toggle.
+
+        The clinician answers one question rather than two. `modality` is
+        derived from it on both sides of the wire, because a person asked both
+        would eventually answer them inconsistently and every downstream rule
+        reads `modality`.
+
+        Only CONNECTED providers appear. A Zoom option for somebody with no
+        Zoom connection is a button that creates a session and then quietly
+        falls back to the 24Therapy room, which is worse than not offering it:
+        they would find out when their patient was already in the wrong place.
+      */}
       <div>
-        <p className="mb-2 text-sm font-medium text-slate-700">{t("tnew.type")}</p>
+        <p className="mb-2 text-sm font-medium text-slate-700">{t("portal.new.where")}</p>
         <div className="grid grid-cols-2 gap-2.5">
           <ModalityOption
-            active={modality === "in_person"}
-            onClick={() => setModality("in_person")}
+            active={where === "in_person"}
+            onClick={() => setWhere("in_person")}
             icon={<User className="h-5 w-5" aria-hidden />}
-            title={t("tnew.inPerson")}
+            title={t("portal.new.whereInPerson")}
             body={t("tnew.inPersonBody")}
           />
           <ModalityOption
-            active={modality === "video"}
-            onClick={() => setModality("video")}
+            active={where === "24t_room"}
+            onClick={() => setWhere("24t_room")}
             icon={<Video className="h-5 w-5" aria-hidden />}
-            title={t("tnew.video")}
+            title={t("portal.new.whereRoom")}
             body={t("tnew.videoBody")}
           />
+          {connectedProviders.map((provider) => (
+            <ModalityOption
+              key={provider.provider}
+              active={where === provider.provider}
+              onClick={() => setWhere(provider.provider)}
+              icon={<Video className="h-5 w-5" aria-hidden />}
+              title={provider.name}
+              body={t("portal.new.patientLinkDiffers")}
+            />
+          ))}
         </div>
+
+        {connectedProviders.length === 0 ? (
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            {t("portal.new.connectFirst")}
+          </p>
+        ) : null}
       </div>
+
+      {/*
+        🔴 41.2 — the Record tick, and what it is NOT.
+
+        It does not decide whether the session is recorded. The patient decides
+        that, on their own screen, and 41.8 dispatches the recorder on their
+        answer and nothing else. What this decides is whether they are asked at
+        all: a clinician who knows this session should not be transcribed
+        should not have their patient answer a question that will be ignored.
+      */}
+      <label className="flex items-start gap-2.5">
+        <input
+          type="checkbox"
+          checked={transcribe}
+          onChange={(event) => setTranscribe(event.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+        />
+        <span>
+          <span className="block text-sm font-medium text-slate-800">
+            {t("portal.new.record")}
+          </span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+            {t("portal.new.recordBody")}
+          </span>
+        </span>
+      </label>
 
       {patients.length > 0 ? (
         <Field
