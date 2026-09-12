@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { and, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/schema";
 import { accessStateFor, isGated, type AccessState } from "@/lib/access/state";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
+import { closedCodes } from "@/lib/data/taxonomy";
 import { log, ref } from "@/lib/logger";
 
 /*
@@ -197,6 +198,14 @@ const BOARD_TTL_MS = 2_000;
 type Board = {
   rows: Awaited<ReturnType<typeof queryBoard>>;
   ratings: Map<string, { average: number; count: number }>;
+  /**
+   * 50.4 — languages an admin has hidden.
+   *
+   * Carried on the board rather than read inside `shapeBoard` so that shaping
+   * stays a pure function of what was loaded, which is what makes it testable
+   * and what stops a second query appearing inside a map().
+   */
+  hiddenLanguages: Set<string>;
 };
 let board: { at: number; value: Promise<Board> } | null = null;
 
@@ -218,8 +227,12 @@ async function loadBoard(): Promise<Board> {
    * for. Storing the in-flight promise means they all wait on the first one.
    */
   const value = (async () => {
-    const [rows, ratings] = await Promise.all([queryBoard(), therapistRatings()]);
-    return { rows, ratings };
+    const [rows, ratings, hiddenLanguages] = await Promise.all([
+      queryBoard(),
+      therapistRatings(),
+      closedCodes("language"),
+    ]);
+    return { rows, ratings, hiddenLanguages };
   })();
 
   board = { at: fresh, value };
@@ -235,12 +248,30 @@ async function loadBoard(): Promise<Board> {
 
 export async function listRadar(viewer?: string | null): Promise<RadarTherapist[]> {
   const viewerHash = viewer ? hashViewer(viewer) : null;
-  const { rows, ratings } = await loadBoard();
-  return shapeBoard(rows, ratings, viewerHash);
+  const { rows, ratings, hiddenLanguages } = await loadBoard();
+  return shapeBoard(rows, ratings, viewerHash, hiddenLanguages);
 }
 
 async function queryBoard() {
   const now = new Date();
+
+  /*
+   * 🔴 50.1b / C219 — the country condition, in the query rather than the route.
+   *
+   * C219 reported that `app/api/radar/route.ts` "has no country condition of
+   * any kind", which is true and is a measurement of the wrong file: the route
+   * is a rate limiter around `listRadar` and has no `where` at all. The query
+   * is here, and it had none either, so the substance held and the evidence
+   * did not. An operator closed a country, the audit log recorded it, and
+   * every clinician in that country stayed on the map and stayed bookable.
+   *
+   * 🔴 A clinician with no country set is NOT hidden. `notInArray` on a
+   * nullable column is null-propagating in SQL: `NULL NOT IN ('EG')` is NULL,
+   * not true, so the row would silently disappear. Somebody who has not filled
+   * in their profile has not been closed by an operator, and vanishing from
+   * the radar for it is a much worse failure than the one being fixed.
+   */
+  const closed = [...(await closedCodes("country"))];
 
   const rows = await db
     .select({
@@ -292,6 +323,11 @@ async function queryBoard() {
           eq(therapistRadar.status, "pending"),
           eq(therapistRadar.status, "in_session"),
         ),
+        // 50.1b / 50.3 — a closed country is off the board. Their patients,
+        // sessions, notes and money are untouched; only the shop window shuts.
+        closed.length > 0
+          ? or(isNull(therapistRadar.country), notInArray(therapistRadar.country, closed))
+          : undefined,
       ),
     )
     // Bookable first. Ordering by the status column alone sorts alphabetically,
@@ -310,6 +346,7 @@ function shapeBoard(
   rows: Awaited<ReturnType<typeof queryBoard>>,
   ratings: Map<string, { average: number; count: number }>,
   viewerHash: string | null,
+  hiddenLanguages: Set<string> = new Set(),
 ): RadarTherapist[] {
   const nowMs = Date.now();
 
@@ -328,7 +365,21 @@ function shapeBoard(
       credentials: row.profile?.credentials ?? null,
       headline: row.headline,
       photoUrl: row.photoUrl,
-      languages: row.languages ?? [],
+      /*
+       * 🔴 50.4 — a hidden language stops being MATCHED on. The clinician
+       * keeps the row.
+       *
+       * The distinction is the whole ticket and the cheap build gets it
+       * backwards twice over. Deleting the value from the profile is a
+       * curation decision quietly becoming data loss, and the clinician finds
+       * out when they next open their settings. Hiding the clinician is worse:
+       * somebody who is online and can help vanishes from a public radar
+       * because an operator tidied a list.
+       *
+       * So the value stays on the row and stops being published: they are not
+       * offered under that language, not filtered by it, and lose nothing.
+       */
+      languages: (row.languages ?? []).filter((language) => !hiddenLanguages.has(language)),
       specialties: row.specialties ?? [],
       country: row.country,
       region: row.region,

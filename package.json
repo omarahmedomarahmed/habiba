@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "verify:nul": "node --import tsx scripts/verify-nul.ts",
     "verify:sprint45": "node --import tsx --conditions=react-server scripts/verify-sprint45.tsx",
+    "verify:sprint50": "node --import tsx --conditions=react-server scripts/verify-sprint50.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",

@@ -159,6 +159,36 @@ export async function activeTaxonomy(kind: TaxonomyKind): Promise<TaxonomyOption
 }
 
 /**
+ * 🔴 50.1 — the VISIBILITY switch, as a set of codes that are closed.
+ *
+ * There are two switches per country and each is named for its question,
+ * because C218 and C219 were both written believing there was one.
+ *
+ *   - **`country_settings.enabled` is the MONEY switch.** It answers "can we
+ *     take a payment here", and it has two live consumers on the payment path
+ *     (`lib/billing/connect.ts`, `app/pay/[token]/actions.ts`) that refuse a
+ *     charge with a sentence when it is false. C219 first ordered this column
+ *     deleted, on a measurement that said nothing read it. Deleting it would
+ *     have left the rail open in a country we had just closed.
+ *   - **The taxonomy entry is the VISIBILITY switch.** It answers "do we show
+ *     anybody here", and until 50.1b nothing on the radar asked it.
+ *
+ * One admin action sets both, and the screen says which is which. Two switches
+ * that an operator sets together is not the same defect as two switches that
+ * disagree because nobody wired one up.
+ *
+ * Returns the **closed** codes rather than the open ones on purpose: a country
+ * with no row is open, so a set of what is open would be wrong for every
+ * country nobody has ever configured, which is most of them.
+ */
+export async function closedCodes(kind: TaxonomyKind): Promise<Set<string>> {
+  const map = await overrides(kind);
+  const closed = new Set<string>();
+  for (const [code, row] of map) if (!row.enabled) closed.add(code);
+  return closed;
+}
+
+/**
  * Is this value still on the list?
  *
  * Used when rendering a clinician who chose a language that has since been
@@ -195,6 +225,32 @@ export async function validateSelections(
 
 /* ------------------------------------------------------------- mutations -- */
 
+/**
+ * 🔴 50.1c / C254 — every write here drops the radar board.
+ *
+ * The board is a two-second per-instance TTL cache (`lib/data/radar.ts:201`),
+ * invalidated only by `invalidateRadarBoard()`. Without this call the operator
+ * closes a country, reloads the radar, and sees it exactly where it was, which
+ * is the *original symptom of C218* reproduced by a cache instead of by a
+ * missing query. A fix whose failure mode is indistinguishable from the bug is
+ * not a fix.
+ *
+ * Per instance, so this clears the one the admin's own request landed on and
+ * the rest expire within two seconds. That is the right trade for a curation
+ * change and it is worth saying out loud rather than discovering.
+ *
+ * The import is dynamic because `lib/data/radar.ts` imports this module for
+ * `closedCodes`, and a static pair would be a cycle.
+ */
+async function dropRadarBoard(): Promise<void> {
+  try {
+    const { invalidateRadarBoard } = await import("@/lib/data/radar");
+    invalidateRadarBoard();
+  } catch {
+    // A curation write must not fail because a cache could not be cleared.
+  }
+}
+
 export async function setTaxonomyEnabled(
   kind: TaxonomyKind,
   code: string,
@@ -208,6 +264,8 @@ export async function setTaxonomyEnabled(
       target: [taxonomyEntries.kind, taxonomyEntries.code],
       set: { enabled, updatedBy: userId, updatedAt: new Date() },
     });
+
+  await dropRadarBoard();
 }
 
 /**
@@ -239,6 +297,7 @@ export async function addTaxonomyEntry(
     .values({ kind, code: trimmed, label: trimmed, custom: true, updatedBy: userId })
     .onConflictDoNothing();
 
+  await dropRadarBoard();
   return { ok: true };
 }
 
@@ -259,4 +318,6 @@ export async function removeTaxonomyEntry(kind: TaxonomyKind, code: string): Pro
         eq(taxonomyEntries.custom, true),
       ),
     );
+
+  await dropRadarBoard();
 }
