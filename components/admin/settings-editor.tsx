@@ -456,10 +456,22 @@ export function CountryEditor({
           />
         </Field>
 
+        {/*
+          🔴 50.1 — this is the MONEY switch, and the screen has to say so.
+          C218 reported it as written and read by nobody. It has two consumers
+          on the payment path and both refuse a charge with a sentence when it
+          is false, so turning it off closes the till and nothing else. The
+          visibility switch lives on Radar lists and is a separate decision.
+        */}
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" name="enabled" defaultChecked={country.enabled} />
           Accepting paid sessions here
         </label>
+        <p className="text-xs leading-relaxed text-slate-500">
+          Money only. Off, we refuse card payments from this country and say so; free sessions still
+          work and the radar is unchanged. To take clinicians here off the radar, close the country
+          on Radar lists.
+        </p>
 
         <Result state={state} />
         <Save label={`Save ${country.code}`} />

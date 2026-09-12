@@ -16,7 +16,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import { feedbackForTherapist } from "@/lib/data/feedback";
-import { activeTaxonomy } from "@/lib/data/taxonomy";
+import { activeTaxonomy, closedCodes } from "@/lib/data/taxonomy";
 import { getI18n } from "@/lib/i18n/server";
 
 /*
@@ -47,6 +47,7 @@ export default async function RadarConsolePage() {
     history,
     slots,
     timezone,
+    closedCountries,
   ] = await Promise.all([
     ensureRadarProfile(actor),
     db
@@ -65,6 +66,8 @@ export default async function RadarConsolePage() {
     radarSessionHistory(actor),
     myHours(actor),
     readTimezone(actor.userId),
+    // 50.3 — resolved here, where the taxonomy already is.
+    closedCodes("country"),
   ]);
 
   return (
@@ -84,6 +87,7 @@ export default async function RadarConsolePage() {
           country={profile.country}
           rateCents={me?.rateCents ?? 0}
           chargesEnabled={me?.chargesEnabled ?? false}
+          countryClosed={Boolean(profile.country && closedCountries.has(profile.country))}
           languageOptions={languageOptions.map((o) => ({ code: o.code, label: o.label }))}
           specialtyOptions={specialtyOptions.map((o) => ({ code: o.code, label: o.label }))}
           countryOptions={countryOptions.map((o) => ({

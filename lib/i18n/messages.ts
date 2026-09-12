@@ -1995,6 +1995,21 @@ export const en = {
   "tcop.tpl.missed.text": "What have I not asked about that the transcripts suggest matters?",
   "tcop.tpl.progress.label": "Progress",
   "tcop.tpl.progress.text": "Is there evidence of progress toward their stated goals?",
+
+  /*
+   * 🔴 50.3 — a clinician taken off the radar is told why.
+   *
+   * Closing a country removes its clinicians from the board (50.1b). Doing
+   * that silently is the same class of defect as the switch that did nothing:
+   * somebody sets themselves online, watches nothing happen, and concludes the
+   * product is broken.
+   *
+   * The sentence says what did NOT change, at length and first, because that
+   * is the question a clinician actually has and the one a short notice leaves
+   * them to guess at.
+   */
+  "trad.countryClosed": "We have paused new bookings in {country}, so you are not on the radar at the moment. Nothing else has changed: your patients, your sessions, your notes and your money are exactly where they were, and you can still work with everyone on your list.",
+  "trad.countryClosedTitle": "Bookings paused where you practise",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -3842,6 +3857,10 @@ export const ar: Record<MessageKey, string> = {
   "tcop.tpl.missed.text": "ما الذي لم أسأل عنه وتشير النصوص إلى أنه مهم؟",
   "tcop.tpl.progress.label": "التقدّم",
   "tcop.tpl.progress.text": "هل هناك دليل على تقدّم نحو الأهداف التي ذكرها؟",
+
+  /* 🔴 50.3 — a clinician taken off the radar is told why. */
+  "trad.countryClosed": "أوقفنا مؤقتًا الحجوزات الجديدة في {country}، لذلك لا تظهر على الرادار حاليًا. لم يتغير أي شيء آخر: مرضاك وجلساتك وملاحظاتك وأموالك كما هي تمامًا، ويمكنك مواصلة العمل مع كل من في قائمتك.",
+  "trad.countryClosedTitle": "الحجوزات متوقفة مؤقتًا في بلد ممارستك",
 };
 
 export const DICTIONARIES = { en, ar } as const;

@@ -39,6 +39,15 @@ export type ConsoleProps = {
   country: string | null;
   rateCents: number;
   chargesEnabled: boolean;
+  /**
+   * 🔴 50.3 — the country they practise in has been closed to new bookings.
+   *
+   * Resolved on the server, where the taxonomy lives, and passed in as a
+   * finished fact rather than as a code to look up: this component would
+   * otherwise need a second async read to answer a question the page already
+   * knows the answer to.
+   */
+  countryClosed: boolean;
   /* 🔴 37L.2 — code and label, never one string doing both jobs. */
   languageOptions: { code: string; label: string }[];
   specialtyOptions: { code: string; label: string }[];
@@ -210,6 +219,28 @@ export function TherapistConsole(props: ConsoleProps) {
             <p className="mt-4 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-sm leading-relaxed text-amber-200">
               {t("trad.heldNote")}
             </p>
+          ) : null}
+
+          {/*
+            🔴 50.3 — off the radar, and told why.
+
+            Above the Go online button rather than below it, because the
+            question this answers is the one somebody has while reaching for
+            that button. Taking a clinician off the board silently is the same
+            defect as a switch that does nothing: they press it, nothing
+            happens, and they conclude the product is broken.
+          */}
+          {props.countryClosed ? (
+            <div className="mt-4 rounded-xl bg-amber-400/15 px-3.5 py-2.5 text-amber-200">
+              <p className="text-sm font-semibold">{t("trad.countryClosedTitle")}</p>
+              <p className="mt-1 text-sm leading-relaxed">
+                {t("trad.countryClosed", {
+                  country: props.countryOptions.find((c) => c.code === props.country)?.name
+                    ?? props.country
+                    ?? "",
+                })}
+              </p>
+            </div>
           ) : null}
 
           <button

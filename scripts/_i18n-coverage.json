@@ -5,7 +5,7 @@
     "patient": 22,
     "auth": 4,
     "portal": 1,
-    "admin": 302,
+    "admin": 301,
     "shared": 79
   },
   "note": "The count is a FLOOR, not a total: it sees JSX text nodes and four attributes, so a string inside a ternary or passed as an ordinary prop is invisible to it. It is still the right ratchet, because it cannot be satisfied by remembering and it moves the moment somebody types a sentence into a page.",
