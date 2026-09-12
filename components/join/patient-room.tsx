@@ -12,7 +12,7 @@ import {
   Star,
 } from "lucide-react";
 
-import { rateOnArrival } from "@/app/join/[token]/actions";
+import { rateOnArrival, stopRecording } from "@/app/join/[token]/actions";
 import { ConsentControls } from "@/components/join/consent-controls";
 import { reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
@@ -81,7 +81,7 @@ export function PatientRoom({
         {/* -------------------------------------------------------- the call */}
         <div className="min-w-0">
           <div className="overflow-hidden rounded-2xl bg-black">
-            <RecordingStrip live={live} recording={recording} />
+            <RecordingStrip live={live} recording={recording} token={token} />
 
             {videoUrl ? (
               <iframe
@@ -154,23 +154,73 @@ export function PatientRoom({
  * being recorded is the last one who should have to ask — and until this
  * existed they were the only participant who could not tell.
  */
-function RecordingStrip({ live, recording }: { live: boolean; recording: boolean }) {
+function RecordingStrip({
+  live,
+  recording,
+  token,
+}: {
+  live: boolean;
+  recording: boolean;
+  /** 48.10 — present means this patient can stop it themselves. */
+  token: string | null;
+}) {
   const t = useT();
+  const [pending, startTransition] = useTransition();
+  const [stopped, setStopped] = useState(false);
+
   if (!live) return null;
+
+  const running = recording && !stopped;
+
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-2 px-4 py-2 text-[12px] font-medium",
-        recording ? "bg-red-950/60 text-red-100" : "bg-amber-950/60 text-amber-100",
+        "flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-2 text-[12px] font-medium",
+        running ? "bg-red-950/60 text-red-100" : "bg-amber-950/60 text-amber-100",
       )}
     >
       <span
         className={cn(
           "h-2 w-2 shrink-0 rounded-full",
-          recording ? "live-dot bg-red-500" : "bg-amber-400",
+          running ? "live-dot bg-red-500" : "bg-amber-400",
         )}
       />
-      {recording ? "Recording, for your therapist's notes" : "Recording paused by your therapist"}
+      {/*
+        🔴 The stopped wording no longer says "by your therapist".
+        48.10 gave the patient the same button, so a person who has just
+        stopped their own recording and is told their therapist did it would
+        reasonably conclude the control did nothing.
+      */}
+      {running ? t("proom.recording") : t("proom.recordingStopped")}
+
+      {/*
+        🔴 48.10 — the patient's own control, beside the thing it controls.
+
+        Not in a settings screen and not behind a menu: the moment somebody
+        wants this is mid-sentence, and a control they have to go looking for
+        is one they will ask the other person in the room to press instead.
+      */}
+      {running && token ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const result = await stopRecording(token);
+              if (result.ok) setStopped(true);
+            })
+          }
+          className="tap-target rounded-full bg-white/15 px-2.5 py-0.5 font-semibold underline-offset-2 hover:bg-white/25 disabled:opacity-50"
+        >
+          {t("troom.offRecordPatient")}
+        </button>
+      ) : null}
+
+      {stopped ? (
+        <span className="w-full text-center text-[11px] font-normal opacity-80">
+          {t("troom.offRecordPatientWhy")}
+        </span>
+      ) : null}
     </div>
   );
 }

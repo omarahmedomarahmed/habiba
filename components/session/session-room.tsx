@@ -21,11 +21,14 @@ import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { cn, formatDuration } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { AskPanel } from "@/components/session/ask-panel";
 
 type Speaker = "therapist" | "patient" | "unknown";
 
 type RoomProps = {
   sessionId: string;
+  /** 48.1 — null for a guest session with no chart to ask about. */
+  patientId: string | null;
   patientLabel: string;
   therapistName: string;
   modality: "in_person" | "video";
@@ -607,6 +610,19 @@ export function SessionRoom(props: RoomProps) {
               toasts={toasts}
               onDismiss={(id) => setToasts((rest) => rest.filter((t) => t.id !== id))}
             />
+          ) : null}
+
+          {/*
+            🔴 48.1 / C25 — the question a therapist wants to ask happens IN
+            the room, and until now answering it meant leaving.
+
+            Only while live, because the free window is the session (48.6) and
+            a panel offered outside it would spend the ordinary allowance
+            without saying so. Only with a chart, because the record it reads
+            is the patient's.
+          */}
+          {live && props.patientId ? (
+            <AskPanel patientId={props.patientId} className="mb-3 max-h-80" />
           ) : null}
 
           <TranscriptPanel

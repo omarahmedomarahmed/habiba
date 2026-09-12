@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { dbFor } from "@/lib/db";
@@ -243,7 +243,7 @@ export async function journalsForClinician(personId: string, limit = 50) {
  */
 export async function journalContext(
   personId: string,
-  opts: { maxChars?: number; limit?: number } = {},
+  opts: { maxChars?: number; limit?: number; before?: Date | null } = {},
 ): Promise<{ text: string; entries: number }> {
   const maxChars = opts.maxChars ?? 12_000;
 
@@ -256,7 +256,20 @@ export async function journalContext(
       createdAt: journals.createdAt,
     })
     .from(journals)
-    .where(eq(journals.personId, personId))
+    .where(
+      /*
+       * 48.4 / C211 — inside the room, nothing written after it opened.
+       *
+       * A patient journalling on their phone during their own session is not
+       * a hypothetical: the app is open in front of them. Without this, the
+       * copilot would answer a therapist's question from something the person
+       * typed four minutes ago in the same room, which is the live-session
+       * reading C211 forbids arriving through a side door.
+       */
+      opts.before
+        ? and(eq(journals.personId, personId), lt(journals.createdAt, opts.before))
+        : eq(journals.personId, personId),
+    )
     .orderBy(desc(journals.createdAt))
     .limit(opts.limit ?? 40);
 

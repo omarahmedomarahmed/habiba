@@ -60,7 +60,23 @@ export async function askCopilot(patientId: string, question: string): Promise<A
     };
   }
 
-  const quota = await checkQuota(actor, found.thread.id);
+  /*
+   * 🔴 48.2 / 48.6 / C210 — the live session is looked up BEFORE the quota,
+   * because inside one there is no quota.
+   *
+   * Ticket 23.3 said the in-room allowance shares this counter. The founder
+   * overturned it on the declined session: a therapist whose patient refused
+   * recording would be locked out of the only help they have left, on the
+   * session where they need it most, having already paid the platform fee.
+   *
+   * `liveSessionForPatient` bounds itself by the session clock (C224), so a
+   * room left open on Monday is not still free on Tuesday.
+   */
+  const live = await liveSessionForPatient(actor, patientId);
+
+  const quota = live
+    ? { allowed: true, used: 0, limit: 0 }
+    : await checkQuota(actor, found.thread.id);
   if (!quota.allowed) {
     /*
      * The old wording said "…for this patient this month. Unlimited removes the
@@ -92,12 +108,11 @@ export async function askCopilot(patientId: string, question: string): Promise<A
    * answer rather than a missing one: a question asked on a Tuesday afternoon
    * about a patient seen last week belongs to no session.
    */
-  const liveSessionId = await liveSessionForPatient(actor, patientId);
   await appendMessage({
     threadId: found.thread.id,
     role: "therapist",
     content: trimmed,
-    sessionId: liveSessionId,
+    sessionId: live?.id ?? null,
   });
 
   try {
@@ -109,6 +124,15 @@ export async function askCopilot(patientId: string, question: string): Promise<A
       question: trimmed,
       guidance: found.thread.guidance,
       replyLanguage: found.thread.replyLanguage,
+      /*
+       * 🔴 48.4 / C211 — the record as of when the room opened.
+       *
+       * Resolved here rather than inside the copilot, so the one place that
+       * decides "is this a live session" is the one place that already
+       * decided it for the quota above. Two answers to that question is how
+       * a session ends up free and unbounded, or counted and clipped.
+       */
+      liveSince: live?.startedAt ?? null,
       /*
        * What this clinician may read, passed down rather than re-derived.
        * The copilot's context is assembled from the database and a second
@@ -123,7 +147,7 @@ export async function askCopilot(patientId: string, question: string): Promise<A
       content: result.answer,
       citations: result.citations,
       // The answer belongs to the same session as the question that caused it.
-      sessionId: liveSessionId,
+      sessionId: live?.id ?? null,
     });
 
     revalidatePath(`/copilot/${patientId}`);

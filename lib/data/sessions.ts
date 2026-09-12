@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -715,19 +715,55 @@ export async function joinByToken(token: string, displayName: string) {
 export async function liveSessionForPatient(
   actor: Actor,
   patientId: string,
-): Promise<string | null> {
+): Promise<{ id: string; startedAt: Date } | null> {
+  /*
+   * 🔴 48.6 / C224 — the free window is the session, and a session has an END.
+   *
+   * This asked for `status = 'in_progress'` and nothing else, which was
+   * correct while the only thing the stamp did was attribute a question to a
+   * session. 48.2 makes an in-room question **free**, and a status nobody
+   * closes is then an unbounded giveaway: a therapist who opens a room on
+   * Monday and never closes it has free model spend until somebody notices.
+   * "Free means a therapist can open a room and never close it" is C224 in the
+   * founder's own words.
+   *
+   * A session that has passed its own clock is over whether or not anything
+   * got round to writing `completed`. The clock is the settings pair the room
+   * already counts down with, so the boundary here and the boundary the
+   * clinician watches on screen are the same boundary.
+   */
+  const settings = await getSettings();
+  const liveMinutes = settings.clock.runningMinutes + settings.clock.countdownMinutes;
+
   const [row] = await db
-    .select({ id: sessions.id })
+    /*
+     * 48.4 — the instant comes back with the id, from ONE query.
+     *
+     * The caller needs both: the id to mark the question free (48.2) and the
+     * instant to bound what the copilot may read (48.4). Two lookups is two
+     * answers to "is this a live session, and since when", and the way that
+     * goes wrong is a session that is free but unbounded.
+     */
+    .select({ id: sessions.id, startedAt: sessions.startedAt })
     .from(sessions)
     .where(
       and(
         scope(actor),
         eq(sessions.patientId, patientId),
         eq(sessions.status, "in_progress"),
+        /*
+         * Started, and started recently enough to still be running. A session
+         * with no `startedAt` is not live by any reading: `in_progress` without
+         * a start time is a row mid-transition, not a room with people in it.
+         */
+        isNotNull(sessions.startedAt),
+        gte(sessions.startedAt, new Date(Date.now() - liveMinutes * 60_000)),
       ),
     )
     .orderBy(desc(sessions.startedAt))
     .limit(1);
 
-  return row?.id ?? null;
+  // `isNotNull` above means this narrowing always succeeds; the check is here
+  // because the column's type does not know that and a cast would hide it.
+  return row?.startedAt ? { id: row.id, startedAt: row.startedAt } : null;
 }

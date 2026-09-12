@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -187,6 +187,29 @@ export async function appendMessage(input: {
  * Only therapist messages count. The copilot's own answers and the notes saved
  * automatically from a live session are not questions the therapist chose to
  * ask.
+ *
+ * ## 🔴 48.2 / C210 — and nor does anything asked in the room
+ *
+ * Ticket 23.3 said the in-room allowance is "spent by the same counter as
+ * /copilot. One allowance, two doors." The founder has overturned it, and the
+ * reason is the declined session: a therapist whose patient refused recording
+ * would be locked out of the one thing that still helps them, on the session
+ * where they need it most, having already paid the platform fee. The in-room
+ * copilot is the only AI in this product a patient's refusal does not switch
+ * off, because it reads the record that already existed rather than the
+ * session happening now.
+ *
+ * The marker is `session_id`, which `askCopilot` has stamped on therapist
+ * questions since 11R: a question asked while a session is live belongs to
+ * that session, and a question asked on a Tuesday afternoon about a patient
+ * seen last week belongs to none. That is 48.6's window expressed as a column
+ * rather than as a second concept, and `liveSessionForPatient` bounds it by
+ * the session clock so a room left open does not stay free (C224).
+ *
+ * ⚠️ It is deliberately NOT free and NOT counted at the same time: sprint 49
+ * still attributes the model spend (C221). A cost with no revenue line against
+ * it is the point of C210, and a cost that disappears is how a margin goes
+ * wrong quietly.
  */
 export async function checkQuota(
   actor: Actor,
@@ -229,6 +252,8 @@ export async function checkQuota(
         eq(copilotMessages.threadId, threadId),
         eq(copilotMessages.role, "therapist"),
         gte(copilotMessages.createdAt, since),
+        // 🔴 48.2 — in-room questions are free and uncounted.
+        isNull(copilotMessages.sessionId),
       ),
     );
 

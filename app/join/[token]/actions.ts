@@ -513,3 +513,53 @@ export async function turnOnConsent(
   log.info("recording consent granted mid-session");
   return { ok: true };
 }
+
+/**
+ * 🔴 48.10 — the patient's own off-record button.
+ *
+ * `offRecord` in `components/session/session-room.tsx` is a CLINICIAN control,
+ * and until now it was the only one. So the person whose words are being
+ * recorded, and whose consent is the entire basis for recording them, could
+ * agree at the door and then have no way to change their mind except by asking
+ * the other person in the room to press a button for them. In a therapy
+ * session that is not a small asymmetry.
+ *
+ * ## What it does NOT do, and why
+ *
+ * It stops the audio. It does not delete what was already captured.
+ *
+ * That looks like the less generous choice and is the safer one: a chart that
+ * rewrites itself is worse than one with a gap. A note drafted from a
+ * transcript that has since been silently shortened is a clinical document
+ * whose evidence no longer matches it, and nobody reading it later can tell.
+ * The gap is honest and 47.2 already gives it a name and a duration on the
+ * note itself.
+ *
+ * A patient who wants what was captured removed is asking for erasure, which
+ * is a different request with a different process, and one that should go
+ * through a person rather than a button in a live session.
+ *
+ * Idempotent by the same conditional-write pattern as `turnOnConsent`: a
+ * second tap or a stale tab cannot rewrite the moment it stopped.
+ */
+export async function stopRecording(token: string): Promise<{ ok?: boolean; error?: string }> {
+  const session = await resolveJoinToken(token);
+  if (!session) return { error: "This link is no longer valid." };
+
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/join/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+  const { sessions } = await import("@/lib/db/schema");
+  const { and, eq, isNull } = await import("drizzle-orm");
+
+  await db
+    .update(sessions)
+    .set({ recordingPausedAt: new Date() })
+    .where(and(eq(sessions.id, session.id), isNull(sessions.recordingPausedAt)));
+
+  log.info("recording stopped by the patient");
+  return { ok: true };
+}
