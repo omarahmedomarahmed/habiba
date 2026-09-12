@@ -82,6 +82,10 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
             zone="UTC"
             sessions={(content?.patientSessions ?? []).map((row, i) => ({
               id: `demo-${i}`,
+              // 47.4 — the demo's invented rows say nothing was recorded,
+              // which is the honest default and the safest thing to show a
+              // stranger on a marketing page.
+              provenance: null,
               group: i === 0 ? "today" : "past_scheduled",
               at: new Date(Date.UTC(2026, 2, 12 + (i === 0 ? 1 : -6), 18, 0)),
               therapistName: row.therapist,

@@ -18,7 +18,8 @@ import { reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn, initials } from "@/lib/utils";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { listSeparator } from "@/lib/i18n/config";
 
 export type Therapist = {
   name: string;
@@ -242,6 +243,8 @@ function WhoYouAreWith({
   startedAt: string | null;
 }) {
   const t = useT();
+  // 47.7 — the list separator is the reader's, not a hardcoded one.
+  const locale = useLocale();
   const [elapsed, setElapsed] = useState("");
 
   /*
@@ -277,7 +280,7 @@ function WhoYouAreWith({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
-        {therapist.languages.length > 0 ? <span>{t("room.speaks", { languages: therapist.languages.join("، ") })}</span> : null}
+        {therapist.languages.length > 0 ? <span>{t("room.speaks", { languages: therapist.languages.join(listSeparator(locale)) })}</span> : null}
         {live && elapsed ? <span className="font-medium text-teal-700">{elapsed}</span> : null}
       </div>
 

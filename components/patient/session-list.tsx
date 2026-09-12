@@ -9,6 +9,7 @@ import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { localeTag } from "@/lib/i18n/config";
+import { PatientNoteOriginClient } from "@/components/notes/provenance-client";
 
 /**
  * A patient's own sessions, in the four groups 15.3 names.
@@ -103,6 +104,18 @@ export function PatientSessionList({
                         ? ` · ${formatMoney(session.priceCents, "USD", localeTag(locale))}`
                         : ` · ${t("psessions.free")}`}
                     </p>
+
+                    {/*
+                      🔴 47.4 — the patient sees which of their own sessions
+                      were transcribed. It is their record and their choice
+                      that produced it, so it is shown on the past ones whether
+                      or not a brief has been written yet.
+                    */}
+                    {group.startsWith("past") && session.provenance ? (
+                      <p className="mt-2">
+                        <PatientNoteOriginClient provenance={session.provenance} />
+                      </p>
+                    ) : null}
 
                     {session.brief ? (
                       <p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">

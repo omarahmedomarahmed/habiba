@@ -120,6 +120,9 @@ export async function getPatientHistory(actor: Actor, patientId: string) {
       durationMinutes: sessions.durationMinutes,
       noteStatus: sessions.noteStatus,
       noteSummary: sessionNotes.content,
+      // 47.3 — the next clinician's view of somebody else's caseload.
+      noteProvenance: sessionNotes.provenance,
+      noteOffRecordSeconds: sessionNotes.offRecordSeconds,
     })
     .from(sessions)
     .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))

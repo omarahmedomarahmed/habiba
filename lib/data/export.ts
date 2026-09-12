@@ -366,6 +366,10 @@ async function buildExport(
       status: sessions.status,
       priceCents: sessions.priceCents,
       paymentStatus: sessions.paymentStatus,
+      // 47.3 — the export carries it too. A document somebody takes to a
+      // second clinician must say what it rests on.
+      noteProvenance: sessionNotes.provenance,
+      noteOffRecordSeconds: sessionNotes.offRecordSeconds,
       noteContent: sessionNotes.content,
       noteLanguage: sessionNotes.language,
       noteContentEn: sessionNotes.contentEn,
@@ -531,6 +535,18 @@ async function buildExport(
       priceCents: row.priceCents,
       paymentStatus: row.paymentStatus,
       note: row.noteContent ?? null,
+      /*
+       * 🔴 47.3 / C212 — how the note was made, in the export.
+       *
+       * This is the copy a patient hands to a second clinician, and it is the
+       * one where presenting recollection and transcript identically does the
+       * most damage: the reader has no session to ask about and no colleague
+       * to ask. `clinician` is the default, so an export of a record from
+       * before this sprint says the honest thing rather than the flattering
+       * one.
+       */
+      noteProvenance: row.noteProvenance ?? "clinician",
+      noteOffRecordSeconds: row.noteOffRecordSeconds ?? null,
       noteLanguage: row.noteLanguage ?? "en",
       noteEnglish: row.noteContentEn ?? null,
       noteSigned: row.noteStatus === "approved" ? row.noteApprovedAt : null,

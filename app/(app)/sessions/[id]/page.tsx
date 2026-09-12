@@ -17,6 +17,7 @@ import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
+import { NoteOriginNote } from "@/components/notes/provenance";
 
 export const metadata: Metadata = { title: "Session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -166,6 +167,19 @@ export default async function SessionDetailPage({
             }
             patientLabel={patientLabel}
           />
+
+          {/*
+            🔴 47.3 — above the note, not beside it.
+            A reader who has already read the note and then discovers it was
+            written from memory has read it wrongly once. The provenance is a
+            fact you need BEFORE the text, not a footnote after it.
+          */}
+          {note ? (
+            <NoteOriginNote
+              provenance={note.provenance}
+              offRecordSeconds={note.offRecordSeconds}
+            />
+          ) : null}
 
           <NoteReview
             approvals={false}

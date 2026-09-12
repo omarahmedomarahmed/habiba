@@ -11,7 +11,9 @@ import {
   sessionReports,
   sessions,
   therapistRadar,
+  transcriptSegments,
   users,
+  type NoteProvenance,
   type ReportKind,
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
@@ -486,6 +488,56 @@ export async function offRecordGaps(sessionId: string) {
     toMs: Number(row.gap_end),
     seconds: Math.round((Number(row.gap_end) - Number(row.gap_start)) / 1000),
   }));
+}
+
+/**
+ * 🔴 47.1 / 47.2 / C212, C213 — how a note was made, from what actually
+ * happened rather than from what was permitted.
+ *
+ * Consent is PERMISSION. Segments are EVIDENCE. The distinction is the whole
+ * of this function, because the obvious build reads `recording_consent` alone
+ * and badges a note `transcript` whenever the patient agreed — including the
+ * session where they agreed and the capture then failed, which is a note
+ * written from memory wearing a transcript's badge. A lie in the flattering
+ * direction is exactly the failure C212 exists to prevent, so a session is
+ * only `transcript` when there is a transcript.
+ *
+ * `partial` reuses `offRecordGaps`, which has computed this since sprint 33
+ * and was read by nothing but the radar investigation screen. One definition
+ * of "off record", in one place, shared with the backfill in
+ * `0067_note_provenance.sql`.
+ */
+export async function noteProvenanceFor(
+  sessionId: string,
+): Promise<{ provenance: NoteProvenance; offRecordSeconds: number | null }> {
+  const [session] = await db
+    .select({ consent: sessions.recordingConsent })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  if (session?.consent !== "granted") {
+    // Declined, withdrawn, or never asked. All three mean the same thing about
+    // the record, and treating them alike is what makes this a rule.
+    return { provenance: "clinician", offRecordSeconds: null };
+  }
+
+  const [segment] = await db
+    .select({ id: transcriptSegments.id })
+    .from(transcriptSegments)
+    .where(eq(transcriptSegments.sessionId, sessionId))
+    .limit(1);
+
+  // Permission without capture is not a transcript.
+  if (!segment) return { provenance: "clinician", offRecordSeconds: null };
+
+  const gaps = await offRecordGaps(sessionId);
+  if (gaps.length === 0) return { provenance: "transcript", offRecordSeconds: null };
+
+  return {
+    provenance: "partial",
+    offRecordSeconds: gaps.reduce((total, gap) => total + gap.seconds, 0),
+  };
 }
 
 /* ------------------------------------------------------------------ bans -- */

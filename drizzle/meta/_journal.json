@@ -470,6 +470,20 @@
       "when": 1789600000032,
       "tag": "0066_split_fee",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1789600000033,
+      "tag": "0067_note_provenance",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1789600000034,
+      "tag": "0068_journal_inference",
+      "breakpoints": true
     }
   ]
 }

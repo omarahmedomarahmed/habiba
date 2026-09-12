@@ -2065,6 +2065,29 @@ export const en = {
   "pricing.unlockGets": "and AI sessions cost {amount}",
   "pricing.creditIsMoney": "Credit is money. It pays for session fees and AI fees alike, and the rate it unlocks is yours to keep.",
   "pricing.patientPaysNothing": "Your patient never pays us anything.",
+
+  /*
+   * 🔴 47.1 / 47.3 / C212 — how a note was made, in the reader's language.
+   *
+   * The wording is SOURCE, never quality, and 47.5 is why. A hand-written note
+   * is not weaker evidence, it is differently sourced, and it keeps source
+   * priority 1 on the evidence screen. So the clinician string says what every
+   * written record was before recordings existed rather than apologising for
+   * itself, and none of the three carries a word like "unverified".
+   *
+   * The patient's three are separate strings rather than the same ones reused.
+   * A clinician reads "from the recording" as a fact about the document; a
+   * patient reads their own choice back, which is what 47.4 asks for.
+   */
+  "note.origin.transcript": "From the recording",
+  "note.origin.transcriptWhy": "The whole session was captured and this note was drafted from it.",
+  "note.origin.partial": "Partly from the recording",
+  "note.origin.partialWhy": "{minutes} minutes of this session were not recorded. Those parts are written from the clinician's own notes.",
+  "note.origin.clinician": "From the clinician's notes",
+  "note.origin.clinicianWhy": "This session was not recorded. The note is the clinician's own account of it, which is what every written record was before recordings existed.",
+  "note.origin.patientTranscript": "You turned the AI on for this session",
+  "note.origin.patientPartial": "Part of this session was not recorded",
+  "note.origin.patientClinician": "This session was not recorded",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -3947,6 +3970,17 @@ export const ar: Record<MessageKey, string> = {
   "pricing.unlockGets": "وتصبح جلسات الذكاء الاصطناعي بـ {amount}",
   "pricing.creditIsMoney": "الرصيد نقود. يغطي رسوم الجلسات ورسوم الذكاء الاصطناعي على حد سواء، والسعر الذي يفتحه يبقى لك.",
   "pricing.patientPaysNothing": "مريضك لا يدفع لنا شيئًا أبدًا.",
+
+  /* 🔴 47.1 / 47.3 — how a note was made, in the reader's language. */
+  "note.origin.transcript": "من التسجيل",
+  "note.origin.transcriptWhy": "تم تسجيل الجلسة بالكامل وصيغت هذه الملاحظة منها.",
+  "note.origin.partial": "جزئيًا من التسجيل",
+  "note.origin.partialWhy": "لم تُسجَّل {minutes} دقيقة من هذه الجلسة. تلك الأجزاء مكتوبة من ملاحظات المعالج نفسه.",
+  "note.origin.clinician": "من ملاحظات المعالج",
+  "note.origin.clinicianWhy": "لم تُسجَّل هذه الجلسة. الملاحظة هي رواية المعالج نفسه عنها، وهو ما كان عليه كل سجل مكتوب قبل وجود التسجيلات.",
+  "note.origin.patientTranscript": "شغّلت الذكاء الاصطناعي في هذه الجلسة",
+  "note.origin.patientPartial": "جزء من هذه الجلسة لم يُسجَّل",
+  "note.origin.patientClinician": "لم تُسجَّل هذه الجلسة",
 };
 
 export const DICTIONARIES = { en, ar } as const;

@@ -4,7 +4,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
-import { patients, sessionNotes, sessions, users } from "@/lib/db/schema";
+import { patients, sessionNotes, sessions, users, type NoteProvenance } from "@/lib/db/schema";
 
 
 
@@ -58,6 +58,15 @@ export type PatientSession = {
    */
   brief: string | null;
   briefPending: boolean;
+  /**
+   * 🔴 47.4 — which of their own sessions were transcribed.
+   *
+   * Null when there is no note yet. It is their record and it was their choice
+   * that produced it, so this is shown whether or not a brief has been written:
+   * "this session was not recorded" is a true and useful thing to know about a
+   * session whose note is still being drafted.
+   */
+  provenance: NoteProvenance | null;
 };
 
 /**
@@ -93,6 +102,8 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
        * same row and is not selected — see the note at the top of this file.
        */
       brief: sql<string | null>`${sessionNotes.content} ->> 'patientBrief'`,
+      // 47.4 — it is their record and their choice that produced it.
+      provenance: sessionNotes.provenance,
       patientStatus: sessionNotes.patientStatus,
     })
     .from(sessions)
@@ -111,6 +122,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
 
     return {
       id: row.id,
+      provenance: row.provenance ?? null,
       group: groupOf({
         at,
         now,

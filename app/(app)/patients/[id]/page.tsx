@@ -17,6 +17,7 @@ import { personIdForPatient } from "@/lib/data/people";
 import { fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
+import { NoteOrigin } from "@/components/notes/provenance";
 
 export const metadata: Metadata = {
   title: "Patient",
@@ -162,6 +163,20 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                           ? ` · ${t("portal.minutes", { count: session.durationMinutes })}`
                           : ""}
                       </p>
+                      {/*
+                        🔴 47.3 — the NEXT clinician's view.
+                        This is the list C212 describes: eight notes, three of
+                        them somebody else's recollection, and until now no way
+                        to tell which.
+                      */}
+                      {session.noteProvenance ? (
+                        <span className="mt-1 flex">
+                          <NoteOrigin
+                            provenance={session.noteProvenance}
+                            offRecordSeconds={session.noteOffRecordSeconds}
+                          />
+                        </span>
+                      ) : null}
                       {session.noteSummary?.summary ? (
                         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
                           {session.noteSummary.summary}

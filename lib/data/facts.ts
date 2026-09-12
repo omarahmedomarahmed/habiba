@@ -85,6 +85,58 @@ function evidenceColumns(evidence: FactInput["evidence"]): {
 }
 
 /**
+ * 🔴 47.6 / C214 — what a journal may never become.
+ *
+ * A patient on nobody's list writes journals at eleven at night. The moment
+ * those become an evidence source, the first therapist that person ever meets
+ * is handed a **conclusion drawn from a stranger's diary by a machine**, and
+ * anchoring is the best documented failure mode in clinical judgement. They
+ * will read everything that follows through it.
+ *
+ * So a journal may be summarised, quoted and cited, and may never produce a
+ * diagnosis, a risk level, or any statement phrased as a conclusion about the
+ * person. These are the domains where a fact IS a conclusion.
+ *
+ * ## Why this lives here and not in a prompt
+ *
+ * A prompt is an instruction to a model, and the model is the thing whose
+ * judgement we are declining to trust with this. A future prompt change, a
+ * model swap, a jailbreak or a well-meaning tweak all lift a prompt-level
+ * bound and none of them can lift this one: the write is refused, and
+ * `verify:sprint47` proves it against a planted journal that invites exactly
+ * that conclusion.
+ *
+ * ## 🔴 This is a repair, not a prevention, and C214 was written backwards
+ *
+ * C214 said `lib/data/facts.ts` "does not reference journals at all, so
+ * nothing leaks through the evidence layer yet". It references them
+ * twenty-two times and has since sprint 33. The ruling was written from a
+ * grep that printed nothing because this file contained a NUL byte (C245,
+ * fixed in 45.0). The door was already open.
+ *
+ * ## What this does NOT touch
+ *
+ * C123 still stands, untouched: a journal is **scanned like a transcript**,
+ * `journals.riskLevel` is computed, and a clinician holding a grant is told
+ * when somebody writes "I want to die" at 3am. That is the ALERTING path and
+ * it is how the product keeps somebody alive. This is the INFERENCE path: no
+ * journal-derived row may enter the clinical record as a standing conclusion.
+ * Two rulings, one about reaching a person and one about writing them down,
+ * and reading them as the same rule would switch off the first.
+ */
+const CONCLUSION_DOMAINS = new Set(["diagnosis", "risk"]);
+
+export class JournalInferenceError extends Error {
+  constructor(domain: string) {
+    super(
+      `A journal may be summarised, quoted and cited. It may never produce a ${domain}. ` +
+        "C214: the bound is in the evidence layer so that a prompt change cannot lift it.",
+    );
+    this.name = "JournalInferenceError";
+  }
+}
+
+/**
  * Record a fact.
  *
  * The priority is derived here and CHECKed there, which is belt and braces on
@@ -92,6 +144,21 @@ function evidenceColumns(evidence: FactInput["evidence"]): {
  * lie would be invisible in review because the row looks like a clinician's.
  */
 export async function recordFact(input: FactInput): Promise<ClinicalFact> {
+  /*
+   * 🔴 C214, before anything else and before any database round trip.
+   *
+   * Checked on the EVIDENCE rather than on the source type, because `source`
+   * says who is asserting and `evidence` says what they are asserting it from.
+   * A clinician reading a patient's journal and typing a diagnosis is a
+   * clinician's judgement about a person they are treating, which is theirs to
+   * make; a row whose evidence is the journal itself is the machine drawing
+   * the conclusion, which is the thing C214 forbids. The two are
+   * indistinguishable by `source` alone.
+   */
+  if (input.evidence.kind === "journal" && CONCLUSION_DOMAINS.has(input.domain)) {
+    throw new JournalInferenceError(input.domain);
+  }
+
   const db = dbFor(await regionOfPerson(input.personId));
 
   const [row] = await db

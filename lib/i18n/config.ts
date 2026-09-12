@@ -98,3 +98,20 @@ export function intlTag(language: string): string {
   if (base !== "ar") return language;
   return language.includes("-u-nu-") ? language : `${language}-u-nu-latn`;
 }
+
+/**
+ * 🔴 47.7 — the separator between items in a list, in the reader's language.
+ *
+ * Two screens joined names with a hardcoded Arabic comma (U+060C) and used it
+ * in both languages, so an English reader met "Ahmed، Sara". It is the mirror
+ * of C202: one punctuation mark cannot be right for two scripts, and the
+ * version that looks wrong to half the readers is the one nobody notices,
+ * because the people who would notice are not the people writing the code.
+ *
+ * `Intl.ListFormat` would also inflect the final conjunction, which is more
+ * than these call sites want: a list of who can read your journal is a list,
+ * not a sentence, and "Ahmed, Sara and Mona" reads as prose about them.
+ */
+export function listSeparator(locale: Locale): string {
+  return locale === "ar" ? "، " : ", ";
+}

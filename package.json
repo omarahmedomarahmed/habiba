@@ -16,6 +16,7 @@
     "verify:sprint45": "node --import tsx --conditions=react-server scripts/verify-sprint45.tsx",
     "verify:sprint50": "node --import tsx --conditions=react-server scripts/verify-sprint50.ts",
     "verify:sprint46": "node --import tsx --conditions=react-server scripts/verify-sprint46.ts",
+    "verify:sprint47": "node --import tsx --conditions=react-server scripts/verify-sprint47.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",

@@ -9,6 +9,7 @@ import { journalsForPerson } from "@/lib/data/journals";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDateTime, fullName } from "@/lib/utils";
+import { listSeparator } from "@/lib/i18n/config";
 
 export const metadata: Metadata = { title: "Your journal", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -67,7 +68,7 @@ export default async function JournalPage() {
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {readers.length === 0
             ? t("journal.nobody")
-            : t("journal.readers", { names: readers.join("، ") })}
+            : t("journal.readers", { names: readers.join(listSeparator(locale)) })}
         </p>
         <Link
           href="/patient/consent"

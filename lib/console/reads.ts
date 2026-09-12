@@ -294,6 +294,9 @@ export async function sessionsFor(patientIds: string[]) {
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
       noteStatus: sessionNotes.status,
+      // 47.3 — the admin console reads notes too, which is a surface C212 did
+      // not name and sprint 49 is about to rebuild.
+      noteProvenance: sessionNotes.provenance,
       patientStatus: sessionNotes.patientStatus,
       summary: sql<string | null>`${sessionNotes.content}->>'summary'`,
     })

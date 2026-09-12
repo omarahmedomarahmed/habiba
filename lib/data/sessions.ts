@@ -558,6 +558,9 @@ export async function listRecentNotes(actor: Actor, limit = 50) {
       id: sessionNotes.id,
       sessionId: sessionNotes.sessionId,
       status: sessionNotes.status,
+      // 47.3 — how the note was made travels with the note, everywhere.
+      provenance: sessionNotes.provenance,
+      offRecordSeconds: sessionNotes.offRecordSeconds,
       patientStatus: sessionNotes.patientStatus,
       createdAt: sessionNotes.createdAt,
       content: sessionNotes.content,

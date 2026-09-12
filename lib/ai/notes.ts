@@ -3,6 +3,7 @@ import "server-only";
 import { asc, eq } from "drizzle-orm";
 
 import { recordSessionNote } from "@/lib/data/copilot";
+import { noteProvenanceFor } from "@/lib/data/feedback";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
@@ -561,6 +562,21 @@ export async function generateAndStoreNote(opts: {
       if (contentEn?.summary) contentEn.summary = `${stamp}\n\n${contentEn.summary}`;
     }
 
+    /*
+     * 🔴 47.1 / C212 — the note records how it was made, stamped here.
+     *
+     * At save rather than at read, because the answer is a fact about the
+     * session that produced it and the evidence for it — the segments — can be
+     * deleted later under retention. A note that recomputed its own provenance
+     * would quietly become `clinician` the day a transcript aged out, which is
+     * a record rewriting its own history.
+     *
+     * It is written on the conflict path too. A note regenerated after the
+     * clinician went off record must not keep the badge it had when the whole
+     * session was captured.
+     */
+    const origin = await noteProvenanceFor(opts.sessionId);
+
     await db
       .insert(sessionNotes)
       .values({
@@ -573,10 +589,20 @@ export async function generateAndStoreNote(opts: {
         contentEn,
         status: "draft",
         model,
+        provenance: origin.provenance,
+        offRecordSeconds: origin.offRecordSeconds,
       })
       .onConflictDoUpdate({
         target: sessionNotes.sessionId,
-        set: { content, language, contentEn, model, updatedAt: new Date() },
+        set: {
+          content,
+          language,
+          contentEn,
+          model,
+          provenance: origin.provenance,
+          offRecordSeconds: origin.offRecordSeconds,
+          updatedAt: new Date(),
+        },
       });
 
     await db

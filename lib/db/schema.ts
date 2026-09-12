@@ -836,6 +836,17 @@ export const NOTE_LANGUAGES: Record<string, string> = {
 /** Languages written right to left — the note viewer has to know. */
 export const RTL_LANGUAGES = new Set(["ar", "he", "fa", "ur"]);
 
+/**
+ * 🔴 How a note came to exist. 47.1, C212.
+ *
+ * Ordered from most to least externally corroborated, which is the order the
+ * badge reads in and NOT a ranking of clinical quality. 47.5 is explicit that
+ * a hand-written note is differently sourced rather than weaker evidence, and
+ * the evidence screen keeps `clinician` at source priority 1.
+ */
+export const NOTE_PROVENANCES = ["transcript", "partial", "clinician"] as const;
+export type NoteProvenance = (typeof NOTE_PROVENANCES)[number];
+
 export const sessionNotes = pgTable(
   "session_notes",
   {
@@ -895,6 +906,33 @@ export const sessionNotes = pgTable(
     patientApprovedBy: uuid("patient_approved_by").references(() => users.id, {
       onDelete: "set null",
     }),
+
+    /**
+     * 🔴 47.1 / C212 — how this note was made. Evidence, or recollection.
+     *
+     * A future therapist reads eight notes and, without this, has no way to
+     * tell that three of them rest on a colleague's memory of a session
+     * nobody recorded. That is the difference between evidence and hearsay,
+     * presented identically, in a clinical record somebody may act on.
+     *
+     *   transcript  the whole session was captured
+     *   partial     consent was given and the clinician went off record for
+     *               part of it. `offRecordSeconds` says how long, because
+     *               "partially recorded" without a duration is a badge nobody
+     *               can act on (47.2, C213)
+     *   clinician   no recording. Written from memory, which is what every
+     *               paper record in the world is and is not a lesser thing
+     *
+     * 🔴 `clinician` is the DEFAULT, and that is a decision. It is the honest
+     * answer rather than the flattering one: a note whose origin we cannot
+     * establish is a note nobody can vouch for a transcript behind.
+     */
+    provenance: text("provenance")
+      .$type<NoteProvenance>()
+      .notNull()
+      .default("clinician"),
+    /** 47.2 — only meaningful on `partial`. Null everywhere else. */
+    offRecordSeconds: integer("off_record_seconds"),
 
     model: text("model"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
