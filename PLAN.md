@@ -224,6 +224,20 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C252 | 46 | **`users.sessionRateCents` and `pricing.tiers[].rateCents` are unrelated fields sharing a name, across more than forty call sites.** One is the therapist's own price to their patient; the other is our fee to the therapist. C223 renames the second, and it will be done with a search and replace that hits the first. A therapist's price silently becoming our fee is a money defect that typechecks. **Ruling: rename both, not one, in the same commit, to names that cannot be confused**, and land the rename before any other ticket in sprint 46 touches billing. **What it costs:** a large mechanical diff at the start of the sprint rather than a small one in the middle of it, which is the cheaper order. 2026-09-12. | major | **found by the build session, 2026-09-12** | **ruled — sprint 46** |
 | C253 | 46 | **Nothing proves the crisis path is independent of billing state, and the split fee is about to touch every billing path.** 53.23 asks for a test that empties a pot and asserts the crisis surface is unchanged, which is right and is scheduled in the wrong sprint: sprint 46 rewrites the charge path months earlier and could break the independence before the test that guards it exists. **Ruling: the test is written in sprint 46, not 53**, and it asserts the crisis surface against every billing state we can construct: no credit, unpaid invoice, suspended account, and later an empty pot. **What it costs:** nothing, and it is the cheapest ticket in the sprint. 2026-09-12. | major | **found by the build session, 2026-09-12** | **ruled — sprint 46** |
 | C254 | 50 | **The radar board is cached in process, so the country filter will appear not to work.** `lib/data/radar.ts:201-234` is a TTL cache invalidated only by `invalidateRadarBoard()`, per instance. An operator closes a country, reloads the public radar, and sees it still there, which is **exactly the symptom that produced C218 in the first place** and would be diagnosed as the same bug a second time. **Ruling: the admin write path calls `invalidateRadarBoard()`, and 50.5's verifier invalidates explicitly before asserting**, or it will pass and fail for cache reasons rather than query reasons and prove nothing either way. **What it costs:** nothing, and forgetting it costs a day of somebody re-finding C218. 2026-09-12. | minor | **found by the build session, 2026-09-12** | **ruled — sprint 50** |
+| C255 | 53 | 🔴 **An HR integration is the obvious way to re-introduce the roster we just spent three designs removing.** Every HR platform worth integrating (Workday, SuccessFactors, BambooHR, Oracle HCM, Personio, Zoho People) and every aggregator over them (Merge, Finch) is built around **provisioning**: pull the directory, sync it, keep it. SCIM, the actual standard here, is a directory push. Build any of that and we hold a complete staff list for every client, which is exactly what C227's third design exists to avoid. **Ruling: the integration answers a question about one person we already hold, and never enumerates.** "Is this identifier, which somebody has already given us, currently an active employee?" Yes or no, plus a timestamp. **No directory read, no sync, no store, no list endpoint, ever.** Where an HR API only offers a full listing, we do not integrate with it in v1 rather than accepting the dump. **What it costs:** we decline integrations that would be easy, and we can never answer "how many of your staff are enrolled" as a share of headcount, because we do not know the headcount. 2026-09-12. | blocker | founder | **ruled — sprints 53 and 55** |
+| C256 | 53 | 🔴 **"Last verified" leaks the join date, which §3e forbids.** The founder wants the sponsor to see each enrolled person's name and when they were last verified, which is right and necessary for a roster to be trustworthy. But if re-verification is anchored to each person's own enrolment date, then the last-verified date **is** the enrolment date shifted by a whole number of cycles, and a sponsor can read off who joined the week after a restructure was announced. **Ruling: the cycle is per sponsor on a fixed calendar, not per person from their enrolment.** Everybody in one organisation is checked in the same window, so the date is the same for everybody and carries no signal about anybody. **What it costs:** somebody who enrols the day before a cycle is verified almost immediately and again three months later, which is harmless and looks odd once. 2026-09-12. | major | review | **ruled — sprint 53** |
+| C257 | 53 | **A three-month re-verification is a recurring interruption to a mental health benefit, which is a harder thing than it sounds.** Reached on WhatsApp and email, it lands on somebody who may be in the middle of treatment, and a missed message pauses their funding. **Ruling: the message says what it is for in one sentence and never implies anything about use** ("confirming your work address keeps your benefit"), it is sent more than once before anything pauses, a pause is **reversible by us in one step**, and 🔴 **a pause never touches the record, the grants, the journals, the summaries or the history**. A person on extended leave who cannot reach a work inbox is the case this must not punish, so a paused person can always reach support and can always keep paying for themselves. **What it costs:** an operational load every quarter, and a real risk of pausing exactly the people least able to chase an email. 2026-09-12. | major | review | **ruled — sprint 53** |
+| C258 | 53 | **"Left" and "graduated" are employment and enrolment facts written by an employer about a person, into a health product's database.** Left open, the field becomes free text and somebody writes a reason nobody should ever write. **Ruling: a fixed list, never free text**, holding only what the founder named: left the organisation, graduated, no longer eligible. It ends funding and the badge, it is visible to the person as "your benefit has ended", and 🔴 **the reason is never shown to the person and never enters their record or any export**, because it is a fact about their employer, not about them. 2026-09-12. | minor | review | **ruled — sprint 53** |
+| C259 | 54 | 🔴 **A clinic is an `organizations` row and a sponsor is not, and building either one the other way is a disaster.** They look like the same problem, an outside body with users and money, and they have opposite answers. A clinic **employs clinicians and its therapists' patients sit inside its tenancy**, which is precisely what `actor.organizationId` already scopes across 63 queries in 33 files, so a clinic is the organization and a **clinic manager is a new kind of user inside it holding zero clinical access**. A sponsor **pays for care it must never see**, so putting it in `organizations` would place a paying employer inside the boundary that separates caseloads (C230). **Ruling: clinic inside, sponsor outside, written at the top of both sprints**, because a build session reading the two sprints back to back will otherwise reuse one table for both and take four weeks to discover why. **What it costs:** two mechanisms that look similar and are deliberately not shared. 2026-09-12. | blocker | founder | **ruled — sprints 53 and 54** |
+| C260 | 54 | 🔴 **A patient's name plus their clinician plus the time IS clinical information, and the clinic sees all three.** It says this person is in therapy, with this clinician, at this hour. Every clinic on earth works this way and a receptionist has always known who is coming, so it is defensible, but only if the line is drawn somewhere a patient can be told. Employment is the wrong line: a patient who booked a stranger from the radar never agreed to be visible to that stranger's practice manager. **Ruling: the line is money. A clinic sees the patients of sessions the clinic is paying for**, which is every session on a clinic-attached therapist's account (C261), and the clinician's practice is already named on the public profile before anybody books. **And the list is a name and an appointment time. Nothing else, in any form**: no note, transcript, journal, summary, risk, diagnosis, evidence panel or copilot, asserted by a verifier against a clinic manager principal rather than argued. **What it costs:** a patient loses the ability to see a clinic-employed clinician without that clinic knowing, which is true of every clinic in the world and must still be said before booking. 2026-09-12. | blocker | founder | **ruled — sprint 54** |
+| C261 | 54 | 🔴 **A therapist under a clinic with some private patients is an unanswerable question asked hundreds of times a day.** Per session, who pays, who sees the name, who sees the schedule, what happens when it changes. Any per-session toggle is a control somebody will set wrongly on the session that mattered. **Ruling: a therapist under a clinic has no private patients on that account.** Every session belongs to the clinic, the clinic pays the platform fee and the AI fee, and the clinic sees the name and the time. A clinician who wants private work keeps a **separate solo account**, which is honest and costs them nothing. 🔴 **It is stated in the invitation, before they accept, not discovered afterwards.** **What it costs:** a clinician with a mixed practice manages two sign-ins, and some will not join because of it. 2026-09-12. | major | founder | **ruled — sprint 54** |
+| C262 | 54 | **A three-therapist clinic is C229 again, wearing a different coat.** The denominator floor was written for sponsors and the same arithmetic applies here: usage broken down by therapist, in a practice with three of them, in a week with four sessions, is a statement about individuals. And the individuals are now the clinic's own employees, which is a different harm from a sponsor's but not a smaller one. **Ruling: the same denominator floor governs clinic reporting.** Below N sessions in a period, the clinic sees the bill and nothing else. It is the same setting and the same code path as C229, not a second implementation. 2026-09-12. | major | review | **ruled — sprint 54** |
+| C263 | 54 | 🔴 **The clinic pays the AI fee, the AI fee exists only on patient consent, so a clinic bill discloses who consented.** Dr Salma has four patients this week and the clinic's invoice shows three AI fees. In a caseload that small, set beside the schedule the clinic can already see (C260), that is a named patient's consent decision reaching their clinician's employer. **Consent is the most protected choice in this product and the billing line gives it away.** **Ruling: a clinic's invoice is aggregated and never itemised to a session.** A total platform fee, a total AI fee, a session count, and the C262 floor underneath all three. The itemised breakdown stays with the therapist, whose own patients they are. **What it costs:** a practice manager reconciling an invoice cannot tie a line to a session, which is a genuine accounting inconvenience and the correct trade. 2026-09-12. | blocker | review | **ruled — sprint 54** |
+| C264 | 55 | 🔴 **`routeDecision` is a pure function of two booleans with its own test suite, and there are about to be six principals.** `middleware.ts:69` and `lib/routing.ts:80` decide where somebody goes from `{ clinician, patient, expired }`. Sponsor, clinic manager and partner developer are three more, each with their own portal, their own sign-in and their own idea of what `/` means. Bolted on one at a time, this becomes the function nobody can reason about and every new portal breaks a redirect for an existing one. **Ruling: the router is rewritten once, for all six, before the second new portal is built**, with the existing suite extended to a case per principal rather than a boolean per principal. And 🔴 **no `require*` in `lib/auth/guard.ts` may ever return a sponsor or a partner as an `Actor`**, asserted by a verifier, because that is the seam C230 and C259 both rest on. **What it costs:** sprint 53 pays for work sprints 54 and 55 benefit from, which is the cheap order. 2026-09-12. | blocker | review | **ruled — sprints 53, 54, 55** |
+| C265 | 55 | 🔴 **An API key that can ask "does this person work here" is an identity oracle, and it is pointed at our own patients.** The employment-verification endpoint takes an identifier and returns a boolean. Give that key to a partner, or leak it, and somebody can test addresses and IDs against a company's directory at machine speed, using our infrastructure. **Ruling: the endpoint is scoped to one sponsor, rate-limited hard, and only ever answers about an identifier a person has themselves submitted through enrolment in the last few minutes.** It is not a lookup API; it is a step inside one flow, and it can never be called with an identifier nobody offered. Every call is audited with the sponsor, the key and the outcome, and an abnormal rate suspends the key rather than alerting somebody to read a chart later. **What it costs:** the integration cannot be used for the bulk checks a client will eventually want, which is C255 restated and is the same answer. 2026-09-12. | blocker | review | **ruled — sprint 55** |
+| C266 | 43 | **Whose EHR connection is it, and what happens when the therapist leaves.** The founder wants a clinic to connect the hospital's EHR once for all its clinicians, and a solo therapist to connect their own. `ehr_connections` (43.1) has no owner concept for either. And a clinician who leaves a clinic leaves behind a connection that was never theirs, holding tokens that reach a hospital's patient records. **Ruling: a connection is owned by the organization, and a solo therapist is an organization of one**, which is already how tenancy works and needs no second mechanism. A therapist leaving a clinic loses the connection with the clinic, immediately and without a question, because the credential was the hospital's. Their own record of their own patients is untouched, which is C234's rule in a different setting. **What it costs:** a solo clinician who later joins a clinic reconnects once. 2026-09-12. | major | founder | **ruled — sprints 43 and 54** |
+| C267 | 54 | 🔴 **A clinic cannot vouch for a licence.** The obvious build lets a hospital add its therapists and mark them verified, because the hospital employs them and already checked. Accept that once and the entire "only certified therapists" claim becomes "certified, or somebody said so", and the database invariant from C106 is bypassed by the most credible-looking route available. **Ruling: an invited clinician verifies themselves exactly as a solo one does, and the clinic's word is not evidence.** The clinic sees that verification is pending and can chase; it can never complete it. **What it costs:** friction in the exact moment a hospital is onboarding twenty people and wants it to be quick, which is the moment the rule is most needed. 2026-09-12. | blocker | founder | **ruled — sprint 54** |
+| C268 | 52 | **Six portals is six design surfaces, and 37R.8 has still not answered whether even one of them looks finished.** The films in sprint 52 were scoped for three user types when there were three. **Ruling: the final walkthrough covers all six and the split-screen film covers every cross-portal flow**, of which there are now several that did not exist: a sponsor funding a session a patient never pays for, a clinic seeing an appointment its therapist just booked, a partner's call landing in a chart. **What it costs:** sprint 52 grows, and it was already the longest thing at the end of the plan. 2026-09-12. | major | review | **ruled — sprint 52** |
 
 ---
 
@@ -629,6 +643,48 @@ notice that somebody has left (C247). The answer to both is the same:
 **prefer an identifier we can prove over one we can only pattern-match**, and
 re-verify it on a schedule.
 
+### The three tiers of proof, strongest first
+
+| Tier | How | Detects a leaver | Recommended |
+|---|---|---|---|
+| **1. HR system** | Their own HR platform answers "is this identifier an active employee" | **Immediately** | 🔴 Yes, and it is the reason the partner API exists for this audience |
+| **2. Verified email** | A one-time code to an address on their domain | At the next check | Yes, the default |
+| **3. ID shape** | Matched against a pattern | **Never** | Permitted, and the sponsor is told what it does not do |
+
+🔴 **Tier 1 answers a question. It never enumerates.** The integration asks
+"is this one identifier, which a person has already given us, currently
+active?" and stores the answer and the timestamp. **We never pull a directory,
+never sync one, never hold one.** That is the whole difference between a
+verification integration and a provisioning one, and it is what keeps the
+joining-code design's central virtue intact: there is no roster to breach.
+
+### Re-verification, every three months
+
+Everybody enrolled re-verifies on a **three-month cycle**, reached on
+**WhatsApp and by email**, saying plainly that confirming the work address
+keeps the benefit.
+
+🔴 **The cycle is per sponsor, on a fixed calendar, not anchored to each
+person's enrolment date.** Anchoring it would make "last verified" a proxy for
+"when they joined", which §3e forbids the sponsor from seeing. Everybody in one
+organisation is checked in the same window, so the date carries no signal.
+
+A person who does not confirm has their **funding paused**, is told how to fix
+it, and is restored by us in one step. 🔴 **A pause never touches the record,
+the grants, the journals or the history.**
+
+### What the sponsor sees about a person, exactly
+
+| May see | Never sees |
+|---|---|
+| Their **name** | Whether they have ever booked |
+| **When they were last verified** | When they joined |
+| Nothing else | Any clinical fact, in any form |
+
+The sponsor may **flag somebody as left** (a company) or **graduated** (a
+university), from a fixed list of reasons and never free text. That ends the
+funding and the badge and **touches nothing else they own** (C234).
+
 ### The money
 
 🔴 **The pot is a payment method, not a billing system.** It stands in for the
@@ -744,6 +800,59 @@ staff member helping a patient sees the ticket, not the patient's account.
 
 ---
 
+## §3f · THE SIX PORTALS — who signs in, and what each one can never see
+
+*Founder's decision, 2026-09-12. Six kinds of person authenticate into this
+product. Three of them did not exist a week ago, and every one of them needs a
+portal that was designed rather than assembled.*
+
+| Portal | Who | Sees | 🔴 Never sees |
+|---|---|---|---|
+| **Patient** | A person | Everything about their own care | Another person's anything. A transcript. A clinical note |
+| **Therapist** | A clinician | Their own caseload, in full | Another clinician's caseload. Who pays for a session (C242, C243) |
+| **Clinic** | A practice or hospital manager | Their therapists' schedules, usage and bills. **Patient names and appointment times only** | **Any clinical content at all.** No note, transcript, journal, summary, risk, diagnosis, evidence or copilot |
+| **Sponsor** | A company or university | The pot, the enrolled list, aggregate spend | **Who booked, when, with whom, about what** (§3e) |
+| **Partner** | A developer at another company | Keys, docs, webhooks, their own subjects | Content. A webhook carries an event and an id (42.4) |
+| **Admin** | Us | The operating picture | A join between a sponsor and a session, booking, date or name (C244) |
+
+### 🔴 The architectural line that will be got wrong
+
+**A clinic IS an `organizations` row. A sponsor is NOT.** They are opposite
+answers and both are correct.
+
+A clinic employs clinicians and its therapists' patients are inside its
+tenancy, which is exactly what `actor.organizationId` already scopes across 63
+queries. So a clinic is the organization, and a **clinic manager is a new kind
+of user inside it with zero clinical access**.
+
+A sponsor pays for care it must never see. Putting it in `organizations` would
+place a paying employer inside the boundary that separates clinical caseloads,
+which is the worst available place for it (C230). `sponsors` stays a separate
+table with separate auth, and a sponsor user is never an `Actor`.
+
+### How a clinician comes to be under a clinic
+
+1. A clinic signs up, is held, and is activated by admin like any sponsor
+2. The clinic adds therapists **one at a time, by email and phone**
+3. Each one is invited and **verifies themselves exactly as a solo therapist
+   does**. 🔴 **A clinic cannot vouch for a licence.** The whole "only
+   certified therapists" claim rests on a verification nobody can delegate
+4. 🔴 **A therapist under a clinic has no private patients on that account.**
+   Every session is the clinic's, the clinic pays the platform fee and the AI
+   fee, and the clinic sees the name and the appointment. A clinician who wants
+   private work keeps a separate solo account. One rule, no per-session toggle,
+   and it is said plainly in the invitation before they accept
+
+### What a clinic pays and what it therefore sees
+
+The clinic is billed the platform fee on every session and the AI fee on every
+consented one, exactly as a solo therapist is. **That is what entitles it to
+see a patient's name and appointment time: it is paying for that session.**
+The line is drawn on money, not on employment, and it is the only line that
+stays defensible when a patient asks why a practice manager knows their name.
+
+---
+
 ## §4 · SPRINTS
 
 **Ordered by who is waiting.** Sprints 1–11R are built, merged and live.
@@ -760,6 +869,7 @@ in §3b, §3c and THE RESET below.
 | **Launch** | 22 purge, rotate, verify | Not code. The gate before a real patient is invited |
 | **🔴 The 2026-09-12 rulings** | **45 every string admin editable · 46 the split fee · 47 the honest record · 48 the copilot in the room · 49 Total View · 50 the switches that do nothing · 51 content and design · 52 the films** | Added after the founder ruled on the flows in §3c. **45 blocks 46 to 52**, because every one of them adds copy and today none of it is editable (C217). **52 runs last, on a purged database, and shares one run with the final walkthrough** (C225) |
 | **🔴 The cheque** | **53 corporate: companies and universities** | Added 2026-09-12. One deal delivers hundreds of funded patients, which is the only credible thing to tell a therapist being asked to join a new platform. **Needs 45 and 46 first**, because it adds copy and it settles money. The wall in §3e is the sprint; everything else in it is plumbing |
+| **🔴 The other doors** | **54 clinics and hospitals · 55 the partner portal and the API use cases** | Added 2026-09-12. §3f names six portals and three of them did not exist a week ago. 55 ships beside 53 because the corporate flow is the API's first customer (C255), and 55.1 rewrites the router **once for all six** rather than bolting a principal on per sprint (C264) |
 
 **Marked incomplete until their sprint lands:** anything WhatsApp until the
 Meta setup is done · every price in EGP and every therapist paying us in EGP
@@ -2730,6 +2840,13 @@ state than to litigate.
 ### Sprint 43 — SMART on FHIR · ~10 weeks
 
 - [ ] **43.1** `ehr_connections`, `ehr_launches`, `ehr_writebacks`
+- [ ] **43.1b** 🔴 **A connection is owned by the organization, and a solo
+      therapist is an organization of one** (C266). A hospital connects once
+      for every clinician under it; a solo clinician connects their own. A
+      therapist leaving a clinic loses that connection immediately, without a
+      question, because the credential was the hospital's
+- [ ] **43.1c** The Connect button appears in the **clinic portal** for a
+      practice and in **settings** for a solo therapist. Same flow, two homes
 - [ ] **43.2** We are the OAuth **client**. FHIR R4 / US Core 6.1.0, pinned
 - [ ] **43.3** The note files back as a `DocumentReference`
 - [ ] **43.4** 🔴 **In an EHR the chart is their system of record, not ours.**
@@ -3058,6 +3175,106 @@ mental-health app anybody has built or like scaffolding.*
       both languages without asking a question, and nobody looking at the
       patient app calls it scaffolding.
 
+### Sprint 54 — Clinics and hospitals · ~3 weeks
+
+*§3f. A practice signs up, adds its clinicians, pays their bills, and sees a
+schedule. It sees no clinical content at all. C259 to C267.*
+
+- [ ] **54.1** 🔴 **A clinic IS an `organizations` row** (C259). Opposite
+      answer to a sponsor, and both are correct. Write the reason at the top of
+      the file, because the two sprints read alike and the tables must not be
+      shared
+- [ ] **54.2** A **clinic manager** is a new kind of user inside that
+      organization holding **zero clinical access**. Not a `Role` on the back
+      office enum, which is ours
+- [ ] **54.3** A clinic signs up through its own door, is **held**, and is
+      activated by admin exactly as a sponsor is
+- [ ] **54.4** The clinic adds therapists **one at a time, by email and
+      phone**, and each is invited
+- [ ] **54.5** 🔴 **An invited clinician verifies themselves exactly as a solo
+      one does** (C267). The clinic sees that verification is pending and can
+      chase it. **It can never complete it.** C106's database invariant is not
+      bypassed by the most credible-looking route available
+- [ ] **54.6** 🔴 **No private patients on a clinic-attached account** (C261).
+      Every session is the clinic's. **Stated in the invitation, before they
+      accept.** A clinician wanting private work keeps a separate solo account
+- [ ] **54.7** 🔴 **The clinic pays the platform fee and the AI fee** on every
+      session its therapists run, through the same path as a solo therapist
+      (C226's rule restated: one billing system, not two)
+- [ ] **54.8** 🔴 **Its invoice is aggregated and never itemised to a session**
+      (C263). A clinic bill that lists AI fees per session discloses which of a
+      small caseload consented, which is the most protected choice in the
+      product
+- [ ] **54.9** 🔴 **What the clinic sees: its therapists' schedules, their
+      usage, its bills, and a list of patient names with appointment times.
+      Nothing else, in any form.** No note, transcript, journal, summary, risk,
+      diagnosis, evidence panel or copilot. Asserted by a verifier running as a
+      clinic-manager principal against **rendered output**, never against
+      queries (C243's lesson)
+- [ ] **54.10** The C229 denominator floor governs clinic reporting too
+      (C262), the same setting and the same code path, not a second one
+- [ ] **54.11** A therapist leaving a clinic keeps their record of their own
+      patients and loses the clinic's connections immediately (C266)
+- [ ] **54.12** 🔴 **The clinic portal, designed.** It is the therapist portal
+      minus every clinical surface, which is a different product rather than
+      the same one with things hidden. §3f, and the 51 standard
+- [ ] **54.13** Every new string via 45.8, both languages, admin editable
+- **Accept:** a hospital adds six clinicians, each verifies independently, the
+      hospital reads a week of schedules and one aggregated invoice, and a
+      verifier proves the manager cannot reach a single clinical word.
+
+### Sprint 55 — The partner portal, and the API that has use cases · ~3 weeks
+
+*Extends sprint 42 from a set of tables into a product somebody can sign up for
+and use. C255, C264, C265. The first customer for this API is our own corporate
+flow, which is why it ships beside 53 and 54 rather than after them.*
+
+- [ ] **55.1** 🔴 **A partner is the sixth principal and the router is rewritten
+      once, for all six** (C264), before a third portal is bolted on. No
+      `require*` in `lib/auth/guard.ts` may return a sponsor or a partner as an
+      `Actor`, asserted by a verifier
+- [ ] **55.2** Partner signup, sign-in, and a **developer portal**: keys
+      (hashed, scoped, rotatable), webhook endpoints, delivery logs, sandbox
+      credentials, and docs generated from the same source as the API
+- [ ] **55.3** 🔴 **A therapist never sees an API key** (§7). If a therapist
+      reaches this portal, they got lost in our product
+
+**🔴 The use cases, each one built and walkable end to end**
+
+*An API with no named use case becomes a set of endpoints nobody can sell. Each
+of these is a flow with a screen at one end.*
+
+- [ ] **55.4** 🔴 **Employment verification.** A company's HR system answers
+      "is this identifier currently active". **One person, one question, one
+      boolean, one timestamp. Never a directory, never a list, never a sync**
+      (C255). Scoped to one sponsor, rate-limited hard, and **only answerable
+      about an identifier a person submitted through enrolment minutes ago**
+      (C265). Every call audited; an abnormal rate suspends the key
+- [ ] **55.5** **Clinician verification lookup.** Is this clinician verified
+      with us, and by which body. A boolean and a source, never a document
+- [ ] **55.6** **Record read under a grant.** A partner's clinician reads a
+      patient's record exactly as ours does, because they hold a grant the
+      patient gave and can revoke (C267's sibling: **a partner is a clinician
+      for access purposes, never a special case**, and the patient can claim
+      their record and leave)
+- [ ] **55.7** **Session writeback.** A session held on the partner's platform
+      lands in our record, source-attributed, through the door 36 built
+- [ ] **55.8** **Note delivery.** A finished, clinician-approved note is pushed
+      to their system. 🔴 Never a draft, never model output nobody signed
+- [ ] **55.9** **The embedded widget.** Their clinician sees our panel inside
+      their product. No video by default (42.5)
+- [ ] **55.10** 🔴 **Webhooks carry an event and an id, never content** (42.4).
+      A leaked URL then leaks nothing
+- [ ] **55.11** **Patient CSV import** (42.8), because a clinician leaving
+      another platform is the sales motion
+- [ ] **55.12** 🔴 **A public `/developers` page that names the use cases,
+      with a real example of each.** Today it names "SMART on FHIR" and nothing
+      else. A developer must be able to read what this is for in one screen
+- [ ] **55.13** Every new string via 45.8, both languages, admin editable
+- **Accept:** a developer signs up, reads the docs, calls each of the seven use
+      cases against the sandbox, and a verifier proves no key can enumerate
+      anything and no webhook carries a word of content.
+
 ### Sprint 52 — The last walkthrough and the four films · ~2.5 weeks · 🔴 LAST
 
 *Runs only when every sprint above is done and every end-to-end flow works.
@@ -3075,6 +3292,8 @@ C225 governs the whole capture.*
       nobody could find, steps where it was unclear what happens next. No
       verifier in this repository can report this, and it is why 22R existed
 - [ ] **52.4** Fix what the sweep finds. Then the films
+- [ ] **52.4b** 🔴 **All six portals walked** (C268), not three: patient,
+      therapist, clinic, sponsor, partner, admin
 - [ ] **52.5** 🔴 **Three promo films, one per user type**: patient, therapist,
       admin. Promo in style, complete in coverage: **every screen and every
       interaction captured click by click**, cut for pace, showing the value
@@ -3082,7 +3301,11 @@ C225 governs the whole capture.*
 - [ ] **52.6** 🔴 **A fourth film, split screen**: the patient's side and the
       therapist's side of **every flow we have**, at the same time, click by
       click. Claim, invite, consent, the session, the note, the summary, the
-      invoice. This is the one that proves the product is one system
+      invoice. This is the one that proves the product is one system. **And the
+      cross-portal flows that did not exist when this was written** (C268): a
+      sponsor funding a session the patient never pays for, a clinic seeing an
+      appointment its therapist has just booked, a partner's call landing in a
+      chart
 - [ ] **52.7** 🔴 **On-screen explainer text in Arabic and English** on all
       four, correct in both directions
 - [ ] **52.8** 🔴 **A written voiceover script, per screen, in Arabic and
