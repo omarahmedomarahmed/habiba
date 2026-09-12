@@ -19,13 +19,23 @@ import {
 } from "@/lib/regulators";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 const INITIAL: OnboardingState = {};
 
 export type DocSlot = {
   key: "idFront" | "idBack" | "licenseDoc" | "headshot";
-  label: string;
-  hint: string;
+  /**
+   * 45.6 / C207 — the label and hint arrive as dictionary keys.
+   *
+   * `lib/regulators.ts` is a lib module with no translator in scope, so it
+   * names the key and this component resolves it. `label` is the escape
+   * hatch: a per-country label an administrator typed into the country
+   * config, which is a document's name rather than a string in the product.
+   */
+  labelKey: MessageKey;
+  hintKey: MessageKey;
+  label?: string;
   required: boolean;
   url: string | null;
 };
@@ -447,11 +457,11 @@ function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
 
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
-            {doc.label}
+            {doc.label ?? t(doc.labelKey)}
             {doc.required ? null : <Badge tone="slate">{t("tver.optional")}</Badge>}
             {url ? <Badge tone="teal">{t("tver.uploaded")}</Badge> : null}
           </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{doc.hint}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{t(doc.hintKey)}</p>
           {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
         </div>
 

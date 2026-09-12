@@ -1,5 +1,7 @@
 import countryTable from "@/lib/countries.json";
 
+import { intlTag, type Locale } from "@/lib/i18n/config";
+
 /**
  * Just enough geography to draw a radar.
  *
@@ -116,12 +118,72 @@ export function countryFlag(code: string | null | undefined): string {
   );
 }
 
-export const COUNTRY_OPTIONS = Object.entries(COUNTRIES)
-  .map(([code, value]) => ({ code, name: value.name, flag: countryFlag(code) }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+/**
+ * 🔴 45.6 / C207 — a country's name in the reader's language, from the platform.
+ *
+ * These were 169 English strings in `countries.json`, read by a patient on the
+ * public radar and by a clinician on the verification form. The obvious fix
+ * was 169 more dictionary keys in two languages. This is better for three
+ * reasons, and the third is the one that decided it:
+ *
+ *   1. **ICU already knows.** Every country, every language, maintained by
+ *      people who do this for a living. `Intl.DisplayNames` answers for all
+ *      169 in Arabic with nothing falling back to English.
+ *   2. **It grows by itself.** Adding Spanish later adds 169 correct country
+ *      names and zero rows for anybody to translate.
+ *   3. **The shipped English was already wrong in places.** The table says
+ *      "W. Sahara" and has no name at all for `XK`; ICU says "Western Sahara"
+ *      and "Kosovo". A hand-maintained list of 169 names decays, and nobody
+ *      audits it because nobody reads it.
+ *
+ * 🔴 The locale is always passed explicitly. `Intl.DisplayNames(undefined, …)`
+ * is C84 again: it asks the *runtime* for a language, which is the server's on
+ * one pass and the reader's on the other, and produces a hydration mismatch on
+ * every country name on the page. The parameter is required for the same
+ * reason C201 made every date formatter's language required.
+ *
+ * The JSON table stays: it still carries the longitude and latitude that draw
+ * the dot, which is the half ICU does not have. Only the name moved.
+ */
+const DISPLAY_NAMES = new Map<string, Intl.DisplayNames>();
 
-export function countryName(code: string | null | undefined): string | null {
-  return code ? (COUNTRIES[code]?.name ?? null) : null;
+function displayNames(locale: Locale): Intl.DisplayNames {
+  const tag = intlTag(locale === "ar" ? "ar-AE" : "en-GB");
+  let found = DISPLAY_NAMES.get(tag);
+  if (!found) {
+    found = new Intl.DisplayNames([tag], { type: "region" });
+    DISPLAY_NAMES.set(tag, found);
+  }
+  return found;
+}
+
+export function countryName(code: string | null | undefined, locale: Locale): string | null {
+  if (!code) return null;
+  const upper = code.toUpperCase();
+  try {
+    const named = displayNames(locale).of(upper);
+    // `of` returns the code itself for something it does not recognise.
+    if (named && named !== upper) return named;
+  } catch {
+    // An environment with a trimmed ICU still has a radar to draw.
+  }
+  return COUNTRIES[upper]?.name ?? null;
+}
+
+export function countryOptions(locale: Locale): { code: string; name: string; flag: string }[] {
+  return Object.keys(COUNTRIES)
+    .map((code) => ({
+      code,
+      name: countryName(code, locale) ?? code,
+      flag: countryFlag(code),
+    }))
+    /*
+     * Sorted in the reader's own collation, not in English's. Arabic country
+     * names sorted by `localeCompare` with no locale come out in code-point
+     * order, which is not alphabetical in any language and reads as a shuffled
+     * list to somebody looking for مصر.
+     */
+    .sort((a, b) => a.name.localeCompare(b.name, locale === "ar" ? "ar" : "en"));
 }
 
 export function countryPoint(code: string | null | undefined): { x: number; y: number } {

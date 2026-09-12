@@ -6,7 +6,7 @@ import { ArrowLeft, FileText } from "lucide-react";
 import { CopilotChat } from "@/components/copilot/chat";
 import { AccessBanner } from "@/components/patient/access-banner";
 import { Card } from "@/components/ui";
-import { PROMPT_TEMPLATES } from "@/lib/ai/case-copilot";
+import { PROMPT_TEMPLATES, promptTemplateKeys } from "@/lib/ai/case-copilot";
 import { requireUser } from "@/lib/auth/guard";
 import { explain } from "@/lib/access/state";
 import { checkQuota, getMessages, getOrCreateThread } from "@/lib/data/copilot";
@@ -130,7 +130,16 @@ export default async function CopilotThreadPage({
           zone={actor.timezone}
           patientId={patientId}
           patientName={found.patient.firstName}
-          templates={PROMPT_TEMPLATES.map((t) => ({ label: t.label, text: t.text }))}
+          /*
+           * 45.6 — resolved here, where a translator exists. The template's
+           * key stays the identifier; the label is read and the text is what
+           * the thread records the clinician as having asked, so both are in
+           * the language they are working in.
+           */
+          templates={PROMPT_TEMPLATES.map(promptTemplateKeys).map((tpl) => ({
+            label: t(tpl.labelKey),
+            text: t(tpl.textKey),
+          }))}
           quota={{ used: quota.used, limit: quota.limit }}
           initialVoice={me?.profile?.voice ?? "british_female"}
           initialSpeed={me?.profile?.voiceSpeed ?? 1}

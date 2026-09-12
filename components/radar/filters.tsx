@@ -6,7 +6,7 @@ import { MapPin, X } from "lucide-react";
 import type { RadarEntry } from "@/components/radar/types";
 import { countryFlag, countryName, languageFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 export type RadarFilter = {
   language: string;
@@ -52,6 +52,7 @@ export function RadarFilters({
   tone?: "light" | "dark";
 }) {
   const t = useT();
+  const locale = useLocale();
   const dark = tone === "dark";
 
   const languages = useMemo(
@@ -88,7 +89,7 @@ export function RadarFilters({
             )}
           >
             <span aria-hidden>{countryFlag(value.country)}</span>
-            {countryName(value.country) ?? value.country}
+            {countryName(value.country, locale) ?? value.country}
             <X className="h-3 w-3" aria-hidden />
           </button>
 

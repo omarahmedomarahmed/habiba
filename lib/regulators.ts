@@ -13,11 +13,34 @@
  * yours reads as "you are not welcome here". First entry is prefilled; the
  * rest are one tap away; anything else can be typed.
  */
+import type { MessageKey } from "@/lib/i18n/messages";
+
 
 export type DocumentRequirement = {
+  /**
+   * 🔴 The identifier. Never translated, never derived from a label (C203).
+   *
+   * It is the upload slot's name in the database and in the form, so a label
+   * that changes language must not be able to change what this is.
+   */
   key: "idFront" | "idBack" | "licenseDoc" | "headshot";
-  label: string;
-  hint: string;
+  /**
+   * 45.6 / C207 — what the clinician reads, as a dictionary key.
+   *
+   * These were English string constants, on the first screen a clinician in
+   * Cairo meets after signing up. A lib module cannot call a translator, so it
+   * names the key and the component that renders it resolves it. That also
+   * makes every one of them admin-overridable like any other string.
+   */
+  labelKey: MessageKey;
+  hintKey: MessageKey;
+  /**
+   * A per-country label an administrator has configured, which wins over
+   * `labelKey`. Raw text rather than a key, because an operator typing "Carte
+   * Nationale" into the country config is naming a document, not adding a
+   * string to the product.
+   */
+  label?: string;
   required: boolean;
 };
 
@@ -162,78 +185,55 @@ export function documentRequirements(
   });
 }
 
+/**
+ * Which key names the document, per country.
+ *
+ * The country list is the same one it always was; what changed is that these
+ * return dictionary keys rather than English. A country we cannot name falls
+ * to `.default`, which says "Government ID" in both languages — honest,
+ * because inventing a document a country does not issue produces a photo of
+ * the wrong thing and a support ticket.
+ */
+const ID_FRONT_KEYS = [
+  "EG", "AE", "SA", "QA", "KW", "BH", "OM", "US", "GB", "IN", "PK", "NG",
+] as const;
+const ID_BACK_KEYS = ["EG", "AE", "PK"] as const;
+const LICENCE_KEYS = ["EG", "AE", "GB", "US"] as const;
+
+function keyFor(
+  slot: "idFront" | "idBack" | "licence",
+  country: string | null,
+  known: readonly string[],
+): MessageKey {
+  const code = known.includes(country ?? "") ? country : "default";
+  return `tver.doc.${slot}.${code}` as MessageKey;
+}
+
 function documentRequirementsFromConstants(country: string | null): DocumentRequirement[] {
-  const idFront =
-    country === "EG"
-      ? "National ID (البطاقة), front"
-      : country === "AE"
-        ? "Emirates ID, front"
-        : country === "SA"
-          ? "National ID or Iqama, front"
-          : country === "QA"
-            ? "Qatar ID (QID), front"
-            : country === "KW"
-              ? "Civil ID, front"
-              : country === "BH"
-                ? "CPR card, front"
-                : country === "OM"
-                  ? "Resident Card, front"
-                  : country === "US"
-                    ? "Driver's licence or passport, front"
-                    : country === "GB"
-                      ? "Passport or driving licence, front"
-                      : country === "IN"
-                        ? "Aadhaar or passport, front"
-                        : country === "PK"
-                          ? "CNIC, front"
-                          : country === "NG"
-                            ? "NIN slip or passport, front"
-                            : "Government ID, front";
-
-  const idBack =
-    country === "EG"
-      ? "National ID (البطاقة), back"
-      : country === "AE"
-        ? "Emirates ID, back"
-        : country === "PK"
-          ? "CNIC, back"
-          : "Government ID, back";
-
-  const licence =
-    country === "EG"
-      ? "Syndicate card or practising licence"
-      : country === "AE"
-        ? "DoH / DHA / MOHAP professional licence"
-        : country === "GB"
-          ? "HCPC, BACP or UKCP registration certificate"
-          : country === "US"
-            ? "State licence certificate"
-            : "Practising licence or registration certificate";
-
   return [
     {
       key: "idFront",
-      label: idFront,
-      hint: "A clear photo. All four corners visible, no glare over the text.",
+      labelKey: keyFor("idFront", country, ID_FRONT_KEYS),
+      hintKey: "tver.doc.hint.idFront",
       required: true,
     },
     {
       key: "idBack",
-      label: idBack,
+      labelKey: keyFor("idBack", country, ID_BACK_KEYS),
       // A passport has no back; demanding one produces a photo of nothing.
-      hint: "Skip this if you uploaded a passport page.",
+      hintKey: "tver.doc.hint.idBack",
       required: false,
     },
     {
       key: "licenseDoc",
-      label: licence,
-      hint: "Whatever your regulator issues, a card, a licence, a registration certificate.",
+      labelKey: keyFor("licence", country, LICENCE_KEYS),
+      hintKey: "tver.doc.hint.licence",
       required: true,
     },
     {
       key: "headshot",
-      label: "Professional headshot",
-      hint: "This one is public: it appears on your radar profile. Plain background, your face clearly visible.",
+      labelKey: "tver.doc.headshot",
+      hintKey: "tver.doc.hint.headshot",
       required: true,
     },
   ];

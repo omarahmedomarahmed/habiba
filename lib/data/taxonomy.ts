@@ -14,7 +14,7 @@ import { and, eq } from "drizzle-orm";
 import { controlDb as db } from "@/lib/db";
 import { taxonomyEntries, type TaxonomyKind } from "@/lib/db/schema";
 import {
-  COUNTRY_OPTIONS,
+  countryOptions,
   RADAR_LANGUAGES,
   RADAR_SPECIALTIES,
   countryFlag,
@@ -23,6 +23,7 @@ import {
 import { getI18n } from "@/lib/i18n/server";
 import { en as ENGLISH, type MessageKey } from "@/lib/i18n/messages";
 import type { Translate } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * What the radar is allowed to offer, and who decides.
@@ -80,9 +81,11 @@ function taxonomyKey(kind: TaxonomyKind, code: string): MessageKey | null {
 function builtIn(
   kind: TaxonomyKind,
   t: Translate,
+  locale: Locale,
 ): { code: string; label: string; flag: string }[] {
   if (kind === "country") {
-    return COUNTRY_OPTIONS.map((c) => ({ code: c.code, label: c.name, flag: c.flag }));
+    // 45.6 — named and collated in the reader's language, by ICU.
+    return countryOptions(locale).map((c) => ({ code: c.code, label: c.name, flag: c.flag }));
   }
   if (kind === "language") {
     return RADAR_LANGUAGES.map((l) => ({
@@ -113,10 +116,10 @@ const overrides = cache(async (kind: TaxonomyKind) => {
 /** Everything in this kind, enabled or not — the admin view. */
 export async function taxonomy(kind: TaxonomyKind): Promise<TaxonomyOption[]> {
   const map = await overrides(kind);
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   const seen = new Set<string>();
 
-  const merged: TaxonomyOption[] = builtIn(kind, t).map((entry) => {
+  const merged: TaxonomyOption[] = builtIn(kind, t, locale).map((entry) => {
     seen.add(entry.code);
     const row = map.get(entry.code);
     return {
@@ -141,8 +144,12 @@ export async function taxonomy(kind: TaxonomyKind): Promise<TaxonomyOption[]> {
     });
   }
 
+  /*
+   * 45.6 — collated in the reader's language. `localeCompare` with no locale
+   * sorts Arabic by code point, which is not alphabetical in any language.
+   */
   return merged.sort(
-    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
+    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, locale),
   );
 }
 

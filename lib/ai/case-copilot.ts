@@ -17,6 +17,7 @@ import {
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { MODELS, logUsage, openai, parseJson } from "./client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -626,14 +627,50 @@ function normalisePrompts(raw: unknown): string[] {
  *
  * Fixed ones apply to any patient. Patient-specific suggestions come from the
  * model on each answer, so they reflect what is actually in that record.
+ *
+ * ## 45.6 / C207 — three things, not one string
+ *
+ * This was `{ label, text }` in English, and C207 named it as one of the three
+ * bodies of copy left untranslated, because the label and the prompt were the
+ * same constant and nobody had decided whether translating one should
+ * translate the other.
+ *
+ * It should, and the split is what makes that safe. A therapist working in
+ * Arabic who taps a chip has `text` inserted into the thread **as their own
+ * message**, so an English prompt in an Arabic conversation is the product
+ * putting words in a clinician's mouth in a language they were not using.
+ *
+ * So each template is three things that cannot substitute for each other:
+ *
+ *   - `key`   the identifier. Never rendered, never translated (C203).
+ *   - `label` what is written on the chip.
+ *   - `text`  what is sent, and what the thread records them as having asked.
+ *
+ * A lib module has no translator in scope, so the two keys are named here and
+ * resolved where they are rendered.
  */
 export const PROMPT_TEMPLATES = [
-  { label: "Prepare me", text: "Prepare me for our next session. What should I have in mind?" },
-  { label: "What changed", text: "What has changed for this patient since our first session?" },
-  { label: "Themes", text: "What themes keep recurring across these sessions?" },
-  { label: "Risk review", text: "Has anything been said that I should treat as a risk indicator?" },
-  { label: "Homework", text: "What did we agree they would work on, and did they do it?" },
-  { label: "Their words", text: "How does this patient describe the problem in their own words?" },
-  { label: "Missed", text: "What have I not asked about that the transcripts suggest matters?" },
-  { label: "Progress", text: "Is there evidence of progress toward their stated goals?" },
+  "prepareMe",
+  "whatChanged",
+  "themes",
+  "riskReview",
+  "homework",
+  "theirWords",
+  "missed",
+  "progress",
 ] as const;
+
+export type PromptTemplateKey = (typeof PROMPT_TEMPLATES)[number];
+
+/** The dictionary keys for one template. Resolved by the component. */
+export function promptTemplateKeys(key: PromptTemplateKey): {
+  key: PromptTemplateKey;
+  labelKey: MessageKey;
+  textKey: MessageKey;
+} {
+  return {
+    key,
+    labelKey: `tcop.tpl.${key}.label` as MessageKey,
+    textKey: `tcop.tpl.${key}.text` as MessageKey,
+  };
+}

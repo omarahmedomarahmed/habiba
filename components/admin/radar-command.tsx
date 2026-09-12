@@ -25,6 +25,7 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 import type { CommandRow, CommandView } from "@/lib/data/radar-admin";
 import { countryFlag, countryName, languageFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/client";
 
 const Globe = dynamicImport(() => import("@/components/radar/globe").then((m) => m.Globe), {
   ssr: false,
@@ -57,6 +58,9 @@ export function RadarCommand({
   /** The admin's own zone, from the server. 12.3 / C84 — never read here. */
   zone: string | null;
 }) {
+  // 45.6 / C206 — this component asks for its own language rather than
+  // being handed one, so no call site can forget to pass it.
+  const locale = useLocale();
   const [view, setView] = useState(initial);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState<string | null>(null);
@@ -220,7 +224,7 @@ export function RadarCommand({
           <option value="">Everywhere</option>
           {view.byCountry.map((entry) => (
             <option key={entry.country} value={entry.country}>
-              {countryFlag(entry.country)} {countryName(entry.country) ?? entry.country} ·{" "}
+              {countryFlag(entry.country)} {countryName(entry.country, locale) ?? entry.country} ·{" "}
               {entry.online}/{entry.total}
             </option>
           ))}
@@ -284,7 +288,7 @@ export function RadarCommand({
                     {row.country ? (
                       <>
                         <span aria-hidden>{countryFlag(row.country)}</span>{" "}
-                        {row.city ?? countryName(row.country) ?? row.country}
+                        {row.city ?? countryName(row.country, locale) ?? row.country}
                         <span className="block text-[11px] text-slate-400">{row.region ?? ""}</span>
                       </>
                     ) : (

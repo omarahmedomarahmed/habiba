@@ -29,7 +29,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import { countryName } from "@/lib/geo";
 import { cn, fullName } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 /** Must match RESERVATION_SECONDS on the server. */
 const HOLD_SECONDS = 60;
@@ -72,6 +72,7 @@ export function BookingSheet({
   onClose: () => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [state, action] = useActionState(bookFromRadar, INITIAL);
   const [viewer] = useState(() => viewerId());
   const [outcome, setOutcome] = useState<"held" | "taken" | "unavailable" | null>(null);
@@ -211,7 +212,7 @@ export function BookingSheet({
             {entry.specialties.join(", ") || "Not listed"}
           </Row>
           <Row icon={<Globe2 className="h-3.5 w-3.5" aria-hidden />} label="Based in">
-            {[entry.city, entry.region, countryName(entry.country)].filter(Boolean).join(", ") ||
+            {[entry.city, entry.region, countryName(entry.country, locale)].filter(Boolean).join(", ") ||
               "Not shared"}
           </Row>
         </dl>

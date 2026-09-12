@@ -13,6 +13,7 @@ import {
 import { reviewQueue } from "@/lib/data/verification";
 import { countryFlag, countryName } from "@/lib/geo";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Verifications", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -51,6 +52,8 @@ export default async function VerificationsPage({
   searchParams: Promise<{ state?: string }>;
 }) {
   const actor = await requireStaff();
+  // 45.6 — country names are ICU's, in the reader's language.
+  const { locale } = await getI18n();
   const { state } = await searchParams;
 
   const bucket =
@@ -106,7 +109,7 @@ export default async function VerificationsPage({
               organizationName={row.organizationName}
               countryLabel={
                 row.country
-                  ? `${countryFlag(row.country)} ${countryName(row.country) ?? row.country}`
+                  ? `${countryFlag(row.country)} ${countryName(row.country, locale) ?? row.country}`
                   : "Not given"
               }
               licenseBody={row.licenseBody}

@@ -1923,6 +1923,78 @@ export const en = {
   "spec.postnatal": "Postnatal",
   "spec.sleep": "Sleep",
   "spec.chronicIllness": "Chronic illness",
+
+  /*
+   * 45.6 / C207 — the verification document slots.
+   *
+   * These were English constants in `lib/regulators.ts`, on the first screen a
+   * clinician in Cairo sees after signing up. The slot's `key` stays the
+   * identifier and these are only ever read (C203): a translated label never
+   * decides what a form submits.
+   *
+   * One key per country we can name with confidence, and a `.default` that is
+   * honest rather than invented. Naming a document a country does not issue is
+   * worse than asking for "a government ID".
+   */
+  "tver.doc.idFront.EG": "National ID (البطاقة), front",
+  "tver.doc.idFront.AE": "Emirates ID, front",
+  "tver.doc.idFront.SA": "National ID or Iqama, front",
+  "tver.doc.idFront.QA": "Qatar ID (QID), front",
+  "tver.doc.idFront.KW": "Civil ID, front",
+  "tver.doc.idFront.BH": "CPR card, front",
+  "tver.doc.idFront.OM": "Resident Card, front",
+  "tver.doc.idFront.US": "Driver's licence or passport, front",
+  "tver.doc.idFront.GB": "Passport or driving licence, front",
+  "tver.doc.idFront.IN": "Aadhaar or passport, front",
+  "tver.doc.idFront.PK": "CNIC, front",
+  "tver.doc.idFront.NG": "NIN slip or passport, front",
+  "tver.doc.idFront.default": "Government ID, front",
+  "tver.doc.idBack.EG": "National ID (البطاقة), back",
+  "tver.doc.idBack.AE": "Emirates ID, back",
+  "tver.doc.idBack.PK": "CNIC, back",
+  "tver.doc.idBack.default": "Government ID, back",
+  "tver.doc.licence.EG": "Syndicate card or practising licence",
+  "tver.doc.licence.AE": "DoH / DHA / MOHAP professional licence",
+  "tver.doc.licence.GB": "HCPC, BACP or UKCP registration certificate",
+  "tver.doc.licence.US": "State licence certificate",
+  "tver.doc.licence.default": "Practising licence or registration certificate",
+  "tver.doc.headshot": "Professional headshot",
+  "tver.doc.hint.idFront": "A clear photo. All four corners visible, no glare over the text.",
+  "tver.doc.hint.idBack": "Skip this if you uploaded a passport page.",
+  "tver.doc.hint.licence": "Whatever your regulator issues, a card, a licence, a registration certificate.",
+  "tver.doc.hint.headshot": "This one is public: it appears on your radar profile. Plain background, your face clearly visible.",
+
+  /*
+   * 45.6 / C207 — the copilot's prompt templates, label and prompt split.
+   *
+   * These were one English constant doing two jobs: the words on the chip and
+   * the sentence sent to the model. C207 named that as the reason they were
+   * left untranslated, because translating the label would have translated the
+   * prompt with it and nobody had decided whether that was right.
+   *
+   * 🔴 It is right, and the split is what makes it safe. A therapist working
+   * in Arabic who taps a chip has that sentence inserted into the thread as
+   * their own message, so an English prompt in an Arabic conversation is the
+   * therapist appearing to have typed a language they were not typing. Both
+   * halves are translated, separately, and the template's `key` stays the
+   * identifier neither of them can change (C203).
+   */
+  "tcop.tpl.prepareMe.label": "Prepare me",
+  "tcop.tpl.prepareMe.text": "Prepare me for our next session. What should I have in mind?",
+  "tcop.tpl.whatChanged.label": "What changed",
+  "tcop.tpl.whatChanged.text": "What has changed for this patient since our first session?",
+  "tcop.tpl.themes.label": "Themes",
+  "tcop.tpl.themes.text": "What themes keep recurring across these sessions?",
+  "tcop.tpl.riskReview.label": "Risk review",
+  "tcop.tpl.riskReview.text": "Has anything been said that I should treat as a risk indicator?",
+  "tcop.tpl.homework.label": "Homework",
+  "tcop.tpl.homework.text": "What did we agree they would work on, and did they do it?",
+  "tcop.tpl.theirWords.label": "Their words",
+  "tcop.tpl.theirWords.text": "How does this patient describe the problem in their own words?",
+  "tcop.tpl.missed.label": "Missed",
+  "tcop.tpl.missed.text": "What have I not asked about that the transcripts suggest matters?",
+  "tcop.tpl.progress.label": "Progress",
+  "tcop.tpl.progress.text": "Is there evidence of progress toward their stated goals?",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -3723,6 +3795,53 @@ export const ar: Record<MessageKey, string> = {
   "spec.postnatal": "ما بعد الولادة",
   "spec.sleep": "النوم",
   "spec.chronicIllness": "المرض المزمن",
+
+  /* 45.6 / C207 — the verification document slots. */
+  "tver.doc.idFront.EG": "بطاقة الرقم القومي، الوجه الأمامي",
+  "tver.doc.idFront.AE": "الهوية الإماراتية، الوجه الأمامي",
+  "tver.doc.idFront.SA": "الهوية الوطنية أو الإقامة، الوجه الأمامي",
+  "tver.doc.idFront.QA": "البطاقة الشخصية القطرية، الوجه الأمامي",
+  "tver.doc.idFront.KW": "البطاقة المدنية، الوجه الأمامي",
+  "tver.doc.idFront.BH": "بطاقة الهوية البحرينية، الوجه الأمامي",
+  "tver.doc.idFront.OM": "البطاقة الشخصية، الوجه الأمامي",
+  "tver.doc.idFront.US": "رخصة القيادة أو جواز السفر، الوجه الأمامي",
+  "tver.doc.idFront.GB": "جواز السفر أو رخصة القيادة، الوجه الأمامي",
+  "tver.doc.idFront.IN": "بطاقة آدهار أو جواز السفر، الوجه الأمامي",
+  "tver.doc.idFront.PK": "بطاقة الهوية الباكستانية، الوجه الأمامي",
+  "tver.doc.idFront.NG": "إيصال رقم الهوية الوطنية أو جواز السفر، الوجه الأمامي",
+  "tver.doc.idFront.default": "إثبات هوية رسمي، الوجه الأمامي",
+  "tver.doc.idBack.EG": "بطاقة الرقم القومي، الوجه الخلفي",
+  "tver.doc.idBack.AE": "الهوية الإماراتية، الوجه الخلفي",
+  "tver.doc.idBack.PK": "بطاقة الهوية الباكستانية، الوجه الخلفي",
+  "tver.doc.idBack.default": "إثبات هوية رسمي، الوجه الخلفي",
+  "tver.doc.licence.EG": "كارنيه النقابة أو ترخيص مزاولة المهنة",
+  "tver.doc.licence.AE": "ترخيص مهني من دائرة الصحة أو هيئة الصحة بدبي أو وزارة الصحة",
+  "tver.doc.licence.GB": "شهادة تسجيل من HCPC أو BACP أو UKCP",
+  "tver.doc.licence.US": "شهادة ترخيص الولاية",
+  "tver.doc.licence.default": "ترخيص مزاولة المهنة أو شهادة التسجيل",
+  "tver.doc.headshot": "صورة شخصية مهنية",
+  "tver.doc.hint.idFront": "صورة واضحة. الأركان الأربعة ظاهرة، وبدون انعكاس ضوء على النص.",
+  "tver.doc.hint.idBack": "تجاوز هذه الخطوة إذا رفعت صفحة جواز سفر.",
+  "tver.doc.hint.licence": "أي مستند تصدره جهة الترخيص لديك: كارنيه أو ترخيص أو شهادة تسجيل.",
+  "tver.doc.hint.headshot": "هذه الصورة علنية وتظهر في ملفك على الرادار. خلفية سادة، ووجهك ظاهر بوضوح.",
+
+  /* 45.6 / C207 — the copilot's prompt templates, label and prompt split. */
+  "tcop.tpl.prepareMe.label": "جهّزني",
+  "tcop.tpl.prepareMe.text": "جهّزني لجلستنا القادمة. ما الذي ينبغي أن يكون في ذهني؟",
+  "tcop.tpl.whatChanged.label": "ما الذي تغيّر",
+  "tcop.tpl.whatChanged.text": "ما الذي تغيّر لدى هذا المريض منذ جلستنا الأولى؟",
+  "tcop.tpl.themes.label": "الموضوعات المتكررة",
+  "tcop.tpl.themes.text": "ما الموضوعات التي تتكرر عبر هذه الجلسات؟",
+  "tcop.tpl.riskReview.label": "مراجعة المخاطر",
+  "tcop.tpl.riskReview.text": "هل قيل أي شيء ينبغي أن أتعامل معه كمؤشر خطر؟",
+  "tcop.tpl.homework.label": "التكليفات",
+  "tcop.tpl.homework.text": "ما الذي اتفقنا على أن يعمل عليه، وهل فعله؟",
+  "tcop.tpl.theirWords.label": "بكلماته هو",
+  "tcop.tpl.theirWords.text": "كيف يصف هذا المريض المشكلة بكلماته هو؟",
+  "tcop.tpl.missed.label": "ما فاتني",
+  "tcop.tpl.missed.text": "ما الذي لم أسأل عنه وتشير النصوص إلى أنه مهم؟",
+  "tcop.tpl.progress.label": "التقدّم",
+  "tcop.tpl.progress.text": "هل هناك دليل على تقدّم نحو الأهداف التي ذكرها؟",
 };
 
 export const DICTIONARIES = { en, ar } as const;
