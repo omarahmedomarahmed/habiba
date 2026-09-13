@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   PhoneCall,
   Globe2,
+  Hospital,
   LayoutDashboard,
   Radio,
   Star,
@@ -136,6 +137,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             opens a corporate account and opening a pot commits us to refund terms.
           */}
           {isOwner ? <AdminLink href="/admin/sponsors" icon={Building2}>{t("asponsor.nav")}</AdminLink> : null}
+          {/*
+            54.3 — the owner's too. Activating a clinic opens an organisation that will
+            hold clinical records, which is a strictly larger act than activating a
+            sponsor: a sponsor's tenancy contains nothing and this one contains charts.
+          */}
+          {isOwner ? <AdminLink href="/admin/clinics" icon={Hospital}>{t("aclinic.nav")}</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink> : null}

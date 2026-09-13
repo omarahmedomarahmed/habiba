@@ -101,6 +101,26 @@ export const SPONSOR_SIGN_IN = "/sponsor/sign-in";
 export const SPONSOR_PREFIXES = ["/sponsor"];
 
 /**
+ * 🔴 54.2 / 54.3 / C259 / C264 — the clinic's own door and its own paths.
+ *
+ * A clinic manager is a new kind of user INSIDE an organisation (C259) rather than
+ * outside it like a sponsor, and they still get their own cookie, their own prefix
+ * and their own sign-in. Sharing the clinician cookie would be the one shortcut that
+ * undoes the whole sprint: the clinician principal's routes are the clinical product.
+ *
+ * `/clinic/apply` is open for the same reason `/sponsor/apply` is — a practice with
+ * no account cannot sign in to ask for one. `/clinic/join/[token]` is open because it
+ * is the INVITED CLINICIAN's screen, and they are not a clinic manager at all: they
+ * are about to become an ordinary clinician (C267), so they must not be bounced to a
+ * manager's sign-in on the way to accepting.
+ */
+export const CLINIC_COOKIE = "24t_clinic";
+export const CLINIC_SIGN_IN = "/clinic/sign-in";
+export const CLINIC_PREFIXES = ["/clinic"];
+export const CLINIC_APPLY = "/clinic/apply";
+export const CLINIC_JOIN = "/clinic/join";
+
+/**
  * 🔴 53.5 — the one door inside `/sponsor` that is open to a stranger.
  *
  * An organisation that wants to talk to us has no account yet, so the enquiry
@@ -261,10 +281,19 @@ export const PRINCIPALS: Principal[] = [
   {
     name: "clinic",
     cookie: "clinic",
-    prefixes: [],
-    signIn: "/clinic/sign-in",
+    prefixes: CLINIC_PREFIXES,
+    signIn: CLINIC_SIGN_IN,
     home: "/clinic",
-    authRoutes: ["/clinic/sign-in"],
+    authRoutes: [CLINIC_SIGN_IN],
+    /*
+     * 54.3 — the enquiry, and 54.5 — the INVITED CLINICIAN's own screen.
+     *
+     * The second one matters more than it looks. Somebody opening an invitation link
+     * is not a clinic manager and never will be: they are about to become an ordinary
+     * clinician who verifies themselves (C267). Bouncing them to a manager's sign-in
+     * would be the product telling an invited therapist to log in as their employer.
+     */
+    openRoutes: [CLINIC_APPLY, CLINIC_JOIN],
   },
   {
     name: "partner",

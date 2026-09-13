@@ -114,12 +114,40 @@ export const organizations = pgTable(
      * because an Egyptian person seeing an American clinician is ordinary here.
      */
     region: text("region").$type<Region>().notNull().default("us"),
+
+    /**
+     * 🔴 54.1 / C259 — A CLINIC IS THIS ROW. See the sprint 54 block at the end of
+     * this file for why a sponsor is not, and why the two must not share a table.
+     *
+     * `solo` on every existing row, which is what they are: one clinician who
+     * signed up for themselves, an organisation of one (C266). A clinic is the
+     * same shape with more than one clinician in it and a manager who is not one.
+     */
+    kind: text("kind").$type<OrganizationKind>().notNull().default("solo"),
+
+    /**
+     * 🔴 54.3 — held, active, suspended, closed, and NULL on a solo row.
+     *
+     * Null rather than `active`, because a solo practice was never held and never
+     * approved: the clinician's own licence verification is the gate, and
+     * back-filling a state they were never in would be a lie in a column an
+     * operator reads.
+     */
+    clinicState: text("clinic_state").$type<ClinicState>(),
+
+    /* 54.3 — the contact, for the call that happens before anything is activated. */
+    contactName: text("contact_name"),
+    contactEmail: text("contact_email"),
+    contactPhone: text("contact_phone"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
     index("organizations_region_idx").on(t.region),
+    /* 54.3 — the admin queue's query: every clinic awaiting a decision. */
+    index("organizations_clinic_idx").on(t.kind, t.clinicState),
     uniqueIndex("organizations_slug_unique")
       .on(t.slug)
       .where(sql`deleted_at IS NULL`),
@@ -5953,3 +5981,225 @@ export const enrolmentVerifications = pgTable(
 
 /** How many wrong codes one minted code survives. A CHECK, not a convention. */
 export const ENROLMENT_CODE_ATTEMPTS = 5;
+
+// ------------------------------------------------- clinics and hospitals ---
+//
+// 🔴 SPRINT 54, AND THE FIRST THING TO READ IS WHY THIS IS NOT `sponsors`.
+//
+// C259, stated at the top of both sprints because a session reading them back to
+// back will otherwise share one table and take four weeks to find out why:
+//
+//   **A CLINIC IS AN `organizations` ROW. A SPONSOR IS NOT.** Opposite answers,
+//   both correct.
+//
+// A clinic EMPLOYS clinicians and its therapists' patients sit INSIDE its
+// tenancy, which is exactly what `actor.organizationId` already scopes across 63
+// queries in 33 files. So a clinic is the organization, and a clinic manager is a
+// new kind of user inside it holding zero clinical access.
+//
+// A sponsor PAYS FOR CARE IT MUST NEVER SEE. Putting one in `organizations` would
+// place a paying employer inside the boundary that separates caseloads (C230), so
+// `sponsors` is its own table with its own auth and its own cookie.
+//
+// The consequence for this sprint is the thing to hold on to: a clinic manager's
+// principal DOES carry an organisation id, and that id is the key to every
+// clinical query in the product. A sponsor could not reach a chart if it tried,
+// because the shape does not fit. A clinic manager could, so the wall here is not
+// the type system. It is `lib/data/clinic.ts`'s select lists and a verifier that
+// runs as a clinic manager against RENDERED OUTPUT (54.9, C243's lesson).
+
+/**
+ * 🔴 54.1 — what kind of organisation this row is.
+ *
+ * Every existing row is `solo`: one clinician who signed up for themselves, which
+ * C266 calls "an organization of one" and which is already how tenancy works. A
+ * `clinic` is the same shape with more than one clinician in it and a manager who
+ * is not one of them.
+ *
+ * Deliberately NOT a boolean. `is_clinic` would leave "what is a row that is
+ * neither" unanswerable the first time a third kind arrives, and a training
+ * institute (C271) is already on the horizon reading as a clinic for every purpose
+ * that matters.
+ */
+export const ORGANIZATION_KINDS = ["solo", "clinic"] as const;
+export type OrganizationKind = (typeof ORGANIZATION_KINDS)[number];
+
+/**
+ * 🔴 54.3 — a clinic signs up, is HELD, and is activated by an admin exactly as a
+ * sponsor is.
+ *
+ * The same four states as `sponsors` and deliberately a separate enum on a separate
+ * column, because sharing one would be the first step toward sharing the table
+ * C259 says must not be shared. They will drift, and they should: a suspended
+ * sponsor loses a portal, while a suspended clinic has clinicians mid-caseload.
+ *
+ * 🔴 NULL on a solo row, and that is the shape rather than an omission. A solo
+ * practice has no held state because nobody approved it: a clinician signs up,
+ * verifies their own licence, and that verification IS the gate. Defaulting every
+ * existing row to `active` would have been a lie about a state they were never in.
+ */
+export const CLINIC_STATES = ["held", "active", "suspended", "closed"] as const;
+export type ClinicState = (typeof CLINIC_STATES)[number];
+
+/**
+ * 🔴 54.2 — A CLINIC MANAGER IS A NEW KIND OF USER, AND NOT A `Role`.
+ *
+ * *Not a `Role` on the back office enum, which is ours.* `ROLES` is therapist,
+ * staff, manager and super_admin: the last three are OUR people, and adding a
+ * fifth would put a customer's practice manager one enum value away from the
+ * console that prices the product.
+ *
+ * So this is a separate table with its own auth, its own cookie and its own
+ * sign-in, exactly like `sponsor_users` — and unlike them it carries an
+ * `organization_id`, because that is C259's whole point.
+ *
+ * ## 🔴 WHY THE COLUMN IS READ THROUGH `clinicOrganizationId` AND NOT `organizationId`
+ *
+ * `ClinicActor` deliberately names it `clinicOrganizationId`. An `Actor` has
+ * `organizationId`, and every clinical data function in the product takes an
+ * `Actor` or an org id and scopes on it. If a clinic manager's principal carried a
+ * property spelled `organizationId`, then `getPatient(clinicActor)` would be a
+ * plausible line of code that compiled far more often than it should.
+ *
+ * Spelling it differently does not make the id less powerful. It makes reaching for
+ * it a deliberate rename in a diff instead of an autocomplete, which is the most
+ * this can be without a nominal type Postgres and TypeScript do not give us.
+ */
+export const CLINIC_ROLES = ["admin", "viewer"] as const;
+export type ClinicRole = (typeof CLINIC_ROLES)[number];
+
+export const clinicManagers = pgTable(
+  "clinic_managers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    email: text("email").notNull(),
+    name: text("name"),
+    /** scrypt, the same helper `users` and `sponsor_users` use. */
+    passwordHash: text("password_hash"),
+    role: text("role").$type<ClinicRole>().notNull().default("viewer"),
+
+    lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    /*
+     * 🔴 Unique ACROSS clinics, not within one.
+     *
+     * `users` is unique on (organization_id, email) because a clinician may
+     * legitimately hold a solo account and a clinic account under C261. A MANAGER
+     * may not: one address, one practice, so that "who is signing in" is never a
+     * question the sign-in has to answer by guessing which clinic was meant.
+     */
+    uniqueIndex("clinic_managers_email_unique").on(t.email).where(sql`deleted_at IS NULL`),
+    index("clinic_managers_org_idx").on(t.organizationId),
+  ],
+);
+
+export type ClinicManager = typeof clinicManagers.$inferSelect;
+
+/** Their sessions. Own cookie, own table, shaped like the sponsor's. */
+export const clinicAuthSessions = pgTable(
+  "clinic_auth_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clinicManagerId: uuid("clinic_manager_id")
+      .notNull()
+      .references(() => clinicManagers.id, { onDelete: "cascade" }),
+    /** SHA-256 of the cookie value. The raw token is never stored. */
+    tokenHash: text("token_hash").notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true }).notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("clinic_auth_sessions_token_hash_unique").on(t.tokenHash),
+    index("clinic_auth_sessions_manager_idx").on(t.clinicManagerId),
+  ],
+);
+
+/**
+ * 🔴 54.4 / 54.5 / 54.6 — the invitation, and the three rulings it carries.
+ *
+ * *The clinic adds therapists one at a time, by email and phone, and each is
+ * invited.* One at a time rather than a CSV, because a bulk upload is a staff list
+ * arriving before anybody consented to be on it, and because C267 means every one
+ * of them has to act personally anyway.
+ *
+ * ## 🔴 C267 — THE CLINIC CANNOT VOUCH FOR A LICENCE, AND THERE IS NO COLUMN HERE
+ *   THAT WOULD LET IT
+ *
+ * *An invited clinician verifies themselves exactly as a solo one does, and the
+ * clinic's word is not evidence.* So this table has no `verified` flag, no
+ * `licence_number`, no `verified_by` and no document reference. What it has is an
+ * invitation that creates an `unverified` user, and the clinic can see that
+ * verification is pending and chase it.
+ *
+ * The obvious build lets a hospital mark its own therapists verified, because the
+ * hospital employs them and already checked. Accept it once and "only certified
+ * therapists" becomes "certified, or somebody said so", and C106's database
+ * invariant is bypassed by the most credible-looking route available.
+ *
+ * ## 🔴 C261 — NO PRIVATE PATIENTS, AND IT IS STATED BEFORE THEY ACCEPT
+ *
+ * `terms_shown_at` is stamped when the invitation page renders the sentence, and
+ * `accepted_at` cannot be set on a row where it is null. So "it is said in the
+ * invitation, not discovered afterwards" is a database constraint rather than a
+ * paragraph somebody remembered to render.
+ */
+export const INVITATION_STATES = ["sent", "accepted", "revoked", "expired"] as const;
+export type InvitationState = (typeof INVITATION_STATES)[number];
+
+export const clinicianInvitations = pgTable(
+  "clinician_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    email: text("email").notNull(),
+    /** 54.4 — by email AND phone, because WhatsApp is the channel that exists. */
+    phone: text("phone"),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+
+    /** SHA-256 of the link token. The raw token is never stored. */
+    tokenHash: text("token_hash").notNull(),
+    state: text("state").$type<InvitationState>().notNull().default("sent"),
+
+    /**
+     * 🔴 C261 — stamped when the invitation screen RENDERS the sentence about
+     * having no private patients, and `accepted_at` is refused without it.
+     */
+    termsShownAt: timestamp("terms_shown_at", { withTimezone: true }),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    /** The clinician this became, once they accepted. Never set by the clinic. */
+    acceptedUserId: uuid("accepted_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    invitedByManagerId: uuid("invited_by_manager_id").references(() => clinicManagers.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("clinician_invitations_token_unique").on(t.tokenHash),
+    /* One live invitation per address per clinic. A resend replaces it. */
+    uniqueIndex("clinician_invitations_live_unique")
+      .on(t.organizationId, t.email)
+      .where(sql`state = 'sent'`),
+    index("clinician_invitations_org_idx").on(t.organizationId, t.state),
+  ],
+);
+
+export type ClinicianInvitation = typeof clinicianInvitations.$inferSelect;

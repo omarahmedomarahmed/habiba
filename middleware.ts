@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
+  CLINIC_COOKIE,
   PATIENT_COOKIE,
   routeDecision,
   SESSION_COOKIE,
@@ -74,16 +75,20 @@ export function middleware(request: NextRequest) {
   /*
    * 🔴 C264 — one cookie per principal, read here and decided in one table.
    *
-   * The clinic and partner cookies are deliberately absent rather than read as
-   * false: `PrincipalCookies` is partial and fails safe, so those two portals
-   * bounce everybody to their own sign-in until sprints 54 and 55 add the read
-   * beside this one. An unread cookie can never be mistaken for a signed-in
-   * holder.
+   * The PARTNER cookie is deliberately absent rather than read as false:
+   * `PrincipalCookies` is partial and fails safe, so that portal bounces everybody
+   * to its own sign-in until sprint 55 adds the read beside these. An unread cookie
+   * can never be mistaken for a signed-in holder.
+   *
+   * The clinic's read arrived in sprint 54, which is what that comment predicted:
+   * one line here, beside the others, and no change to `routeDecision` at all. That
+   * is what C264 bought.
    */
   const decision = routeDecision(rest, {
     clinician: Boolean(request.cookies.get(SESSION_COOKIE)?.value),
     patient: Boolean(request.cookies.get(PATIENT_COOKIE)?.value),
     sponsor: Boolean(request.cookies.get(SPONSOR_COOKIE)?.value),
+    clinic: Boolean(request.cookies.get(CLINIC_COOKIE)?.value),
     expired: request.nextUrl.searchParams.get("expired") === "1",
   });
 

@@ -519,6 +519,13 @@
       "when": 1789600000039,
       "tag": "0073_pot_rails",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1789600000040,
+      "tag": "0074_clinics",
+      "breakpoints": true
     }
   ]
 }
