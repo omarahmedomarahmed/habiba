@@ -26,11 +26,18 @@
  * The settings this reads are seeded defaults on any database, and the walkthrough plants the rows
  * it needs. No check here varies by environment and nothing is deferred.
  */
-import { readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 
-import { constraintContradictions, readSource, reporter, required, writesTo } from "./_verify";
+import {
+  constraintContradictions,
+  migrationLedgerAudit,
+  readSource,
+  reporter,
+  required,
+  writesTo,
+} from "./_verify";
 import { stubModules } from "./_render";
 
 const { check, finish } = reporter();
@@ -279,6 +286,103 @@ async function main() {
    *
    * Read by `conrelid` and `conkey`, never by `conname`. That is the lesson rather than the fix.
    */
+  /* ------------------------------------------- H1 · the journal, the files, the ledger */
+
+  /*
+   * 🔴 THE THREE NUMBERS THAT MUST AGREE, AND THE ORDERING THAT MAKES THEM REACHABLE.
+   *
+   * Sprint 52 shipped `0083_verification_one_truth.sql` with no journal entry. Drizzle reads the
+   * journal rather than the directory, so `db:migrate` skipped the file and printed "Migrations
+   * applied." Production sat at ledger 83 with none of C285 while a fifteen-check verifier passed
+   * green against a database built by a route no deploy would repeat.
+   *
+   * One mechanical comparison, in the permanent sweep beside 0079/0082's contradiction audit,
+   * because this is the second time H1 has bitten this project.
+   */
+  const ledger = await migrationLedgerAudit((query) =>
+    db.execute(sql.raw(query)).then((r) => ({ rows: r.rows as Record<string, unknown>[] })),
+  );
+
+  check(
+    "🔴 H1 every migration file on disk has a journal entry",
+    ledger.inFilesNotInJournal.length === 0,
+    ledger.inFilesNotInJournal.join(", ") ||
+      `${ledger.journalCount} entries, none orphaned; a file drizzle cannot see is a migration that never runs`,
+  );
+
+  check(
+    "🔴 H1 …and every journal entry has a file",
+    ledger.inJournalNotInFiles.length === 0,
+    ledger.inJournalNotInFiles.join(", ") || "no entry names a migration that is not there",
+  );
+
+  /*
+   * 🔴 Membership is the obvious half. THIS is the half that bit: drizzle applies a migration only
+   * when `lastDbMigration.created_at < migration.folderMillis`, and a regenerated entry whose
+   * `when` lands behind its predecessor is skipped silently, exactly like a missing one.
+   */
+  check(
+    "🔴 H1 …and each entry's timestamp exceeds the one before it, so the migrator can reach it",
+    ledger.unreachable.length === 0,
+    ledger.unreachable.join(", ") ||
+      `${ledger.journalCount} entries strictly increasing`,
+  );
+
+  check(
+    "🔴 H1 the database has run every migration the journal knows about",
+    ledger.ledgerCount === ledger.journalCount,
+    `ledger ${ledger.ledgerCount}, journal ${ledger.journalCount}` +
+      (ledger.ledgerCount === ledger.journalCount
+        ? ""
+        : "; a gap here is a schema no migration record accounts for"),
+  );
+
+  /*
+   * 🔴 THE CONTROL, AND IT IS NOT OPTIONAL HERE.
+   *
+   * Four green lines above assert an absence. A build where `migrationLedgerAudit` returned empty
+   * arrays for any reason — a bad path, a rename, a thrown read swallowed — would print exactly the
+   * same four lines. That is the shape that let 0083 through in the first place, so the audit is
+   * made to catch the real offender rather than trusted to have looked.
+   *
+   * The offence is reconstructed in memory from the journal that is actually on disk: drop the last
+   * entry and the file it names becomes an orphan, which is precisely the state production was in.
+   * Nothing is written; the journal file is not touched.
+   */
+  const plantedJournal = JSON.parse(
+    readFileSync("drizzle/meta/_journal.json", "utf8"),
+  ) as { entries: { tag: string; when: number }[] };
+  const dropped = plantedJournal.entries[plantedJournal.entries.length - 1]!;
+  const remaining = new Set(plantedJournal.entries.slice(0, -1).map((entry) => entry.tag));
+  const orphaned = readdirSync("drizzle")
+    .filter((name) => name.endsWith(".sql"))
+    .map((name) => name.replace(/\.sql$/, ""))
+    .filter((name) => !remaining.has(name));
+
+  check(
+    "🔴 H1 CONTROL, the same audit CATCHES a migration file with no journal entry",
+    orphaned.includes(dropped.tag),
+    `removing ${dropped.tag} from the journal leaves ${orphaned.join(", ")} orphaned, which is exactly the state 0083 shipped in`,
+  );
+
+  /*
+   * 🔴 And the second control, for the half that would have bitten twice: an entry stamped behind
+   * its predecessor is unreachable even though it exists, because drizzle applies only when
+   * `lastDbMigration.created_at < migration.folderMillis`. `drizzle-kit generate` produced exactly
+   * this, because the journal's synthetic timestamps run ahead of the wall clock.
+   */
+  const backdated = [...plantedJournal.entries];
+  backdated[backdated.length - 1] = { ...dropped, when: backdated[0]!.when - 1 };
+  const wouldSkip = backdated.some(
+    (entry, i) => i > 0 && entry.when <= backdated[i - 1]!.when,
+  );
+
+  check(
+    "🔴 H1 CONTROL, …and CATCHES an entry stamped behind the one before it",
+    wouldSkip,
+    "a backdated entry is skipped as silently as a missing one, and prints success either way",
+  );
+
   const contradictions = await constraintContradictions((query) =>
     db.execute(sql.raw(query)).then((r) => ({ rows: r.rows as Record<string, unknown>[] })),
   );

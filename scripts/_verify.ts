@@ -245,3 +245,122 @@ export async function constraintContradictions(
 
   return found;
 }
+
+/**
+ * 🔴 H1 — EVERY MIGRATION ON DISK IS IN THE JOURNAL, AND THE DATABASE HAS RUN ALL OF THEM.
+ *
+ * ## The failure this exists to make impossible
+ *
+ * Sprint 52 wrote `drizzle/0083_verification_one_truth.sql`, applied it with a one-off script, and
+ * never generated a journal entry for it. Drizzle reads the JOURNAL, not the directory, so
+ * `db:migrate` skipped the file entirely and printed **"Migrations applied."** Production sat at
+ * ledger 83 with none of C285 in it while a verifier's fifteen checks passed green against a
+ * database that had got there by a route no deploy would ever repeat.
+ *
+ * 🔴 That is worse than the usual §6 shape. The gate did not measure the wrong thing: it measured
+ * exactly the right thing, on a database nothing reproducible had built. A fresh environment would
+ * get every migration through 0082, none of 0083, and pass the same verification — until the first
+ * clinician.
+ *
+ * ## And the second half, which is the trap for whoever comes next
+ *
+ * Regenerating the entry with `drizzle-kit generate --custom` is the right move and is NOT
+ * sufficient on its own here. Drizzle applies a migration only when
+ *
+ *     Number(lastDbMigration.created_at) < migration.folderMillis
+ *
+ * and this repository's journal carries synthetic `when` values that run AHEAD of the wall clock:
+ * 0082 is stamped 1789600000048 while `Date.now()` at the time of writing was 1789320486142. So the
+ * freshly generated entry was four days BEHIND its predecessor, and `db:migrate` would have skipped
+ * it a second time and printed success a second time. The generated timestamp had to be corrected
+ * to continue the sequence.
+ *
+ * 🔴 Which is why MONOTONICITY is checked here and not only membership. "The file has an entry" is
+ * the obvious half; "the entry can actually be reached by the migrator" is the half that bit.
+ *
+ * ## What it compares
+ *
+ * Four numbers that must agree, and one ordering:
+ *
+ *   * every `.sql` in `drizzle/` has a journal entry, by tag
+ *   * every journal entry has a file
+ *   * `when` strictly increases, so no entry is unreachable
+ *   * the ledger row count equals the journal entry count
+ *
+ * Mechanical, one comparison, no cleverness to be wrong about.
+ *
+ * ## 🔴 THE ROOT CAUSE UNDER ALL OF IT, NAMED RATHER THAN ABSORBED
+ *
+ * `drizzle/meta/` holds `0000_snapshot.json` and nothing else. Migrations 0001 to 0082 were written
+ * by hand and journaled by hand, and no snapshot was ever regenerated. That is why the journal's
+ * `when` values are synthetic, and it is why generating 0083 the proper way produced a SNAPSHOT
+ * claiming the schema has 16 tables when the database has 105.
+ *
+ * 🔴 So `drizzle-kit generate` WITHOUT `--custom` cannot be used in this repository at all. It
+ * would diff `lib/db/schema.ts` against a snapshot of the original schema and emit a migration
+ * recreating eighty-nine tables that already exist. The false snapshot was not committed; a record
+ * that is wrong about the schema is worse than no record, and this audit does not read snapshots.
+ *
+ * That is a standing gap rather than something this function fixes. Repairing it means replaying
+ * every migration into a scratch database and regenerating the snapshot chain, which is its own
+ * piece of work. Until then the only safe generation route here is `--custom`, and the journal
+ * entry it writes needs its `when` corrected to continue the sequence.
+ */
+export type MigrationLedgerAudit = {
+  inFilesNotInJournal: string[];
+  inJournalNotInFiles: string[];
+  /** Entries whose `when` does not exceed the previous one: the migrator cannot reach them. */
+  unreachable: string[];
+  journalCount: number;
+  ledgerCount: number;
+};
+
+export async function migrationLedgerAudit(
+  execute: (query: string) => Promise<{ rows: Record<string, unknown>[] }>,
+): Promise<MigrationLedgerAudit> {
+  const { readFileSync, readdirSync } = await import("node:fs");
+
+  const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as {
+    entries: { idx: number; when: number; tag: string }[];
+  };
+
+  const tags = new Set(journal.entries.map((entry) => entry.tag));
+  const files = readdirSync("drizzle")
+    .filter((name) => name.endsWith(".sql"))
+    .map((name) => name.replace(/\.sql$/, ""));
+  const fileSet = new Set(files);
+
+  const unreachable: string[] = [];
+  for (let i = 1; i < journal.entries.length; i += 1) {
+    const previous = journal.entries[i - 1]!;
+    const entry = journal.entries[i]!;
+    if (entry.when <= previous.when) {
+      unreachable.push(`${entry.tag} (when ${entry.when} <= ${previous.tag} ${previous.when})`);
+    }
+  }
+
+  /*
+   * The ledger may legitimately be absent on a database nothing has ever migrated, which is a
+   * different failure and not this one. Counted as zero so the comparison still reports it.
+   */
+  let ledgerCount = 0;
+  try {
+    const { rows } = await execute(
+      "SELECT COUNT(*)::int AS n FROM drizzle.__drizzle_migrations",
+    );
+    ledgerCount = Number(rows[0]?.n ?? 0);
+  } catch {
+    ledgerCount = 0;
+  }
+
+  return {
+    inFilesNotInJournal: files.filter((name) => !tags.has(name)).sort(),
+    inJournalNotInFiles: journal.entries
+      .map((entry) => entry.tag)
+      .filter((tag) => !fileSet.has(tag))
+      .sort(),
+    unreachable,
+    journalCount: journal.entries.length,
+    ledgerCount,
+  };
+}
