@@ -113,7 +113,36 @@ export function literalsIn(source: string): string[] {
     if (isVisibleEnglish(text)) found.push(text);
   }
 
-  for (const match of code.matchAll(/\b(?:aria-label|placeholder|title|alt)="([^"{}]+)"/g)) {
+  /*
+   * 🔴 `label` AND `hint`, WHICH IS WHERE THIS CODEBASE ACTUALLY PUTS ITS FORM TEXT.
+   *
+   * The four attributes above are the generic HTML ones. They are not how a form in this repository
+   * reaches a reader: `<Field label="Phone number or email" hint="…">` and `<Submit label="Sign in" />`
+   * are, and there are 176 of them.
+   *
+   * 🔴 THE BLIND SPOT WAS DOCUMENTED AND ITS COST WAS NEVER COUNTED, which is the whole finding.
+   * The note in `_i18n-coverage.json` said plainly that "a string passed as an ordinary prop is
+   * invisible to it" and argued the ratchet was still right because it "cannot be satisfied by
+   * remembering". It could. It could be satisfied by using a `label` prop — and the Arabic patient
+   * sign-in page is the proof: heading, body and every hint in Arabic, and then **Phone number or
+   * email**, **Password**, **Sign in** and **Send me a code** in English, on the first screen an
+   * Arabic-speaking patient ever sees, with `t()` called three lines away in the same file.
+   *
+   * That is the §6 family landing on the instrument built to prevent it: a check that passed by
+   * measuring the wrong thing, where the thing it could not measure was the majority of the text.
+   *
+   * These are counted by NAME rather than by any prop, because "every string-valued prop" would
+   * sweep up ids, routes and variants and produce a number that moves when somebody renames a
+   * variable — the failure sprints 51 and 53 each had to correct. `label` and `hint` are two names,
+   * they are this repository's own, and both are rendered to the screen by `components/ui`.
+   *
+   * This RAISES the recorded floors, and raising a floor is a decision made on purpose with a reason
+   * written down: `_i18n-coverage.json` carries it, and the patient surface is brought back down in
+   * the same sprint rather than merely re-measured.
+   */
+  for (const match of code.matchAll(
+    /\b(?:aria-label|placeholder|title|alt|label|hint)="([^"{}]+)"/g,
+  )) {
     const text = match[1]!.trim();
     if (isVisibleEnglish(text)) found.push(text);
   }

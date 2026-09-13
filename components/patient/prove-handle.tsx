@@ -63,7 +63,7 @@ export function ProveHandle({ handle }: { handle: string }) {
 
       {asked.sent ? (
         <form action={confirm} className="space-y-4">
-          <Field label="Six-digit code" htmlFor="handleCode">
+          <Field label={t("pfield.sixDigitCode")} htmlFor="handleCode">
             <Input
               id="handleCode"
               name="code"
@@ -80,7 +80,7 @@ export function ProveHandle({ handle }: { handle: string }) {
             </p>
           ) : null}
 
-          <Submit label="Check the code" />
+          <Submit label={t("pfield.checkTheCode")} />
         </form>
       ) : (
         <>

@@ -108,10 +108,10 @@ export function IdentityEditor({
       </p>
 
       <form action={saveName} className="space-y-3">
-        <Field label="First name" htmlFor="firstName">
+        <Field label={t("pfield.firstName")} htmlFor="firstName">
           <Input id="firstName" name="firstName" defaultValue={firstName} required maxLength={80} />
         </Field>
-        <Field label="Last name" htmlFor="lastName">
+        <Field label={t("pfield.lastName")} htmlFor="lastName">
           <Input id="lastName" name="lastName" defaultValue={lastName ?? ""} maxLength={80} />
         </Field>
 

@@ -84,7 +84,7 @@ export function ChangeNumber({
             </div>
           </Field>
 
-          <Field label="Why are you changing it?" hint="A person reads this.">
+          <Field label={t("pnum.whyLabel")} hint={t("pnum.whyHint")}>
             <Textarea name="reason" rows={3} required minLength={10} />
           </Field>
 

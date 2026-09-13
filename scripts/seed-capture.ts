@@ -57,15 +57,51 @@ export const CAST = {
   /* The therapist `reset.ts --demo` already made, renamed here so the whole cast is consistent. */
   therapist: { email: "test@24therapy.ai", password: "TestTherapist2026!", name: "Test Therapist" },
 
+  /*
+   * 🔴 The super admin `reset.ts --demo` made, whose password came from an env var nobody wrote
+   * down. One of the four cuts is the admin console, and a console nobody can open is a cut that
+   * cannot be shot. Reset to the cast password below, which is safe here and nowhere else: this
+   * script refuses to run anywhere but the capture endpoint.
+   */
+  admin: { email: "admin@example.com", password: PASSWORD, name: "Super Admin" },
+
   clinicManager: { email: "manager@example.com", password: PASSWORD, name: "Hana Example" },
   clinicClinician: { email: "clinician@example.com", password: PASSWORD, name: "Tarek Example" },
 
   sponsorUser: { email: "hr@example.com", password: PASSWORD, name: "Dalia Example" },
   partnerUser: { email: "dev@example.com", password: PASSWORD, name: "Omar Example" },
 
-  sponsoredPatient: { name: "Layla Demo", phone: "+201300052001" },
-  clinicPatient: { name: "Youssef Demo", phone: "+201300052002" },
-  partnerPatient: { name: "Mariam Demo", phone: "+201300052003" },
+  /*
+   * 🔴 THE PATIENTS SIGN IN, AND THE FIRST VERSION OF THIS SEED DID NOT LET THEM.
+   *
+   * 52.3's findings walk found it before a frame was captured: `patient_accounts` held ZERO rows,
+   * so `/patient/login` could be photographed and nothing behind it could. The patient portal is the
+   * portal this product is judged on — it is what 37R.8 asks about and what the first of the four
+   * cuts is made of — and a cast with no way into it makes both of those unanswerable.
+   *
+   * The record and the account are different things here, which is sprint 6's whole design: a
+   * `patients` row is what a clinician wrote down, a `patient_accounts` row is a person with a
+   * password, and `people.claimed_at` is the moment the second took over the first. A seed that
+   * creates only the first is a seed that models a product where nobody ever signs in.
+   */
+  sponsoredPatient: {
+    name: "Layla Demo",
+    phone: "+201300052001",
+    email: "layla.demo@example.com",
+    password: PASSWORD,
+  },
+  clinicPatient: {
+    name: "Youssef Demo",
+    phone: "+201300052002",
+    email: "youssef.demo@example.com",
+    password: PASSWORD,
+  },
+  partnerPatient: {
+    name: "Mariam Demo",
+    phone: "+201300052003",
+    email: "mariam.demo@example.com",
+    password: PASSWORD,
+  },
 } as const;
 
 async function main() {
@@ -121,10 +157,24 @@ async function main() {
       sql`DELETE FROM ledger_entries WHERE ref_type = 'sponsor'`,
       sql`DELETE FROM sponsor_users WHERE email LIKE '%@example.com'`,
       sql`DELETE FROM patients WHERE last_name = 'Demo'`,
+      /*
+       * 🔴 The account's children before the account, and the account before the person.
+       *
+       * `history_grants` and `person_claims` both reference `patient_accounts`, and
+       * `people.claimed_by_account_id` references it too — which is why `people` is cleared last
+       * and the claim is unset before the account goes.
+       */
+      sql`DELETE FROM history_grants WHERE person_id IN (SELECT id FROM people WHERE last_name = 'Demo')`,
+      sql`DELETE FROM person_claims WHERE person_id IN (SELECT id FROM people WHERE last_name = 'Demo')`,
+      sql`UPDATE people SET claimed_at = NULL, claimed_by_account_id = NULL WHERE last_name = 'Demo'`,
+      sql`DELETE FROM patient_accounts WHERE email LIKE '%.demo@example.com'`,
       sql`DELETE FROM people WHERE last_name = 'Demo'`,
       sql`DELETE FROM clinic_managers WHERE email LIKE '%@example.com'`,
       sql`DELETE FROM subscriptions WHERE organization_id IN
             (SELECT id FROM organizations WHERE slug IN ('demo-clinic', 'demo-health-clinicians'))`,
+      /* Before the users they belong to, or the foreign key refuses the delete. */
+      sql`DELETE FROM therapist_verifications WHERE user_id IN
+            (SELECT id FROM users WHERE email LIKE '%@example.com' AND role = 'therapist')`,
       sql`DELETE FROM users WHERE email LIKE '%@example.com' AND role = 'therapist'`,
       /* 🔴 Before `partners`, per the block above. */
       sql`DELETE FROM organizations WHERE slug IN ('demo-clinic', 'demo-health-clinicians')`,
@@ -147,6 +197,12 @@ async function main() {
     ).rows as { id: string }[];
 
     console.log(`solo org ${soloOrgId}, therapist ${therapistId}`);
+
+    /* 🔴 The admin door, openable. See the note on CAST.admin. */
+    await db.execute(sql`
+      UPDATE users SET password_hash = ${hash}, status = 'active'
+       WHERE email = ${CAST.admin.email} AND role = 'super_admin'`);
+    console.log(`admin: ${CAST.admin.email}`);
 
     /* ================================================================ */
     /*  The sponsor — 53. A company funding therapy nobody pays for.     */
@@ -263,6 +319,41 @@ async function main() {
     console.log(`partner: Demo Health Platform, ${CAST.partnerUser.email}`);
 
     /* ================================================================ */
+    /*  🔴 The verifications, which are a SECOND record of the same fact */
+    /* ================================================================ */
+
+    /*
+     * 🔴 `users.verification_status = 'verified'` IS NOT WHAT THE DATABASE CHECKS.
+     *
+     * The findings walk hit this trying to seed a history grant:
+     *
+     *     history_grants: a grant cannot be held by a clinician whose verification is not approved
+     *
+     * with all three clinicians already carrying `users.verification_status = 'verified'`. The
+     * trigger reads `therapist_verifications.state = 'approved'`, a different table, and that table
+     * was EMPTY. Two columns in two tables record one fact, and the seed set the one the screens
+     * read while the one the database enforces stayed at its default.
+     *
+     * That is worth writing down rather than just fixing: it is the same shape as the comment-versus-
+     * code family, moved into data. A row can say verified on every screen in the product while the
+     * constraint that protects the clinical grant says it is not. The trigger is right and the
+     * screens are the ones reading the softer column — which means the real question is what else
+     * reads `users.verification_status` and believes it. `FINDINGS.md` carries it.
+     *
+     * Seeded from the users table so the two can never disagree HERE, whatever they do elsewhere.
+     */
+    await db.execute(sql`
+      INSERT INTO therapist_verifications (user_id, organization_id, state, country, license_body,
+                                           license_number, submitted_at, reviewed_at)
+      SELECT u.id, u.organization_id, 'approved', 'EG', 'Egyptian Psychological Association',
+             'DEMO-' || substr(u.id::text, 1, 8), now(), now()
+        FROM users u
+       WHERE u.role = 'therapist' AND u.verification_status = 'verified'
+         AND NOT EXISTS (SELECT 1 FROM therapist_verifications v WHERE v.user_id = u.id)`);
+
+    console.log("verifications: approved for every verified clinician");
+
+    /* ================================================================ */
     /*  The patients, one per cross-portal flow (C268)                   */
     /* ================================================================ */
 
@@ -296,7 +387,50 @@ async function main() {
         UPDATE patients SET person_id = (SELECT id FROM people WHERE phone = ${person.phone})
          WHERE id = ${created.id}`);
 
-      console.log(`patient: ${person.name} (${person.phone})`);
+      /*
+       * 🔴 AND THE PERSON GETS AN ACCOUNT, AND CLAIMS THEIR OWN RECORD.
+       *
+       * Three writes, because sprint 6 made them three distinct facts and collapsing them would
+       * seed a state the product cannot reach:
+       *
+       *   1. `patient_accounts` — somebody with a password. Email and phone both verified, because
+       *      an unverified account is a different screen and this cast is not here to demonstrate
+       *      the verification nag.
+       *   2. `people.claimed_at` + `person_claims` — the moment the person took the record over.
+       *      Without it the portal has an account attached to nothing and every list is empty.
+       *   3. `history_grants` — `therapist_keeps_access = true`, which §3 makes an explicit grant
+       *      rather than a default. 🔴 The default is OFF: absence of a grant is the revoked state.
+       *      Seeding the claim without the grant would leave the clinician unable to see a record
+       *      they are shown on screen in the very next flow, which in a split-screen cut would
+       *      look like a bug in the product rather than a gap in the seed.
+       */
+      const [account] = (
+        await db.execute(sql`
+        INSERT INTO patient_accounts (person_id, email, password_hash, email_verified_at, phone,
+                                      phone_verified_at, timezone)
+        VALUES ((SELECT id FROM people WHERE phone = ${person.phone}), ${person.email}, ${hash},
+                now(), ${person.phone}, now(), 'Africa/Cairo')
+        RETURNING id`)
+      ).rows as { id: string }[];
+
+      await db.execute(sql`
+        UPDATE people SET claimed_at = now(), claimed_by_account_id = ${account.id}
+         WHERE phone = ${person.phone}`);
+
+      await db.execute(sql`
+        INSERT INTO person_claims (person_id, patient_account_id, route, status, verified_at,
+                                   therapist_keeps_access)
+        VALUES ((SELECT id FROM people WHERE phone = ${person.phone}), ${account.id},
+                'match', 'verified', now(), true)`);
+
+      await db.execute(sql`
+        INSERT INTO history_grants (person_id, therapist_user_id, organization_id, status, shape,
+                                    decided_at, updated_at)
+        VALUES ((SELECT id FROM people WHERE phone = ${person.phone}), ${clinicianId}, ${orgId},
+                'granted', 'open', now(), now())
+        ON CONFLICT DO NOTHING`);
+
+      console.log(`patient: ${person.name} (${person.phone}), signs in as ${person.email}`);
     }
 
     /*

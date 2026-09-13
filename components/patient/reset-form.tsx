@@ -101,7 +101,7 @@ export function PatientResetForm() {
             />
           </Field>
 
-          <Field label="New password" htmlFor="password" hint="At least 10 characters.">
+          <Field label={t("pfield.newPassword")} htmlFor="password" hint={t("pfield.passwordLengthHint")}>
             <Input
               id="password"
               name="password"
@@ -117,7 +117,7 @@ export function PatientResetForm() {
             </p>
           ) : null}
 
-          <Submit label="Set my new password" />
+          <Submit label={t("pfield.setNewPassword")} />
         </form>
 
         <p className="text-center text-sm text-slate-500">

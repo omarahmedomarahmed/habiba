@@ -6,6 +6,7 @@ import { savePatient } from "@/app/(app)/patients/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { PhoneField } from "@/components/forms/phone-field";
 import { countryFromE164, countryFromLocale } from "@/lib/phone/e164";
+import { useT } from "@/lib/i18n/client";
 
 type Initial = {
   firstName: string;
@@ -23,6 +24,7 @@ export function PatientEditor({
   patientId: string;
   initial: Initial;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState(initial);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -68,14 +70,14 @@ export function PatientEditor({
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="First name" htmlFor="firstName">
+        <Field label={t("pfield.firstName")} htmlFor="firstName">
           <Input
             id="firstName"
             value={form.firstName}
             onChange={(e) => set("firstName", e.target.value)}
           />
         </Field>
-        <Field label="Last name" htmlFor="lastName">
+        <Field label={t("pfield.lastName")} htmlFor="lastName">
           <Input
             id="lastName"
             value={form.lastName}
@@ -84,7 +86,7 @@ export function PatientEditor({
         </Field>
       </div>
 
-      <Field label="Email" htmlFor="email" hint="Used only to send session summaries.">
+      <Field label={t("pfield.email")} htmlFor="email" hint={t("pted.emailHint")}>
         <Input
           id="email"
           type="email"
@@ -95,7 +97,7 @@ export function PatientEditor({
         />
       </Field>
 
-      <Field label="Phone" htmlFor="phone">
+      <Field label={t("pfield.phone")} htmlFor="phone">
         <PhoneField
           value={form.phone}
           country={phoneCountry}
@@ -105,9 +107,9 @@ export function PatientEditor({
       </Field>
 
       <Field
-        label="Working diagnoses"
+        label={t("pted.diagnoses")}
         htmlFor="diagnoses"
-        hint="Comma separated. Included as context when notes are written."
+        hint={t("pted.diagnosesHint")}
       >
         <Input
           id="diagnoses"
@@ -121,7 +123,7 @@ export function PatientEditor({
         />
       </Field>
 
-      <Field label="Treatment goals" htmlFor="goals" hint="Comma separated.">
+      <Field label={t("pted.goals")} htmlFor="goals" hint={t("pted.goalsHint")}>
         <Input
           id="goals"
           value={form.goals.join(", ")}
@@ -153,10 +155,7 @@ export function PatientEditor({
       */}
       <div className="space-y-3 border-t border-slate-100 pt-3">
         <p className="text-xs leading-relaxed text-slate-400">
-          Records cannot be deleted, and cannot be emailed out of here. Sessions and notes are
-          kept for the retention period your regulator requires. If this patient asks for their
-          data or asks you to erase it, send them to us, we handle both, and you will be told
-          when we do.
+          {t("pted.retention")}
         </p>
       </div>
     </Card>

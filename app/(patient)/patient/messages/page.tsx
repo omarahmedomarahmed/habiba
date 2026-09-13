@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PatientBack } from "@/components/patient/back";
 import { CheckinSwitch } from "@/components/patient/checkin-switch";
 import { Card } from "@/components/ui";
 import { isMuted } from "@/lib/data/checkins";
@@ -31,6 +32,18 @@ export default async function PatientMessagesPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 px-4 py-8">
+      {/*
+        🔴 C185 — a way back, on every patient screen that is not a tab.
+
+        This page shipped in sprint 44 without one and `verify:sprint37r` caught it in sprint 52's
+        sweep. Check-ins is reached from the account screen and is not one of the five tabs, so
+        without this the only way out is the browser's own back button, which on a phone in a
+        saved-to-home-screen app is not there at all.
+      */}
+      <div className="flex items-center gap-1">
+        <PatientBack />
+      </div>
+
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
           {t("checkin.settingsTitle")}

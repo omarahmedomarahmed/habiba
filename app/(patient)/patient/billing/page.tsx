@@ -176,13 +176,13 @@ export default async function PatientBillingPage() {
                   </p>
                 ) : (
                 <dl className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs">
-                  <Row label="Your therapist's fee">
+                  <Row label={t("pbill.therapistFee")}>
                     {formatMoney(row.gross ?? 0, row.currency ?? "usd", tag)}
                   </Row>
-                  <Row label="VAT, paid to the government">
+                  <Row label={t("pbill.vat")}>
                     {formatMoney(row.vat ?? 0, row.currency ?? "usd", tag)}
                   </Row>
-                  <Row label="24Therapy's share of the fee">
+                  <Row label={t("pbill.platformShare")}>
                     {formatMoney(row.fee ?? 0, row.currency ?? "usd", tag)}
                   </Row>
                 </dl>

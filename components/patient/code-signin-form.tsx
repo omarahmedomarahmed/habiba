@@ -68,7 +68,7 @@ export function CodeSignInForm() {
           <input type="hidden" name="handle" value={handle} />
           <input type="hidden" name="handleCountry" value={country} />
 
-          <Field label="Six-digit code" htmlFor="code">
+          <Field label={t("pfield.sixDigitCode")} htmlFor="code">
             <Input
               id="code"
               name="code"
@@ -85,7 +85,7 @@ export function CodeSignInForm() {
             </p>
           ) : null}
 
-          <Submit label="Sign in" />
+          <Submit label={t("pauth.signIn")} />
         </form>
       </Card>
     );
@@ -103,7 +103,7 @@ export function CodeSignInForm() {
       </div>
 
       <form action={request} className="space-y-4">
-        <Field label="Phone number or email" htmlFor="codeHandle">
+        <Field label={t("pfield.handle")} htmlFor="codeHandle">
           <Input
             id="codeHandle"
             name="handle"
@@ -121,7 +121,7 @@ export function CodeSignInForm() {
           </p>
         ) : null}
 
-        <Submit label="Send me a code" />
+        <Submit label={t("pfield.sendMeACode")} />
       </form>
     </Card>
   );

@@ -37,6 +37,7 @@ import path from "node:path";
 import type { Browser, BrowserContext, Locator, Page } from "playwright";
 
 import { launchOptions } from "./_browser";
+import { ar, en, type MessageKey } from "../lib/i18n/messages";
 
 const CAPTURE_ENDPOINT = "ep-little-sky-a6v9sdx4";
 const PRODUCTION_ENDPOINT = "ep-wild-lake-a6tgm2r6";
@@ -59,6 +60,30 @@ export type Finding = {
 
 const findings: Finding[] = [];
 let shotIndex = 0;
+
+/**
+ * 🔴 THE WALKTHROUGH ASKS THE PRODUCT WHAT ITS OWN WORDS ARE.
+ *
+ * The Arabic pass died on the therapist door: every target was an English string literal, so
+ * `/sign in|log in|continue/i` found nothing on a page that says تسجيل الدخول — and then `getByText`
+ * matched the `<title>` element, which is `Sign in · 24Therapy` in both languages and is invisible.
+ * A hardcoded English label in a bilingual walkthrough is a check that can only ever pass in one
+ * language, and the language it fails in is the one nobody was looking at.
+ *
+ * So the labels come from `lib/i18n/messages.ts`, the same catalogue the screens render from. That
+ * also makes the walkthrough a coverage test of a kind no verifier gives: if a key is missing from
+ * `ar`, the Arabic pass cannot find the control and records it as a finding.
+ */
+let words: Record<MessageKey, string> = en;
+
+/** Where this run's frames go. Set in `main` from `--locale`; see the note there. */
+let frameDir = path.join(OUT, "frames", "en");
+
+/** One or more catalogue entries as an exact-match pattern in whichever language is being walked. */
+function say(...keys: MessageKey[]): RegExp {
+  const escaped = keys.map((key) => words[key].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^\\s*(${escaped.join("|")})\\s*$`, "i");
+}
 
 function guard(): void {
   const url = process.env.DATABASE_URL ?? "";
@@ -113,7 +138,7 @@ async function step(
 
   shotIndex += 1;
   const file = `${String(shotIndex).padStart(3, "0")}-${flow}-${name}.png`;
-  await page.screenshot({ path: path.join(OUT, "frames", file), fullPage: false });
+  await page.screenshot({ path: path.join(frameDir, file), fullPage: false });
   console.log(`  ✓ ${file}`);
 }
 
@@ -131,6 +156,23 @@ async function control(
   label: string | RegExp,
   fallback?: string,
 ): Promise<Locator | null> {
+  /*
+   * 🔴 VISIBLE, NOT MERELY PRESENT.
+   *
+   * The first version asked only for `count() > 0`, and on the Arabic pass `getByText(/sign in/i)`
+   * matched `<title>Sign in · 24Therapy</title>` — an element that exists, is never rendered, and is
+   * in English on every page whatever the locale. It then tried to click it for thirty seconds.
+   *
+   * A control a person can use is a control a person can SEE, so visibility is part of the question
+   * rather than a detail of the click. This also means an element hidden behind a collapsed section
+   * is correctly reported as not findable, which is the answer 52.3 wants.
+   */
+  const usable = async (locator: Locator): Promise<boolean> =>
+    locator
+      .first()
+      .isVisible({ timeout: 1_000 })
+      .catch(() => false);
+
   for (const attempt of [
     () => page.getByRole("button", { name: label }),
     () => page.getByRole("link", { name: label }),
@@ -138,12 +180,12 @@ async function control(
     () => page.getByText(label),
   ]) {
     const locator = attempt().first();
-    if (await locator.count().then((n) => n > 0).catch(() => false)) return locator;
+    if (await usable(locator)) return locator;
   }
 
   if (fallback) {
     const locator = page.locator(fallback).first();
-    if (await locator.count().then((n) => n > 0).catch(() => false)) {
+    if (await usable(locator)) {
       findings.push({
         flow,
         step,
@@ -174,26 +216,90 @@ async function signIn(
   await page.goto(`${BASE}${at}`, { waitUntil: "networkidle" }).catch(() => {});
   await step(page, flow, "door");
 
-  const emailField = page.locator('input[type="email"]').first();
-  const passwordField = page.locator('input[type="password"]').first();
+  /*
+   * 🔴 THE IDENTITY FIELD IS FOUND BY ITS LABEL, BECAUSE IT IS NOT ALWAYS AN EMAIL FIELD.
+   *
+   * The first version looked for `input[type="email"]` and reported that `/patient/login` "does not
+   * present an email and a password field, so this principal cannot be signed in". The field is
+   * there; it says **Phone number or email** and is a plain text input, because a patient may have
+   * signed up with either and `type="email"` would refuse a phone number.
+   *
+   * So the product is right and the instrument was wrong — again, and the same way: it asserted the
+   * absence of a thing by looking for one particular spelling of it. Found by label now, which is
+   * the discipline the rest of this file already runs on.
+   */
+  const identityField = await control(
+    page,
+    flow,
+    "door",
+    /*
+     * 🔴 SIX DOORS, FOUR DIFFERENT WORDS FOR THE SAME FIELD.
+     *
+     * "Email" for a therapist, "Work email" for staff, "Phone number or email" for a patient. Each
+     * is defensible on its own door — a patient may have no address, a staff member signs in with a
+     * work one — and together they are the reason this pattern has to be a list rather than a word.
+     * Recorded in FINDINGS.md as an observation rather than pushed as a finding, because the
+     * alternative (one word everywhere) would make the patient door wrong.
+     */
+    /*
+     * 🔴 SIX DOORS, FIVE DIFFERENT ENGLISH WORDS FOR ONE FIELD, AND ONE ARABIC WORD FOR ALL OF THEM.
+     *
+     * `tauth.email` is "Email", `tauth.workEmail` is "Work email", the clinic, sponsor and partner
+     * doors each say "Email address", and the patient's says "Phone number or email". In Arabic all
+     * five collapse to البريد الإلكتروني except the staff one, so the translated product is more
+     * consistent than the English it was translated from. Recorded in FINDINGS.md as an observation:
+     * "Phone number or email" is genuinely different (a patient may have no address) and the other
+     * four are the same field wearing four labels.
+     */
+    say("tauth.email", "tauth.workEmail", "clinic.email", "sponsor.email", "dev.email", "pfield.handle"),
+    'input[name="handle"], input[type="email"]',
+  );
+  const passwordField = await control(
+    page,
+    flow,
+    "door",
+    say("tauth.password", "clinic.password", "sponsor.password", "dev.password", "pfield.password"),
+    'input[type="password"]',
+  );
 
-  if ((await emailField.count()) === 0 || (await passwordField.count()) === 0) {
-    findings.push({
-      flow,
-      step: "door",
-      note: `${at} does not present an email and a password field, so this principal cannot be signed in.`,
-      kind: "broken",
-    });
-    return false;
-  }
+  if (!identityField || !passwordField) return false;
 
-  await emailField.fill(email);
+  await identityField.fill(email);
   await passwordField.fill(password);
 
-  const submit = await control(page, flow, "sign in", /sign in|log in|continue/i, 'button[type="submit"]');
+  const submit = await control(
+    page,
+    flow,
+    "sign in",
+    say("tauth.signIn", "pauth.signIn", "clinic.signIn", "sponsor.signIn", "dev.signIn"),
+    'button[type="submit"]',
+  );
   if (!submit) return false;
 
+  const started = Date.now();
   await submit.click();
+
+  /*
+   * 🔴 WAIT FOR THE CONSEQUENCE, NOT FOR THE NETWORK TO GO QUIET.
+   *
+   * The first version screenshotted after `waitForLoadState("networkidle")` and then read the URL.
+   * Both of those are satisfied the instant the click returns, because a server action posts and the
+   * navigation has not started yet — so every one of the four portals was recorded as "the form
+   * accepted the credentials and did not move", with a frame of a button reading "One moment…".
+   *
+   * 🔴 That is the §6 shape aimed at my own instrument: a check that passed by measuring the wrong
+   * thing, where the thing measured was the absence of a navigation that had not been given time to
+   * begin. Four false findings is worse than none, because a findings pass nobody can trust is a
+   * findings pass nobody reads. Signing in takes about 1.9s here, most of it password hashing.
+   *
+   * So this waits for the URL to LEAVE the door, and reports the real elapsed time. A door that
+   * genuinely does not move still fails, now after thirty seconds rather than after zero.
+   */
+  const moved = await page
+    .waitForURL((url) => !/\/(login|sign-in)$/.test(url.pathname), { timeout: 30_000 })
+    .then(() => true)
+    .catch(() => false);
+
   await page.waitForLoadState("networkidle").catch(() => {});
   await step(page, flow, "signed-in");
 
@@ -202,14 +308,29 @@ async function signIn(
    * every screenshot after it is a picture of a sign-in form filed under a portal's name. 22R's
    * defect five was exactly this shape: a screen that said one thing while the state said another.
    */
-  if (page.url().includes("sign-in") || page.url().includes("login")) {
+  if (!moved) {
     findings.push({
       flow,
       step: "sign in",
-      note: `Signing in at ${at} left the browser on the door. The form accepted the credentials and did not move.`,
+      note: `Signing in at ${at} left the browser on the door for thirty seconds. The form accepted the credentials and did not move.`,
       kind: "broken",
     });
     return false;
+  }
+
+  /*
+   * 🔴 And how long it took is itself a finding, because 52.3 asks what was HARD and a door that
+   * takes four seconds is a door a person presses twice. Recorded rather than judged: the number is
+   * in the findings and the prose decides what it means.
+   */
+  const elapsed = Date.now() - started;
+  if (elapsed > 3_000) {
+    findings.push({
+      flow,
+      step: "sign in",
+      note: `Signing in at ${at} took ${(elapsed / 1000).toFixed(1)}s before the screen changed. A door that slow is a door somebody presses twice.`,
+      kind: "slow",
+    });
   }
 
   return true;
@@ -252,10 +373,20 @@ async function main() {
   const argv = process.argv.slice(2);
   const only = argv.includes("--only") ? argv[argv.indexOf("--only") + 1] : null;
   const locale = argv.includes("--locale") ? argv[argv.indexOf("--locale") + 1]! : "en";
+  words = locale === "ar" ? ar : en;
 
-  const frames = path.join(OUT, "frames");
-  if (!only && existsSync(frames)) rmSync(frames, { recursive: true });
-  mkdirSync(frames, { recursive: true });
+  /*
+   * 🔴 ONE FOLDER PER LANGUAGE, BECAUSE THE ARABIC PASS ATE THE ENGLISH ONE.
+   *
+   * The first version wrote every frame to `frames/` and cleared it at the start of a full run, so
+   * `--locale ar` silently replaced all 75 English frames with 75 Arabic ones under identical names.
+   * The edit list needs both — two of the four cuts are bilingual and the RTL pass is the whole point
+   * of the Arabic one — and a capture that can only hold one language at a time is a capture that
+   * has to be run twice and copied out by hand between runs.
+   */
+  frameDir = path.join(OUT, "frames", locale);
+  if (!only && existsSync(frameDir)) rmSync(frameDir, { recursive: true });
+  mkdirSync(frameDir, { recursive: true });
 
   const { chromium } = await import("playwright");
   const browser: Browser = await chromium.launch(
@@ -312,10 +443,42 @@ async function main() {
       const context = await newContext(PHONE);
       const page = await context.newPage();
 
-      await tour(page, "patient", [
-        { at: "/patient/login", name: "login" },
-        { at: "/patient/signup", name: "signup" },
-      ]);
+      await tour(page, "patient", [{ at: "/patient/signup", name: "signup" }]);
+
+      /*
+       * 🔴 THE PORTAL THIS PRODUCT IS JUDGED ON, AND THE FIRST PASS NEVER OPENED IT.
+       *
+       * The first version of this flow shot `/patient/login` and `/patient/signup` and stopped,
+       * because `patient_accounts` held zero rows and there was nobody to sign in as. Two pictures
+       * of two doors, filed as the patient walkthrough. 37R.8 asks whether the patient app looks
+       * like the best mental-health app anybody has built; two doors cannot answer that.
+       */
+      const inside = await signIn(
+        page,
+        "patient",
+        "/patient/login",
+        "layla.demo@example.com",
+        "CaptureRun2026!",
+      );
+
+      if (inside) {
+        await tour(page, "patient", [
+          { at: "/patient", name: "sessions" },
+          { at: "/patient/messages", name: "messages" },
+          { at: "/patient/homework", name: "homework" },
+          { at: "/patient/journal", name: "journal" },
+          { at: "/patient/assessments", name: "assessments" },
+          { at: "/patient/summary", name: "summary" },
+          { at: "/patient/browse", name: "browse" },
+          { at: "/patient/benefit", name: "benefit" },
+          { at: "/patient/billing", name: "billing" },
+          { at: "/patient/record", name: "record" },
+          { at: "/patient/consent", name: "consent" },
+          { at: "/patient/notices", name: "notices" },
+          { at: "/patient/account", name: "account" },
+          { at: "/patient/profile", name: "profile" },
+        ]);
+      }
 
       await context.close();
     },
@@ -349,6 +512,81 @@ async function main() {
           { at: "/on-call", name: "on-call" },
           { at: "/support", name: "support" },
         ]);
+      }
+
+      await context.close();
+    },
+
+    /* ------------------------------------------------------------------ room */
+    /*
+     * 🔴 THE ROOM RUNS HERE, AND ESTABLISHING THAT WAS A PRECONDITION OF SCRIPTING ANY CUT OF IT.
+     *
+     * `DAILY_API_KEY` is not configured in this container, and the open question was whether that
+     * makes the session room unshootable. Walked directly rather than inferred:
+     *
+     *   * The room RENDERS, the clock runs, the status goes Live, the transcript pane opens and says
+     *     "Listening…", the copilot appears, and there are no page errors.
+     *   * The VIDEO TILE does not. In its place the product says, in its own words: **"Video is not
+     *     configured — The session is still recorded and transcribed. Add a Daily.co API key to
+     *     enable video calls."**
+     *
+     * So a cut of "The 24Therapy room" made here would put that banner on screen. That is a fact for
+     * the edit list rather than a thing to work around: 52 forbids stubbing a service to make a film
+     * look complete, and a black rectangle reading "video is not configured" is what this build
+     * honestly is. The in-person path — *Record from this device*, which is the default and the
+     * majority flow — has no such gap and is shot in full.
+     */
+    async room() {
+      const context = await newContext(PHONE);
+      const page = await context.newPage();
+
+      const inside = await signIn(
+        page,
+        "room",
+        "/login",
+        "test@24therapy.ai",
+        "TestTherapist2026!",
+      );
+      if (!inside) {
+        await context.close();
+        return;
+      }
+
+      await page.goto(`${BASE}/sessions/new`, { waitUntil: "networkidle" }).catch(() => {});
+      await step(page, "room", "new");
+
+      /*
+       * 🔴 The patient picker is a `<select>`, so it is chosen by option label rather than clicked.
+       * Recorded here rather than as a finding: a native select IS the findable control on a phone,
+       * and 41.2's derived "Where" question above it is the one that replaced the modality toggle.
+       */
+      await step(page, "room", "patient-chosen", async () => {
+        await page.getByRole("combobox").first().selectOption({ label: "Layla Demo" });
+      });
+
+      const start = await control(page, "room", "start", say("tnew.startNow"));
+      if (start) {
+        await step(page, "room", "opened", async () => {
+          await start.click();
+          await page.waitForURL(/\/room$/, { timeout: 60_000 });
+        });
+
+        const begin = await control(page, "room", "begin", say("troom.startSession"));
+        if (begin) {
+          await step(page, "room", "recording", async () => {
+            await begin.click();
+            /* The transcript pane is the thing that proves it started, not the button changing. */
+            await page.getByText(say("ttr.listening")).first().waitFor({ timeout: 30_000 });
+          });
+        }
+
+        const end = await control(page, "room", "end", say("troom.endSession"));
+        if (end) {
+          await step(page, "room", "ended", async () => {
+            await end.click();
+            await page.waitForURL((url) => !/\/room$/.test(url.pathname), { timeout: 90_000 });
+          });
+        }
       }
 
       await context.close();
@@ -445,7 +683,24 @@ async function main() {
        * ignore rule is one line rather than a pattern somebody has to keep correct. An admin console
        * shows many patients at once and the repository is treated as if it will be public one day.
        */
-      await tour(page, "admin", [{ at: "/staff/sign-in", name: "door" }]);
+      const inside = await signIn(
+        page,
+        "admin",
+        "/staff/sign-in",
+        "admin@example.com",
+        "CaptureRun2026!",
+      );
+
+      if (inside) {
+        await tour(page, "admin", [
+          { at: "/admin", name: "dashboard" },
+          { at: "/admin/vault", name: "vault" },
+          { at: "/admin/content", name: "content" },
+          { at: "/admin/checkins", name: "checkins" },
+          { at: "/admin/payouts", name: "payouts" },
+          { at: "/admin/usage", name: "usage" },
+        ]);
+      }
 
       await context.close();
     },

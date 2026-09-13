@@ -63,7 +63,7 @@ export function PatientAuthForm({
 
         {mode === "signup" ? (
           <>
-            <Field label="First name" htmlFor="firstName">
+            <Field label={t("pfield.firstName")} htmlFor="firstName">
               <Input
                 id="firstName"
                 name="firstName"
@@ -71,7 +71,7 @@ export function PatientAuthForm({
                 required
               />
             </Field>
-            <Field label="Last name (optional)" htmlFor="lastName">
+            <Field label={t("pfield.lastNameOptional")} htmlFor="lastName">
               <Input id="lastName" name="lastName" autoComplete="family-name" />
             </Field>
           </>
@@ -85,7 +85,7 @@ export function PatientAuthForm({
            * asking them to remember a decision they made once on a form months
            * ago. The server decides by shape and fails identically either way.
            */
-          <Field label="Phone number or email" htmlFor="handle">
+          <Field label={t("pfield.handle")} htmlFor="handle">
             <Input id="handle" name="handle" autoComplete="username" required />
             <input type="hidden" name="handleCountry" value={phoneCountry} />
           </Field>
@@ -93,7 +93,7 @@ export function PatientAuthForm({
 
         {mode === "signup" ? (
           <>
-            <Field label="Phone" htmlFor="phone">
+            <Field label={t("pfield.phone")} htmlFor="phone">
               {lockedPhone ? (
                 <>
                   {/*
@@ -142,11 +142,11 @@ export function PatientAuthForm({
           rather than leaving somebody to guess whether the form will refuse.
         */}
         <Field
-          label={mode === "signup" ? "Password (optional)" : "Password"}
+          label={mode === "signup" ? t("pfield.passwordOptional") : t("pfield.password")}
           htmlFor="password"
           hint={
             mode === "signup"
-              ? "Leave it empty and sign in with a code instead, sent to the number or address above."
+              ? t("pfield.passwordOptionalHint")
               : undefined
           }
         >
@@ -171,7 +171,7 @@ export function PatientAuthForm({
           </p>
         ) : null}
 
-        <Submit label={mode === "signup" ? "Create account" : "Sign in"} />
+        <Submit label={mode === "signup" ? t("pauth.createAccount") : t("pauth.signIn")} />
       </form>
     </Card>
   );

@@ -657,6 +657,75 @@ export const en = {
   "pauth.invitePhoneNote": "The number your therapist sent this invite to.",
   "pauth.phonePlaceholder": "Phone or WhatsApp",
   "pauth.phoneNote": "This is how you sign in and how your therapist finds you.",
+
+  /*
+   * 🔴 52.4 — THE PATIENT'S OWN FORM LABELS, WHICH WERE ENGLISH IN BOTH LANGUAGES.
+   *
+   * The findings walk photographed the Arabic patient door: heading, body and every hint in Arabic,
+   * and then "Phone number or email", "Password", "Sign in" and "Send me a code" in English, on the
+   * first screen an Arabic-speaking patient ever sees. `t()` was called three lines away in the same
+   * file. The labels were passed as a `label` prop, and the i18n ratchet counted JSX text and four
+   * HTML attributes and could not see a prop, so the number never moved.
+   *
+   * Grouped as `pfield.` where two screens ask for the same thing, because a patient filling in
+   * their name on the sign-up form and on the profile form should not meet two different words for
+   * it. The rest keep their screen's prefix.
+   */
+  "pfield.firstName": "First name",
+  "pfield.lastName": "Last name",
+  "pfield.lastNameOptional": "Last name (optional)",
+  "pfield.email": "Email",
+  "pfield.phone": "Phone",
+  "pfield.handle": "Phone number or email",
+  "pfield.password": "Password",
+  "pfield.passwordOptional": "Password (optional)",
+  "pfield.passwordOptionalHint":
+    "Leave it empty and sign in with a code instead, sent to the number or address above.",
+  "pfield.sixDigitCode": "Six-digit code",
+  "pfield.newPassword": "New password",
+  "pfield.passwordLengthHint": "At least 10 characters.",
+  "pfield.setNewPassword": "Set my new password",
+  "pfield.checkTheCode": "Check the code",
+  "pfield.sendMeACode": "Send me a code",
+
+  "pted.retention":
+    "Records cannot be deleted, and cannot be emailed out of here. Sessions and notes are kept for the retention period your regulator requires. If this patient asks for their data or asks you to erase it, send them to us, we handle both, and you will be told when we do.",
+  "pted.emailHint": "Used only to send session summaries.",
+  "pted.diagnoses": "Working diagnoses",
+  "pted.diagnosesHint": "Comma separated. Included as context when notes are written.",
+  "pted.goals": "Treatment goals",
+  "pted.goalsHint": "Comma separated.",
+
+  "pban.asked":
+    "You have asked for access. They will see your note next time they sign in. We do not chase them for you.",
+  "pban.ask": "Ask for access",
+  "pban.whyLabel": "Why are you asking? They read this.",
+  "pban.example":
+    "I am preparing for our session on Thursday and would like to see your history.",
+
+  "pbill.therapistFee": "Your therapist's fee",
+  "pbill.vat": "VAT, paid to the government",
+  "pbill.platformShare": "24Therapy's share of the fee",
+
+  "pnum.whyLabel": "Why are you changing it?",
+  "pnum.whyHint": "A person reads this.",
+
+  "pracc.lockedOutTitle": "Somebody is locked out",
+  "pracc.lockedOutBody":
+    "Three wrong answers to \u201Cwhat name did you give them?\u201D. If that is your patient mistyping their own name, let them try again. If you are not expecting anybody to be claiming this record, do not.",
+  "pracc.letThemTry": "Let them try again",
+  "pracc.released":
+    "Released. They have three more attempts, and it is on the record that you did it.",
+  "pracc.ownAccessTitle": "Their own access",
+  "pracc.ownAccessBody": "Let this person sign in and see their own record.",
+  "pracc.claimed": "Claimed",
+  "pracc.linkOnce": "Send them this link. It works once, and it expires in 30 days.",
+  "pracc.copyNow":
+    "Copy it now, we store only a fingerprint of this link, so it cannot be shown again.",
+  "pracc.issueNew": "Issue a new one",
+  "pracc.inviteBody":
+    "A link you hand over in the room. They set a password, confirm the record is theirs, and choose whether you keep access.",
+  "pracc.whyPlaceholder": "Why, e.g. spoke to her, she typed her married name",
   "radar.freeNow": "Free now",
   "pexport.title": "A copy of everything",
   "pexport.body":
@@ -3421,6 +3490,60 @@ export const ar: Record<MessageKey, string> = {
   "pauth.invitePhoneNote": "الرقم الذي أرسل إليه معالجك هذه الدعوة.",
   "pauth.phonePlaceholder": "هاتف أو واتساب",
   "pauth.phoneNote": "بهذا تسجّل الدخول، وبه يجدك معالجك.",
+
+  "pfield.firstName": "الاسم الأول",
+  "pfield.lastName": "اسم العائلة",
+  "pfield.lastNameOptional": "اسم العائلة (اختياري)",
+  "pfield.email": "البريد الإلكتروني",
+  "pfield.phone": "الهاتف",
+  "pfield.handle": "رقم الهاتف أو البريد الإلكتروني",
+  "pfield.password": "كلمة المرور",
+  "pfield.passwordOptional": "كلمة المرور (اختيارية)",
+  "pfield.passwordOptionalHint":
+    "اتركها فارغة وسجّل الدخول برمز يُرسل إلى الرقم أو العنوان أعلاه.",
+  "pfield.sixDigitCode": "رمز من ستة أرقام",
+  "pfield.newPassword": "كلمة مرور جديدة",
+  "pfield.passwordLengthHint": "عشرة أحرف على الأقل.",
+  "pfield.setNewPassword": "اضبط كلمة مروري الجديدة",
+  "pfield.checkTheCode": "تحقق من الرمز",
+  "pfield.sendMeACode": "أرسل لي رمزًا",
+
+  "pted.retention":
+    "لا يمكن حذف السجلات، ولا يمكن إرسالها بالبريد خارج هذا المكان. تُحفظ الجلسات والملاحظات للمدة التي تفرضها الجهة المنظمة لك. إذا طلب هذا المريض بياناته أو طلب منك محوها، أرسله إلينا، فنحن نتولى الأمرين، وسنخبرك حين نفعل.",
+  "pted.emailHint": "يُستخدم فقط لإرسال ملخصات الجلسات.",
+  "pted.diagnoses": "التشخيصات المبدئية",
+  "pted.diagnosesHint": "افصل بينها بفواصل. تُضاف كسياق عند كتابة الملاحظات.",
+  "pted.goals": "أهداف العلاج",
+  "pted.goalsHint": "افصل بينها بفواصل.",
+
+  "pban.asked":
+    "لقد طلبت الاطلاع. سيرى طلبك في المرة القادمة التي يسجّل فيها الدخول. نحن لا نلاحقه نيابة عنك.",
+  "pban.ask": "اطلب الاطلاع",
+  "pban.whyLabel": "لماذا تطلب؟ هو من سيقرأ هذا.",
+  "pban.example": "أستعد لجلستنا يوم الخميس وأود الاطلاع على تاريخك.",
+
+  "pbill.therapistFee": "أتعاب معالجك",
+  "pbill.vat": "ضريبة القيمة المضافة، تُدفع للدولة",
+  "pbill.platformShare": "حصة 24Therapy من الأتعاب",
+
+  "pnum.whyLabel": "لماذا تغيّره؟",
+  "pnum.whyHint": "سيقرأ هذا شخص حقيقي.",
+
+  "pracc.lockedOutTitle": "شخص ما محجوب عن الدخول",
+  "pracc.lockedOutBody":
+    "ثلاث إجابات خاطئة على \u201Cما الاسم الذي أعطيته له؟\u201D. إن كان هذا مريضك يخطئ في كتابة اسمه، فاسمح له بمحاولة أخرى. وإن كنت لا تتوقع أن يطالب أحد بهذا السجل، فلا تفعل.",
+  "pracc.letThemTry": "اسمح له بمحاولة أخرى",
+  "pracc.released": "تم السماح. أمامه ثلاث محاولات أخرى، ومسجّل أنك من سمح بذلك.",
+  "pracc.ownAccessTitle": "اطلاعه على سجله",
+  "pracc.ownAccessBody": "اسمح لهذا الشخص بتسجيل الدخول والاطلاع على سجله.",
+  "pracc.claimed": "تمت المطالبة به",
+  "pracc.linkOnce": "أرسل له هذا الرابط. يعمل مرة واحدة، وينتهي خلال 30 يومًا.",
+  "pracc.copyNow":
+    "انسخه الآن، فنحن نحفظ بصمة الرابط فقط، ولذلك لا يمكن عرضه مرة أخرى.",
+  "pracc.issueNew": "أصدر رابطًا جديدًا",
+  "pracc.inviteBody":
+    "رابط تسلّمه له في الغرفة. يضبط كلمة مرور، ويؤكد أن السجل سجله، ويختار إن كنت ستحتفظ بالاطلاع.",
+  "pracc.whyPlaceholder": "لماذا، مثلًا: تحدثت معها، وكتبت اسمها بعد الزواج",
   "radar.freeNow": "متاح الآن",
   "pexport.title": "نسخة من كل شيء",
   "pexport.body":

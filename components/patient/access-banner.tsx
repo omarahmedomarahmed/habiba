@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Lock, Send } from "lucide-react";
 
 import { askForAccess } from "@/app/(app)/patients/actions";
@@ -38,6 +39,7 @@ export function AccessBanner({
   /** Set when a request is already waiting, so we do not offer to send another. */
   pendingSince: Date | null;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [sent, setSent] = useState(false);
@@ -68,22 +70,19 @@ export function AccessBanner({
           <p className="text-sm leading-relaxed">{message}</p>
 
           {sent || pendingSince ? (
-            <p className="mt-2 text-xs opacity-80">
-              You have asked for access. They will see your note next time they sign in. We do not
-              chase them for you.
-            </p>
+            <p className="mt-2 text-xs opacity-80">{t("pban.asked")}</p>
           ) : canRequest && !open ? (
             <button
               type="button"
               onClick={() => setOpen(true)}
               className="tap-target mt-2 h-9 rounded-lg bg-white px-3 text-sm font-semibold shadow-sm ring-1 ring-amber-200 hover:bg-amber-100/50"
             >
-              Ask for access
+              {t("pban.ask")}
             </button>
           ) : canRequest && open ? (
             <div className="mt-2 space-y-2">
               <label htmlFor="access-note" className="block text-xs font-medium">
-                Why are you asking? They read this.
+                {t("pban.whyLabel")}
               </label>
               <textarea
                 id="access-note"
@@ -91,7 +90,7 @@ export function AccessBanner({
                 maxLength={500}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="I am preparing for our session on Thursday and would like to see your history."
+                placeholder={t("pban.example")}
                 className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400"
               />
               <div className="flex flex-wrap gap-2">
@@ -109,7 +108,7 @@ export function AccessBanner({
                   onClick={() => setOpen(false)}
                   className="tap-target h-9 rounded-lg px-3 text-sm font-medium hover:bg-amber-100/50"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Check, Copy, Link2, ShieldCheck } from "lucide-react";
 
 import {
@@ -63,6 +64,7 @@ export function RecordAccess({
   locked: boolean;
 }) {
   const locale = useLocale();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -116,16 +118,14 @@ export function RecordAccess({
       */}
       {locked && !released ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm font-semibold text-amber-900">Somebody is locked out</p>
+          <p className="text-sm font-semibold text-amber-900">{t("pracc.lockedOutTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-amber-800">
-            Three wrong answers to “what name did you give them?”. If that is your patient
-            mistyping their own name, let them try again. If you are not expecting anybody to be
-            claiming this record, do not.
+            {t("pracc.lockedOutBody")}
           </p>
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Why, e.g. spoke to her, she typed her married name"
+            placeholder={t("pracc.whyPlaceholder")}
             className="mt-2 h-10 w-full rounded-xl border border-amber-300 bg-white px-3 text-sm"
           />
           <button
@@ -141,7 +141,7 @@ export function RecordAccess({
             }
             className="tap-target mt-2 h-10 rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
-            Let them try again
+            {t("pracc.letThemTry")}
           </button>
         </div>
       ) : null}
@@ -149,19 +149,19 @@ export function RecordAccess({
       {released ? (
         <div className="border-b border-teal-200 bg-teal-50 px-4 py-2.5">
           <p className="text-xs text-teal-800">
-            Released. They have three more attempts, and it is on the record that you did it.
+            {t("pracc.released")}
           </p>
         </div>
       ) : null}
 
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">Their own access</p>
+          <p className="text-sm font-semibold text-slate-900">{t("pracc.ownAccessTitle")}</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            Let this person sign in and see their own record.
+            {t("pracc.ownAccessBody")}
           </p>
         </div>
-        {claimed ? <Badge tone="teal">Claimed</Badge> : null}
+        {claimed ? <Badge tone="teal">{t("pracc.claimed")}</Badge> : null}
       </div>
 
       <div className="space-y-3 px-4 py-3">
@@ -177,7 +177,7 @@ export function RecordAccess({
         ) : link ? (
           <>
             <p className="text-sm text-slate-600">
-              Send them this link. It works once, and it expires in 30 days.
+              {t("pracc.linkOnce")}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -200,7 +200,7 @@ export function RecordAccess({
               </button>
             </div>
             <p className="text-xs text-slate-500">
-              Copy it now, we store only a fingerprint of this link, so it cannot be shown again.
+              {t("pracc.copyNow")}
             </p>
           </>
         ) : openInvite ? (
@@ -227,15 +227,14 @@ export function RecordAccess({
                 onClick={issue}
                 className="tap-target h-10 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
               >
-                Issue a new one
+                {t("pracc.issueNew")}
               </button>
             </div>
           </>
         ) : (
           <>
             <p className="text-sm text-slate-600">
-              A link you hand over in the room. They set a password, confirm the record is theirs,
-              and choose whether you keep access.
+              {t("pracc.inviteBody")}
             </p>
             <button
               type="button"
