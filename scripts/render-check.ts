@@ -283,7 +283,18 @@ async function main() {
 
   const WAS_ENGLISH = [
     "Sign up free",
-    "/ session",
+    /*
+     * 🔴 `"/ session"` was here and is GONE, struck by 57.5 / C301.
+     *
+     * `pricing.perSession` stopped being rendered when sprint 46 split the fee
+     * in two, and the CONTROL below went on asserting it was on the English
+     * page. Nobody saw it for eleven sprints, because this whole script needs
+     * `en-x-staging` rows against production and there were none: the gate that
+     * would have caught the stale control could not run.
+     *
+     * That is the same shape as everything else in sprint 57 — a check that was
+     * correct when written, describing a page that had moved.
+     */
     "Show EGP",
     "Find someone online now",
     "What happens in a session",
@@ -317,11 +328,14 @@ async function main() {
    * of date rather than satisfied.
    */
   const englishHome = text(html["pricing.en-x-staging"] ?? "");
+  const CONTROL_PHRASES = ["Sign up free", "Joining is free", "every session"];
+  const missing = CONTROL_PHRASES.filter((phrase) => !englishHome.includes(phrase));
   check(
     "🔴 21R.8 CONTROL, the same phrases ARE on the English pricing page, so the list is current",
-    ["Sign up free", "/ session", "Joining is free"].every((phrase) =>
-      englishHome.includes(phrase),
-    ),
+    missing.length === 0,
+    missing.length > 0
+      ? `not on the English page: ${missing.join(", ")}. The LIST is stale, not the page`
+      : `${CONTROL_PHRASES.length} phrases confirmed present`,
   );
 
   /*

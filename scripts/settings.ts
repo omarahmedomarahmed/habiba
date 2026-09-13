@@ -14,7 +14,7 @@
  * outside a request. It imports the pure definitions instead, which is also the
  * point of keeping them pure.
  */
-import { ne } from "drizzle-orm";
+import { notInArray } from "drizzle-orm";
 
 import {
   COUNTRY_SEED,
@@ -80,13 +80,32 @@ async function reprice(db: Db) {
     console.log(`repriced: ${group}`);
   }
 
+  /*
+   * 🔴 Sprint 57 / C299 — this swept EVERY row that was not `payg`.
+   *
+   * That was 1.7: a one-time move off the old `unlimited` plan at a moment when
+   * nothing could legitimately be subscribed to. After sprint 57 two tiers can
+   * be, and the same line would have CANCELLED EVERY PAYING CUSTOMER'S PLAN —
+   * silently, from a verb an operator types to fix a price, with a cheerful
+   * "moved to PAYG: 40 subscription(s)" underneath it.
+   *
+   * A one-time migration left standing in a script is a loaded gun aimed at
+   * whatever the model becomes next. The sweep now targets only plans the live
+   * tier table cannot price, which is what 1.7 actually meant.
+   */
+  const liveKeys = SETTINGS_DEFAULTS.pricing.tiers.map(
+    (t) => t.key as (typeof subscriptions.$inferSelect)["plan"],
+  );
   const moved = await db
     .update(subscriptions)
     .set({ plan: "payg", updatedAt: new Date() })
-    .where(ne(subscriptions.plan, "payg"))
+    .where(notInArray(subscriptions.plan, liveKeys))
     .returning({ id: subscriptions.id, org: subscriptions.organizationId });
 
-  console.log(`moved to PAYG: ${moved.length} subscription(s)`);
+  console.log(
+    `moved to PAYG: ${moved.length} subscription(s) on a retired plan key` +
+      ` (live: ${liveKeys.join(", ")})`,
+  );
 }
 
 async function show(db: Db) {

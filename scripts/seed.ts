@@ -133,7 +133,7 @@ const DEMO_NOTE = {
 async function main() {
   if (REFRESH_CONTENT) {
     const host = (process.env.DATABASE_URL ?? "").match(/@([^/:?]+)/)?.[1] ?? "(none)";
-    console.log(`refreshing published content on ${host} — content_pages only\n`);
+    console.log(`refreshing published content on ${host}, content_pages only\n`);
   } else {
     writesTo();
   }

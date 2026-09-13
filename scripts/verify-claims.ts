@@ -53,7 +53,7 @@ function check(label: string, ok: boolean, detail = "") {
     console.log(`  PASS  ${label}`);
   } else {
     failures += 1;
-    console.log(`  FAIL  ${label}${detail ? `  — ${detail}` : ""}`);
+    console.log(`  FAIL  ${label}${detail ? `, ${detail}` : ""}`);
   }
 }
 
@@ -334,5 +334,5 @@ check(
   /\|\s*Status\s*\|/i.test(hazards),
 );
 
-console.log(`\nverify:claims — ${checks - failures}/${checks} checks pass\n`);
+console.log(`\nverify:claims ${checks - failures}/${checks} checks pass\n`);
 process.exit(failures === 0 ? 0 : 1);

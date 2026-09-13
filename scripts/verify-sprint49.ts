@@ -110,6 +110,27 @@ async function main() {
    * database where they happen to agree would make this check vacuous and
    * nobody would notice.
    */
+  /*
+   * 🔴 AMENDED BY 57.8 / C284. This measured the disagreement across whatever
+   * `ai_request_logs` happened to hold, and on a database with no usage rows
+   * both sums are NULL, `NULL !== NULL` is false, and the check reported a
+   * failure whose message read `lossy nullc, precise nullc`.
+   *
+   * The defect is not the empty database. It is a check whose coverage depends
+   * on what is in one: a verifier exercises every branch it claims to cover, in
+   * one run, whatever the machine is configured with. So the row that proves the
+   * point is PLANTED — a call costing four hundredths of a cent, which is the
+   * ordinary case and the one `cost_cents` rounds to zero — and removed after.
+   *
+   * The real rows are still summed alongside it, so the printed spread is the
+   * live one rather than the fixture's.
+   */
+  const PLANT = "verify49-rounding";
+  await db.execute(sql`DELETE FROM ai_request_logs WHERE model = ${PLANT}`);
+  await db.execute(sql`
+    INSERT INTO ai_request_logs (kind, model, status, cost_cents, cost_microcents)
+    VALUES ('copilot', ${PLANT}, 'success', 0, 40)`);
+
   const [spread] = (
     await db.execute(sql`
       SELECT SUM(cost_cents)::int AS lossy,
@@ -118,11 +139,13 @@ async function main() {
       FROM ai_request_logs`)
   ).rows as { lossy: number; precise: number; rounded_away: number }[];
 
+  await db.execute(sql`DELETE FROM ai_request_logs WHERE model = ${PLANT}`);
+
   check(
     "C279 the two columns genuinely disagree, so the check above is not vacuous",
     spread !== undefined && (spread.lossy !== spread.precise || spread.rounded_away > 0),
     spread
-      ? `lossy ${spread.lossy}c, precise ${spread.precise}c, ${spread.rounded_away} calls rounded away`
+      ? `lossy ${spread.lossy}c, precise ${spread.precise}c, ${spread.rounded_away} calls rounded away (one planted)`
       : "no usage rows",
   );
 

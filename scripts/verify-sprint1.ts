@@ -238,13 +238,16 @@ async function main() {
       0,
     );
     const wouldBill =
+      /*
+       * 🔴 57.1 the FREE tier, not merely a zero-threshold one.
+       *
+       * Every tier has a zero threshold now, so the old `find` could return the
+       * $179 plan and read its AI rate of zero as the rate a bill would be
+       * raised at: a check that passes by measuring the wrong tier.
+       */
       spendableCents > 0
         ? 0
-        : // 🔴 57.1 — the FREE tier, not merely a zero-threshold one. Every tier
-          // has a zero threshold now, so the old `find` could return the $179
-          // plan and read its AI rate of zero as the rate a bill would be raised
-          // at: a check that passes by measuring the wrong tier.
-          rereadPricing.tiers.find((t) => t.unlockCents === 0 && t.monthlyCents === 0)!
+        : rereadPricing.tiers.find((t) => t.unlockCents === 0 && t.monthlyCents === 0)!
             .aiRateCents;
     check(
       "acceptance: the next session would bill at the new rate, with no deploy",

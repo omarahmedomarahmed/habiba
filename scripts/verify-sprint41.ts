@@ -153,25 +153,43 @@ async function main() {
    * row to tidy up: it is a second recorder in a room where the patient agreed
    * to one.
    */
+  /*
+   * 🔴 AMENDED BY 57.8 / C284. This read a SECOND session with `OFFSET 1
+   * LIMIT 1` and, on a database holding one session, silently did nothing:
+   * `other` was undefined, the `if` never ran, `duplicateRefused` stayed false,
+   * and the check reported a failure whose message named a constraint that was
+   * present and working.
+   *
+   * Both halves are wrong in the same way. A verifier that needs two rows and
+   * finds one must not report the constraint as broken, and a verifier whose
+   * coverage depends on what happens to be in the database is C284's rule
+   * exactly: it exercises every branch it claims to cover, in one run, whatever
+   * the machine is configured with.
+   *
+   * So the second session is CREATED rather than looked for, and removed after.
+   */
   let duplicateRefused = false;
-  const [other] = (
-    await db.execute(sql`SELECT id, organization_id FROM sessions OFFSET 1 LIMIT 1`)
+  const [made] = (
+    await db.execute(sql`
+      INSERT INTO sessions (organization_id, therapist_id, status, feedback_token)
+      SELECT organization_id, therapist_id, 'scheduled', 'verify41-' || gen_random_uuid()
+      FROM sessions WHERE id = ${fixture.id}
+      RETURNING id, organization_id`)
   ).rows as { id: string; organization_id: string }[];
+  const other = required(made, "a session it could clone to test the bot constraint");
 
-  if (other) {
-    await db.execute(sql`DELETE FROM session_sources WHERE session_id = ${other.id}`);
-    try {
-      await db.execute(sql`
-        INSERT INTO session_sources
-          (session_id, organization_id, kind, external_meeting_id,
-           provisioned_at, provisioned_by_user_id, bot_id)
-        VALUES (${other.id}, ${other.organization_id}, 'zoom',
-                'https://example.invalid/j/2', now(), ${operator.id}, 'verify41-ours')`);
-    } catch {
-      duplicateRefused = true;
-    }
-    await db.execute(sql`DELETE FROM session_sources WHERE session_id = ${other.id}`);
+  try {
+    await db.execute(sql`
+      INSERT INTO session_sources
+        (session_id, organization_id, kind, external_meeting_id,
+         provisioned_at, provisioned_by_user_id, bot_id)
+      VALUES (${other.id}, ${other.organization_id}, 'zoom',
+              'https://example.invalid/j/2', now(), ${operator.id}, 'verify41-ours')`);
+  } catch {
+    duplicateRefused = true;
   }
+  await db.execute(sql`DELETE FROM session_sources WHERE session_id = ${other.id}`);
+  await db.execute(sql`DELETE FROM sessions WHERE id = ${other.id}`);
 
   check(
     "🔴 41.7 the same bot cannot be attached twice, so a reconnect never duplicates",

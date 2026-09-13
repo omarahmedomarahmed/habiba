@@ -312,10 +312,30 @@ async function main() {
     ...text.matchAll(/\$(\d+(?:\.\d{2})?)/g),
   ].map((m) => Math.round(Number(m[1]) * 100));
 
+  /*
+   * 🔴 AMENDED AGAIN BY 57.5, and the two additions are different in kind.
+   *
+   * `monthlyCents` is a figure the page now renders and the set did not know
+   * about, which is an omission. The ALL-IN price is the interesting one: the
+   * headline reads "$4 a session", which is `platformFeeCents + aiRateCents`
+   * and appears in no settings field at all.
+   *
+   * The rule this check defends is "no money on this page is a number written
+   * in a file", not "every rendered figure is a settings field verbatim". A
+   * figure DERIVED from settings by arithmetic satisfies the rule; widening the
+   * set to a range, or dropping the check to a warning, would not. So the
+   * derivation is named here, which also means a page that starts printing some
+   * other sum still fails.
+   */
   const fromSettings = new Set<number>([
     settings.session.platformFeeCents,
     ...settings.pricing.tiers.map((t) => t.aiRateCents),
     ...settings.pricing.tiers.map((t) => t.unlockCents),
+    ...settings.pricing.tiers.map((t) => t.monthlyCents),
+    // The all-in price of a metered session, which the headline states.
+    ...settings.pricing.tiers
+      .filter((t) => t.monthlyCents === 0)
+      .map((t) => settings.session.platformFeeCents + t.aiRateCents),
   ]);
 
   check(

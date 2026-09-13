@@ -38,11 +38,12 @@
  * in the file AND have to be gone from `content_pages`, and only the second of
  * those is what the public reads. So the checks below query the rows.
  */
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { readSource, reporter } from "./_verify";
+import { withPublishedContent } from "./_content-ready";
 
-const { check, finish } = reporter();
+const { check, skipUnless, finish } = reporter();
 
 async function main() {
   /*
@@ -51,7 +52,7 @@ async function main() {
    * the database the public is served from.
    */
   const { controlDb: db } = await import("../lib/db");
-  const { contentPages, subscriptions } = await import("../lib/db/schema");
+  const { subscriptions } = await import("../lib/db/schema");
   const { PLANS } = await import("../lib/db/schema");
   const { getSettings } = await import("../lib/settings");
   const { entitledTier, sessionLines, tierForSpend } = await import("../lib/billing/plans");
@@ -289,70 +290,81 @@ async function main() {
    * 🔴 C148, sixth costume. Fixing `defaults.ts` changes nothing a visitor
    * sees: the CMS is authored-content-wins, so a slug with a row is served from
    * that row for ever. These are the rows.
+   *
+   * 🔴 And they are read through `withPublishedContent`, never by hand. C93:
+   * the first version of this file queried `content_pages` directly, which
+   * `verify:sprint21r` caught by scanning every verifier for exactly that. A
+   * content check written outside the deferral goes red against a purged
+   * database and stays red, and a gate that is red for a known reason is a gate
+   * everybody skims.
    */
-  const rows = await db
-    .select({ slug: contentPages.slug, locale: contentPages.locale, blocks: contentPages.blocks })
-    .from(contentPages)
-    .where(eq(contentPages.status, "published"));
+  await withPublishedContent(
+    skipUnless,
+    { for: "57.6", what: "the public pages", slug: "home" },
+    (content) => {
+      const published = JSON.stringify(content.published.map((page) => page.blocks));
 
-  const published = JSON.stringify(rows.map((r) => r.blocks));
+      check(
+        "🔴 57.6 the pages a visitor is SERVED are being read at all",
+        content.published.length > 0 && published.length > 5_000,
+        `${content.published.length} published rows, ${published.length} bytes of blocks`,
+      );
 
-  check(
-    "🔴 57.6 the pages a visitor is SERVED are being read at all",
-    rows.length > 0 && published.length > 5_000,
-    `${rows.length} published rows, ${published.length} bytes of blocks`,
-  );
+      const BANNED: [string, RegExp][] = [
+        ["a response-time promise", /in the next sixty seconds|خلال دقيقة/i],
+        ["`risk language is never missed`", /never missed|لا تفوتنا أبدًا/i],
+        [
+          "the meta-claim that compounded the rest",
+          /every claim on this page|كل ما نقوله هنا شاشة/i,
+        ],
+        ["`minutes rather than weeks`", /minutes rather than weeks|دقائق بدل أسابيع/i],
+      ];
 
-  const BANNED: [string, RegExp][] = [
-    ["a response-time promise", /in the next sixty seconds|خلال دقيقة/i],
-    ["`risk language is never missed`", /never missed|لا تفوتنا أبدًا/i],
-    ["the meta-claim that compounded the rest", /every claim on this page|كل ما نقوله هنا شاشة/i],
-    ["`minutes rather than weeks`", /minutes rather than weeks|دقائق بدل أسابيع/i],
-  ];
+      for (const [what, pattern] of BANNED) {
+        check(
+          `🔴 57.6 ${what} is gone from the PUBLISHED rows, not only from defaults.ts`,
+          !pattern.test(published),
+          pattern.test(published) ? "still live" : "",
+        );
+      }
 
-  for (const [what, pattern] of BANNED) {
-    check(
-      `🔴 57.6 ${what} is gone from the PUBLISHED rows, not only from defaults.ts`,
-      !pattern.test(published),
-      pattern.test(published) ? "still live" : "",
-    );
-  }
+      /*
+       * 🔴 CONTROL. Four absences in a row pass just as happily against a query
+       * that returned nothing, a `blocks` column that serialised to `{}`, or a
+       * regex with a typo in it. So one sentence that IS there is looked for
+       * with the same machinery.
+       */
+      check(
+        "🔴 CONTROL the same search finds a sentence that IS published",
+        /Crisis Radar|رادار الأزمات/i.test(published),
+        "the absence checks above are searching real content",
+      );
 
-  /*
-   * 🔴 CONTROL. Four absences in a row pass just as happily against a query
-   * that returned nothing, a `blocks` column that serialised to `{}`, or a
-   * regex with a typo in it. So one sentence that IS there is looked for with
-   * the same machinery.
-   */
-  check(
-    "🔴 CONTROL the same search finds a sentence that IS published",
-    /Crisis Radar|رادار الأزمات/i.test(published),
-    "the absence checks above are searching real content",
-  );
+      /*
+       * 🔴 And the honest replacement is present, not merely the false claim
+       * absent. Deleting the sentence would have passed every check above while
+       * leaving the page silent about a detector that can miss.
+       */
+      check(
+        "🔴 57.6 …and where the published page describes risk scanning, it says the scan can miss",
+        !/risk language|لغة الخطر/i.test(published) ||
+          /misses things|false alarm|judgement|تفوتها|إنذارات كاذبة|حكمك/i.test(published),
+      );
 
-  /*
-   * 🔴 And the honest replacement is present, not merely the false claim
-   * absent. Deleting the sentence would have passed every check above while
-   * leaving the page silent about a detector that can miss.
-   */
-  check(
-    "🔴 57.6 …and where the published page describes risk scanning, it says the scan can miss",
-    !/risk language|لغة الخطر/i.test(published) ||
-      /misses things|false alarm|judgement|تفوتها|إنذارات كاذبة|حكمك/i.test(published),
-  );
+      /* ------------------------------- 57.6 · the pricing page is current -- */
 
-  /* --------------------------------------- 57.6 · the pricing page is current -- */
+      check(
+        "🔴 57.6 the published pricing page describes the monthly plan",
+        plans.length === 0 || /a month|شهريًا/i.test(published),
+        "a plan the page does not mention is a price nobody can find",
+      );
 
-  check(
-    "🔴 57.6 the published pricing page describes the monthly plan",
-    plans.length === 0 || /a month|شهريًا/i.test(published),
-    "a plan the page does not mention is a price nobody can find",
-  );
-
-  check(
-    "🔴 57.6 …and no published page still denies that a subscription exists",
-    plans.length === 0 || !/no subscription|بلا اشتراك/i.test(published),
-    "true for a year, false the hour the plan shipped, and nothing failed",
+      check(
+        "🔴 57.6 …and no published page still denies that a subscription exists",
+        plans.length === 0 || !/no subscription|بلا اشتراك/i.test(published),
+        "true for a year, false the hour the plan shipped, and nothing failed",
+      );
+    },
   );
 
   /* ------------------------------------------- 57.7 · every writer is guarded -- */

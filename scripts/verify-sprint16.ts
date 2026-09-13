@@ -463,6 +463,21 @@ async function main() {
             AUTH_SECRET: process.env.AUTH_SECRET ?? "0".repeat(64),
             STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? "whsec_verify16",
             APP_URL: process.env.APP_URL ?? "https://verify16.test",
+            /*
+             * 🔴 ADDED BY 57.8 / C284. The dummy list was incomplete, so this
+             * check passed or failed according to what the OPERATOR'S SHELL
+             * happened to export. Run with only `DATABASE_URL` set, the child
+             * died on `OPENAI_API_KEY is required in production` and this
+             * printed "a static rate is REFUSED in production" as a FAILURE —
+             * a money-safety property reported as broken by a missing key.
+             *
+             * A verifier exercises every branch it claims to cover, in one run,
+             * whatever the machine is configured with. The point of the child is
+             * `NODE_ENV`, not its keys, so every key `lib/env` requires in
+             * production is supplied here rather than hoped for.
+             */
+            DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://verify16.invalid/none",
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-verify16",
           },
           encoding: "utf8",
         },

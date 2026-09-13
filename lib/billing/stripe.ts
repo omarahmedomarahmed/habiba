@@ -107,12 +107,17 @@ export async function createCreditCheckout(opts: {
               name: `24Therapy credit, $${(quote.creditCents / 100).toFixed(2)}`,
               /*
                * 🔴 46.3 — the word "sessions" is gone from the offer, and this
-               * line is where somebody would put it back. What was bought is
-               * credit; what the threshold unlocked is the AI rate; the rate
-               * outlives the credit, which is why the expiry sentence is about
-               * the money alone.
+               * line is where somebody would put it back. What is bought is
+               * credit, which is money.
+               *
+               * 🔴 Sprint 57 — and it no longer says "yours to keep", because
+               * that promised a RATE LOCK the thresholds no longer grant. This
+               * string is on a Stripe receipt, which is the one piece of copy
+               * nobody in this repository would think to reread: it is not a
+               * page, it is not in the dictionary, and `verify:claims` cannot
+               * see it. Written down here for whoever changes the model next.
                */
-              description: `${quote.tier.name}: $${(quote.tier.aiRateCents / 100).toFixed(2)} per AI session, yours to keep. Credit valid until ${quote.expiresAt.toISOString().slice(0, 10)}`,
+              description: `$${(quote.creditCents / 100).toFixed(2)} of credit against your session and AI fees, spent before your card is. Valid until ${quote.expiresAt.toISOString().slice(0, 10)}`,
             },
           },
         },
