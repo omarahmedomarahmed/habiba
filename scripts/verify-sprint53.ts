@@ -1545,7 +1545,7 @@ async function main() {
       "🔴 53.12 no function in the pot module can take money out except a session",
       cashOut.length === 0,
       cashOut.length === 0
-        ? `${potExports.join(", ")} — one way in, one way out, and out is a session`
+        ? `${potExports.join(", ")}: one way in, one way out, and out is a session`
         : `CASH OUT: ${cashOut.join(", ")}`,
     );
 
