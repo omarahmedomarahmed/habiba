@@ -58,11 +58,16 @@ export function PricingEditor({
   tiers,
   creditExpiryMonths,
 }: {
-  tiers: { key: string; name: string; unlockCents: number; aiRateCents: number }[];
+  tiers: {
+    key: string;
+    name: string;
+    unlockCents: number;
+    aiRateCents: number;
+    monthlyCents: number;
+  }[];
   creditExpiryMonths: number;
 }) {
   const [state, action] = useActionState(savePricing, INITIAL);
-  const find = (key: string) => tiers.find((t) => t.key === key);
 
   return (
     <Card className="p-4">
@@ -71,20 +76,47 @@ export function PricingEditor({
         🔴 46.3 — a tier is a spend threshold and an AI rate, never a count.
         The platform fee lives on the session group below, because it is
         charged on every session at every tier and is not a tier figure at all.
+
+        🔴 Sprint 57 — and a MONTHLY price, which changes the meaning of the
+        other two rather than sitting beside them. Above zero the tier is
+        unlimited: the subscription is the whole price, and a session raises
+        both invoice lines at zero however the rate is set.
       */}
       <p className="mt-1 text-xs text-slate-500">
         These are the figures on the pricing page, on the homepage and on every invoice, with no
-        second copy. A threshold is what a clinician spends once to hold that AI rate, and the rate
-        is theirs afterwards: it does not expire when the credit does.
+        second copy. A monthly price above zero makes the tier unlimited, and the AI rate and
+        threshold below it stop being charged. Leave the monthly price at zero for a
+        pay-as-you-go tier, where a threshold is what a clinician spends once to hold that AI rate:
+        the rate is theirs afterwards and does not expire when the credit does.
       </p>
 
       <form action={action} className="mt-3 space-y-3">
-        {["payg", "starter", "growth"].map((key) => {
-          const tier = find(key);
+        {/*
+          🔴 Sprint 57 / C290 — every stored tier is rendered, not a typed list
+          of three keys. The save action reads the same list from settings, so a
+          tier this form does not draw is a tier the next save silently deletes.
+        */}
+        {tiers.map((tier) => {
+          const key = tier.key;
+          const unlimited = tier.monthlyCents > 0;
           return (
-            <div key={key} className="grid gap-2 sm:grid-cols-3">
+            <div key={key} className="grid gap-2 sm:grid-cols-4">
               <Field label={`${key}, name`} htmlFor={`${key}Name`}>
-                <Input id={`${key}Name`} name={`${key}Name`} defaultValue={tier?.name ?? key} />
+                <Input id={`${key}Name`} name={`${key}Name`} defaultValue={tier.name || key} />
+              </Field>
+              <Field
+                label="Monthly ($, 0 = pay as you go)"
+                htmlFor={`${key}Monthly`}
+                hint={unlimited ? "Unlimited: sessions cost this clinician nothing." : undefined}
+              >
+                <Input
+                  id={`${key}Monthly`}
+                  name={`${key}Monthly`}
+                  type="number"
+                  step="1"
+                  min="0"
+                  defaultValue={(tier.monthlyCents / 100).toFixed(0)}
+                />
               </Field>
               <Field label="AI rate ($ per consented session)" htmlFor={`${key}Rate`}>
                 <Input
@@ -93,7 +125,7 @@ export function PricingEditor({
                   type="number"
                   step="0.01"
                   min="0"
-                  defaultValue={((tier?.aiRateCents ?? 0) / 100).toFixed(2)}
+                  defaultValue={(tier.aiRateCents / 100).toFixed(2)}
                 />
               </Field>
               <Field label="Unlocked by spending ($)" htmlFor={`${key}Unlock`}>
@@ -103,7 +135,7 @@ export function PricingEditor({
                   type="number"
                   step="1"
                   min="0"
-                  defaultValue={((tier?.unlockCents ?? 0) / 100).toFixed(0)}
+                  defaultValue={(tier.unlockCents / 100).toFixed(0)}
                 />
               </Field>
             </div>

@@ -23,6 +23,7 @@ import {
   settingsProblem,
 } from "../lib/settings/defs";
 import { connect, schema } from "./db";
+import { writesTo } from "./_verify";
 
 const { platformSettings, countrySettings, subscriptions } = schema;
 
@@ -167,7 +168,19 @@ async function rails(db: ReturnType<typeof connect>["db"]) {
   console.log(`\n${filled} countries configured. Empty fields only; nothing was overwritten.`);
 }
 
+/*
+ * 🔴 Sprint 57 — this script WRITES, so it refuses production by name.
+ *
+ * Thirty-eight verifiers have called `writesTo()` since C147. These five did not,
+ * and an investor found the gap by reading scripts/demo.ts, whose own header says
+ * the seeded clinicians are on the public radar and a stranger can book one. That
+ * is correct on a branch and a disclosure on production: fabricated `DEMO-` licence
+ * numbers, publicly bookable, on a live marketing site.
+ *
+ * The safety was missing, not the reasoning. It is the same function, imported.
+ */
 async function main() {
+  writesTo();
   const verb = process.argv[2] ?? "seed";
   const { pool, db } = connect();
   try {

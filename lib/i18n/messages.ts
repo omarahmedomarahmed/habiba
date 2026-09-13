@@ -161,13 +161,20 @@ export const en = {
    * language and found the money page in English is being asked to trust a
    * number they cannot read the conditions of.
    */
-  "pricing.free": "Joining is free. You pay per session.",
+  /*
+   * 🔴 Sprint 57 — "no subscription" stopped being true the day we shipped
+   * one, and a sentence that was accurate for a year is exactly the sentence
+   * nobody rereads. `verify:claims` now refuses this shape outright: it reads
+   * the live tier table and fails if any published string denies a
+   * subscription while a tier carries a monthly price.
+   */
+  "pricing.free": "Joining is free. Pay per session, or a flat price a month.",
   "pricing.freeBody":
-    "No subscription, no seat fee, no setup fee, and your first completed session is on us.",
+    "No seat fee, no setup fee, no minimum, and your first completed session is on us. A monthly plan is there if you want it and never required.",
   "pricing.perSession": "/ session",
   "pricing.tier.payg": "Pay as you go",
-  "pricing.tier.starter": "Starter",
-  "pricing.tier.growth": "Growth",
+  "pricing.tier.practice": "Practice",
+  "pricing.tier.clinic": "Clinic",
   "pricing.payg": "Pay for the sessions you actually run. Nothing up front.",
   "pricing.includes":
     "The session and {count} copilot questions about that patient, each answer citing the session and timestamp it came from.",
@@ -181,9 +188,9 @@ export const en = {
   "pricing.feature.baa": "HIPAA BAA included",
   "pricing.signUp": "Sign up free",
   "pricing.noFees":
-    "Joining is free. No subscription, no seat fee, no setup fee.",
+    "Joining is free. No seat fee, no setup fee, no minimum.",
   "pricing.credits":
-    "You pay per session, only when you run one, and your first completed session is free. Credit lasts {months} months and is always spent before anything new is billed, so it is never stranded by a change of mind.",
+    "On pay as you go you are charged only when you run a session, and your first completed session is free. Credit lasts {months} months and is always spent before anything new is billed, so it is never stranded by a change of mind.",
   "pricing.radarLead": "Get booked on the Crisis Radar.",
   "pricing.radarBody":
     "Patients find you and book you, and we take {percent}% of what that session paid you, and nothing else.",
@@ -2856,9 +2863,34 @@ export const en = {
   "tplan.spentAi": "AI fees this month",
   "tplan.heldEarnings": "Your earnings we hold",
   "tplan.topUp": "Add credit",
-  "tplan.topUpBody": "Credit is money. It pays for session fees and AI fees alike, and reaching a threshold lowers your AI rate for good.",
+  /*
+   * 🔴 Sprint 57 — credit no longer buys a rate, so this no longer says it
+   * does. Every threshold is zero now; a sentence promising that spending more
+   * lowers the AI rate would be a control that does nothing, described
+   * accurately.
+   */
+  "tplan.topUpBody": "Credit is money held against your session and AI fees. It is spent before your card is.",
   "tplan.unlocks": "Unlocks {amount} per AI session",
   "tplan.rateKept": "The rate is yours to keep. It does not expire when the credit does.",
+
+  /* ------------------------------------------- 🔴 57.4 — the monthly plan -- */
+  "tplan.monthlyEvery": "{amount} a month, unlimited",
+  "tplan.unlimitedNoMeter":
+    "Sessions and AI cost you nothing on top. There is no per-session fee riding on what your patient decides about recording.",
+  "tplan.plansTitle": "Stop counting sessions",
+  "tplan.plansBody":
+    "One price a month: unlimited sessions, unlimited AI, nothing charged per session. Cancel any time and you keep the month you have paid for.",
+  "tplan.subscribe": "Subscribe",
+  "tplan.switchTo": "Switch to {name}, {amount} a month",
+  "tplan.renewsOn": "Renews {date}, {amount}",
+  "tplan.renewsMonthly": "Renews monthly, {amount}",
+  "tplan.cancelKeepsMonth":
+    "Cancelling stops the next charge. The plan runs to the date above and nothing changes before then.",
+  "tplan.cancel": "Cancel the plan",
+  "tplan.endsOn": "Your plan ends {date}",
+  "tplan.endsBody":
+    "Nothing changes until then. Afterwards you go back to {amount} a session, plus the AI fee when your patient turns it on.",
+  "tplan.resume": "Keep my plan",
   "tplan.addAmount": "Add {amount}",
   "tplan.creditExpiresOn": "Credit expires {date}",
   "tplan.settleFirst": "Pay a bill from",
@@ -2878,14 +2910,42 @@ export const en = {
    * never will be: both sentences are true and only the first is ours to say,
    * because we do not tell a clinician what to charge a patient.
    */
-  "pricing.headline": "{amount} per session. AI from {ai} more, only when your patient turns it on.",
+  /*
+   * 🔴 Sprint 57 — the page now has two offers, and the headline names both.
+   *
+   * "{amount} per session" was the whole offer and is now only half of it. A
+   * page that led with the meter while the product sells a subscription is the
+   * C60 failure again: figures that stopped being true and nobody watching.
+   */
+  "pricing.headline":
+    "Free to join. {amount} a session, or {monthly} a month and stop counting.",
+  /*
+   * 🔴 The headline for a tier table with no monthly plan in it. Not dead
+   * code: the schedule is admin-editable, and this is also what renders in the
+   * minutes between a deploy and the settings write that follows it.
+   */
+  "pricing.headlinePaygOnly":
+    "Free to join. {amount} per session, and {ai} more only when your patient turns the AI on.",
   "pricing.platformLine": "{amount} every session",
   "pricing.platformWhat": "The record, the booking, the reminders, your place on the radar, and the copilot inside the room. Charged whether or not the AI ran.",
   "pricing.aiLine": "+ {amount} with AI",
   "pricing.aiWhat": "Only when your patient turns it on. Nothing when they do not, and nothing changes for them either way.",
-  "pricing.unlockBy": "Add {amount} of credit",
-  "pricing.unlockGets": "and AI sessions cost {amount}",
-  "pricing.creditIsMoney": "Credit is money. It pays for session fees and AI fees alike, and the rate it unlocks is yours to keep.",
+  "pricing.paygTitle": "Pay as you go",
+  "pricing.paygBody": "No monthly fee and no minimum. You are charged when you run a session and not otherwise.",
+  "pricing.plansTitle": "Or one price a month",
+  "pricing.plansBody":
+    "Unlimited sessions and unlimited AI, with nothing charged per session. Cancel any time and you keep the month you have paid for.",
+  "pricing.monthlyPer": "{amount} a month",
+  "pricing.monthlyGets": "Unlimited sessions, unlimited AI, nothing per session.",
+  /*
+   * 🔴 The sentence a subscription page usually leaves out. A per-session AI
+   * fee is incurred by the therapist and switched on by the PATIENT, so an
+   * unlimited plan is not only cheaper at volume: it takes the money out of a
+   * consent conversation entirely (C209).
+   */
+  "pricing.plansNoMeter":
+    "On a monthly plan nothing rides on what your patient decides about recording. There is no per-session fee to be affected by it.",
+  "pricing.creditIsMoney": "On pay as you go you can hold credit with us. It is money against your session and AI fees, spent before your card is.",
   "pricing.patientPaysNothing": "Your patient never pays us anything.",
 
   /*
@@ -3090,13 +3150,13 @@ export const ar: Record<MessageKey, string> = {
   "feedback.emergency": "إذا كنت في خطر مباشر، اتصل برقم الطوارئ في بلدك.",
 
   /* pricing — 21R.8. Written as Arabic, not rendered from the English. */
-  "pricing.free": "الانضمام مجاني. تدفع عن كل جلسة.",
+  "pricing.free": "الانضمام مجاني. ادفع عن كل جلسة، أو سعرًا ثابتًا شهريًا.",
   "pricing.freeBody":
-    "بلا اشتراك، وبلا رسوم مقعد، وبلا رسوم تجهيز، وأول جلسة مكتملة علينا.",
+    "بلا رسوم مقعد، وبلا رسوم تجهيز، وبلا حد أدنى، وأول جلسة مكتملة علينا. والخطة الشهرية متاحة إن أردتها وليست شرطًا.",
   "pricing.perSession": "/ الجلسة",
   "pricing.tier.payg": "الدفع عند الاستخدام",
-  "pricing.tier.starter": "البداية",
-  "pricing.tier.growth": "التوسّع",
+  "pricing.tier.practice": "العيادة الفردية",
+  "pricing.tier.clinic": "المركز",
   "pricing.payg": "ادفع عن الجلسات التي تجريها فعلًا. لا شيء مقدمًا.",
   "pricing.includes":
     "الجلسة و{count} أسئلة للمساعد عن هذا المريض، وكل إجابة تشير إلى الجلسة والدقيقة التي جاءت منها.",
@@ -3110,9 +3170,9 @@ export const ar: Record<MessageKey, string> = {
   "pricing.feature.baa": "اتفاقية HIPAA مشمولة",
   "pricing.signUp": "أنشئ حسابك مجانًا",
   "pricing.noFees":
-    "الانضمام مجاني. بلا اشتراك، وبلا رسوم مقعد، وبلا رسوم تجهيز.",
+    "الانضمام مجاني. بلا رسوم مقعد، وبلا رسوم تجهيز، وبلا حد أدنى.",
   "pricing.credits":
-    "تدفع عن الجلسة حين تجريها فقط، وأول جلسة مكتملة مجانية. ورصيدك يبقى {months} شهرًا ويُصرف قبل أي محاسبة جديدة، فلا يضيع منك مهما غيّرت رأيك.",
+    "مع الدفع عند الاستخدام تُحتسب الرسوم حين تجري جلسة فقط، وأول جلسة مكتملة مجانية. ورصيدك يبقى {months} شهرًا ويُصرف قبل أي محاسبة جديدة، فلا يضيع منك مهما غيّرت رأيك.",
   "pricing.radarLead": "احجز مكانك على رادار الأزمات.",
   "pricing.radarBody":
     "يجدك المرضى ويحجزون معك، ونأخذ {percent}% مما دفعته تلك الجلسة لك، ولا شيء غير ذلك.",
@@ -5441,9 +5501,28 @@ export const ar: Record<MessageKey, string> = {
   "tplan.spentAi": "رسوم الذكاء الاصطناعي هذا الشهر",
   "tplan.heldEarnings": "أرباحك المحتفظ بها لدينا",
   "tplan.topUp": "أضف رصيدًا",
-  "tplan.topUpBody": "الرصيد نقود. يغطي رسوم الجلسات ورسوم الذكاء الاصطناعي على حد سواء، وبلوغ حد معيّن يخفض سعر الذكاء الاصطناعي لديك نهائيًا.",
+  "tplan.topUpBody": "الرصيد نقود محفوظة لتغطية رسوم الجلسات ورسوم الذكاء الاصطناعي. يُخصم قبل بطاقتك.",
   "tplan.unlocks": "يفتح سعر {amount} لكل جلسة بالذكاء الاصطناعي",
   "tplan.rateKept": "السعر يبقى لك. لا ينتهي بانتهاء الرصيد.",
+
+  /* ------------------------------------------- 🔴 57.4 — الاشتراك الشهري -- */
+  "tplan.monthlyEvery": "{amount} شهريًا، بلا حدود",
+  "tplan.unlimitedNoMeter":
+    "لا تكلّفك الجلسات ولا الذكاء الاصطناعي شيئًا إضافيًا. لا توجد رسوم لكل جلسة معلّقة على قرار مريضك بشأن التسجيل.",
+  "tplan.plansTitle": "توقّف عن عدّ الجلسات",
+  "tplan.plansBody":
+    "سعر واحد شهريًا: جلسات بلا حدود، وذكاء اصطناعي بلا حدود، وبلا رسوم لكل جلسة. ألغِ متى شئت ويبقى لك الشهر الذي دفعته.",
+  "tplan.subscribe": "اشترك",
+  "tplan.switchTo": "انتقل إلى {name}، {amount} شهريًا",
+  "tplan.renewsOn": "يتجدّد في {date} بمبلغ {amount}",
+  "tplan.renewsMonthly": "يتجدّد شهريًا بمبلغ {amount}",
+  "tplan.cancelKeepsMonth":
+    "الإلغاء يوقف الخصم القادم. تستمر الخطة حتى التاريخ أعلاه ولا يتغيّر شيء قبله.",
+  "tplan.cancel": "إلغاء الاشتراك",
+  "tplan.endsOn": "تنتهي خطتك في {date}",
+  "tplan.endsBody":
+    "لا يتغيّر شيء حتى ذلك الحين. بعدها تعود إلى {amount} لكل جلسة، إضافة إلى رسوم الذكاء الاصطناعي عندما يُشغّله مريضك.",
+  "tplan.resume": "أبقِ خطتي",
   "tplan.addAmount": "أضف {amount}",
   "tplan.creditExpiresOn": "ينتهي الرصيد في {date}",
   "tplan.settleFirst": "سدّد الفاتورة من",
@@ -5452,14 +5531,24 @@ export const ar: Record<MessageKey, string> = {
   "tplan.settleBody": "أيًّا كان اختيارك، نجرّب الآخر بعده، ثم بطاقتك في النهاية.",
 
   /* 🔴 46.9 — the pricing page, after the split. */
-  "pricing.headline": "{amount} لكل جلسة. والذكاء الاصطناعي من {ai} إضافية، فقط عندما يُشغّله مريضك.",
+  "pricing.headline":
+    "الانضمام مجاني. {amount} لكل جلسة، أو {monthly} شهريًا وتتوقّف عن العدّ.",
+  "pricing.headlinePaygOnly":
+    "الانضمام مجاني. {amount} لكل جلسة، و{ai} إضافية فقط عندما يُشغّل مريضك الذكاء الاصطناعي.",
   "pricing.platformLine": "{amount} لكل جلسة",
   "pricing.platformWhat": "السجل والحجز والتذكيرات ومكانك على الرادار والمساعد داخل الغرفة. تُحتسب سواء عمل الذكاء الاصطناعي أم لا.",
   "pricing.aiLine": "+ {amount} مع الذكاء الاصطناعي",
   "pricing.aiWhat": "فقط عندما يُشغّله مريضك. ولا شيء عندما لا يفعل، ولا يتغير شيء بالنسبة له في الحالتين.",
-  "pricing.unlockBy": "أضف رصيدًا بقيمة {amount}",
-  "pricing.unlockGets": "وتصبح جلسات الذكاء الاصطناعي بـ {amount}",
-  "pricing.creditIsMoney": "الرصيد نقود. يغطي رسوم الجلسات ورسوم الذكاء الاصطناعي على حد سواء، والسعر الذي يفتحه يبقى لك.",
+  "pricing.paygTitle": "الدفع عند الاستخدام",
+  "pricing.paygBody": "بلا رسوم شهرية وبلا حد أدنى. تُحتسب الرسوم حين تجري جلسة فقط.",
+  "pricing.plansTitle": "أو سعر واحد شهريًا",
+  "pricing.plansBody":
+    "جلسات بلا حدود وذكاء اصطناعي بلا حدود، وبلا أي رسوم لكل جلسة. ألغِ متى شئت ويبقى لك الشهر الذي دفعته.",
+  "pricing.monthlyPer": "{amount} شهريًا",
+  "pricing.monthlyGets": "جلسات بلا حدود، وذكاء اصطناعي بلا حدود، ولا شيء لكل جلسة.",
+  "pricing.plansNoMeter":
+    "مع الخطة الشهرية لا يتعلّق أي مبلغ بقرار مريضك بشأن التسجيل، لأنه لا توجد رسوم لكل جلسة أصلًا.",
+  "pricing.creditIsMoney": "مع الدفع عند الاستخدام يمكنك الاحتفاظ برصيد لدينا. هو نقود لتغطية رسوم الجلسات والذكاء الاصطناعي، ويُخصم قبل بطاقتك.",
   "pricing.patientPaysNothing": "مريضك لا يدفع لنا شيئًا أبدًا.",
 
   /* 🔴 47.1 / 47.3 — how a note was made, in the reader's language. */

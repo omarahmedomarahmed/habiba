@@ -1,0 +1,338 @@
+/**
+ * 🔴 Sprint 57 — the gate that did not exist.
+ *
+ * ## Why this file is here
+ *
+ * Forty-two verifiers and 476 tests point at code. Not one of them asks whether a
+ * sentence on a public page is TRUE.
+ *
+ * So we published "Risk language is never missed" over a classifier whose own
+ * recorded evaluation names two cases it misses on purpose — a person describing
+ * letters left in a drawer, and `لا يوجد سبب يجعلني أكمل`. And we published "Talk
+ * to a real therapist in the next sixty seconds" against a standing rule, written
+ * by us, that forbids response-time promises in a crisis product.
+ *
+ * Both survived every gate in this repository because marketing copy is a string,
+ * and every string gate we own counts whether a string is TRANSLATED, never
+ * whether it is TRUE.
+ *
+ * ## What this checks, and what it deliberately cannot
+ *
+ * It cannot judge truth. What it can do is refuse the two SHAPES of sentence that
+ * are almost never true in this product and are catastrophic when they are not:
+ *
+ *   1. An ABSOLUTE next to something a model produced. "Never", "always", "every",
+ *      "guaranteed" about a detector, a transcript or a note. A model is
+ *      probabilistic; a guarantee over one is a claim nobody can keep.
+ *   2. A RESPONSE-TIME PROMISE of any kind. C275: "24/7" describes the radar being
+ *      open, never that anybody will answer. No response-time promise appears
+ *      anywhere in this product, ever.
+ *
+ * Both are checked in BOTH languages, because the Arabic page is written from
+ * scratch rather than translated and can therefore drift on its own.
+ *
+ * ## The control
+ *
+ * Every absence assertion here is bracketed by a planted offender, because "no
+ * banned phrase found" is exactly what a scanner that reads nothing also reports.
+ * That is the §6 family and it is the reason this file has controls at all.
+ */
+import { readFileSync } from "node:fs";
+
+import { DEFAULT_PAGES } from "../lib/content/defaults";
+import { DEFAULT_PAGES_AR } from "../lib/content/defaults-ar";
+import { DICTIONARIES } from "../lib/i18n/messages";
+import { SETTINGS_DEFAULTS } from "../lib/settings/defs";
+
+let failures = 0;
+let checks = 0;
+
+function check(label: string, ok: boolean, detail = "") {
+  checks += 1;
+  if (ok) {
+    console.log(`  PASS  ${label}`);
+  } else {
+    failures += 1;
+    console.log(`  FAIL  ${label}${detail ? `  — ${detail}` : ""}`);
+  }
+}
+
+/* ------------------------------------------------------------- the rules -- */
+
+/**
+ * A promise about how fast a person will be reached.
+ *
+ * "Within minutes", "in sixty seconds", "minutes rather than weeks", "right
+ * away". The unit does not matter and neither does the number: what is banned is
+ * the shape, because a person in distress reads any of them as a commitment.
+ */
+const A_PERSON =
+  /therapist|clinician|counsell?or|somebody|someone|answer|reply|respond|reach|معالج|أحد|شخص|يرد|يجيب/i;
+
+const A_DURATION = [
+  /\b(?:in|within|under|next)\s+(?:the\s+)?(?:a\s+)?[\w-]*\s*(?:second|minute|hour)s?\b/i,
+  /\bminutes?\s+(?:rather\s+than|not|instead\s+of)\b/i,
+  /\bright\s+away\b/i,
+  /خلال\s+(?:دقيقة|دقائق|ثانية|ثوان|ساعة)/,
+  /دقائق\s+بدل/,
+  /فورًا/,
+];
+
+/*
+ * 🔴 The duration alone is not the offence.
+ *
+ * "Sign up and start a session in under a minute" is a claim about OUR interface,
+ * which we control and can keep. "Talk to a therapist in the next sixty seconds"
+ * is a claim about a stranger's availability, which we cannot. The rule fires only
+ * where a duration sits beside a PERSON, because that is the sentence a patient in
+ * distress reads as a commitment.
+ */
+/*
+ * 🔴 Proximity, and the reason is this file's own copy.
+ *
+ * The sentence that now tells the truth about the detector reads "Every segment is
+ * scanned as it arrives … it misses things, it raises false alarms". It contains an
+ * absolute AND a performance word, two hundred characters apart, saying opposite
+ * things. A rule that only asked "does the string contain both" flagged the very
+ * sentence written to fix the defect.
+ *
+ * A claim of perfection is ADJACENT: "never missed", "always caught", "100%
+ * accurate". So the two must sit within one clause of each other.
+ */
+const NEAR = 40;
+
+function claimsPerfection(text: string): boolean {
+  const abs = [...text.matchAll(new RegExp(ABSOLUTE.source, "gi"))];
+  const perf = [...text.matchAll(new RegExp(PERFORMANCE.source, "gi"))];
+  return abs.some((a) => perf.some((p) => Math.abs((a.index ?? 0) - (p.index ?? 0)) <= NEAR));
+}
+
+function promisesAPerson(text: string): boolean {
+  return A_DURATION.some((r) => r.test(text)) && A_PERSON.test(text);
+}
+
+/** Words that assert certainty. */
+/*
+ * 🔴 `\b` does not work in Arabic script: the engine sees no word boundary between
+ * an Arabic letter and the next, so `/\bأبدًا\b/` never matches anything. The first
+ * version of this rule had one, and the control for the Arabic sentence we actually
+ * shipped failed while the English one passed. Latin alternation keeps the
+ * boundary; Arabic alternation must not have one.
+ */
+const ABSOLUTE =
+  /\b(?:never|always|every|all|guarantee[ds]?|guaranteed|100%|no\s+exceptions?)\b|(?:أبدًا|دائمًا|نضمن|مضمون)/i;
+
+/*
+ * 🔴 Not "an absolute about the AI" — an absolute about HOW WELL it performs.
+ *
+ * "Every read of a chart is written to an append-only audit log" is an absolute
+ * and it is TRUE: it describes a mechanical guarantee the database keeps. "Risk
+ * language is never missed" is an absolute about ACCURACY, and no probabilistic
+ * detector can keep one. The first version of this rule could not tell them apart
+ * and flagged fifteen true sentences, which is how a gate gets switched off.
+ */
+const PERFORMANCE =
+  /\b(?:miss(?:ed|es)?|catch|caught|detect\w*|accurat\w*|correct|error|wrong|fail\w*|perfect|reliab\w*|spot(?:s|ted)?)\b|(?:تفوت|يفوت|تلتقط|دقيق|خطأ|تفشل|مثالي|موثوق)/i;
+
+/* --------------------------------------------------------- the harvester -- */
+
+/** Every human-readable string in a page tree, with a path to find it again. */
+function strings(node: unknown, path: string, out: { path: string; text: string }[]) {
+  if (typeof node === "string") {
+    if (node.trim().length > 12) out.push({ path, text: node });
+    return;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((item, i) => strings(item, `${path}[${i}]`, out));
+    return;
+  }
+  if (node && typeof node === "object") {
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      // Keys that hold identifiers, not prose.
+      if (["slug", "icon", "demo", "type", "href", "key"].includes(key)) continue;
+      strings(value, `${path}.${key}`, out);
+    }
+  }
+}
+
+function harvest(pages: unknown, label: string) {
+  const out: { path: string; text: string }[] = [];
+  strings(pages, label, out);
+  return out;
+}
+
+/* ------------------------------------------------------------ the checks -- */
+
+const EN = harvest(DEFAULT_PAGES, "en");
+const AR = harvest(DEFAULT_PAGES_AR, "ar");
+
+console.log(`\nPublic claims: ${EN.length} English strings, ${AR.length} Arabic\n`);
+
+check(
+  "the harvester actually reads the pages",
+  EN.length > 40 && AR.length > 40,
+  `en=${EN.length} ar=${AR.length}`,
+);
+
+function scan(corpus: { path: string; text: string }[], label: string) {
+  const timed = corpus.filter((s) => promisesAPerson(s.text));
+  check(
+    `🔴 C275 ${label}: no promise about how fast a PERSON will answer`,
+    timed.length === 0,
+    timed.map((s) => `${s.path}: "${s.text.slice(0, 70)}"`).join(" · "),
+  );
+
+  const claimed = corpus.filter((s) => claimsPerfection(s.text));
+  check(
+    `🔴 ${label}: no absolute claim about how WELL anything performs`,
+    claimed.length === 0,
+    claimed.map((s) => `${s.path}: "${s.text.slice(0, 70)}"`).join(" · "),
+  );
+}
+
+scan(EN, "EN");
+scan(AR, "AR");
+
+/* ---------------------------------------------------------- the controls -- */
+
+/*
+ * 🔴 Both assertions above are ABSENCES, and an absence passes just as happily
+ * against a scanner that matches nothing at all. So each rule is proved against
+ * a sentence that should fail it.
+ */
+const PLANTED_TIME = [
+  { path: "control", text: "Talk to a real therapist in the next sixty seconds" },
+  { path: "control", text: "تحدّث إلى معالج حقيقي خلال دقيقة" },
+];
+check(
+  "🔴 CONTROL the response-time rule catches the sentence we actually shipped",
+  PLANTED_TIME.every((s) => promisesAPerson(s.text)),
+);
+
+const PLANTED_ABSOLUTE = [
+  { path: "control", text: "Risk language is never missed" },
+  { path: "control", text: "لغة الخطر لا تفوتنا أبدًا" },
+];
+check(
+  "🔴 CONTROL the absolute rule catches the sentence we actually shipped",
+  PLANTED_ABSOLUTE.every((s) => claimsPerfection(s.text)),
+);
+
+check(
+  "🔴 CONTROL a TRUE absolute and an interface-speed claim are NOT caught",
+  !promisesAPerson("Sign up and start a session in under a minute") &&
+    !claimsPerfection("Every read of a chart is written to an append-only audit log") &&
+    !claimsPerfection(
+      "Every segment is scanned as it arrives. It misses things and it raises false alarms.",
+    ),
+);
+
+/* ------------------------------------------------ the claim that was meta -- */
+
+/*
+ * "Every claim on this page is a screen you can see" converted every other false
+ * claim on the page into a stated lie. It is gone, and it stays gone.
+ */
+const META = /every claim on this page|كل ما نقوله هنا شاشة/i;
+check(
+  "the meta-claim that compounded every other one is gone",
+  ![...EN, ...AR].some((s) => META.test(s.text)),
+);
+check("🔴 CONTROL the meta-claim rule would catch it", META.test("Every claim on this page is a screen you can see"));
+
+/* ------------------------------------- the measured numbers are not hidden -- */
+
+/*
+ * We may not claim the detector is perfect. We should also not hide what it is.
+ * PLAN.md C163 records sensitivity 88.2% and specificity 76.9% with two cases
+ * missed on purpose; sprint 35 reports 100% sensitivity on the shipped ladder.
+ * Whatever the number, the page says the detector can miss.
+ */
+const risk = [...EN, ...AR].filter((s) => /risk language|لغة الخطر/i.test(s.text));
+check(
+  "where the page describes risk scanning, it says the scan can miss",
+  risk.length > 0 &&
+    risk.some((s) => /miss|false alarm|judgement|تفوت|إنذارات كاذبة|حكمك/i.test(s.text)),
+  `${risk.length} risk strings`,
+);
+
+/* ------------------------------------- a claim the product outgrew, checked -- */
+
+/*
+ * 🔴 Sprint 57 / C291 — the rule that would have caught this class of defect
+ * without anybody rereading the site.
+ *
+ * "No subscription, no seat fee, no setup fee" was TRUE for a year and became
+ * false the hour sprint 57 shipped two monthly plans. Nothing failed. A sentence
+ * that was accurate when it was written is exactly the sentence nobody rereads,
+ * which is the same shape as C60, where the pricing page went on selling a plan
+ * that had been repriced a fortnight earlier.
+ *
+ * So this does not judge the sentence. It compares the copy to the PRODUCT: if
+ * any tier carries a monthly price, no published string may deny that a
+ * subscription exists. The copy and the tier table cannot drift apart without
+ * this failing, whichever of the two moves.
+ *
+ * The dictionary is scanned as well as the page defaults, because the pricing
+ * page's own wording lives in `messages.ts` and the first version of this file
+ * read only `DEFAULT_PAGES` — a gate that reads half the copy reports a clean
+ * run on the half it read.
+ */
+const DENIES_SUBSCRIPTION =
+  /\bno\s+subscriptions?\b|\bwithout\s+a\s+subscription\b|\bnever\s+a\s+subscription\b|بلا\s+اشتراك|دون\s+اشتراك|بدون\s+اشتراك/i;
+
+const DICTIONARY_STRINGS = Object.entries(DICTIONARIES).flatMap(([locale, dict]) =>
+  Object.entries(dict).map(([key, text]) => ({ path: `${locale}:${key}`, text: String(text) })),
+);
+
+const ALL_COPY = [...EN, ...AR, ...DICTIONARY_STRINGS];
+
+const sellsASubscription = SETTINGS_DEFAULTS.pricing.tiers.some((t) => t.monthlyCents > 0);
+const denials = ALL_COPY.filter((s) => DENIES_SUBSCRIPTION.test(s.text));
+
+check(
+  `🔴 C291 the copy and the tier table agree about whether we sell a subscription (we ${sellsASubscription ? "do" : "do not"})`,
+  sellsASubscription ? denials.length === 0 : true,
+  denials.map((s) => `${s.path}: "${s.text.slice(0, 60)}"`).join(" · "),
+);
+
+check(
+  "🔴 CONTROL the subscription rule catches the sentence we actually shipped",
+  DENIES_SUBSCRIPTION.test("Joining is free. No subscription, no seat fee, no setup fee.") &&
+    DENIES_SUBSCRIPTION.test("بلا اشتراك، وبلا رسوم مقعد، وبلا رسوم تجهيز."),
+);
+
+check(
+  "🔴 CONTROL the harvester reaches the DICTIONARY, not only the page defaults",
+  DICTIONARY_STRINGS.length > 2_000 &&
+    DICTIONARY_STRINGS.some((s) => s.path === "en:pricing.noFees"),
+  `${DICTIONARY_STRINGS.length} dictionary strings`,
+);
+
+/*
+ * 🔴 And the reverse: a product that sells a subscription must SAY SO somewhere
+ * a visitor can read, or we have shipped a price nobody can find. An absence
+ * check on its own would pass against a pricing page that mentions no plan at
+ * all, which is the §6 family again.
+ */
+const MENTIONS_MONTHLY = /\ba\s+month\b|\bmonthly\b|\bper\s+month\b|شهريًا|شهري/i;
+check(
+  "a monthly plan that exists is described on a page somebody can read",
+  !sellsASubscription || ALL_COPY.some((s) => MENTIONS_MONTHLY.test(s.text)),
+);
+
+/* --------------------------------------------------------------- the log -- */
+
+/*
+ * The hazard file is read by every new contributor before their first commit. An
+ * entry describing a fixed defect is a false alarm, and H20 in that same file is
+ * the record of what standing false alarms do.
+ */
+const hazards = readFileSync("HAZARDS.md", "utf8");
+check(
+  "every hazard carries a status, so a fixed one cannot masquerade as live",
+  /\|\s*Status\s*\|/i.test(hazards),
+);
+
+console.log(`\nverify:claims — ${checks - failures}/${checks} checks pass\n`);
+process.exit(failures === 0 ? 0 : 1);

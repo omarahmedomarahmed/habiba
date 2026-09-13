@@ -10,6 +10,7 @@ import { activatePurchase, createPendingPurchase, quoteCredits } from "./credits
 import { recordCreditPurchaseInvoice, sumPayable } from "./service";
 import { env, features } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import { getSettings } from "@/lib/settings";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -148,6 +149,98 @@ export async function createCreditCheckout(opts: {
 }
 
 /**
+ * 🔴 Sprint 57 — subscribe to a monthly tier.
+ *
+ * ## What this restores, and what it does differently
+ *
+ * There was a `createSubscriptionCheckout` here before sprint 46 removed it,
+ * selling a hard-coded $99 `unlimited` plan. This is not that function brought
+ * back: **the price is read from `platform_settings` at checkout time**, like
+ * every other figure in this product, so an admin changing $99 to $89 changes
+ * what the next subscriber is charged with no Stripe product to create and no
+ * deploy. `price_data.recurring` lets Stripe price an ad-hoc subscription the
+ * same way `createCreditCheckout` prices an ad-hoc payment.
+ *
+ * ## The tier is validated against settings, never trusted from the form
+ *
+ * A key that is not a live tier, or is a live tier with no monthly price, is
+ * refused here rather than sent to Stripe. Without that check a crafted form
+ * post could open a $0 subscription to the `clinic` tier and `entitledTier`
+ * would honour it, because entitlement asks what the ROW says and the row would
+ * say `clinic`. The money and the entitlement have to be decided by the same
+ * lookup or they will eventually disagree.
+ *
+ * ## No local row is written here
+ *
+ * Unlike a credit purchase, nothing is recorded as `pending`. A subscription
+ * that exists locally before Stripe has charged anything is a free month for
+ * anybody who opens checkout and walks away, and `entitledTier` honours a null
+ * period end. The row is created when the checkout completes, which both the
+ * webhook and the redirect-confirm path reach.
+ */
+export async function createSubscriptionCheckout(opts: {
+  organizationId: string;
+  email: string;
+  tierKey: string;
+}): Promise<{ url?: string; error?: string }> {
+  const client = getStripe();
+  if (!client) return { error: "Payments are not configured on this deployment." };
+
+  const settings = await getSettings();
+  const tier = settings.pricing.tiers.find((t) => t.key === opts.tierKey);
+  if (!tier) return { error: "That plan is no longer offered." };
+  if (tier.monthlyCents <= 0) {
+    return { error: "That plan is pay as you go. There is nothing to subscribe to." };
+  }
+
+  const customerId = await ensureCustomer(opts.organizationId, opts.email);
+  if (!customerId) return { error: "Stripe could not identify your account." };
+
+  try {
+    const checkout = await client.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: tier.monthlyCents,
+            recurring: { interval: "month" },
+            product_data: {
+              name: `24Therapy ${tier.name}`,
+              description:
+                "Unlimited sessions and unlimited AI. Cancel any time and you keep the month you have paid for.",
+            },
+          },
+        },
+      ],
+      success_url: `${env.appUrl}/billing?checkout={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.appUrl}/billing?checkout=cancelled`,
+      metadata: {
+        kind: "subscription",
+        organizationId: opts.organizationId,
+        tierKey: tier.key,
+      },
+      // Stripe copies this onto the subscription itself, which is the only
+      // place `customer.subscription.*` events can read it from later.
+      subscription_data: {
+        metadata: { organizationId: opts.organizationId, tierKey: tier.key },
+      },
+    });
+
+    if (!checkout.url) return { error: "Stripe did not return a payment link." };
+    return { url: checkout.url };
+  } catch (error) {
+    log.error("subscription checkout failed", {
+      organization: ref(opts.organizationId),
+      reason: safeErrorMessage(error),
+    });
+    return { error: "Stripe could not start the subscription just now. Try again in a moment." };
+  }
+}
+
+/**
  * One Stripe checkout for any number of outstanding invoices.
  *
  * The therapist selects the bills they want to settle and gets a single link
@@ -233,6 +326,47 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
     }
   }
 
+  /*
+   * 🔴 Sprint 57 — a completed subscription checkout, from either path.
+   *
+   * `upsert` rather than insert: an organisation has at most one subscription
+   * (`subscriptions_org_unique`), and a therapist moving from Practice to
+   * Clinic, or resubscribing after a cancellation, completes a second checkout
+   * against the same row. An insert would violate the unique index and leave
+   * somebody charged with no entitlement.
+   *
+   * The period end is left null when Stripe has not told us one yet.
+   * `entitledTier` honours a null, because the money has changed hands and the
+   * `invoice.paid` that carries the date is moments behind.
+   */
+  if (session.metadata?.kind === "subscription" && session.mode === "subscription") {
+    const tierKey = session.metadata?.tierKey;
+    const subscriptionId =
+      typeof session.subscription === "string" ? session.subscription : null;
+
+    if (organizationId && tierKey) {
+      await db
+        .insert(subscriptions)
+        .values({
+          organizationId,
+          plan: tierKey as (typeof subscriptions.$inferInsert)["plan"],
+          status: "active",
+          stripeSubscriptionId: subscriptionId,
+          cancelAtPeriodEnd: false,
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.organizationId,
+          set: {
+            plan: tierKey as (typeof subscriptions.$inferInsert)["plan"],
+            status: "active",
+            stripeSubscriptionId: subscriptionId,
+            cancelAtPeriodEnd: false,
+            updatedAt: new Date(),
+          },
+        });
+    }
+  }
+
   // Settle every invoice attached to this checkout, however many there were.
   //
   // This covers two cases with one query: a therapist paying a batch of their
@@ -272,6 +406,104 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
       });
     }
   }
+}
+
+/**
+ * 🔴 Sprint 57 — write Stripe's view of a subscription onto our row.
+ *
+ * One function for three events, because all three answer the same question and
+ * answering it three ways is how the local row and Stripe drift apart.
+ *
+ * ## Finding the organisation without trusting the event
+ *
+ * `subscription_data.metadata` carries the organisation id from checkout, and
+ * the customer id is the fallback for a subscription created in Stripe's
+ * dashboard by hand. If neither resolves, nothing is written: a subscription
+ * event we cannot attribute is not a reason to guess which therapist it belongs
+ * to.
+ *
+ * ## The status map, and the one that is not a cancellation
+ *
+ * Stripe has seven statuses and this product has three. `past_due` and
+ * `unpaid` both mean "we are still trying", and both keep the therapist on the
+ * plan until the period they paid for runs out — that is `entitledTier`'s
+ * grace, and it is why `unpaid` is NOT mapped to cancelled here. `incomplete`
+ * is a checkout that never completed, which is a cancellation from our side
+ * because no money arrived.
+ */
+function statusFrom(stripeStatus: Stripe.Subscription.Status): "active" | "past_due" | "cancelled" {
+  switch (stripeStatus) {
+    case "active":
+    case "trialing":
+      return "active";
+    case "past_due":
+    case "unpaid":
+      return "past_due";
+    default:
+      // canceled, incomplete, incomplete_expired, paused.
+      return "cancelled";
+  }
+}
+
+function subscriptionIdOf(invoice: Stripe.Invoice): string | null {
+  const sub = invoice.subscription;
+  if (typeof sub === "string") return sub;
+  return sub?.id ?? null;
+}
+
+async function mirrorSubscription(sub: Stripe.Subscription): Promise<void> {
+  const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null;
+  let organizationId = sub.metadata?.organizationId ?? null;
+
+  if (!organizationId && customerId) {
+    const [org] = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.stripeCustomerId, customerId))
+      .limit(1);
+    organizationId = org?.id ?? null;
+  }
+
+  if (!organizationId) {
+    log.warn("subscription event could not be attributed", { reason: "no organization" });
+    return;
+  }
+
+  const status = statusFrom(sub.status);
+  const tierKey = sub.metadata?.tierKey ?? null;
+
+  /*
+   * 🔴 The plan is only written when Stripe carried one, and a cancelled
+   * subscription keeps the key it had.
+   *
+   * Rewriting `plan` to `payg` on cancellation would destroy the record of what
+   * somebody was on, and `entitledTier` does not need it: a cancelled status
+   * already falls back to the spend ladder. Status is the entitlement; plan is
+   * the history.
+   */
+  await db
+    .insert(subscriptions)
+    .values({
+      organizationId,
+      plan: (tierKey ?? "payg") as (typeof subscriptions.$inferInsert)["plan"],
+      status,
+      stripeSubscriptionId: sub.id,
+      currentPeriodEnd: new Date(sub.current_period_end * 1000),
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.organizationId,
+      set: {
+        ...(tierKey
+          ? { plan: tierKey as (typeof subscriptions.$inferInsert)["plan"] }
+          : {}),
+        status,
+        stripeSubscriptionId: sub.id,
+        currentPeriodEnd: new Date(sub.current_period_end * 1000),
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 export async function confirmCheckout(checkoutSessionId: string): Promise<boolean> {
@@ -318,16 +550,35 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
       break;
 
     /*
-     * The subscription and renewal branches that used to live here are gone.
+     * 🔴 Sprint 57 — the renewal branches, restored because there is a
+     * recurring plan again.
      *
-     * There is no recurring plan any more — sessions are bought outright, and a
-     * credit purchase arrives as `checkout.session.completed` like any other
-     * one-time payment. Stripe will still deliver subscription events for the
-     * handful of accounts that had one before the move to PAYG; they fall
-     * through to the default and are recorded in `stripe_events` without
-     * action, which is the correct outcome: those subscriptions were cancelled
-     * in Stripe and there is nothing left for us to mirror.
+     * `customer.subscription.updated` and `.deleted` are the only honest source
+     * for what a subscription IS: a card that stops working, a cancellation
+     * made in Stripe's own portal, a plan Stripe ended after exhausting its
+     * retries. Without these the local row says `active` for ever and a
+     * therapist who stopped paying keeps unlimited AI indefinitely.
      */
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted": {
+      await mirrorSubscription(event.data.object);
+      break;
+    }
+
+    /*
+     * The renewal itself. `invoice.paid` carries the period the money bought,
+     * which is exactly what `entitledTier` measures entitlement against, so
+     * this is the event that actually extends access.
+     */
+    case "invoice.paid": {
+      const invoice = event.data.object;
+      const subscriptionId = subscriptionIdOf(invoice);
+      if (subscriptionId && client) {
+        const sub = await client.subscriptions.retrieve(subscriptionId);
+        await mirrorSubscription(sub);
+      }
+      break;
+    }
 
     /**
      * Connect capabilities. This is the only trustworthy source for
@@ -366,15 +617,18 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
 }
 
 /**
- * Cancel whatever recurring billing an account still has in Stripe.
+ * Stop a subscription renewing.
  *
- * Kept, narrowed, and no longer reachable from the product: there is nothing to
- * subscribe to any more, so this exists for the accounts that had a
- * subscription before the move to PAYG and for an admin cleaning one up. It
- * cancels at period end rather than immediately — a therapist who has paid for
- * this month keeps this month.
+ * 🔴 At period end, never immediately, and that is a product decision rather
+ * than a Stripe default. A therapist who has paid for this month keeps this
+ * month: cancelling on a Tuesday must not take unlimited AI away from the
+ * sessions they have already booked for Thursday. `entitledTier` reads the
+ * period end for exactly this reason and does not consult `cancelAtPeriodEnd`
+ * at all.
  *
- * The local row is already `payg`; this only stops Stripe from charging again.
+ * Reachable from the product again as of sprint 57, and still safe for an
+ * account with no Stripe subscription: it returns true having done nothing,
+ * because "make sure this is not renewing" is already satisfied.
  */
 export async function cancelSubscription(organizationId: string): Promise<boolean> {
   const client = getStripe();
@@ -390,6 +644,38 @@ export async function cancelSubscription(organizationId: string): Promise<boolea
   await db
     .update(subscriptions)
     .set({ cancelAtPeriodEnd: true, updatedAt: new Date() })
+    .where(eq(subscriptions.organizationId, organizationId));
+  return true;
+}
+
+/**
+ * 🔴 Sprint 57 — undo a cancellation that has not taken effect yet.
+ *
+ * Without this, a therapist who cancels and changes their mind on the same day
+ * has to wait for the period to end, lose the plan, and buy it again — which
+ * also resets their billing date and charges them twice in one month. Stripe
+ * makes this a one-field update while the subscription is still running, so the
+ * only reason not to offer it is forgetting to.
+ *
+ * Refused once the subscription has actually ended: `resume` on a cancelled
+ * subscription is a new purchase, and it goes through checkout so somebody is
+ * looking at a price before they are charged.
+ */
+export async function resumeSubscription(organizationId: string): Promise<boolean> {
+  const client = getStripe();
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, organizationId))
+    .limit(1);
+
+  if (!sub?.stripeSubscriptionId || !client) return false;
+  if (sub.status === "cancelled") return false;
+
+  await client.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: false });
+  await db
+    .update(subscriptions)
+    .set({ cancelAtPeriodEnd: false, updatedAt: new Date() })
     .where(eq(subscriptions.organizationId, organizationId));
   return true;
 }

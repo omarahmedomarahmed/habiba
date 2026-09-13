@@ -105,13 +105,20 @@ export const MANAGER_ROLES = ["manager", "super_admin"] as const;
  * The tiers a therapist can be on. Keys only — every *figure* lives in
  * `platform_settings.pricing`, which is why there is no rate here.
  *
- * `unlimited` is gone: there is no subscription any more, only sessions bought
- * at a rate. Existing rows were moved to `payg` by `scripts/settings.ts
- * reprice`. The column is plain `text` with no check constraint, so a value
- * outside this list is possible in the database and `tierByKey` fails closed to
- * the zero-minimum tier rather than throwing.
+ * 🔴 Sprint 57 — `starter` and `growth` are gone and `practice` and `clinic`
+ * are here, and NOTHING WAS MIGRATED, deliberately.
+ *
+ * The column is plain `text` with no check constraint, so a row still saying
+ * `growth` is legal in the database. `tierByKey` fails closed to the free tier
+ * for a key the settings no longer name, which is the correct outcome for a
+ * therapist whose old rate lock no longer exists: they go back to the free door
+ * and pay per session, rather than throwing or inheriting a tier by position.
+ *
+ * A rewrite would have had to decide what a $60 rate lock is worth in a world
+ * of monthly subscriptions, and any answer to that is a refund question rather
+ * than a data question. Leave the rows alone and let the money be discussed.
  */
-export const PLANS = ["payg", "starter", "growth"] as const;
+export const PLANS = ["payg", "practice", "clinic"] as const;
 export type PlanKey = (typeof PLANS)[number];
 
 export const SESSION_STATUSES = [

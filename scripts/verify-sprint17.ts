@@ -19,7 +19,7 @@ import { and, eq } from "drizzle-orm";
 
 import { contentPages, type ContentBlock } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
-import { reporter } from "./_verify";
+import { writesTo, reporter } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 
@@ -143,6 +143,8 @@ async function stubNextLink() {
 }
 
 async function main() {
+  // 🔴 Sprint 57 — this verifier WRITES. It refuses production like its siblings.
+  writesTo();
   /*
    * The components are compiled with the classic JSX runtime under tsx, which
    * expects `React` to be in scope at the call site. Putting it on the global

@@ -15,6 +15,7 @@ import { randomBytes } from "node:crypto";
 
 import { defaultsFor, localesWithDefaults } from "../lib/content/registry";
 import { connect, schema } from "./db";
+import { writesTo } from "./_verify";
 
 const {
   organizations,
@@ -100,7 +101,42 @@ const DEMO_NOTE = {
     "Same time next week, and bring the times you wrote down. If the review lands earlier than expected and the nights get heavier, message to move it sooner.",
 };
 
+/*
+ * 🔴 Sprint 57 — this script WRITES, so it refuses production by name.
+ *
+ * Thirty-eight verifiers have called `writesTo()` since C147. These five did not,
+ * and an investor found the gap by reading scripts/demo.ts, whose own header says
+ * the seeded clinicians are on the public radar and a stranger can book one. That
+ * is correct on a branch and a disclosure on production: fabricated `DEMO-` licence
+ * numbers, publicly bookable, on a live marketing site.
+ *
+ * The safety was missing, not the reasoning. It is the same function, imported.
+ *
+ * 🔴 …EXCEPT IN `--refresh-content`, and the exception is not a loophole, it is
+ * the reason this whole guard nearly shipped broken. C289b.
+ *
+ * The first version of this called `writesTo()` unconditionally, which is
+ * exactly what a guard should do — and it silently severed the only sanctioned
+ * way to publish content to production. `ship:content` exists because C148 was
+ * broken by a reseed that ran against a branch instead of production; it runs
+ * `db:seed --refresh-content`, prints the host first, and refuses `--yes` as a
+ * substitute for reading it. A blanket refusal here would have made the C148
+ * failure permanent while looking like an improvement, and nothing would have
+ * failed: `render:check` reported thirteen red checks that were really one
+ * missing publish.
+ *
+ * `--refresh-content` rewrites `content_pages` from the shipped defaults and
+ * touches nothing else — no users, no settings, no clinical data, no demo
+ * clinicians on the radar. That is the mode production needs and the mode that
+ * carries none of the risk this guard was added for.
+ */
 async function main() {
+  if (REFRESH_CONTENT) {
+    const host = (process.env.DATABASE_URL ?? "").match(/@([^/:?]+)/)?.[1] ?? "(none)";
+    console.log(`refreshing published content on ${host} — content_pages only\n`);
+  } else {
+    writesTo();
+  }
   const { pool, db } = connect();
 
   try {

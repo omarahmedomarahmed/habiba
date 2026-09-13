@@ -55,14 +55,32 @@ One session raises **two line items**, and only one is conditional.
 | **Platform fee** | The therapist, or their clinic | **Every session.** Free, in person, and declined ones |
 | **AI fee** | The therapist, or their clinic | **Only when the patient turned AI on** |
 
-Plans are **rate locks, not session bundles**. The money buys credit; the threshold
-buys a cheaper AI rate, and the rate outlives the credit.
+There are **two ways to pay, and joining is free either way.**
 
-| | Unlocks | A session then costs |
+| | Costs | A session then costs |
 |---|---|---|
-| Pay as you go | | $1 + $3 with AI, $1 without |
-| **$30 of credit** | $2 per AI session | $1 + $2 with AI, $1 without |
-| **$60 of credit** | $1 per AI session | $1 + $1 with AI, $1 without |
+| **Pay as you go** | nothing to be on | $1 + $3 with AI, $1 without |
+| **Practice** | $99 a month | nothing |
+| **Clinic** | $179 a month | nothing |
+
+A monthly plan is **unlimited**: unlimited sessions, unlimited AI, and no
+per-session fee at all. That is also a safety property and not only a price —
+the AI fee is incurred by the therapist and switched on by the **patient**, so an
+unlimited plan removes the last amount that could ride on a consent
+conversation. Pay as you go keeps the split fee, which does the same job from the
+other side (C209).
+
+🔴 **A subscribed session still raises both invoice lines, at zero.** Not no
+lines. A missing row is a gap; a zero is a fact, and every report keyed on line
+kind keeps working without being told a plan exists.
+
+🔴 **No amount of credit reaches a plan.** A subscription is bought, never
+earned, and `tierForSpend` walks credit tiers only — the one-line filter that
+stops any therapist who ever topped up a dollar from holding the $179 plan for
+nothing.
+
+Every figure above is a row in `platform_settings`, read at render time. Nothing
+is typed into a page, a checkout or a test fixture.
 
 **The patient never pays us.** They pay their therapist. A sponsored patient pays
 nobody: a corporate pot stands in for their card and changes nothing downstream.
@@ -178,9 +196,10 @@ npm run dev
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | The safety suite |
 | `npm run test:e2e` | Playwright, **through `tests/run-e2e.sh`**, which resolves the browser and starts a server. Running the file directly fails for that reason alone |
+| `npm run verify:claims` | 🔴 Reads every published sentence and refuses a promise about a person's response time or an absolute about how well anything performs. Needs no database |
 | `npm run verify:sprintNN` | Per-sprint gates. Most need a **branch** database and refuse production by name |
-| `npm run demo:seed` | Synthetic clinicians and invented people |
-| `npm run ship:content` | Publishes CMS defaults |
+| `npm run demo:seed` | Synthetic clinicians and invented people. **Refuses production by name** |
+| `npm run ship:content` | Publishes CMS defaults **to production**, then re-runs the verifiers you name. The CMS is authored-content-wins, so a copy fix that has not been shipped is a copy fix nobody can read |
 | `npm run screens` | Screenshots every screen |
 
 ---

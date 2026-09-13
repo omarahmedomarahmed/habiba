@@ -257,6 +257,17 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C285 | 52 | 🔴 **Verification has two sources of truth and the softer one is what everybody reads.** `users.verification_status` is read by **20 files**, including `lib/data/radar.ts`, `lib/partner/api.ts`, `lib/partner/launch.ts` and `lib/data/clinic.ts`. The history-grant trigger from 0060, which is where C106's invariant actually lives, reads `therapist_verifications.state = 'approved'` — a different table. Production today: **one user says `verified`, zero verifications say `approved`.** So a clinician can read as verified on the public radar a patient chooses from, in a clinic's portal, and in **55.5's answer to a partner asking whether we have verified them**, while the database protecting the clinical grant says they are not. The partner case is the sharp one: that is an assertion to an external party sourced from a column nothing enforces. **Ruling: one source of truth, and it is the one the database enforces.** Everything that displays or asserts verification derives from `therapist_verifications.state`, kept in step by the same trigger rather than by application code, and a verifier plants a divergence and proves every surface follows the hard column. **What it costs:** touching 20 files, and 55.5's answer becomes narrower and true. 2026-09-13. | blocker | **found by the build session, 2026-09-13** | **ruled — before the films** |
 | C286 | 52 | 🔴 **The Arabic patient sign-in page rendered its four controls in English, and the ratchet built to catch exactly that could not see them.** Phone number or email, Password, Sign in, Send me a code: the first screen an Arabic-speaking patient ever meets, with `t()` called three lines away in the same file. `_i18n-coverage.ts` counted JSX text plus `aria-label`, `placeholder`, `title` and `alt`, and not **`label`** or **`hint`**, which is how `<Field>` and `<Submit>` put words on screen in this repository. **176 of them, invisible to the instrument whose only job is to count visible English.** And the blind spot was **written down**: the ratchet's own note said a string passed as an ordinary prop is invisible to it, then argued it was still right because it cannot be satisfied by remembering. It could. It could be satisfied by using a `label` prop. **Ruling: a documented limitation whose cost is never counted is a limitation nobody acts on.** A known gap in a gate is either measured or closed; writing it in a comment is neither. `label` and `hint` are counted **by name**, never "any string prop", because counting every prop sweeps up ids and variants and produces a number that moves when somebody renames a variable, which is 51's and 53's phantom families. **What it costs:** admin 294 to 420 and shared 60 to 80, which is debt becoming visible rather than debt appearing. 2026-09-13. | blocker | **found by the build session, 2026-09-13** | **ruled — sprint 52** |
 | C287 | 52 | 🔴 **A zero that did not mean zero.** With `label` counted and the patient surface reading **0**, the Arabic account screen still said "Add a photo" and "Save your name" in English. The scanner's text-node pattern is `>([^<>{}]+)<`, so **a JSX expression container is skipped entirely** — every string inside a ternary, which is where this codebase puts the pending state of every button it has, including four separate local `Submit` helpers each hardcoding "Working…". **Ruling: the patient surface's share is keyed now, and the SHAPE is a named gap rather than a patched regex.** A pattern for "a quoted string inside a brace" would count Tailwind class names, and a ratchet that moves when somebody restyles a button is worse than one with a hole somebody has written down honestly. **That needs a parser, not a pattern**, and it is its own piece of work. **What it costs:** the i18n floor is still a floor and is now known to be one for a second reason. 2026-09-13. | major | **found by the build session, 2026-09-13** | **⚠️ shape open — named, not fixed** |
+| C288 | 57 | 🔴 **We published four claims nobody could keep, and forty-two verifiers could not see them.** "Risk language is **never missed**" sat over a classifier whose own recorded evaluation names two cases it misses on purpose. "Talk to a real therapist **in the next sixty seconds**" sat against a standing rule, written by us, forbidding response-time promises in a crisis product. "**Every claim on this page** is a screen you can see" converted every other false claim on the page into a stated lie. "**Minutes rather than weeks**" promised a stranger's availability. All four survived every gate in this repository, because **marketing copy is a string, and every string gate we own counts whether a string is TRANSLATED, never whether it is TRUE.** **Ruling: `verify:claims` exists and is in the permanent sweep.** It cannot judge truth, so it refuses the two SHAPES that are almost never true here and catastrophic when they are not: a duration beside a PERSON, and an absolute within one clause of a PERFORMANCE word. Both languages, every absence bracketed by a planted offender. **What it costs:** the homepage stops promising a therapist in sixty seconds and says the map may be empty. That sentence is the product. 2026-09-13. | blocker | **found by an outside reader, 2026-09-13** | **ruled — sprint 57, fixed** |
+| C289 | 57 | 🔴 **A rail that passed by measuring the wrong thing, and a rail is what everything else trusts instead of checking.** `settingsProblem` asked whether any tier had a threshold of zero, meaning "a therapist who has bought nothing still has a rate". Sprint 57 set **every** threshold to zero, including the $179 plan's, so the check went on passing while testing a condition that no longer existed: an admin could delete pay-as-you-go outright and the only rail meant to stop them would raise nothing. Eleventh occurrence of the §6 family and the first inside the rails themselves. **Ruling: the free door is a tier with no threshold AND no monthly price, and a rail is proved by CONSTRUCTING the configuration it must refuse.** An assertion that the good case passes is not a test of a guard. **What it costs:** two lines in `settingsProblem` and three tests that build bad tables on purpose. 2026-09-13. | blocker | **found while fixing C292, 2026-09-13** | **ruled — sprint 57, fixed** |
+| C290 | 57 | 🔴 **A pure function broken by moving its data, and the diff showed nothing.** `tierForSpend` walked every tier and kept the last one whose threshold the spend had passed — exactly right on a $0/$30/$60 ladder. With every threshold at zero it walked to the end, so **any therapist who had ever topped up a single dollar would have held the $179 unlimited plan for free.** The function was not edited. Its correctness depended on a property of its input that nobody had written down. Caught by a test rewritten an hour earlier, not by reading. **Ruling: only tiers with `monthlyCents === 0` are on the spend ladder, written as a filter rather than a comment, and when a schedule or lookup table changes shape every function that WALKS it is re-read.** Twelfth §6 occurrence. **What it costs:** nothing, and it would have cost the company every subscription it ever sold. 2026-09-13. | blocker | **found by our own rewritten test, 2026-09-13** | **ruled — sprint 57, fixed** |
+| C291 | 57 | 🔴 **Five writing scripts with no production guard, one of which seeds publicly bookable clinicians.** Thirty-eight verifiers have called `writesTo()` since C147; `demo.ts`, `seed.ts`, `republish.ts`, `settings.ts` and `shoot-room.ts` did not. `scripts/demo.ts`'s own header says the seeded clinicians appear on the public radar and a stranger can book one — correct on a branch, a **disclosure** on production: fabricated `DEMO-` licence numbers, publicly bookable, on a live site. The safety was missing, not the reasoning. **Ruling: every writer refuses the production endpoint by name, proved by a verifier that also names the exceptions.** **What it costs:** five imports, and it was found by somebody outside the company reading our repository. 2026-09-13. | blocker | **found by an outside reader, 2026-09-13** | **ruled — sprint 57, fixed** |
+| C292 | 57 | 🔴 **We were priced as a premium product and positioned as a cheap one, and nobody could compare us to anything.** "$1 a session plus $2 when the patient consents" cannot be weighed against a category that quotes a month. Our own rate table says a therapist at 25 sessions a week costs about **$36 a month** to serve; at 25 a week we took about **$3,000 a year**, which is 1.7 to 2.5 times what the best-funded scribe in the category charges. There was also a defect nobody had named: **the AI fee is incurred by the therapist and switched on by the patient**, so a therapist carried a variable monthly bill decided session by session by other people. **Ruling: pay as you go stays as the free door and still meters; two unlimited monthly plans at $99 and $179 are the offer.** `monthlyCents > 0` means unlimited, and $49 was refused as a 26% margin against measured cost where $99 is 64%. Break-even at $99 is around 300 sessions a month, which nobody runs, so fair use is a sentence in the FAQ and not a control. **What it costs:** Stripe subscription mode, renewals and dunning come back, and C209's protection is now reached from two directions rather than one. 2026-09-13. | blocker | **investor diligence, 2026-09-13** | **ruled — sprint 57, built** |
+| C293 | 57 | 🔴 **A subscribed session must raise both invoice lines at zero, never no lines at all.** The cheap version of an unlimited plan skips the invoice for a subscriber. It would also make a subscribed session invisible to 46.14's per-line-kind reconciler, to Total View's consent rate, to cost-per-session and to every report keyed on line kind — **C221's disappearance arriving through billing instead of through a null.** **Ruling: the record is identical for every session this product has ever run and only the amount changes.** `invoices_session_unique` and `invoice_lines_invoice_kind_unique` keep their meaning, and a zero is a fact where a missing row is a gap. **What it costs:** two lines of ternary, and every report keeps working without being told a plan exists. 2026-09-13. | major | planning review | **ruled — sprint 57, built** |
+| C294 | 57 | 🔴 **Entitlement is the period paid for, not a status.** Three readings of "is this subscription live" are all wrong: *while Stripe says `active`* drops a therapist the hour their card expires, mid-session, on a month they paid for three weeks ago; *while a row exists* gives the product away to anybody who ever subscribed once; *while `cancelAtPeriodEnd` is false* takes the month away the moment somebody cancels, which is the thing they were told would not happen. **Ruling: `entitledTier` is a pure function of the row, the spend and the clock. A failed renewal keeps the month already bought and ends when it does.** A plan key the tier table no longer names grants nothing, by `find` rather than by `tierByKey`, whose fail-closed fallback would have returned a tier while the caller believed a subscription was in force. **What it costs:** dunning is a date on a page rather than a lockout, and sprint 57 renames two tiers and migrates no rows, because what a $60 rate lock is worth under a subscription is a refund question and not a data question. 2026-09-13. | blocker | planning review | **ruled — sprint 57, built** |
+| C295 | 57 | 🔴 **A guard added to every writer severed both sanctioned production paths, silently.** `writesTo()` on `seed.ts` broke `ship:content`, which is the **only** way to publish content to production and exists because C148 was broken by a reseed that ran against a branch. `writesTo()` on `republish.ts` broke `render:check`, which renders every public page **against production** (C89) from `en-x-staging` rows only that script writes. Neither failed loudly: the render check reported thirteen red checks that were really one missing publish. **Ruling: before adding a refusal, list who legitimately needs past it.** `seed --refresh-content` touches `content_pages` and nothing else; a staging locale is reachable by a script and by nobody else. Both exceptions are named in the scripts and asserted by `verify:sprint57`, with a control proving the search reads each file. **What it costs:** a guard with two documented holes beats a guard that makes two documented failures permanent while looking like an improvement. 2026-09-13. | blocker | **found while fixing C291, 2026-09-13** | **ruled — sprint 57, fixed** |
+| C296 | 57 | 🔴 **Copy that was true when written is the copy nobody rereads.** "No subscription, no seat fee, no setup fee" was accurate for a year and false the hour C292 shipped. Nothing failed, because no gate in this repository reads a sentence for truth. It is C60's shape exactly — the pricing page sold a plan that had been repriced a fortnight earlier — and C60 was supposed to have been the last time. **Ruling: `verify:claims` compares the COPY to the PRODUCT.** If any tier carries a monthly price, no published string may deny that a subscription exists; and if a plan exists, some page must describe it, because an absence check alone passes against a page that mentions no plan at all. The dictionary is scanned as well as the page defaults, since the first version read half the copy and reported a clean run on the half it read. **What it costs:** a rule per claim that depends on a figure, added when the figure is added. 2026-09-13. | major | **found while fixing C292, 2026-09-13** | **ruled — sprint 57, fixed** |
+| C297 | 57 | 🔴 **Fixing `lib/content/defaults.ts` changes nothing a visitor sees.** The CMS is authored-content-wins: a slug with a row in `content_pages` is served from that row for ever, which is the right precedence and means a correction in the repository does not reach the site. C288's four claims were fixed in the file and still live on the website. Sixth costume of C148. **Ruling: a copy fix is not finished until `ship:content` has run against production, and `verify:sprint57` reads the published ROWS rather than the defaults** — with a control that finds a sentence which IS published, because four absence checks in a row pass just as happily against a query that returned nothing. **What it costs:** every content sprint ends with a production reseed, which is what C148 already said and what this makes checkable. 2026-09-13. | blocker | planning review | **ruled — sprint 57, gated** |
+| C298 | 57 | **The admin pricing form typed its own list of tier keys, and a stale list does not fail.** `savePricing` looped over `["payg", "starter", "growth"]`. After the rename the form posts `practiceMonthly`, the loop asks for `starterMonthly`, gets nothing, and **saves a complete pricing table built from defaults** — silently resetting every figure an admin had ever edited, with a success toast. **Ruling: the key list is read from what is stored, never typed**, in the action and in the form, so a tier an admin adds later is edited rather than deleted by the next save. **What it costs:** nothing, and it would have reset production pricing the first time somebody opened the settings page after this sprint. 2026-09-13. | major | **found while building 57.3, 2026-09-13** | **ruled — sprint 57, fixed** |
 
 ---
 
@@ -352,10 +363,13 @@ Two controls, side by side, both visible, both changeable mid-session:
 | Free links | Allowed. No cut, but the session bill still applies |
 | In-person | Always free. Paid at the clinic, we take nothing |
 
-### Pricing — one rate, bought in a minimum quantity
+### Pricing — a free door and two monthly plans
 
-Not subscriptions. A therapist buys sessions at a rate, and the rate is set by
-how many they buy at once.
+> 🔴 **This section is the sprint 1 target and is kept for the history. Sprint
+> 46 split the rate into two fees, and sprint 57 replaced the ladder with
+> subscriptions. The live model is in §3c.**
+
+Sprint 1's model was one rate bought in a minimum quantity:
 
 | Tier | Rate | Minimum | Costs them |
 |---|---|---|---|
@@ -363,8 +377,12 @@ how many they buy at once.
 | **Starter** | **$3.00**/session | 10 sessions | $30 |
 | **Growth** | **$2.00**/session | 30 sessions | $60 |
 
-Above a minimum they buy as many as they like at the same rate — a slider, not
-a fixed pack.
+**What it is now (C292):** pay as you go at $1 + $3 with AI and nothing to be
+on, **Practice at $99 a month** and **Clinic at $179 a month**, both unlimited.
+The reason is measured rather than chosen: at 25 sessions a week a therapist
+costs about **$36 a month** to serve, so $49 would have been a 26% margin and
+$99 is 64%. Break-even at $99 is around 300 sessions a month, which nobody runs,
+so fair use is a sentence in the FAQ and not a control.
 
 | Rule | |
 |---|---|
@@ -554,19 +572,37 @@ therapist a reason to lean on the most vulnerable person in the room.
 **The patient never pays us.** They pay their therapist. We take the platform
 fee and the tax.
 
-**Plans are rate locks, not session bundles.** The money buys credit; what the
-threshold buys is a cheaper AI rate, and that rate does not expire when the
-credit does.
+**🔴 AMENDED BY SPRINT 57 (C292). Rate locks are gone; there are two ways to
+pay and joining is free either way.**
 
-| | Unlocks | Then a session costs |
+| | Costs | Then a session costs |
 |---|---|---|
-| Pay as you go | | $1 + $3 with AI, $1 without |
-| **$30 of credit** | **$2 per AI session** | $1 + $2 with AI, $1 without |
-| **$60 of credit** | **$1 per AI session** | $1 + $1 with AI, $1 without |
+| **Pay as you go** | nothing to be on | $1 + $3 with AI, $1 without |
+| **Practice** | **$99 a month** | nothing |
+| **Clinic** | **$179 a month** | nothing |
 
-Credit is money and spends against any line item, platform fee or AI fee
-alike. The word "sessions" does not appear in the offer, because $30 does not
-buy ten of anything.
+A monthly plan is **unlimited**: unlimited sessions, unlimited AI, no
+per-session fee at all. Three things follow, and each is a rule rather than a
+detail:
+
+- 🔴 **A subscribed session still raises both invoice lines, at zero.** Not no
+  lines. A missing row is a gap and a zero is a fact, so 46.14's per-line-kind
+  reconciler, Total View's consent rate and cost-per-session all keep working
+  without being told a plan exists (C293).
+- 🔴 **No amount of credit reaches a plan.** A subscription is bought, never
+  earned. `tierForSpend` walks credit tiers only (C290).
+- 🔴 **A subscriber is entitled to the period they paid for**, not to a Stripe
+  status. A failed renewal keeps the month already bought and ends when it does
+  (C294).
+
+**And it is a safety property, not only a price.** The AI fee is incurred by the
+therapist and switched on by the **patient**, so on a metered plan a therapist
+carries a monthly bill decided session by session by other people. An unlimited
+plan removes the last amount that could ride on a consent conversation, which is
+C209 reached from the other side.
+
+Credit survives on pay as you go: it is money, spends against any line item, and
+buys no rate. The word "sessions" still does not appear in the offer.
 
 **A bill is settled from one of three places, and the therapist picks the
 order**: their session credit, their held earnings, or a card. Netting from
@@ -3523,6 +3559,148 @@ one conversation, and the only one where a single leak ends the company. Read
       and that emptying the pot changes nothing about the crisis path.
 
 
+### Sprint 57 — The price, the plan, and the claims · ~1 week · 🔴 DONE, NOT PLANNED
+
+> **This sprint was executed rather than specified.** It is written down after
+> the fact because the findings are worth keeping and because three of the ten
+> defects it fixed were introduced *by the sprint itself* and caught by its own
+> tests. Every box below is ticked against code on `main`.
+
+**Why it exists.** An outside reader went through the repository and the live
+site and found four things. Every one was real, and not one was caught by the
+forty-two verifiers and five hundred tests already here. That is the finding
+underneath the findings.
+
+**57.1 · The price (C292)**
+
+- [x] `PricingTier` gains `monthlyCents`. Above zero the tier is **unlimited**:
+      the subscription is the whole price and a session raises both invoice
+      lines at zero
+- [x] The schedule becomes **Pay as you go $0/mo** (the free door, still $1 +
+      $3 metered) · **Practice $99/mo** · **Clinic $179/mo**. $49 was refused as
+      a 26% margin against a measured $36 cost to serve a therapist at 25
+      sessions a week; $99 is 64%
+- [x] 🔴 A subscribed session raises **both lines, at zero**, never no lines
+      (C293). A missing row is a gap; a zero is a fact, and every report keyed
+      on line kind keeps working without being told a plan exists
+- [x] 🔴 `tierForSpend` filters to credit tiers, so **no amount of spending
+      reaches a subscription** (C290). Caught by our own rewritten test after
+      every threshold became zero
+- [x] 🔴 `settingsProblem` refuses a table with no tier that is free to BE on,
+      and refuses a tier carrying both a monthly price and a threshold (C289)
+- [x] `parseTiers` sorts on `(unlockCents, monthlyCents)`, so the free door
+      sorts first whatever order an admin saved
+
+**57.2 · The plan (C294)**
+
+- [x] `createSubscriptionCheckout` in Stripe `subscription` mode, priced from
+      `platform_settings` via `price_data.recurring` — **no Stripe product to
+      create, no deploy to change $99 to $89**
+- [x] The tier key is validated against live settings before Stripe is called.
+      Money and entitlement are decided by the same lookup or they will disagree
+- [x] `entitledTier` is a **pure function** of the row, the spend and the clock:
+      a subscriber is entitled to the period they paid for. `past_due` inside
+      the period keeps the plan; past the period it does not
+- [x] Webhook branches restored: `customer.subscription.updated` / `.deleted`,
+      `invoice.paid`, `invoice.payment_failed`. The row is **upserted**, because
+      switching plans completes a second checkout against one unique index
+- [x] `cancelSubscription` at period end, `resumeSubscription` to undo it while
+      the plan still runs. Cancelling without an undo would have charged a
+      therapist twice in one month for changing their mind
+- [x] `currentTier` consults the subscription **and** the ladder, or a
+      subscriber pays full pay-as-you-go on top of a plan they have bought
+
+**57.3 · The surfaces**
+
+- [x] The therapist portal card shows the plan, the date, switch, cancel and
+      resume — and hides the credit slider on an unlimited plan, where credit
+      buys something unusable
+- [x] The admin settings editor gains a **Monthly** field and renders **every
+      stored tier**, and `savePricing` reads the key list from settings rather
+      than typing one (C298)
+- [x] `PLANS` becomes `payg` / `practice` / `clinic`. **No migration.** A row
+      still saying `growth` falls back to the free door, because what a $60 rate
+      lock is worth under a subscription is a refund question, not a data one
+
+**57.4 · The claims (C288)**
+
+- [x] "Risk language is never missed" → "Risk language is scanned for, in
+      Arabic and English", **plus what it actually does**: it misses things, it
+      raises false alarms, and it never replaces your judgement
+- [x] "Talk to a real therapist in the next sixty seconds" → "Find a therapist
+      who is available now", **plus**: nobody is on duty and nobody is promised
+      to you; if the map is empty, it is empty
+- [x] "Every claim on this page is a screen you can see" — gone, and it stays
+      gone. It converted every other false claim into a stated lie
+- [x] "Minutes rather than weeks" — gone. Both languages, all four
+
+**57.5 · The gate that did not exist (C288, C296)**
+
+- [x] `scripts/verify-claims.ts`, **16/16**, in the permanent sweep. It cannot
+      judge truth, so it refuses two shapes: a duration beside a **person**, and
+      an absolute within one clause of a **performance** word
+- [x] Every absence is bracketed by a **planted offender**, and a control proves
+      a true absolute ("every read of a chart is audited") is not caught
+- [x] 🔴 It compares copy to the **product**: no published string may deny a
+      subscription while a tier carries a monthly price, and a plan that exists
+      must be described somewhere a visitor can read
+- [x] The **dictionary** is scanned as well as the page defaults. The first
+      version read half the copy and reported a clean run on the half it read
+
+**57.6 · Every marketing page**
+
+- [x] The pricing page rewritten for two offers: pay as you go, then the plans,
+      each priced and named from the database. The old block filtered on
+      `unlockCents > 0` and after this sprint rendered **nothing**, silently
+- [x] A second headline for a table with no monthly plan in it, so the page
+      never says "or $0 a month" — a price, and the worst kind, one nobody set
+- [x] The pricing FAQ gains five questions and rewrites three, in both
+      languages: the two ways to pay, what a plan includes, **which one you
+      should be on** (the arithmetic, no figure typed into the file), what
+      cancelling does, and what happens when a renewal fails
+- [x] "No subscription, no seat fee, no setup fee" and its Arabic twin are gone
+      from the dictionary, and `verify:claims` now makes that permanent
+
+**57.7 · The guards (C291, C295)**
+
+- [x] `demo.ts`, `seed.ts`, `republish.ts`, `settings.ts`, `shoot-room.ts` all
+      call `writesTo()`. Proven by exit code against the production endpoint
+- [x] 🔴 **Two exceptions, named rather than silent.** `seed --refresh-content`
+      is the only sanctioned way to publish content to production (C148);
+      `republish --staging` writes the rows `render:check` reads against
+      production (C89). Guarding both made two documented failures permanent
+      while looking like an improvement
+- [x] `verify:sprint57` asserts all five guards and both exceptions, with a
+      control on a read-only script that must NOT carry the guard
+
+**57.8 · The tests**
+
+- [x] `tests/safety.test.ts` **50/50**. Seven pricing tests rewritten rather
+      than deleted (H20), and five added: the ladder, the entitlement rule, the
+      two rails, and the legacy parse
+- [x] Every negative assertion carries a control. "No amount of spending reaches
+      a subscription" is satisfied by a function that always returns the first
+      tier, so a real ladder is built and proved to still climb
+- [x] `verify:sprint1`, `verify:sprint46` and `render:check` amended in the
+      current vocabulary. `verify:sprint46` was pinned to the exact source line
+      `tierForSpend(settings.pricing.tiers, lifetimeCents)` and would have
+      failed on a change that was correct — the worst kind, because the cheapest
+      way to make it pass again is to loosen it
+
+- **Accept:** the pricing page sells two things, both priced from the database;
+      a therapist subscribes, switches, cancels and resumes without leaving the
+      portal; a failed renewal keeps the month already bought and ends when it
+      does; no amount of credit reaches a plan; every published claim survives
+      `verify:claims` in both languages; and `verify:sprint57` proves the fixes
+      reached the rows a visitor is actually served.
+
+**What sprint 57 did NOT do, named rather than left as silence.** Proration on a
+mid-month plan switch is Stripe's default and has not been chosen deliberately.
+There is no dunning email — a failed renewal is a date on the billing page and
+nothing else reaches the therapist. Neither is a defect today and both are the
+next thing to decide about money.
+
+
 
 
 ## §5 · BUILD LOG
@@ -3713,6 +3891,12 @@ watched fail is a check nobody knows the meaning of.
 | 🔴 **A file with a NUL byte is invisible to every grep in this repository.** `grep` answers `binary file matches` and prints nothing. One file had two, and it was the clinical evidence layer, which is how C214 came to be written backwards (C245) | Hard |
 | 🔴 **A wall is a property of the data, not of the audience.** "The payer never learns" and "no employee of ours can produce the list" are different promises. Build the second or you have neither (C244) | Hard |
 | 🔴 **A known-failing test is a test nobody reads.** Five e2e tests asserted UI that sprints 41 and 47 deliberately changed, and sat red for fifteen sprints behind a standing explanation of "no headless shell" that was itself wrong. A failure carrying a standing explanation gets re-diagnosed on a schedule, or the explanation becomes a lid | Process |
+| 🔴 **A pure function can be broken by moving its DATA.** `tierForSpend` walked a schedule and was correct until every threshold in it became zero. The function was not edited. When a schedule, list or lookup table changes shape, re-read every function that WALKS it — the diff will not show them (C290) | Hard |
+| 🔴 **A rail is proved by CONSTRUCTING the configuration it must refuse.** Asserting that the good case passes is not a test of a guard. `settingsProblem` reported clean for a table with no free tier in it, because the condition it named had become true of every tier (C289) | Hard |
+| 🔴 **Before adding a refusal, list who legitimately needs past it.** A `writesTo()` on every writer severed the only sanctioned way to publish content to production and the only way to render-check it, and neither failed loudly. Name the exceptions in the script and assert them in a verifier (C295) | Process |
+| 🔴 **Copy that was true when written is the copy nobody rereads.** No gate here reads a sentence for truth, so a claim that depends on a figure gets a rule in `verify:claims` comparing the COPY to the PRODUCT, added when the figure is added (C296, C288) | Hard |
+| 🔴 **A copy fix is not finished until `ship:content` has run against production.** The CMS is authored-content-wins: a slug with a row is served from that row for ever, so editing `defaults.ts` changes nothing a visitor sees. Verify against the published ROWS (C297, C148) | Hard |
+| 🔴 **A key list is read from what is stored, never typed.** A stale hard-coded list does not fail: the form posts one name, the loop asks for another, and a complete table gets saved from defaults with a success toast (C298) | Hard |
 | 🔴 **A documented limitation whose cost is never counted is a limitation nobody acts on.** A known gap in a gate is measured or closed. Writing it in a comment is neither (C286) | Hard |
 | 🔴 **One source of truth per invariant, and it is the one the database enforces.** Twenty files read a verification column no trigger consults, while the trigger protecting the clinical grant reads another (C285) | Hard |
 | 🔴 **A verifier exercises every branch it claims to cover, in one run, whatever the machine is configured with.** A check count that varies by environment is the defect, not a detail (C284) | Hard |

@@ -8,7 +8,13 @@ import { isNoteEmpty, normaliseNote } from "../lib/ai/notes";
 import { cleanTranscript } from "../lib/ai/transcribe";
 import { hashPassword, validatePassword, verifyPassword } from "../lib/auth/password";
 import { priceProblem } from "../lib/billing/connect";
-import { quoteForSpend, sessionLines, tierByKey, tierForSpend } from "../lib/billing/plans";
+import {
+  entitledTier,
+  quoteForSpend,
+  sessionLines,
+  tierByKey,
+  tierForSpend,
+} from "../lib/billing/plans";
 import {
   convertAtRate,
   parseGroup,
@@ -184,12 +190,21 @@ const TIERS = SETTINGS_DEFAULTS.pricing.tiers;
 const BOUNDS = SETTINGS_DEFAULTS.session;
 
 test("the seeded schedule is the one §3c asks for, after the split", () => {
+  /*
+   * 🔴 Sprint 57 — rewritten, not deleted, because the shape changed and the rule
+   * did not. H20: a test asserting UI or pricing a later decision struck is
+   * rewritten in the current vocabulary, so the rule survives the restatement.
+   *
+   * PAYG is the free door and still bills per session. The two paid tiers are
+   * unlimited monthly, so their per-session rate is zero by construction and the
+   * subscription is the whole price.
+   */
   assert.deepEqual(
-    TIERS.map((t) => [t.key, t.aiRateCents, t.unlockCents]),
+    TIERS.map((t) => [t.key, t.aiRateCents, t.unlockCents, t.monthlyCents]),
     [
-      ["payg", 300, 0],
-      ["starter", 200, 3000],
-      ["growth", 100, 6000],
+      ["payg", 300, 0, 0],
+      ["practice", 0, 0, 9900],
+      ["clinic", 0, 0, 17900],
     ],
   );
   assert.equal(BOUNDS.platformFeeCents, 100, "a dollar, on every session");
@@ -206,90 +221,224 @@ test("the seeded schedule is the one §3c asks for, after the split", () => {
  * decided, which is the kind of thing a customer discovers rather than a
  * changelog.
  */
-test("splitting the fee did not change what an AI session costs", () => {
+test("a monthly tier costs nothing per session, and PAYG still does", () => {
+  /*
+   * 🔴 The invariant that survived the repackaging.
+   *
+   * C209 split one fee into two so a therapist never had a reason to lean on a
+   * patient about consent. Sprint 57 removes the meter entirely on a paid tier,
+   * which is the same protection arrived at from the other side: there is no
+   * per-session amount for a patient's decision to move.
+   *
+   * PAYG keeps the split, because a free door still has to be honest about what
+   * the paid thing costs.
+   */
+  const payg = sessionLines({ settings: SETTINGS_DEFAULTS, tierKey: "payg", aiConsented: true });
   assert.deepEqual(
-    TIERS.map((t) => BOUNDS.platformFeeCents + t.aiRateCents),
-    [400, 300, 200],
+    payg.lines.map((l) => [l.kind, l.amountCents]),
+    [["platform", 100], ["ai", 300]],
+  );
+  assert.equal(payg.totalCents, 400, "PAYG with AI is a dollar plus three");
+
+  for (const key of ["practice", "clinic"]) {
+    const paid = sessionLines({ settings: SETTINGS_DEFAULTS, tierKey: key, aiConsented: true });
+    assert.equal(paid.totalCents, 0, `${key}: the month is the price, not the session`);
+  }
+});
+
+test("🔴 an unlimited session still raises BOTH LINES, at zero", () => {
+  /*
+   * 🔴 The cheap version of this change skips the invoice for a subscriber. It
+   * would also make a subscribed session invisible to 46.14's per-line-kind
+   * reconciler, to Total View's consent rate and to cost-per-session — C221's
+   * disappearance arriving through billing rather than through a null.
+   *
+   * A zero is a fact. A missing row is a gap. This asserts the difference.
+   */
+  const consented = sessionLines({
+    settings: SETTINGS_DEFAULTS,
+    tierKey: "practice",
+    aiConsented: true,
+  });
+  assert.deepEqual(
+    consented.lines.map((l) => [l.kind, l.amountCents]),
+    [["platform", 0], ["ai", 0]],
+    "both kinds present, both zero",
+  );
+
+  const declined = sessionLines({
+    settings: SETTINGS_DEFAULTS,
+    tierKey: "practice",
+    aiConsented: false,
+  });
+  assert.equal(declined.lines.length, 1, "a refusal raises no AI line, subscribed or not");
+  assert.equal(declined.lines[0]!.kind, "platform");
+});
+
+test("a declined session on PAYG still raises the platform fee, and it is not zero", () => {
+  /*
+   * 🔴 C209's original guarantee, unchanged for the tier that still meters.
+   *
+   * And the assertion is a PRESENCE, not an absence: "no AI fee on a refusal"
+   * passes just as happily against code that charges nothing at all, which is the
+   * §6 family in its billing costume.
+   */
+  const declined = sessionLines({
+    settings: SETTINGS_DEFAULTS,
+    tierKey: "payg",
+    aiConsented: false,
+  });
+  assert.equal(declined.lines.length, 1, "one line");
+  assert.equal(declined.lines[0]!.kind, "platform");
+  assert.equal(declined.lines[0]!.amountCents, 100, "and it IS the platform fee");
+  assert.ok(declined.totalCents > 0, "a refusal is never free");
+});
+
+test("spend still reaches the best rate it has paid for", () => {
+  /*
+   * Kept, because credit did not go away: PAYG is credit-based and a therapist
+   * can still hold a balance. What changed is that no tier is BOUGHT with credit
+   * any more, so every threshold is zero and everybody sits on PAYG until they
+   * subscribe.
+   */
+  assert.equal(tierForSpend(TIERS, 0).key, "payg");
+  assert.equal(tierForSpend(TIERS, 50_000).key, "payg", "credit no longer buys a tier");
+});
+
+test("🔴 A SUBSCRIPTION CANNOT BE REACHED BY SPENDING", () => {
+  /*
+   * 🔴 57.1 — the bug this very test caught, an hour after the schedule changed.
+   *
+   * `tierForSpend` walked every tier and kept the last one whose threshold the
+   * spend had passed. With the old ladder — $0, $30, $60 — that is exactly
+   * right. With sprint 57's schedule every threshold is zero, so the loop
+   * walked past PAYG, past Practice, and left ANY therapist who had ever topped
+   * up a single dollar sitting on the $179 Clinic plan for nothing.
+   *
+   * Nothing in the change looked wrong. The function was untouched; only the
+   * data moved underneath it. That is the shape worth remembering: a pure
+   * function whose correctness depended on a property of its input that nobody
+   * had written down.
+   *
+   * The property is written down now — only `monthlyCents === 0` tiers are on
+   * the ladder — and this is the test that holds it there.
+   */
+  const spends = [1, 99, 3_000, 6_000, 50_000, 1_000_000, Number.MAX_SAFE_INTEGER];
+  for (const spent of spends) {
+    const tier = tierForSpend(TIERS, spent);
+    assert.equal(tier.monthlyCents, 0, `${spent}c reached a subscription tier: ${tier.key}`);
+    assert.equal(tier.key, "payg", `${spent}c should stay on the free door`);
+  }
+
+  /*
+   * 🔴 CONTROL. Every assertion above is a NEGATIVE — "never reaches a paid
+   * tier" — and a `tierForSpend` that always returned the first tier regardless
+   * of spend would satisfy all of them. So the ladder is proved to still WORK
+   * on a schedule that has one.
+   */
+  const ladder = [
+    { key: "free", name: "Free", unlockCents: 0, aiRateCents: 300, monthlyCents: 0 },
+    { key: "mid", name: "Mid", unlockCents: 3_000, aiRateCents: 200, monthlyCents: 0 },
+    { key: "top", name: "Top", unlockCents: 6_000, aiRateCents: 100, monthlyCents: 0 },
+    { key: "sub", name: "Sub", unlockCents: 0, aiRateCents: 0, monthlyCents: 9_900 },
+  ];
+  assert.equal(tierForSpend(ladder, 0).key, "free");
+  assert.equal(tierForSpend(ladder, 2_999).key, "free");
+  assert.equal(tierForSpend(ladder, 3_000).key, "mid", "CONTROL: the ladder still climbs");
+  assert.equal(tierForSpend(ladder, 6_000).key, "top");
+  assert.equal(
+    tierForSpend(ladder, 1_000_000).key,
+    "top",
+    "🔴 and it still stops short of the subscription",
   );
 });
 
-/**
- * 🔴 C209, as arithmetic rather than as prose.
- *
- * The coercion channel this sprint closes is a bill that gets CHEAPER when the
- * patient refuses. It still does, and it must: the AI fee is what the AI
- * costs. What must never happen is the bill going to zero, because a fee that
- * vanishes on refusal gives a therapist a reason to lean on the most
- * vulnerable person in the room, and a fee of zero gives away hosted video to
- * anybody who simply never asks.
- */
-test("a declined session still raises the platform fee, at every tier", () => {
-  for (const tier of TIERS) {
-    const declined = sessionLines({
-      settings: SETTINGS_DEFAULTS,
-      tierKey: tier.key,
-      aiConsented: false,
-    });
-    assert.equal(declined.lines.length, 1, `${tier.key}: one line`);
-    assert.equal(declined.lines[0]!.kind, "platform");
-    assert.equal(
-      declined.totalCents,
-      BOUNDS.platformFeeCents,
-      `${tier.key}: a refusal never bills zero`,
-    );
-    assert.ok(declined.totalCents > 0, `${tier.key}: never free`);
-  }
-});
+test("🔴 a subscriber is entitled to the period they PAID FOR, not to a status", () => {
+  /*
+   * 🔴 57.2 — the entitlement rule, and the three ways it is usually got wrong.
+   *
+   * "While Stripe says active" drops a therapist the hour their card expires,
+   * mid-session, on a plan they paid for three weeks ago. "While a row exists"
+   * gives the product away to anybody who ever subscribed once. "While
+   * cancelAtPeriodEnd is false" takes the month away the moment somebody
+   * cancels, which is the thing they were told would not happen.
+   *
+   * The rule is the period. Everything else follows from it.
+   */
+  const now = new Date("2026-06-15T12:00:00Z");
+  const future = new Date("2026-07-01T00:00:00Z");
+  const past = new Date("2026-06-01T00:00:00Z");
+  const at = (subscription: Parameters<typeof entitledTier>[0]["subscription"]) =>
+    entitledTier({ tiers: TIERS, subscription, lifetimeSpentCents: 50_000, now }).key;
 
-test("a consented session raises both lines, and the AI line is the tier's", () => {
-  for (const tier of TIERS) {
-    const consented = sessionLines({
-      settings: SETTINGS_DEFAULTS,
-      tierKey: tier.key,
-      aiConsented: true,
-    });
-    assert.deepEqual(
-      consented.lines.map((l) => [l.kind, l.amountCents]),
-      [
-        ["platform", BOUNDS.platformFeeCents],
-        ["ai", tier.aiRateCents],
-      ],
-      tier.key,
-    );
-  }
-});
+  assert.equal(at(null), "payg", "no subscription is the free door");
+  assert.equal(
+    at({ plan: "practice", status: "active", currentPeriodEnd: future }),
+    "practice",
+    "a live plan is the plan",
+  );
+  assert.equal(
+    at({ plan: "practice", status: "past_due", currentPeriodEnd: future }),
+    "practice",
+    "🔴 a failed renewal does NOT cut off the month already paid for",
+  );
+  assert.equal(
+    at({ plan: "practice", status: "past_due", currentPeriodEnd: past }),
+    "payg",
+    "🔴 but it does end when that month does",
+  );
+  assert.equal(
+    at({ plan: "practice", status: "cancelled", currentPeriodEnd: future }),
+    "payg",
+    "a cancelled subscription is over whatever the date says",
+  );
+  assert.equal(
+    at({ plan: "practice", status: "active", currentPeriodEnd: null }),
+    "practice",
+    "checkout completed, first invoice not yet mirrored: the money changed hands",
+  );
 
-test("spend gets the best rate it has reached, and never a better one", () => {
-  assert.equal(tierForSpend(TIERS, 0).key, "payg");
-  assert.equal(tierForSpend(TIERS, 2999).key, "payg");
-  assert.equal(tierForSpend(TIERS, 3000).key, "starter");
-  assert.equal(tierForSpend(TIERS, 5999).key, "starter");
-  assert.equal(tierForSpend(TIERS, 6000).key, "growth");
-  // Spending more than the top threshold does not buy a fourth tier.
-  assert.equal(tierForSpend(TIERS, 50_000).key, "growth");
+  /*
+   * 🔴 A plan key the tier table no longer names is not entitlement.
+   *
+   * Sprint 57 renamed `starter` and `growth` and migrated nothing, so rows
+   * carrying those keys are real and will be for as long as the accounts exist.
+   * `find` returns nothing and the spend ladder answers instead — never
+   * `tierByKey`, whose fail-closed fallback would have returned a tier while
+   * the caller believed a subscription was in force.
+   */
+  assert.equal(
+    at({ plan: "growth", status: "active", currentPeriodEnd: future }),
+    "payg",
+    "🔴 a retired plan key grants nothing",
+  );
+  assert.equal(
+    at({ plan: "payg", status: "active", currentPeriodEnd: future }),
+    "payg",
+    "and neither does a row pointing at the free tier",
+  );
 });
 
 test("an unknown tier key fails closed to the most expensive rate", () => {
   // The mirror of the old "unknown plan must not grant unlimited": a typo in a
-  // stored key must never hand somebody the cheapest rate.
+  // stored key must never hand somebody a free session.
   assert.equal(tierByKey(TIERS, "enterprise").key, "payg");
   assert.equal(tierByKey(TIERS, null).key, "payg");
   assert.equal(tierByKey(TIERS, undefined).key, "payg");
-  assert.equal(tierByKey(TIERS, "growth").key, "growth");
+  assert.equal(tierByKey(TIERS, "practice").key, "practice");
+
+  const unknown = sessionLines({
+    settings: SETTINGS_DEFAULTS,
+    tierKey: "enterprise",
+    aiConsented: true,
+  });
+  assert.equal(unknown.totalCents, 400, "🔴 a typo bills the full PAYG price, never zero");
 });
 
-/**
- * 🔴 46.4 — the money bought IS the credit. There is no multiplication left.
- *
- * $30 buys $30 of credit and unlocks the $2 AI rate. Anything that made
- * `creditCents` differ from what was paid would be a bundle wearing a rate
- * lock's name, which is what C223 struck.
- */
 test("a quote is the money, and the threshold is what buys the rate", () => {
-  assert.equal(quoteForSpend(TIERS, 3000).creditCents, 3000);
-  assert.equal(quoteForSpend(TIERS, 3000).totalCents, 3000);
-  assert.equal(quoteForSpend(TIERS, 3000).tier.key, "starter");
-  assert.equal(quoteForSpend(TIERS, 6000).tier.key, "growth");
+  assert.equal(quoteForSpend(TIERS, 3000).creditCents, 3000, "money in is credit out");
+  assert.equal(quoteForSpend(TIERS, 3000).totalCents, 3000, "and nothing multiplies it");
+  assert.equal(quoteForSpend(TIERS, 3000).tier.key, "payg", "credit no longer buys a tier");
   assert.equal(quoteForSpend(TIERS, 100).tier.key, "payg");
   assert.equal(quoteForSpend(TIERS, 0).creditCents, 0);
   assert.equal(quoteForSpend(TIERS, -500).creditCents, 0);
@@ -310,6 +459,89 @@ test("settings refuse a platform fee of zero", () => {
     }) ?? "",
     /platform fee/i,
   );
+});
+
+/**
+ * 🔴 57.3 / C289 — the rail that passed by measuring the wrong thing.
+ *
+ * `settingsProblem` asked whether any tier had a threshold of zero, which meant
+ * "somebody who has bought nothing still has a rate". After sprint 57 that is
+ * true of all three tiers including the $179 one, so the rail went on passing
+ * while describing a condition it no longer tested. An admin could delete pay
+ * as you go outright and nothing would object.
+ *
+ * This is the §6 family arriving in the rails themselves, which is the worst
+ * place for it: a rail is what everything else trusts instead of checking.
+ */
+test("🔴 settings refuse a tier table with no FREE door", () => {
+  const paidOnly = {
+    ...SETTINGS_DEFAULTS,
+    pricing: {
+      ...SETTINGS_DEFAULTS.pricing,
+      tiers: SETTINGS_DEFAULTS.pricing.tiers.filter((t) => t.monthlyCents > 0),
+    },
+  };
+  assert.match(settingsProblem(paidOnly) ?? "", /free to be on/i);
+
+  /*
+   * 🔴 CONTROL, and it is the whole point of this test: the OLD rail passes
+   * against the very table above, because every tier in it has a zero
+   * threshold. Asserted out loud so that reverting the fix fails here rather
+   * than somewhere a therapist notices first.
+   */
+  assert.ok(
+    paidOnly.pricing.tiers.every((t) => t.unlockCents === 0),
+    "CONTROL: the old `some(unlockCents === 0)` rail is satisfied by a table with no free tier",
+  );
+
+  assert.equal(settingsProblem(SETTINGS_DEFAULTS), null, "and the shipped table is fine");
+});
+
+test("🔴 settings refuse a tier that is both subscribed to and unlocked by spending", () => {
+  /*
+   * A tier carrying both reads as "spend $60 and the $179 plan is yours", which
+   * `tierForSpend` will not honour — it walks credit tiers only. A control that
+   * promises something the billing code refuses is worse than no control, so
+   * the configuration is rejected rather than quietly ignored.
+   */
+  const both = {
+    ...SETTINGS_DEFAULTS,
+    pricing: {
+      ...SETTINGS_DEFAULTS.pricing,
+      tiers: SETTINGS_DEFAULTS.pricing.tiers.map((t) =>
+        t.monthlyCents > 0 ? { ...t, unlockCents: 6_000 } : t,
+      ),
+    },
+  };
+  assert.match(settingsProblem(both) ?? "", /bought, not unlocked/i);
+});
+
+test("🔴 a tier stored before sprint 57 parses as a credit tier, never a free plan", () => {
+  /*
+   * 57.3 — settings are parsed on EVERY read, so a defaulting mistake here is
+   * not a migration problem that shows up once. A row written before this
+   * sprint has no `monthlyCents`; reading that absence as anything but zero
+   * would hand every legacy account an unlimited plan on the first request
+   * after deploy, for free, with no code change to blame.
+   */
+  const legacy = parseGroup("pricing", {
+    tiers: [
+      { key: "payg", name: "Pay as you go", rateCents: 400, minimumSessions: 1 },
+      { key: "growth", name: "Growth", rateCents: 200, minimumSessions: 30 },
+    ],
+    creditExpiryMonths: 12,
+  });
+
+  assert.ok(
+    legacy.tiers.every((t) => t.monthlyCents === 0),
+    "🔴 an absent monthly price is zero, which is what a credit tier is",
+  );
+  assert.equal(legacy.tiers[0]?.key, "payg", "and the free door still sorts first");
+
+  // CONTROL: the old-shape conversion itself still works, so the assertion
+  // above is not passing against a parser that dropped the rows entirely.
+  assert.equal(legacy.tiers.length, 2);
+  assert.equal(legacy.tiers[1]?.unlockCents, 6_000, "CONTROL: 30 × $2 is still $60");
 });
 
 /* ------------------------------------------------------- settings integrity */

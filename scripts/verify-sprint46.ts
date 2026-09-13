@@ -476,17 +476,35 @@ async function main() {
   );
 
   /*
-   * 🔴 The rate is derived from LIFETIME spend, so it survives the credit
-   * running out. A therapist who has ever put $60 through this holds the $1
-   * rate with an empty balance, forever. Asserted on the source of the
-   * derivation because seeding a lifetime and then expiring it would leave
-   * real rows behind in a shared database.
+   * 🔴 AMENDED BY 57.2. This asserted the exact call `tierForSpend(settings
+   * .pricing.tiers, lifetimeCents)` in the source, which sprint 57 replaced
+   * with `entitledTier`: a subscription now outranks the spend ladder, and a
+   * check pinned to the old call would have failed on a change that was
+   * correct — the worst kind, because the cheapest way to make it pass again is
+   * to loosen it.
+   *
+   * The rule it defends is unchanged and is restated rather than dropped:
+   * standing comes from LIFETIME spend, so it survives the credit running out.
+   * Asserted on the source of the derivation because seeding a lifetime and
+   * then expiring it would leave real rows behind in a shared database.
    */
   const creditsSource = readSource("lib/billing/credits.ts");
   check(
-    "🔴 46.4 the tier comes from lifetime spend, not from the current balance",
-    /lifetimeCents/.test(creditsSource) && /tierForSpend\(settings\.pricing\.tiers, lifetimeCents\)/.test(creditsSource),
+    "🔴 46.4 / 57.2 the tier comes from lifetime spend, not from the current balance",
+    /lifetimeCents/.test(creditsSource) &&
+      /lifetimeSpentCents:\s*lifetimeCents/.test(creditsSource),
     "expired credit still counts toward the threshold; a refunded purchase does not",
+  );
+
+  /*
+   * 🔴 57.2 — and the subscription is read in the same breath, or the rate a
+   * subscriber is billed at is the rate their SPEND earns, which is the full
+   * pay-as-you-go price on top of a plan they have already paid for.
+   */
+  check(
+    "🔴 57.2 the current tier also consults the subscription, not spend alone",
+    /entitledTier\(/.test(creditsSource) && /subscriptions\.currentPeriodEnd/.test(creditsSource),
+    "a plan outranks the ladder; an expired period falls back to it",
   );
 
   finish("sprint 46");

@@ -24,9 +24,38 @@ import { and, eq } from "drizzle-orm";
 import { connect, schema } from "./db";
 import { DEFAULT_PAGES } from "../lib/content/defaults";
 import { defaultsFor, localesWithDefaults } from "../lib/content/registry";
+import { writesTo } from "./_verify";
 
+/*
+ * 🔴 Sprint 57 — this script WRITES, so it refuses production by name.
+ *
+ * Thirty-eight verifiers have called `writesTo()` since C147. These five did not,
+ * and an investor found the gap by reading scripts/demo.ts, whose own header says
+ * the seeded clinicians are on the public radar and a stranger can book one. That
+ * is correct on a branch and a disclosure on production: fabricated `DEMO-` licence
+ * numbers, publicly bookable, on a live marketing site.
+ *
+ * The safety was missing, not the reasoning. It is the same function, imported.
+ *
+ * 🔴 …EXCEPT IN `--staging`. C289b, the second half of the same mistake.
+ *
+ * A blanket refusal here also severs `render:check`, whose entire purpose is to
+ * render every public page AGAINST PRODUCTION and look at the markup (19.0a,
+ * C89). It reads `en-x-staging` rows, and this is the only script that writes
+ * them. Guarding the staging mode would not have protected anything: a staging
+ * locale is reachable by a script and by nobody else — `getPublicPage` only ever
+ * asks for the reader's locale or `en`, the navigation excludes it twice over,
+ * and the row carries no `navLabel` and no `navOrder`.
+ *
+ * What it WOULD have done is leave the production render check permanently red
+ * for a reason nobody could fix, which is the exact failure mode H20 describes:
+ * a gate that is red for a known reason is a gate everybody learns to skim.
+ *
+ * The live modes keep the guard, because those rewrite pages a reader sees.
+ */
 async function main() {
   const argv = process.argv.slice(2);
+  if (!argv.includes("--staging")) writesTo();
   const all = argv.includes("--all");
   /*
    * Arabic rows are inserted when missing, unlike English ones.

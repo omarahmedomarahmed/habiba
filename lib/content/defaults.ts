@@ -38,8 +38,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         // below it.
         type: "hero",
         eyebrow: "Crisis Radar",
-        heading: "Talk to a real therapist in the next sixty seconds",
-        body: "Every dot is a licensed clinician who is online this minute. Filter by language or what you need help with, pick someone, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance.",
+        heading: "Find a therapist who is available now",
+        body: "Every dot is a verified clinician who has said they are free. Filter by language or by what you need help with, pick someone, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance. Nobody is on duty and nobody is promised to you: if the map is empty, it is empty.",
         demo: "radar",
       },
       {
@@ -54,7 +54,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       },
       {
         type: "showcase",
-        heading: "Every claim on this page is a screen you can see",
+        heading: "What the product actually does",
         items: [
           {
             title: "The transcript writes itself",
@@ -69,8 +69,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             demo: "note",
           },
           {
-            title: "Risk language is never missed",
-            body: "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified, so it survives a failed delivery.",
+            title: "Risk language is scanned for, in Arabic and English",
+            body: "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified, so it survives a failed delivery. It is a prompt for your attention, not a safety net: it misses things, it raises false alarms, and it never replaces your own judgement.",
             icon: "shield",
             demo: "risk",
           },
@@ -269,7 +269,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             title: "When to use it",
-            body: "When waiting until Tuesday is not the answer. It is not an emergency service and it is not a substitute for one, but it is minutes rather than weeks.",
+            body: "For when waiting until Tuesday is not the answer. It is not an emergency service and it is not a substitute for one. If somebody is free you can start now; if nobody is, you can book the first hour that suits you.",
             icon: "clock",
           },
           {
@@ -533,7 +533,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "pricing",
     title: "Pricing",
     description:
-      "Join free and pay per session, only when you run one, each session including its copilot questions about that patient. Your first session is free.",
+      "Join free. Pay per session, only when you run one, or take a flat price a month for unlimited sessions and unlimited AI. Your first session is free either way.",
     layout: "marketing",
     navLabel: "Pricing",
     navOrder: 2,
@@ -554,12 +554,53 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         heading: "Billing questions",
         items: [
           {
+            q: "What are the two ways to pay?",
+            /*
+             * 🔴 57.5 — the question the page did not have, and the reason the
+             * whole model changed.
+             *
+             * A therapist cannot compare "a dollar plus two dollars a session"
+             * to anything. Every product they will weigh us against quotes a
+             * month. Pay as you go stays because a free door is worth more than
+             * a trial, and because somebody running four sessions a week should
+             * not be pushed onto a plan they do not need.
+             */
+            a: "Pay as you go costs nothing to be on and bills you per session, with the AI fee added only when your patient turns the AI on. A monthly plan costs one flat price and bills you nothing per session at all. You can move between them whenever you like and nothing about your patients, notes or history changes either way.",
+          },
+          {
             q: "When am I charged on pay as you go?",
             a: "When a session is marked complete. Your first one is free, and the invoice appears on your billing page immediately. You can pay several at once with a single link.",
           },
           {
             q: "What does the session rate actually include?",
             a: "The full session, live transcription, the SOAP note, the patient report and crisis alerts, plus the copilot questions about that patient shown on the cards above, for every session you run with them, and unused ones roll over. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not.",
+          },
+          {
+            q: "What does a monthly plan include?",
+            a: "Unlimited sessions and unlimited AI, with nothing charged per session. Everything on the pay-as-you-go list is included and not metered: transcription, notes, reports, crisis alerts and the copilot. Our share of what a patient pays you is a separate figure and does not change on a plan.",
+          },
+          {
+            q: "Which one should I be on?",
+            /*
+             * 🔴 The arithmetic rather than a recommendation, and no figure is
+             * written here: both numbers are on the cards above, read from
+             * `platform_settings` at render time. A worked example typed into
+             * this file would be a second copy of the price, which is C60.
+             */
+            a: "Divide the monthly price by what one session with AI costs you on pay as you go. Above roughly that many sessions a month the plan is cheaper, below it pay as you go is. Both numbers are on the cards above. There is no penalty either way and nothing to commit to.",
+          },
+          {
+            q: "What happens when I cancel a plan?",
+            /*
+             * 🔴 Three sentences because three different fears are being
+             * answered: am I locked in, do I lose the month I paid for, and do
+             * I lose my records. The third is the one nobody asks out loud.
+             */
+            a: "Cancelling stops the next charge and nothing else. The plan runs to the date shown on your billing page, and after that you go back to pay as you go and are charged per session again. Nothing is deleted, nothing is locked, and every note, patient and recording stays exactly where it was.",
+          },
+          {
+            q: "What if a renewal payment fails?",
+            a: "You keep the plan for the month you have already paid for. We do not cut anything off mid-month over a card that expired. If it is still unpaid when that period ends, the account goes back to pay as you go and carries on working.",
           },
           {
             q: "What if a session was a mistake?",
@@ -572,30 +613,29 @@ export const DEFAULT_PAGES: DefaultPage[] = [
              * a number 46.9 moved.
              *
              * There are two fees and they are not the same thing: what we
-             * charge YOU per session, which the cards state as an amount, and
-             * our share of what a PATIENT pays you, which is a percentage
-             * stated below them. Sending a reader to the cards for the
-             * percentage sends them somewhere it is not.
+             * charge YOU, which the cards state, and our share of what a
+             * PATIENT pays you, which is a percentage stated below them.
+             * Sending a reader to the cards for the percentage sends them
+             * somewhere it is not.
              */
-            a: "A share of what that session paid you, stated as a percentage on the pricing page, and nothing else. That is separate from the per-session fee on the cards, which is what you pay us to use 24Therapy. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not, as in Egypt today, we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
+            a: "A share of what that session paid you, stated as a percentage on the pricing page, and nothing else. That is separate from what you pay us to use 24Therapy, whether that is per session or a month at a time. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not, as in Egypt today, we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
           },
           {
             q: "Can I pay my 24Therapy bill out of my earnings?",
             a: "Yes. When we are holding your earnings the session fee comes out of them automatically. If your patients pay straight into your own Stripe account, anything you owe can instead be settled out of the next payment rather than a card, never more than what that session would have paid you, and you can turn it off.",
           },
-          /*
-           * 🔴 51.1 — this described the BUNDLE model, which sprint 46
-           * replaced.
-           *
-           * You do not buy sessions here and there are no bundles to move
-           * between. You add credit, credit is money, and what it buys is a
-           * lower AI rate that stays yours. The old question asked about a
-           * thing that no longer exists, and its answer pointed at "the cards
-           * above" for a rule the cards no longer state.
-           */
           {
+            /*
+             * 🔴 57.5 — rewritten again, and the reason is worth keeping.
+             *
+             * Sprint 46 replaced session bundles with credit that unlocked a
+             * lower AI rate. Sprint 57 removed the rate ladder entirely, so the
+             * sentence "the lower AI rate it unlocked stays yours" now promises
+             * something that does not exist. Copy describing a mechanic the code
+             * has dropped is the same defect as a test asserting one.
+             */
             q: "What happens to credit I added and did not spend?",
-            a: "Credit is money, not a number of sessions. It lasts as long as the pricing page says, it pays for session fees and AI fees alike, and it is always spent before anything new is billed. The lower AI rate it unlocked stays yours whether or not you top it up again.",
+            a: "Credit is money, not a number of sessions. It lasts as long as the pricing page says, it pays for session fees and AI fees alike, and it is always spent before your card is. It has nothing to do with which plan you are on and it is not needed on a monthly plan, where sessions cost you nothing.",
           },
         ],
       },

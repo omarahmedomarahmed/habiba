@@ -21,6 +21,7 @@ import { eq } from "drizzle-orm";
 import { chromium, type Browser, type Page } from "playwright";
 
 import { connect, schema } from "./db";
+import { writesTo } from "./_verify";
 
 const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3100";
 const OUT = process.env.SHOT_DIR ?? "/tmp/room-shots";
@@ -105,7 +106,19 @@ async function measure(page: Page): Promise<Geometry> {
   return page.evaluate(PROBE) as Promise<Geometry>;
 }
 
+/*
+ * 🔴 Sprint 57 — this script WRITES, so it refuses production by name.
+ *
+ * Thirty-eight verifiers have called `writesTo()` since C147. These five did not,
+ * and an investor found the gap by reading scripts/demo.ts, whose own header says
+ * the seeded clinicians are on the public radar and a stranger can book one. That
+ * is correct on a branch and a disclosure on production: fabricated `DEMO-` licence
+ * numbers, publicly bookable, on a live marketing site.
+ *
+ * The safety was missing, not the reasoning. It is the same function, imported.
+ */
 async function main() {
+  writesTo();
   const { mkdir } = await import("node:fs/promises");
   await mkdir(OUT, { recursive: true });
 

@@ -23,6 +23,7 @@ import { sql } from "drizzle-orm";
 // account nobody can sign into.
 import { hashPassword } from "../lib/auth/password";
 import { connect, schema } from "./db";
+import { writesTo } from "./_verify";
 
 /** One shared password. They are fixtures on a demo tenant, not secrets. */
 const PASSWORD = process.env.DEMO_PASSWORD ?? "Radar-Demo-2026!";
@@ -308,6 +309,19 @@ async function purge() {
     await pool.end();
   }
 }
+
+/*
+ * 🔴 Sprint 57 — this script WRITES, so it refuses production by name.
+ *
+ * Thirty-eight verifiers have called `writesTo()` since C147. These five did not,
+ * and an investor found the gap by reading scripts/demo.ts, whose own header says
+ * the seeded clinicians are on the public radar and a stranger can book one. That
+ * is correct on a branch and a disclosure on production: fabricated `DEMO-` licence
+ * numbers, publicly bookable, on a live marketing site.
+ *
+ * The safety was missing, not the reasoning. It is the same function, imported.
+ */
+writesTo();
 
 const command = process.argv[2];
 const run =

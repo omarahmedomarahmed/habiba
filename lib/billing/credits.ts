@@ -4,11 +4,11 @@ import { and, asc, eq, gt, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { sessionCredits } from "@/lib/db/schema";
+import { sessionCredits, subscriptions } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings, type PricingTier } from "@/lib/settings";
 
-import { quoteForSpend, tierForSpend } from "./plans";
+import { entitledTier, quoteForSpend } from "./plans";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -373,7 +373,7 @@ export async function activatePurchase(input: {
  * was backfilled.
  */
 export async function currentTier(organizationId: string): Promise<PricingTier> {
-  const [settings, rows] = await Promise.all([
+  const [settings, rows, subs] = await Promise.all([
     getSettings(),
     db
       .select({
@@ -389,6 +389,23 @@ export async function currentTier(organizationId: string): Promise<PricingTier> 
           eq(sessionCredits.status, "active"),
         ),
       ),
+    /*
+     * 🔴 Sprint 57 — a subscription outranks the spend ladder.
+     *
+     * This function used to be spend and nothing else, which was right when
+     * nothing could be subscribed to. Leaving it that way while shipping two
+     * monthly plans would have billed every subscriber the full pay-as-you-go
+     * rate on every session, with the subscription charged on top.
+     */
+    db
+      .select({
+        plan: subscriptions.plan,
+        status: subscriptions.status,
+        currentPeriodEnd: subscriptions.currentPeriodEnd,
+      })
+      .from(subscriptions)
+      .where(eq(subscriptions.organizationId, organizationId))
+      .limit(1),
   ]);
 
   const lifetimeCents = rows.reduce(
@@ -396,7 +413,12 @@ export async function currentTier(organizationId: string): Promise<PricingTier> 
     0,
   );
 
-  return tierForSpend(settings.pricing.tiers, lifetimeCents);
+  return entitledTier({
+    tiers: settings.pricing.tiers,
+    subscription: subs[0] ?? null,
+    lifetimeSpentCents: lifetimeCents,
+    now: new Date(),
+  });
 }
 
 /** Purchase date plus N months, clamped so 31 January + 1 month is not 3 March. */

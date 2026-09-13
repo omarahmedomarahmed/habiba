@@ -80,6 +80,27 @@ export default async function BillingPage({
           spentPlatformCents={summary.spentPlatformCents}
           spentAiCents={summary.spentAiCents}
           heldEarningsCents={summary.heldEarningsCents}
+          /*
+           * 🔴 57.4 — formatted HERE, on the server, in the therapist's own
+           * zone and language. 12.3 / C84: the same date formatted inside the
+           * client component renders one string on the server pass and another
+           * in the browser, which is a hydration mismatch on the one figure a
+           * subscriber most needs to trust.
+           *
+           * Exactly one is ever non-null. A plan set to stop has an end date; a
+           * plan that will charge again has a renewal date. The card says which
+           * in words, so the two can never be read as each other.
+           */
+          renewsOn={
+            summary.subscription.currentPeriodEnd && !summary.subscription.cancelAtPeriodEnd
+              ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
+              : null
+          }
+          endsOn={
+            summary.subscription.currentPeriodEnd && summary.subscription.cancelAtPeriodEnd
+              ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
+              : null
+          }
         />
 
         {!summary.subscription.trialSessionUsed ? (

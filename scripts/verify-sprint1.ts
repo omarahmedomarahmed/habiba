@@ -85,30 +85,59 @@ async function main() {
         return t?.aiRateCents === 300 && t.unlockCents === 0;
       })(),
     );
-    check("1.6 / 46.3 $30 unlocks $2.00 per AI session", (() => {
-      const t = pricing.tiers.find((x) => x.key === "starter");
-      return t?.aiRateCents === 200 && t.unlockCents === 3000;
-    })());
-    check("1.6 / 46.3 $60 unlocks $1.00 per AI session", (() => {
-      const t = pricing.tiers.find((x) => x.key === "growth");
-      return t?.aiRateCents === 100 && t.unlockCents === 6000;
-    })());
-
     /*
-     * 🔴 The all-in cost of an AI session did not change at any tier.
-     *
-     * $1 platform + $3/$2/$1 of AI is the $4/$3/$2 that shipped. What changed
-     * is that a session with NO AI now costs $1 instead of $4. Asserted rather
-     * than assumed, because the split fee would be a silent price rise if any
-     * of these three numbers had drifted, and a price rise nobody decided is
-     * the kind of thing that is discovered by a customer.
+     * 🔴 AMENDED AGAIN BY 57.1. The two credit thresholds this used to assert —
+     * "$30 unlocks $2" and "$60 unlocks $1" — describe a rate ladder sprint 57
+     * removed. H20: rewritten in the current vocabulary rather than deleted, so
+     * the RULE survives the restatement. The rule was never "$30 buys a rate";
+     * it was "the schedule in the database is the schedule we published".
      */
     check(
-      "🔴 46.1 the all-in price of an AI session is unchanged at every tier",
-      pricing.tiers.every((t) => {
-        const allIn = session.platformFeeCents + t.aiRateCents;
-        return { payg: 400, starter: 300, growth: 200 }[t.key] === allIn;
-      }),
+      "🔴 57.1 the two paid tiers are monthly and unlimited, not credit ladders",
+      (() => {
+        const paid = pricing.tiers.filter((t) => t.monthlyCents > 0);
+        return (
+          paid.length === 2 &&
+          paid.every((t) => t.unlockCents === 0 && t.aiRateCents === 0) &&
+          paid.map((t) => t.monthlyCents).join(",") === "9900,17900"
+        );
+      })(),
+      pricing.tiers.map((t) => `${t.key}=$${t.monthlyCents / 100}/mo`).join(" "),
+    );
+
+    /*
+     * 🔴 57.1 / C289 — exactly one tier is free to BE on, and it is the first.
+     *
+     * Every threshold is zero after this sprint, so "a tier with a zero
+     * threshold exists" — the rail that guarded this for a year — is now true of
+     * all three and guards nothing. The free door is the tier with no threshold
+     * AND no monthly price, and it has to sort first or the public page takes
+     * the wrong one as its headline rate.
+     */
+    check(
+      "🔴 57.1 / C289 exactly one tier is free to be on, and it sorts first",
+      (() => {
+        const free = pricing.tiers.filter((t) => t.unlockCents === 0 && t.monthlyCents === 0);
+        return free.length === 1 && pricing.tiers[0]?.key === free[0]?.key;
+      })(),
+      pricing.tiers.map((t) => t.key).join(" → "),
+    );
+
+    /*
+     * 🔴 The all-in cost of a PAY-AS-YOU-GO AI session did not change.
+     *
+     * $1 platform + $3 of AI is the $4 that shipped. The paid tiers are not in
+     * this sum because they do not have one: a subscribed session is zero on
+     * both lines, which is asserted in `tests/safety.test.ts` where the pure
+     * function lives. Asserted rather than assumed, because a drift here is a
+     * price rise nobody decided, and those are discovered by a customer.
+     */
+    check(
+      "🔴 46.1 / 57.1 the all-in price of a pay-as-you-go AI session is unchanged",
+      (() => {
+        const payg = pricing.tiers.find((t) => t.monthlyCents === 0);
+        return session.platformFeeCents + (payg?.aiRateCents ?? 0) === 400;
+      })(),
       pricing.tiers
         .map((t) => `${t.key}=${session.platformFeeCents + t.aiRateCents}`)
         .join(" "),
@@ -127,10 +156,28 @@ async function main() {
 
     /* ------------------------------------------------------- 1.7 everyone */
 
-    const plans = await db.select({ plan: subscriptions.plan }).from(subscriptions);
-    const stragglers = plans.filter((p) => p.plan !== "payg");
-    check("1.7 every therapist is on PAYG", stragglers.length === 0,
-      `${plans.length} subscriptions, ${stragglers.length} not payg`);
+    /*
+     * 🔴 AMENDED BY 57.1. This asserted that every subscription row said
+     * `payg`, which was the right check while nothing could be subscribed to
+     * and is now a check that would fail on our first paying customer.
+     *
+     * The rule underneath it survives: no row may sit on a plan that is not in
+     * the live tier table. A row saying `growth` after sprint 57 renamed the
+     * tiers is not an upgrade and not an error, it is a therapist whose old rate
+     * lock no longer exists — `entitledTier` drops them to the free door rather
+     * than honouring a key nothing prices. This counts them so the number is
+     * known rather than discovered.
+     */
+    const plans = await db
+      .select({ plan: subscriptions.plan, status: subscriptions.status })
+      .from(subscriptions);
+    const live = new Set(pricing.tiers.map((t) => t.key));
+    const orphans = plans.filter((p) => !live.has(p.plan));
+    check(
+      "🔴 57.1 no subscription row sits on a plan the tier table no longer names",
+      orphans.length === 0,
+      `${plans.length} subscriptions, ${orphans.length} on a retired key (${[...new Set(orphans.map((o) => o.plan))].join(", ") || "none"})`,
+    );
 
     /* ------------------------------- the acceptance: a rate change, no deploy */
 
@@ -191,7 +238,14 @@ async function main() {
       0,
     );
     const wouldBill =
-      spendableCents > 0 ? 0 : rereadPricing.tiers.find((t) => t.unlockCents === 0)!.aiRateCents;
+      spendableCents > 0
+        ? 0
+        : // 🔴 57.1 — the FREE tier, not merely a zero-threshold one. Every tier
+          // has a zero threshold now, so the old `find` could return the $179
+          // plan and read its AI rate of zero as the rate a bill would be raised
+          // at: a check that passes by measuring the wrong tier.
+          rereadPricing.tiers.find((t) => t.unlockCents === 0 && t.monthlyCents === 0)!
+            .aiRateCents;
     check(
       "acceptance: the next session would bill at the new rate, with no deploy",
       wouldBill === (spendableCents > 0 ? 0 : oddRate),

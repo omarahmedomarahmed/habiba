@@ -36,22 +36,46 @@ export async function savePricing(
 ): Promise<SettingsFormState> {
   const actor = await requireRole("super_admin");
 
+  const current = await getSettings();
+
+  /*
+   * 🔴 Sprint 57 / C290 — the key list is READ, never typed.
+   *
+   * This loop said `["payg", "starter", "growth"]`. Sprint 57 renamed two of
+   * those tiers, and a hard-coded list does not fail when it goes stale: the
+   * form posts `practiceMonthly`, the loop asks for `starterMonthly`, gets
+   * nothing, and SAVES A COMPLETE PRICING TABLE BUILT FROM DEFAULTS — silently
+   * resetting every figure an admin had ever edited, with a success toast.
+   *
+   * Reading the keys from what is stored also means a tier an admin adds later
+   * is edited rather than deleted by the next save.
+   */
+  const keys = current.pricing.tiers.map((t) => t.key);
+
   const tiers: PricingTier[] = [];
-  for (const key of ["payg", "starter", "growth"]) {
+  for (const key of keys) {
     // 46.3 — an AI rate and a spend threshold. Never a session count.
     const rate = Number(String(formData.get(`${key}Rate`) ?? ""));
     const unlock = Number(String(formData.get(`${key}Unlock`) ?? ""));
     const name = String(formData.get(`${key}Name`) ?? "").trim();
+    // 🔴 Sprint 57 — the monthly price. Zero means this tier is credit-based
+    // (pay as you go); anything above zero means unlimited, and a session then
+    // raises both invoice lines at zero. See `sessionLines`.
+    const monthly = Number(String(formData.get(`${key}Monthly`) ?? "0"));
 
     if (!Number.isFinite(rate) || rate < 0) return { error: `${key}: that rate is not a number.` };
     if (!Number.isFinite(unlock) || unlock < 0) {
       return { error: `${key}: that threshold is not a number.` };
+    }
+    if (!Number.isFinite(monthly) || monthly < 0) {
+      return { error: `${key}: that monthly price is not a number.` };
     }
     tiers.push({
       key,
       name: name || key,
       aiRateCents: Math.round(rate * 100),
       unlockCents: Math.round(unlock * 100),
+      monthlyCents: Math.round(monthly * 100),
     });
   }
 
@@ -60,7 +84,6 @@ export async function savePricing(
     return { error: "Credits have to last at least a month." };
   }
 
-  const current = await getSettings();
   const problem = settingsProblem({ ...current, pricing: { tiers, creditExpiryMonths } });
   if (problem) return { error: problem };
 
@@ -76,7 +99,9 @@ export async function savePricing(
     action: "settings.pricing",
     resourceType: "platform_settings",
     resourceId: "pricing",
-    reason: tiers.map((t) => `${t.key}=${t.aiRateCents}@${t.unlockCents}`).join(" "),
+    reason: tiers
+      .map((t) => `${t.key}=${t.aiRateCents}@${t.unlockCents}/mo${t.monthlyCents}`)
+      .join(" "),
   });
 
   revalidatePath("/admin/settings");

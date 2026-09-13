@@ -48,6 +48,27 @@ export type PricingTier = {
   unlockCents: number;
   /** What one AI-assisted session costs them at this tier. */
   aiRateCents: number;
+  /*
+   * 🔴 Sprint 57 — the monthly price, and the reason the shape changed twice.
+   *
+   * C223 turned a session BUNDLE into a rate LOCK, because "$30 buys ten
+   * sessions" is not what we sell. This turns a rate lock into a SUBSCRIPTION,
+   * because a therapist cannot compare "$1 plus $2 a session" to anything, and
+   * every competitor they will weigh us against quotes a month.
+   *
+   * The arithmetic was never the problem. At 25 sessions a week we take about
+   * $3,000 a year, which is 1.7 to 2.5 times what the best-funded scribe in the
+   * category charges. We were priced as a premium product and positioned as a
+   * cheap one.
+   *
+   * `monthlyCents > 0` means UNLIMITED: the subscription is the whole price and
+   * a session raises both lines at zero. It also removes a defect nobody had
+   * named — the AI fee is incurred by the therapist and switched on by the
+   * PATIENT, so a therapist carried a variable monthly bill decided session by
+   * session by other people. An unlimited tier has no meter for a patient's
+   * decision to move.
+   */
+  monthlyCents: number;
 };
 
 export type PlatformSettings = {
@@ -269,9 +290,19 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
      * with AI is two visible lines instead of one opaque one.
      */
     tiers: [
-      { key: "payg", name: "Pay as you go", unlockCents: 0, aiRateCents: 300 },
-      { key: "starter", name: "Starter", unlockCents: 3000, aiRateCents: 200 },
-      { key: "growth", name: "Growth", unlockCents: 6000, aiRateCents: 100 },
+      /*
+       * 🔴 $99 and $179, not $49 and $99, and the number is measured rather than
+       * chosen. From our own rate table: transcription $0.15 a session, the note,
+       * risk, profile and suggestions $0.13, the free in-room copilot $0.05. About
+       * $0.33, so roughly $36 a month for a therapist at 25 sessions a week.
+       *
+       * $49 unlimited is a 26% margin against that and is the number that stopped
+       * us. $99 is 64%. Break-even at $99 is around 300 sessions a month, which
+       * nobody runs, so fair use is a sentence in the FAQ and not a control.
+       */
+      { key: "payg", name: "Pay as you go", unlockCents: 0, aiRateCents: 300, monthlyCents: 0 },
+      { key: "practice", name: "Practice", unlockCents: 0, aiRateCents: 0, monthlyCents: 9900 },
+      { key: "clinic", name: "Clinic", unlockCents: 0, aiRateCents: 0, monthlyCents: 17900 },
     ],
     creditExpiryMonths: 12,
   },
@@ -440,6 +471,9 @@ function parseTiers(value: unknown): PricingTier[] {
       ),
       // A rate of zero is a real answer — a promotional tier — so the floor is
       // 0 rather than 1. There is no sensible ceiling below the price cap.
+      // A tier stored before sprint 57 has no monthly price, which is what a
+      // credit tier is: zero. Nothing is backfilled and nothing is re-derived.
+      monthlyCents: int(t.monthlyCents ?? 0, 0, { min: 0, max: 1_000_000 }),
       aiRateCents: int(
         t.aiRateCents ?? Number(t.rateCents ?? 0) - SETTINGS_DEFAULTS.session.platformFeeCents,
         0,
@@ -452,8 +486,17 @@ function parseTiers(value: unknown): PricingTier[] {
   // leave a therapist with no rate to be billed at.
   if (tiers.length === 0) return SETTINGS_DEFAULTS.pricing.tiers;
 
-  // Cheapest last is how they are shown and how `tierForSpend` walks them.
-  return tiers.sort((a, b) => a.unlockCents - b.unlockCents);
+  /*
+   * Cheapest last is how they are shown and how `tierForSpend` walks them.
+   *
+   * 🔴 Sprint 57 — the tie-break is not cosmetic. Every tier this product now
+   * ships has an `unlockCents` of zero, so a sort on that key alone leaves the
+   * order entirely to whatever the admin last saved: the $179 tier could sort
+   * ahead of the free one and become the headline rate on the public page. The
+   * monthly price is the second axis, so free sorts first whatever order the
+   * rows arrive in.
+   */
+  return tiers.sort((a, b) => a.unlockCents - b.unlockCents || a.monthlyCents - b.monthlyCents);
 }
 
 /** Merge one stored group over its defaults, field by field. */
@@ -665,8 +708,30 @@ export function settingsProblem(settings: PlatformSettings): string | null {
   if (settings.session.maxPriceCents < settings.session.minPriceCents) {
     return "The price cap is below the minimum chargeable price.";
   }
-  if (!settings.pricing.tiers.some((t) => t.unlockCents === 0)) {
-    return "No tier has a threshold of zero, so a therapist who has bought nothing has no AI rate.";
+  /*
+   * 🔴 Sprint 57 / C289 — the free door is a tier with NO threshold AND NO
+   * monthly price, and the old rail only asked about the threshold.
+   *
+   * That is this repository's §6 family arriving in the rails themselves: after
+   * sprint 57 every tier has a zero threshold, including the $179 one, so the
+   * check went on passing while describing a condition that no longer held. An
+   * admin could delete pay-as-you-go outright and the only rail meant to stop
+   * them would raise nothing, leaving a therapist who has bought nothing billed
+   * at whatever tier happened to sort first.
+   */
+  if (!settings.pricing.tiers.some((t) => t.unlockCents === 0 && t.monthlyCents === 0)) {
+    return "No tier is free to be on, so a therapist who has bought nothing has no rate at all.";
+  }
+  /*
+   * 🔴 A subscription is bought, never earned. A tier carrying both a monthly
+   * price and a credit threshold reads as "spend $60 and the $179 plan is
+   * yours", which `tierForSpend` will not honour: it walks credit tiers only.
+   * A control that promises something the billing code refuses is worse than no
+   * control, so the configuration is refused instead of quietly ignored.
+   */
+  const bothAxes = settings.pricing.tiers.find((t) => t.monthlyCents > 0 && t.unlockCents > 0);
+  if (bothAxes) {
+    return `"${bothAxes.name}" has both a monthly price and a credit threshold. A subscription is bought, not unlocked by spending.`;
   }
   /*
    * 🔴 46.2 — a platform fee of zero is a configuration, not a typo, and it is

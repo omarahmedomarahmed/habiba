@@ -39,11 +39,23 @@ export type { PricingTier };
  * A spend below every threshold still returns a tier — the zero one — because
  * "bought nothing" is pay as you go, not "no rate". `settingsProblem` refuses
  * a configuration with no zero-threshold tier for exactly this reason.
+ *
+ * 🔴 Sprint 57 — **a subscription is never reached by spending.** Caught by the
+ * rewritten test rather than by reading, which is the only reason it is not in
+ * production: with the new schedule every `unlockCents` is zero, so the old loop
+ * walked past PAYG, past Practice, and left every therapist who had ever topped
+ * up a single dollar sitting on the $179 Clinic tier for free.
+ *
+ * A tier with a monthly price is BOUGHT, not EARNED, so credit cannot select it.
+ * The filter is on `monthlyCents`, not on a hard-coded key list, because the
+ * schedule is admin-editable: a tier invented tomorrow gets the rule for free.
  */
 export function tierForSpend(tiers: PricingTier[], spentCents: number): PricingTier {
   const spent = Math.max(0, Math.floor(spentCents));
-  let best = tiers[0]!;
-  for (const tier of tiers) {
+  // Only credit tiers are on this ladder. A subscription sits off it entirely.
+  const earnable = tiers.filter((t) => t.monthlyCents === 0);
+  let best = earnable[0] ?? tiers[0]!;
+  for (const tier of earnable) {
     if (tier.unlockCents <= spent) best = tier;
   }
   return best;
@@ -53,6 +65,69 @@ export function tierByKey(tiers: PricingTier[], key: string | null | undefined):
   // Fail closed to the most expensive tier a therapist could be on rather than
   // the cheapest: an unrecognised key must never silently grant the best rate.
   return tiers.find((t) => t.key === key) ?? tierForSpend(tiers, 0);
+}
+
+/**
+ * 🔴 Sprint 57 — the tier a therapist is actually ON, subscription included.
+ *
+ * ## Why this is a pure function and not a query
+ *
+ * The entitlement rule is the thing most likely to be got wrong and the thing
+ * least likely to be tested if it only exists inside a database call. So it
+ * takes the subscription row, the lifetime spend and the clock, and returns the
+ * tier. `currentTier` in `credits.ts` fetches; this decides.
+ *
+ * ## The rule, and what it refuses to do
+ *
+ * A subscriber is entitled **to the period they have paid for**, and that is the
+ * whole rule. Not "while Stripe says active", which drops a therapist the hour
+ * their card expires — mid-session, on a plan they paid for three weeks ago.
+ * Not "while a row exists", which gives away the product to anybody who ever
+ * subscribed once.
+ *
+ * So a failed renewal leaves `status = 'past_due'` and the therapist keeps the
+ * month they bought. When `currentPeriodEnd` passes without payment they fall
+ * back to the free door and start paying per session again, which is a real
+ * consequence arriving on a date they can see rather than a surprise.
+ *
+ * `cancelAtPeriodEnd` is not consulted here on purpose: cancelling is a
+ * statement about the NEXT period, and this function only answers about now.
+ *
+ * 🔴 A plan key that the settings no longer name — `growth`, from before this
+ * sprint — is not entitlement. `find` returns nothing and the spend ladder
+ * answers instead. That is why the lookup is a `find` over the live tiers and
+ * not `tierByKey`, whose fail-closed fallback would have quietly handed every
+ * legacy row the free tier while *claiming* a subscription was in force.
+ */
+export type SubscriptionState = {
+  plan: string | null;
+  status: "active" | "past_due" | "cancelled" | null;
+  currentPeriodEnd: Date | null;
+} | null;
+
+export function entitledTier(input: {
+  tiers: PricingTier[];
+  subscription: SubscriptionState;
+  lifetimeSpentCents: number;
+  now: Date;
+}): PricingTier {
+  const earned = tierForSpend(input.tiers, input.lifetimeSpentCents);
+  const sub = input.subscription;
+  if (!sub || sub.status === "cancelled") return earned;
+
+  const paid = input.tiers.find((t) => t.key === sub.plan && t.monthlyCents > 0);
+  if (!paid) return earned;
+
+  /*
+   * A null period end is a subscription Stripe has told us nothing about yet —
+   * the row exists because checkout completed and the first `invoice.paid` has
+   * not landed. Honour it: the money has changed hands. The next webhook fills
+   * the date in and the rule above starts applying.
+   */
+  if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() <= input.now.getTime()) {
+    return earned;
+  }
+  return paid;
 }
 
 /**
@@ -101,10 +176,32 @@ export function sessionLines(input: {
 }): { lines: SessionLine[]; totalCents: number; tier: PricingTier } {
   const tier = tierByKey(input.settings.pricing.tiers, input.tierKey);
 
+  /*
+   * 🔴 Sprint 57 — an unlimited tier raises BOTH LINES AT ZERO rather than no
+   * lines at all, and that is the whole design of this change.
+   *
+   * The cheap version is to skip the invoice when somebody is subscribed. It
+   * would also make a subscribed session invisible to the reconciler, to Total
+   * View's consent rate, to cost-per-session and to every report keyed on line
+   * kind — the same disappearance C221 documents, arriving through billing
+   * instead of through a null.
+   *
+   * So the record is identical for every session this product has ever run. Only
+   * the amount changes. `invoices_session_unique` and
+   * `invoice_lines_invoice_kind_unique` keep their meaning, 46.14's per-line-kind
+   * reconciler keeps working unchanged, and a zero is a fact rather than a gap.
+   */
+  const unlimited = tier.monthlyCents > 0;
+
   const lines: SessionLine[] = [
-    { kind: "platform", amountCents: input.settings.session.platformFeeCents },
+    {
+      kind: "platform",
+      amountCents: unlimited ? 0 : input.settings.session.platformFeeCents,
+    },
   ];
-  if (input.aiConsented) lines.push({ kind: "ai", amountCents: tier.aiRateCents });
+  if (input.aiConsented) {
+    lines.push({ kind: "ai", amountCents: unlimited ? 0 : tier.aiRateCents });
+  }
 
   return { lines, totalCents: lines.reduce((sum, line) => sum + line.amountCents, 0), tier };
 }

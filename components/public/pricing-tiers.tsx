@@ -78,7 +78,7 @@ export async function PricingTiers({
    * an admin adds later keeps the name they typed. Falling back to their
    * English beats inventing an Arabic name for a tier nobody translated.
    */
-  const SHIPPED = ["payg", "starter", "growth"] as const;
+  const SHIPPED = ["payg", "practice", "clinic"] as const;
   const tierName = (tier: { key: string; name: string }) =>
     (SHIPPED as readonly string[]).includes(tier.key)
       ? t(`pricing.tier.${tier.key}` as "pricing.tier.payg")
@@ -89,12 +89,19 @@ export async function PricingTiers({
   const tiers = settings.pricing.tiers;
   const platformFeeCents = settings.session.platformFeeCents;
   /*
-   * 46.3 — the tiers that cost something to reach. `payg` has a zero
-   * threshold and is the headline rate rather than a card you can buy.
+   * 🔴 Sprint 57 — the axis is the MONTHLY price, not the threshold.
+   *
+   * This read `unlockCents > 0`, which was the right question when a tier was
+   * bought with credit. Every threshold is zero now, so the same line returned
+   * an empty list and the page silently stopped showing anything to buy —
+   * without failing, without a blank space, and without a test noticing.
+   *
+   * `payg` is likewise the tier with no monthly price rather than the one with
+   * no threshold, which after this sprint is all three of them.
    */
-  const plans = tiers.filter((tier) => tier.unlockCents > 0);
-  const payg = tiers.find((tier) => tier.unlockCents === 0) ?? tiers[0]!;
-  const best = plans[plans.length - 1];
+  const plans = tiers.filter((tier) => tier.monthlyCents > 0);
+  const payg = tiers.find((tier) => tier.monthlyCents === 0) ?? tiers[0]!;
+  const cheapestPlan = plans[0];
 
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
@@ -117,14 +124,36 @@ export async function PricingTiers({
         AI and burying the thing that makes it safe to decline (C209).
       */}
       <div className="mx-auto max-w-4xl">
+        {/*
+          🔴 57.5 — two headlines, because the tier table is admin-editable and
+          a page must be correct under every configuration it can be given.
+
+          The monthly headline names a price. With no monthly tier configured it
+          would name zero — "or $0 a month" on a live pricing page — which is
+          not a rendering bug but a PRICE, and the worst kind: one nobody set.
+          The same shape appears between a deploy and the settings write that
+          follows it, which is a window of minutes on every release.
+        */}
         <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          {t("pricing.headline", {
-            amount: money(platformFeeCents),
-            ai: money(payg.aiRateCents),
-          })}
+          {cheapestPlan
+            ? t("pricing.headline", {
+                amount: money(platformFeeCents + payg.aiRateCents),
+                monthly: money(cheapestPlan.monthlyCents),
+              })
+            : t("pricing.headlinePaygOnly", {
+                amount: money(platformFeeCents),
+                ai: money(payg.aiRateCents),
+              })}
         </h2>
 
-        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+        <p className="mt-6 text-center text-sm font-semibold text-slate-900">
+          {t("pricing.paygTitle")}
+        </p>
+        <p className="mx-auto mt-1 max-w-xl text-center text-sm leading-relaxed text-slate-600">
+          {t("pricing.paygBody")}
+        </p>
+
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
           <div className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6">
             <p className="text-sm font-semibold text-brand-600">
               {t("pricing.platformLine", { amount: money(platformFeeCents) })}
@@ -185,25 +214,49 @@ export async function PricingTiers({
         </p>
 
         {/*
-          46.3 — the plans, as dollar figures with what each unlocks. The word
-          "sessions" does not appear, because $30 does not buy ten of anything.
+          🔴 57.5 — the monthly plans, which are now what the page sells.
+
+          What was here before was a pair of credit thresholds: "add $30 and AI
+          sessions cost $2". Those thresholds are all zero after this sprint, so
+          the map rendered nothing and the page had no offer on it at all. The
+          word "sessions" is still absent from the price, for the same reason it
+          was in 46.3: we do not sell a quantity of them.
         */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {plans.map((tier) => (
-            <div
-              key={tier.key}
-              className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-center"
-            >
-              <p className="text-sm font-semibold text-brand-600">{tierName(tier)}</p>
-              <p className="mt-2 text-lg font-bold text-slate-900">
-                {t("pricing.unlockBy", { amount: money(tier.unlockCents) })}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">
-                {t("pricing.unlockGets", { amount: money(tier.aiRateCents) })}
-              </p>
+        {plans.length > 0 ? (
+          <>
+            <p className="mt-10 text-center text-sm font-semibold text-slate-900">
+              {t("pricing.plansTitle")}
+            </p>
+            <p className="mx-auto mt-1 max-w-xl text-center text-sm leading-relaxed text-slate-600">
+              {t("pricing.plansBody")}
+            </p>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              {plans.map((tier) => (
+                <div
+                  key={tier.key}
+                  className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-center"
+                >
+                  <p className="text-sm font-semibold text-brand-600">{tierName(tier)}</p>
+                  <p className="mt-2 text-lg font-bold text-slate-900">
+                    {t("pricing.monthlyPer", { amount: money(tier.monthlyCents) })}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">{t("pricing.monthlyGets")}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+
+            {/*
+              🔴 The reason a monthly plan is a safety property and not only a
+              price. C209 made the AI fee conditional so a therapist had no
+              reason to lean on a patient about consent; removing the fee
+              entirely reaches the same place from the other side.
+            */}
+            <p className="mt-4 text-center text-sm leading-relaxed text-slate-600">
+              {t("pricing.plansNoMeter")}
+            </p>
+          </>
+        ) : null}
 
         <p className="mt-4 text-center text-sm leading-relaxed text-slate-600">
           {t("pricing.creditIsMoney")}

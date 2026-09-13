@@ -120,18 +120,48 @@ async function main() {
   /* ------------------------------------------------- what is in the markup */
 
   const pricing = html["pricing.en-x-staging"] ?? "";
-  const cheapest = settings.pricing.tiers[0];
+  const freeTier = settings.pricing.tiers.find((t) => t.monthlyCents === 0);
+  const plans = settings.pricing.tiers.filter((t) => t.monthlyCents > 0);
+
+  /*
+   * 🔴 AMENDED BY 57.5. This looked for every tier's AI RATE on the page, which
+   * was the only figure a tier had. Two of the three now have an AI rate of
+   * zero, so the check would have gone on passing by finding "$0" — or, worse,
+   * by finding the "$0" in some unrelated figure. A check that passes by
+   * measuring the wrong thing is this repository's §6 family and it is exactly
+   * how the pricing page drifted for a fortnight in C60.
+   *
+   * So each tier is looked for by the figure that tier actually charges: the
+   * monthly price for a plan, the AI rate for pay as you go.
+   */
+  check(
+    "🔴 17.10 / 57.5 the rendered pricing page carries the PAYG rate from platform_settings",
+    freeTier !== undefined && pricing.includes(`$${(freeTier.aiRateCents / 100).toFixed(0)}`),
+    `looking for $${(freeTier?.aiRateCents ?? 0) / 100} per AI session`,
+  );
 
   check(
-    "🔴 17.10 the rendered pricing page carries the rates from platform_settings",
-    settings.pricing.tiers.every((tier) =>
-      pricing.includes(`$${(tier.aiRateCents / 100).toFixed(0)}`),
-    ),
-    `looking for ${settings.pricing.tiers.map((t) => `$${t.aiRateCents / 100}`).join(", ")} · found ${
-      settings.pricing.tiers.filter((t) =>
-        pricing.includes(`$${(t.aiRateCents / 100).toFixed(0)}`),
-      ).length
+    "🔴 57.5 …and every monthly plan, at the price the database holds",
+    plans.length > 0 &&
+      plans.every((tier) => pricing.includes(`$${(tier.monthlyCents / 100).toFixed(0)}`)),
+    `looking for ${plans.map((t) => `$${t.monthlyCents / 100}/mo`).join(", ") || "no plans configured"} · found ${
+      plans.filter((t) => pricing.includes(`$${(t.monthlyCents / 100).toFixed(0)}`)).length
     }`,
+  );
+
+  /*
+   * 🔴 57.5 — and the plans are NAMED, not merely priced.
+   *
+   * The tier table is admin-editable, and a page that prints two prices under
+   * two blank headings renders perfectly. This is the half that notices when
+   * the name lookup silently falls through.
+   */
+  check(
+    "🔴 57.5 …and each plan is named on the page",
+    plans.every(
+      (tier) => pricing.includes(tier.name) || pricing.includes(tier.key),
+    ),
+    plans.map((t) => t.name).join(", ") || "no plans configured",
   );
 
   /*
@@ -171,8 +201,7 @@ async function main() {
   const home = html["home.en-x-staging"] ?? "";
   check(
     "🔴 17.7 the rendered HOMEPAGE carries the same prices, one component, two pages",
-    cheapest !== undefined &&
-      home.includes(`$${(cheapest.aiRateCents / 100).toFixed(0)}`),
+    freeTier !== undefined && home.includes(`$${(freeTier.aiRateCents / 100).toFixed(0)}`),
   );
 
   const patients = html["for-patients.en-x-staging"] ?? "";
