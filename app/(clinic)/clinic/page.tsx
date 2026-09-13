@@ -5,6 +5,7 @@ import { Card } from "@/components/ui";
 import { requireClinic } from "@/lib/clinic-auth/guard";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
+import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "This week", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -61,21 +62,24 @@ export default async function ClinicOverviewPage({
     clinicUsage(actor.clinicOrganizationId),
   ]);
 
-  const tag = locale === "ar" ? "ar-EG" : "en-GB";
-  const when = (at: Date | null) =>
-    at
-      ? new Intl.DateTimeFormat(tag, {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "UTC",
-        }).format(at)
-      : "";
+  /*
+   * 🔴 THROUGH `formatDateTime`, NOT `Intl` HERE, and `verify:sprint37l2` caught the
+   * first draft doing the latter.
+   *
+   * 37L.9's rule is that a page formatting a date itself is a date nothing can translate,
+   * and it is a rule this page had two reasons to think it was exempt from: the week is
+   * anchored in UTC deliberately (above), and a practice manager's screen is not a
+   * patient's. Both are wrong. The helper takes the zone as an argument, so UTC is passed
+   * explicitly and the LANGUAGE still comes from the reader, which is exactly the split the
+   * rule exists to keep.
+   */
+  const when = (at: Date | null) => formatDateTime(at, "UTC", locale);
 
   const money = (cents: number) =>
-    new Intl.NumberFormat(tag, { style: "currency", currency: "USD" }).format(cents / 100);
+    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(cents / 100);
 
   return (
     <div className="space-y-4">

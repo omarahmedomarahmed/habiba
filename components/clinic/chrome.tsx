@@ -44,7 +44,17 @@ export function ClinicChrome({
   clinicName: string | null;
 }) {
   const t = useT();
-  const pathname = usePathname();
+  /*
+   * 🔴 `?? "/clinic"`, and this was found by RENDERING it rather than by reading it.
+   *
+   * `usePathname` returns null outside a router context, and `verify:sprint54` renders
+   * this component to sweep its markup for clinical words (54.9). Without the fallback it
+   * threw on `pathname.startsWith`, which is a crash in the verifier and would also be a
+   * crash anywhere else this is rendered outside a route: a test, a story, an error
+   * boundary. The fallback is the portal's own home, so the first tab reads as active,
+   * which is the correct thing for a chrome with no path to highlight.
+   */
+  const pathname = usePathname() ?? "/clinic";
 
   return (
     <div className="min-h-dvh bg-slate-50">

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui";
 import { requireClinic } from "@/lib/clinic-auth/guard";
 import { clinicBills } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
+import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Your bills", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -41,11 +42,21 @@ export default async function ClinicBillsPage() {
 
   const bills = await clinicBills(actor.clinicOrganizationId);
 
-  const tag = locale === "ar" ? "ar-EG" : "en-GB";
   const money = (cents: number) =>
-    new Intl.NumberFormat(tag, { style: "currency", currency: "USD" }).format(cents / 100);
-  const month = (at: Date) =>
-    new Intl.DateTimeFormat(tag, { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
+    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(cents / 100);
+
+  /*
+   * 🔴 `formatDate`, not `Intl`, and 37L.9 caught the first draft.
+   *
+   * The helper gives a day as well as a month, which is more than a billing period needs
+   * and is the right trade: one date formatter in the product means one place where the
+   * language, the digits and the zone are decided, and a second one here for the sake of
+   * dropping a "1" is how C182 happened.
+   */
+  const month = (at: Date) => formatDate(at, "UTC", locale);
 
   return (
     <div className="space-y-4">
