@@ -505,6 +505,13 @@
       "when": 1789600000037,
       "tag": "0071_meeting_bots",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1789600000038,
+      "tag": "0072_corporate",
+      "breakpoints": true
     }
   ]
 }

@@ -1757,6 +1757,14 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
  * Amounts are frozen at charge time rather than recomputed from the fee rate,
  * so changing the platform rate tomorrow cannot rewrite last month's ledger.
  */
+/**
+ * 🔴 Where the money for a session came from. 53.10, C226, C244.
+ *
+ * Two values, and `pot` is deliberately not a session TYPE. See the column.
+ */
+export const FUNDING_SOURCES = ["card", "pot"] as const;
+export type FundingSource = (typeof FUNDING_SOURCES)[number];
+
 export const sessionPayments = pgTable(
   "session_payments",
   {
@@ -1881,6 +1889,29 @@ export const sessionPayments = pgTable(
     /** Stripe's own hosted receipt. We do not host a copy of it. */
     receiptUrl: text("receipt_url"),
 
+    /**
+     * 🔴 53.10 / C226 — THE ONE NEW FUNDING SOURCE, and it is one column.
+     *
+     * *The pot stands in for the patient's card and nothing else changes.* So
+     * there is no `sessionType`, no corporate invoice path and no second
+     * ledger: a sponsored payment is a `session_payments` row like any other,
+     * whose money came from a pot instead of a card.
+     *
+     * 🔴 NOT NULLABLE-AS-A-SIGNAL. `card` is the default and every existing
+     * row is one, which is exactly what those payments were. A null here would
+     * make "sponsored" an ABSENCE, and C243 is the eighth occurrence of the
+     * §6 family for precisely that reason: an absence is what a clinician finds
+     * by sorting a column.
+     *
+     * 🔴 And there is NO sponsor id here. C244: no screen in this product, the
+     * admin console included, may join a sponsor to a session, a booking, a
+     * date or a patient name. A `sponsorId` on the payment row would make that
+     * join one line of SQL away, forever, for every operator. The pot's own
+     * ledger entries carry the sponsor; the session's payment carries only that
+     * it was funded.
+     */
+    fundingSource: text("funding_source").$type<FundingSource>().notNull().default("card"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
   },
@@ -1923,6 +1954,20 @@ export const LEDGER_ACCOUNTS = [
   "therapist_receivable",
   "platform_revenue",
   "platform_expense",
+  /*
+   * 🔴 53.10 / C226 — ONE new account, and one is the ruling.
+   *
+   * A prepayment from a corporate counterparty, held for months, spent by third
+   * parties. Every pot cent traces to one payment in and one session out in
+   * this ledger, and the daily reconciliation covers it (53.16, C232).
+   *
+   * It is a liability, like `therapist_payable`: the money is somebody else's
+   * until a session spends it. C232 puts that in front of counsel before the
+   * second deal rather than the twentieth, and C232's amendment makes one
+   * question — whether unspent pot balance is a liability we may hold — a
+   * precondition of ticket 53.10 rather than a parallel task.
+   */
+  "sponsor_pot",
 ] as const;
 export type LedgerAccount = (typeof LEDGER_ACCOUNTS)[number];
 
@@ -5329,3 +5374,491 @@ export const sessionVoices = pgTable(
 );
 
 export type SessionVoice = typeof sessionVoices.$inferSelect;
+
+/* ======================================================================== */
+/*  §3e · CORPORATE — sprint 53                                             */
+/* ======================================================================== */
+
+/**
+ * 🔴 A SPONSOR IS NOT AN `organizations` ROW. C230, C259.
+ *
+ * This is the single most important sentence in this file's corporate half, so
+ * it is the first one.
+ *
+ * `organizations` is the therapist's practice, and `actor.organizationId`
+ * scopes every clinical query in the product across sixty-odd call sites.
+ * Putting a paying employer in that table would put them **inside the tenancy
+ * boundary that separates clinical caseloads** — the single worst place in this
+ * schema for somebody whose entire product promise is that they never see care.
+ *
+ * ## 🔴 And a clinic IS one, which is the trap
+ *
+ * C259: *they look like the same problem, an outside body with users and money,
+ * and they have opposite answers.* A clinic **employs clinicians and its
+ * therapists' patients sit inside its tenancy**, which is exactly what
+ * `organizationId` already does, so a clinic is the organization and a clinic
+ * manager is a new kind of user inside it holding zero clinical access. A
+ * sponsor **pays for care it must never see**.
+ *
+ * So sprints 53 and 54 do not share a table, and this comment exists because a
+ * session reading the two tickets back to back will otherwise reuse one and
+ * take four weeks to find out why.
+ *
+ * ## What a sponsor user is
+ *
+ * Their own table, their own cookie, their own sign-in, their own sessions
+ * table. Never an `Actor`: `Role` has no sponsor in it and `Actor` requires an
+ * `organizationId`, so the type system refuses it before any guard does.
+ */
+export const SPONSOR_KINDS = ["company", "university"] as const;
+export type SponsorKind = (typeof SPONSOR_KINDS)[number];
+
+/**
+ * The sponsor's lifecycle.
+ *
+ * 53.5: a new corporate signup is **held**, not active. Somebody talks to them
+ * before a pot exists, because the first conversation is a sales call and
+ * because C233's refund terms have to be agreed before any money is taken.
+ */
+export const SPONSOR_STATES = ["held", "active", "suspended", "closed"] as const;
+export type SponsorState = (typeof SPONSOR_STATES)[number];
+
+export const sponsors = pgTable(
+  "sponsors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    /** What they call themselves, on their own screens and their invoice. */
+    name: text("name").notNull(),
+    kind: text("kind").$type<SponsorKind>().notNull(),
+    state: text("state").$type<SponsorState>().notNull().default("held"),
+
+    /**
+     * 🔴 C236 — LISTED IS OPT-IN, because the picker is a public customer list.
+     *
+     * Some clients will sign precisely on the condition that nobody knows they
+     * have bought this. Unlisted is the default because the safe default is the
+     * private one and sales can ask for the other.
+     */
+    listedPublicly: boolean("listed_publicly").notNull().default(false),
+
+    /**
+     * Which entity holds their pot. §3c's rails unchanged: an Egyptian
+     * university funds the Egyptian entity in EGP, a US company funds the US
+     * entity in USD.
+     */
+    entity: text("entity").$type<Entity>().notNull(),
+    currency: text("currency").notNull(),
+
+    /* 53.5 — the contact, for the call that happens before anything else. */
+    contactName: text("contact_name"),
+    contactEmail: text("contact_email"),
+    contactPhone: text("contact_phone"),
+    contactBestTime: text("contact_best_time"),
+
+    /**
+     * 🔴 C256 — RE-VERIFICATION IS ANCHORED HERE, NOT ON A PERSON.
+     *
+     * *"Last verified" leaks the join date, which §3e forbids.* If each
+     * person's cycle ran from their own enrolment, their last-verified date
+     * would be their join date shifted by whole cycles, and a sponsor could
+     * read off who joined the week after a restructure was announced.
+     *
+     * So the cycle is per sponsor on a fixed calendar. Everybody in one
+     * organisation is checked in the same window, so the date is the same for
+     * everybody and carries no signal about anybody.
+     */
+    verifyCycleStartedAt: timestamp("verify_cycle_started_at", { withTimezone: true }),
+    verifyCycleMonths: integer("verify_cycle_months").notNull().default(3),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("sponsors_state_idx").on(t.state),
+    /* C236 — the public picker's query, and it can only ever see opted-in rows. */
+    index("sponsors_listed_idx").on(t.listedPublicly).where(sql`listed_publicly = true`),
+  ],
+);
+
+export type Sponsor = typeof sponsors.$inferSelect;
+
+/**
+ * 🔴 A sponsor's own users. Never an `Actor`, never in `users`.
+ *
+ * A separate table rather than a role on `users`, because `users.role` is read
+ * by `requireRole` and every back-office guard, and one wrong `allowed` list
+ * would hand an HR administrator a clinical screen. The type system cannot
+ * catch that; a separate table means there is nothing to get wrong.
+ */
+export const SPONSOR_ROLES = ["admin", "viewer"] as const;
+export type SponsorRole = (typeof SPONSOR_ROLES)[number];
+
+export const sponsorUsers = pgTable(
+  "sponsor_users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+
+    email: text("email").notNull(),
+    name: text("name"),
+    /** scrypt, the same helper `users` uses. Never reversible. */
+    passwordHash: text("password_hash"),
+    role: text("role").$type<SponsorRole>().notNull().default("viewer"),
+
+    lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("sponsor_users_email_unique").on(t.email).where(sql`deleted_at IS NULL`),
+    index("sponsor_users_sponsor_idx").on(t.sponsorId),
+  ],
+);
+
+export type SponsorUser = typeof sponsorUsers.$inferSelect;
+
+/** Their sessions, shaped exactly like the patient's. Own cookie, own table. */
+export const sponsorAuthSessions = pgTable(
+  "sponsor_auth_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorUserId: uuid("sponsor_user_id")
+      .notNull()
+      .references(() => sponsorUsers.id, { onDelete: "cascade" }),
+    /** SHA-256 of the cookie value. The raw token is never stored. */
+    tokenHash: text("token_hash").notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true }).notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("sponsor_auth_sessions_token_hash_unique").on(t.tokenHash),
+    index("sponsor_auth_sessions_user_idx").on(t.sponsorUserId),
+  ],
+);
+
+/**
+ * 🔴 53.9 / C237 / C120 — the joining code, which is PRINTED ON A WALL.
+ *
+ * *The printed QR on an office wall is public, exactly as C120's clinic poster
+ * was. Anybody can photograph it.* So the code carries the sponsor's identity
+ * only: never a person, never an entitlement. Scanning opens enrolment and says
+ * which organisation; the identifier the sponsor requires is still demanded.
+ *
+ * Short, revocable and rotatable. A dead one is answered with a sentence rather
+ * than a 404, because somebody is standing in a corridor reading it.
+ */
+export const sponsorCodes = pgTable(
+  "sponsor_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+
+    /** Short, human-typeable, upper case. Stored as given. */
+    code: text("code").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("sponsor_codes_code_unique").on(t.code),
+    index("sponsor_codes_sponsor_idx").on(t.sponsorId),
+  ],
+);
+
+export type SponsorCode = typeof sponsorCodes.$inferSelect;
+
+/**
+ * 🔴 53.7 / C238 — WHAT THE SPONSOR MAY ASK FOR, and the cap is the ruling.
+ *
+ * *Left open, a client will ask for a national ID number, a manager's name, or
+ * a department, and we will have built a form that collects sensitive data on
+ * their behalf into our database.*
+ *
+ * So the kinds are a closed list in code, not a free-text type the sponsor
+ * chooses. Never a national identifier, never health information, never free
+ * text somebody could confess into.
+ *
+ * `domain_email` is the recommended one and the only one that is real proof:
+ * C246 prefers an identifier we can prove over one we can only pattern-match,
+ * and C247 is that without a roster nothing else can notice somebody has left.
+ */
+export const IDENTIFIER_KINDS = ["domain_email", "id_number"] as const;
+export type IdentifierKind = (typeof IDENTIFIER_KINDS)[number];
+
+export const sponsorIdentifierFields = pgTable(
+  "sponsor_identifier_fields",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+
+    kind: text("kind").$type<IdentifierKind>().notNull(),
+
+    /** For `domain_email`: the domain, without an @. A domain is public. */
+    domain: text("domain"),
+    /** For `id_number`: a regex the value must match. Never shown verbatim. */
+    pattern: text("pattern"),
+
+    /**
+     * 🔴 C248 — A DESCRIPTION OF THE SHAPE, NEVER A SPECIMEN VALUE.
+     *
+     * *"for example, 20215544" is a working template handed to anybody who
+     * scans a poster.* So this column holds "eight digits beginning with your
+     * year of entry" and the database refuses a value that looks like a
+     * specimen — see `sponsor_identifier_no_specimen` in 0072.
+     */
+    shapeHint: text("shape_hint"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("sponsor_identifier_fields_sponsor_idx").on(t.sponsorId)],
+);
+
+export type SponsorIdentifierField = typeof sponsorIdentifierFields.$inferSelect;
+
+/**
+ * 🔴 ENROLMENT. 53.17 to 53.19d. THERE IS NO ROSTER AND NO APPROVAL QUEUE.
+ *
+ * C227, rewritten twice before it shipped, and both failures are worth keeping
+ * because both are the obvious build:
+ *
+ *   - **An approval queue fails on the rejection path.** If HR accepts or
+ *     rejects each applicant, rejections are surfaced individually, and who
+ *     fails an identifier match is disproportionately contractors, recent name
+ *     changes and people on leave. HR gets a short sharp list of exactly the
+ *     people least able to absorb being on it.
+ *   - **A bulk roster fixes that and creates a worse problem**: a complete
+ *     staff list for every client sitting in our database, with a retention
+ *     question and a breach surface attached.
+ *
+ * So a person enrols themselves with a code, and matching is automatic against
+ * **a shape and a domain, never a list of people.** The sponsor never sees an
+ * enrolment, never sees a rejection, never sees a join date, and performs no
+ * act about any individual. Their only individual-level power is removal.
+ *
+ * ## 🔴 What is in this table that the sponsor may NEVER read
+ *
+ * `createdAt` is the join date, and §3e forbids the sponsor from seeing it.
+ * It is here because we need it and because C250 makes funding start from it;
+ * it is not here for them. The wall is a property of the query, not of the
+ * column, so `lib/data/sponsors.ts` is where "the payer sees the roster"
+ * becomes a select list — and `verify:sprint53` reads that select list rather
+ * than trusting this comment.
+ */
+export const ENROLMENT_STATES = ["active", "paused", "removed"] as const;
+export type EnrolmentState = (typeof ENROLMENT_STATES)[number];
+
+/** Why funding ended. A fixed list, never free text (§3e). */
+export const REMOVAL_REASONS = ["left", "graduated", "ended", "administrative"] as const;
+export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+
+export const enrolments = pgTable(
+  "enrolments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "restrict" }),
+    /**
+     * 🔴 The PERSON, not a patient row.
+     *
+     * `people` is the identity; `patients` is one clinician's file about them.
+     * A benefit belongs to the person and follows them across clinicians,
+     * which is also what makes C234 true: removing somebody ends the funding
+     * and touches no file.
+     */
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    state: text("state").$type<EnrolmentState>().notNull().default("active"),
+
+    /**
+     * 🔴 53.19d / C249 — more than one sponsor is allowed, exactly one is
+     * primary, chosen by the patient. The primary pot pays.
+     *
+     * Neither sponsor ever learns the other exists, which follows from C227:
+     * neither sees anything about an individual beyond the enrolled list.
+     */
+    isPrimary: boolean("is_primary").notNull().default(true),
+
+    /**
+     * 🔴 53.18b — THE IDENTIFIER IS A GATE AND NOTHING ELSE.
+     *
+     * Stored **hashed**, which is the whole ruling made structural. A work
+     * email used to cross the gate is never used for communication unless the
+     * person signed up with it, is never returned to the sponsor, and is never
+     * a destination for anything we send except the one verification code.
+     *
+     * A hash cannot be returned to a sponsor, cannot be emailed, and cannot be
+     * read by a support agent with a screenshot. It still de-duplicates, which
+     * is C246's "one identifier used once, ever" — enforced by a unique index
+     * rather than by a service that checks first.
+     */
+    identifierHash: text("identifier_hash").notNull(),
+    identifierKind: text("identifier_kind").$type<IdentifierKind>().notNull(),
+
+    /**
+     * 🔴 C256 — the same date for everybody in one organisation.
+     *
+     * Set from the sponsor's cycle, never from this person's own clock, so it
+     * carries no signal about when they joined.
+     */
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
+
+    /** C234 — set on removal. The reason is a fixed list, never free text. */
+    removedAt: timestamp("removed_at", { withTimezone: true }),
+    removalReason: text("removal_reason").$type<RemovalReason>(),
+    /** C247 — funding paused because nobody answered the re-verification. */
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * 🔴 C246 — ONE IDENTIFIER, USED ONCE, EVER.
+     *
+     * Across every sponsor, not per sponsor: an identifier that crossed one
+     * gate must not cross another. A unique index rather than a service check,
+     * because two people submitting the same guessed student number in the
+     * same second is exactly the case a check-then-insert loses.
+     */
+    uniqueIndex("enrolments_identifier_unique").on(t.identifierHash),
+    /* One live enrolment per person per sponsor. Removed ones stay beside it. */
+    uniqueIndex("enrolments_person_sponsor_unique")
+      .on(t.personId, t.sponsorId)
+      .where(sql`removed_at IS NULL`),
+    /*
+     * 🔴 Exactly one primary per person. C249's "the primary pot pays" is
+     * meaningless if two rows claim it, and a service that sets one and clears
+     * the other has a window.
+     */
+    uniqueIndex("enrolments_one_primary")
+      .on(t.personId)
+      .where(sql`is_primary = true AND removed_at IS NULL`),
+    index("enrolments_sponsor_idx").on(t.sponsorId, t.state),
+  ],
+);
+
+export type Enrolment = typeof enrolments.$inferSelect;
+
+/**
+ * 🔴 THE POT IS A PAYMENT METHOD, NOT A BILLING SYSTEM. C226, 53.10.
+ *
+ * *The obvious build is a parallel path: corporate sessions, corporate
+ * invoices, corporate ledger accounts, a `sessionType` of `corporate`. That
+ * doubles every money code path in the product and guarantees the two drift.*
+ *
+ * So this table is a BALANCE and nothing else. It stands in for the patient's
+ * card at the point of payment. The therapist is paid their own price, our
+ * commission comes out of it as always, VAT as always, and the therapist's own
+ * platform fee and AI fee stay theirs exactly as on any other session.
+ *
+ * 🔴 There is no `sessionType`, no corporate invoice table, and no second
+ * ledger. One new ledger account (`sponsor_pot`) and one new funding source.
+ * A corporate session is indistinguishable from any other in every report that
+ * is not the corporate report, which C242 requires anyway.
+ */
+export const sponsorPots = pgTable(
+  "sponsor_pots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "restrict" }),
+
+    /**
+     * The balance, in the entity's currency, in minor units.
+     *
+     * 🔴 May go NEGATIVE, by a bounded amount. C239, amended: *"per patient" is
+     * the wrong unit and is unbounded in the direction that matters — a sponsor
+     * with 400 enrolled people and an empty pot can go 400 sessions negative at
+     * once, each individually permitted.* The overdraft is per SPONSOR, a small
+     * number, a setting. A session already started always completes and is
+     * always paid; new bookings stop once the sponsor overdraft is spent.
+     */
+    balanceCents: integer("balance_cents").notNull().default(0),
+    overdraftCents: integer("overdraft_cents").notNull().default(0),
+
+    /**
+     * 🔴 C233 — DECIDED BEFORE A SINGLE DEAL IS SIGNED, never afterwards.
+     *
+     * Refundable less what was spent, with a stated expiry, both shown on the
+     * top-up screen beside the button. Nullable only because a held sponsor has
+     * no pot terms yet; 0072 refuses a funded pot without them.
+     */
+    refundPolicy: text("refund_policy"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("sponsor_pots_sponsor_unique").on(t.sponsorId)],
+);
+
+export type SponsorPot = typeof sponsorPots.$inferSelect;
+
+/**
+ * 🔴 C231 — THE PATIENT'S OWN NOTIFICATION LOG, and there are TWO logs.
+ *
+ * The amendment is the whole ruling: *a permanently undeletable entry saying an
+ * employer enrolled you and later removed you is a fact about the EMPLOYMENT
+ * RELATIONSHIP, retained forever in a record C234 promises the payer cannot
+ * touch, and it travels if the record is ever exported.*
+ *
+ * So: **this log keeps what happened to the PERSON, and a removal reads "your
+ * benefit has ended" with no employer named and no reason.** The payer's acts
+ * live in `audit`, where they already belong, and never enter a patient export.
+ *
+ * Append only. Dismissing takes an entry out of the main view and leaves it in
+ * the history, which is what an audit needs and what a person expects.
+ */
+export const PATIENT_NOTICE_KINDS = [
+  "benefit_started",
+  "benefit_ended",
+  "benefit_paused",
+  "verify_needed",
+] as const;
+export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
+
+export const patientNotifications = pgTable(
+  "patient_notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    kind: text("kind").$type<PatientNoticeKind>().notNull(),
+
+    /**
+     * 🔴 NO SPONSOR ID, AND THAT IS THE RULING.
+     *
+     * C231's amendment: a removal notice names no employer. A column here
+     * holding a sponsor id would make "which employer dropped you" a join
+     * away, permanently, inside a record the payer is promised they cannot
+     * touch — and it would travel in an export.
+     *
+     * The body is a MessageKey resolved at render, so the words are
+     * translatable and admin-editable and the row carries no prose either.
+     */
+    messageKey: text("message_key").notNull(),
+
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("patient_notifications_person_idx").on(t.personId, t.createdAt)],
+);
+
+export type PatientNotification = typeof patientNotifications.$inferSelect;
