@@ -264,6 +264,22 @@ const JOBS = {
     const { sweepExpiredLaunches } = await import("@/lib/partner/launch");
     const launchesSwept = await sweepExpiredLaunches();
 
+    /*
+     * 🔴 44.1 / C97 — the check-ins, swept here.
+     *
+     * Beside the other sweeps for the reason at the top of this file, and with one addition that
+     * matters: this job runs HOURLY like the rest, and the cadence is enforced per person by
+     * `settings.checkins.everyHours` rather than by how often the cron fires. A schedule that
+     * controlled the cadence would mean changing the rate needed a deploy, and C97's ruling was
+     * explicitly that the rate is an admin's to change.
+     *
+     * 🔴 So the sweep runs hourly and sends to nobody who was messaged recently, is inside their
+     * night, or has muted. The reasons it skipped are in the return value, because "measure the mute
+     * rate" needs the denominator visible and a job that logged only its sends would hide it.
+     */
+    const { sweepCheckins } = await import("@/lib/checkins/send");
+    const checkins = await sweepCheckins();
+
     return {
       reconciled,
       released: released.released,
@@ -274,6 +290,12 @@ const JOBS = {
       webhooksSent: hooks.sent,
       webhooksFailed: hooks.failed,
       launchTokensSwept: launchesSwept,
+      checkinsSent: checkins.sent,
+      checkinsMuteRate: Math.round(checkins.muteRate * 100) / 100,
+      checkinsSkippedQuiet: checkins.skipped.quiet_hours,
+      checkinsSkippedMuted: checkins.skipped.muted,
+      checkinsSkippedTooSoon: checkins.skipped.too_soon,
+      checkinsHalted: checkins.skipped.mute_rate_halt,
     };
   },
 

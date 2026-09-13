@@ -7012,3 +7012,182 @@ export const ehrWritebacks = pgTable(
 );
 
 export type EhrWriteback = typeof ehrWritebacks.$inferSelect;
+
+/* ========================================================================== */
+/*  Sprint 44 · Check-ins                                                      */
+/* ========================================================================== */
+
+// 🔴 C97 / 44.1 / 44.2 — THE TWO RULINGS THIS SECTION IS SHAPED BY.
+//
+// 44.1: *personalised, very short, differently worded, their name, an admin-controlled rate, an
+// opt-out and an overnight quiet window.* Every one of those is a column or a setting here, and the
+// cadence lives in `settings.checkins` rather than in a constant because the founder's ruling was
+// to PROVE it rather than assume it.
+//
+// 44.2: 🔴 **A CHECK-IN ASKS. IT NEVER INTERPRETS.** *A worrying reply goes to the crisis path,
+// never to a copilot.* That is the rule this schema is built to make structurally true: there is no
+// column on `checkin_replies` for a score, a sentiment, a mood, a risk level or a summary, and
+// nothing here is reachable from `lib/ai/`. A reply is stored as the person's own words, scanned by
+// the SAME keyword path a session transcript is scanned by, and either raises a crisis alert or
+// sits there.
+
+/**
+ * 🔴 44.1 / C97 — A CHECK-IN THAT WAS SENT, AND THE ONE THING IT MUST NOT BE.
+ *
+ * ## 🔴 IT IS A LOG, NOT A QUEUE
+ *
+ * The row is written when the message goes out, so "how many did we send this week" and "when was
+ * this person last messaged" are one query rather than an inference from a cron's memory. The
+ * cadence check reads `MAX(sent_at)` per person, which means a deployment that missed a day sends
+ * one message when it comes back rather than the four it owes. That is deliberate: a backlog of
+ * check-ins delivered at once is the worst version of this feature.
+ *
+ * ## 🔴 `body` IS STORED, and it is the one thing here that looks like over-collection
+ *
+ * 44.1 asks for messages *differently worded each time, never a template everybody recognises*.
+ * The only way to keep that promise is to know what we already said to this person, so the text is
+ * kept. It is OUR words, not theirs, and it carries no clinical content by construction: a
+ * check-in asks how somebody is and says nothing about them.
+ */
+export const checkins = pgTable(
+  "checkins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /**
+     * 🔴 The PERSON, not the patient record.
+     *
+     * A check-in is addressed to a human being, and `people` is the table that means a human being
+     * (5.1). A `patients` row is one clinician's chart about them; somebody seen by two clinicians
+     * has two, and messaging them twice a day because of our filing is exactly the harm C97's
+     * cadence warning is about.
+     */
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    /** Which channel carried it, so a mute on WhatsApp is not read as a mute on email. */
+    channel: text("channel").$type<"email" | "whatsapp">().notNull(),
+    /** What we said. Kept so the next one can be worded differently. Never about them. */
+    body: text("body").notNull(),
+    /** Which language it went out in, because the next one should match. */
+    locale: text("locale").notNull().default("en"),
+
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Whether the provider took it. A send that failed is not a check-in they received. */
+    delivered: boolean("delivered").notNull().default(false),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /* The cadence query: the most recent check-in for one person. */
+    index("checkins_person_sent_idx").on(t.personId, t.sentAt),
+  ],
+);
+
+export type Checkin = typeof checkins.$inferSelect;
+
+/**
+ * 🔴 44.2 — A REPLY, IN THE PERSON'S OWN WORDS, AND NOTHING DERIVED FROM IT.
+ *
+ * > *A check-in is not a clinical assessment: it asks, it never interprets, and a worrying reply
+ * > goes to the crisis path rather than to a copilot.*
+ *
+ * ## 🔴 THE COLUMN LIST IS THE RULE
+ *
+ * There is no `score`, no `mood`, no `sentiment`, no `risk_level`, no `summary` and no
+ * `ai_response`. Not "not populated yet" — there is nowhere to put one, so a future edit that
+ * wanted to interpret a reply would have to add a column in a diff somebody reads. The same
+ * technique `queueWebhook` uses for 42.4 and `ehr_launches` for 43.4, arrived at for the third
+ * time: enforce the rule with the shape rather than with a reviewer noticing.
+ *
+ * ## 🔴 `crisis_alert_raised` IS A BOOLEAN, NOT A JUDGEMENT
+ *
+ * It records that the reply went to the crisis path. It does not record a level, a category or a
+ * confidence, because those would be this table interpreting — and the interpretation that does
+ * happen belongs to `risk_assessments`, written by the SAME `scanForCrisisLanguage` and
+ * `raiseCrisisAlert` a session transcript goes through. One crisis path, reached from two places.
+ */
+export const checkinReplies = pgTable(
+  "checkin_replies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    checkinId: uuid("checkin_id")
+      .notNull()
+      .references(() => checkins.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    /** 🔴 Their words, as they wrote them. The only thing on this row that is theirs. */
+    body: text("body").notNull(),
+
+    /**
+     * 🔴 Whether this went to the crisis path. A fact, not a finding.
+     *
+     * The finding, if there is one, is a `risk_assessments` row written by the ordinary crisis
+     * path. This column exists so a verifier can assert that a reply containing crisis language
+     * DID route, which is 44.2's whole assertion and is otherwise invisible.
+     */
+    crisisAlertRaised: boolean("crisis_alert_raised").notNull().default(false),
+
+    receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("checkin_replies_person_idx").on(t.personId),
+    index("checkin_replies_checkin_idx").on(t.checkinId),
+  ],
+);
+
+export type CheckinReply = typeof checkinReplies.$inferSelect;
+
+/**
+ * 🔴 44.1 / C97 — THE OPT-OUT, AND IT IS THE MOST IMPORTANT TABLE IN THIS SPRINT.
+ *
+ * > *A person who mutes it is worse off than one who was messaged less.*
+ *
+ * That sentence is why this is its own table rather than a boolean on `people`. A mute is an EVENT
+ * with a time on it, and the time is what makes the mute rate measurable: a boolean says how many
+ * people are muted today and a row says when they muted, which is the only way to tell whether a
+ * cadence change helped.
+ *
+ * ## 🔴 UNMUTING IS A SECOND ROW, NOT A DELETE
+ *
+ * Deleting the mute would erase the evidence that the cadence drove somebody away, which is the
+ * measurement the founder asked for. So `unmuted_at` is stamped and the row stays.
+ *
+ * ## 🔴 AND A MUTE IS NEVER A CLINICAL SIGNAL
+ *
+ * Nothing reads this table to infer anything about a person. It is not a disengagement flag, it
+ * does not reach a copilot, and it is not on any clinician's screen as a risk indicator. Somebody
+ * turning off unprompted messages has told us about our messages, not about themselves.
+ */
+export const checkinMutes = pgTable(
+  "checkin_mutes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+
+    mutedAt: timestamp("muted_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Stamped if they turn it back on. The row stays, so the rate stays measurable. */
+    unmutedAt: timestamp("unmuted_at", { withTimezone: true }),
+    /**
+     * How they did it, so a reply of "stop" and a switch on a screen are distinguishable.
+     *
+     * The first is somebody who had had enough; the second is somebody making a settings choice.
+     * A mute rate that mixed them would hide the number that matters.
+     */
+    via: text("via").$type<"reply" | "screen">().notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /* One LIVE mute per person, as a partial unique index, so the history stays beside it. */
+    uniqueIndex("checkin_mutes_live_unique").on(t.personId).where(sql`unmuted_at IS NULL`),
+    index("checkin_mutes_muted_at_idx").on(t.mutedAt),
+  ],
+);
+
+export type CheckinMute = typeof checkinMutes.$inferSelect;

@@ -57,6 +57,17 @@ export type Message = {
     | "claim.code"
     /** 13.3 — the therapist hands their patient the link to their own record. */
     | "claim.invite"
+    /**
+     * 🔴 44.1 / C97 — the unprompted one, and the only message in this list nobody asked for.
+     *
+     * Every other kind here answers something the person did: they booked, they claimed, they wrote
+     * in. This one arrives on a schedule, which is why it is the one with a mute, a quiet window and
+     * an admin-controlled rate attached to it, and why its body carries the opt-out.
+     *
+     * 🔴 It says nothing about them. It asks how they are and stops, because 44.2 is that a check-in
+     * asks and never interprets.
+     */
+    | "checkin.asking"
     /** 16.2 — the manual payout rail, which a person works by hand. */
     | "payout.sent"
     | "payout.rejected"

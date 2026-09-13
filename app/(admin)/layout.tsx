@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   PhoneCall,
   Globe2,
+  HeartPulse,
   Hospital,
   Plug,
   LayoutDashboard,
@@ -151,6 +152,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             the person who will build against it.
           */}
           {isOwner ? <AdminLink href="/admin/partners" icon={Plug}>{t("apartner.nav")}</AdminLink> : null}
+          {/*
+            44.1 — the owner's. C97's ruling was to ship the cadence with an admin-controlled rate
+            and MEASURE THE MUTE RATE, and this is where that number lives beside the threshold that
+            halts the channel. Not a clinical screen: six counts and nobody's words.
+          */}
+          {isOwner ? <AdminLink href="/admin/checkins" icon={HeartPulse}>{t("acheckin.nav")}</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink> : null}

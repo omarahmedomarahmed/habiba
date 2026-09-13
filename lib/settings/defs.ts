@@ -204,6 +204,51 @@ export type PlatformSettings = {
     /** 53.19b / C247 — how often an identifier is re-checked. */
     verifyCycleMonths: number;
   };
+  /**
+   * 🔴 44.1 / C97 — THE CHECK-IN CADENCE IS A SETTING BECAUSE THE FOUNDER SAID TO PROVE IT.
+   *
+   * The requirement was six-hourly, and the ruling attached to it in the same breath:
+   * *that cadence is the thing to prove rather than assume. Four unprompted messages a day is a
+   * lot for somebody in distress, and a person who mutes it is worse off than one who was messaged
+   * less. Ship it with a rate the admin controls, an opt-out, and a quiet window overnight.*
+   *
+   * So every number here is a number an operator can change the same afternoon they read a mute
+   * report, without a deploy. That is the only way "measure the mute rate" leads anywhere: a
+   * measurement nobody can act on within a day is a chart.
+   *
+   * 🔴 THE DEFAULT IS NOT SIX-HOURLY, and that is a decision rather than a slip.
+   *
+   * Six-hourly is the ceiling the founder named, not a floor to start at, and the safe direction
+   * for an unproven cadence is the one that sends fewer. So the seed is once a day and the setting
+   * goes down to six-hourly for an operator who has evidence. A product that starts at four
+   * messages a day and tunes downward has already sent them.
+   */
+  checkins: {
+    /** Whether the channel exists at all. Off until somebody turns it on deliberately. */
+    enabled: boolean;
+    /**
+     * Hours between check-ins to one person. The founder's six-hourly is `6`; the seed is `24`.
+     * Bounded below at 6 by `lib/checkins/policy.ts` so nobody can set it to minutes by accident.
+     */
+    everyHours: number;
+    /**
+     * 🔴 The quiet window, in the PATIENT's own timezone. Start and end hour, 0 to 23.
+     *
+     * In their zone rather than ours, because a quiet window on server time is a 3am message to
+     * somebody three timezones away, which is the exact harm the window exists to prevent.
+     */
+    quietFromHour: number;
+    quietToHour: number;
+    /**
+     * 🔴 The mute-rate ceiling, as a proportion. Above it the channel stops sending to ANYBODY.
+     *
+     * This is the part that makes "measure the mute rate" a mechanism rather than a chart. A
+     * measurement that only produces a number is a measurement somebody reads next quarter; this
+     * one halts the thing it measures. If more than this share of reachable patients have muted,
+     * the cadence is wrong and continuing to send is choosing to be wrong at everybody.
+     */
+    muteRateHalt: number;
+  };
 };
 
 /**
@@ -300,6 +345,19 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     minTopUpCents: 500_000,
     activityFloor: 5,
     verifyCycleMonths: 6,
+  },
+  checkins: {
+    /* 🔴 Off. A channel that messages every patient turns on deliberately or not at all. */
+    enabled: false,
+    /* 🔴 Once a day, not the six-hourly the requirement named. See the type above: the safe
+       direction for an unproven cadence is fewer, and six-hourly is where an operator with
+       evidence can go rather than where this starts. */
+    everyHours: 24,
+    /* 21:00 to 09:00 in the PATIENT's zone. */
+    quietFromHour: 21,
+    quietToHour: 9,
+    /* One in five. Past that the channel halts rather than reporting. */
+    muteRateHalt: 0.2,
   },
 };
 

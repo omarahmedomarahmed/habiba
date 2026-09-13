@@ -1396,6 +1396,59 @@ export const en = {
    * because those are the same sentence about an organisation that happens to have one person in
    * it. A therapist who later joins a practice needs to have been told which it was.
    */
+  /*
+   * 🔴 44.1 / 22R.11 — TWELVE WORDINGS, NOT ONE TEMPLATE.
+   *
+   * *Personalised, very short, differently worded each time — never a template everybody
+   * recognises.* So there are twelve, each carrying `{name}`, each under about fifteen words, and
+   * `lib/checkins/wording.ts` will not reuse the one it used last for the same person.
+   *
+   * 🔴 NOT ONE OF THEM ASKS A CLINICAL QUESTION, and that is 44.2 in the copy rather than only in
+   * the schema. No "how is your mood", no "rate your anxiety", no "are you feeling low". Every one
+   * asks how a person IS, the way somebody who knows them would, because a check-in that asks for a
+   * rating is a clinical assessment arriving unprompted at 9am with nobody to read the answer.
+   *
+   * And none of them says "reply STOP" in capitals like a marketing message. `checkin.howToStop` is
+   * appended once, in words, because the opt-out has to be reachable from the message itself and a
+   * person in distress should not have to find a settings screen.
+   */
+  /* The admin's measurement. C97: "measure the mute rate" — and act on it the same afternoon. */
+  "acheckin.nav": "Check-ins",
+  "acheckin.title": "Check-ins",
+  "acheckin.body": "A short message asking how somebody is, on a schedule. The cadence was a requirement and the ruling attached to it was to prove it rather than assume it, so every number here is yours to change and the mute rate is the one to watch.",
+  "acheckin.rate": "The mute rate",
+  "acheckin.rateBody": "{muted} of {reachable} people who could be messaged have turned these off. Above {halt} the channel stops sending to everybody, because at that point continuing is choosing to be wrong at everyone.",
+  "acheckin.halted": "The channel is halted. Enough people have muted that it stopped on its own.",
+  "acheckin.sent": "{count} sent",
+  "acheckin.delivered": "{count} delivered",
+  "acheckin.replies": "{count} replied",
+  "acheckin.crisisRouted": "{count} went to the crisis path",
+  "acheckin.mutedCount": "{count} turned them off",
+  "acheckin.unmutedCount": "{count} turned them back on",
+  "acheckin.noBodies": "What people replied is not on this screen and is not on any screen. A worrying reply goes to their own therapist through the crisis path; everything else is kept and read by nobody.",
+  "checkin.1": "{name}, how are you doing today?",
+  "checkin.2": "Thinking of you, {name}. How is today going?",
+  "checkin.3": "Hello {name}. How are things right now?",
+  "checkin.4": "{name}, how has your day been so far?",
+  "checkin.5": "Checking in, {name}. How are you?",
+  "checkin.6": "{name}, how are you finding today?",
+  "checkin.7": "Hope today is treating you kindly, {name}. How are you?",
+  "checkin.8": "{name}, anything you want to say about today?",
+  "checkin.9": "How is it going, {name}?",
+  "checkin.10": "{name}, how are you holding up?",
+  "checkin.11": "Just asking after you, {name}. How are you today?",
+  "checkin.12": "{name}, how are you at the moment?",
+  /* 🔴 The opt-out, in the message, in words rather than in capitals. */
+  "checkin.howToStop": "If you would rather not get these, reply with the word stop and they will end.",
+  "checkin.subject": "How are you?",
+  /* The patient's own screen, for the people who prefer a switch to a reply. */
+  "checkin.settingsTitle": "Messages asking how you are",
+  "checkin.settingsBody": "We send a short message now and then asking how you are. It goes to you, nobody reads your reply unless you write something that worries us, and you can turn it off here or by replying with the word stop.",
+  "checkin.on": "Send them",
+  "checkin.off": "Do not send them",
+  "checkin.mutedOn": "Turned off {date}",
+  /* 🔴 What happens to a worrying reply, said before they reply rather than after. */
+  "checkin.crisisNote": "If you write something that sounds like you are in danger, we will show you where to get help straight away and tell your therapist. Nothing else about your reply is read by anybody or given to a computer to interpret.",
   "records.title": "Your record system",
   "records.bodyClinic": "Connect the practice's record system once and every clinician here files notes into it. The connection belongs to the practice, so a clinician who leaves loses it the same day, without anybody having to remember.",
   "records.bodySolo": "Connect your record system and approved notes file back into it. The connection belongs to your practice, which is you.",
@@ -3970,6 +4023,39 @@ export const ar: Record<MessageKey, string> = {
   "devs.limits": "ما لا توجد له نقطة وصول",
   "devs.limitsBody": "ليس مؤجلًا ولا على خطة: لا يوجد مسار ولا وسيط يقبله. لا قائمة بمن هو منضم في أي جهة. لا قائمة بمرضى أحد. لا سجل يقرأه مفتاح. لا ملاحظة لم يعتمدها معالج. لا نص جلسة نقبله من خادم. لا محتوى في استدعاء.",
   "devs.rateNote": "المفاتيح الحقيقية محدودة بعدد طلبات في الدقيقة، وتجاوز الحد يوقف المفتاح بدلًا من إبطائه. ابنِ على طلب واحد داخل مسار واحد، لا على مسح شامل.",
+  "acheckin.nav": "رسائل الاطمئنان",
+  "acheckin.title": "رسائل الاطمئنان",
+  "acheckin.body": "رسالة قصيرة تسأل عن حال الشخص، على جدول. كان التواتر مطلبًا وكان الحكم المرافق له أن نتحقق منه لا أن نفترضه، فكل رقم هنا لك أن تغيّره، ومعدل الإيقاف هو ما يجب مراقبته.",
+  "acheckin.rate": "معدل الإيقاف",
+  "acheckin.rateBody": "{muted} من {reachable} ممن يمكن مراسلتهم أوقفوا هذه الرسائل. وفوق {halt} تتوقف القناة عن الإرسال للجميع، لأن الاستمرار عندها اختيار للخطأ مع الكل.",
+  "acheckin.halted": "القناة متوقفة. أوقفها عدد كافٍ من الناس فتوقفت من نفسها.",
+  "acheckin.sent": "أُرسلت {count}",
+  "acheckin.delivered": "وصلت {count}",
+  "acheckin.replies": "ردّ {count}",
+  "acheckin.crisisRouted": "{count} ذهبت إلى مسار الأزمة",
+  "acheckin.mutedCount": "{count} أوقفوها",
+  "acheckin.unmutedCount": "{count} أعادوا تشغيلها",
+  "acheckin.noBodies": "ما كتبه الناس ليس على هذه الشاشة ولا على أي شاشة. الرد المقلق يذهب إلى معالجهم عبر مسار الأزمة، وما عدا ذلك يُحفظ ولا يقرأه أحد.",
+  "checkin.1": "{name}، كيف حالك اليوم؟",
+  "checkin.2": "نفكر فيك يا {name}. كيف يمضي يومك؟",
+  "checkin.3": "أهلًا {name}. كيف الأمور الآن؟",
+  "checkin.4": "{name}، كيف كان يومك حتى الآن؟",
+  "checkin.5": "نسأل عنك يا {name}. كيف حالك؟",
+  "checkin.6": "{name}، كيف تجد يومك؟",
+  "checkin.7": "نرجو أن يكون يومك طيبًا يا {name}. كيف حالك؟",
+  "checkin.8": "{name}، هل تحب أن تقول شيئًا عن يومك؟",
+  "checkin.9": "كيف تسير الأمور يا {name}؟",
+  "checkin.10": "{name}، كيف تتحمل هذه الأيام؟",
+  "checkin.11": "نسأل عن أحوالك يا {name}. كيف أنت اليوم؟",
+  "checkin.12": "{name}، كيف أنت في هذه اللحظة؟",
+  "checkin.howToStop": "إن كنت تفضل ألا تصلك هذه الرسائل، اكتب كلمة إيقاف وستتوقف.",
+  "checkin.subject": "كيف حالك؟",
+  "checkin.settingsTitle": "رسائل تسأل عن حالك",
+  "checkin.settingsBody": "نرسل رسالة قصيرة من حين إلى آخر نسأل فيها عن حالك. تصلك أنت، ولا يقرأ أحد ردك إلا إذا كتبت ما يقلقنا، ويمكنك إيقافها من هنا أو بالرد بكلمة إيقاف.",
+  "checkin.on": "أرسلوها",
+  "checkin.off": "لا ترسلوها",
+  "checkin.mutedOn": "أُوقفت في {date}",
+  "checkin.crisisNote": "إن كتبت ما يبدو أنك في خطر، سنعرض لك فورًا أين تجد المساعدة ونُخبر معالجك. ولا يقرأ أحد شيئًا آخر من ردك ولا يُعطى لحاسوب ليفسّره.",
   "records.title": "نظام السجلات لديك",
   "records.bodyClinic": "اربط نظام سجلات العيادة مرة واحدة ويودع كل معالج هنا ملاحظاته فيه. الاتصال ملك العيادة، فالمعالج الذي يتركها يفقده في اليوم نفسه بلا حاجة إلى أن يتذكر أحد.",
   "records.bodySolo": "اربط نظام سجلاتك فتودع الملاحظات المعتمدة فيه. الاتصال ملك عيادتك، وهي أنت.",
