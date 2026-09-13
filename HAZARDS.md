@@ -22,23 +22,28 @@ your first commit.
 | H14 | Blob URLs are secrets, not access control. Anyone with the URL has the file | Never rely on URL opacity for a document watermark or audit trail |
 | H15 | Force-pushing a shared branch destroys another session's commits as surely as deleting a message | Merge; never force-push `main` or a branch another session writes to |
 | H16 | **Nothing applies migrations on deploy.** Vercel's build command is `next build` and no step runs `db:migrate`. Pushing `main` ships code whose tables do not exist, and every page that touches one 500s | Apply the migration to production **before** pushing `main`, and keep every migration additive so the running deployment survives the gap |
+| H17 | **The migration journal is the source of truth, not the directory.** A `.sql` file with no entry in `drizzle/meta/_journal.json` is skipped and the runner prints success. This shipped once: `0083` existed on disk for a day while production had none of it | `scripts/migrate.ts` now refuses when the two disagree. Never hand-write a journal entry |
+| H18 | **A generated journal entry can be unreachable.** Drizzle applies a migration only when the last ledger timestamp is **lower** than the entry's `when`. This journal carries synthetic values ahead of the wall clock, so a freshly generated entry lands *behind* its predecessor and is skipped silently | After `drizzle-kit generate --custom`, correct `when` to continue the sequence. `migrationLedgerAudit` checks reachability, not just membership |
+| H19 | **`drizzle-kit generate` without `--custom` cannot be used here.** `drizzle/meta/` holds only `0000_snapshot.json`; migrations 1 to 82 were journaled by hand, so a plain generate diffs against the original schema and emits a migration recreating eighty-nine existing tables | `--custom` only, until somebody rebuilds the snapshot chain by replaying every migration into a scratch database |
+| H20 | **A known-failing test is a test nobody reads.** Five e2e tests asserted UI that sprints 41 and 47 deliberately changed and sat red for fifteen sprints behind a standing explanation of "no headless shell" that was itself wrong. They masked a live defect: a therapist could not start a session with a walk-in | A failure carrying a standing explanation gets re-diagnosed on a schedule, or the explanation becomes a lid |
+| H21 | **`tests/run-e2e.sh` is the harness.** It resolves Chromium and starts a server. `node --test` on that file runs it without either, and the browser error it prints names something other than the real problem | Always `npm run test:e2e`. `scripts/_browser.ts` resolves the browser; prefer the full Chromium over the headless shell, which cannot do fake media streams |
+| H22 | **A switch an operator can set is proved dead by its ACCESSOR, never by its column name.** `country_settings.enabled` was searched for by field, declared unused and nearly deleted. It is read through `getCountrySettings`, which returns null when false, and two payment call sites then refuse the charge | Grep the function that reads it, and every caller of that function, before removing any operator control |
+| H23 | **The i18n coverage ratchet is a floor, and knows it twice over.** It counts JSX text plus `aria-label`, `placeholder`, `title`, `alt`, `label` and `hint`. It cannot see a string inside a JSX expression container, so every ternary is invisible, including the pending state of most buttons | Treat zero as "no known English", never "no English". Closing the shape needs a parser, not a wider regex |
 
 ## Verification commands
 
 ```bash
-set -a; . ./.env.local; set +a          # anything touching the database needs this
+set -a; . ./.env.local; set +a           # anything touching the database needs this
 
-npx tsc --noEmit                         # types
-npm run build                            # the real check
-npm test                                 # safety      (23)
-npm run test:alarm                       # alarm       (7)
-npm run test:clock                       # clock       (12)
-npm run test:toasts                      # toasts      (8)
-npm run test:transcribe                  # transcribe  (10)
-npm run test:ledger                      # ledger      (9)   — needs DATABASE_URL
-npm run test:db                          # radar       (27)  — needs DATABASE_URL
-npm run test:e2e                         # e2e         (13)  — needs DATABASE_URL
+npx tsc --noEmit                          # types
+npm run build                             # the real check
+npm test                                  # safety suite
+npm run test:e2e                          # e2e, THROUGH its harness
+npm run verify:sprintNN                   # per-sprint gates; most refuse production by name
 ```
 
-`npm run lint` drops into Next's interactive ESLint setup and hangs. Use `tsc`
-and `build` instead until that is configured.
+`npm run lint` drops into Next's interactive ESLint setup and hangs. Use `tsc` and
+`build` instead until that is configured.
+
+Every verifier that touches the database refuses the production endpoint by name.
+Do not weaken that guard. Point `DATABASE_URL` at a Neon branch instead.

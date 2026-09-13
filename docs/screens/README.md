@@ -1,5 +1,8 @@
 # Screens
 
+> For the full walkthrough, both languages and both directions, see
+> `docs/walkthrough-2/` — 134 frames, findings, and the four film cuts.
+
 Every screen in the product, captured by `npm run screens`. PLAN.md 18.10–18.12.
 
 ## Regenerate, never edit
@@ -13,7 +16,7 @@ npm run screens -- --admin   # …and admin, which is NOT committed
 
 The sweep **refuses to run** against a database holding patients or notes
 outside a demo organisation (18.11). A screenshot in a repository is permanent
-in a way a database row is not: the purge in sprint 22 empties tables, and it
+in a way a database row is not: the purge in sprint 52 empties tables, and it
 will never reach a PNG in git history.
 
 `admin/` is gitignored (18.12). An admin console shows many patients at once

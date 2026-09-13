@@ -1,220 +1,245 @@
 # 24Therapy
 
-AI clinical documentation for therapists. Start a session on your phone, and the SOAP
-note, summary and follow-up are written for you by the time you say goodbye.
+**The clinical record layer above whatever a therapist already uses.** Not a scribe,
+not an EHR. The layer that makes every session, held anywhere, part of one patient's
+story that the patient owns and carries.
 
 **One Next.js application. One deployment. One database.**
 
+> **Status: development. Nothing has launched.** Production holds one administrator
+> and no patient data. Every account that has ever existed here was synthetic.
+
 ---
 
-## What this is
+## Who signs in, and what each one can never see
 
-| Surface | Path | Who |
+Six kinds of person authenticate. The last column is the product.
+
+| Portal | Route group | Sees | Never sees |
+|---|---|---|---|
+| **Patient** | `app/(patient)` | Everything about their own care | Another person's anything. A transcript. A clinical note |
+| **Therapist** | `app/(app)` | Their own caseload, in full | Another clinician's caseload. Who paid for a session |
+| **Clinic** | `app/(clinic)` | Its therapists' schedules, usage and bills. Patient names and appointment times only | **Any clinical content at all** |
+| **Sponsor** | `app/(sponsor)` | The pot, the enrolled roster, aggregate spend | Who booked, when, with whom, about what |
+| **Partner** | `app/(partner)` | Keys, docs, webhooks, their own subjects | Content. A webhook carries an event and an id |
+| **Admin** | `app/(admin)` | The operating picture | A join between a sponsor and a session, booking, date or name |
+
+🔴 **A clinic IS an `organizations` row. A sponsor is NOT.** They look like one
+problem and have opposite answers: a clinic employs clinicians and its patients sit
+inside the tenancy `actor.organizationId` scopes, while a sponsor pays for care it
+must never see. Do not share a table between them.
+
+---
+
+## What it does
+
+| Flow | Where |
+|---|---|
+| A session, recorded in person or in our room, transcribed and written up | `app/(room)/sessions/[id]/room` |
+| A session on Zoom, Meet or Teams, with a bot we dispatch | `lib/meetings/` |
+| A patient claims their record and carries it to a new therapist | `lib/data/portability.ts` |
+| A clinician asks the record about a patient, with citations that resolve | `lib/ai/case-copilot.ts` |
+| A patient books a therapist who is available right now | `app/(public)/radar` |
+| A company or university funds therapy and never learns who went | `lib/data/sponsor.ts` |
+| A hospital connects its EHR and our chart appears inside it | `lib/ehr/` |
+| A partner platform reads a record under a grant the patient gave | `lib/partner/` |
+
+---
+
+## The money
+
+One session raises **two line items**, and only one is conditional.
+
+| | Charged to | When |
 |---|---|---|
-| Public site | `/`, `/features`, `/pricing`, `/privacy`, … | Anyone. Content is CMS-backed and edited in the admin console. |
-| Clinician portal | `/dashboard`, `/sessions`, `/patients`, `/notes`, `/billing`, `/settings` | Signed-in therapists, phone-first |
-| Live session room | `/sessions/[id]/room` | The clinician, full-screen |
-| Patient join | `/join/[token]` | The patient. No account, no password, no app. |
-| Admin console | `/admin` | Super admins |
+| **Platform fee** | The therapist, or their clinic | **Every session.** Free, in person, and declined ones |
+| **AI fee** | The therapist, or their clinic | **Only when the patient turned AI on** |
 
-The core loop is: **New session → type a first name → Start → End → review → Approve & send.**
-Four screens, roughly eight taps, from a brand-new account to a signed note in a
-patient's inbox.
+Plans are **rate locks, not session bundles**. The money buys credit; the threshold
+buys a cheaper AI rate, and the rate outlives the credit.
+
+| | Unlocks | A session then costs |
+|---|---|---|
+| Pay as you go | | $1 + $3 with AI, $1 without |
+| **$30 of credit** | $2 per AI session | $1 + $2 with AI, $1 without |
+| **$60 of credit** | $1 per AI session | $1 + $1 with AI, $1 without |
+
+**The patient never pays us.** They pay their therapist. A sponsored patient pays
+nobody: a corporate pot stands in for their card and changes nothing downstream.
+
+Two entities, two rails: USD through Stripe, EGP through a local provider. Currency
+is a display choice and the rate is frozen onto the transaction.
+
+---
+
+## Rules the database enforces, not the application
+
+A rule that lives in one function is a rule the second caller forgets. These are
+constraints and triggers, provable by attempting the write.
+
+| Rule | Where |
+|---|---|
+| A grant can only be held by a clinician whose verification is **approved** | trigger, `0060` |
+| A journal or an assessment may be cited and **never concluded from** | `facts_journal_never_concludes` |
+| A recorder joins only a meeting **we** provisioned | `session_sources_bot_only_if_ours` |
+| One invoice per session, one line of each kind | `invoices_session_unique`, `invoice_lines_invoice_kind_unique` |
+| A published instrument is **free to use** and, if translated, reviewed by a named person | `instruments_free_only`, `instruments_translation_reviewed` |
+| `users.verification_status` is **derived**, never written by hand | trigger, `0083` |
+| No column carries two foreign keys; no `SET NULL` contradicts a `CHECK` | audited in `scripts/_verify.ts` |
 
 ---
 
 ## Stack
 
-| Layer | Choice | Why |
-|---|---|---|
-| Framework | Next.js 15 (App Router), React 19 | Server components for reads, server actions for writes |
-| Styling | Tailwind v4 | Tokens defined once in `app/globals.css` |
-| Database | Neon Postgres via Drizzle | Typed schema — the old codebase's single largest bug class was column-name drift against hand-written SQL |
-| Driver | `@neondatabase/serverless` (WebSocket pool) | Real transactions, and Neon's proxy absorbs serverless connection fan-out |
-| Auth | Opaque session tokens in an httpOnly cookie | Revocable on the next request; nothing readable by script |
-| AI | OpenAI — `gpt-4o-mini-transcribe`, `gpt-4o` | One transcription call per chunk, one JSON call per note |
-| Video | Daily.co, private rooms + per-participant tokens | The room URL alone is never a credential |
-| Email | Resend | Password resets, join links, patient summaries |
-| Payments | Stripe | Two plans, idempotent webhooks |
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 15 App Router, React 19 |
+| Styling | Tailwind v4, tokens in `app/globals.css` |
+| Database | Neon Postgres via Drizzle |
+| Driver | `@neondatabase/serverless` |
+| Auth | Opaque session tokens, httpOnly. Six principals, one router (`lib/routing.ts`) |
+| AI | OpenAI. `gpt-4o-mini-transcribe`, `gpt-4o` |
+| Video | Daily.co for our room; Recall.ai for external meetings |
+| Email | Resend |
+| Payments | Stripe, plus a local Egyptian rail |
 
-There is **no WebSocket server and no separate API service**. The browser already uploads
-an audio chunk every eight seconds, so the response to that upload carries new transcript
-text and any crisis flag. That is the entire realtime layer.
+**No WebSocket server and no separate API service.** The browser uploads an audio
+chunk every eight seconds and the response carries new transcript text and any
+crisis flag. That is the entire realtime layer, and live panels poll.
+
+---
+
+## Migrations: read this before you write one
+
+🔴 **Nothing applies migrations on deploy.** Every migration is applied to
+production **before** `main` moves, and every one is additive so the running
+deployment survives the gap.
+
+🔴 **`db:migrate` prints "Migrations applied" whether or not it did anything.**
+Verify against `information_schema` every time. `scripts/migrate.ts` now refuses
+before applying if the directory and the journal disagree, but the success line is
+still not evidence.
+
+🔴 **`drizzle-kit generate` without `--custom` cannot be used in this repository.**
+`drizzle/meta/` holds only `0000_snapshot.json`; the chain was never built, so a
+plain generate emits a migration recreating eighty-nine existing tables. Use
+`--custom`, then **correct the generated `when`** to continue this journal's
+sequence: drizzle applies a migration only when the previous ledger timestamp is
+lower, and the generated value is a wall clock that lands behind our synthetic ones.
 
 ---
 
 ## Environment variables
 
-17 in total. Set these in **Vercel → Project → Settings → Environment Variables**.
-
 ### Required — the app refuses to boot in production without them
 
-| Var | What it is | Where to get it |
-|---|---|---|
-| `DATABASE_URL` | Neon **pooled** connection string | Neon dashboard → Connection string (the one containing `-pooler`) |
-| `AUTH_SECRET` | Session cookie signing secret, ≥32 chars | `openssl rand -hex 32` |
-| `OPENAI_API_KEY` | Transcription + note generation | platform.openai.com → API keys |
-| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks | Stripe → Developers → Webhooks → signing secret |
-| `APP_URL` | Public origin, no trailing slash | e.g. `https://24therapy.ai` |
+| Var | What it is |
+|---|---|
+| `DATABASE_URL` | Neon **pooled** connection string |
+| `AUTH_SECRET` | Session cookie signing secret, 32 chars or more |
+| `OPENAI_API_KEY` | Transcription and note generation |
+| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks |
+| `APP_URL` | Public origin, no trailing slash |
 
-### Strongly recommended — the feature degrades without them, the app still runs
+### Recommended — the feature degrades, the app still runs
 
 | Var | What breaks without it |
 |---|---|
-| `DAILY_API_KEY` | Video sessions show an honest "video not configured" state. Audio and notes still work. |
-| `STRIPE_SECRET_KEY` | No checkout. Sessions still record and notes are still written; nothing is charged. |
-| `RESEND_API_KEY` | No emails: no patient summaries, no join links, no password resets. |
-| `EMAIL_FROM` | Sender identity, e.g. `24Therapy <noreply@24therapy.ai>` |
-| `CRON_SECRET` | Scheduled jobs reject every request. Set it to any long random string; Vercel Cron sends it automatically. |
+| `DAILY_API_KEY` | Our room shows an honest "video is not configured" state. Audio and notes still work |
+| `RECALL_API_KEY` | External meetings connect but no bot is dispatched |
+| `STRIPE_SECRET_KEY` | No checkout. Nothing is charged |
+| `RESEND_API_KEY` | No emails |
+| `EMAIL_FROM` | Sender identity |
+| `CRON_SECRET` | Scheduled jobs reject every request |
+| `TOKEN_ENCRYPTION_KEY` | OAuth refresh tokens cannot be sealed, so meeting and EHR connections fail closed |
 
 ### Optional
 
-| Var | Default | Notes |
-|---|---|---|
-| `DATABASE_URL_DIRECT` | falls back to `DATABASE_URL` | Non-pooled connection for maintenance that PgBouncer cannot carry |
-| `DATABASE_SSL` | on in production, off locally | Tri-state. Leave unset unless you are running local Postgres without TLS. |
-| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | — | Error reporting. Disable session replay before enabling on a clinical app. |
-
-### Seed-script only (never needed in Vercel)
-
-`SEED_ADMIN_EMAIL` · `SEED_ADMIN_PASSWORD` · `SEED_TEST_EMAIL` · `SEED_TEST_PASSWORD` ·
-`SEED_ORG_NAME` · `SEED_ORG_SLUG`
-
----
-
-## First deploy
-
-```bash
-# 1. Point DATABASE_URL at the Neon project, then:
-npm ci
-npm run db:migrate        # creates all 16 tables
-npm run db:seed           # organisation + super admin + published public pages
-```
-
-`db:seed` needs `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` set, or it skips admin
-creation and only publishes the public pages. It is idempotent — safe on every deploy —
-and it will **not** overwrite CMS pages an admin has edited.
-
-### Creating the admin account
-
-```bash
-DATABASE_URL='postgres://…' \
-SEED_ADMIN_EMAIL='you@yourdomain.com' \
-SEED_ADMIN_PASSWORD='a-long-password-you-choose' \
-npm run db:seed
-```
-
-Re-running with the same email resets that admin's password. Re-running with a different
-email adds a second admin. Passwords are scrypt hashes; nothing is ever stored in plain
-text.
-
-### Creating the test therapist and test patient
-
-```bash
-DATABASE_URL='postgres://…' npm run db:seed -- --demo
-```
-
-Adds, on top of the above:
-
-| Thing | Value |
+| Var | Notes |
 |---|---|
-| Test therapist | `test@24therapy.ai` / `TestTherapist2026!` |
-| Test patient | Test Patient, attached to that therapist |
-| Demo session | One completed session with a 12-segment transcript and an approved SOAP note |
-
-Override with `SEED_TEST_EMAIL` and `SEED_TEST_PASSWORD`. The demo data is behind a flag
-deliberately, so a production deploy running `db:seed` never quietly creates a login whose
-password is written down in this file.
+| `DATABASE_URL_DIRECT` | Non-pooled, for maintenance PgBouncer cannot carry |
+| `DATABASE_SSL` | Tri-state. Leave unset unless running local Postgres without TLS |
+| `SENTRY_DSN` | Disable session replay before enabling on a clinical app |
+| `E2E_CHROMIUM` | Overrides browser resolution. `scripts/_browser.ts` resolves without it |
 
 ---
 
 ## Local development
 
-```bash
-cp .env.example .env.local   # then fill in DATABASE_URL and AUTH_SECRET
-npm ci
-npm run db:migrate
-npm run db:seed -- --demo
+```
+npm install
+cp .env.example .env.local     # fill in DATABASE_URL and AUTH_SECRET
+npm run db:migrate             # then VERIFY against information_schema
 npm run dev
 ```
 
-```bash
-npm run typecheck   # tsc --noEmit
-npm test            # safety + auth + billing invariants
-npm run build       # production build
-```
-
-`npm test` runs with `--conditions=react-server` so that `server-only` modules resolve to
-their no-op build outside a React Server Component context.
+| Command | What it does |
+|---|---|
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | The safety suite |
+| `npm run test:e2e` | Playwright, **through `tests/run-e2e.sh`**, which resolves the browser and starts a server. Running the file directly fails for that reason alone |
+| `npm run verify:sprintNN` | Per-sprint gates. Most need a **branch** database and refuse production by name |
+| `npm run demo:seed` | Synthetic clinicians and invented people |
+| `npm run ship:content` | Publishes CMS defaults |
+| `npm run screens` | Screenshots every screen |
 
 ---
 
 ## Scheduled jobs
 
-Declared in `vercel.json`, authenticated with `CRON_SECRET`:
-
-| Job | Schedule | What it does |
+| Job | Schedule | What |
 |---|---|---|
-| `/api/cron/crisis` | every 5 min | Re-delivers crisis alerts whose notification failed. Alerts are written to the database **before** anyone is notified, so this is what makes them survive a delivery failure. |
-| `/api/cron/billing` | every 30 min | Charges completed sessions that produced no charge row |
-| `/api/cron/retention` | daily 03:00 | Deletes audit records older than six years and expired sessions |
+| `/api/cron/crisis` | every 5 min | Re-delivers crisis alerts whose notification failed. The alert is written **before** anyone is notified |
+| `/api/cron/billing` | every 30 min | Charges completed sessions with no charge row; drains partner webhooks; runs the enrolment re-verification cycle |
+| `/api/cron/retention` | daily 03:00 | Deletes audit records older than six years and expired tokens |
 
 ---
 
-## Security invariants
+## Safety invariants
 
-These are enforced in code and covered by `tests/safety.test.ts`. Do not regress them.
+These are the ones that end the company if they break.
 
-1. **No PHI in logs.** `lib/logger.ts` truncates every UUID it sees and takes no free text
-   beyond a fixed message. Crisis alerts log an indicator *count*, never the words.
-2. **Patients never see a risk level.** `patientFacingCrisisMessage()` returns support and
-   a helpline. There is no patient-facing component that accepts a risk level as a prop.
-3. **Boot guard.** `lib/env.ts` refuses to start in production without the required
-   variables, and rejects a short or placeholder `AUTH_SECRET`.
-4. **Roles are an allowlist over a closed union**, never a numeric hierarchy. An
-   unrecognised role is denied.
-5. **Middleware is not the authorisation boundary.** It only redirects. Every page, action
-   and route handler calls `requireUser()` / `requireRole()` itself.
-6. **Every clinical read and write is audited** through `lib/audit.ts`, awaited, and
-   allowed to throw. An audit insert that fails silently is worse than none, because you
-   plan around it.
-7. **Org scoping lives in the data layer** (`lib/data/*`), taken from the authenticated
-   actor and never from a request parameter.
-8. **No CMS field is ever rendered as HTML.** Content is structured blocks; the renderer
-   has no `dangerouslySetInnerHTML`.
+1. **A patient never converses with a model**, and no model output reaches a patient
+   without a named clinician approving that exact text. Enforced on the import graph.
+2. **The crisis path never depends on money.** No credit, an unpaid invoice, a
+   suspended account or an empty pot all leave it untouched.
+3. **A journal may be quoted and never concluded from.** C123's alerting path is
+   separate and unchanged: a journal is still scanned and a grant-holder still told.
+4. **A note carries how it was made** — transcript, partial, or the clinician's own
+   memory — on every surface it appears.
+5. **Nothing about any record appears before a handle is proven.** Not a name, not a
+   photo, not an initial.
+6. **"24/7" describes the radar being open**, never that anybody will answer. No
+   response-time promise appears anywhere.
 
-## Before your first real patient
+---
 
-- Sign BAAs: Vercel (Pro + HIPAA add-on), Neon (Scale plan), OpenAI, Resend, Daily, and
-  Sentry if enabled.
-- Confirm consent-to-record wording with counsel and put it in `/terms`.
-- Review `/privacy`, `/terms` and `/hipaa` — they ship as honest starting points, not as
-  legal advice.
-- Turn off Sentry session replay. It would record therapy screens.
+## Documentation
+
+| File | What |
+|---|---|
+| `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
+| `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
+| `docs/walkthrough-2/` | The last full walkthrough: 134 frames, findings, four film cuts, Arabic and English scripts |
 
 ---
 
 ## Layout
 
 ```
-app/
-  (public)/      marketing + legal, CMS-backed, statically rendered
-  (auth)/        sign in, sign up, password reset
-  (app)/         clinician portal
-  (room)/        the live session room, full-bleed
-  (admin)/       admin console + CMS editor
-  join/[token]/  the patient surface
-  api/           transcribe, session state, Stripe webhook, cron
-components/
-  clinical/      TranscriptPanel, NoteCard, RiskBanner — pure presentational
-  demo/          the public-site live hero and its synthetic fixtures
-lib/
-  ai/            transcription, note generation, crisis detection
-  data/          the only place clinical data is read or written
-  auth/          sessions, guards, password hashing
-  billing/       plans, charges, Stripe
+app/(public)     marketing, radar, developers, verify
+app/(auth)       sign-in for clinicians and staff
+app/(app)        the therapist portal
+app/(patient)    the patient app
+app/(clinic)     practices and hospitals
+app/(sponsor)    companies and universities
+app/(partner)    the developer portal
+app/(admin)      the back office
+app/(room)       the live session
+lib/data/        every database read and write
+lib/ai/          prompts, transcription, the copilot
+lib/billing/     fees, credit, the ledger, payouts
+lib/crisis/      scanning, levels, lines, alerts
+drizzle/         migrations. Additive, applied before main moves
+scripts/         verifiers, seeds, ratchets
 ```
-
-`components/clinical/*` take props and fetch nothing. That is what lets the marketing site
-render the real transcript panel and the real note card with fixture data — and what makes
-it structurally impossible for a public page to reach a real chart through them.
