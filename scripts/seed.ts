@@ -275,6 +275,25 @@ async function main() {
             firstName: "Test",
             lastName: "Patient",
             email: "patient@test.24therapy.ai",
+            /*
+             * 🔴 A PHONE, because `patients_phone_present` requires one and this seed has been
+             * BROKEN SINCE 0042 WITHOUT ANYBODY NOTICING.
+             *
+             * That constraint (sprint 42's sweep) says a patient a THERAPIST wrote down must have a
+             * phone number, because §3b is that the phone is the handle most of this book's patients
+             * have and an email is not. This row sets `source: "therapist"` and had no phone, so
+             * `reset.ts --i-mean-it --demo` failed at the patient insert.
+             *
+             * It went unnoticed because nothing runs this path: the verifiers seed their own
+             * fixtures and the e2e suite creates its patients through the real form. The first thing
+             * to run it since 0042 was sprint 52's purge — which is the command sprint 22's launch
+             * checklist is built on, so the launch checklist did not work.
+             *
+             * The number is in the same obviously-sequential block as the capture cast and is
+             * deliberately NOT `+201300070001`: that one collides with `verify:sprint7`'s fixture on
+             * `patient_accounts_phone_unique`, which is C208 and still open.
+             */
+            phone: "+201300052000",
             source: "therapist",
             clinical: {
               diagnoses: ["Generalised anxiety disorder"],

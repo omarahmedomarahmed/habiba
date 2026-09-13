@@ -3,6 +3,8 @@ import { after, before, test } from "node:test";
 import { eq } from "drizzle-orm";
 import { chromium, type Browser, type Page } from "playwright";
 
+import { launchOptions } from "../scripts/_browser";
+
 import { connect, schema } from "../scripts/db";
 import { startMockOpenAi, type MockState } from "./mock-openai";
 
@@ -38,16 +40,25 @@ const PATIENT = "Jordan";
 
 before(async () => {
   mock = startMockOpenAi(MOCK_PORT);
-  browser = await chromium.launch({
-    // Use the Chromium already present in this environment rather than letting
-    // Playwright download a matching build.
-    ...(process.env.E2E_CHROMIUM ? { executablePath: process.env.E2E_CHROMIUM } : {}),
-    args: [
-      "--use-fake-ui-for-media-stream",
-      "--use-fake-device-for-media-stream",
-      "--autoplay-policy=no-user-gesture-required",
-    ],
-  });
+  /*
+   * 🔴 RESOLVED, not configured, and that is what unblocked these thirteen tests.
+   *
+   * This read `E2E_CHROMIUM` and fell back to Playwright's own resolution, which looked for a build
+   * the pinned package expects (`chromium_headless_shell-1234`) against an environment that ships
+   * `-1194`. Nothing set the env var, so the hook did nothing and the failures were recorded for
+   * four sprints as "no headless shell" — when a full Chromium was present the whole time.
+   *
+   * `chromiumExecutable` searches for what is actually there. See `scripts/_browser.ts`.
+   */
+  browser = await chromium.launch(
+    launchOptions({
+      args: [
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        "--autoplay-policy=no-user-gesture-required",
+      ],
+    }),
+  );
   const context = await browser.newContext({
     permissions: ["microphone"],
     viewport: { width: 390, height: 844 }, // iPhone-sized: this is a phone-first product

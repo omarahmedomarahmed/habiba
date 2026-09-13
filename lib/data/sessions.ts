@@ -141,9 +141,42 @@ export async function createSession(
 ) {
   let patientId = input.patientId ?? null;
 
-  // An in-person session with a typed name creates the chart immediately, so
-  // the clinician never has to "add a patient" as a separate step.
-  if (!patientId && input.guestName?.trim()) {
+  /*
+   * An in-person session with a typed name creates the chart immediately, so the clinician never
+   * has to "add a patient" as a separate step.
+   *
+   * ## 🔴 …AND ONLY IF THERE IS A WAY TO REACH THEM. THIS WAS BROKEN FOR TEN SPRINTS.
+   *
+   * `patients_phone_present` (0042) requires a phone on any patient whose `source` is `therapist`,
+   * because §3b is that the phone is the handle most of this book's patients have and an email is
+   * not. This block set `phone: normalisePhone(input.guestPhone) ?? null` and `source: "therapist"`
+   * unconditionally — so a therapist who typed only a walk-in's NAME, which is all the form asks
+   * for, hit the constraint and the whole session creation failed.
+   *
+   * 🔴 That is the most important flow in the product: a clinician with somebody in the room typing
+   * their name and pressing Start. It has been failing since sprint 42 added the constraint, and
+   * nothing caught it because the one test that covers it (`tests/e2e.test.ts`, "starting a session
+   * records audio") could not launch a browser in this environment — a browser problem recorded for
+   * four sprints as "no headless shell" while it masked this.
+   *
+   * Found by sprint 52's walkthrough, which is what 52.3 is for.
+   *
+   * ## 🔴 WHY NO CHART RATHER THAN A RELAXED CONSTRAINT
+   *
+   * The constraint is right and its comment says why: a patient a therapist WROTE DOWN must be
+   * reachable, or the chart is one nobody can act on. What it did not anticipate is somebody who is
+   * already in the room, where reachability is not the point.
+   *
+   * So a guest with no contact details gets a SESSION, not a chart. `sessions.guest_name` carries
+   * who it was, the room works, the transcript works, and the note works because
+   * `session_notes.patient_id` is nullable and `lib/ai/notes.ts` left-joins the patient. The chart
+   * is created the moment there is a phone or an email to attach to it, which is the clinician
+   * adding them properly rather than the product inventing an unreachable record on their behalf.
+   */
+  const guestPhone = normalisePhone(input.guestPhone);
+  const guestEmail = input.guestEmail?.trim() || null;
+
+  if (!patientId && input.guestName?.trim() && (guestPhone || guestEmail)) {
     const [created] = await db
       .insert(patients)
       .values({
@@ -151,9 +184,17 @@ export async function createSession(
         therapistId: actor.userId,
         firstName: input.guestName.trim().split(/\s+/)[0]!,
         lastName: input.guestName.trim().split(/\s+/).slice(1).join(" ") || null,
-        email: input.guestEmail?.trim() || null,
-        phone: normalisePhone(input.guestPhone) ?? null,
-        source: "therapist",
+        email: guestEmail,
+        /*
+         * 🔴 `source` follows what we HAVE, because the constraint is about reachability.
+         *
+         * With a phone this is an ordinary therapist-entered patient. With only an email it is not:
+         * `patients_phone_present` would refuse it, and §3b's own reasoning is that an email is a
+         * complete fallback on the booking path — which is what `join_link` means here. Recording
+         * `therapist` for a row with no phone would be recording something the schema forbids.
+         */
+        phone: guestPhone,
+        source: guestPhone ? "therapist" : "join_link",
       })
       .returning({ id: patients.id });
     patientId = created?.id ?? null;
@@ -173,7 +214,7 @@ export async function createSession(
       therapistId: actor.userId,
       patientId,
       guestName: input.guestName?.trim() || null,
-      guestEmail: input.guestEmail?.trim() || null,
+      guestEmail,
       modality: input.modality,
       status: "scheduled",
       // 4.6: where this session came from, recorded rather than inferred later.
