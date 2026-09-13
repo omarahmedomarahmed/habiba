@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Banknote,
+  Building2,
   FileEdit,
   Languages,
   LifeBuoy,
@@ -120,6 +121,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           */}
           {isManager ? <AdminLink href="/admin/ratings" icon={Star}>Ratings</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/vault" icon={Vault}>Vault</AdminLink> : null}
+          {/*
+            53.6 — the owner's, like every other money door. Activating a sponsor
+            opens a corporate account and opening a pot commits us to refund terms.
+          */}
+          {isOwner ? <AdminLink href="/admin/sponsors" icon={Building2}>Sponsors</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink> : null}

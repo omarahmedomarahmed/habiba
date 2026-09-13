@@ -3986,19 +3986,25 @@ export const CROSSINGS = [
   /**
    * 🔴 53.10 — a sponsor prepaid, a session spent it, we pay the clinician out.
    *
-   * Its own value rather than borrowed from `usd_stripe_to_manual`. This column
-   * exists to answer one question for §3c's exposure register — which rail, and
-   * do we hold the money — and a corporate prepayment held for months and spent
-   * by third parties is a different counterparty class from a patient's card. To
-   * file it under a patient crossing would understate exactly the thing the
-   * column was added to measure.
+   * Own values rather than borrowed from `usd_stripe_to_connect`, because
+   * `holdsMoney` reads that one as "we never touch it" and a pot is the opposite:
+   * held for months and spent by third parties.
    *
-   * 🔴 `session_payments_crossing_known` IS a real CHECK constraint, so this
-   * value does not exist until migration 0073 extends it. That is the sprint 56
+   * 🔴 TWO of them, and the split is the same split as the four above: who we pay
+   * out. That distinction is load-bearing rather than tidy — a pot paying an
+   * Egyptian clinician is USD in to the US entity and EGP out of the Egyptian
+   * one, which is a cross-border crossing needing an explicit
+   * `entity_transfer`. One combined `pot_held_to_payout` value would have
+   * collapsed exactly the fact §3c added this column to measure, and
+   * `isCrossBorder` would have answered false for it.
+   *
+   * 🔴 `session_payments_crossing_known` IS a real CHECK constraint, so these
+   * values do not exist until migration 0073 extends it. That is the sprint 56
    * defect stated as a rule: an enum extended here and not there is a value the
    * database refuses and a verifier check that quietly measures nothing.
    */
-  "pot_held_to_payout",
+  "pot_held_to_connect",
+  "pot_held_to_manual",
 ] as const;
 export type Crossing = (typeof CROSSINGS)[number];
 

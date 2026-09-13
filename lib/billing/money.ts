@@ -96,7 +96,17 @@ export function egpSettlement(input: {
 
 /* ------------------------------------------------------- the four crossings -- */
 
-export type Rail = "stripe_usd" | "local_egp";
+/**
+ * 🔴 53.10 — `pot` is a third rail IN, and it is the one where the money arrived
+ * months ago.
+ *
+ * A sponsor tops up by card in USD, so the cash rail is Stripe's. What makes this
+ * its own value is not how the money got here but WHEN and WHOSE it was: it sat
+ * on our balance as a liability and was spent by somebody who is not the payer.
+ * `holdsMoney` has to answer true for it, and it cannot if a pot session files
+ * itself under `usd_stripe_to_connect`.
+ */
+export type Rail = "stripe_usd" | "local_egp" | "pot";
 export type TherapistRail = "connect" | "manual";
 
 /**
@@ -109,6 +119,9 @@ export type TherapistRail = "connect" | "manual";
  * finds every place the risky path is taken.
  */
 export function crossingFor(input: { paidVia: Rail; therapist: TherapistRail }): Crossing {
+  if (input.paidVia === "pot") {
+    return input.therapist === "connect" ? "pot_held_to_connect" : "pot_held_to_manual";
+  }
   if (input.paidVia === "stripe_usd") {
     return input.therapist === "connect" ? "usd_stripe_to_connect" : "usd_stripe_to_manual";
   }
@@ -121,17 +134,33 @@ export function crossingFor(input: { paidVia: Rail; therapist: TherapistRail }):
  * Only `usd_stripe_to_connect` does not: Stripe's destination charge routes
  * the gross to the clinician at the moment of payment and we never touch it.
  * Every other crossing means a held balance, and a held balance is a debt.
+ *
+ * 🔴 Both pot crossings hold, and a pot holds for LONGER than anything else here:
+ * a card payment is held between the session and the payout, a pot between a
+ * top-up and whenever it is spent. That is the duration C232 puts to counsel.
  */
 export function holdsMoney(crossing: Crossing): boolean {
   return crossing !== "usd_stripe_to_connect";
 }
 
 /**
- * 🔴 The two crossings §3c calls the exposure: cross-border, and ours to
+ * 🔴 The crossings §3c calls the exposure: cross-border, and ours to
  * defend if anybody asks. Named as a predicate so a report can count them.
+ *
+ * 🔴 `pot_held_to_manual` belongs here and this is the reason the pot needed two
+ * crossing values rather than one. USD comes into the US entity at top-up and EGP
+ * leaves the Egyptian one at payout, so the two halves are in different entities
+ * and settling them needs an explicit `entity_transfer`. A single combined pot
+ * crossing would have answered false here for every pot session, which is the
+ * §6 failure family: a predicate that reads green because it was asked the wrong
+ * question.
  */
 export function isCrossBorder(crossing: Crossing): boolean {
-  return crossing === "usd_stripe_to_manual" || crossing === "egp_local_to_connect";
+  return (
+    crossing === "usd_stripe_to_manual" ||
+    crossing === "egp_local_to_connect" ||
+    crossing === "pot_held_to_manual"
+  );
 }
 
 /**
@@ -142,6 +171,12 @@ export function isCrossBorder(crossing: Crossing): boolean {
  * follows the **money in**, never the person it is owed to — which is exactly
  * why a cross-border crossing needs an explicit `entity_transfer` to settle,
  * rather than being quietly netted at read time.
+ *
+ * 🔴 Both pot crossings are `us`, which follows the same rule rather than making
+ * an exception to it: the money came IN as USD on the card rail, into the US
+ * entity, at top-up. `topUpPot` refuses an Egyptian sponsor outright until
+ * counsel has confirmed e-invoicing (C241), so there is no pot money in the
+ * Egyptian entity for this to be wrong about.
  */
 export function entityFor(crossing: Crossing): Entity {
   return crossing === "egp_local_to_manual" || crossing === "egp_local_to_connect" ? "eg" : "us";

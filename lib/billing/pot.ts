@@ -17,6 +17,7 @@ import { log, ref } from "@/lib/logger";
 import { getSettings, sessionMoney } from "@/lib/settings";
 
 import { journal } from "./ledger";
+import { crossingFor, payoutRailFor } from "./money";
 
 /**
  * The corporate pot. PLAN.md 53.10 to 53.16, 53.21, C226, C232, C239, C244.
@@ -113,7 +114,8 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       priceCents: sessions.priceCents,
       paymentStatus: sessions.paymentStatus,
       personId: patients.personId,
-      autoSettle: users.autoSettleFromEarnings,
+      stripeAccountId: users.stripeAccountId,
+      payoutsEnabled: users.payoutsEnabled,
     })
     .from(sessions)
     .innerJoin(patients, eq(patients.id, sessions.patientId))
@@ -235,7 +237,23 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
        * through `releaseHeldEarnings`, which is the path this value selects.
        */
       capture: "platform",
-      crossing: "pot_held_to_payout",
+      /*
+       * 🔴 Which pot crossing, decided from the clinician's rail rather than
+       * assumed.
+       *
+       * `crossingFor` is the one place in the product that answers this, and it
+       * is reused here rather than a literal written in, so a pot session and a
+       * card session cannot disagree about what a rail pair is called. An
+       * Egyptian clinician makes this `pot_held_to_manual`, which `isCrossBorder`
+       * counts and §3c's exposure register needs it to.
+       */
+      crossing: crossingFor({
+        paidVia: "pot",
+        therapist: payoutRailFor({
+          stripeAccountId: row.stripeAccountId,
+          payoutsEnabled: row.payoutsEnabled,
+        }),
+      }),
       status: "paid",
       paidAt: new Date(),
       fundingSource: "pot",

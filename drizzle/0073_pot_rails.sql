@@ -6,16 +6,20 @@
 -- H1/H16 failure mode this repository verifies against `information_schema`
 -- precisely because `db:migrate` prints success either way.
 
--- ------------------------------------------------- the fifth crossing (53.10) --
+-- ------------------------------------------ the fifth and sixth crossings (53.10) --
 --
--- 🔴 `pot_held_to_payout`. A sponsor prepaid, a session spent it, and we pay the
--- clinician out of money on our own balance.
+-- 🔴 `pot_held_to_connect` and `pot_held_to_manual`. A sponsor prepaid, a session
+-- spent it, and we pay the clinician out of money on our own balance.
 --
--- `session_payments.crossing` exists to answer one question for §3c's exposure
--- register: which rail, and do we hold the money. A corporate prepayment held for
--- months and spent by third parties is a different counterparty class from a
--- patient's card, so filing it under `usd_stripe_to_manual` would understate the
--- exact thing the column was added to measure.
+-- Own values rather than `usd_stripe_to_connect`, because `holdsMoney` reads that
+-- one as "we never touch it" and a pot is held for longer than anything else on
+-- these rails: between a top-up and whenever a third party spends it.
+--
+-- 🔴 TWO of them, and the split matters. A pot paying an Egyptian clinician is USD
+-- into the US entity and EGP out of the Egyptian one, which is cross-border and
+-- needs an explicit `entity_transfer`. One combined value would have made
+-- `isCrossBorder` answer false for every pot session, which is the §6 family: a
+-- predicate reading green because it was asked the wrong question.
 --
 -- 🔴 THIS IS THE SPRINT 56 DEFECT, PRE-EMPTED. `CROSSINGS` in schema.ts gained a
 -- value; this CHECK is where the database learns about it. In sprint 56 the
@@ -27,7 +31,7 @@ ALTER TABLE "session_payments" ADD CONSTRAINT "session_payments_crossing_known"
   CHECK ("crossing" IN (
     'usd_stripe_to_connect', 'egp_local_to_manual',
     'usd_stripe_to_manual', 'egp_local_to_connect',
-    'pot_held_to_payout'
+    'pot_held_to_connect', 'pot_held_to_manual'
   )) NOT VALID;
 ALTER TABLE "session_payments" VALIDATE CONSTRAINT "session_payments_crossing_known";
 

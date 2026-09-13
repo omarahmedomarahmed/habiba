@@ -101,6 +101,21 @@ export const SPONSOR_SIGN_IN = "/sponsor/sign-in";
 export const SPONSOR_PREFIXES = ["/sponsor"];
 
 /**
+ * 🔴 53.5 — the one door inside `/sponsor` that is open to a stranger.
+ *
+ * An organisation that wants to talk to us has no account yet, so the enquiry
+ * form cannot sit behind the sign-in it exists to precede. It is listed here as
+ * an exception rather than moved outside `/sponsor`, because a corporate door at
+ * `/apply` would be a second prefix nobody owns and `ownerOf` would return null
+ * for it — which is the shape C264 was rewritten to get rid of.
+ *
+ * It takes a name, an email, a phone number and a best time to call, and it
+ * creates a HELD account. Nothing about it reveals that anybody is enrolled
+ * anywhere, so there is nothing behind it to protect.
+ */
+export const SPONSOR_APPLY = "/sponsor/apply";
+
+/**
  * 🔴 C264 — THE SIX PRINCIPALS, AS A TABLE. Rewritten once, in sprint 53.
  *
  * ## Why a table and not five more `if` blocks
@@ -240,6 +255,8 @@ export const PRINCIPALS: Principal[] = [
     signIn: SPONSOR_SIGN_IN,
     home: "/sponsor",
     authRoutes: [SPONSOR_SIGN_IN],
+    /* 53.5 — the enquiry form, which cannot sit behind the sign-in it precedes. */
+    openRoutes: [SPONSOR_APPLY],
   },
   {
     name: "clinic",

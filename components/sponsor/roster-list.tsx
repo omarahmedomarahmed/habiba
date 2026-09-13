@@ -1,0 +1,138 @@
+"use client";
+
+import { useState, useTransition } from "react";
+
+import { endBenefit } from "@/app/(sponsor)/sponsor/people/actions";
+import { Card } from "@/components/ui";
+import { REMOVAL_REASONS } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
+
+/**
+ * The roster. PLAN.md 53.17b, 53.22, C227, C234, C240, C244.
+ *
+ * ## 🔴 WHAT IS NOT ON THIS COMPONENT
+ *
+ * No join date, no session, no booking, no therapist, no rejection, no approval.
+ * Not filtered out here — never fetched: `roster()` in `lib/data/sponsors.ts` has
+ * a select list with four columns in it, and `verify:sprint53` asserts what is
+ * absent from that list AND, as a control, that it still returns the name and the
+ * last-verified date. An absence assertion on its own passes against a function
+ * that returns nothing at all.
+ *
+ * A join date is the one that looks harmless. It is the week somebody decided they
+ * needed therapy, and set beside a restructure announcement it is a name.
+ *
+ * ## 🔴 Ordered by name, and that is load-bearing
+ *
+ * `roster()` orders by name and never by `created_at`. A list ordered by creation
+ * IS the join date, recoverable by anybody who reads the list twice a month and
+ * notices who appeared at the bottom. Alphabetical throws it away.
+ *
+ * ## 🔴 The removal confirmation says what removal does NOT do
+ *
+ * C234: *their badge, their funding and their record are three different things
+ * and a build that treats them as one will take the record.* So the sentence
+ * before the button says the funding ends and the record does not, and the same
+ * promise is made to the PERSON before they enrol rather than only to the payer
+ * here.
+ */
+
+const REASON_KEYS: Record<string, MessageKey> = {
+  left: "sponsor.reason.left",
+  graduated: "sponsor.reason.graduated",
+  ended: "sponsor.reason.ended",
+  administrative: "sponsor.reason.administrative",
+};
+
+export type RosterRow = {
+  enrolmentId: string;
+  name: string;
+  lastChecked: string | null;
+  paused: boolean;
+};
+
+export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemove: boolean }) {
+  const t = useT();
+  const [pending, startTransition] = useTransition();
+  const [openFor, setOpenFor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (people.length === 0) {
+    return (
+      <Card className="p-5">
+        <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.rosterEmpty")}</p>
+      </Card>
+    );
+  }
+
+  const remove = (enrolmentId: string, reason: string) =>
+    startTransition(async () => {
+      const result = await endBenefit(enrolmentId, reason);
+      setError(result.error ?? null);
+      if (!result.error) setOpenFor(null);
+    });
+
+  return (
+    <div className="space-y-2">
+      {people.map((person) => (
+        <Card key={person.enrolmentId} className="p-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-sm font-semibold text-slate-900">{person.name}</p>
+            {person.paused ? (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                {t("sponsor.pausedLabel")}
+              </span>
+            ) : null}
+            <span className="ms-auto text-xs text-slate-500">
+              {person.lastChecked
+                ? t("sponsor.lastChecked", { date: person.lastChecked })
+                : t("sponsor.notChecked")}
+            </span>
+          </div>
+
+          {canRemove ? (
+            openFor === person.enrolmentId ? (
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                {/* 🔴 C234 — what ends and what does not, before the choice. */}
+                <p className="text-xs leading-relaxed text-slate-600">
+                  {t("sponsor.removeConfirm")}
+                </p>
+                <p className="mt-3 text-xs font-semibold text-slate-700">
+                  {t("sponsor.removeReason")}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {REMOVAL_REASONS.map((reason) => (
+                    <button
+                      key={reason}
+                      type="button"
+                      disabled={pending}
+                      onClick={() => remove(person.enrolmentId, reason)}
+                      className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                    >
+                      {t(REASON_KEYS[reason]!)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setOpenFor(person.enrolmentId)}
+                className="tap-target mt-2 h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+              >
+                {t("sponsor.remove")}
+              </button>
+            )
+          ) : null}
+        </Card>
+      ))}
+
+      {error ? (
+        <p role="alert" className="text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
