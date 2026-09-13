@@ -30,7 +30,7 @@
  * clinical queries, because C259 makes a clinic the organisation. There is no type to
  * hide behind here.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 
@@ -70,6 +70,84 @@ const CLINICAL_WORDS = [
   "phq",
   "gad",
 ];
+
+/**
+ * 🔴 Does this file reach a clinical module, through anything at all?
+ *
+ * The same construction as `reachesAi` in `verify-sprint24.ts`, extended to a set of
+ * modules rather than one directory, and the reason it is worth having beside the rendered
+ * sweep is that the two catch different things. The sweep sees what a component printed on
+ * the day it ran; this sees what a component COULD print, including through a helper three
+ * hops away that nobody remembers importing.
+ *
+ * Returns the path that reaches it, so a failure names the hop rather than the file.
+ */
+const CLINICAL_MODULES =
+  /(^|\/)lib\/ai\/|(^|\/)lib\/data\/(facts|diagnoses|journals|summaries|session-risk|memory|copilot|assessments|timeline|documents|patient-view)\.ts$/;
+
+function reachesClinical(entry: string): string[] | null {
+  const seen = new Set<string>();
+  const stack: { file: string; path: string[] }[] = [{ file: entry, path: [entry] }];
+
+  while (stack.length > 0) {
+    const { file, path } = stack.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+
+    if (CLINICAL_MODULES.test(file)) return path;
+
+    let source: string;
+    try {
+      source = readSource(file);
+    } catch {
+      continue;
+    }
+
+    /*
+     * Static `from "..."` AND dynamic `import("...")`, because this repository uses the
+     * second one heavily to keep server modules out of client bundles, and a walk that
+     * only followed the first would miss every lazy import in the product.
+     */
+    const specifiers = [
+      ...[...source.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]!),
+      ...[...source.matchAll(/import\(\s*["']([^"']+)["']\s*\)/g)].map((m) => m[1]!),
+    ];
+
+    for (const specifier of specifiers) {
+      const resolved = resolveSpecifier(file, specifier);
+      if (resolved) stack.push({ file: resolved, path: [...path, resolved] });
+    }
+  }
+
+  return null;
+}
+
+/** `@/lib/x` and `./x` to a file on disk. Packages resolve to nothing. */
+function resolveSpecifier(from: string, specifier: string): string | null {
+  const base = specifier.startsWith("@/")
+    ? specifier.slice(2)
+    : specifier.startsWith(".")
+      ? `${from.split("/").slice(0, -1).join("/")}/${specifier}`.replace(/\/\.\//g, "/")
+      : null;
+
+  if (!base) return null;
+
+  const normalised: string[] = [];
+  for (const part of base.split("/")) {
+    if (part === "..") normalised.pop();
+    else if (part !== "." && part !== "") normalised.push(part);
+  }
+  const path = normalised.join("/");
+
+  for (const candidate of [path, `${path}.ts`, `${path}.tsx`, `${path}/index.ts`, `${path}/index.tsx`]) {
+    try {
+      if (statSync(candidate).isFile()) return candidate;
+    } catch {
+      /* not this one */
+    }
+  }
+  return null;
+}
 
 async function main() {
   writesTo();
@@ -178,6 +256,89 @@ async function main() {
     "🔴 C264 no require* in lib/auth/guard.ts returns a clinic manager",
     !/clinic/i.test(guard),
     "the clinical guard mints Actors and a clinic manager can never be one",
+  );
+
+  /* ================================================================== */
+  /*  54.9 · THE IMPORT GRAPH, which is what a screen COULD render       */
+  /* ================================================================== */
+
+  /*
+   * 🔴 NOTHING UNDER `app/(clinic)` OR `components/clinic` CAN REACH A CLINICAL MODULE,
+   * DIRECTLY OR THROUGH WHAT IT IMPORTS.
+   *
+   * 24.2's construction, pointed at a different boundary, and it complements the rendered
+   * sweep rather than repeating it: the sweep sees what a component printed on the day it
+   * ran, and this sees what it COULD print, including through a helper three hops away
+   * that nobody remembers importing.
+   *
+   * The walk follows dynamic `import()` as well as static `from`, because this repository
+   * uses the former heavily to keep server modules out of client bundles, and a walk that
+   * followed only static imports would miss most of the product.
+   */
+  const clinicSurfaces = files.filter(
+    (f) => f.startsWith("app/(clinic)/") || f.startsWith("components/clinic/"),
+  );
+
+  const reaching = clinicSurfaces
+    .map((file) => ({ file, path: reachesClinical(file) }))
+    .filter((row) => row.path !== null);
+
+  check(
+    "🔴 54.9 nothing under app/(clinic) can reach a clinical module, through any depth of import",
+    reaching.length === 0,
+    reaching.length === 0
+      ? `${clinicSurfaces.length} clinic files walked to their imports, at any depth`
+      : reaching.map((row) => row.path!.join(" -> ")).join("; "),
+  );
+
+  /*
+   * 🔴 CONTROL — the walk CAN find one, proved against a planted file.
+   *
+   * A walk with a broken resolver returns null for everything and reads green for ever,
+   * which is the §6 family in its purest form. So a file that reaches a clinical module two
+   * hops away is planted under the clinic tree, found, and deleted.
+   */
+  const plantedHelper = "components/clinic/_verify54-helper.ts";
+  const plantedPage = "components/clinic/_verify54-page.tsx";
+
+  let plantedPath: string[] | null = null;
+  try {
+    writeFileSync(plantedHelper, 'export { facts } from "@/lib/data/facts";\n');
+    writeFileSync(plantedPage, 'export { facts } from "./_verify54-helper";\n');
+    plantedPath = reachesClinical(plantedPage);
+  } finally {
+    rmSync(plantedHelper, { force: true });
+    rmSync(plantedPage, { force: true });
+  }
+
+  check(
+    "🔴 CONTROL …and the walk FINDS a clinic file that reaches a chart two hops away",
+    plantedPath !== null && plantedPath.length === 3,
+    plantedPath ? plantedPath.join(" -> ") : "the walk found nothing, so it proves nothing",
+  );
+
+  /*
+   * 🔴 C271 — A SUPERVISOR IS A CLINICIAN HOLDING A GRANT, AND NO ROLE GRANTS ACCESS.
+   *
+   * *Training institutes carry many supervised practitioners, and selling one institute
+   * sells its whole cohort.* The temptation is a supervisor role that can read a trainee's
+   * notes. The ruling: what the institute gets is the C260 clinic view, and the clinical
+   * read happens because a PATIENT granted it to a named, verified clinician.
+   *
+   * So there is no supervisor anywhere: not in `Role`, not in `CLINIC_ROLES`, and not as a
+   * grant kind. An institute is a clinic, which it already is, because `kind` has two
+   * values and a training institute reads as one of them for every purpose that matters.
+   */
+  const supervisorAnywhere = [...ROLES, ...CLINIC_ROLES].filter((role) =>
+    /supervis|trainee|institute|cohort/i.test(role),
+  );
+
+  check(
+    "🔴 C271 there is no supervisor role anywhere, in either role union",
+    supervisorAnywhere.length === 0,
+    supervisorAnywhere.length === 0
+      ? "a supervisor is a clinician holding a grant, like anybody else"
+      : `ROLES: ${supervisorAnywhere.join(", ")}`,
   );
 
   /* ================================================================== */
