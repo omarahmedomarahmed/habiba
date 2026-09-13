@@ -6768,3 +6768,247 @@ export const partnerLaunchTokens = pgTable(
 
 /** The gap between a server call and the browser navigation it triggers. Nothing more. */
 export const LAUNCH_TOKEN_TTL_SECONDS = 120;
+
+/* ========================================================================== */
+/*  Sprint 43 · SMART on FHIR                                                  */
+/* ========================================================================== */
+
+// 🔴 THE TWO RULINGS THIS SECTION IS SHAPED BY.
+//
+// C266 / 43.1b: *a connection is owned by the ORGANIZATION, and a solo therapist is an
+// organization of one.* A hospital connects once for every clinician under it; a solo clinician
+// connects their own. A therapist leaving a clinic loses that connection immediately, without a
+// question, because the credential was the hospital's.
+//
+// 43.4: *in an EHR the chart is THEIR system of record, not ours.* `lib/ehr/policy.ts` is the
+// written decision and this schema is that decision in columns: there is nowhere here to put a
+// date of birth, an MRN, a problem list or a medication, and `verify:sprint43` sweeps for the
+// spellings somebody would reach for.
+
+/**
+ * 🔴 43.2 — WE ARE THE OAUTH **CLIENT**, AND THE VENDOR LIST IS PINNED.
+ *
+ * Not an identity provider, not a server. A hospital's EHR authorises us; we never authorise
+ * anybody. That is why there is no `client_secret` we issue and no redirect URI a caller
+ * supplies — both are ours, fixed, and registered with the vendor out of band.
+ */
+export const EHR_VENDORS = ["epic", "cerner", "athena", "smart_sandbox"] as const;
+export type EhrVendor = (typeof EHR_VENDORS)[number];
+
+/** 43.2 — pinned, because "latest FHIR" is a contract that moves under a hospital. */
+export const FHIR_VERSION = "4.0.1" as const;
+export const US_CORE_VERSION = "6.1.0" as const;
+
+/**
+ * 🔴 43.1 / 43.1b / C266 — A CONNECTION, OWNED BY THE ORGANISATION.
+ *
+ * ## 🔴 `organization_id` IS THE OWNER AND THERE IS NO `user_id`
+ *
+ * `meeting_connections` (sprint 41) carries BOTH a user and an organisation, because a Zoom
+ * account genuinely belongs to a person: it is their calendar, their meetings, their licence.
+ * An EHR connection is the opposite. A hospital's FHIR credential is the hospital's, issued to
+ * the institution, and every clinician under it works through the one connection.
+ *
+ * So this table has no `user_id` at all, and that absence is the ruling. With one, the first
+ * convenience anybody adds is "let this clinician use their own", and at that point a therapist
+ * leaving a clinic keeps a credential pointed at the hospital's chart.
+ *
+ * 🔴 A SOLO THERAPIST IS AN ORGANISATION OF ONE, which is why this needs no second case:
+ * `organizations.kind = 'solo'` is already every solo clinician's own row (C259), so the same
+ * column is the owner in both worlds and 43.1c is two homes for one flow rather than two flows.
+ *
+ * ## 🔴 SEALED, NOT HASHED, and this is the third place `secretbox` belongs
+ *
+ * Refreshing an access token needs the refresh token back, so a hash cannot do it. Cleared on
+ * revoke, so the row keeps the fact of the connection without keeping the credential — the same
+ * construction `meeting_connections` uses and for the same reason.
+ */
+export const ehrConnections = pgTable(
+  "ehr_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /* 🔴 C266. The owner, and the only owner. There is deliberately no user_id. */
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    vendor: text("vendor").$type<EhrVendor>().notNull(),
+    /** The hospital's FHIR base URL. Pinned per connection, because each tenant has its own. */
+    fhirBaseUrl: text("fhir_base_url").notNull(),
+    /** Their issuer, echoed back on every launch so a forged `iss` does not resolve. */
+    issuer: text("issuer").notNull(),
+
+    /** 🔴 Sealed with AES-256-GCM. Never rendered, never logged, never selected for a screen. */
+    accessTokenSealed: text("access_token_sealed"),
+    refreshTokenSealed: text("refresh_token_sealed"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** What the vendor granted. Stored so a missing scope is a sentence rather than a 403. */
+    scopes: jsonb("scopes").$type<string[]>().default([]).notNull(),
+
+    /**
+     * Which hospital this is, for the "connected to" line.
+     *
+     * The institution's own name as the vendor reports it, so an operator with two Epic tenants
+     * can tell them apart. An institution is not a person, so this is not the exception 43.4
+     * carves for a display name.
+     */
+    tenantLabel: text("tenant_label"),
+
+    connectedAt: timestamp("connected_at", { withTimezone: true }).defaultNow().notNull(),
+    /**
+     * 🔴 Disconnection is a STAMP, and revoking SEVERS THE LINKS.
+     *
+     * The row stays because a note filed through a connection that has since been removed must
+     * still be explainable a year later. What goes is the credential and, per 43.4's second
+     * clock, every launch's mapping to their patient ids: after a disconnection we must not be
+     * able to resolve a hospital's identifier, and the clinical record we hold stays held for
+     * the patient.
+     */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedReason: text("revoked_reason"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * 🔴 ONE LIVE CONNECTION PER ORGANISATION PER VENDOR, as a partial unique index so the
+     * history of revoked ones stays beside it.
+     *
+     * Per organisation rather than per clinician, which is C266 as an index: a second live Epic
+     * connection under one hospital is two credentials for one chart, and the losing one is
+     * whichever a query happens to order first.
+     */
+    uniqueIndex("ehr_connections_live_unique")
+      .on(t.organizationId, t.vendor)
+      .where(sql`revoked_at IS NULL`),
+    index("ehr_connections_org_idx").on(t.organizationId),
+  ],
+);
+
+export type EhrConnection = typeof ehrConnections.$inferSelect;
+
+/**
+ * 🔴 43.1 / 43.4 — A LAUNCH, WHICH IS ALSO THE PATIENT MAPPING, AND IT HOLDS NO DEMOGRAPHICS.
+ *
+ * A clinician opens us from inside a patient's chart. The EHR hands us a patient id in its own
+ * namespace, and this row is where that id becomes ours.
+ *
+ * ## 🔴 THE COLUMN LIST IS 43.4's DECISION
+ *
+ * `fhir_patient_id`, and no date of birth, no MRN, no address, no payer, no problem list. Every
+ * one of those arrives in the same `Patient` resource we read to get here, and persisting what
+ * you fetched is one line — which is exactly why there is no column to persist it into.
+ * `FORBIDDEN_COLUMN_FRAGMENTS` in `lib/ehr/policy.ts` is what `verify:sprint43` sweeps this
+ * table against.
+ *
+ * ## 🔴 AND THE MAPPING DIES WITH THE CONNECTION
+ *
+ * `fhir_patient_id` is nullable so that revoking a connection can NULL it across every launch
+ * under it. That is 43.4's second clock: the clinical record we hold survives, the ability to
+ * resolve a hospital's identifier does not. A launch row with a null patient id still says a
+ * launch happened, which is what an audit a year later is asking.
+ */
+export const ehrLaunches = pgTable(
+  "ehr_launches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => ehrConnections.id, { onDelete: "cascade" }),
+    /** Which of our clinicians was launched. They sign in as themselves, as 42.3 established. */
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    /**
+     * 🔴 THEIR id for the patient, in their namespace, and the ONLY thing here that is theirs.
+     *
+     * Nullable because a revoke severs it (43.4), not because a launch can lack one.
+     */
+    fhirPatientId: text("fhir_patient_id"),
+    /** Our patient, once resolved or created. Null until the clinician confirms the match. */
+    patientId: uuid("patient_id").references(() => patients.id, { onDelete: "set null" }),
+
+    /** Their encounter, so a writeback can attach to the right one rather than to the chart. */
+    fhirEncounterId: text("fhir_encounter_id"),
+
+    launchedAt: timestamp("launched_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Stamped when a revoke severs the mapping, so the severing is itself auditable. */
+    severedAt: timestamp("severed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("ehr_launches_connection_idx").on(t.connectionId),
+    index("ehr_launches_patient_idx").on(t.patientId),
+    /*
+     * 🔴 The lookup a launch actually does: "have I seen this hospital's patient before".
+     * Scoped to the connection, because two hospitals will both call somebody `12345` — the
+     * identity-collision problem `lib/integrations/registry.ts` has named as unsolved since
+     * sprint 28, solved here by never treating a foreign id as ours.
+     */
+    index("ehr_launches_fhir_patient_idx").on(t.connectionId, t.fhirPatientId),
+  ],
+);
+
+export type EhrLaunch = typeof ehrLaunches.$inferSelect;
+
+/** 43.3 — where a note went, and whether it landed. */
+export const WRITEBACK_STATES = ["pending", "filed", "refused"] as const;
+export type WritebackState = (typeof WRITEBACK_STATES)[number];
+
+/**
+ * 🔴 43.3 — THE NOTE FILES BACK AS A `DocumentReference`, AND THIS ROW IS THE RECEIPT.
+ *
+ * ## 🔴 IT RECORDS THE ATTEMPT, NOT JUST THE SUCCESS
+ *
+ * A note that a clinician approved and that we believe reached the hospital's chart, but did
+ * not, is the worst outcome this sprint can produce: the clinician has moved on, the chart has
+ * a gap, and nobody knows. So `pending` is written BEFORE the request and the state is updated
+ * after, which means a crash mid-flight leaves a row somebody can see rather than silence.
+ *
+ * ## 🔴 IT STORES NO CONTENT
+ *
+ * `session_notes` is the note. This row holds the id their server gave back and nothing that
+ * could drift from the note it refers to. A copy of the filed text here would be a third
+ * version of one clinical document, and the question "which of these is what the clinician
+ * signed" would have no answer.
+ *
+ * The same rule `partner_webhook_deliveries` follows in sprint 55, arrived at independently
+ * twice: the receipt is not the thing.
+ */
+export const ehrWritebacks = pgTable(
+  "ehr_writebacks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => ehrConnections.id, { onDelete: "cascade" }),
+    /** Which note. The note itself lives in `session_notes` and is never copied here. */
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => sessionNotes.id, { onDelete: "cascade" }),
+
+    state: text("state").$type<WritebackState>().notNull().default("pending"),
+    /** Their id for the DocumentReference, once they have accepted it. */
+    fhirDocumentReferenceId: text("fhir_document_reference_id"),
+    /** Why it was refused, in their words, for the person who has to fix it. */
+    lastError: text("last_error"),
+    attempts: integer("attempts").notNull().default(0),
+
+    filedAt: timestamp("filed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * 🔴 ONE FILING PER NOTE PER CONNECTION, so a retry cannot put two DocumentReferences for
+     * one note in somebody's chart. Idempotency as an index rather than as a check in a service.
+     */
+    uniqueIndex("ehr_writebacks_note_unique").on(t.noteId, t.connectionId),
+    index("ehr_writebacks_state_idx").on(t.state),
+  ],
+);
+
+export type EhrWriteback = typeof ehrWritebacks.$inferSelect;
