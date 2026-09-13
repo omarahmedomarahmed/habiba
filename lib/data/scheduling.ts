@@ -499,6 +499,22 @@ export async function bookSlot(input: {
     return { ok: false, error: "Somebody just took that time. Pick another." };
   }
 
+  /*
+   * 🔴 53.21 — POT FIRST, ALWAYS, and here rather than on the pay page.
+   *
+   * A badged patient never pays out of pocket while their sponsor's pot has
+   * money in it. Doing this at booking rather than when they open a pay link
+   * means they never SEE a price, which is the difference between a benefit and
+   * a reimbursement — and the reason 53.2's whole vocabulary works.
+   *
+   * `payFromPot` resolves everything itself from the session id and is safe to
+   * call twice; it returns a reason rather than throwing, because a pot that
+   * cannot fund this hour must leave an ordinary bookable session behind rather
+   * than a failed booking.
+   */
+  const { payFromPot } = await import("@/lib/billing/pot");
+  await payFromPot(created.id);
+
   log.info("slot booked", { slot: ref(input.slotId), session: ref(created.id) });
 
   return {

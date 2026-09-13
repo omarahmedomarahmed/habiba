@@ -158,6 +158,22 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
     return { error: "This link is no longer valid. Ask your therapist for a new one." };
   }
 
+  /*
+   * 🔴 53.21 — the pot pays BEFORE a price is ever shown, and this is the only
+   * place a radar arrival can be reached.
+   *
+   * `joinByToken` is the first moment a radar session has a patient row and a
+   * person behind it, so it is the first moment there is a benefit to read.
+   * `createRadarSession` deliberately does not call this and says why.
+   *
+   * Before `resolveJoinToken`, so the `payment_status` read below is the one this
+   * may have just changed. Reading first and paying afterwards would send a
+   * badged patient to a pay page for a session that is already paid for, which is
+   * a price on a screen that 53.2's whole vocabulary exists to keep off it.
+   */
+  const { payFromPot } = await import("@/lib/billing/pot");
+  await payFromPot(sessionId);
+
   const session = await resolveJoinToken(token);
   if (!session) return { joined: true, videoUrl: null };
 

@@ -152,6 +152,32 @@ export type PlatformSettings = {
      */
     egpSpreadBps: number;
   };
+  /**
+   * 🔴 53.3 / 53.11 / 53.19b — the three corporate numbers, as settings.
+   *
+   * Every one of them is a number the plan explicitly says is a setting rather
+   * than a constant, and each for its own reason:
+   *
+   * `minTopUpCents` because $5,000 is a commercial floor that a first customer
+   * will argue about, and arguing about it should not need a deploy (53.11).
+   *
+   * `activityFloor` because it is the number that decides when a sponsor sees
+   * nothing but a balance, and C229's differencing attack means the safe
+   * direction is *up*. An operator who reads a leak report must be able to
+   * raise it the same afternoon.
+   *
+   * `verifyCycleMonths` because C247's re-verification is the only thing that
+   * can notice somebody left an organisation without a roster, and six months
+   * is a guess about human patience, not a fact.
+   */
+  sponsor: {
+    /** 53.11 — the smallest top-up we will take, in cents of the entity's currency. */
+    minTopUpCents: number;
+    /** 53.3 / C229 — below this headcount a sponsor sees the balance and nothing else. */
+    activityFloor: number;
+    /** 53.19b / C247 — how often an identifier is re-checked. */
+    verifyCycleMonths: number;
+  };
 };
 
 /**
@@ -219,6 +245,20 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     alertAfterHours: 12,
     netFeeFromHeldEarnings: true,
     egpSpreadBps: 0,
+  },
+  /*
+   * 53.11 / 53.3 / 53.19b — $5,000, five people, six months.
+   *
+   * Six rather than the three the `sponsors` table still defaults to. The column
+   * default was wrong against 53.19b and this is the number the product reads:
+   * `verifyCycleMonths` here wins on every screen and in the pause job, and the
+   * column default is corrected in the next migration rather than left as a
+   * second opinion.
+   */
+  sponsor: {
+    minTopUpCents: 500_000,
+    activityFloor: 5,
+    verifyCycleMonths: 6,
   },
 };
 
@@ -456,6 +496,31 @@ export function parseGroup<G extends SettingsGroup>(
         // 1000bps is 10% on top of the market rate. Anything beyond that is a
         // margin being hidden in a rate, which is the thing C76 forbids.
         egpSpreadBps: int(v.egpSpreadBps, d.payouts.egpSpreadBps, { min: 0, max: 1_000 }),
+      } as PlatformSettings[G];
+
+    case "sponsor":
+      return {
+        /*
+         * A floor of zero is deliberately unreachable. $0 minimum is not a
+         * commercial decision, it is a pot that can be opened with nothing in
+         * it and then reported on, and C229's differencing attack is easiest
+         * against a pot with one person and one dollar in it.
+         */
+        minTopUpCents: int(v.minTopUpCents, d.sponsor.minTopUpCents, {
+          min: 1_000,
+          max: 1_000_000_000,
+        }),
+        /*
+         * 🔴 THE FLOOR CANNOT BE SET BELOW TWO, and there is no way to switch
+         * it off — the same construction as `twoPersonThresholdCents`, for the
+         * same reason. A floor of 1 means a sponsor with one enrolled person
+         * reads that person's weekly therapy spend, by name, from a chart.
+         */
+        activityFloor: int(v.activityFloor, d.sponsor.activityFloor, { min: 2, max: 1_000 }),
+        verifyCycleMonths: int(v.verifyCycleMonths, d.sponsor.verifyCycleMonths, {
+          min: 1,
+          max: 60,
+        }),
       } as PlatformSettings[G];
 
     default:

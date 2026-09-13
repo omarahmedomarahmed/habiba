@@ -197,6 +197,16 @@ export async function createSession(
     })
     .returning();
 
+  /*
+   * 🔴 53.21 — pot first, on this path too.
+   *
+   * A clinician booking a session for a patient whose employer funds them must
+   * not send that patient a pay link. Same call, same reasons as `bookSlot`; it
+   * resolves the benefit from the session id and does nothing when there is none.
+   */
+  const { payFromPot } = await import("@/lib/billing/pot");
+  await payFromPot(created!.id);
+
   await auditPhi(actor, "session.create", {
     resourceType: "session",
     resourceId: created!.id,
@@ -261,6 +271,20 @@ export async function createRadarSession(input: {
     })
     .returning();
 
+  /*
+   * ⚠️ 53.21 IS NOT APPLIED HERE, and the reason is structural rather than an
+   * omission.
+   *
+   * A radar session has NO PATIENT ROW yet — the comment above says so and it is
+   * the whole reason this function is separate from `createSession`. There is no
+   * person, so there is no enrolment to find and nothing the pot could pay for.
+   *
+   * The pot is charged instead the moment the patient identifies themselves on
+   * the join page, which is the first instant a benefit exists to read. Doing it
+   * there rather than pretending here is the difference between a gap that is
+   * closed and a call that looks like it covers this path and returns
+   * `no_benefit` for everybody.
+   */
   return created!;
 }
 

@@ -411,6 +411,19 @@ export async function weeklySpend(
    * booking, a date or a patient name" (C244) is a rule about screens rather
    * than about the ledger — which is the only reading under which both hold.
    *
+   * ## 🔴 SPEND IS A POSITIVE LEG, and the first draft of this had it backwards
+   *
+   * `sponsor_pot` is a liability, so it rises with a NEGATIVE amount — the
+   * schema states that convention once and `heldForTherapist` already negates
+   * for the same reason. A top-up is therefore negative and a session SPENDING
+   * the pot is positive, because spending reduces what we owe.
+   *
+   * This query originally read `amount_cents < 0` as spend, which is the sign of
+   * a top-up. It would have reported every deposit as expenditure and every
+   * session as nothing, and it would have looked entirely plausible on a chart.
+   * `verify:sprint53` now posts a top-up and a spend and asserts which one this
+   * counts, rather than trusting the sign written here.
+   *
    * That is a knife-edge and it is named rather than hidden. The enforcement is
    * that no surface performs that self-join, which `verify:sprint53` asserts by
    * scanning for it across every file under `app/` and `components/` rather
@@ -418,11 +431,11 @@ export async function weeklySpend(
    */
   const rows = await controlDb.execute(sql`
     SELECT date_trunc('week', l.created_at) AS week_start,
-           SUM(-l.amount_cents)::int        AS spend_cents,
+           SUM(l.amount_cents)::int         AS spend_cents,
            COUNT(*)::int                    AS sessions
       FROM ledger_entries l
      WHERE l.account = 'sponsor_pot'
-       AND l.amount_cents < 0
+       AND l.amount_cents > 0
        AND l.ref_type = 'sponsor'
        AND l.ref_id = ${sponsorId}
      GROUP BY 1

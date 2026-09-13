@@ -1985,6 +1985,20 @@ export const LEDGER_TXN_KINDS = [
   "entity_transfer",
   /** C69 / 17.1 — a session fee netted against what we already hold. */
   "fee_netted",
+  /**
+   * 🔴 53.11 — a sponsor put money into their pot. Cash in, liability up.
+   *
+   * The only new kind sprint 53 adds, and it is money IN. Money out of a pot is
+   * an ordinary `session_payment` sharing one `txn_id` with the pot leg, which is
+   * what C226's "no parallel invoice path" means in practice and what makes
+   * 53.16's trace from a pot cent to a session possible at all.
+   *
+   * `ledger_entries.txn_kind` carries no CHECK constraint, so this needs no
+   * migration. That is worth stating rather than assuming: the sprint 56 defect
+   * was an enum extended in TypeScript whose database CHECK was not, which made
+   * a whole verifier check dead while it read green.
+   */
+  "pot_topup",
 ] as const;
 export type LedgerTxnKind = (typeof LEDGER_TXN_KINDS)[number];
 
@@ -3969,6 +3983,22 @@ export const CROSSINGS = [
   "usd_stripe_to_manual",
   /** 🔴 Patient pays EGP locally, therapist is on Connect. We hold it. */
   "egp_local_to_connect",
+  /**
+   * 🔴 53.10 — a sponsor prepaid, a session spent it, we pay the clinician out.
+   *
+   * Its own value rather than borrowed from `usd_stripe_to_manual`. This column
+   * exists to answer one question for §3c's exposure register — which rail, and
+   * do we hold the money — and a corporate prepayment held for months and spent
+   * by third parties is a different counterparty class from a patient's card. To
+   * file it under a patient crossing would understate exactly the thing the
+   * column was added to measure.
+   *
+   * 🔴 `session_payments_crossing_known` IS a real CHECK constraint, so this
+   * value does not exist until migration 0073 extends it. That is the sprint 56
+   * defect stated as a rule: an enum extended here and not there is a value the
+   * database refuses and a verifier check that quietly measures nothing.
+   */
+  "pot_held_to_payout",
 ] as const;
 export type Crossing = (typeof CROSSINGS)[number];
 
