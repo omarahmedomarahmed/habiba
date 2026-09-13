@@ -24,12 +24,23 @@ export function CodeCard({
   qrDataUri,
   posterLine,
   canRotate,
+  attempts,
+  spike,
 }: {
   code: string;
   /** Generated on the server so no third party sees our customer's code. */
   qrDataUri: string;
   posterLine: string;
   canRotate: boolean;
+  /**
+   * 🔴 53.19 — a COUNT, and there is nowhere on this component to put a name.
+   *
+   * The props carry a number and a boolean. Not a list of attempts, not an
+   * identifier, not a time of day: a list of attempted employee numbers is a list of
+   * people who tried, and half of them are real staff who mistyped.
+   */
+  attempts: number;
+  spike: boolean;
 }) {
   const t = useT();
   const [confirming, setConfirming] = useState(false);
@@ -49,6 +60,20 @@ export function CodeCard({
         <p className="font-mono text-3xl font-bold tracking-[0.2em] text-slate-900">{code}</p>
 
         <p className="max-w-sm text-sm leading-relaxed text-slate-600">{posterLine}</p>
+      </div>
+
+      {/*
+        🔴 53.19 — the number, and the sentence only when it means something.
+        Printed out of the poster block, because a count of guesses is not something
+        to put on a wall.
+      */}
+      <div className="mt-4 border-t border-slate-100 pt-4 print:hidden">
+        <p className="text-xs text-slate-500">{t("sponsor.attempts", { count: attempts })}</p>
+        {spike ? (
+          <p className="mt-1 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+            {t("sponsor.attemptsHigh")}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 print:hidden">

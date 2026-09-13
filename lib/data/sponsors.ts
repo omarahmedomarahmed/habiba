@@ -9,12 +9,14 @@ import {
   people,
   sponsorCodes,
   sponsorIdentifierFields,
+  rateLimits,
   sponsorPots,
   sponsors,
   type RemovalReason,
   type Sponsor,
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
+import { subjectKey } from "@/lib/rate-limit";
 
 /**
  * 🔴 THE WALL. PLAN.md 53.1, 53.3, §3e, C227 to C229, C244.
@@ -261,6 +263,35 @@ export async function liveCode(sponsorId: string): Promise<string | null> {
     .orderBy(desc(sponsorCodes.createdAt))
     .limit(1);
   return row?.code ?? null;
+}
+
+/**
+ * 🔴 53.19 — HOW MANY ATTEMPTS ON THEIR CODE THIS WEEK. A NUMBER, NEVER NAMES.
+ *
+ * *A spike alerting admin and the sponsor as a number, never names.*
+ *
+ * `lib/data/enrolment.ts` counts every attempt on a live code against a key derived
+ * from the code alone. This reads that count. What it cannot return is who tried or
+ * what they typed, because the counter holds neither: a list of attempted employee
+ * numbers is a list of people who tried, and half of them would be real staff who
+ * mistyped.
+ *
+ * The threshold is a judgement rather than a rule, so it is exported and the screens
+ * compare against it. A sponsor whose poster went up in a lobby this morning will
+ * see a number that means nothing is wrong.
+ */
+export const SPIKE_THRESHOLD = 50;
+
+export async function attemptsOnCode(code: string | null): Promise<number> {
+  if (!code) return 0;
+
+  const [row] = await controlDb
+    .select({ count: rateLimits.count })
+    .from(rateLimits)
+    .where(eq(rateLimits.key, subjectKey("enrol-code", code.trim().toUpperCase())))
+    .limit(1);
+
+  return row?.count ?? 0;
 }
 
 /** 53.7 — what this sponsor asks a person for. */

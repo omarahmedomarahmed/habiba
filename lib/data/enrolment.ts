@@ -15,7 +15,7 @@ import {
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
 
 /**
  * Joining a benefit. PLAN.md 53.17 to 53.19d, C227, C237, C246 to C250.
@@ -47,6 +47,24 @@ import { callerKey, consume } from "@/lib/rate-limit";
 /** 🔴 53.19 — attempts per code, because a shape is guessable (C246). */
 const ATTEMPTS_PER_WINDOW = 8;
 const ATTEMPT_WINDOW_SECONDS = 15 * 60;
+
+/**
+ * 🔴 53.19 — the SPIKE COUNTER, which is a different thing from the limiter.
+ *
+ * *A spike alerting admin and the sponsor as a NUMBER, never names.*
+ *
+ * The limiter above is keyed on the caller AND the code, because the attack is one
+ * person guessing and the remedy is to slow that person down. A spike is the
+ * opposite shape: many callers against one code, which no per-caller key can see.
+ *
+ * So this is a second counter keyed on the CODE ALONE, with a limit high enough
+ * that it never refuses anything. It exists to be read, not to gate: the sponsor's
+ * own screen shows the number and admin sees it beside the account, and neither
+ * ever sees an identifier that was tried. A list of attempted employee numbers is
+ * a list of people who tried.
+ */
+const SPIKE_WINDOW_SECONDS = 7 * 24 * 60 * 60;
+const SPIKE_NEVER_REFUSES = 1_000_000;
 
 /**
  * 🔴 The identifier is stored HASHED, and this is the only place it is hashed.
@@ -244,6 +262,19 @@ export async function enrol(input: {
 
   const lookup = await lookupCode(input.code);
   if (!lookup.ok) return { ok: false, error: lookup.error };
+
+  /*
+   * 🔴 Counted here, after the code resolves, and deliberately not before.
+   *
+   * A spike on a LIVE code is a fact about that organisation's poster, which is what
+   * the sponsor needs to see. Invented codes that resolve to nothing are a fact
+   * about us and belong in the limiter above, not on a customer's screen.
+   */
+  await consume(
+    subjectKey("enrol-code", input.code.trim().toUpperCase()),
+    SPIKE_NEVER_REFUSES,
+    SPIKE_WINDOW_SECONDS,
+  );
 
   const fields = await controlDb
     .select({

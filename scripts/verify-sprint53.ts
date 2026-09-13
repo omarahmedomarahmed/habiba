@@ -1520,6 +1520,124 @@ async function main() {
         : `LEAKS: ${leakedWords.join(", ")}`,
     );
 
+    /* ============================================================ */
+    /*  53.12 · SPENDABLE HERE AND NOWHERE ELSE                      */
+    /* ============================================================ */
+
+    /*
+     * 🔴 *No cash out, no transfer, no other product*, and the enforcement is that
+     * there is no function which could do it.
+     *
+     * The pot module's only two money movements are a top-up in and a session spend
+     * out. So the check is over its EXPORTS: nothing named for a withdrawal, a
+     * refund, a transfer or a payout exists, and the control asserts the two that
+     * should exist do. An absence assertion over an empty module passes.
+     */
+    const potExports = [...potSource.matchAll(/export async function (\w+)/g)].map(
+      (match) => match[1]!,
+    );
+
+    const cashOut = potExports.filter((name) =>
+      /withdraw|cashOut|payout|transfer|refund/i.test(name),
+    );
+
+    check(
+      "🔴 53.12 no function in the pot module can take money out except a session",
+      cashOut.length === 0,
+      cashOut.length === 0
+        ? `${potExports.join(", ")} — one way in, one way out, and out is a session`
+        : `CASH OUT: ${cashOut.join(", ")}`,
+    );
+
+    check(
+      "🔴 CONTROL …and the two that MUST exist do, so the module is not simply empty",
+      potExports.includes("topUpPot") && potExports.includes("payFromPot"),
+      "money in and a session spending it, which is the whole of a payment method",
+    );
+
+    /* ============================================================ */
+    /*  53.2 · ENROLMENT IS ELIGIBILITY, NEVER THERAPY               */
+    /* ============================================================ */
+
+    /*
+     * 🔴 *Nothing on any enrolment screen, email or poster implies the person needs
+     * help.*
+     *
+     * Checked against the SHIPPED STRINGS rather than the components, because the
+     * components render keys and the words live in the dictionary. Every key an
+     * enrolment surface reads is swept for the vocabulary of illness.
+     *
+     * The list is deliberately of words that would be fine anywhere else in this
+     * product and are not fine here: a screen a colleague can see over somebody's
+     * shoulder in an open-plan office, and a poster whoever photographs it is seen
+     * photographing.
+     */
+    const { DICTIONARIES } = await import("../lib/i18n/messages");
+
+    const enrolmentKeys = Object.keys(DICTIONARIES.en).filter(
+      (key) => key.startsWith("benefit.") || key === "sponsor.codePoster",
+    );
+
+    const clinicalWords = [
+      "therapy",
+      "therapist",
+      "counselling",
+      "mental health",
+      "depress",
+      "anxi",
+      "struggl",
+      "support you",
+      "help you",
+      "wellbeing",
+      "crisis",
+    ];
+
+    const offending = enrolmentKeys.filter((key) => {
+      const text = (DICTIONARIES.en as Record<string, string>)[key]!.toLowerCase();
+      return clinicalWords.some((word) => text.includes(word));
+    });
+
+    check(
+      "🔴 53.2 no word on any enrolment screen or poster implies the person needs help",
+      offending.length === 0,
+      offending.length === 0
+        ? `${enrolmentKeys.length} enrolment strings, eleven words looked for, none present`
+        : `IMPLIES THERAPY: ${offending.join(", ")}`,
+    );
+
+    /*
+     * 🔴 CONTROL — the same sweep over the same words DOES flag a sentence that
+     * breaks the rule, and it is the sentence somebody will write.
+     */
+    const plausible = "Activate your benefit and get help with your mental health.".toLowerCase();
+
+    check(
+      "🔴 CONTROL …and it catches the sentence somebody will eventually write",
+      clinicalWords.some((word) => plausible.includes(word)),
+      "the obvious first draft of an enrolment poster is caught by the same predicate",
+    );
+
+    /*
+     * 🔴 53.19 — the spike reaches both screens as a NUMBER, and neither can render
+     * an identifier because neither is given one.
+     */
+    const codeCard = readSource("components/sponsor/code-card.tsx");
+
+    check(
+      "🔴 53.19 the spike is a count on both screens, and no surface is handed an identifier",
+      /attempts: number/.test(codeCard) &&
+        !/identifier/i.test(codeCard) &&
+        /sponsor\.attempts/.test(readSource("components/admin/sponsor-manager.tsx")),
+      "a list of attempted employee numbers is a list of people who tried",
+    );
+
+    check(
+      "🔴 CONTROL …and the count is actually read from the counter rather than hardcoded",
+      /subjectKey\("enrol-code"/.test(sponsorData) &&
+        /subjectKey\("enrol-code"/.test(readSource("lib/data/enrolment.ts")),
+      "written by the enrolment path and read by the sponsor's, on the same key",
+    );
+
     check(
       "🔴 CONTROL …and the same scan WOULD catch one, so it is reading the markup",
       corporateWords.some((word) =>

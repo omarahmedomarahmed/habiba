@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 
 import { CodeCard } from "@/components/sponsor/code-card";
 import { Card } from "@/components/ui";
-import { liveCode } from "@/lib/data/sponsors";
+import { attemptsOnCode, liveCode, SPIKE_THRESHOLD } from "@/lib/data/sponsors";
 import { env } from "@/lib/env";
 import { getI18n } from "@/lib/i18n/server";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
@@ -42,6 +42,14 @@ export default async function SponsorCodePage() {
   const { t } = await getI18n();
 
   const code = await liveCode(actor.sponsorId);
+  /*
+   * 🔴 53.19 — the spike, as a number, on the sponsor's own screen.
+   *
+   * *A spike alerting admin and the sponsor as a number, never names.* This is the
+   * sponsor's half. It is on the code's own page because the remedy is on this page:
+   * replacing the code is one tap and costs them a reprint.
+   */
+  const attempts = await attemptsOnCode(code);
   const url = code ? `${env.appUrl}/patient/benefit?code=${code}` : null;
 
   /*
@@ -73,6 +81,8 @@ export default async function SponsorCodePage() {
            */
           posterLine={t("sponsor.codePoster", { url: url.replace(/^https?:\/\//, ""), code })}
           canRotate={actor.role === "admin"}
+          attempts={attempts}
+          spike={attempts >= SPIKE_THRESHOLD}
         />
       ) : (
         <Card className="p-5">

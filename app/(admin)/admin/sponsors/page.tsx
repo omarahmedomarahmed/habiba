@@ -4,7 +4,7 @@ import { SponsorManager } from "@/components/admin/sponsor-manager";
 import { requireRole } from "@/lib/auth/guard";
 import { ledgerPotBalance, reconcilePots } from "@/lib/billing/pot";
 import { allSponsors, potTerms, sponsorUsersFor } from "@/lib/data/sponsor-admin";
-import { liveCode } from "@/lib/data/sponsors";
+import { attemptsOnCode, liveCode, SPIKE_THRESHOLD } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Sponsors", robots: { index: false } };
@@ -54,6 +54,15 @@ export default async function AdminSponsorsPage() {
         ledgerPotBalance(sponsor.id),
       ]);
 
+      /*
+       * 🔴 53.19 — admin's half of the spike alert. A NUMBER, never names.
+       *
+       * The sponsor sees the same figure on their own code page, where the remedy is.
+       * We see it here so that a pattern across several customers is visible to one
+       * person, which is the thing no individual customer can notice.
+       */
+      const attempts = await attemptsOnCode(code);
+
       return {
         id: sponsor.id,
         name: sponsor.name,
@@ -67,6 +76,8 @@ export default async function AdminSponsorsPage() {
         code,
         potOpen: terms !== null,
         potBalanceLabel: fmt(balance),
+        attempts,
+        spike: attempts >= SPIKE_THRESHOLD,
         users: users.map((user) => ({ id: user.id, email: user.email, role: user.role })),
       };
     }),

@@ -63,6 +63,9 @@ export type AdminSponsorRow = {
   code: string | null;
   potOpen: boolean;
   potBalanceLabel: string;
+  /** 🔴 53.19 — attempts on their code this week. A number, never names. */
+  attempts: number;
+  spike: boolean;
   users: { id: string; email: string; role: string }[];
 };
 
@@ -167,6 +170,15 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-mono text-sm tracking-widest text-slate-800">
               {sponsor.code ?? t("asponsor.noCode")}
+            </span>
+            <span
+              className={
+                sponsor.spike
+                  ? "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
+                  : "text-xs text-slate-500"
+              }
+            >
+              {t("sponsor.attempts", { count: sponsor.attempts })}
             </span>
             <button
               type="button"

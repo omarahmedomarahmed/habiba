@@ -999,7 +999,7 @@ export const en = {
    * 🔴 53.18b — the sentence that has to be on the screen where the identifier
    * is asked for, because it is the one thing somebody hesitating needs.
    */
-  "benefit.identifierNeverShared": "This is only used to check you are eligible. It is never sent to your organisation, never used to contact you, and never shown to your therapist.",
+  "benefit.identifierNeverShared": "This is only used to check you are eligible. It is never sent to your organisation, never used to contact you, and it is not kept in a form anybody here can read.",
   "benefit.confirmDetails": "We will use the name and number you already gave us",
   /* 🔴 53.22 / C234 — said BEFORE they enrol, not after. */
   "benefit.whatTheySee": "What your organisation can and cannot see",
@@ -1101,6 +1101,9 @@ export const en = {
   "sponsor.codeRotate": "Replace this code",
   "sponsor.codeRotateBody": "The old code stops working straight away. Anybody already enrolled stays enrolled.",
   "sponsor.codePrint": "Print this",
+  /* 🔴 53.19 — a NUMBER, never a name and never an identifier that was tried. */
+  "sponsor.attempts": "{count} attempts on this code in the last seven days.",
+  "sponsor.attemptsHigh": "That is more than we would expect. Somebody may be guessing at your code rather than reading it off a poster. Replacing it costs you nothing except reprinting, and anybody already enrolled stays enrolled.",
   "sponsor.codePoster": "Activate your benefit at {url} with the code {code}.",
   "sponsor.topUpBody": "The minimum is {min}. It can only be spent on sessions on this platform, and there is no way to take it back out as cash.",
   "sponsor.amount": "Amount",
@@ -3388,7 +3391,7 @@ export const ar: Record<MessageKey, string> = {
   "benefit.activate": "فعّل",
   "benefit.activating": "جارٍ التفعيل…",
   "benefit.identifierLabel": "ما تطلبه {name}",
-  "benefit.identifierNeverShared": "يُستخدم هذا فقط للتحقق من أهليتك. لا يُرسل إلى جهتك أبدًا، ولا يُستخدم للتواصل معك، ولا يُعرض على معالجك.",
+  "benefit.identifierNeverShared": "يُستخدم هذا فقط للتحقق من أهليتك. لا يُرسل إلى جهتك أبدًا، ولا يُستخدم للتواصل معك، ولا يُحفظ بصورة يستطيع أحد هنا قراءتها.",
   "benefit.confirmDetails": "سنستخدم الاسم والرقم الذين أعطيتنا إياهما بالفعل",
   "benefit.whatTheySee": "ما تراه جهتك وما لا تراه",
   "benefit.theySeeName": "يرون أنك على القائمة، وتاريخ آخر تحقق لكل من عليها. وهذا التاريخ واحد للجميع، فلا يقول شيئًا عن موعد انضمامك.",
@@ -3477,6 +3480,8 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.codeRotate": "استبدل هذا الرمز",
   "sponsor.codeRotateBody": "يتوقف الرمز القديم فورًا. ومن انضم بالفعل يبقى منضمًا.",
   "sponsor.codePrint": "اطبع هذا",
+  "sponsor.attempts": "{count} محاولة على هذا الرمز في الأيام السبعة الماضية.",
+  "sponsor.attemptsHigh": "هذا أكثر مما نتوقع. قد يكون شخص يخمّن رمزكم بدلًا من قراءته من ملصق. استبداله لا يكلفكم شيئًا سوى إعادة الطباعة، ومن انضم بالفعل يبقى منضمًا.",
   "sponsor.codePoster": "فعّل ميزتك على {url} بالرمز {code}.",
   "sponsor.topUpBody": "الحد الأدنى {min}. يُنفق على الجلسات في هذه المنصة فقط، ولا سبيل لسحبه نقدًا.",
   "sponsor.amount": "المبلغ",
