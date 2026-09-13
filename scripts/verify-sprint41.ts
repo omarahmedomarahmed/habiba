@@ -249,6 +249,39 @@ async function main() {
     "dispatch is inside the granted branch, and there is no other branch that calls it",
   );
 
+  /*
+   * 🔴 C282 — the AI question is on its OWN screen, not bundled onto the name
+   * form.
+   *
+   * `submitJoin` used to read `guestName` and `consent` from one formData, so
+   * the answer came with the momentum of filling in a name rather than as a
+   * decision. That was the real pressure in this flow, it existed under either
+   * ordering of payment and consent, and the ordering ruling would not have
+   * touched it.
+   *
+   * Asserted both ways: the join action must not read a consent field, and it
+   * must hand the patient to the standalone screen instead.
+   */
+  check(
+    "🔴 C282 the AI question is never read off the name form",
+    !/formData\.get\("consent"\)/.test(joinActions) &&
+      /return \{ needsConsent: true \};/.test(joinActions),
+    "one question, one screen, for every path into a session",
+  );
+
+  /*
+   * 🔴 C281 — and the ORDER is unchanged, which is a different ruling.
+   *
+   * Pinned so nobody reads C282 as licence to move the question after
+   * payment. A patient who agrees and then abandons Stripe has made a decision
+   * we are obliged to honour, and the shipped order is what keeps it.
+   */
+  check(
+    "🔴 C281 a paid session still pays before the AI question, not after",
+    /payUrl: `\/pay\/\$\{token\}`/.test(joinActions),
+    "name, pay, then the question, then in, and declining still admits them",
+  );
+
   /* --------------------------------------- 41.7 · consent withdrawn, bot leaves -- */
 
   /*
@@ -270,10 +303,25 @@ async function main() {
    * answer overwrites the first, so a partner who declines is overruled by
    * whoever presses next and the recorder they objected to runs anyway.
    */
+  /*
+   * 🔴 C283 — and it is ONE CONDITIONAL STATEMENT, not a read then a write.
+   *
+   * Sprint 41 shipped this as a SELECT, a check and an UPDATE, and this check
+   * matched on the `if`. Two people answering seconds apart was safe; two in
+   * the same instant both read "not declined" and both wrote, so a grant could
+   * still land after a decline. A rule this important does not rest on human
+   * reaction time.
+   *
+   * Asserted on the SQL predicate rather than on the branch, because the
+   * branch is what was wrong. `IS DISTINCT FROM` and not `<> 'declined'`:
+   * the column is nullable and `NULL <> 'declined'` is NULL, which would
+   * refuse the very first answer on every session.
+   */
   check(
-    "🔴 41.7 couples, any decline means no AI, so a later grant cannot overturn it",
-    /declined && consent === "granted"/.test(joinActions),
-    "the write is monotonic toward decline, and a bot already sent is withdrawn",
+    "🔴 41.7 / C283 couples, any decline means no AI, in one atomic write with no read",
+    /IS DISTINCT FROM 'declined'/.test(joinActions) &&
+      !/const declined = await db\s*\n\s*\.select/.test(joinActions),
+    "a conditional UPDATE, so there is no window between the check and the write",
   );
 
   /* ------------------------------------ 41.5 / C134 · identity from the session -- */

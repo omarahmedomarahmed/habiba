@@ -70,6 +70,17 @@ export const en = {
   "join.takingYouIn": "Taking you into your session…",
 
   /* ----------------------------------------------------------- consent -- */
+  /*
+   * 🔴 C282 — the sentence the ordering ruling was reaching for, at the cost
+   * of a line rather than a flow rewrite.
+   *
+   * Printed directly above the choice, on every path. A person deciding
+   * whether to be recorded needs to know, in words and not by inference, that
+   * the answer does not affect whether they are seen or what they pay. Without
+   * it, "may your therapist record this" read next to a price is a question
+   * that looks like a condition of service.
+   */
+  "consent.noCost": "Your answer does not change whether you are seen, or what you pay.",
   "consent.question": "May your therapist record this session?",
   "consent.point.notes":
     "The recording is turned into your therapist's clinical notes, and a plain-language summary for you.",
@@ -2379,6 +2390,7 @@ export const ar: Record<MessageKey, string> = {
   "join.paymentReceived": "تم استلام الدفع",
   "join.takingYouIn": "جارٍ إدخالك إلى جلستك…",
 
+  "consent.noCost": "إجابتك لا تغيّر شيئًا: لا فيما إذا كنت ستُقابَل، ولا فيما تدفعه.",
   "consent.question": "هل تسمح لمعالجك بتسجيل هذه الجلسة؟",
   "consent.point.notes":
     "يتحول التسجيل إلى ملاحظات معالجك السريرية، وإلى ملخص بلغة بسيطة لك أنت.",

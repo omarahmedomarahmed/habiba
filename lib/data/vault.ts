@@ -132,13 +132,32 @@ export async function allInvoices(limit = 300) {
     .limit(limit);
 }
 
-/** Every patient→therapist payment we facilitated, newest first. */
+/**
+ * Every patient→therapist payment we facilitated, newest first.
+ *
+ * ## 🔴 C243 / C244 — `payerName` is NOT selected, and this was the last reader
+ *
+ * It was, until sprint 53. Sprint 46 removed `payerName` from every
+ * therapist-facing read under C243, and this one survived because C243 was
+ * scoped to therapist surfaces and an admin vault page is not one. C244 closes
+ * the rest: *no screen in this product, the admin console included, may join a
+ * sponsor to a session, a booking, a date or a patient name.*
+ *
+ * A pot payment has no cardholder. So from the day sponsors exist, either the
+ * sponsor's name lands in that column — putting sponsor, session and date on
+ * one admin screen, which is the whole leak — or it is null and an operator
+ * sorts one column to find every sponsored session. Both are the thing C244
+ * forbids, and the second is the version that looks like nothing is wrong.
+ *
+ * 🔴 Removing it costs an operator nothing they need. Reconciling a payment is
+ * keyed on `sessionId` and the amounts; the payer's NAME was never part of
+ * that, it was there because it was available.
+ */
 export async function allSessionPayments(limit = 200) {
   return db
     .select({
       id: sessionPayments.id,
       sessionId: sessionPayments.sessionId,
-      payerName: sessionPayments.payerName,
       grossCents: sessionPayments.grossCents,
       platformFeeCents: sessionPayments.platformFeeCents,
       settledInvoiceCents: sessionPayments.settledInvoiceCents,

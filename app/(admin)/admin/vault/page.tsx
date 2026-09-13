@@ -321,7 +321,6 @@ export default async function VaultPage() {
               key={payment.id}
               id={payment.id}
               sessionId={payment.sessionId}
-              payerName={payment.payerName}
               therapistName={payment.therapistName}
               organizationName={payment.organizationName}
               grossCents={payment.grossCents}

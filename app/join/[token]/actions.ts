@@ -119,25 +119,27 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
   const token = String(formData.get("token") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
-  const consent = formData.get("consent");
 
   if (!name) return { error: "Please enter your first name." };
   if (name.length > 80) return { error: "That name is a little long." };
 
   /*
-   * Consent is required to proceed; agreeing is not.
+   * 🔴 C282 — THE AI QUESTION IS NOT READ HERE ANY MORE.
    *
-   * The distinction is the whole design. There is no default and no
-   * pre-selected option, because a pre-ticked box is not an affirmative act
-   * and would leave us with a stored "granted" that means nothing. Declining
-   * is a first-class answer that costs the patient nothing — the session runs
-   * identically, off record — so nobody is nudged into agreeing by the fear
-   * of losing their appointment.
+   * It was. This action took `guestName` and `consent` out of the same
+   * formData, so the answer was given with the momentum of filling in a name
+   * rather than as a decision of its own. That is the actual pressure in this
+   * flow: it existed whichever side of payment the question sat on, and
+   * reordering the flow would not have touched it.
+   *
+   * The standalone screen already existed for a returning radar patient, who
+   * skipped this form entirely. The guest path now uses it too, so there is
+   * exactly one place in the product where somebody is asked, and it is a
+   * screen with one question on it.
+   *
+   * Consent is still required before the room. `admit` is reached only from
+   * `answerConsent`, and this action returns `needsConsent` instead.
    */
-  const { isRecordingConsent } = await import("@/lib/consent");
-  if (!isRecordingConsent(consent)) {
-    return { error: "Please choose whether your therapist may record the session." };
-  }
 
   /*
    * Throttled even though the token is 24 random bytes and cannot realistically
@@ -156,16 +158,6 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
     return { error: "This link is no longer valid. Ask your therapist for a new one." };
   }
 
-  /*
-   * Recorded before the paywall, not after.
-   *
-   * A patient who agrees and then abandons Stripe has still made a decision we
-   * are obliged to honour, and one we would otherwise lose. It also means the
-   * answer is already stored when they walk back in from checkout, so nobody
-   * is asked the same question twice.
-   */
-  await recordConsent(sessionId, consent);
-
   const session = await resolveJoinToken(token);
   if (!session) return { joined: true, videoUrl: null };
 
@@ -178,14 +170,27 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
      *
      * The patient has to choose the country they are paying from before there
      * is a currency, a VAT rate or an exchange rate to charge them at (4.2).
-     * The name and consent they just gave are already recorded, so coming back
-     * from the payment puts them in the room rather than in this form again.
+     * The name they just gave is already recorded, so coming back from the
+     * payment puts them at the AI question rather than in this form again.
+     *
+     * 🔴 C281 — the shipped order STAYS: name, then pay, then the AI question,
+     * then in. The ordering ruling and C282 are different things: the harm was
+     * never which side of payment the question sat on, it was the question
+     * being bundled onto a form. `resumeAfterPayment` returns `needsConsent`,
+     * so a patient coming back from Stripe reaches the same standalone screen
+     * a radar arrival does.
      */
     return { payUrl: `/pay/${token}` };
   }
 
-  log.info("patient joined session");
-  return admit(token, name);
+  /*
+   * 🔴 C282 — the question, on its own screen, before the room.
+   *
+   * `admit` is never reached from here now. It is reached from
+   * `answerConsent`, which is the one place an answer is given.
+   */
+  log.info("patient named themselves, asking about recording");
+  return { needsConsent: true };
 }
 
 /**
@@ -289,7 +294,7 @@ async function recordConsent(sessionId: string, consent: "granted" | "declined")
   const { pinnedToDefaultRegion } = await import("@/lib/db/region");
   const db = dbFor(pinnedToDefaultRegion("app/join/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
   const { sessions } = await import("@/lib/db/schema");
-  const { eq } = await import("drizzle-orm");
+  const { and, eq, sql } = await import("drizzle-orm");
 
   /*
    * 🔴 41.7 — COUPLES: ONE CONSENTS AND ONE DOES NOT MEANS NO AI.
@@ -311,20 +316,24 @@ async function recordConsent(sessionId: string, consent: "granted" | "declined")
    * once anybody has said no, which is the right way round: `turnOnConsent` is
    * a deliberate in-session act with both people present, and that is where a
    * reversal belongs.
+   *
+   * ## 🔴 C283 — ONE CONDITIONAL STATEMENT, NO SEPARATE READ
+   *
+   * Sprint 41 shipped this as a SELECT, a check, and then an UPDATE. Two
+   * people answering seconds apart is safe; two answering in the same instant
+   * both read "not declined" and both write, so a grant can still land after a
+   * decline. The rule is far too important to rest on human reaction time.
+   *
+   * `IS DISTINCT FROM` rather than `<> 'declined'`, because `recording_consent`
+   * is nullable and `NULL <> 'declined'` is NULL, which is not true, so a
+   * plain inequality would refuse the very first answer on every session.
+   *
+   * Same rule, no window, less code. It is also the pattern the rest of this
+   * module already uses — `turnOnConsent` and `stopRecording` are both
+   * conditional UPDATEs — so this was the one place in the consent path that
+   * was not.
    */
-  const declined = await db
-    .select({ consent: sessions.recordingConsent })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1)
-    .then((rows) => rows[0]?.consent === "declined");
-
-  if (declined && consent === "granted") {
-    log.info("consent grant not applied, somebody in this session declined");
-    return;
-  }
-
-  await db
+  const landed = await db
     .update(sessions)
     .set({
       recordingConsent: consent,
@@ -340,7 +349,25 @@ async function recordConsent(sessionId: string, consent: "granted" | "declined")
            */
           { recordingStartedAt: new Date() }),
     })
-    .where(eq(sessions.id, sessionId));
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        /*
+         * 🔴 A grant is refused when anybody has already declined. A decline
+         * is unconditional: it may always land, including over an earlier
+         * decline, which is idempotent.
+         */
+        consent === "granted"
+          ? sql`${sessions.recordingConsent} IS DISTINCT FROM 'declined'`
+          : undefined,
+      ),
+    )
+    .returning({ id: sessions.id });
+
+  if (landed.length === 0) {
+    log.info("consent grant not applied, somebody in this session declined");
+    return;
+  }
 
   // Deliberately not through the PHI audit helper: there is no actor with a
   // user id here, and the fact recorded is about consent rather than about

@@ -18,7 +18,6 @@ import { formatUsd } from "@/lib/billing/plans";
 export function VaultPaymentRow(props: {
   id: string;
   sessionId: string;
-  payerName: string | null;
   therapistName: string | null;
   organizationName: string | null;
   grossCents: number;
@@ -40,8 +39,22 @@ export function VaultPaymentRow(props: {
     <li className="px-4 py-3">
       <div className="flex items-center gap-3">
         <span className="min-w-0 flex-1">
+          {/*
+            🔴 C243 / C244 — the payer is not named here, and that is the fix.
+
+            This rendered `payerName ?? "Patient"`. A pot payment has no
+            cardholder, so from the day sponsors exist that column either
+            carries a sponsor's name — putting sponsor, session and date on one
+            admin screen — or reads "Patient" for exactly the sponsored ones,
+            which an operator finds by sorting. The second version is the one
+            that looks like nothing is wrong.
+
+            The therapist and the amount are what reconciling a payment needs.
+            The payer's name was never part of it; it was there because it was
+            available.
+          */}
           <span className="block truncate text-sm font-medium text-slate-900">
-            {props.payerName ?? "Patient"} → {props.therapistName ?? "Clinician"}
+            {props.therapistName ?? "Clinician"}
           </span>
           <span className="block truncate text-xs text-slate-500">
             {props.organizationName ?? "-"} · {props.when} · we kept {formatUsd(ourCut)}

@@ -260,8 +260,20 @@ export function JoinFlow({
         </Field>
       ) : null}
 
-      <ConsentStep />
+      {/*
+        🔴 C282 — the AI question is NOT on this form, and that is the fix.
 
+        It used to be. `submitJoin` read `guestName` and `consent` from one
+        formData, so the answer was given with the momentum of filling in a
+        name rather than as a decision of its own. That is the real pressure
+        in this flow, it existed under any ordering of payment and consent, and
+        reordering the flow would not have touched it.
+
+        It is now `ConsentGate`, on its own screen, for every path — the same
+        screen a returning radar patient already got. One question, nothing
+        else on it, and a sentence saying the answer changes nothing about
+        being seen or about what they pay.
+      */}
       <Submit priceCents={owes ? priceCents : 0} />
 
       <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
@@ -357,6 +369,19 @@ function ConsentStep() {
       <legend className="px-1.5 text-sm font-semibold text-slate-900">
         {t("consent.question")}
       </legend>
+
+      {/*
+        🔴 C282 — directly above the choice, on every path.
+
+        A person deciding whether to be recorded needs to be TOLD, in words
+        rather than by inference, that the answer does not affect whether they
+        are seen or what they pay. Without it, this question read beside a
+        price is one that looks like a condition of service. It is one line and
+        it is what the ordering ruling was reaching for.
+      */}
+      <p className="mt-1.5 px-1.5 text-xs leading-relaxed font-medium text-slate-700">
+        {t("consent.noCost")}
+      </p>
 
       <ul className="mt-1 space-y-1.5">
         {(["consent.point.notes", "consent.point.private", "consent.point.changeMind"] as const).map(
