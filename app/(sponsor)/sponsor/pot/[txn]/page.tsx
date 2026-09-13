@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Card } from "@/components/ui";
+import { getI18n } from "@/lib/i18n/server";
 import { invoiceFor } from "@/lib/billing/invoice";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 
@@ -38,6 +39,7 @@ export default async function InvoicePage({
   params: Promise<{ txn: string }>;
 }) {
   const actor = await requireSponsor();
+  const { t } = await getI18n();
   const { txn } = await params;
 
   /*
@@ -51,12 +53,9 @@ export default async function InvoicePage({
   if ("missing" in invoice) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">
-          We cannot issue this document yet.
-        </p>
+        <p className="text-sm font-semibold text-slate-900">{t("sponsor.inv.notYet")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Ask us for it and we will send it to you. We are missing our own{" "}
-          {invoice.missing.join(", ")}.
+          {t("sponsor.inv.notYetBody")}
         </p>
       </Card>
     );
@@ -77,12 +76,14 @@ export default async function InvoicePage({
             <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-slate-600">
               {invoice.from.address}
             </p>
-            <p className="mt-1 text-xs text-slate-600">Tax number {invoice.from.taxId}</p>
+            <p className="mt-1 text-xs text-slate-600">
+              {t("sponsor.inv.taxNumber", { id: invoice.from.taxId })}
+            </p>
           </div>
 
           <div className="text-end">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Invoice
+              {t("sponsor.inv.title")}
             </p>
             <p className="font-mono text-sm font-bold text-slate-900">{invoice.number}</p>
             <p className="mt-1 text-xs text-slate-600">
@@ -93,7 +94,7 @@ export default async function InvoicePage({
 
         <div className="mt-8 border-t border-slate-200 pt-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Billed to
+            {t("sponsor.inv.billedTo")}
           </p>
           <p className="mt-1 text-sm font-semibold text-slate-900">{invoice.sponsorName}</p>
         </div>
@@ -101,9 +102,7 @@ export default async function InvoicePage({
         <table className="mt-8 w-full text-sm">
           <tbody>
             <tr className="border-b border-slate-100">
-              <td className="py-2 text-slate-700">
-                Prepayment for therapy sessions on 24Therapy
-              </td>
+              <td className="py-2 text-slate-700">{t("sponsor.inv.line")}</td>
               <td className="py-2 text-end tabular-nums text-slate-900">
                 {fmt(invoice.netCents)}
               </td>
@@ -116,14 +115,16 @@ export default async function InvoicePage({
             */}
             <tr className="border-b border-slate-100">
               <td className="py-2 text-slate-700">
-                VAT at {(invoice.vatBps / 100).toFixed(invoice.vatBps % 100 === 0 ? 0 : 1)}%
+                {t("sponsor.inv.vat", {
+                  rate: (invoice.vatBps / 100).toFixed(invoice.vatBps % 100 === 0 ? 0 : 1),
+                })}
               </td>
               <td className="py-2 text-end tabular-nums text-slate-900">
                 {fmt(invoice.vatCents)}
               </td>
             </tr>
             <tr>
-              <td className="py-3 font-semibold text-slate-900">Paid</td>
+              <td className="py-3 font-semibold text-slate-900">{t("sponsor.inv.paid")}</td>
               <td className="py-3 text-end font-semibold tabular-nums text-slate-900">
                 {fmt(invoice.totalCents)}
               </td>
@@ -136,9 +137,7 @@ export default async function InvoicePage({
           Spendable on sessions here and nothing else, no cash out, no transfer.
         */}
         <p className="mt-8 border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-500">
-          This amount is held as a balance spendable on therapy sessions on this
-          platform. It cannot be withdrawn as cash or transferred, and the refund and
-          expiry terms agreed with your account apply.
+          {t("sponsor.inv.spendableOnly")}
         </p>
       </Card>
     </div>

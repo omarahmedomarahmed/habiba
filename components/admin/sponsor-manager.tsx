@@ -11,6 +11,7 @@ import {
 } from "@/app/(admin)/admin/sponsors/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { SPONSOR_STATES } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -37,12 +38,16 @@ function Submit({ label }: { label: string }) {
  * an employer funds, because the first thing that happens to such a list is that
  * somebody screenshots it for a customer who asked.
  *
- * ## 🔴 English, and deliberately not a MessageKey
+ * ## 🔴 KEYS, even though the rest of the operator console is not
  *
- * 45.8 covers every word a PATIENT, clinician or sponsor reads. The internal
- * operator console has always been English: it is a tool for a team of three who
- * share a language, and translating it would be four hundred keys nobody reads.
- * `_i18n-coverage.json` counts the admin surface separately for that reason.
+ * The console carries 294 English literals and the ratchet counts them, which is a
+ * debt taken on before sprint 45. These are NEW strings written after it, and the
+ * rule from 45 on is that every word a person reads is a MessageKey with both
+ * languages and an admin override. So they are keys, and the ratchet does not rise
+ * on this sprint's account.
+ *
+ * Under `asponsor.` rather than `sponsor.` so an admin rewording the operator's
+ * own screen cannot accidentally reword a paying customer's.
  */
 
 export type AdminSponsorRow = {
@@ -62,10 +67,12 @@ export type AdminSponsorRow = {
 };
 
 export function SponsorManager({ sponsors }: { sponsors: AdminSponsorRow[] }) {
+  const t = useT();
+
   if (sponsors.length === 0) {
     return (
       <Card className="p-5">
-        <p className="text-sm text-slate-600">No corporate enquiries yet.</p>
+        <p className="text-sm text-slate-600">{t("asponsor.none")}</p>
       </Card>
     );
   }
@@ -80,6 +87,7 @@ export function SponsorManager({ sponsors }: { sponsors: AdminSponsorRow[] }) {
 }
 
 function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [potState, potAction] = useActionState(openTheirPot, {});
@@ -103,7 +111,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
         </span>
         {sponsor.listedPublicly ? (
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-            listed
+            {t("asponsor.listed")}
           </span>
         ) : null}
         <span className="ms-auto text-xs text-slate-500">{sponsor.potBalanceLabel}</span>
@@ -112,7 +120,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           onClick={() => setOpen(!open)}
           className="tap-target h-9 rounded-xl px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
         >
-          {open ? "Close" : "Open"}
+          {open ? t("asponsor.close") : t("asponsor.open")}
         </button>
       </div>
 
@@ -121,20 +129,20 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           {/* 53.5 — the contact and the best time to call, which is the point. */}
           <dl className="grid gap-x-4 gap-y-1 text-xs text-slate-600 sm:grid-cols-2">
             <div>
-              <dt className="font-semibold text-slate-700">Contact</dt>
-              <dd>{sponsor.contactName ?? "not given"}</dd>
+              <dt className="font-semibold text-slate-700">{t("asponsor.contact")}</dt>
+              <dd>{sponsor.contactName ?? t("asponsor.notGiven")}</dd>
             </div>
             <div>
-              <dt className="font-semibold text-slate-700">Email</dt>
-              <dd>{sponsor.contactEmail ?? "not given"}</dd>
+              <dt className="font-semibold text-slate-700">{t("asponsor.email")}</dt>
+              <dd>{sponsor.contactEmail ?? t("asponsor.notGiven")}</dd>
             </div>
             <div>
-              <dt className="font-semibold text-slate-700">Phone</dt>
-              <dd>{sponsor.contactPhone ?? "not given"}</dd>
+              <dt className="font-semibold text-slate-700">{t("asponsor.phone")}</dt>
+              <dd>{sponsor.contactPhone ?? t("asponsor.notGiven")}</dd>
             </div>
             <div>
-              <dt className="font-semibold text-slate-700">Best time to call</dt>
-              <dd>{sponsor.contactBestTime ?? "any"}</dd>
+              <dt className="font-semibold text-slate-700">{t("asponsor.bestTime")}</dt>
+              <dd>{sponsor.contactBestTime ?? t("asponsor.any")}</dd>
             </div>
           </dl>
 
@@ -158,7 +166,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           {/* 53.9 — the joining code. Rotating it kills every printed poster. */}
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-mono text-sm tracking-widest text-slate-800">
-              {sponsor.code ?? "no code"}
+              {sponsor.code ?? t("asponsor.noCode")}
             </span>
             <button
               type="button"
@@ -166,7 +174,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
               onClick={() => startTransition(async () => void (await mintCode(sponsor.id)))}
               className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
             >
-              {sponsor.code ? "Rotate code" : "Mint a code"}
+              {sponsor.code ? t("asponsor.rotate") : t("asponsor.mint")}
             </button>
           </div>
 
@@ -176,21 +184,21 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
             there is no order of operations that takes $5,000 first.
           */}
           {sponsor.potOpen ? (
-            <p className="text-xs text-slate-500">Pot open, with terms.</p>
+            <p className="text-xs text-slate-500">{t("asponsor.potOpen")}</p>
           ) : (
             <form action={potAction} className="space-y-3 rounded-xl bg-slate-50 p-3">
               <input type="hidden" name="sponsorId" value={sponsor.id} />
               <p className="text-xs font-semibold text-slate-700">
-                Open their pot. The refund terms and the expiry are agreed first.
+                {t("asponsor.openPot")}
               </p>
-              <Field label="Refund and expiry terms" htmlFor={`terms-${sponsor.id}`}>
+              <Field label={t("asponsor.terms")} htmlFor={`terms-${sponsor.id}`}>
                 <Textarea id={`terms-${sponsor.id}`} name="refundPolicy" rows={4} required />
               </Field>
-              <Field label="Unspent money expires" htmlFor={`expires-${sponsor.id}`}>
+              <Field label={t("asponsor.expires")} htmlFor={`expires-${sponsor.id}`}>
                 <Input id={`expires-${sponsor.id}`} name="expiresAt" type="date" required />
               </Field>
               <Field
-                label="Overdraft allowed, in whole units"
+                label={t("asponsor.overdraft")}
                 htmlFor={`overdraft-${sponsor.id}`}
               >
                 <Input
@@ -205,7 +213,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
                   {potState.error}
                 </p>
               ) : null}
-              <Submit label="Open the pot" />
+              <Submit label={t("asponsor.openPotButton")} />
             </form>
           )}
 
@@ -219,14 +227,14 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
 
             <form action={userAction} className="space-y-3 rounded-xl bg-slate-50 p-3">
               <input type="hidden" name="sponsorId" value={sponsor.id} />
-              <p className="text-xs font-semibold text-slate-700">Add a portal user</p>
-              <Field label="Email" htmlFor={`email-${sponsor.id}`}>
+              <p className="text-xs font-semibold text-slate-700">{t("asponsor.addUser")}</p>
+              <Field label={t("asponsor.email")} htmlFor={`email-${sponsor.id}`}>
                 <Input id={`email-${sponsor.id}`} name="email" type="email" required />
               </Field>
-              <Field label="Name" htmlFor={`name-${sponsor.id}`}>
+              <Field label={t("asponsor.name")} htmlFor={`name-${sponsor.id}`}>
                 <Input id={`name-${sponsor.id}`} name="name" />
               </Field>
-              <Field label="Password, at least twelve characters" htmlFor={`pw-${sponsor.id}`}>
+              <Field label={t("asponsor.password")} htmlFor={`pw-${sponsor.id}`}>
                 <Input id={`pw-${sponsor.id}`} name="password" type="text" required />
               </Field>
               <div className="flex gap-4 text-xs text-slate-700">
@@ -242,7 +250,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
                   {userState.error}
                 </p>
               ) : null}
-              <Submit label="Create" />
+              <Submit label={t("asponsor.create")} />
             </form>
           </div>
         </div>

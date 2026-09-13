@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { requireStaff } from "@/lib/auth/guard";
+import { getI18n } from "@/lib/i18n/server";
 import { openChanges } from "@/lib/data/phone-change";
 import { ticketCounts } from "@/lib/data/support";
 import { countOpenReports } from "@/lib/data/radar-admin";
@@ -35,6 +36,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
    * will bounce them.
    */
   const actor = await requireStaff();
+  /*
+   * 🔴 ONE keyed label in a nav of fifteen literals, and that is deliberate.
+   *
+   * The console's other labels predate sprint 45 and the ratchet counts 294 of
+   * them. This one is new, and the rule from 45 on is that a new string is a
+   * MessageKey. So the ratchet does not rise on this sprint's account, and the
+   * inconsistency is the debt becoming visible rather than a new one.
+   */
+  const { t } = await getI18n();
   const isManager = actor.role === "manager" || actor.role === "super_admin";
   const isOwner = actor.role === "super_admin";
 
@@ -125,7 +135,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             53.6 — the owner's, like every other money door. Activating a sponsor
             opens a corporate account and opening a pot commits us to refund terms.
           */}
-          {isOwner ? <AdminLink href="/admin/sponsors" icon={Building2}>Sponsors</AdminLink> : null}
+          {isOwner ? <AdminLink href="/admin/sponsors" icon={Building2}>{t("asponsor.nav")}</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink> : null}

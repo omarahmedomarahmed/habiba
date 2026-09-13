@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ledgerPotBalance, reconcilePots } from "@/lib/billing/pot";
 import { allSponsors, potTerms, sponsorUsersFor } from "@/lib/data/sponsor-admin";
 import { liveCode } from "@/lib/data/sponsors";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Sponsors", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AdminSponsorsPage() {
   await requireRole("super_admin");
+  const { t } = await getI18n();
 
   const [sponsors, drift] = await Promise.all([allSponsors(), reconcilePots()]);
 
@@ -73,25 +75,25 @@ export default async function AdminSponsorsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-lg font-bold tracking-tight text-slate-900">Sponsors</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Corporate and university accounts. A company and a university are one type
-          with two faces: the same controls, different words on their own screens.
-        </p>
+        <h1 className="text-lg font-bold tracking-tight text-slate-900">
+          {t("asponsor.title")}
+        </h1>
+        <p className="mt-1 text-sm text-slate-600">{t("asponsor.body")}</p>
       </div>
 
       {/* 🔴 53.16 / C232 — normally renders nothing, which is the point. */}
       {drift.length > 0 ? (
         <div className="rounded-2xl bg-red-50 p-4 ring-1 ring-red-200">
-          <p className="text-sm font-semibold text-red-800">
-            A pot balance disagrees with the ledger. Do not take a top up until this is
-            explained.
-          </p>
+          <p className="text-sm font-semibold text-red-800">{t("asponsor.drift")}</p>
           <ul className="mt-2 space-y-1 text-xs text-red-700">
             {drift.map((row) => (
               <li key={row.sponsorId}>
-                {row.sponsorId}: the table says {fmt(row.tableCents)}, the ledger says{" "}
-                {fmt(row.ledgerCents)}, out by {fmt(row.deltaCents)}
+                {t("asponsor.driftRow", {
+                  id: row.sponsorId,
+                  table: fmt(row.tableCents),
+                  ledger: fmt(row.ledgerCents),
+                  delta: fmt(row.deltaCents),
+                })}
               </li>
             ))}
           </ul>

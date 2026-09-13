@@ -135,6 +135,29 @@ function isVisibleEnglish(text: string): boolean {
    * uncounted, which is a sentence nobody writes.
    */
   if (/[;={}`[\]]|^\(|=>|\bconst\b|\breturn\b|\buseState\b/.test(text)) return false;
+  /*
+   * 🔴 A JSX TERNARY IS NOT A SENTENCE, and this is the second phantom family.
+   *
+   * The first was `=>` (see the note at the call site). This one is a relational
+   * operator inside an expression container: `{benefits.length > 1 ? (` gives a
+   * match running from that `>` to the next `<`, and the code it sweeps up
+   * contains a four-letter identifier, so the letter test passes it. Two real
+   * examples, both phantoms that were IN the recorded floor:
+   *
+   *     "1 ? ( benefit.isPrimary ? ("
+   *     ") : canRequest && !open ? ("
+   *
+   * Sprint 51's ruling was that a ratchet counting type annotations cannot be
+   * ratcheted, and the same holds for one that counts conditionals: the number
+   * moves when somebody adds a branch. So the shapes are rejected by the
+   * punctuation only code has — a `? (`, a `) :`, a `&&`, a `||` — rather than by
+   * rejecting every parenthesis, which would also drop genuine prose like
+   * "VAT (14%)".
+   *
+   * This LOWERS the recorded floor. It is a measurement correction and not
+   * translation work, and `_i18n-coverage.json` says so where the numbers moved.
+   */
+  if (/\?\s*\(|\)\s*:|&&|\|\|/.test(text)) return false;
   /* Two words, or one word of four letters or more. A lone "OK" is not a
      sentence anybody notices; "Continue" is. */
   if (!/[A-Za-z]{4}/.test(text)) return false;

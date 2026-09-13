@@ -693,7 +693,705 @@ async function main() {
       freeTextRefused,
       "four values, and none of them is a sentence about somebody",
     );
+
+    /* ================================================================ */
+    /*  53.10 to 53.16 · the pot's money, and the sign that broke once  */
+    /* ================================================================ */
+
+    const { weeklySpend } = await import("../lib/data/sponsors");
+    const { ledgerPotBalance, potTotals, reconcilePots } = await import("../lib/billing/pot");
+    const { journal } = await import("../lib/billing/ledger");
+
+    /*
+     * 🔴 THE SIGN. This is the check the sign bug would have failed.
+     *
+     * `sponsor_pot` is a liability, so a TOP-UP is a negative leg and a SESSION
+     * SPENDING the pot is a positive one. The first draft of `weeklySpend` read
+     * `amount_cents < 0` as spend, which is the sign of a deposit: it would have
+     * charted every top-up as expenditure and every session as nothing, and looked
+     * entirely plausible.
+     *
+     * So both legs are POSTED, for real, and the functions are asked which is
+     * which. Reading the SQL string for a `>` would pass against a query that had
+     * the comparison right and the account wrong.
+     */
+    const topUpTxn = await journal({
+      kind: "pot_topup",
+      refType: "sponsor",
+      refId: fixture.id,
+      legs: [
+        { account: "cash", amountCents: 500_000, memo: "verify53 top-up" },
+        { account: "sponsor_pot", amountCents: -500_000, memo: "verify53 held" },
+      ],
+    });
+
+    await journal({
+      kind: "session_payment",
+      refType: "sponsor",
+      refId: fixture.id,
+      legs: [
+        { account: "sponsor_pot", amountCents: 3_000, memo: "verify53 spend" },
+        { account: "cash", amountCents: -3_000, memo: "verify53 spend" },
+      ],
+    });
+
+    const balance = await ledgerPotBalance(fixture.id);
+
+    check(
+      "🔴 53.27 the balance a sponsor reads is the ledger, and a top-up minus a spend",
+      balance === 497_000,
+      `$5,000 in, $30 spent, ${(balance / 100).toFixed(2)} left`,
+    );
+
+    const totals = await potTotals(fixture.id);
+
+    check(
+      "🔴 53.25 total spent counts the SPEND and not the top-up, which is the sign that broke",
+      totals.spentCents === 3_000 && totals.sessions === 1,
+      `${totals.sessions} session, $${(totals.spentCents / 100).toFixed(2)} spent, and the $5,000 deposit is not spend`,
+    );
+
+    /*
+     * 🔴 CONTROL — and it would NOTICE the sign being wrong.
+     *
+     * With the signs read the other way round, total spend would be $5,000 and the
+     * session count 1 as well. So the control is the ARITHMETIC: spend plus balance
+     * equals what went in. A function reading the wrong sign cannot satisfy both.
+     */
+    check(
+      "🔴 CONTROL spend plus balance equals what was put in, so neither sign can be wrong alone",
+      totals.spentCents + balance === 500_000,
+      "$30 spent plus $4,970 left is the $5,000 deposited",
+    );
+
+    /*
+     * 🔴 53.16 / C232 — the reconciliation notices a disagreement, and says nothing
+     * when there is none.
+     *
+     * Both directions in one run (C284). The pot's `balance_cents` is deliberately
+     * set away from the ledger, the drift is asserted, and then it is set back and
+     * the silence asserted. A check that only proved the alarm would pass against a
+     * function that alarms on every pot every day, which is an alarm nobody reads.
+     */
+    await db.execute(sql`
+      UPDATE sponsor_pots SET balance_cents = 400000 WHERE sponsor_id = ${fixture.id}`);
+
+    const drifted = await reconcilePots();
+    const mine = drifted.find((row) => row.sponsorId === fixture.id);
+
+    check(
+      "🔴 53.16 / C232 the reconciliation finds a pot whose balance disagrees with the ledger",
+      mine !== undefined && mine.deltaCents === 400_000 - 497_000,
+      mine ? `out by ${(mine.deltaCents / 100).toFixed(2)}` : "not found",
+    );
+
+    await db.execute(sql`
+      UPDATE sponsor_pots SET balance_cents = 497000 WHERE sponsor_id = ${fixture.id}`);
+
+    const agreed = await reconcilePots();
+
+    check(
+      "🔴 CONTROL …and it says NOTHING about a pot that agrees, so the alarm means something",
+      agreed.every((row) => row.sponsorId !== fixture.id),
+      "a silent reconciliation is the normal day",
+    );
+
+    /*
+     * 🔴 53.16 — the pot leg and the session legs share ONE txn id, which is what
+     * makes "every pot cent traces to one payment in and one session out" true.
+     *
+     * Asserted on the rows, by counting distinct accounts under one txn. The two
+     * `journal` calls in `payFromPot` pass the same `txnId`, and a future edit that
+     * dropped it would leave two transactions that no longer trace to each other.
+     */
+    const shared = await journal({
+      kind: "session_payment",
+      txnId: crypto.randomUUID(),
+      refType: "sponsor",
+      refId: fixture.id,
+      legs: [
+        { account: "sponsor_pot", amountCents: 1_000, memo: "verify53 shared" },
+        { account: "cash", amountCents: -1_000, memo: "verify53 shared" },
+      ],
+    });
+
+    const legs = (
+      await db.execute(sql`
+        SELECT count(DISTINCT account)::int AS accounts, sum(amount_cents)::int AS total
+          FROM ledger_entries WHERE txn_id = ${shared}`)
+    ).rows as { accounts: number; total: number }[];
+
+    check(
+      "🔴 53.16 the legs of one pot movement share a txn id and sum to zero",
+      legs[0]?.accounts === 2 && legs[0]?.total === 0,
+      `${legs[0]?.accounts} accounts, summing to ${legs[0]?.total}`,
+    );
+
+    /*
+     * 🔴 C284 — the weekly series is exercised against REAL POSTED LEGS, not a
+     * hand-built array.
+     *
+     * The pure `applyActivityFloor` checks above are the arithmetic; this is the
+     * query. A floor of 1 so the two weeks publish, because what is under test here
+     * is whether `weeklySpend` finds the spend at all, which is the half the sign
+     * bug broke.
+     */
+    const series = await weeklySpend(fixture.id, 1);
+    const charted = series.reduce((total, week) => total + (week.spendCents ?? 0), 0);
+
+    check(
+      "🔴 53.25 the weekly series finds the spend legs and not the deposit",
+      charted === 4_000,
+      `$40 charted across ${series.length} week(s), and the $5,000 deposit charted as nothing`,
+    );
+
+    /* ============================================================ */
+    /*  53.15 · the invoice, and what it refuses to do without      */
+    /* ============================================================ */
+
+    const { invoiceFor } = await import("../lib/billing/invoice");
+
+    const blank = await invoiceFor(fixture.id, topUpTxn);
+
+    check(
+      "🔴 53.15 / C241 an invoice refuses to render without our own legal details",
+      blank !== null && "missing" in blank && blank.missing.length === 3,
+      blank && "missing" in blank ? `missing ${blank.missing.join(", ")}` : "rendered anyway",
+    );
+
+    /*
+     * 🔴 CONTROL — with the details filled in it DOES render, and the total is the
+     * amount that arrived rather than the negative liability leg.
+     *
+     * A check that only proved the refusal would pass against a function that
+     * refuses every invoice for ever. The settings are overridden for this run and
+     * restored in the `finally`, so the check does not depend on what an operator
+     * has configured (C284).
+     */
+    await db.execute(sql`
+      INSERT INTO platform_settings (key, value)
+      VALUES ('invoice', ${JSON.stringify({
+        entities: [
+          {
+            entity: "us",
+            legalName: "verify53 Legal Name",
+            address: "verify53 address",
+            taxId: "verify53-tax",
+            numberPrefix: "V5",
+          },
+        ],
+      })}::jsonb)
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
+
+    /*
+     * 🔴 No cache to clear, and that was CHECKED rather than assumed.
+     *
+     * `getSettings` is wrapped in React's `cache()`, which is per-request
+     * memoisation. Outside a request there is no cache scope, so it re-reads on
+     * every call — proved by writing a row between two reads and watching the
+     * second differ. Had it memoised, this check would have read the blank
+     * settings twice and the CONTROL below would have failed for a reason that
+     * had nothing to do with the invoice.
+     */
+    const rendered = await invoiceFor(fixture.id, topUpTxn);
+
+    check(
+      "🔴 CONTROL …and WITH them it renders, with the amount that arrived, not a negative",
+      rendered !== null &&
+        !("missing" in rendered) &&
+        rendered.totalCents === 500_000 &&
+        rendered.number.startsWith("V5-"),
+      rendered && !("missing" in rendered)
+        ? `${rendered.number}, ${(rendered.totalCents / 100).toFixed(2)}`
+        : "still refused",
+    );
+
+    /*
+     * 🔴 One organisation cannot read another's invoice, and the check is that the
+     * sponsor id is a CONDITION of the query rather than a comparison afterwards.
+     *
+     * Asked with the second sponsor's id and the first sponsor's transaction, which
+     * is exactly what editing a URL produces.
+     */
+    const borrowed = await invoiceFor(otherSponsor.id, topUpTxn);
+
+    check(
+      "🔴 53.15 a sponsor asking for another organisation's invoice is told there is none",
+      borrowed === null,
+      "the sponsor id is in the WHERE clause, so a edited URL finds nothing",
+    );
+
+    /* ======================================================== */
+    /*  53.19 · proof over pattern, and the gate it controls    */
+    /* ======================================================== */
+
+    /*
+     * 🔴 THE CHECK THAT CATCHES THE COMMENT-VERSUS-CODE DEFECT.
+     *
+     * `enrol` says an unverified `domain_email` enrolment does not fund anything.
+     * That is a claim about `payFromPot`'s WHERE clause and it was FALSE for one
+     * commit. So this reads that function's source for the condition and, more
+     * importantly, the CONTROL below proves the clause is not simply refusing
+     * everything.
+     */
+    const potSource = readSource("lib/billing/pot.ts");
+
+    check(
+      "🔴 53.19 an unverified enrolment funds nothing, in the WHERE clause rather than a comment",
+      /isNotNull\(\s*enrolments\.lastVerifiedAt\s*\)/.test(potSource),
+      "the claim in enrol's comment is a claim about this clause",
+    );
+
+    check(
+      "🔴 CONTROL …and the same clause still requires the pause and the removal to be absent",
+      /isNull\(\s*enrolments\.pausedAt\s*\)/.test(potSource) &&
+        /isNull\(\s*enrolments\.removedAt\s*\)/.test(potSource),
+      "three conditions, so adding one did not replace the others",
+    );
+
+    /*
+     * 🔴 53.18b — THE WORK ADDRESS HAS NO COLUMN, so nothing later can send to it.
+     *
+     * The strongest form of "never a destination for anything we send except the one
+     * verification code" is that the address is not stored. Asserted against
+     * `information_schema` rather than against the schema file, because the file is
+     * a claim and the database is the fact.
+     */
+    const enrolmentColumns = (
+      await db.execute(sql`
+        SELECT column_name FROM information_schema.columns
+         WHERE table_name IN ('enrolments', 'enrolment_verifications')
+         ORDER BY column_name`)
+    ).rows as { column_name: string }[];
+
+    const names = enrolmentColumns.map((row) => row.column_name);
+
+    check(
+      "🔴 53.18b no column anywhere holds the identifier in plain text",
+      !names.some((name) => /email|address|identifier_value|plain/.test(name)),
+      names.join(", "),
+    );
+
+    check(
+      "🔴 CONTROL …and the hash IS there, so the gate can still match and de-duplicate",
+      names.includes("identifier_hash") && names.includes("code_hash"),
+      "a salted hash for matching, and a hash of the code",
+    );
+
+    /*
+     * 🔴 53.19 — five wrong guesses and the code is DEAD, in the database.
+     *
+     * The rate limit in `lib/data/enrolment.ts` is per joining code rather than per
+     * person, because a limit per person lets one attacker with many accounts grind
+     * one code. This counter is the second wall, and it is a constraint.
+     */
+    const [enrolment] = (
+      await db.execute(sql`
+        SELECT id FROM enrolments WHERE sponsor_id = ${otherSponsor.id} LIMIT 1`)
+    ).rows as { id: string }[];
+    const target = required(enrolment, "an enrolment to verify");
+
+    await db.execute(sql`
+      INSERT INTO enrolment_verifications (enrolment_id, code_hash, expires_at)
+      VALUES (${target.id}, ${"verify53-code"}, now() + interval '1 hour')`);
+
+    let sixthRefused = false;
+    try {
+      await db.execute(sql`
+        UPDATE enrolment_verifications SET attempts = 6
+         WHERE enrolment_id = ${target.id}`);
+    } catch {
+      sixthRefused = true;
+    }
+
+    check(
+      "🔴 53.19 a code cannot survive a sixth wrong guess",
+      sixthRefused,
+      "dead rather than slow, and the bound is in the database",
+    );
+
+    let fifthAllowed = false;
+    try {
+      await db.execute(sql`
+        UPDATE enrolment_verifications SET attempts = 5
+         WHERE enrolment_id = ${target.id}`);
+      fifthAllowed = true;
+    } catch {
+      fifthAllowed = false;
+    }
+
+    check(
+      "🔴 CONTROL …and five ARE allowed, so somebody mistyping twice is not locked out",
+      fifthAllowed,
+      "the bound is a bound and not a refusal of everything",
+    );
+
+    /*
+     * 🔴 53.19b / C256 — the cycle is the SPONSOR'S, and the source says so in SQL.
+     *
+     * A per-person cycle would make every roster row's date that person's join date
+     * shifted by whole cycles. So the job reads `verify_cycle_started_at` off the
+     * SPONSOR and pauses everybody in one window, and `setSponsorState` is what
+     * starts that clock — without which the job would never fire for anybody and
+     * C247 would be a column and a no-op.
+     */
+    const cycleSource = readSource("lib/data/enrolment-verify.ts");
+    const stateSource = readSource("lib/data/sponsor-admin.ts");
+
+    check(
+      "🔴 C256 the re-verification window is read off the sponsor, never off a person",
+      /sponsors\.verifyCycleStartedAt/.test(cycleSource) &&
+        !/enrolments\.createdAt/.test(cycleSource),
+      "one window per organisation, so every roster date is the same date",
+    );
+
+    check(
+      "🔴 53.19b activating a sponsor starts the cycle clock, so the job can ever fire",
+      /verifyCycleStartedAt/.test(stateSource) && /COALESCE/.test(stateSource),
+      "a mechanism wired at one end is a mechanism that does nothing",
+    );
+
+    /* ==================================================== */
+    /*  53.5 / 53.8 / 53.9 · the doors and the poster       */
+    /* ==================================================== */
+
+    const { PRINCIPALS, routeDecision, SPONSOR_APPLY } = await import("../lib/routing");
+
+    const sponsorPrincipal = required(
+      PRINCIPALS.find((principal) => principal.name === "sponsor"),
+      "the sponsor principal",
+    );
+
+    check(
+      "🔴 53.5 the enquiry form is reachable by a stranger, and it is the ONLY such path",
+      routeDecision(SPONSOR_APPLY, { expired: false }).kind === "pass" &&
+        (sponsorPrincipal.openRoutes ?? []).length === 1,
+      "one open route inside /sponsor, listed rather than implied",
+    );
+
+    check(
+      "🔴 CONTROL …and every other sponsor path still bounces a stranger to the door",
+      routeDecision("/sponsor", { expired: false }).kind === "redirect" &&
+        routeDecision("/sponsor/people", { expired: false }).kind === "redirect" &&
+        routeDecision("/sponsor/pot", { expired: false }).kind === "redirect",
+      "the open route is an exception, not a hole",
+    );
+
+    /*
+     * 🔴 C236 — UNLISTED IS THE DEFAULT, in the database and not in a form.
+     *
+     * A sponsor created with no `listed_publicly` given must be unlisted. Being in a
+     * public list says "this organisation buys therapy for its staff", which is
+     * theirs to say.
+     */
+    const [defaulted] = (
+      await db.execute(sql`
+        INSERT INTO sponsors (name, kind, entity, currency)
+        VALUES ('verify53 default', 'company', 'us', 'usd')
+        RETURNING listed_publicly, state`)
+    ).rows as { listed_publicly: boolean; state: string }[];
+    const fresh = required(defaulted, "a defaulted sponsor");
+
+    check(
+      "🔴 C236 / 53.5 a sponsor created with nothing specified is unlisted AND held",
+      fresh.listed_publicly === false && fresh.state === "held",
+      `listed=${fresh.listed_publicly}, state=${fresh.state}`,
+    );
+
+    /*
+     * 🔴 C240 — the sentence is in the sponsor CHROME, so it is on every screen of
+     * the portal rather than on a help page nobody opens.
+     */
+    const chrome = readSource("components/sponsor/chrome.tsx");
+
+    check(
+      "🔴 C240 the attendance sentence is in the chrome, so it is on every sponsor screen",
+      /sponsor\.noAttendance/.test(chrome),
+      "the person drafting a policy will not click through to find out",
+    );
+
+    /*
+     * 🔴 53.9 — the QR is generated on the SERVER and embedded, never fetched from
+     * an image service.
+     *
+     * A URL containing our customer's joining code, sent to a third party on every
+     * render, is a list of which organisations buy therapy for their staff,
+     * assembled in somebody else's access log.
+     */
+    const codePage = readSource("app/(sponsor)/sponsor/code/page.tsx");
+
+    check(
+      "🔴 53.9 the QR is made on the server, not fetched from an image service",
+      /QRCode\.toDataURL/.test(codePage) &&
+        !/chart\.googleapis|qrserver|api\.qrcode/.test(codePage),
+      "no third party is handed our customer's code on every render",
+    );
+
+    /*
+     * 🔴 53.3 / C229 — THE FLOOR CANNOT BE SET BELOW TWO AND CANNOT BE SWITCHED OFF.
+     *
+     * A floor of 1 means a sponsor with one enrolled person reads that person's
+     * weekly therapy spend from a chart. Both directions in one run: zero is raised
+     * to the minimum, and a legitimate higher value is kept.
+     */
+    const { parseGroup } = await import("../lib/settings/defs");
+
+    /*
+     * 🔴 ONE, not zero, and the difference is the whole check.
+     *
+     * `int` returns the DEFAULT when a value is below `min`, and the default is 5.
+     * So passing 0 would read green with the `min` deleted, because 0 is also not a
+     * safe integer answer anybody wants — this check's first draft did exactly that
+     * and proved nothing. Passing 1 discriminates: with the bound it becomes 5, and
+     * without it, it stays 1.
+     */
+    const floored = parseGroup("sponsor", { activityFloor: 1 });
+    const raised = parseGroup("sponsor", { activityFloor: 25 });
+
+    check(
+      "🔴 C229 the activity floor cannot be set below two, and there is no way to switch it off",
+      floored.activityFloor !== 1 && floored.activityFloor >= 2,
+      `a floor of 1 becomes ${floored.activityFloor}, so one person's spend is never a chart`,
+    );
+
+    check(
+      "🔴 CONTROL …and a higher floor an operator chose is kept, so the clamp is a floor",
+      raised.activityFloor === 25,
+      "raising it after a leak report is one edit",
+    );
+
+    /*
+     * 🔴 53.11 — the minimum top-up is a SETTING, and 53.19b's cycle defaults to six
+     * months rather than the three 0072's column said.
+     */
+    const sponsorDefaults = parseGroup("sponsor", {});
+
+    check(
+      "🔴 53.11 / 53.19b the minimum is $5,000 and the cycle is six months, both settings",
+      sponsorDefaults.minTopUpCents === 500_000 && sponsorDefaults.verifyCycleMonths === 6,
+      `$${sponsorDefaults.minTopUpCents / 100}, ${sponsorDefaults.verifyCycleMonths} months`,
+    );
+
+    /*
+     * 🔴 53.10 — the two pot crossings exist in the DATABASE's CHECK, not only in
+     * the TypeScript union.
+     *
+     * This is the sprint 56 defect, pre-empted: an enum extended in one place and
+     * not the other is a value the database refuses and a check that measures
+     * nothing. Both are attempted as writes.
+     */
+    /*
+     * 🔴 READ AS A FACT FROM pg_constraint, and unconditional (C284).
+     *
+     * *A verifier exercises every branch it claims to cover, in one run, whatever
+     * the machine is configured with, and a check count that varies by environment
+     * is itself the defect.* The first draft of this attempted a write against
+     * whatever `session_payments` row happened to exist, so on a database with none
+     * it silently ran two checks fewer and the sweep still read PASS.
+     *
+     * So it reads the constraint definition instead. That is not a weaker claim: it
+     * is the exact text Postgres evaluates on every write, unlike the TypeScript
+     * union, which is a claim. The sprint 56 defect was precisely these two
+     * disagreeing.
+     */
+    const crossingDef = (
+      await db.execute(sql`
+        SELECT pg_get_constraintdef(oid) AS d, convalidated
+          FROM pg_constraint WHERE conname = 'session_payments_crossing_known'`)
+    ).rows as { d: string; convalidated: boolean }[];
+
+    const def = required(crossingDef[0], "the crossing constraint").d;
+
+    check(
+      "🔴 53.10 the DATABASE's crossing check knows both pot values, not just the TypeScript union",
+      def.includes("pot_held_to_connect") &&
+        def.includes("pot_held_to_manual") &&
+        crossingDef[0]!.convalidated,
+      "validated, so it applies to every existing row as well as the next one",
+    );
+
+    check(
+      "🔴 CONTROL …and it still knows the original four and no invented fifth",
+      def.includes("usd_stripe_to_connect") &&
+        def.includes("egp_local_to_manual") &&
+        def.includes("usd_stripe_to_manual") &&
+        def.includes("egp_local_to_connect") &&
+        !def.includes("pot_held_to_payout"),
+      "extending an enum is not replacing it, and the value I first wrote is gone",
+    );
+
+    /*
+     * 🔴 53.10 — and the two crossings are TWO for a reason: `isCrossBorder` has to
+     * answer true for a pot paying an Egyptian clinician.
+     *
+     * A single combined value would have answered false for every pot session,
+     * understating exactly what §3c added that column to measure. Both directions.
+     */
+    const { holdsMoney, isCrossBorder } = await import("../lib/billing/money");
+
+    check(
+      "🔴 §3c a pot holds money on both crossings, and the Egyptian one is cross-border",
+      holdsMoney("pot_held_to_connect") &&
+        holdsMoney("pot_held_to_manual") &&
+        isCrossBorder("pot_held_to_manual"),
+      "USD into the US entity, EGP out of the Egyptian one, needing an entity transfer",
+    );
+
+    check(
+      "🔴 CONTROL …and the Connect one is NOT cross-border, so the predicate discriminates",
+      !isCrossBorder("pot_held_to_connect") && !holdsMoney("usd_stripe_to_connect"),
+      "a predicate that answers true for everything measures nothing",
+    );
+
+    /*
+     * 🔴 C243 — a POT PAYMENT HAS NO PAYER NAME, asserted on the write.
+     *
+     * The source scan above proves no component renders one. This proves the column
+     * is not being filled: writing the employer's name there would put "who pays
+     * for this patient" on a clinician's earnings page through a column that already
+     * existed.
+     */
+    const potSourceHasNullPayer =
+      /payerName: null/.test(potSource) && /fundingSource: "pot"/.test(potSource);
+
+    check(
+      "🔴 C243 the pot payment writer leaves payer_name NULL and marks the funding source",
+      potSourceHasNullPayer,
+      "the employer is never the payer name on a clinical surface",
+    );
+
+    /*
+     * 🔴 53.20 / C231 — the patient's notice log is APPEND ONLY, and dismissal is a
+     * stamp.
+     *
+     * Asserted by reading the module for the absence of a delete AND, as the control,
+     * for the presence of the dismissal update. An absence assertion alone passes
+     * against an empty file.
+     */
+    const notices = readSource("lib/data/notices.ts");
+
+    check(
+      "🔴 53.20 / C231 nothing in the notice log deletes a row",
+      !/\.delete\(/.test(notices),
+      "a log with a delete cannot answer when your benefit ended",
+    );
+
+    check(
+      "🔴 CONTROL …and dismissing IS implemented, as a stamp on the row",
+      /dismissedAt: new Date\(\)/.test(notices) && /export async function dismissNotice/.test(notices),
+      "dismissible from the main view only, which is what C231 asks for",
+    );
+
+    /* ================================================================ */
+    /*  53.23 / C235 · CRISIS IS NEVER GATED ON MONEY                    */
+    /* ================================================================ */
+
+    /*
+     * 🔴 *Proved by emptying a pot and asserting the crisis surface is unchanged.*
+     *
+     * C253 moved the source scan into sprint 46, months before a pot existed, and
+     * that scan is still there and still green. This is the other half, which could
+     * not be written until there was a pot to empty: the pot is set to zero and then
+     * BELOW zero, and the crisis line for the same reader is compared byte for byte.
+     *
+     * Three states in one run rather than one (C284): funded, empty, and overdrawn.
+     * An overdrawn pot is the state a commercial dispute produces, and it is the one
+     * a check testing only "empty" would miss.
+     */
+    const { crisisLine, lineForNumber } = await import("../lib/crisis/line");
+
+    /*
+     * 🔴 TWO READERS, and the first draft used only the Egyptian one.
+     *
+     * There is one verified line in the table, for the US, so `lineForNumber` returns
+     * null for a `+20` number — which is the honest answer and is what the orb renders
+     * "call your local emergency number" for. My first version compared that null
+     * across three pot states and read green, which is three nulls agreeing about
+     * nothing. The CONTROL below caught it, which is the whole reason it is there.
+     *
+     * So both readers are compared: a reader with a line and a reader without one.
+     * "Unchanged" has to hold for both, and the null case is the one most of this
+     * product's patients are in.
+     */
+    const withLine = "+12025550100";
+    const withoutLine = "+201234567890";
+
+    const snapshot = () =>
+      JSON.stringify([lineForNumber(withLine), lineForNumber(withoutLine), crisisLine("US")]);
+
+    const funded = snapshot();
+
+    await db.execute(sql`
+      UPDATE sponsor_pots SET balance_cents = 0 WHERE sponsor_id = ${fixture.id}`);
+    const emptied = snapshot();
+
+    /*
+     * The overdraft is raised first, because the database refuses a balance below the
+     * bound C239 put on the pot. That refusal is asserted separately above; here it
+     * would have stopped the run before the check it exists to serve.
+     */
+    await db.execute(sql`
+      UPDATE sponsor_pots SET overdraft_cents = 10000, balance_cents = -5000
+       WHERE sponsor_id = ${fixture.id}`);
+    const overdrawn = snapshot();
+
+    check(
+      "🔴 53.23 / C235 emptying and overdrawing a pot changes the crisis line not at all",
+      funded === emptied && emptied === overdrawn,
+      "funded, empty and overdrawn all read identically, for a reader with a line and one without",
+    );
+
+    /*
+     * 🔴 CONTROL — and the thing being compared is NOT nothing.
+     *
+     * Three nulls compare equal. This is the §6 family's favourite shape, it has
+     * caught two checks in this repository already, and it caught the first draft of
+     * the check above. So one of the two readers must resolve to a real line with a
+     * real number, and the other must resolve to the honest null rather than to the
+     * same line by accident.
+     */
+    const line = lineForNumber(withLine);
+
+    check(
+      "🔴 CONTROL …and one reader resolves to a real line while the other honestly does not",
+      line !== null && line.tel.length > 0 && lineForNumber(withoutLine) === null,
+      line
+        ? `${line.label} for the US reader, and null for the Egyptian one`
+        : "null for both, so the check above proved nothing",
+    );
+
+    /*
+     * 🔴 And the SURFACE, not only the datum: the orb is rendered on every patient
+     * screen by the chrome, and nothing in its path consults a pot.
+     *
+     * Read as source because the orb is a client component and this is not a browser.
+     * The pairing is what makes it worth anything: the orb's module must not mention
+     * money, AND it must still mention the thing it exists to produce.
+     */
+    const orb = readSource("components/patient/sos-orb.tsx");
+
+    check(
+      "🔴 53.23 the crisis orb's module cannot reach a pot, a balance or a benefit",
+      !/sponsor|pot|balance|enrolment|fundingSource/i.test(orb),
+      "nothing in the orb's path knows money exists",
+    );
+
+    check(
+      "🔴 CONTROL …and it still renders a dialler link, so the scan is reading the real orb",
+      /tel:/.test(orb),
+      "a file that mentioned nothing would pass the check above",
+    );
   } finally {
+    await db.execute(sql`DELETE FROM ledger_entries WHERE ref_type = 'sponsor' AND ref_id IN
+      (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
+    await db.execute(sql`DELETE FROM enrolment_verifications WHERE enrolment_id IN
+      (SELECT id FROM enrolments WHERE sponsor_id IN
+        (SELECT id FROM sponsors WHERE name LIKE 'verify53%'))`);
+    /*
+     * 🔴 The settings override this run wrote, removed. A verifier that leaves a
+     * fake legal name in `platform_settings` would put it on a real invoice.
+     */
+    await db.execute(sql`DELETE FROM platform_settings WHERE key = 'invoice'`);
     await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id IN
       (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
     await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id IN
