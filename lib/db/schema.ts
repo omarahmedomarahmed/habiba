@@ -61,6 +61,37 @@ import {
  * list rather than a level — an unknown role must fail closed, which is the
  * bug the comment in `lib/auth/guard.ts` records.
  */
+/**
+ * 🔴 42.3 / 42.7 — HOW something reached us, as distinct from WHO did it.
+ *
+ * `partner_api` is a partner's own server calling with a key. `partner_launch` is
+ * a clinician inside an embedded widget, who is a real clinician doing a real
+ * thing and is reached through the partner's product. The two have to be
+ * distinguishable in an audit, because "their server read this chart" and "Dr X
+ * read this chart from inside their product" are different events with different
+ * answers, and 42.7 asks for the second one by name.
+ *
+ * Declared before `ROLES` because `audit_log` and `auth_sessions` are declared
+ * near the top of this file and both carry it.
+ */
+export const AUDIT_VIA = ["partner_api", "partner_launch"] as const;
+export type AuditVia = (typeof AUDIT_VIA)[number];
+
+/**
+ * 🔴 42.6 — who pays for a practice's sessions.
+ *
+ * `self` on every existing row, which is what they are: a clinician who signed up
+ * pays their own platform fee. `partner_billed` sends the bill to the partner who
+ * brought them, as one monthly aggregate.
+ *
+ * 🔴 AGGREGATE for the same reason a clinic's is (C263): an itemised partner
+ * invoice would disclose which of a small caseload consented to recording, and
+ * the argument does not weaken because the payer is a platform rather than an
+ * employer.
+ */
+export const BILLING_MODES = ["self", "partner_billed"] as const;
+export type BillingMode = (typeof BILLING_MODES)[number];
+
 export const ROLES = ["therapist", "staff", "manager", "super_admin"] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -135,6 +166,23 @@ export const organizations = pgTable(
      */
     clinicState: text("clinic_state").$type<ClinicState>(),
 
+    /**
+     * 🔴 42.6 — WHOSE PRACTICE THIS IS, when a partner brought it.
+     *
+     * Null on every practice that signed up for itself, which is all of them
+     * today. Set when a partner's launch creates one, so `billing_mode` can send
+     * the bill to the partner instead of the clinician (42.6's monthly aggregate).
+     *
+     * 🔴 It is a `partners` reference and NOT a tenancy. A partner is outside the
+     * boundary: this column says who PAYS, and the caseload inside the practice
+     * belongs to the clinicians in it exactly as it does anywhere else. C277 is
+     * the same point from the patient's side.
+     */
+    partnerId: uuid("partner_id").references((): AnyPgColumn => partners.id, {
+      onDelete: "set null",
+    }),
+    billingMode: text("billing_mode").$type<BillingMode>().notNull().default("self"),
+
     /* 54.3 — the contact, for the call that happens before anything is activated. */
     contactName: text("contact_name"),
     contactEmail: text("contact_email"),
@@ -148,6 +196,8 @@ export const organizations = pgTable(
     index("organizations_region_idx").on(t.region),
     /* 54.3 — the admin queue's query: every clinic awaiting a decision. */
     index("organizations_clinic_idx").on(t.kind, t.clinicState),
+    /* 42.6 — the partner's monthly aggregate invoice reads this. */
+    index("organizations_partner_idx").on(t.partnerId),
     uniqueIndex("organizations_slug_unique")
       .on(t.slug)
       .where(sql`deleted_at IS NULL`),
@@ -300,6 +350,27 @@ export const authSessions = pgTable(
      * itself.
      */
     elevatedUntil: timestamp("elevated_until", { withTimezone: true }),
+
+    /**
+     * 🔴 42.3 — A LAUNCH MINTS ONE OF THESE, SO THERE STAYS EXACTLY ONE WAY TO BE
+     * SIGNED IN.
+     *
+     * *A launch mints a short-lived `auth_sessions` row with `partner_id` and
+     * `created_via`, so every existing screen works unchanged and the audit names
+     * the partner.*
+     *
+     * That is the whole design and it is worth saying why it beats the
+     * alternative. A second session mechanism for embedded clinicians would mean
+     * every guard in the product growing an "or a partner launch" branch, and the
+     * day one of them forgot is the day a widget reaches a screen it should not.
+     * Instead a launched clinician IS signed in, ordinarily, with a row that
+     * remembers where they came from and expires sooner.
+     */
+    partnerId: uuid("partner_id").references((): AnyPgColumn => partners.id, {
+      onDelete: "set null",
+    }),
+    createdVia: text("created_via").$type<AuditVia>(),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
@@ -2256,6 +2327,23 @@ export const auditLog = pgTable(
     reason: text("reason"),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+
+    /**
+     * 🔴 42.7 — so "who read this" answers "THEIR SERVER, ON BEHALF OF DR X".
+     *
+     * Both columns, because either alone is a worse answer than none. `partnerId`
+     * without `via` cannot tell a partner's own server call from a clinician
+     * clicking inside an embedded widget; `via` without `partnerId` says a call
+     * came through an integration and not which one.
+     *
+     * Null on every row written before the partner plane and on every row a
+     * clinician writes in our own product, which is what those rows were.
+     */
+    partnerId: uuid("partner_id").references((): AnyPgColumn => partners.id, {
+      onDelete: "set null",
+    }),
+    via: text("via").$type<AuditVia>(),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
@@ -4993,6 +5081,20 @@ export const SESSION_SOURCE_KINDS = [
   "teams",
   "in_person",
   "upload",
+  /**
+   * 🔴 55.7 — a session held on a PARTNER's platform, written back into our record.
+   *
+   * *Through the door 36 built*, which is this table: a chart says where a session
+   * happened rather than pretending it was ours. A partner's own video product is not
+   * Google Meet and not an upload, and filing it as either would make the one column that
+   * answers "where did this happen" answer wrongly.
+   *
+   * 🔴 `session_sources_kind` IS A REAL CHECK CONSTRAINT, so this value does not exist
+   * until migration 0076 extends it. Third sprint running that this note has had to be
+   * written: sprint 56 shipped an enum extended here and not there, which made a whole
+   * verifier check structurally dead while it read green.
+   */
+  "partner_platform",
 ] as const;
 export type SessionSourceKind = (typeof SESSION_SOURCE_KINDS)[number];
 
@@ -6203,3 +6305,388 @@ export const clinicianInvitations = pgTable(
 );
 
 export type ClinicianInvitation = typeof clinicianInvitations.$inferSelect;
+
+// ------------------------------------------------------ the partner plane ---
+//
+// 🔴 SPRINT 55, AND IT CARRIES SPRINT 42's TABLES TOO.
+//
+// 55's own preamble says it *"extends sprint 42 from a set of tables into a
+// product somebody can sign up for and use"*. Sprint 42 was never built: there
+// was not one occurrence of the word `partner` in this file before this block.
+// So 42.1, 42.2, 42.6 and 42.7 are here, and 55 is the sprint that makes them a
+// product rather than the sprint that assumes they exist.
+//
+// ## 🔴 THE SIXTH PRINCIPAL, AND WHAT IT MUST NEVER BE
+//
+// §3f: a partner is *a developer at another company* who sees keys, docs,
+// webhooks and their own subjects, and never content. §7 is blunter: **a
+// therapist never sees an API key**, and *a therapist holding an API key is a
+// therapist who got lost in our product*.
+//
+// So `PartnerActor` is a third principal shape beside `SponsorActor` and
+// `ClinicActor`, and like the sponsor's it carries NO organisation id at all. A
+// partner is outside the tenancy entirely: what reaches a chart is never the
+// partner, it is a CLINICIAN holding a grant a patient gave (C277), signed in
+// through an ordinary `auth_sessions` row that 42.3 mints.
+//
+// ## 🔴 C255 AND C265, WHICH DECIDE THE SHAPE OF THE WHOLE PLANE
+//
+// C255: *the integration answers a question about one person we already hold,
+// and never enumerates.* Every HR platform worth integrating and SCIM itself are
+// built around PROVISIONING: pull the directory, sync it, keep it. Build any of
+// that and we hold a complete staff list for every client, which is what three
+// enrolment designs were spent removing.
+//
+// C265: *an API key that can ask "does this person work here" is an identity
+// oracle, and it is pointed at our own patients.* So the endpoint is scoped to
+// one sponsor, rate-limited hard, and only ever answers about an identifier a
+// person submitted through enrolment MINUTES ago.
+//
+// Both of those are shapes in this schema rather than rules in a service:
+// `partner_api_keys.sponsor_id` scopes a key to exactly one sponsor, and
+// `enrolment_attestations` is the short-lived row that makes "somebody offered
+// this identifier" a fact with an expiry rather than a claim.
+
+/** 42.1 — held until an operator activates, exactly like a sponsor or a clinic. */
+export const PARTNER_STATES = ["held", "active", "suspended", "closed"] as const;
+export type PartnerState = (typeof PARTNER_STATES)[number];
+
+export const partners = pgTable(
+  "partners",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    state: text("state").$type<PartnerState>().notNull().default("held"),
+
+    /* 55.2 — the contact, for the call before anything is activated. */
+    contactName: text("contact_name"),
+    contactEmail: text("contact_email"),
+    contactPhone: text("contact_phone"),
+    /** What they say they want to build. Read by an operator, never by code. */
+    intent: text("intent"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("partners_slug_unique").on(t.slug),
+    index("partners_state_idx").on(t.state),
+  ],
+);
+
+export type Partner = typeof partners.$inferSelect;
+
+/**
+ * 🔴 55.1 / 55.3 — a partner USER, and there is no `Role` on it.
+ *
+ * A developer at another company. Their own table, their own cookie, their own
+ * sign-in, and no path to an `Actor`: the same construction as `sponsor_users`
+ * and for the same reason, which is that §7's rule about API keys is a rule
+ * about WHO, and the cheapest way to keep a therapist away from a key is for
+ * the key to live behind a principal a therapist cannot become.
+ */
+export const PARTNER_ROLES = ["admin", "developer"] as const;
+export type PartnerRole = (typeof PARTNER_ROLES)[number];
+
+export const partnerUsers = pgTable(
+  "partner_users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+
+    email: text("email").notNull(),
+    name: text("name"),
+    passwordHash: text("password_hash"),
+    role: text("role").$type<PartnerRole>().notNull().default("developer"),
+
+    lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("partner_users_email_unique").on(t.email).where(sql`deleted_at IS NULL`),
+    index("partner_users_partner_idx").on(t.partnerId),
+  ],
+);
+
+export const partnerAuthSessions = pgTable(
+  "partner_auth_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerUserId: uuid("partner_user_id")
+      .notNull()
+      .references(() => partnerUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true }).notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("partner_auth_sessions_token_hash_unique").on(t.tokenHash),
+    index("partner_auth_sessions_user_idx").on(t.partnerUserId),
+  ],
+);
+
+/**
+ * 🔴 42.1 / 55.2 / C265 — THE KEY, AND EVERY COLUMN ON IT IS A CONSTRAINT.
+ *
+ * *Keys (hashed, scoped, rotatable)*, and C265 adds the fourth thing: scoped to
+ * ONE SPONSOR where the scope includes employment verification.
+ *
+ * ## 🔴 Hashed, so a leaked table is not a set of working keys
+ *
+ * Only the SHA-256 is stored and the raw key is shown exactly once, at creation.
+ * A `prefix` is kept in clear so a developer can tell two keys apart in a list
+ * and an operator can name one in a support conversation without either of them
+ * holding the secret.
+ *
+ * ## 🔴 Scoped, and the scopes are a fixed list
+ *
+ * A key that can do everything is a key nobody can safely give to a contractor.
+ * Each scope maps to exactly one use case in 55.4 to 55.8, so "what can this key
+ * do" is answerable by reading one array.
+ *
+ * ## 🔴 `sponsor_id`, which is C265 in a column
+ *
+ * *The endpoint is scoped to one sponsor.* A key holding `employment:verify`
+ * with no sponsor answers about nobody: the check is in the query, so a missing
+ * scope fails closed rather than falling through to every sponsor we have.
+ *
+ * ## 🔴 `environment`, because a sandbox key that can reach real people is not a
+ *   sandbox
+ */
+export const API_SCOPES = [
+  /** 55.4 — "is this identifier currently active". One person, one boolean. */
+  "employment:verify",
+  /** 55.5 — is this clinician verified with us, and by which body. */
+  "clinician:verify",
+  /** 55.6 — read a record the patient granted this clinician. C277. */
+  "record:read",
+  /** 55.7 — a session held on their platform lands in our record. */
+  "session:write",
+  /** 55.8 — a clinician-approved note is pushed to their system. */
+  "note:deliver",
+] as const;
+export type ApiScope = (typeof API_SCOPES)[number];
+
+export const API_ENVIRONMENTS = ["sandbox", "live"] as const;
+export type ApiEnvironment = (typeof API_ENVIRONMENTS)[number];
+
+export const partnerApiKeys = pgTable(
+  "partner_api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+
+    /** A name the developer chose, so a list of keys means something. */
+    label: text("label").notNull(),
+    /** 🔴 SHA-256. The raw key is returned once and never stored. */
+    keyHash: text("key_hash").notNull(),
+    /** The first characters, in clear, so two keys can be told apart. */
+    prefix: text("prefix").notNull(),
+
+    scopes: jsonb("scopes").$type<ApiScope[]>().notNull().default([]),
+    environment: text("environment").$type<ApiEnvironment>().notNull().default("sandbox"),
+
+    /**
+     * 🔴 C265 — ONE SPONSOR, OR NONE.
+     *
+     * *The endpoint is scoped to one sponsor.* Null means the key cannot answer
+     * an employment question at all, which is the correct default and is why
+     * the scope alone is not enough.
+     */
+    sponsorId: uuid("sponsor_id").references(() => sponsors.id, { onDelete: "cascade" }),
+
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    /**
+     * 🔴 C265 — *an abnormal rate SUSPENDS THE KEY* rather than alerting
+     * somebody to read a chart later.
+     *
+     * Set by the limiter itself, not by a human, and the reason is stored beside
+     * it so a developer asking "why did my key stop" gets an answer.
+     */
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    suspendedReason: text("suspended_reason"),
+
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("partner_api_keys_hash_unique").on(t.keyHash),
+    index("partner_api_keys_partner_idx").on(t.partnerId, t.revokedAt),
+  ],
+);
+
+export type PartnerApiKey = typeof partnerApiKeys.$inferSelect;
+
+/**
+ * 🔴 42.4 / 55.10 — A WEBHOOK CARRIES AN EVENT AND AN ID, NEVER CONTENT.
+ *
+ * *A leaked webhook URL then leaks nothing.* So there is no `payload` column on
+ * the delivery table and no way to put one there: the delivery stores the event
+ * name and the subject id it was about, and the partner calls back for anything
+ * more with a key we can revoke.
+ *
+ * The endpoint's own secret is sealed with `lib/crypto/secretbox.ts`, which is
+ * the only reversible primitive in the product, because signing a delivery needs
+ * the secret back and a hash cannot give it.
+ */
+export const WEBHOOK_EVENTS = [
+  "session.completed",
+  "note.approved",
+  "grant.revoked",
+  "record.claimed",
+] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+export const partnerWebhooks = pgTable(
+  "partner_webhooks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+
+    url: text("url").notNull(),
+    /** 🔴 Sealed, not hashed: signing a delivery needs the secret back. */
+    secretSealed: text("secret_sealed").notNull(),
+    events: jsonb("events").$type<WebhookEvent[]>().notNull().default([]),
+
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("partner_webhooks_partner_idx").on(t.partnerId, t.disabledAt)],
+);
+
+export const partnerWebhookDeliveries = pgTable(
+  "partner_webhook_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    webhookId: uuid("webhook_id")
+      .notNull()
+      .references(() => partnerWebhooks.id, { onDelete: "cascade" }),
+
+    event: text("event").$type<WebhookEvent>().notNull(),
+    /**
+     * 🔴 AN ID, AND THE ID IS OURS.
+     *
+     * The subject the event was about, as an opaque uuid. Not a patient name, not
+     * a session summary, not a note. A partner receiving this knows something
+     * happened and has to ask, with a key, to learn what.
+     */
+    subjectId: uuid("subject_id"),
+
+    attempts: integer("attempts").notNull().default(0),
+    /** The last HTTP status, for a delivery log a developer can debug from. */
+    lastStatus: integer("last_status"),
+    lastError: text("last_error"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("partner_webhook_deliveries_hook_idx").on(t.webhookId, t.createdAt),
+    index("partner_webhook_deliveries_pending_idx")
+      .on(t.createdAt)
+      .where(sql`delivered_at IS NULL`),
+  ],
+);
+
+/**
+ * 🔴 42.2 — `partner_subjects`, UNIQUE ON `(partner_id, external_ref)`.
+ *
+ * *Two partners will both send `"P123"`.* That sentence is the whole table: an
+ * external reference is meaningless without the partner it came from, and a
+ * unique index on `external_ref` alone would have let the second partner to
+ * integrate collide with the first one's patients.
+ *
+ * 🔴 It maps to a `people` row rather than a `patients` row, because a person is
+ * the identity and a patient row is their relationship with one practice. A
+ * partner's subject is a person who may later be seen by several clinicians.
+ */
+export const partnerSubjects = pgTable(
+  "partner_subjects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+
+    /** Their id for this person, in their system. Opaque to us. */
+    externalRef: text("external_ref").notNull(),
+    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("partner_subjects_partner_ref_unique").on(t.partnerId, t.externalRef),
+    index("partner_subjects_person_idx").on(t.personId),
+  ],
+);
+
+/**
+ * 🔴 C265 — THE ROW THAT MAKES THE IDENTITY ORACLE IMPOSSIBLE.
+ *
+ * > *The endpoint is scoped to one sponsor, rate-limited hard, and **only ever
+ * > answers about an identifier a person has themselves submitted through
+ * > enrolment in the last few minutes.** It is not a lookup API; it is a step
+ * > inside one flow, and it can never be called with an identifier nobody
+ * > offered.*
+ *
+ * That last sentence cannot be enforced by a rate limit or a scope. It needs a
+ * record of the offering, with an expiry, and this is it: `enrol` writes one when
+ * somebody types an identifier, and the endpoint answers only about a row that
+ * exists and has not expired.
+ *
+ * ## 🔴 THE IDENTIFIER IS A SALTED HASH HERE TOO
+ *
+ * The same hash `enrolments.identifier_hash` holds, computed by the same
+ * function. So the endpoint takes an identifier from the partner, hashes it, and
+ * looks for a match: it can confirm what somebody offered and can never be read
+ * to enumerate what anybody offered. A stolen table is not a list of work
+ * addresses.
+ *
+ * ## 🔴 AND IT IS CONSUMED, so a row answers ONE question
+ *
+ * `answered_at` is stamped on use and a used row answers nothing more. Without
+ * that, a single enrolment would licence unlimited questions about one person
+ * for the length of the window, which is a smaller oracle rather than none.
+ */
+export const enrolmentAttestations = pgTable(
+  "enrolment_attestations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+
+    /** 🔴 The same salted hash `enrolments` holds. Never a plaintext address. */
+    identifierHash: text("identifier_hash").notNull(),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** Stamped on use. A used attestation answers nothing more. */
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    /** Which key asked, for the audit C265 requires of every call. */
+    answeredByKeyId: uuid("answered_by_key_id").references(() => partnerApiKeys.id, {
+      onDelete: "set null",
+    }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("enrolment_attestations_lookup_idx").on(t.sponsorId, t.identifierHash),
+    index("enrolment_attestations_expiry_idx").on(t.expiresAt),
+  ],
+);
+
+export type EnrolmentAttestation = typeof enrolmentAttestations.$inferSelect;
+
+/** How long an offering licences one question. Minutes, per C265's own word. */
+export const ATTESTATION_TTL_MINUTES = 10;

@@ -6,6 +6,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
+  ATTESTATION_TTL_MINUTES,
+  enrolmentAttestations,
   enrolments,
   patientNotifications,
   sponsorCodes,
@@ -81,8 +83,19 @@ const SPIKE_NEVER_REFUSES = 1_000_000;
  * Salted with `AUTH_SECRET` rather than bare, so a stolen table cannot be
  * matched against a guessed list of employee numbers offline. An unsalted
  * SHA-256 of "20215544" is a lookup, not a hash.
+ *
+ * ## 🔴 EXPORTED in sprint 55, and for one caller
+ *
+ * C265's endpoint takes an identifier from a partner and has to ask whether THIS person
+ * offered THAT identifier minutes ago. Asking means hashing it the same way, so the
+ * function has to be reachable, and the alternative is a second implementation which
+ * would drift and whose drift would read as "nobody offered this" for every real caller.
+ *
+ * Exporting a hash function is not exporting the identifiers. The salt is `AUTH_SECRET`,
+ * so nothing outside the process can compute one, and the only thing a caller can do
+ * with this is confirm a value it already holds.
  */
-function hashIdentifier(sponsorId: string, value: string): string {
+export function hashIdentifier(sponsorId: string, value: string): string {
   return createHash("sha256")
     .update(`${env.authSecret}${sponsorId}${value.trim().toLowerCase()}`)
     .digest("hex");
@@ -392,6 +405,28 @@ export async function enrol(input: {
     const { sendEnrolmentCode } = await import("./enrolment-verify");
     await sendEnrolmentCode(enrolmentId, input.identifier);
   }
+
+  /*
+   * 🔴 C265 — THE ATTESTATION, WRITTEN HERE AND NOWHERE ELSE.
+   *
+   * *The endpoint only ever answers about an identifier a person has themselves
+   * submitted through enrolment in the last few minutes. It is not a lookup API; it is a
+   * step inside one flow, and it can never be called with an identifier nobody offered.*
+   *
+   * This is the row that makes that true. It exists because somebody typed an identifier
+   * into their own benefit screen, it expires in minutes, and it is consumed by the one
+   * question it licences. `lib/partner/employment.ts` can find it and cannot create one.
+   *
+   * Written AFTER the gate was crossed, so an attestation exists only for an identifier
+   * that actually matched this sponsor's rule. An attestation for a failed attempt would
+   * licence a question about a value somebody guessed, which is the oracle wearing a
+   * different hat.
+   */
+  await controlDb.insert(enrolmentAttestations).values({
+    sponsorId: lookup.sponsorId,
+    identifierHash,
+    expiresAt: new Date(Date.now() + ATTESTATION_TTL_MINUTES * 60 * 1000),
+  });
 
   log.info("enrolment activated", { kind: crossed.kind });
   return { ok: true, needsVerification: crossed.kind === "domain_email" };

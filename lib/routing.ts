@@ -121,6 +121,26 @@ export const CLINIC_APPLY = "/clinic/apply";
 export const CLINIC_JOIN = "/clinic/join";
 
 /**
+ * 🔴 55.1 / C264 — the sixth principal, and the router is unchanged for it.
+ *
+ * This is the payoff C264 was written for: sprint 53 rewrote `routeDecision` once for
+ * all six, sprint 54 needed one line in middleware, and sprint 55 needs one line and
+ * three constants. Nothing in the decision function knows a partner exists.
+ *
+ * `/partner/apply` is open because a company with no account cannot sign in to ask for
+ * one, the same as the sponsor's and the clinic's.
+ *
+ * 🔴 `/developers` IS NOT HERE, deliberately. 55.12 asks for a PUBLIC page naming the
+ * use cases, so it lives in `(public)` with the rest of the marketing site and is not a
+ * route any principal owns. A docs page behind a sign-in is a docs page nobody
+ * evaluating us can read.
+ */
+export const PARTNER_COOKIE = "24t_partner";
+export const PARTNER_SIGN_IN = "/partner/sign-in";
+export const PARTNER_PREFIXES = ["/partner"];
+export const PARTNER_APPLY = "/partner/apply";
+
+/**
  * 🔴 53.5 — the one door inside `/sponsor` that is open to a stranger.
  *
  * An organisation that wants to talk to us has no account yet, so the enquiry
@@ -298,10 +318,12 @@ export const PRINCIPALS: Principal[] = [
   {
     name: "partner",
     cookie: "partner",
-    prefixes: [],
-    signIn: "/partner/sign-in",
+    prefixes: PARTNER_PREFIXES,
+    signIn: PARTNER_SIGN_IN,
     home: "/partner",
-    authRoutes: ["/partner/sign-in"],
+    authRoutes: [PARTNER_SIGN_IN],
+    /* 55.2 — the enquiry, which cannot sit behind the sign-in it precedes. */
+    openRoutes: [PARTNER_APPLY],
   },
 ];
 

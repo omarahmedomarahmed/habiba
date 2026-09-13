@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
   CLINIC_COOKIE,
+  PARTNER_COOKIE,
   PATIENT_COOKIE,
   routeDecision,
   SESSION_COOKIE,
@@ -75,20 +76,23 @@ export function middleware(request: NextRequest) {
   /*
    * 🔴 C264 — one cookie per principal, read here and decided in one table.
    *
-   * The PARTNER cookie is deliberately absent rather than read as false:
-   * `PrincipalCookies` is partial and fails safe, so that portal bounces everybody
-   * to its own sign-in until sprint 55 adds the read beside these. An unread cookie
-   * can never be mistaken for a signed-in holder.
+   * 🔴 ALL SIX NOW EXIST, and this is what C264 bought.
    *
-   * The clinic's read arrived in sprint 54, which is what that comment predicted:
-   * one line here, beside the others, and no change to `routeDecision` at all. That
-   * is what C264 bought.
+   * Sprint 53 rewrote `routeDecision` once for all six principals rather than bolting
+   * one on per portal. Sprint 54 cost one line here. Sprint 55 cost one line here. The
+   * decision function has not been touched since the day it was written, and the test
+   * suite that iterates `PRINCIPALS` covered each new portal before it existed.
+   *
+   * The staff principal shares the clinician cookie and is the one exception, for the
+   * reason stated in `lib/routing.ts`: the same cookie proves the same thing and only
+   * the door differs.
    */
   const decision = routeDecision(rest, {
     clinician: Boolean(request.cookies.get(SESSION_COOKIE)?.value),
     patient: Boolean(request.cookies.get(PATIENT_COOKIE)?.value),
     sponsor: Boolean(request.cookies.get(SPONSOR_COOKIE)?.value),
     clinic: Boolean(request.cookies.get(CLINIC_COOKIE)?.value),
+    partner: Boolean(request.cookies.get(PARTNER_COOKIE)?.value),
     expired: request.nextUrl.searchParams.get("expired") === "1",
   });
 
