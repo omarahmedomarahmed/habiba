@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { routeDecision } from "../lib/routing";
+import { ownerOf, PRINCIPALS, routeDecision } from "../lib/routing";
 
 /**
  * The rule sprint 6 exists to enforce: **a patient is never sent to a
@@ -187,4 +187,250 @@ test("the invite link is reachable with and without a patient cookie", () => {
       JSON.stringify(cookies),
     );
   }
+});
+
+/* ======================================================================== */
+/*  🔴 C264 — A CASE PER PRINCIPAL, NOT A BOOLEAN PER PRINCIPAL             */
+/* ======================================================================== */
+
+/**
+ * The ruling's own words: *the existing suite extended to a case per principal
+ * rather than a boolean per principal.*
+ *
+ * The distinction is the whole point. The fourteen tests above are hand-written
+ * cases about two principals, and they are good tests — every one of them
+ * encodes a bug somebody actually hit. What they cannot do is grow: adding a
+ * sponsor as a third boolean would mean writing four more by hand, adding a
+ * clinic a fifth, and the combination nobody writes is the one that breaks.
+ *
+ * So these iterate the TABLE. Every principal, every rule, whatever is added
+ * later. A seventh portal gets its cases for free and a wrong one fails here
+ * rather than in production.
+ */
+
+const ALL_COOKIES = ["clinician", "patient", "sponsor", "clinic", "partner"] as const;
+
+/** Signed in as exactly one principal and nobody else. */
+function only(cookie: (typeof ALL_COOKIES)[number]) {
+  return Object.fromEntries([
+    ...ALL_COOKIES.map((c) => [c, c === cookie]),
+    ["expired", false],
+  ]) as Parameters<typeof routeDecision>[1];
+}
+
+const NO_COOKIES = only("clinician" as never);
+
+/** Only the principals that actually own paths today can be exercised. */
+const live = PRINCIPALS.filter((p) => p.prefixes.length > 0);
+
+test("C264 every live principal owns its own prefixes and nobody else's", () => {
+  for (const principal of live) {
+    for (const prefix of principal.prefixes) {
+      assert.equal(
+        ownerOf(prefix)?.name,
+        principal.name,
+        `${prefix} should belong to ${principal.name}`,
+      );
+      assert.equal(
+        ownerOf(`${prefix}/something/deep`)?.name,
+        principal.name,
+        `${prefix}/something/deep should belong to ${principal.name}`,
+      );
+    }
+  }
+});
+
+test("C264 an anonymous caller at any principal's path goes to THAT principal's door", () => {
+  for (const principal of live) {
+    for (const prefix of principal.prefixes) {
+      // Open routes are reachable signed out by design, so skip those.
+      if (principal.openRoutes?.some((open) => prefix === open)) continue;
+
+      const decision = routeDecision(`${prefix}/deep`, {
+        ...NO_COOKIES,
+        clinician: false,
+        expired: false,
+      });
+
+      assert.deepEqual(
+        decision,
+        { kind: "redirect", to: principal.signIn, keepNext: true },
+        `${prefix}/deep should bounce to ${principal.signIn}`,
+      );
+    }
+  }
+});
+
+test("C264 a signed-in principal at their own door is sent to their own home", () => {
+  for (const principal of live) {
+    for (const route of principal.authRoutes ?? []) {
+      assert.deepEqual(
+        routeDecision(route, only(principal.cookie)),
+        { kind: "redirect", to: principal.home, keepNext: false },
+        `${route} should send a signed-in ${principal.name} to ${principal.home}`,
+      );
+    }
+  }
+});
+
+/**
+ * 🔴 The one that matters most, generalised.
+ *
+ * A patient holding both cookies routed to a therapist's dashboard is the
+ * original bug. The general form is: holding SOMEBODY ELSE'S cookie must never
+ * admit you, and must never change where you are sent.
+ */
+test("C264 another principal's cookie never admits you and never changes your door", () => {
+  for (const principal of live) {
+    const prefix = principal.prefixes.find(
+      (p) => !principal.openRoutes?.some((open) => p === open),
+    );
+    if (!prefix) continue;
+
+    for (const cookie of ALL_COOKIES) {
+      if (cookie === principal.cookie) continue;
+
+      assert.deepEqual(
+        routeDecision(`${prefix}/deep`, only(cookie)),
+        { kind: "redirect", to: principal.signIn, keepNext: true },
+        `a ${cookie} cookie must not admit anybody to ${prefix}`,
+      );
+    }
+  }
+});
+
+/**
+ * 🔴 An unbuilt portal bounces everybody rather than admitting anybody.
+ *
+ * `PrincipalCookies` is partial and fails safe. The clinic and partner rows
+ * carry no prefixes yet, so nothing routes to them at all — but the moment
+ * sprint 54 adds `/clinic` and forgets to read the cookie in `middleware.ts`,
+ * the read comes back undefined and every visitor is bounced to the clinic
+ * door. That is the safe direction, and this pins it.
+ */
+test("C264 a cookie the caller never read is treated as absent, not as present", () => {
+  const sponsor = PRINCIPALS.find((p) => p.name === "sponsor")!;
+  const prefix = sponsor.prefixes[0]!;
+
+  // Deliberately omitting `sponsor` entirely, as middleware.ts did before 53.
+  assert.deepEqual(
+    routeDecision(`${prefix}/reports`, { clinician: true, patient: true, expired: false }),
+    { kind: "redirect", to: sponsor.signIn, keepNext: true },
+    "an unread cookie must never read as signed in",
+  );
+});
+
+/**
+ * 🔴 C230 / C259 — a sponsor's cookie opens nothing clinical.
+ *
+ * The seam both rulings rest on, asserted at the router as well as in the
+ * guard: a sponsor is never an `Actor`, and the first step to becoming one
+ * would be a cookie that reaches a clinical path.
+ */
+test("C230 a sponsor cookie reaches no clinician, staff or patient path", () => {
+  for (const path of ["/dashboard", "/patients/abc", "/admin/vault", "/patient", "/notes"]) {
+    const decision = routeDecision(path, only("sponsor"));
+    assert.equal(decision.kind, "redirect", `${path} must not pass for a sponsor`);
+    assert.notEqual(
+      decision.kind === "redirect" ? decision.to : "",
+      "/sponsor",
+      `${path} must not send a sponsor into the sponsor portal either`,
+    );
+  }
+});
+
+/**
+ * 🔴 The six exist, and the two unbuilt ones are named rather than implied.
+ *
+ * C264 is that the router is rewritten once FOR ALL SIX, before the second new
+ * portal is built. A table with four rows and a comment promising two more is
+ * the thing the ruling forbids.
+ */
+test("C264 all six principals are in the table, each with its own door", () => {
+  assert.equal(PRINCIPALS.length, 6);
+
+  const names = PRINCIPALS.map((p) => p.name).sort();
+  assert.deepEqual(names, [
+    "clinic",
+    "clinician",
+    "partner",
+    "patient",
+    "sponsor",
+    "staff",
+  ]);
+
+  // No two principals share a door, or a bounce sends somebody to a form that
+  // will turn them away — which is exactly what 21R.1 / C94 fixed for staff.
+  const doors = PRINCIPALS.map((p) => p.signIn);
+  assert.equal(new Set(doors).size, doors.length, "two principals share a sign-in");
+});
+
+/**
+ * 🔴 THE INVARIANT THAT ACTUALLY PROTECTS `ownerOf`, and the one the first
+ * draft of this rewrite got wrong.
+ *
+ * That draft's comment said order was load-bearing and that `/patient` had to
+ * precede `/patients`. It is not, and it does not: `isUnder` matches on segment
+ * boundaries, so neither path is under the other in either direction. Sprint 53
+ * proved it by reintroducing the sprint 6 bug on purpose — moving the patient
+ * row below the clinician row — and watching all twenty-one tests pass.
+ *
+ * So the claim was the defect. The real property is that NO TWO PRINCIPALS OWN
+ * OVERLAPPING PREFIXES, which makes "first match wins" unambiguous whatever the
+ * order, and which is checkable rather than remembered.
+ *
+ * This is the test that would have caught `/admin` staying in
+ * `PROTECTED_PREFIXES` while also being the staff principal's — a real overlap
+ * that the rewrite had to remove and that no output test would have shown.
+ */
+test("C264 no two principals own overlapping prefixes, so first-match is unambiguous", () => {
+  const isUnder = (path: string, prefix: string) =>
+    path === prefix || path.startsWith(`${prefix}/`);
+
+  const clashes: string[] = [];
+  for (const a of PRINCIPALS) {
+    for (const b of PRINCIPALS) {
+      if (a === b) continue;
+      for (const x of a.prefixes) {
+        for (const y of b.prefixes) {
+          if (isUnder(x, y) || isUnder(y, x)) {
+            clashes.push(`${a.name}:${x} overlaps ${b.name}:${y}`);
+          }
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(clashes, [], clashes.join("; "));
+});
+
+/**
+ * 🔴 CONTROL — and the overlap check can SEE an overlap.
+ *
+ * An empty-array assertion over a table that happens to be clean is
+ * indistinguishable from one whose loop never runs. Fed a table with a real
+ * overlap, the same predicate must report it.
+ */
+test("C264 CONTROL the overlap check catches a planted overlap", () => {
+  const isUnder = (path: string, prefix: string) =>
+    path === prefix || path.startsWith(`${prefix}/`);
+
+  const planted = [
+    { name: "clinician", prefixes: ["/admin"] },
+    { name: "staff", prefixes: ["/admin"] },
+  ];
+
+  const clashes: string[] = [];
+  for (const a of planted) {
+    for (const b of planted) {
+      if (a === b) continue;
+      for (const x of a.prefixes) {
+        for (const y of b.prefixes) {
+          if (isUnder(x, y) || isUnder(y, x)) clashes.push(`${a.name} overlaps ${b.name}`);
+        }
+      }
+    }
+  }
+
+  assert.equal(clashes.length, 2, "the check must see an overlap that exists");
 });

@@ -2,7 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
-import { PATIENT_COOKIE, routeDecision, SESSION_COOKIE } from "@/lib/routing";
+import {
+  PATIENT_COOKIE,
+  routeDecision,
+  SESSION_COOKIE,
+  SPONSOR_COOKIE,
+} from "@/lib/routing";
 
 /**
  * Middleware is a redirect optimiser. It is NOT the authorisation boundary.
@@ -66,9 +71,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  /*
+   * 🔴 C264 — one cookie per principal, read here and decided in one table.
+   *
+   * The clinic and partner cookies are deliberately absent rather than read as
+   * false: `PrincipalCookies` is partial and fails safe, so those two portals
+   * bounce everybody to their own sign-in until sprints 54 and 55 add the read
+   * beside this one. An unread cookie can never be mistaken for a signed-in
+   * holder.
+   */
   const decision = routeDecision(rest, {
     clinician: Boolean(request.cookies.get(SESSION_COOKIE)?.value),
     patient: Boolean(request.cookies.get(PATIENT_COOKIE)?.value),
+    sponsor: Boolean(request.cookies.get(SPONSOR_COOKIE)?.value),
     expired: request.nextUrl.searchParams.get("expired") === "1",
   });
 

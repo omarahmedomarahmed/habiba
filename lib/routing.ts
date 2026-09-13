@@ -19,16 +19,33 @@ export const SESSION_COOKIE = "24t_session";
  */
 export const PATIENT_COOKIE = "24t_patient";
 
+/**
+ * Every clinician path. `/admin` is NOT here: it is the staff principal's, with
+ * its own door.
+ *
+ * 🔴 Six were missing until sprint 53: `/assistant`, `/bookings`, `/connect`,
+ * `/earnings`, `/onboarding` and `/support`. Every one of those pages calls
+ * `requireUser`, so there was no authorisation hole — what was lost is that an
+ * unauthenticated request ran a Server Component render before being turned
+ * away instead of stopping at the edge, and, worse, that this list stopped
+ * being a true statement of who owns what. C264's whole argument is that the
+ * next portal copies this pattern.
+ */
 export const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/sessions",
-  "/patients",
-  "/notes",
-  "/copilot",
-  "/on-call",
+  "/assistant",
   "/billing",
+  "/bookings",
+  "/connect",
+  "/copilot",
+  "/dashboard",
+  "/earnings",
+  "/notes",
+  "/on-call",
+  "/onboarding",
+  "/patients",
+  "/sessions",
   "/settings",
-  "/admin",
+  "/support",
 ];
 
 export const AUTH_ROUTES = ["/login", "/signup"];
@@ -71,50 +88,240 @@ export const PATIENT_OPEN_ROUTES = ["/patient/invite"];
 /** 21R.1 / C94 — where an unauthenticated caller at an admin route is sent. */
 export const STAFF_SIGN_IN = "/staff/sign-in";
 
+/**
+ * 🔴 53.4 / C230 — the sponsor's own door and its own paths.
+ *
+ * A sponsor is never an `Actor` and never inside clinical tenancy, so they do
+ * not share a cookie, a prefix or a sign-in with anybody. `/sponsor` rather
+ * than `/corporate` because it is what the table is called and one word for
+ * one thing is cheaper than two.
+ */
+export const SPONSOR_COOKIE = "24t_sponsor";
+export const SPONSOR_SIGN_IN = "/sponsor/sign-in";
+export const SPONSOR_PREFIXES = ["/sponsor"];
+
+/**
+ * 🔴 C264 — THE SIX PRINCIPALS, AS A TABLE. Rewritten once, in sprint 53.
+ *
+ * ## Why a table and not five more `if` blocks
+ *
+ * `routeDecision` was a pure function of two booleans, and three more
+ * principals were about to arrive: a sponsor (53), a clinic manager (54) and a
+ * partner developer (55), each with its own portal, its own sign-in and its own
+ * idea of what a bounce means. *Bolted on one at a time, this becomes the
+ * function nobody can reason about and every new portal breaks a redirect for
+ * an existing one.* Sprint 53 pays for work 54 and 55 benefit from.
+ *
+ * Every principal answers the same four questions, so they are four columns
+ * rather than four branches:
+ *
+ *   - which paths do I own
+ *   - which of my paths work signed OUT as well as in
+ *   - which of my paths are my own door
+ *   - where does a signed-in holder of my cookie land instead of that door
+ *
+ * ## 🔴 Order is NOT what keeps `/patient` and `/patients` apart
+ *
+ * The first draft of this comment said it was, and that was wrong. `isUnder`
+ * matches on SEGMENT boundaries, so `/patient` is not under `/patients` and
+ * `/patients` is not under `/patient` — neither direction, in either order.
+ * That is what sprint 6 actually fixed, and it is why this rewrite could
+ * reorder the table freely without any test noticing.
+ *
+ * I found that by reintroducing the sprint 6 bug on purpose and watching
+ * twenty-one tests pass. The claim was the defect, not the code.
+ *
+ * The real invariant is stronger and is now a test: **no two principals own
+ * overlapping prefixes.** With that held, `ownerOf` returning the first match
+ * is unambiguous whatever the order, and a table that acquires an overlap
+ * fails loudly instead of resolving to whichever row happens to be higher.
+ *
+ * Staff still sits first for readability — `/admin` beside its own door — but
+ * nothing depends on it.
+ *
+ * ## 🔴 Two principals share the clinician cookie, deliberately
+ *
+ * Staff sign in at `/staff/sign-in` and carry the same session cookie as a
+ * clinician; what differs is the door they are bounced to, because the staff
+ * form refuses a therapist's credentials (21R.1, C94). So `cookie` and
+ * `signIn` are separate columns. Sponsors, clinic managers and partners have
+ * their own cookies, because C230 and C259 are that none of them is ever an
+ * `Actor` and a shared cookie is the first step to becoming one.
+ *
+ * ## This is still not the authorisation boundary
+ *
+ * It knows which cookies are present, never whether a session is live.
+ * `requireUser`, `requirePatient` and `requireSponsor` do the real check on
+ * every page.
+ */
+export type PrincipalCookie = "clinician" | "patient" | "sponsor" | "clinic" | "partner";
+
+export type Principal = {
+  /** For the tests and for a failure message somebody has to read. */
+  name: string;
+  /** Which cookie proves it. Staff shares the clinician's. */
+  cookie: PrincipalCookie;
+  /** The paths this principal owns. Matched in order, first owner wins. */
+  prefixes: string[];
+  /** Its own sign-in, and where a bounce goes. */
+  signIn: string;
+  /** Where a signed-in holder goes instead of their own door. */
+  home: string;
+  /** Paths of its own that work signed out too. */
+  openRoutes?: string[];
+  /** Exact paths that are this principal's door. */
+  authRoutes?: string[];
+};
+
+export const PRINCIPALS: Principal[] = [
+  /*
+   * Staff first for readability: `/admin` beside its own door. Nothing depends
+   * on the position — see the header, and `ownerOf` is unambiguous because no
+   * two principals own overlapping prefixes, which is a test.
+   */
+  {
+    name: "staff",
+    cookie: "clinician",
+    prefixes: ["/admin"],
+    signIn: STAFF_SIGN_IN,
+    home: "/admin",
+    authRoutes: [STAFF_SIGN_IN],
+  },
+  /*
+   * `/patient` and `/patients` belong to different people and differ by one
+   * character. `isUnder` matches segment boundaries, so neither is under the
+   * other and the order of these two rows is irrelevant. That is what sprint 6
+   * fixed; a comment in this file claimed it was the ORDER until sprint 53
+   * proved otherwise by reversing them and watching every test still pass.
+   */
+  {
+    name: "patient",
+    cookie: "patient",
+    prefixes: PATIENT_PREFIXES,
+    signIn: "/patient/login",
+    home: "/patient",
+    openRoutes: PATIENT_OPEN_ROUTES,
+    authRoutes: PATIENT_AUTH_ROUTES,
+  },
+  {
+    name: "clinician",
+    cookie: "clinician",
+    prefixes: PROTECTED_PREFIXES,
+    signIn: "/login",
+    home: "/dashboard",
+    /*
+     * 🔴 `/support/<token>` is a PUBLIC page reached from an email, and
+     * `/support` is a clinician screen. Both exist, which is why `/support`
+     * was quietly missing from the prefix list rather than exempted.
+     *
+     * An open route says so instead. Leaving it off the list made the list
+     * false about what it covered, and the next portal would have copied an
+     * incomplete pattern — which is the whole failure C264 is about.
+     */
+    openRoutes: ["/support"],
+    authRoutes: AUTH_ROUTES,
+  },
+  /*
+   * 🔴 Sponsor (53), clinic manager (54), partner (55).
+   *
+   * Written now, all three, because that is the ruling: rewritten ONCE for six
+   * rather than once per portal. The clinic and partner rows carry no routes
+   * yet and are not dead code — they are the statement that those portals do
+   * not share a cookie or a door with anybody, made before somebody is under
+   * pressure to ship one.
+   *
+   * C230 / C259: a sponsor is never an `Actor` and never inside clinical
+   * tenancy, and a separate cookie is the first thing that keeps that true.
+   */
+  {
+    name: "sponsor",
+    cookie: "sponsor",
+    prefixes: SPONSOR_PREFIXES,
+    signIn: SPONSOR_SIGN_IN,
+    home: "/sponsor",
+    authRoutes: [SPONSOR_SIGN_IN],
+  },
+  {
+    name: "clinic",
+    cookie: "clinic",
+    prefixes: [],
+    signIn: "/clinic/sign-in",
+    home: "/clinic",
+    authRoutes: ["/clinic/sign-in"],
+  },
+  {
+    name: "partner",
+    cookie: "partner",
+    prefixes: [],
+    signIn: "/partner/sign-in",
+    home: "/partner",
+    authRoutes: ["/partner/sign-in"],
+  },
+];
+
 export type RouteDecision =
   /** Carry on, with `x-pathname` set for the server components. */
   | { kind: "pass" }
   /** Send them somewhere else. `keepNext` asks for `?next=<pathname>`. */
   | { kind: "redirect"; to: string; keepNext: boolean };
 
-export function routeDecision(
-  pathname: string,
-  cookies: { clinician: boolean; patient: boolean; expired: boolean },
-): RouteDecision {
-  /*
-   * Patient paths are decided here and returned from. Nothing below this block
-   * may see one — `/patients` is a clinician route and `/patient` is not, and
-   * the two differ by a single character.
-   */
-  if (PATIENT_PREFIXES.some((p) => isUnder(pathname, p))) {
-    /* Reachable either way — see PATIENT_OPEN_ROUTES. */
-    if (PATIENT_OPEN_ROUTES.some((p) => isUnder(pathname, p))) return { kind: "pass" };
+/**
+ * Which cookies the caller found.
+ *
+ * 🔴 PARTIAL, and it FAILS SAFE. A cookie the caller does not mention reads as
+ * absent, so the principal that needs it bounces everybody to its own sign-in.
+ * The alternative — requiring all five — would force `middleware.ts` and every
+ * test to pass flags for portals that do not exist yet, and the noise is how a
+ * real omission stops being visible.
+ *
+ * The keys are typed, so a misspelled cookie is a compile error rather than a
+ * silent false.
+ */
+export type PrincipalCookies = Partial<Record<PrincipalCookie, boolean>> & {
+  expired: boolean;
+};
 
-    const isPatientAuthRoute = PATIENT_AUTH_ROUTES.some((p) => isUnder(pathname, p));
+/**
+ * Which principal owns this path, or none. First match wins.
+ *
+ * 🔴 "First match" is only unambiguous because no two principals own
+ * overlapping prefixes, which `tests/routing.test.ts` asserts directly rather
+ * than leaving to the order of this array.
+ *
+ * Exported so the tests can assert ownership per principal. A test on the
+ * router's OUTPUT would only catch a mis-assignment for the paths somebody
+ * thought to try.
+ */
+export function ownerOf(pathname: string): Principal | null {
+  for (const principal of PRINCIPALS) {
+    if (principal.prefixes.some((prefix) => isUnder(pathname, prefix))) return principal;
+    if (principal.authRoutes?.includes(pathname)) return principal;
+  }
+  return null;
+}
 
-    if (!cookies.patient && !isPatientAuthRoute) {
-      return { kind: "redirect", to: "/patient/login", keepNext: true };
-    }
-    // A cookie can outlive its session, and a Server Component cannot delete
-    // one — `expired=1` is the escape hatch that stops the redirect loop.
-    if (cookies.patient && !cookies.expired && isPatientAuthRoute) {
-      return { kind: "redirect", to: "/patient", keepNext: false };
-    }
+export function routeDecision(pathname: string, cookies: PrincipalCookies): RouteDecision {
+  const principal = ownerOf(pathname);
+  if (!principal) return { kind: "pass" };
+
+  /* Reachable either way. The invite link, and the public support page. */
+  if (principal.openRoutes?.some((prefix) => isUnder(pathname, prefix))) {
     return { kind: "pass" };
   }
 
-  if (!cookies.clinician && PROTECTED_PREFIXES.some((p) => isUnder(pathname, p))) {
-    /*
-     * 21R.1 — the admin console has its own door, and the staff form refuses a
-     * clinician's credentials. Sending somebody bounced off /admin to /login
-     * would send them to a form that will turn them away.
-     */
-    const to = isUnder(pathname, "/admin") ? STAFF_SIGN_IN : "/login";
-    return { kind: "redirect", to, keepNext: true };
+  const signedIn = cookies[principal.cookie] ?? false;
+  const atTheirDoor = principal.authRoutes?.includes(pathname) ?? false;
+
+  if (!signedIn && !atTheirDoor) {
+    return { kind: "redirect", to: principal.signIn, keepNext: true };
   }
 
-  if (cookies.clinician && !cookies.expired && AUTH_ROUTES.includes(pathname)) {
-    return { kind: "redirect", to: "/dashboard", keepNext: false };
+  /*
+   * A cookie can outlive its session, and a Server Component cannot delete
+   * one — `expired=1` is the escape hatch that stops the redirect loop.
+   */
+  if (signedIn && !cookies.expired && atTheirDoor) {
+    return { kind: "redirect", to: principal.home, keepNext: false };
   }
 
   return { kind: "pass" };
