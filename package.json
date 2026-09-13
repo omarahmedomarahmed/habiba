@@ -13,6 +13,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "verify:nul": "node --import tsx scripts/verify-nul.ts",
+    "verify:sprint43": "node --import tsx scripts/verify-sprint43.ts",
     "verify:sprint45": "node --import tsx --conditions=react-server scripts/verify-sprint45.tsx",
     "verify:sprint50": "node --import tsx --conditions=react-server scripts/verify-sprint50.ts",
     "verify:sprint46": "node --import tsx --conditions=react-server scripts/verify-sprint46.ts",

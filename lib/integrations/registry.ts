@@ -131,13 +131,23 @@ export const INTEGRATIONS: Integration[] = [
     slug: "clinic-systems",
     name: "Your clinic's own system",
     category: "Records",
-    state: "planned",
-    summary: "Not built. A way to push a finished note into the record system you already use.",
+    /*
+     * 🔴 `partial`, not `live`, and the difference is the one thing that matters here.
+     *
+     * The flow is built and walkable: a practice connects, a clinician is launched from a chart,
+     * and an approved note files back as a DocumentReference. What is not built is any real
+     * tenant. Epic, Oracle Health and athenahealth each require the hospital to register us in
+     * its own tenant first, which is the hospital's decision and its timeline, so "live" would
+     * claim something no customer has done yet.
+     */
+    state: "partial",
+    summary:
+      "An approved note files into the record system you already use, as a document on the patient's chart.",
     today:
-      "Nothing works today. The design problem is mapping identities: two clinics will both send us a patient called P123, and treating either as ours is how one person's note reaches another person's chart.",
+      "The SMART on FHIR flow works end to end against a sandbox: connect once for the practice, open us from a patient's chart, and the note you approve is filed back. No hospital has registered us in its own tenant yet, and each one has to before anything connects there. The identity problem is solved by never treating your patient id as ours: it is resolved only within the connection that issued it, so P123 at your hospital and P123 at another are two rows that cannot reach each other.",
     limits:
-      "Until it exists, the honest answer is that this is a second place to look, and a clinic should decide whether that is acceptable before signing anything.",
-    waitingOn: "sprint 42, the partner plane",
+      "Your system is the record and ours is not. We read one thing from your chart, the patient's name, so a schedule row is not blank; we read and keep no date of birth, record number, address, payer, problem list, medication or allergy, and there is nowhere in our database to put one. What we keep is what we made: the session, the transcript recorded under the patient's consent, the note and who approved it. That stays on our schedule rather than yours, because the person it answers to is the patient, and disconnecting stops us resolving your patient identifiers the same moment while leaving their record with us.",
+    waitingOn: "a hospital tenant registration, which is theirs to grant rather than ours to build",
   },
 ];
 

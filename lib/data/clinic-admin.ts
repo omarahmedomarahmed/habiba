@@ -489,6 +489,26 @@ export async function removeClinician(input: {
       ),
     );
 
+  /*
+   * 🔴 43.1b — AND THE EHR CONNECTION NEEDS NO LINE HERE, WHICH IS C266 PAYING OFF.
+   *
+   * *A therapist leaving a clinic loses that connection immediately, without a question, because
+   * the credential was the hospital's.* That is already true the moment the reparenting below
+   * runs, and it is true for a structural reason rather than because somebody remembered:
+   * `ehr_connections` has no `user_id` at all, so every read of one goes through
+   * `liveConnection(organizationId)`, and after the UPDATE their organisation is the new solo row
+   * with no connection under it. There is nothing to revoke because there was never anything of
+   * theirs to hold.
+   *
+   * 🔴 AND WRITING THE OBVIOUS LINE HERE WOULD BE THE WORSE BUG.
+   *
+   * `meeting_connections` is revoked above because a Zoom account genuinely is one person's. The
+   * symmetric-looking edit — revoking `ehr_connections` for this organisation — would disconnect
+   * the HOSPITAL because one therapist left, taking the note filing away from every other
+   * clinician under it. `verify:sprint43` asserts both halves: the departing clinician resolves no
+   * connection, AND the clinic's own connection is still live.
+   */
+
   const name = [clinician.firstName, clinician.lastName].filter(Boolean).join(" ");
   const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "practice"}-${randomBytes(3).toString("hex")}`;
 

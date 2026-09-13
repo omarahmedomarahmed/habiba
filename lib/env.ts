@@ -167,6 +167,21 @@ export const env = {
   recallApiKey: process.env.RECALL_API_KEY || "",
   recallBaseUrl: process.env.RECALL_BASE_URL || "https://api.recall.ai",
 
+  /*
+   * 🔴 43.2 — ONE CLIENT ID FOR THE WHOLE PRODUCT, AND NO PER-HOSPITAL SECRET HERE.
+   *
+   * We are the OAuth client, so these are OUR credentials with the vendor, registered out of
+   * band, and they are the same whichever hospital is connecting. A hospital's own tenant is
+   * identified by the FHIR base URL on its `ehr_connections` row, never by a second secret.
+   *
+   * The secret is optional on purpose: SMART's public-client profile uses PKCE and no secret,
+   * which is what a browser-launched connection uses, and the confidential profile adds one for
+   * server-to-server refresh. A deployment with neither has no EHR feature, which `features.ehr`
+   * reports rather than discovering at the token exchange.
+   */
+  ehrClientId: process.env.EHR_CLIENT_ID || "",
+  ehrClientSecret: process.env.EHR_CLIENT_SECRET || "",
+
 } as const;
 
 /** Feature availability, derived — never a separate FEATURE_* flag. */
@@ -193,5 +208,16 @@ export const features = {
    */
   get meetingBots() {
     return Boolean(env.recallApiKey) && Boolean(env.tokenEncryptionKey);
+  },
+  /*
+   * 🔴 43.1c — BOTH, and the Connect screen says which half is missing.
+   *
+   * The same argument as `meetingBots` one ticket over: a client id with no way to seal a refresh
+   * token cannot hold a connection past its first hour, and a sealing key with no client id is a
+   * Connect button that leads to a vendor error page. Either alone is a screen that lies about
+   * what it can do, which is what `lib/integrations/registry.ts` exists to prevent.
+   */
+  get ehr() {
+    return Boolean(env.ehrClientId) && Boolean(env.tokenEncryptionKey);
   },
 };

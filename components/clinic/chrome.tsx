@@ -31,6 +31,15 @@ const TABS: { href: string; key: MessageKey }[] = [
   { href: "/clinic", key: "clinic.nav.overview" },
   { href: "/clinic/people", key: "clinic.nav.people" },
   { href: "/clinic/bills", key: "clinic.nav.bills" },
+  /*
+   * 🔴 43.1c — a fourth destination, and it is not a clinical one.
+   *
+   * The wall 54.9 built is about PEOPLE: no patient list, no search, no note, no caseload. A
+   * records connection is the practice's own integration setting, which is the same kind of thing
+   * as its bills. It reaches `lib/data/ehr` and nothing clinical, and `verify:sprint43` renders
+   * this chrome and sweeps its markup exactly as `verify:sprint54` does.
+   */
+  { href: "/clinic/records", key: "records.title" },
 ];
 
 export function ClinicChrome({
