@@ -1,3 +1,32 @@
+/**
+ * 🔴 A KNOWN-FAILING TEST IS A TEST NOBODY READS.
+ *
+ * This suite was red for fifteen sprints and the redness was explained away as "no headless shell".
+ * It was not. A full Chromium was on disk the whole time; `E2E_CHROMIUM` was already read by this
+ * file and nothing ever set it. Behind that lid sat two things nobody was looking at:
+ *
+ *   - Five tests asserting UI that sprints 41 and 47 had deliberately changed. The product moved and
+ *     the tests did not, and the failures were indistinguishable from the browser problem.
+ *   - 🔴 A REAL PRODUCTION DEFECT. A therapist typing a walk-in's name and pressing Start session now
+ *     got nothing, because `startSession` wrote a chart the `patients_phone_present` constraint
+ *     refuses. The core flow of the product, broken since sprint 42, guarded by a test that could
+ *     not run.
+ *
+ * **The rule, for anybody who inherits this file: a failure carrying a standing explanation gets
+ * RE-DIAGNOSED ON A SCHEDULE, or the explanation becomes a lid.** The longer an explanation stands
+ * the more it is trusted and the less it is checked, which is the exact opposite of what it deserves.
+ *
+ * It is the same shape as the `E2E_CHROMIUM` hook with no setter, and the same shape as the `enrol`
+ * comment that described a wiring the code did not have: a signal that was present, wrong, and
+ * quietly explained away.
+ *
+ * And when the product changes, these tests are REWRITTEN, never deleted. A deleted test is a rule
+ * nobody notices going; a rewritten one is the rule restated in current vocabulary.
+ *
+ * Run through `tests/run-e2e.sh`, which builds, starts a server and points OpenAI at a local mock.
+ * Running this file with the plain `node --test` command starts no server, so every case fails on
+ * a connection refused — which is how the lid got its first coat of paint.
+ */
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { eq } from "drizzle-orm";
@@ -37,6 +66,65 @@ const unique = Date.now().toString(36);
 const EMAIL = `e2e-${unique}@example.com`;
 const PASSWORD = "e2e-test-password-2026";
 const PATIENT = "Jordan";
+
+/**
+ * 🔴 C112 / 26.3 — THE ONE APPROVAL SURFACE, AND IT IS A CHECKBOX RATHER THAN A BUTTON.
+ *
+ * This test clicked a button called "Approve note" and sat red for fifteen sprints while the failure
+ * was read as a missing browser. Behind that lid were TWO deliberate product changes, three sprints
+ * apart:
+ *
+ *   - Sprint 26 (C112) consolidated approval onto `SessionApproval`. `NoteReview` is rendered with
+ *     `approvals={false}` precisely so there are not two ways to approve one document, because *two
+ *     ways to approve the same document is the fatigue the ruling is about*.
+ *   - Sprint 47 renamed the act from approving to SIGNING. That is not cosmetic: putting a
+ *     clinician's name against text is professional responsibility, which is what signing means and
+ *     what approving does not.
+ *
+ * So the interaction is now: tick "Sign the clinical note", then press the publish button. Two steps
+ * rather than one, and that is deliberate friction in front of something the product itself says has
+ * no undo — *"Released. There is no unsending, which is why it was its own decision."*
+ *
+ * Rewritten rather than deleted. A deleted test is a rule nobody notices going; a rewritten one is
+ * the rule restated in current vocabulary.
+ */
+async function signTheNote(target: Page, opts: { waitForNote?: boolean } = {}): Promise<void> {
+  /*
+   * 🔴 THE CHECKBOX, NOT ITS TITLE, AND THAT DISTINCTION IS ITSELF A FINDING.
+   *
+   * `Choice` in `components/session/session-approval.tsx` wraps an unlabelled `<input
+   * type="checkbox">` and TWO spans in one `<label>`: the title and a full explanatory sentence. So
+   * the checkbox's accessible name is the title AND the paragraph concatenated, and a screen reader
+   * announces the whole explanation as the name of the control.
+   *
+   * That works for a mouse and it is why `getByText(title)` alone is not the control. Recorded in
+   * `docs/walkthrough-2/FINDINGS.md` rather than changed here: what a screen reader announces is a
+   * design decision, not a test fix.
+   */
+  const tick = target.getByRole("checkbox").first();
+  await target
+    .getByText("Sign the clinical note")
+    .waitFor({ timeout: opts.waitForNote ? 90_000 : 30_000 });
+  await tick.check();
+  await target.getByRole("button", { name: "Publish what is ticked" }).click();
+}
+
+/**
+ * 🔴 41.2's "WHERE" PICKER, WHICH REPLACED THE VIDEO TOGGLE THIS SUITE WAS ASSERTING.
+ *
+ * Three tests clicked `button name=/Video/`. That control was removed BY DESIGN in sprint 41: the
+ * clinician now answers one question, "Where", whose options are in person, the 24Therapy room, and
+ * any meeting provider they have actually connected. `modality` is DERIVED from that answer and
+ * never asked, which is the whole point of 41.2 — two questions that could disagree became one that
+ * cannot.
+ *
+ * So the room is chosen by its own name. `portal.new.whereRoom` is "The 24Therapy room", and it is
+ * always present: unlike Zoom or Teams it needs no connection, which is why it is the one a test can
+ * rely on.
+ */
+async function chooseTheRoom(target: Page): Promise<void> {
+  await target.getByRole("button", { name: "The 24Therapy room" }).click();
+}
 
 before(async () => {
   mock = startMockOpenAi(MOCK_PORT);
@@ -258,7 +346,7 @@ test("ending the session generates a note the therapist can approve", async () =
   await page.waitForURL(/\/sessions\/[0-9a-f-]+$/, { timeout: 60_000 });
 
   // Note generation runs in after() and the page polls for it.
-  await page.getByRole("button", { name: "Approve note" }).waitFor({ timeout: 90_000 });
+  await signTheNote(page, { waitForNote: true });
 
   const noteText = await page.textContent("body");
   assert.ok(
@@ -276,7 +364,7 @@ test("ending the session generates a note the therapist can approve", async () =
   );
   assert.ok(prompt.includes("Transcribed chunk"), "the transcript should be sent");
 
-  await page.getByRole("button", { name: "Approve note" }).click();
+  await signTheNote(page);
   await page.waitForSelector("text=Note approved", { timeout: 30_000 });
 
   /*
@@ -344,7 +432,7 @@ test("a patient can join by link with no account", async () => {
   // Create a video session so a join link exists.
   await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
   await dismissAlarmPrompt(page);
-  await page.getByRole("button", { name: /Video/ }).click();
+  await chooseTheRoom(page);
   await page.fill("#guestName", "Sam");
   await page.getByRole("button", { name: "Start session now" }).click();
   await page.waitForURL(/\/sessions\/[0-9a-f-]+\/room/, { timeout: 30_000 });
@@ -419,7 +507,22 @@ test("a stranger can book a therapist off the public radar", async () => {
   const patientPage = await anonymous.newPage();
   await patientPage.goto(`${BASE_URL}/radar`, { waitUntil: "domcontentloaded" });
 
-  await patientPage.waitForSelector("text=available now", { timeout: 30_000 });
+  /*
+   * 🔴 THE VISIBLE COUNT LINE, NOT THE SVG `<title>`.
+   *
+   * `text=available now` resolved 59 times to a HIDDEN `<title>` inside the globe
+   * (`components/radar/globe.tsx:438`) and never to anything visible, so this waited out its
+   * timeout against a product that was working. The visible string is the count in
+   * `components/radar/public-radar.tsx:116` — "N therapists available now".
+   *
+   * Worth a moment on its own: an accessible label and a visible label saying the same words means
+   * a screen reader announces the availability twice. Recorded as a finding rather than fixed here,
+   * because changing what a screen reader says is a design decision rather than a test fix.
+   */
+  await patientPage
+    .getByText(/\d+ therapists? available now/)
+    .first()
+    .waitFor({ timeout: 30_000 });
   await patientPage.getByRole("button", { name: /Robin Ellis/ }).first().click();
 
   await patientPage.waitForSelector("text=30 minutes, starting now");
@@ -468,7 +571,7 @@ test("a stranger can book a therapist off the public radar", async () => {
 test("a session with a price will not admit a patient who has not paid", async () => {
   await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
   await dismissAlarmPrompt(page);
-  await page.getByRole("button", { name: /Video/ }).click();
+  await chooseTheRoom(page);
   await page.fill("#guestName", "Robin");
   await page.getByRole("button", { name: "Start session now" }).click();
   await page.waitForURL(/\/sessions\/[0-9a-f-]+\/room/, { timeout: 30_000 });
@@ -565,7 +668,7 @@ test("a therapist and a patient are in the same room at the same time", async ()
 
   await page.goto(`${BASE_URL}/sessions/new`, { waitUntil: "domcontentloaded" });
   await dismissAlarmPrompt(page);
-  await page.getByRole("button", { name: /Video/ }).click();
+  await chooseTheRoom(page);
   await page.fill("#guestName", "Alex");
   await page.getByRole("button", { name: "Start session now" }).click();
   await page.waitForURL(/\/sessions\/[0-9a-f-]+\/room/, { timeout: 30_000 });
