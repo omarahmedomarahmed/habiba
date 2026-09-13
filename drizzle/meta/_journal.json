@@ -540,6 +540,20 @@
       "when": 1789600000042,
       "tag": "0076_partner_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1789600000043,
+      "tag": "0077_partner_launch",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1789600000044,
+      "tag": "0078_attestation_key_restrict",
+      "breakpoints": true
     }
   ]
 }

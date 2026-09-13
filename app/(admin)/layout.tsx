@@ -8,6 +8,7 @@ import {
   PhoneCall,
   Globe2,
   Hospital,
+  Plug,
   LayoutDashboard,
   Radio,
   Star,
@@ -143,6 +144,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             sponsor: a sponsor's tenancy contains nothing and this one contains charts.
           */}
           {isOwner ? <AdminLink href="/admin/clinics" icon={Hospital}>{t("aclinic.nav")}</AdminLink> : null}
+          {/*
+            55.2 — the owner's. Activating a partner lets them hold a key, and an employment
+            key is an identity oracle pointed at our own patients (C265). Nothing on that
+            screen mints one: they do that in their own portal, where the scope is chosen by
+            the person who will build against it.
+          */}
+          {isOwner ? <AdminLink href="/admin/partners" icon={Plug}>{t("apartner.nav")}</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink> : null}

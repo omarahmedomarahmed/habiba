@@ -1,0 +1,83 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { audit } from "@/lib/audit";
+import { requireRole } from "@/lib/auth/guard";
+import { createPartnerUser, setPartnerState } from "@/lib/data/partner-admin";
+import { PARTNER_STATES, type PartnerState } from "@/lib/db/schema";
+
+export type AdminPartnerState = { error?: string; ok?: boolean };
+
+/**
+ * Admin's side of a partner. PLAN.md 42.1, 55.2, 55.3, C265.
+ *
+ * 🔴 `requireRole("super_admin")`, all of it. Activating a partner lets them hold a key, and
+ * an employment key is an identity oracle pointed at our own patients.
+ *
+ * ## 🔴 THERE IS NO ACTION HERE THAT MINTS A KEY, AND THAT IS THE POINT OF THE FILE
+ *
+ * It would be the obvious convenience: an operator finishing a call, making the key, reading
+ * it down the phone. Two things break if it exists.
+ *
+ * A key minted by us is a key whose SCOPE nobody on their side chose, so the first thing the
+ * partner does is ask for more scopes to be safe, and a key that can do everything is the key
+ * nobody can safely revoke half of. And it would be a working credential that existed in our
+ * hands, spoken aloud, before it existed in theirs: `mintKey` returns the raw key in exactly
+ * one response for a reason, and reading it down a phone line is that reason defeated.
+ *
+ * So this screen creates the PORTAL USER and stops. They mint their own key, in their own
+ * portal, behind their own cookie, and 55.3 stays true by construction rather than by an
+ * operator remembering.
+ */
+export async function setState(partnerId: string, state: string): Promise<AdminPartnerState> {
+  const actor = await requireRole("super_admin");
+
+  if (!PARTNER_STATES.includes(state as PartnerState)) return { error: "Not a state." };
+
+  const result = await setPartnerState(partnerId, state as PartnerState);
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: `partner.${state}`,
+    resourceType: "partner",
+    resourceId: partnerId,
+  });
+
+  revalidatePath("/admin/partners");
+  return { ok: true };
+}
+
+/** 55.2 — the first portal user, with a password an operator sets on the call. */
+export async function addUser(
+  _prev: AdminPartnerState,
+  formData: FormData,
+): Promise<AdminPartnerState> {
+  const actor = await requireRole("super_admin");
+
+  const partnerId = String(formData.get("partnerId") ?? "");
+  const role = String(formData.get("role") ?? "developer");
+
+  const result = await createPartnerUser({
+    partnerId,
+    email: String(formData.get("email") ?? ""),
+    name: String(formData.get("name") ?? "") || null,
+    password: String(formData.get("password") ?? ""),
+    role: role === "admin" ? "admin" : "developer",
+  });
+
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "partner.user_created",
+    resourceType: "partner",
+    resourceId: partnerId,
+  });
+
+  revalidatePath("/admin/partners");
+  return { ok: true };
+}

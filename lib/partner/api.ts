@@ -6,6 +6,7 @@ import { audit } from "@/lib/audit";
 import { controlDb } from "@/lib/db";
 import {
   historyGrants,
+  organizations,
   partnerSubjects,
   patients,
   sessionNotes,
@@ -144,6 +145,25 @@ export async function whoMayRead(input: {
    * So this is its own query with its own two columns, and a live grant means `granted`
    * with no revocation and no expiry in the past.
    */
+  /*
+   * 🔴 SCOPED TO THIS PARTNER'S OWN CLINICIANS, AND THE FIRST VERSION WAS NOT.
+   *
+   * It returned every clinician holding a live grant on that person. A partner asking who may
+   * read their subject's record would therefore have learned the email address of the
+   * patient's OTHER therapist: somebody with no relationship to the partner at all, whose
+   * involvement in this person's care the patient never disclosed to them.
+   *
+   * That is the sponsor wall's own argument one table over. C244 keeps a payer away from a
+   * join date because a join date is the week somebody decided they needed therapy; WHICH
+   * THERAPIST TREATS THEM is closer in than that, and handing it to a commercial integrator
+   * because it happened to be in the same result set is the §6 shape exactly: the query
+   * answered a broader question than the one asked, and nothing about the response looked
+   * wrong.
+   *
+   * The scope is the same one the launch uses, so there is one definition of "this partner's
+   * clinician" rather than two: `organizations.partner_id` with `billing_mode =
+   * 'partner_billed'`, which 42.6 put there and an operator sets.
+   */
   const rows = await controlDb
     .select({
       email: users.email,
@@ -151,12 +171,16 @@ export async function whoMayRead(input: {
     })
     .from(historyGrants)
     .innerJoin(users, eq(users.id, historyGrants.therapistUserId))
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
       and(
         eq(historyGrants.personId, subject.personId),
         eq(historyGrants.status, "granted"),
         isNull(historyGrants.revokedAt),
         isNull(users.deletedAt),
+        /* 🔴 The answer is about THEIR clinicians. Anybody else's is not theirs to hear. */
+        eq(organizations.partnerId, input.key.partnerId),
+        eq(organizations.billingMode, "partner_billed"),
       ),
     );
 
@@ -301,8 +325,21 @@ export async function deliverableNote(input: {
     })
     .from(sessionNotes)
     .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
-    .innerJoin(partnerSubjects, eq(partnerSubjects.personId, patients.personId))
+    /*
+     * 🔴 `patients` BEFORE `partner_subjects`, and the first version had them the other way
+     * round.
+     *
+     * The join condition on `partner_subjects` reads `patients.person_id`, and a JOIN cannot
+     * reference a table that is joined later: Postgres rejects it with "invalid reference to
+     * FROM-clause entry for table patients". So this function threw on EVERY call, and nothing
+     * noticed, because nothing called it: the route existed, the handler compiled, the scope
+     * check was right, and the query was unrunnable.
+     *
+     * Drizzle emits the joins in the order they are chained, which is what makes chaining
+     * order load-bearing rather than stylistic.
+     */
     .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .innerJoin(partnerSubjects, eq(partnerSubjects.personId, patients.personId))
     .where(
       and(
         eq(sessionNotes.sessionId, input.sessionId),

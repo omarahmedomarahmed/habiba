@@ -20,7 +20,14 @@ import { DIALLING_CODES } from "@/lib/phone/e164";
  * server still refuses a number without one.
  */
 
-const NAMES: Record<string, string> = {
+/**
+ * 🔴 Exported, because 55.11's CSV importer needs the same list.
+ *
+ * A file of national numbers needs one country for the file, chosen by the clinician, for
+ * exactly the reason this field needs one per number. Two lists of country names would drift,
+ * and the drift would show as a country that can be picked on one screen and not the other.
+ */
+export const COUNTRY_NAMES: Record<string, string> = {
   EG: "Egypt",
   SA: "Saudi Arabia",
   AE: "UAE",
@@ -82,10 +89,10 @@ export function PhoneField({
           className="h-11 w-32 shrink-0 rounded-xl border border-slate-200 px-2 text-sm"
         >
           {Object.keys(DIALLING_CODES)
-            .sort((a, b) => (NAMES[a] ?? a).localeCompare(NAMES[b] ?? b))
+            .sort((a, b) => (COUNTRY_NAMES[a] ?? a).localeCompare(COUNTRY_NAMES[b] ?? b))
             .map((code) => (
               <option key={code} value={code}>
-                {NAMES[code] ?? code} +{DIALLING_CODES[code]}
+                {COUNTRY_NAMES[code] ?? code} +{DIALLING_CODES[code]}
               </option>
             ))}
         </select>
@@ -111,7 +118,7 @@ export function PhoneField({
       */}
       {touched && value.trim() ? (
         <p className="mt-1 text-xs text-slate-500">
-          We will read this as a {NAMES[country] ?? country} number.
+          We will read this as a {COUNTRY_NAMES[country] ?? country} number.
         </p>
       ) : null}
     </div>

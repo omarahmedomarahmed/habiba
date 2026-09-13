@@ -6673,9 +6673,22 @@ export const enrolmentAttestations = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     /** Stamped on use. A used attestation answers nothing more. */
     answeredAt: timestamp("answered_at", { withTimezone: true }),
-    /** Which key asked, for the audit C265 requires of every call. */
+    /**
+     * Which key asked, for the audit C265 requires of every call.
+     *
+     * 🔴 RESTRICT, not SET NULL, and 0078 fixed that forward.
+     *
+     * `enrolment_attestations_answer_names_key` forbids an answered row from having this null,
+     * so SET NULL made deleting a key try a write the row refuses: the DELETE failed with a
+     * check violation naming a table the operator was not touching. `verify:sprint55` hit it in
+     * its own teardown. The CHECK is the one worth keeping (an answer nobody is answerable for
+     * is not an audit), so the key cannot be erased once it has answered about a person.
+     *
+     * It changed nothing live: `revokeKey` sets `revoked_at` and there is no DELETE on
+     * `partner_api_keys` anywhere, which is how a contradiction survives a review.
+     */
     answeredByKeyId: uuid("answered_by_key_id").references(() => partnerApiKeys.id, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -6690,3 +6703,68 @@ export type EnrolmentAttestation = typeof enrolmentAttestations.$inferSelect;
 
 /** How long an offering licences one question. Minutes, per C265's own word. */
 export const ATTESTATION_TTL_MINUTES = 10;
+
+/**
+ * 🔴 42.3 / 55.9 — THE LAUNCH TOKEN, AND IT EXISTS BECAUSE THE FIRST DESIGN COULD NOT WORK.
+ *
+ * `POST /api/partner/v1/launch` is called by the PARTNER'S SERVER. My first version of
+ * `launchClinician` minted an `auth_sessions` row and set the session cookie with
+ * `cookies().set()`, which attaches `Set-Cookie` to the response of the request being
+ * handled — and that response goes back to the partner's server. The partner's server would
+ * have held the clinician's session cookie and the clinician's browser would never have
+ * received one: an endpoint that returns 200, a URL that opens a sign-in form, and a session
+ * credential sitting in somebody else's HTTP client.
+ *
+ * So a launch is TWO steps, which is also how SMART on FHIR does it and what sprint 43 will
+ * need: the server call mints a short single-use token and returns a URL; the clinician's
+ * BROWSER opens that URL, and the cookie is set on the response to that navigation, which is
+ * the only response that reaches them.
+ *
+ * ## 🔴 SINGLE USE, AND ENFORCED BY A CONDITIONAL UPDATE
+ *
+ * `used_at` is stamped by an UPDATE whose WHERE requires it to be null, so two browsers
+ * racing on one URL produce one session and one refusal rather than two sessions. The same
+ * construction as `enrolment_attestations`, for the same reason: a check-then-write is a race.
+ *
+ * ## 🔴 TWO MINUTES, because this is a redirect rather than a credential
+ *
+ * The token's whole life is the gap between a server call and the browser navigation it
+ * triggers. A launch URL that works for an hour is a sign-in link sitting in a partner's logs,
+ * their browser history and any `Referer` header that leaves their page.
+ *
+ * ## 🔴 HASHED, so a leaked table is not a set of working launch links
+ */
+export const partnerLaunchTokens = pgTable(
+  "partner_launch_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+    /** Which of our clinicians. They must already exist and be verified: a launch creates
+        no account and cannot, because §7's rule about grants is not bypassable by an
+        integration. */
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Which key asked, so 42.7's audit can say "their server, on behalf of Dr X". */
+    keyId: uuid("key_id").references(() => partnerApiKeys.id, { onDelete: "set null" }),
+
+    tokenHash: text("token_hash").notNull(),
+    /** Already resolved through the allow list. Never a caller's string. */
+    target: text("target").notNull(),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** Stamped by a conditional UPDATE. A used token opens nothing. */
+    usedAt: timestamp("used_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("partner_launch_tokens_hash_unique").on(t.tokenHash),
+    index("partner_launch_tokens_expiry_idx").on(t.expiresAt),
+  ],
+);
+
+/** The gap between a server call and the browser navigation it triggers. Nothing more. */
+export const LAUNCH_TOKEN_TTL_SECONDS = 120;

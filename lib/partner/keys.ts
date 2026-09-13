@@ -9,6 +9,7 @@ import {
   API_SCOPES,
   partnerApiKeys,
   partners,
+  sponsors,
   type ApiEnvironment,
   type ApiScope,
 } from "@/lib/db/schema";
@@ -247,7 +248,17 @@ export async function authenticateKey(
   };
 }
 
-/** The developer's own list. Prefixes and scopes, never a key. */
+/**
+ * The developer's own list. Prefixes and scopes, never a key.
+ *
+ * 🔴 The sponsor is joined for its NAME AND NOTHING ELSE, so the row a developer reads can
+ * say which organisation the key may ask about (C265). `sponsors` carries a pot balance, a
+ * state and an enrolment code; none of those is on this select list, and a partner's screen
+ * must not be the place a sponsor's commercial state leaks.
+ *
+ * A LEFT join, because every key without `employment:verify` has no sponsor and an inner
+ * join would silently drop four of the five use cases from this list.
+ */
 export async function keysFor(partnerId: string) {
   return controlDb
     .select({
@@ -257,6 +268,7 @@ export async function keysFor(partnerId: string) {
       scopes: partnerApiKeys.scopes,
       environment: partnerApiKeys.environment,
       sponsorId: partnerApiKeys.sponsorId,
+      sponsorName: sponsors.name,
       lastUsedAt: partnerApiKeys.lastUsedAt,
       suspendedAt: partnerApiKeys.suspendedAt,
       suspendedReason: partnerApiKeys.suspendedReason,
@@ -264,6 +276,7 @@ export async function keysFor(partnerId: string) {
       createdAt: partnerApiKeys.createdAt,
     })
     .from(partnerApiKeys)
+    .leftJoin(sponsors, eq(sponsors.id, partnerApiKeys.sponsorId))
     .where(eq(partnerApiKeys.partnerId, partnerId))
     .orderBy(partnerApiKeys.createdAt);
 }

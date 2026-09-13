@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { audit, auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -46,6 +46,38 @@ export async function patientsWithPhone(actor: Actor, e164: string) {
     .from(patients)
     .where(and(scope(actor), eq(patients.phone, e164)))
     .limit(2);
+}
+
+/**
+ * 🔴 55.11 — the same question as `patientsWithPhone`, asked about many numbers at once.
+ *
+ * It lives HERE rather than in `lib/data/patient-import.ts` for two reasons, and the second
+ * one is a bug I had already written.
+ *
+ * It reuses `scope(actor)`, which is the CASELOAD rather than the organisation. My first
+ * draft of the importer wrote its own query scoped to `organizationId`, which would have
+ * reported a colleague's patient as "already on your list" and then SKIPPED importing them,
+ * leaving the clinician with a missing chart and no error anywhere. The scope in this file is
+ * the one that is right, and reaching for it from outside is how it stops being right.
+ *
+ * And `db` here is the region-pinned handle (30.1), registered once for this module. A second
+ * data module would be a second pin in the ratchet for a query that belongs next to its
+ * single-row twin.
+ *
+ * Returns the numbers found, not the records. The importer needs to know WHETHER, and a name
+ * it does not need is a name that ends up rendered.
+ */
+export async function patientPhonesOnCaseload(actor: Actor, e164s: string[]): Promise<Set<string>> {
+  if (e164s.length === 0) return new Set();
+
+  const rows = await db
+    .select({ phone: patients.phone })
+    .from(patients)
+    .where(and(scope(actor), inArray(patients.phone, e164s)));
+
+  /* `phone` is nullable on the column even though `createPatient` requires one: a record
+     claimed through a join link can arrive without it. A null matches nothing here. */
+  return new Set(rows.map((row) => row.phone).filter((phone): phone is string => phone !== null));
 }
 
 export async function listPatients(actor: Actor) {

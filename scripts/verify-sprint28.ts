@@ -238,11 +238,34 @@ async function main() {
     `${INTEGRATIONS.length} entries`,
   );
 
+  /*
+   * 🔴 28.5's RULE OUTLIVES 28.5's FACT, and sprint 55 is where they came apart.
+   *
+   * The original check read `/There is no public API yet/`, which was the honest state of the
+   * page from sprint 28 until sprint 55 built the partner plane. 55.12 replaced that sentence
+   * with five named use cases, so the check failed — correctly, in the sense that the page had
+   * changed, and uselessly, in the sense that the change was the ticket.
+   *
+   * 🔴 The rule it existed for is untouched: *an endpoint list for an unversioned internal route
+   * is a lie with syntax highlighting.* So the check now asserts the RULE rather than the
+   * sentence. Every path the page prints must be under `/api/partner/v1/`, which is versioned
+   * and contractual, and none may be an internal route: no `/api/cron/`, no `/api/stripe/`, no
+   * `/api/transcribe/`, no `/api/session/`.
+   *
+   * `verify:sprint55` carries the other half, which is that each printed path resolves to a
+   * route file that actually exists. C149's failure was documenting what was not a contract;
+   * its mirror image is documenting what is not there.
+   */
   const developers = stripComments(readSource("app/(public)/developers/page.tsx"));
+  const apiPaths = [...developers.matchAll(/\/api\/[a-zA-Z0-9/[\]<>_-]+/g)].map((m) => m[0]);
+  const internal = apiPaths.filter((path) => !path.startsWith("/api/partner/"));
+
   check(
-    "🔴 28.5 the developer page says there is no API rather than documenting the internal routes",
-    /There is no public API yet/.test(developers) && !/https?:\/\/[^"]*\/api\//.test(developers),
-    "an endpoint list for an unversioned internal route is a lie with syntax highlighting",
+    "🔴 28.5 / C149 the developer page documents only the VERSIONED partner API, no internal route",
+    apiPaths.length > 0 && internal.length === 0 && apiPaths.some((p) => p.includes("/v1/")),
+    internal.length === 0
+      ? `${apiPaths.length} paths, all under /api/partner/`
+      : `internal routes documented: ${internal.join(", ")}`,
   );
 
   /* --------------------------------------------------------- 28.6 */

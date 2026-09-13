@@ -102,4 +102,21 @@ export function scanReachability(): { tables: number; orphans: Orphan[] } {
 export const NO_SCREEN_BY_DESIGN: Record<string, string> = {
   patient_auth_sessions:
     "Session cookies. A screen listing somebody's live sessions is a feature (sign out everywhere) and not this table's absence of one; when that feature exists it will read this table and this entry goes.",
+  /*
+   * 🔴 55.2 — THE ONE EXEMPTION IN THIS FILE WHOSE ABSENCE IS THE FEATURE.
+   *
+   * Every other entry here is a table that has no screen YET. This one must never get one.
+   *
+   * `partner_subjects` maps a partner's own reference for a person to ours, inside a flow that
+   * partner started. A screen listing them would be a list of the people an integrator has
+   * referred into therapy: the roster that C255 and three separate enrolment designs were spent
+   * removing, rebuilt as a table with a search box on it. The partner portal's navigation has
+   * four tabs and `verify:sprint55` asserts that none of them is this.
+   *
+   * So the exemption is not "not built". It is the design, and the day somebody adds the screen
+   * this entry becomes stale and the CONTROL in `verify:sprint51` fails, which is exactly the
+   * right way for that change to be noticed.
+   */
+  partner_subjects:
+    "55.2 / C255. A partner's reference for a person, resolved only inside a flow they started. A screen listing them IS the roster three enrolment designs were spent removing, so this table must never acquire one: the exemption is the design rather than a gap.",
 };

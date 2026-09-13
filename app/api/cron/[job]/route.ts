@@ -232,6 +232,38 @@ const JOBS = {
       log.warn("pot balances disagree with the ledger", { pots: potDrift.length });
     }
 
+    /*
+     * 🔴 42.4 / 55.10 — the webhook queue, drained here.
+     *
+     * Beside the other sweeps for the reason at the top of this file: a job that wakes on
+     * its own costs a whole idle timeout, and this one is cheap.
+     *
+     * 🔴 Queued rather than sent at the moment the thing happened, so a partner's dead
+     * endpoint cannot hold up a session ending or a note being approved. What crosses the
+     * wire is an event and an id, so a delivery sitting in the queue for an hour leaks
+     * nothing while it waits.
+     */
+    const { deliverPending } = await import("@/lib/partner/webhooks");
+    const hooks = await deliverPending();
+
+    /*
+     * 🔴 42.3 / 55.9 — the expired launch tokens, swept.
+     *
+     * Two minutes each, so a busy partner produces thousands a day and every one of them is
+     * already dead: `redeemLaunch` has `expires_at > now()` and `used_at IS NULL` in its
+     * WHERE, so an unswept row opens nothing.
+     *
+     * It is deleted anyway, and the reason is that the row names a clinician and the key that
+     * asked about them. Kept for ever it becomes a log of which clinicians a partner launched
+     * and when, held in a table nothing reads. `audit_log` is where that question is answered
+     * deliberately, with retention somebody chose.
+     *
+     * A day's grace rather than at expiry, so a support question about a launch that failed
+     * this morning still has a row to look at.
+     */
+    const { sweepExpiredLaunches } = await import("@/lib/partner/launch");
+    const launchesSwept = await sweepExpiredLaunches();
+
     return {
       reconciled,
       released: released.released,
@@ -239,6 +271,9 @@ const JOBS = {
       payoutsAlerted: aged.alerted,
       benefitsPaused: reverified.paused,
       potsOutOfBalance: potDrift.length,
+      webhooksSent: hooks.sent,
+      webhooksFailed: hooks.failed,
+      launchTokensSwept: launchesSwept,
     };
   },
 

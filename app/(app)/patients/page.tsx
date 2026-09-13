@@ -28,6 +28,22 @@ export default async function PatientsPage() {
         {/* 12.4 — the first screen where a therapist can write somebody down. */}
         <AddPatient />
 
+        {/*
+         * 🔴 55.11 / 42.8 — the importer, reached from here rather than from settings.
+         *
+         * A clinician arriving from another platform comes looking for "where do I add
+         * patients", finds one at a time, and types for an hour. The migration has to be a
+         * button ON THIS SCREEN, next to the one-at-a-time form it replaces.
+         */}
+        <p className="text-center">
+          <Link
+            href="/patients/import"
+            className="text-xs font-semibold text-teal-700 hover:underline"
+          >
+            {t("import.link")}
+          </Link>
+        </p>
+
         {patients.length === 0 ? (
           <Card>
             <EmptyState

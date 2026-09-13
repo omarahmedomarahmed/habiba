@@ -1,0 +1,193 @@
+"use client";
+
+import { useActionState, useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
+
+import { addUser, setState } from "@/app/(admin)/admin/partners/actions";
+import { Button, Card, Field, Input } from "@/components/ui";
+import { PARTNER_STATES } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/client";
+
+function Submit({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button size="sm" type="submit" disabled={pending}>
+      {pending ? "Working…" : label}
+    </Button>
+  );
+}
+
+/**
+ * Managing integrators. PLAN.md 42.1, 55.2, 55.3, C265.
+ *
+ * ## 🔴 WHAT IS NOT ON THIS SCREEN
+ *
+ * No key. Not the raw one, not the prefix, and no button that makes one. Keys are minted in
+ * the partner's own portal because the scope has to be chosen by the person who will build
+ * against it, and because `mintKey` returning the raw key in exactly one response means a key
+ * read down a phone line is that design defeated.
+ *
+ * A COUNT of their keys, so an operator can see whether an onboarding stalled. A count is what
+ * that question needs; the prefixes are what somebody pastes into a support ticket.
+ *
+ * No subject list either, for the same reason the partner portal has no subjects tab: a list
+ * of the people a partner has referred is the roster three enrolment designs were spent
+ * removing.
+ */
+
+export type AdminPartnerRow = {
+  id: string;
+  name: string;
+  state: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  intent: string | null;
+  keyCount: number;
+  users: { id: string; email: string; role: string }[];
+};
+
+export function PartnerManagerList({ partners }: { partners: AdminPartnerRow[] }) {
+  const t = useT();
+
+  if (partners.length === 0) {
+    return (
+      <Card className="p-5">
+        <p className="text-sm text-slate-600">{t("apartner.none")}</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {partners.map((partner) => (
+        <PartnerRow key={partner.id} partner={partner} />
+      ))}
+    </div>
+  );
+}
+
+function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [userState, userAction] = useActionState(addUser, {});
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-sm font-semibold text-slate-900">{partner.name}</span>
+        <span
+          className={
+            partner.state === "active"
+              ? "rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800"
+              : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+          }
+        >
+          {partner.state}
+        </span>
+        {/* 🔴 A COUNT, never the prefixes. */}
+        <span className="text-xs text-slate-500">
+          {t("apartner.keys", { count: partner.keyCount })}
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="tap-target ms-auto h-9 rounded-xl px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+        >
+          {open ? t("aclinic.close") : t("aclinic.open")}
+        </button>
+      </div>
+
+      {open ? (
+        <div className="mt-3 space-y-4 border-t border-slate-200 pt-3">
+          <dl className="grid gap-x-4 gap-y-1 text-xs text-slate-600 sm:grid-cols-2">
+            <div>
+              <dt className="font-semibold text-slate-700">{t("apartner.contact")}</dt>
+              <dd>{partner.contactName ?? "not given"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-700">{t("dev.email")}</dt>
+              <dd>{partner.contactEmail ?? "not given"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-700">{t("dev.apply.phone")}</dt>
+              <dd>{partner.contactPhone ?? "not given"}</dd>
+            </div>
+          </dl>
+
+          {/*
+           * 🔴 What they said they want to build, read before the call.
+           *
+           * This is how a key gets the right scope and only that scope. Without it the call
+           * starts from "what do you need", and the honest answer is "everything, to be safe".
+           */}
+          {partner.intent ? (
+            <div>
+              <p className="text-xs font-semibold text-slate-700">{t("apartner.intent")}</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">
+                {partner.intent}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            {PARTNER_STATES.filter((state) => state !== partner.state).map((state) => (
+              <button
+                key={state}
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => void (await setState(partner.id, state)))
+                }
+                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+              >
+                {state}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            {partner.users.map((user) => (
+              <p key={user.id} className="text-xs text-slate-600">
+                {user.email} · {user.role}
+              </p>
+            ))}
+
+            <form action={userAction} className="space-y-3 rounded-xl bg-slate-50 p-3">
+              <input type="hidden" name="partnerId" value={partner.id} />
+              <p className="text-xs font-semibold text-slate-700">{t("apartner.addUser")}</p>
+              <Field label={t("dev.email")} htmlFor={`pu-email-${partner.id}`}>
+                <Input id={`pu-email-${partner.id}`} name="email" type="email" required />
+              </Field>
+              <Field label={t("apartner.name")} htmlFor={`pu-name-${partner.id}`}>
+                <Input id={`pu-name-${partner.id}`} name="name" />
+              </Field>
+              <Field label={t("apartner.password")} htmlFor={`pu-pw-${partner.id}`}>
+                <Input id={`pu-pw-${partner.id}`} name="password" type="text" required />
+              </Field>
+              <div className="flex flex-wrap gap-4 text-xs text-slate-700">
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="role" value="developer" defaultChecked />{" "}
+                  {t("apartner.developer")}
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="role" value="admin" /> {t("apartner.admin")}
+                </label>
+              </div>
+              {userState.error ? (
+                <p role="alert" className="text-xs text-red-600">
+                  {userState.error}
+                </p>
+              ) : null}
+              <Submit label={t("apartner.create")} />
+            </form>
+          </div>
+
+          {/* 🔴 C265 — the thing this console does not offer, said on the console. */}
+          <p className="text-xs leading-relaxed text-slate-500">{t("apartner.neverMints")}</p>
+        </div>
+      ) : null}
+    </Card>
+  );
+}

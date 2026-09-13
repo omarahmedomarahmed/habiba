@@ -1,87 +1,202 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Card } from "@/components/ui";
+import { getI18n } from "@/lib/i18n/server";
+import { PARTNER_LAUNCH_TARGETS } from "@/lib/partner/launch";
+import { PARTNER_APPLY } from "@/lib/routing";
 
 export const metadata: Metadata = {
   title: "Developers",
   description:
-    "There is no public API yet. What exists, what it would have to guarantee before it opened, and how to reach a person.",
+    "Five things you can do with the 24Therapy API, each one a flow with a screen at one end, and the four things there is no endpoint for.",
 };
 
 /**
- * The developer page. PLAN.md 28.5, C149.
+ * The developer page. PLAN.md 55.12, 28.5, C149, C255, C265, C277, 42.4.
  *
- * ## 🔴 A documentation page for an API that does not exist is a lie with
- * syntax highlighting
+ * ## 🔴 55.12 — AN API WITH NO NAMED USE CASE IS A SET OF ENDPOINTS NOBODY CAN SELL
  *
- * The obvious version of this page is a base URL, an authentication section
- * and three endpoints, written from the internal routes. Every one of those
- * routes exists, and not one of them is a contract: they take a session cookie
- * and a same-origin check, they change shape whenever a screen does, and they
- * are not versioned. Publishing them as an API means the first integrator
- * builds on something we will break in a fortnight without knowing we did.
+ * Until this sprint this page said, correctly, that there was no public API, and listed the
+ * four things one would have to promise before there was. Both halves of that are now
+ * different: the API exists, and the four promises are kept by named mechanisms. So the page
+ * changes from a refusal to a product, and the four promises stay on it RESTATED AS KEPT
+ * rather than deleted, because a page that quietly drops the conditions it set on itself is
+ * the one edit nobody could justify.
  *
- * So this page says there is no API, says exactly what one would have to
- * guarantee before it existed, and stops. When sprints 42 and 43 build the
- * partner plane and SMART on FHIR, this page becomes the documentation for
- * something real.
+ * ## 🔴 FIVE USE CASES, EACH WITH AN EXAMPLE, AND EVERY EXAMPLE IS A REAL ROUTE
+ *
+ * Each snippet is the shape of the handler that exists in `app/api/partner/v1/`, not an
+ * aspiration. A docs page that documents a route somebody intends to write is the failure
+ * C149 was about, and `verify:sprint55` asserts that every path printed here resolves to a
+ * route file on disk.
+ *
+ * ## 🔴 AND A SECTION SAYING WHAT THERE IS NO ENDPOINT FOR
+ *
+ * The absences, named. An integrator's first question after reading five use cases is "can I
+ * also get a list", and the answer needs to be on the same page as the five, in the same
+ * voice, rather than discovered as a 404 three weeks in. *If what you want is not here, it is
+ * not because we have not got round to it.*
+ *
+ * ## 🔴 PUBLIC, and that is 55.12's other half
+ *
+ * `lib/routing.ts` deliberately keeps `/developers` out of `PARTNER_PREFIXES`: a docs page
+ * behind a sign-in is a docs page nobody evaluating us can read.
  */
-export default function DevelopersPage() {
+export default async function DevelopersPage() {
+  const { t } = await getI18n();
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">Developers</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t("devs.title")}</h1>
+      <p className="mt-3 leading-relaxed text-slate-600">{t("devs.body")}</p>
 
-      <Card className="mt-6 border-amber-200 bg-amber-50 p-5">
-        <p className="font-semibold text-amber-900">There is no public API yet.</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-amber-900/90">
-          Not a beta, not an early access programme, not a form. The routes this product runs on
-          are internal: they authenticate with a session cookie, they are not versioned, and their
-          shape changes whenever a screen does. Documenting them would hand you something we will
-          break in a fortnight without knowing we broke it.
-        </p>
+      <div className="mt-10 space-y-8">
+        {/* 🔴 55.4 / C255 / C265 — one identifier, one boolean, one timestamp. */}
+        <UseCase
+          title={t("devs.useCase1")}
+          body={t("devs.useCase1Body")}
+          exampleLabel={t("devs.example")}
+          example={`POST /api/partner/v1/employment/verify
+Authorization: Bearer 24t_sk_live_...
+
+{ "identifier": "the one they typed in your enrolment form" }
+
+200 { "active": true, "asOf": "2026-09-13T09:12:00.000Z" }`}
+        />
+
+        {/* 🔴 55.5 — a boolean and a source. Never a document, never a licence number. */}
+        <UseCase
+          title={t("devs.useCase2")}
+          body={t("devs.useCase2Body")}
+          exampleLabel={t("devs.example")}
+          example={`POST /api/partner/v1/clinicians/verify
+
+{ "email": "dr@example.com" }
+
+200 { "verified": true, "source": "syndicate" }`}
+        />
+
+        {/* 🔴 55.6 / C277 — the key asks WHO MAY. It never reads. */}
+        <UseCase
+          title={t("devs.useCase3")}
+          body={t("devs.useCase3Body")}
+          exampleLabel={t("devs.example")}
+          example={`GET /api/partner/v1/subjects/YOUR-REF/readers
+
+200 { "readers": [ { "clinicianId": "...", "grantedAt": "..." } ] }
+
+POST /api/partner/v1/launch
+{ "clinician": "dr@example.com", "target": "patients" }
+
+200 { "url": "https://.../api/partner/launch?token=..." }
+open it in a new window: single use, two minutes,
+then a one-hour session for that clinician
+targets: ${PARTNER_LAUNCH_TARGETS.join(", ")}`}
+        />
+
+        {/* 🔴 55.7 — it happened, when, with whom. No note, no transcript, no price. */}
+        <UseCase
+          title={t("devs.useCase4")}
+          body={t("devs.useCase4Body")}
+          exampleLabel={t("devs.example")}
+          example={`POST /api/partner/v1/sessions
+
+{ "subjectRef": "YOUR-REF",
+  "clinicianEmail": "dr@example.com",
+  "startedAt": "2026-09-12T14:00:00Z",
+  "durationMinutes": 50,
+  "externalMeetingId": "M-8814" }
+
+201 { "sessionId": "..." }
+same externalMeetingId again -> the same sessionId`}
+        />
+
+        {/* 🔴 55.8 — approved, or 404. There is no draft in this response. */}
+        <UseCase
+          title={t("devs.useCase5")}
+          body={t("devs.useCase5Body")}
+          exampleLabel={t("devs.example")}
+          example={`note.approved -> { "event": "note.approved", "id": "...", "at": "..." }
+
+GET /api/partner/v1/notes/<sessionId>
+
+200 { "approvedAt": "...", "content": "..." }
+404 while it is a draft, and while nobody has approved it`}
+        />
+      </div>
+
+      {/* 🔴 42.5 — the widget, and the sentence about video. */}
+      <h2 className="mt-12 text-lg font-bold tracking-tight text-slate-900">{t("devs.widget")}</h2>
+      <p className="mt-2 leading-relaxed text-slate-600">{t("devs.widgetBody")}</p>
+
+      {/* 🔴 The absences, on the same page as the five use cases. */}
+      <Card className="mt-10 border-slate-200 p-5">
+        <p className="font-semibold text-slate-900">{t("devs.limits")}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.limitsBody")}</p>
       </Card>
 
-      <h2 className="mt-10 text-lg font-bold tracking-tight text-slate-900">
-        What one would have to promise before it opened
+      <h2 className="mt-12 text-lg font-bold tracking-tight text-slate-900">
+        {t("devs.promises")}
       </h2>
-      <p className="mt-2 leading-relaxed text-slate-600">
-        This is the list we hold ourselves to rather than a roadmap. An API that cannot do all four
-        is worse for you than no API, because it looks like a commitment.
-      </p>
+      <p className="mt-2 leading-relaxed text-slate-600">{t("devs.promisesBody")}</p>
       <ul className="mt-4 space-y-4">
-        <Promise
-          title="A version that does not move under you"
-          body="A dated version in the path, a stated deprecation window, and a changelog that records breaks rather than features."
-        />
-        <Promise
-          title="Identity that does not collide"
-          body="Two clinics will both send us a patient called P123. Accepting a foreign id as though it were ours is the shortest path to one person's note landing in another person's chart, so the mapping has to exist before the endpoint does."
-        />
-        <Promise
-          title="Consent that survives the boundary"
-          body="A note leaving this platform is a patient's clinical record leaving it. Whatever grants access here has to mean something on the other side, or we have built a hole and called it an integration."
-        />
-        <Promise
-          title="An audit trail on both sides"
-          body="Every read and write of clinical data is already recorded here with an actor and a timestamp. An API that lets a partner read a chart without appearing in that log breaks the one guarantee this product makes about itself."
-        />
+        <Kept title={t("devs.promise1")} body={t("devs.promise1Body")} />
+        <Kept title={t("devs.promise2")} body={t("devs.promise2Body")} />
+        <Kept title={t("devs.promise3")} body={t("devs.promise3Body")} />
+        <Kept title={t("devs.promise4")} body={t("devs.promise4Body")} />
       </ul>
 
-      <h2 className="mt-10 text-lg font-bold tracking-tight text-slate-900">
-        If you are building something now
-      </h2>
-      <p className="mt-2 leading-relaxed text-slate-600">
-        Write to us and say what you are trying to do. We would rather hear the problem before
-        there is an API than fit one to an endpoint somebody guessed at. There is no list to join
-        and nobody gets told first.
+      <Card className="mt-10 border-amber-200 bg-amber-50 p-5">
+        <p className="text-sm leading-relaxed text-amber-900/90">{t("devs.keysNote")}</p>
+        {/* 🔴 C265 — said to an integrator before they design their retry loop. */}
+        <p className="mt-2 text-sm leading-relaxed text-amber-900/90">{t("devs.rateNote")}</p>
+      </Card>
+
+      <p className="mt-10">
+        <Link
+          href={PARTNER_APPLY}
+          className="inline-flex h-12 items-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800"
+        >
+          {t("devs.getStarted")}
+        </Link>
       </p>
     </main>
   );
 }
 
-function Promise({ title, body }: { title: string; body: string }) {
+function UseCase({
+  title,
+  body,
+  exampleLabel,
+  example,
+}: {
+  title: string;
+  body: string;
+  exampleLabel: string;
+  example: string;
+}) {
   return (
-    <li className="border-s-2 border-slate-200 ps-4">
+    <section className="border-s-2 border-slate-200 ps-4">
+      <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
+      <p className="mt-1.5 leading-relaxed text-slate-600">{body}</p>
+      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {exampleLabel}
+      </p>
+      {/*
+       * 🔴 `overflow-x-auto` on the block rather than wrapping, because a wrapped request
+       * line is a request line somebody copies wrong. The page body still never scrolls.
+       */}
+      <pre className="mt-1 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+        <code>{example}</code>
+      </pre>
+    </section>
+  );
+}
+
+function Kept({ title, body }: { title: string; body: string }) {
+  return (
+    <li className="border-s-2 border-teal-300 ps-4">
       <p className="font-semibold text-slate-900">{title}</p>
       <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{body}</p>
     </li>
