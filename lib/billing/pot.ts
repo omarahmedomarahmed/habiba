@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
@@ -137,6 +137,16 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
    * separate column from removal on purpose: an unanswered re-verification stops
    * the funding and touches nothing else, so it is checked here and nowhere near
    * the record.
+   *
+   * 🔴 AND `last_verified_at IS NOT NULL`, which is 53.19's whole point.
+   *
+   * `enrol` leaves it null for a `domain_email` until the code sent to that
+   * address is answered, and its comment said "the funding does not start". That
+   * sentence was a claim about THIS WHERE CLAUSE and it was false until this
+   * condition was added: an unverified enrolment was funding sessions while a
+   * comment three files away said it could not. A comment asserting a wiring the
+   * code does not have is the second most common defect in this repository, and
+   * this was one of them, found by reading the two files against each other.
    */
   const [benefit] = await controlDb
     .select({ sponsorId: enrolments.sponsorId })
@@ -149,6 +159,7 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
         eq(enrolments.state, "active"),
         isNull(enrolments.removedAt),
         isNull(enrolments.pausedAt),
+        isNotNull(enrolments.lastVerifiedAt),
         eq(sponsors.state, "active"),
       ),
     )

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { Card } from "@/components/ui";
+import { topUpHistory } from "@/lib/billing/invoice";
 import { ledgerPotBalance } from "@/lib/billing/pot";
 import { potTerms } from "@/lib/data/sponsor-admin";
 import { getI18n } from "@/lib/i18n/server";
@@ -28,9 +30,10 @@ export default async function SponsorPotPage() {
   const { t, locale } = await getI18n();
   const settings = await getSettings();
 
-  const [balanceCents, terms] = await Promise.all([
+  const [balanceCents, terms, history] = await Promise.all([
     ledgerPotBalance(actor.sponsorId),
     potTerms(actor.sponsorId),
+    topUpHistory(actor.sponsorId),
   ]);
 
   const fmt = (cents: number) =>
@@ -75,6 +78,34 @@ export default async function SponsorPotPage() {
           <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.noPot")}</p>
         </Card>
       )}
+
+      {/*
+        🔴 53.15 — the documents, one per top-up, rendered from the ledger.
+
+        A link rather than an attachment, and no stored file anywhere: the invoice
+        is a render of the transaction, so the number on it is by construction the
+        number the books show. There is no `invoices` row for a pot top-up, which
+        is C226's "no parallel invoice path" holding in the one place it is most
+        tempting to break.
+      */}
+      {history.length > 0 ? (
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-900">{t("sponsor.invoices")}</p>
+          <ul className="mt-2 space-y-1">
+            {history.map((entry) => (
+              <li key={entry.txnId}>
+                <Link
+                  href={`/sponsor/pot/${entry.txnId}`}
+                  className="flex items-baseline justify-between gap-3 py-1 text-sm text-slate-700 hover:underline"
+                >
+                  <span>{entry.at.toISOString().slice(0, 10)}</span>
+                  <span className="tabular-nums">{fmt(entry.amountCents)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
     </div>
   );
 }

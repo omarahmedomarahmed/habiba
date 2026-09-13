@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { controlDb } from "@/lib/db";
@@ -113,9 +113,30 @@ export async function setSponsorState(
   sponsorId: string,
   state: SponsorState,
 ): Promise<{ ok: true }> {
+  /*
+   * 🔴 C256 / 53.19b — ACTIVATING STARTS THE CYCLE CLOCK, and nothing else does.
+   *
+   * `pauseUnverified` requires `verify_cycle_started_at` to be set, so without
+   * this line the re-verification cycle would never fire for anybody and the
+   * whole of C247 would be a table column and a job that does nothing. That is
+   * the shape of defect this repository keeps finding: a mechanism wired at one
+   * end.
+   *
+   * Set only on the way IN to `active`, using `COALESCE` so a suspended account
+   * coming back does not restart everybody's window and hand every roster row a
+   * fresh date on the same day — which would be a visible event about the
+   * organisation on a screen that is supposed to carry no events at all.
+   */
   await controlDb
     .update(sponsors)
-    .set({ state, updatedAt: new Date() })
+    .set({
+      state,
+      verifyCycleStartedAt:
+        state === "active"
+          ? sql`COALESCE(${sponsors.verifyCycleStartedAt}, now())`
+          : sponsors.verifyCycleStartedAt,
+      updatedAt: new Date(),
+    })
     .where(eq(sponsors.id, sponsorId));
 
   log.info("sponsor state changed", { sponsor: ref(sponsorId), state });

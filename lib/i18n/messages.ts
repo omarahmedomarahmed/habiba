@@ -465,6 +465,9 @@ export const en = {
   "pbilling.body": "What you paid, and exactly where it went.",
   "pbilling.none": "Nothing paid yet",
   "pbilling.noneBody": "Sessions you pay for appear here with the full breakdown.",
+  /* 🔴 53.21 — a covered session, named without naming an employer (C227, C243). */
+  "pbilling.covered": "Covered",
+  "pbilling.coveredBody": "Your benefit paid for this one. There is nothing for you to pay.",
   "pbilling.note":
     "The headline figure is what you were actually charged, in the currency you paid in, at the rate quoted at the time. The breakdown is in the currency your therapist is paid in. That is the amount a refund would return.",
 
@@ -1021,6 +1024,13 @@ export const en = {
   "pnotice.none": "Nothing to tell you.",
   "pnotice.dismiss": "Dismiss",
   "pnotice.earlier": "Earlier",
+  /* 🔴 53.19 / C246 — the code, and what to do with it. Not one word about therapy. */
+  "benefit.codeSent": "We sent a code to the address you gave. Type it in to finish.",
+  "benefit.codeLabel2": "The code we sent you",
+  "benefit.confirm": "Confirm",
+  "benefit.resend": "Send it again",
+  "benefit.unverified": "Waiting for the code you were sent.",
+  "benefit.resendPrompt": "Enter your work address again and we will send a new code.",
   /* 🔴 Dismissing hides, it does not delete. The screen says so where it happens. */
   "pnotice.keptBody": "Anything you dismiss stays on this page.",
   /* The sponsor's own portal. */
@@ -1097,6 +1107,8 @@ export const en = {
   "sponsor.topUpSubmit": "Add to the pot",
   "sponsor.topUpTooSmall": "The minimum top up is {min}.",
   "sponsor.expiresOn": "Unspent money expires on {date}.",
+  /* 🔴 53.15 — the documents, rendered from the ledger rather than stored. */
+  "sponsor.invoices": "Your invoices",
   "sponsor.settingsTitle": "How people join",
   "sponsor.identifierTitle": "What you ask people for",
   "sponsor.identifierBody": "One or two things, from a fixed list. We never ask for a national identifier and we never ask anything about anybody's health.",
@@ -2851,6 +2863,8 @@ export const ar: Record<MessageKey, string> = {
   "pbilling.body": "ما دفعته، وأين ذهب بالضبط.",
   "pbilling.none": "لم تدفع شيئًا بعد",
   "pbilling.noneBody": "الجلسات التي تدفع مقابلها تظهر هنا بتفصيلها الكامل.",
+  "pbilling.covered": "مغطاة",
+  "pbilling.coveredBody": "ميزتك دفعت مقابل هذه الجلسة. لا شيء عليك.",
   "pbilling.note":
     "الرقم الأساسي هو ما خُصم منك فعلًا، بالعملة التي دفعت بها، وبالسعر المعلن وقتها. التفصيل بعملة معالجك، وهو المبلغ الذي يعود إليك عند الاسترداد.",
 
@@ -3344,6 +3358,12 @@ export const ar: Record<MessageKey, string> = {
   "pnotice.none": "لا شيء لنخبرك به.",
   "pnotice.dismiss": "إخفاء",
   "pnotice.earlier": "سابقًا",
+  "benefit.codeSent": "أرسلنا رمزًا إلى العنوان الذي أعطيتنا. اكتبه لإتمام العملية.",
+  "benefit.codeLabel2": "الرمز الذي أرسلناه إليك",
+  "benefit.confirm": "تأكيد",
+  "benefit.resend": "أرسله مرة أخرى",
+  "benefit.unverified": "في انتظار الرمز المُرسل إليك.",
+  "benefit.resendPrompt": "أدخل عنوان عملك مرة أخرى وسنرسل رمزًا جديدًا.",
   "pnotice.keptBody": "كل ما تخفيه يبقى في هذه الصفحة.",
   "sponsor.signIn": "تسجيل الدخول",
   "sponsor.signInTitle": "حساب جهتك",
@@ -3411,6 +3431,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.topUpSubmit": "أضف إلى المحفظة",
   "sponsor.topUpTooSmall": "الحد الأدنى للإضافة {min}.",
   "sponsor.expiresOn": "ينتهي المبلغ غير المنفق في {date}.",
+  "sponsor.invoices": "فواتيرك",
   "sponsor.settingsTitle": "كيف ينضم الناس",
   "sponsor.identifierTitle": "ما تطلبونه من الناس",
   "sponsor.identifierBody": "شيء أو شيئان، من قائمة ثابتة. لا نطلب رقمًا قوميًا أبدًا، ولا نطلب شيئًا عن صحة أحد.",

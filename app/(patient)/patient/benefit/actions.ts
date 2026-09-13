@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { enrol, lookupCode, setPrimarySponsor } from "@/lib/data/enrolment";
+import { confirmEnrolmentCode } from "@/lib/data/enrolment-verify";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 export type BenefitState = {
@@ -63,6 +64,32 @@ export async function activateBenefit(
 
   const result = await enrol({ personId: actor.personId, code, identifier });
   if (!result.ok) return { error: result.error };
+
+  revalidatePath("/patient/benefit");
+  revalidatePath("/patient");
+  return { ok: true };
+}
+
+/**
+ * 🔴 53.19 / C246 — the code that turns a pattern into proof.
+ *
+ * The enrolment id comes from the client and the person id from the SESSION, and
+ * `confirmEnrolmentCode` puts the person in its WHERE clause rather than checking
+ * afterwards, so a borrowed enrolment id verifies nothing.
+ */
+export async function confirmCode(
+  enrolmentId: string,
+  code: string,
+): Promise<BenefitState> {
+  const actor = await requirePatient();
+
+  const result = await confirmEnrolmentCode({
+    personId: actor.personId,
+    enrolmentId,
+    code,
+  });
+
+  if (result.error) return { error: result.error };
 
   revalidatePath("/patient/benefit");
   revalidatePath("/patient");

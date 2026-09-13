@@ -101,7 +101,25 @@ export type Message = {
      */
     | "consent.granted"
     /** 27.7 / C108 — the old clinician's answer, including a refusal. */
-    | "history.answered";
+    | "history.answered"
+    /**
+     * 🔴 53.19 / 53.18b — the ONE thing we ever send to a work address.
+     *
+     * *"A work email used to cross the gate is never used for communication
+     * unless the person signed up with it. Stored for matching and
+     * de-duplication only, never returned to the sponsor, never a destination
+     * for anything we send except the one verification code in 53.19."*
+     *
+     * So this kind exists, and nothing else in this union may be sent to an
+     * identifier address. The enforcement is that `sendEnrolmentCode` is the only
+     * caller that reads one, and `verify:sprint53` asserts the address never
+     * reaches a second sender.
+     *
+     * The body says nothing about therapy and names no session. A code arriving
+     * in a work inbox that says "your therapy benefit" is a disclosure to
+     * whoever administers that mailbox.
+     */
+    | "benefit.verify_code";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

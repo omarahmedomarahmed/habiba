@@ -6,6 +6,7 @@ import {
   activateBenefit,
   checkCode,
   choosePrimary,
+  confirmCode,
   type BenefitState,
 } from "@/app/(patient)/patient/benefit/actions";
 import { Card, Field, Input } from "@/components/ui";
@@ -44,6 +45,14 @@ export type Benefit = {
   sponsorName: string;
   isPrimary: boolean;
   paused: boolean;
+  /**
+   * 🔴 53.19 — a `domain_email` enrolment is not proof until the code is answered,
+   * and `payFromPot` has `last_verified_at IS NOT NULL` in its WHERE clause. So an
+   * unverified row is shown as waiting rather than as active, because telling
+   * somebody their sessions are paid for when they are not is the one lie this
+   * screen must not tell.
+   */
+  verified: boolean;
 };
 
 export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
@@ -51,6 +60,8 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
   const [code, setCode] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [state, setState] = useState<BenefitState>({});
+  /** One code per enrolment row, because several may be waiting at once. */
+  const [codes, setCodes] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
   const look = () =>
@@ -66,6 +77,13 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
         setCode("");
         setIdentifier("");
       }
+    });
+
+  const confirm = (enrolmentId: string) =>
+    startTransition(async () => {
+      const result = await confirmCode(enrolmentId, codes[enrolmentId] ?? "");
+      setState(result);
+      if (result.ok) setCodes((current) => ({ ...current, [enrolmentId]: "" }));
     });
 
   const pick = (enrolmentId: string) =>
@@ -84,13 +102,56 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
               <p className="text-sm font-semibold text-slate-900">
                 {benefit.paused
                   ? t("benefit.paused")
-                  : t("benefit.active", { name: benefit.sponsorName })}
+                  : !benefit.verified
+                    ? t("benefit.unverified")
+                    : t("benefit.active", { name: benefit.sponsorName })}
               </p>
 
               {benefit.paused ? (
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
                   {t("benefit.pausedBody")}
                 </p>
+              ) : null}
+
+              {/*
+                🔴 53.19 — the code, typed in here, on the row it belongs to.
+
+                Shown for an unverified row and for a paused one alike, because
+                C247's remedy is the same act: answer the code. A paused person
+                whose only instruction was "contact us" is a person whose funding
+                stopped and who cannot restart it.
+              */}
+              {!benefit.verified || benefit.paused ? (
+                <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    {benefit.paused ? t("benefit.resendPrompt") : t("benefit.codeSent")}
+                  </p>
+                  <Field
+                    label={t("benefit.codeLabel2")}
+                    htmlFor={`confirm-${benefit.enrolmentId}`}
+                  >
+                    <Input
+                      id={`confirm-${benefit.enrolmentId}`}
+                      value={codes[benefit.enrolmentId] ?? ""}
+                      onChange={(event) =>
+                        setCodes((current) => ({
+                          ...current,
+                          [benefit.enrolmentId]: event.target.value,
+                        }))
+                      }
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    disabled={pending || !codes[benefit.enrolmentId]}
+                    onClick={() => confirm(benefit.enrolmentId)}
+                    className="tap-target h-10 rounded-xl bg-teal-500 px-4 text-xs font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+                  >
+                    {t("benefit.confirm")}
+                  </button>
+                </div>
               ) : null}
 
               {/*

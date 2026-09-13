@@ -170,6 +170,32 @@ export type PlatformSettings = {
    * can notice somebody left an organisation without a roster, and six months
    * is a guess about human patience, not a fact.
    */
+  /**
+   * 🔴 53.15 / C241 — WHAT MAKES AN INVOICE AN INVOICE.
+   *
+   * *"Receipt, VAT invoice and proof of payment that look like they came from a
+   * company."* A company's invoice carries a legal name, an address and a tax
+   * registration number, and until this group existed the product held none of
+   * the three anywhere. A document without them is a screenshot of a number, and a
+   * corporate customer's finance department will not accept one.
+   *
+   * Per entity, because there are two and they are different legal persons. The
+   * Egyptian half is here and unreachable: `topUpPot` refuses an `eg` sponsor
+   * until counsel has confirmed e-invoicing, which is C241's precondition. The
+   * fields exist so that confirming it is a settings change rather than a deploy.
+   */
+  invoice: {
+    /** By entity. Two rows, `us` and `eg`. */
+    entities: {
+      entity: string;
+      legalName: string;
+      address: string;
+      /** VAT or tax registration number, printed on the document. */
+      taxId: string;
+      /** Prefixed to the sequence, so two entities never collide on a number. */
+      numberPrefix: string;
+    }[];
+  };
   sponsor: {
     /** 53.11 — the smallest top-up we will take, in cents of the entity's currency. */
     minTopUpCents: number;
@@ -255,6 +281,21 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
    * column default is corrected in the next migration rather than left as a
    * second opinion.
    */
+  /*
+   * 🔴 53.15 — EMPTY ON PURPOSE, and an invoice will not render without them.
+   *
+   * A seeded placeholder legal name would print on a real document handed to a
+   * real finance department, and "24Therapy Inc." is not a company that exists
+   * until somebody registers it. So these are blank and the invoice page refuses
+   * to render until an operator fills them in, which is a screen that says what is
+   * missing rather than a document that is quietly wrong.
+   */
+  invoice: {
+    entities: [
+      { entity: "us", legalName: "", address: "", taxId: "", numberPrefix: "US" },
+      { entity: "eg", legalName: "", address: "", taxId: "", numberPrefix: "EG" },
+    ],
+  },
   sponsor: {
     minTopUpCents: 500_000,
     activityFloor: 5,
@@ -497,6 +538,35 @@ export function parseGroup<G extends SettingsGroup>(
         // margin being hidden in a rate, which is the thing C76 forbids.
         egpSpreadBps: int(v.egpSpreadBps, d.payouts.egpSpreadBps, { min: 0, max: 1_000 }),
       } as PlatformSettings[G];
+
+    case "invoice": {
+      /*
+       * 🔴 The SHIPPED rows are the floor, so an unparseable blob leaves two empty
+       * entities rather than none. An empty list would make `invoiceFor` find no
+       * entity at all and the failure would read as "no such entity" rather than
+       * "nobody has filled in the legal name", which is a different bug to chase.
+       */
+      const rows = Array.isArray(v.entities)
+        ? v.entities
+            .map((raw) => {
+              const row = record(raw);
+              const entity = str(row.entity, "");
+              if (!entity) return null;
+              return {
+                entity,
+                legalName: str(row.legalName, "").slice(0, 200),
+                address: str(row.address, "").slice(0, 500),
+                taxId: str(row.taxId, "").slice(0, 80),
+                numberPrefix: str(row.numberPrefix, entity.toUpperCase()).slice(0, 8),
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null)
+        : [];
+
+      return {
+        entities: rows.length > 0 ? rows : d.invoice.entities,
+      } as PlatformSettings[G];
+    }
 
     case "sponsor":
       return {

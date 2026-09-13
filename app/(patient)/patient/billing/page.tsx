@@ -62,6 +62,19 @@ export default async function PatientBillingPage() {
         presented: sessionPayments.presentedCents,
         presentedCurrency: sessionPayments.presentedCurrency,
         rateMicro: sessionPayments.fxRateMicro,
+        /*
+         * 🔴 53.21 / C226 — WHICH ROWS THE PATIENT DID NOT PAY FOR.
+         *
+         * A pot-funded session produces an ordinary `session_payments` row, which
+         * is the whole point of C226 and is also how this page came to be about to
+         * tell somebody they paid thirty dollars they did not pay. The funding
+         * source is read so a covered session renders as covered.
+         *
+         * 🔴 It says "covered" and NAMES NO EMPLOYER. The employer is on no column
+         * this query could reach even if it wanted one: `payer_name` is NULL on a
+         * pot payment (C243) and there is no sponsor id on `session_payments`.
+         */
+        fundingSource: sessionPayments.fundingSource,
         therapistFirst: users.firstName,
         therapistLast: users.lastName,
       })
@@ -131,9 +144,15 @@ export default async function PatientBillingPage() {
                     {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
                   </p>
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
-                    {row.presented !== null && row.presentedCurrency
-                      ? formatMoney(row.presented, row.presentedCurrency, tag)
-                      : formatMoney((row.gross ?? 0) + (row.vat ?? 0), row.currency ?? "usd", tag)}
+                    {row.fundingSource === "pot"
+                      ? t("pbilling.covered")
+                      : row.presented !== null && row.presentedCurrency
+                        ? formatMoney(row.presented, row.presentedCurrency, tag)
+                        : formatMoney(
+                            (row.gross ?? 0) + (row.vat ?? 0),
+                            row.currency ?? "usd",
+                            tag,
+                          )}
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
@@ -143,7 +162,19 @@ export default async function PatientBillingPage() {
                     : ""}
                 </p>
 
-                {/* Three lines, with reasons. Never one number. */}
+                {/*
+                  Three lines, with reasons. Never one number.
+
+                  🔴 And not at all for a covered session. The split is what the
+                  PATIENT paid and how it was divided; a person who paid nothing has
+                  no split to be shown, and printing one under the word "covered" is
+                  the kind of thing somebody reads as a bill they owe.
+                */}
+                {row.fundingSource === "pot" ? (
+                  <p className="mt-2 border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-500">
+                    {t("pbilling.coveredBody")}
+                  </p>
+                ) : (
                 <dl className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs">
                   <Row label="Your therapist's fee">
                     {formatMoney(row.gross ?? 0, row.currency ?? "usd", tag)}
@@ -155,6 +186,7 @@ export default async function PatientBillingPage() {
                     {formatMoney(row.fee ?? 0, row.currency ?? "usd", tag)}
                   </Row>
                 </dl>
+                )}
               </Card>
             </li>
           ))}

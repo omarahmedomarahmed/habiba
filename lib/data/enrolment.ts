@@ -287,21 +287,35 @@ export async function enrol(input: {
     .where(and(eq(enrolments.personId, input.personId), isNull(enrolments.removedAt)))
     .limit(1);
 
+  let enrolmentId: string | null = null;
+
   try {
-    await controlDb.insert(enrolments).values({
-      sponsorId: lookup.sponsorId,
-      personId: input.personId,
-      identifierHash,
-      identifierKind: crossed.kind,
-      isPrimary: !existing,
-      /*
-       * 🔴 A `domain_email` is not verified until the code sent to it is
-       * answered, so `last_verified_at` stays null and the funding does not
-       * start. An `id_number` has nothing to verify (C247), so it is live at
-       * once and the sponsor was told that is a weaker gate.
-       */
-      lastVerifiedAt: crossed.kind === "id_number" ? new Date() : null,
-    });
+    const [created] = await controlDb
+      .insert(enrolments)
+      .values({
+        sponsorId: lookup.sponsorId,
+        personId: input.personId,
+        identifierHash,
+        identifierKind: crossed.kind,
+        isPrimary: !existing,
+        /*
+         * 🔴 A `domain_email` is not verified until the code sent to it is
+         * answered, so `last_verified_at` stays null and the funding does not
+         * start. An `id_number` has nothing to verify (C247), so it is live at
+         * once and the sponsor was told that is a weaker gate.
+         *
+         * 🔴 "The funding does not start" is a claim about `payFromPot`, and this
+         * sentence was true of the comment and false of the code for one commit.
+         * `payFromPot` now has `last_verified_at IS NOT NULL` in its WHERE clause
+         * alongside the pause and the removal, so an unverified enrolment funds
+         * nothing. A comment asserting a wiring the code does not have is the
+         * second most common defect in this repository; this was one.
+         */
+        lastVerifiedAt: crossed.kind === "id_number" ? new Date() : null,
+      })
+      .returning({ id: enrolments.id });
+
+    enrolmentId = created?.id ?? null;
   } catch {
     /*
      * 🔴 One message for every database refusal, and it names nothing.
@@ -328,6 +342,25 @@ export async function enrol(input: {
     kind: "benefit_started",
     messageKey: "pnotice.benefitStarted",
   });
+
+  /*
+   * 🔴 53.19 / 53.18b — THE ONE AND ONLY MOMENT A WORK ADDRESS IS EVER USED.
+   *
+   * The plaintext identifier exists in this function's arguments and in no column
+   * anywhere, because `identifier_hash` is all that is stored. So the code has to
+   * go out HERE or never, and "never a destination for anything we send except the
+   * one verification code" is enforced by the shape of the data rather than by
+   * anybody's restraint.
+   *
+   * Best effort on the send: a mail provider that is down must not roll back an
+   * enrolment. The person is told the code is coming and can ask again, and
+   * `last_verified_at` is null meanwhile, so a failed send is a benefit that has
+   * not started rather than a benefit funded without proof.
+   */
+  if (crossed.kind === "domain_email" && enrolmentId) {
+    const { sendEnrolmentCode } = await import("./enrolment-verify");
+    await sendEnrolmentCode(enrolmentId, input.identifier);
+  }
 
   log.info("enrolment activated", { kind: crossed.kind });
   return { ok: true, needsVerification: crossed.kind === "domain_email" };

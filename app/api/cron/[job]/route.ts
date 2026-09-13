@@ -200,11 +200,45 @@ const JOBS = {
     const { alertAgedPayouts } = await import("@/lib/billing/payouts");
     const aged = await alertAgedPayouts();
 
+    /*
+     * 🔴 53.19b / C247 — the re-verification cycle, and it is here rather than on
+     * a schedule of its own for the reason at the top of this file: a job that
+     * wakes on its own costs a whole idle timeout.
+     *
+     * It belongs with the money work because that is what it does. Without a
+     * roster, nothing else can notice somebody has left an organisation, so this
+     * is the only thing standing between a sponsor's pot and funding therapy for
+     * somebody who resigned eight months ago.
+     *
+     * 🔴 It pauses the FUNDING. It does not remove anybody, and it touches no
+     * record: two writes, `paused_at` on the enrolment and one notice to the
+     * person. The remedy is in their hands, in the app, and an operator can undo
+     * it in one statement.
+     */
+    const { pauseUnverified } = await import("@/lib/data/enrolment-verify");
+    const reverified = await pauseUnverified();
+
+    /*
+     * 🔴 53.16 / C232 — the pot half of the daily reconciliation, counted here.
+     *
+     * `reconcilePots` returns only the pots whose balance column disagrees with
+     * the ledger, so the number in this log line is zero every day until it is
+     * not. The admin screen shows the same list; this is the line that appears in
+     * a log an operator greps when a customer asks why a figure moved.
+     */
+    const { reconcilePots } = await import("@/lib/billing/pot");
+    const potDrift = await reconcilePots();
+    if (potDrift.length > 0) {
+      log.warn("pot balances disagree with the ledger", { pots: potDrift.length });
+    }
+
     return {
       reconciled,
       released: released.released,
       centsMoved: released.centsMoved,
       payoutsAlerted: aged.alerted,
+      benefitsPaused: reverified.paused,
+      potsOutOfBalance: potDrift.length,
     };
   },
 

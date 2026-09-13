@@ -5898,3 +5898,58 @@ export const patientNotifications = pgTable(
 );
 
 export type PatientNotification = typeof patientNotifications.$inferSelect;
+
+/**
+ * 🔴 53.19 / C246 — PROOF OVER PATTERN, as one short-lived row.
+ *
+ * *"An email on the sponsor's domain, verified by a one-time code, is the
+ * recommended default. An ID matched only by shape is a weak gate, permitted, and
+ * the sponsor is told in plain words that it is guessable."*
+ *
+ * ## 🔴 THE ADDRESS IS NOT ON THIS TABLE, AND THAT DECIDED THE WHOLE CYCLE
+ *
+ * `enrolments.identifier_hash` is a SALTED hash and there is no plaintext column
+ * anywhere: 53.18b says the identifier is stored for matching and de-duplication
+ * only. So the work address is not recoverable, which has one consequence worth
+ * stating rather than discovering:
+ *
+ * **A code can only be sent while the person is typing the address.** Nothing
+ * later — no job, no operator, no support ticket — can email a work inbox,
+ * because nothing later knows it. That is the strongest possible form of "never a
+ * destination for anything we send except the one verification code".
+ *
+ * It is also why 53.19b's re-verification asks the PERSON in their own app, on
+ * their own contact details, rather than emailing their employer's mailbox. The
+ * fix for a pause is that they re-enter the address, which mints a new code.
+ *
+ * ## 🔴 Attempts are counted on the row, and the rate limit is per CODE
+ *
+ * A limit per person lets one attacker with many accounts grind one joining code.
+ * `lib/data/enrolment.ts` limits per code for that reason, and this counter is the
+ * second wall: a single minted code survives a fixed number of wrong guesses and
+ * then is dead rather than slow.
+ */
+export const enrolmentVerifications = pgTable(
+  "enrolment_verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    enrolmentId: uuid("enrolment_id")
+      .notNull()
+      .references(() => enrolments.id, { onDelete: "cascade" }),
+
+    /** SHA-256 of the six digits. The code itself is never stored. */
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("enrolment_verifications_hash_unique").on(t.codeHash),
+    index("enrolment_verifications_enrolment_idx").on(t.enrolmentId, t.usedAt),
+  ],
+);
+
+/** How many wrong codes one minted code survives. A CHECK, not a convention. */
+export const ENROLMENT_CODE_ATTEMPTS = 5;
