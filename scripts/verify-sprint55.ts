@@ -733,9 +733,21 @@ async function main() {
       "a read-then-write would produce two sessions and no error",
     );
 
+    /*
+     * 🔴 C285 MOVED WHAT THIS HAS TO ASSERT, AND THE OLD SPELLING WAS THE WEAKER CHECK.
+     *
+     * This read `/verificationStatus !== "verified"/` — the literal text of one comparison. C285
+     * rewrote the redemption path to ask `therapist_verifications` through `verifiedFlag()`, the
+     * single shared definition, and the check went red while the behaviour got stricter.
+     *
+     * A check pinned to a spelling is a check that fails when the code improves and passes when
+     * somebody copies the spelling into a function that does nothing. So it asserts the SOURCE the
+     * comparison consults instead: `verifiedFlag` is the one expression in the codebase that means
+     * "a human approved this clinician", and a redemption that calls it cannot be reading a cache.
+     */
     check(
-      "🔴 55.9 verification is re-checked AT REDEMPTION, not only when the token was minted",
-      /verificationStatus !== "verified"/.test(redeem),
+      "🔴 55.9 verification is re-checked AT REDEMPTION, against the table the database enforces",
+      /verifiedFlag\(\)/.test(redeem) && /!clinician\.verified/.test(redeem),
       "two minutes is short but not zero, and suspension is the thing that must not be stale",
     );
 

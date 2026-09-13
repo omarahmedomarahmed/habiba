@@ -144,7 +144,13 @@ async function main() {
           firstName: process.env.SEED_ADMIN_FIRST || "Super",
           lastName: process.env.SEED_ADMIN_LAST || "Admin",
           role: "super_admin",
-          verificationStatus: "verified",
+          /*
+           * 🔴 C285 — ignored by 0083's trigger, which derives this column from
+           * `therapist_verifications`, and harmless: `isCleared` exempts a super admin BY ROLE, so
+           * an operator is not locked out of the product they operate by never having submitted a
+           * licence they do not have. Left named rather than deleted so the column is visible here.
+           */
+          verificationStatus: "unverified",
         })
         .onConflictDoUpdate({
           target: [users.organizationId, users.email],
@@ -240,7 +246,8 @@ async function main() {
         firstName: "Test",
         lastName: "Therapist",
         role: "therapist",
-        verificationStatus: "verified",
+        /* 🔴 C285 — derived by 0083; the approved submission below is what verifies them. */
+        verificationStatus: "unverified",
         profile: { credentials: "LCSW", licenseState: "NY", timezone: "America/New_York" },
       })
       .onConflictDoUpdate({
@@ -256,7 +263,22 @@ async function main() {
         .where(eq(users.email, TEST_EMAIL.toLowerCase()))
         .limit(1)
     )[0]!;
-    console.log(`test therapist: ${TEST_EMAIL}`);
+    /*
+     * 🔴 C285 — THE SEED APPROVES THEM THE WAY AN ADMINISTRATOR WOULD.
+     *
+     * Setting `users.verification_status = 'verified'` used to be the whole of it, and that is how
+     * production came to hold one verified user with zero approved verifications. 0083 makes that
+     * column derived, so the honest seed writes the SUBMISSION and lets the trigger do the rest —
+     * which also means this test therapist is verified for the same reason a real one is.
+     */
+    await db.execute(sql`
+      INSERT INTO therapist_verifications (user_id, organization_id, state, country, license_body,
+                                           license_number, submitted_at, reviewed_at)
+      VALUES (${therapist.id}, ${org.id}, 'approved', 'US', 'NY Office of the Professions',
+              'SEED-TEST-THERAPIST', now(), now())
+      ON CONFLICT (user_id) DO UPDATE SET state = 'approved', reviewed_at = now()`);
+
+    console.log(`test therapist: ${TEST_EMAIL}, verification approved`);
 
     const existingPatient = await db
       .select()

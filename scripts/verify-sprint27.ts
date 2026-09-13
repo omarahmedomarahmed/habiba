@@ -424,10 +424,30 @@ async function main() {
     "it says invite, and says the patient is asked again",
   );
 
+  /*
+   * 🔴 THE COPY MOVED INTO THE CATALOGUE, AND CHECKING IT THERE IS THE STRONGER CHECK.
+   *
+   * This read `/Ask them/` out of the component. Sprint 52 keyed that panel, so the literal became
+   * `t("pask.askThem")` and the check went red while the copy was unchanged — the same shape as
+   * 55.9's, and the same lesson: a check pinned to a spelling fails when the code improves.
+   *
+   * 🔴 Pointed at the dictionary it now asserts something the old one could not: C108 holds in
+   * ARABIC as well. A rule about what the product says to a patient that only ever read the English
+   * half was a rule half-enforced, and Arabic is the half most patients read.
+   */
+  const { en: enWords, ar: arWords } = await import("../lib/i18n/messages");
+  const askCopy = [enWords["pask.askThem"], arWords["pask.askThem"], enWords["pban.ask"],
+                   arWords["pban.ask"], enWords["pban.whyLabel"], arWords["pban.whyLabel"]];
+
   check(
-    "🔴 27.7 / C108 the ask copy says ask, and never get or retrieve",
-    /Ask them/.test(askPanel) &&
-      !/get (my|your) history|retrieve (my|your) history|import (my|your) history/i.test(askPanel),
+    "🔴 27.7 / C108 the ask copy says ask, and never get or retrieve, in both languages",
+    /t\("pask\.askThem"\)/.test(askPanel) &&
+      /^Ask them$/.test(enWords["pask.askThem"]) &&
+      /اطلب/.test(arWords["pask.askThem"]) &&
+      !askCopy.some((line) =>
+        /get (my|your) history|retrieve (my|your) history|import (my|your) history/i.test(line),
+      ),
+    `${askCopy.length} strings, English and Arabic`,
   );
 
   /* ------------------------------------------------------------ 27.8 */

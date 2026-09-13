@@ -101,7 +101,25 @@ export function PatientSessionList({
                     <p className="mt-0.5 text-xs text-slate-500">
                       {formatWhen(session.at, resolved, locale)}
                       {session.priceCents > 0
-                        ? ` · ${formatMoney(session.priceCents, "USD", localeTag(locale))}`
+                        ? /*
+                           * 🔴 THE CURRENCY THE SESSION WAS PRICED IN, not USD for everybody.
+                           *
+                           * This read `"USD"` as a literal. Every past session on a patient's own
+                           * record was labelled in dollars whatever they had actually been charged,
+                           * so somebody in Cairo who paid 450 EGP saw "$450" against their name —
+                           * roughly twenty times what they paid, on the screen where they check
+                           * what they paid.
+                           *
+                           * Found the moment sprint 52 seeded a session with a real price on it,
+                           * which is the argument for seeding content rather than filming empty
+                           * states: the defect was reachable from the first frame of the patient
+                           * cut and invisible while the list was empty.
+                           */
+                          ` · ${formatMoney(
+                            session.priceCents,
+                            session.priceCurrency.toUpperCase(),
+                            localeTag(locale),
+                          )}`
                         : ` · ${t("psessions.free")}`}
                     </p>
 

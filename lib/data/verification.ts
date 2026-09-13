@@ -70,24 +70,34 @@ export async function requirementOverrides(): Promise<
 /**
  * Where a clinician stands, as one answer.
  *
- * There were two sources of truth and they disagreed: an administrator
- * pressing "verified" on the clinician list wrote `users.verification_status`,
- * while the gate read `therapist_verifications.state`. The clinician showed as
- * verified in admin and stayed locked on the onboarding page forever, which is
- * exactly the bug you cannot debug from the outside because both screens are
- * telling the truth about different columns.
+ * ## 🔴 C285 — THERE IS ONE SOURCE OF TRUTH AND IT IS THE ONE THE DATABASE ENFORCES
  *
- * `setVerification` now writes both. This reads both anyway, because a
- * mismatch left over from before the fix should resolve in the clinician's
- * favour rather than keep them locked out.
+ * There were two, and they disagreed: an administrator pressing "verified" on the clinician list
+ * wrote `users.verification_status`, while the gate read `therapist_verifications.state`.
+ *
+ * The first fix wrote both columns and made THIS function resolve a disagreement in the clinician's
+ * favour:
+ *
+ *     if (row.mirror === "verified") return "approved";
+ *
+ * so the soft column won. The reasoning was humane — a clinician should not be locked out by a stale
+ * mirror — and the consequence was that **anybody with "verified" written onto their user row was
+ * cleared to see patients whether or not a human had ever approved them.** A tie-break that favours
+ * access is a tie-break that favours the unverified, and `history_grants_require_verified()` was
+ * left as the only thing in the system saying so.
+ *
+ * 0083 makes `users.verification_status` a DERIVED column the database maintains, so there is
+ * nothing left to disagree with. This reads the truth directly anyway: a function that answers "is
+ * this clinician cleared" should not be reading a cache of the answer, however well maintained,
+ * because the cache is the thing that was wrong for thirteen sprints.
  */
 export async function practiceState(
   userId: string,
 ): Promise<"draft" | "submitted" | "approved" | "rejected" | null> {
   const [row] = await db
     .select({
+      userId: users.id,
       state: therapistVerifications.state,
-      mirror: users.verificationStatus,
     })
     .from(users)
     .leftJoin(therapistVerifications, eq(therapistVerifications.userId, users.id))
@@ -95,7 +105,6 @@ export async function practiceState(
     .limit(1);
 
   if (!row) return null;
-  if (row.mirror === "verified") return "approved";
   return row.state ?? null;
 }
 
@@ -231,15 +240,17 @@ export async function decideVerification(opts: {
 
   if (!row) return null;
 
-  // Mirror onto the user so every existing read of `verificationStatus` — the
-  // clinician list, the radar profile — agrees with the decision.
-  await db
-    .update(users)
-    .set({
-      verificationStatus: opts.approve ? "verified" : "rejected",
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, row.userId));
-
+  /*
+   * 🔴 C285 — THE MIRROR WRITE IS GONE, AND ITS ABSENCE IS THE FIX.
+   *
+   * This used to update `users.verification_status` by hand, with a comment explaining that it kept
+   * the clinician list and the radar profile in agreement with the decision. It did, for this one
+   * code path. Every other way a user row came into being — a seed, a clinic invitation, a script —
+   * set the column independently, and nothing reconciled them.
+   *
+   * 0083's `therapist_verifications_sync_user` trigger does it now, for every path there is and
+   * every path there will be. A mirror maintained by whoever remembers to maintain it is not a
+   * mirror; it is a second opinion.
+   */
   return row;
 }

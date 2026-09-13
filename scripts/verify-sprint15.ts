@@ -194,11 +194,24 @@ async function main() {
      * CONTROL above is what proves this assertion can still catch one that
      * could.
      */
+    /*
+     * 🔴 `priceCurrency` was added in sprint 52 and this assertion is why it had to be argued for.
+     *
+     * The patient's session list formatted every amount as USD from a string literal, so somebody
+     * in Cairo who paid 450 EGP read "$450" on their own record. The fix carries the session's real
+     * currency onto this row, and this check went red the moment it did — which is the allow-list
+     * working: a new field reaching a patient is a decision, not a detail.
+     *
+     * Admitted for the same reason `provenance` is: an ISO-4217 code is three letters from a fixed
+     * set and cannot hold a sentence. The sentinel CONTROL above is what proves this assertion can
+     * still catch a field that could.
+     */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
       keys ===
-        "at,brief,briefPending,group,id,modality,paymentStatus,priceCents,provenance,therapistName",
+        "at,brief,briefPending,group,id,modality,paymentStatus,priceCents,priceCurrency," +
+          "provenance,therapistName",
       keys,
     );
 

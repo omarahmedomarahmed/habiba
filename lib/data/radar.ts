@@ -20,6 +20,7 @@ import {
   therapistRadar,
   users,
 } from "@/lib/db/schema";
+import { isVerifiedClinician } from "@/lib/data/verified";
 import { accessStateFor, isGated, type AccessState } from "@/lib/access/state";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
 import { closedCodes } from "@/lib/data/taxonomy";
@@ -312,6 +313,21 @@ async function queryBoard() {
         isNull(users.deletedAt),
         eq(users.status, "active"),
         /*
+         * 🔴 C285 — AND THE BOARD ITSELF ASKS, NOT ONLY THE DOOR ONTO IT.
+         *
+         * `toggleRadar` already calls `requireVerified`, which reads the hard table, so an
+         * unverified clinician cannot put themselves on the radar. This list had NO verification
+         * filter of any kind — only `publicProfile` one function down had one.
+         *
+         * The gap that leaves is narrow and real: a clinician who is online when their approval is
+         * withdrawn stays on the board until they happen to toggle off. A gate at the write and
+         * none at the read means the board is correct only for as long as nothing changes behind
+         * it, and "an administrator revoked this clinician" is exactly the thing that changes.
+         *
+         * This is the list a patient picks from in a crisis. It asks every time.
+         */
+        isVerifiedClinician(),
+        /*
          * A suspended clinician is off the board entirely — not shown busy,
          * not shown offline, not shown at all. Being visible with a reason
          * would publish a disciplinary fact about a named person to anonymous
@@ -518,7 +534,14 @@ export async function publicProfile(
         eq(users.id, userId),
         isNull(users.deletedAt),
         eq(users.status, "active"),
-        eq(users.verificationStatus, "verified"),
+        /*
+         * 🔴 C285 — the public radar asks `therapist_verifications`, not the derived column.
+         *
+         * This is the list a patient picks a therapist from at two in the morning. It is the
+         * closest thing the product has to the sentence "only certified therapists", said to the
+         * person it is said for, so it asks the row that makes it true. See lib/data/verified.ts.
+         */
+        isVerifiedClinician(),
         or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
       ),
     )
@@ -1073,6 +1096,12 @@ export async function radarCount(): Promise<number> {
         eq(therapistRadar.status, "online"),
         gte(therapistRadar.lastSeenAt, new Date(Date.now() - HEARTBEAT_STALE_MS)),
         isNull(users.deletedAt),
+        /*
+         * 🔴 C285 — "N therapists available now" is a claim on the public home page, and it counted
+         * rows this product would not show if anybody clicked. A number that is larger than the
+         * list it stands for is an advertisement rather than a count.
+         */
+        isVerifiedClinician(),
       ),
     );
   return row?.count ?? 0;

@@ -91,6 +91,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
               therapistName: row.therapist,
               modality: "video",
               priceCents: 0,
+              priceCurrency: "egp",
               paymentStatus: "not_required",
               brief: row.brief,
               briefPending: false,

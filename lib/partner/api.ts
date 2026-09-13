@@ -13,6 +13,7 @@ import {
   sessions,
   users,
 } from "@/lib/db/schema";
+import { verifiedFlag } from "@/lib/data/verified";
 import { log, ref } from "@/lib/logger";
 
 import type { AuthedKey } from "./keys";
@@ -58,7 +59,11 @@ export async function clinicianVerification(input: {
 
   const [row] = await controlDb
     .select({
-      verificationStatus: users.verificationStatus,
+      /*
+       * 🔴 C285 — asked of `therapist_verifications`, not of the derived column on `users`.
+       * This sentence leaves the building under a commercial agreement; see lib/data/verified.ts.
+       */
+      verified: verifiedFlag(),
       /*
        * 🔴 The select list is TWO columns, and what is absent is the ticket: no licence
        * number, no document url, no date of birth, no national id, no photograph.
@@ -86,7 +91,7 @@ export async function clinicianVerification(input: {
     return { verified: false, source: null };
   }
 
-  const verified = row.verificationStatus === "verified";
+  const verified = row.verified;
 
   await audit({
     actor: null,
@@ -167,7 +172,8 @@ export async function whoMayRead(input: {
   const rows = await controlDb
     .select({
       email: users.email,
-      verificationStatus: users.verificationStatus,
+      /* 🔴 C285 — the same source as the single-clinician answer above. */
+      verified: verifiedFlag(),
     })
     .from(historyGrants)
     .innerJoin(users, eq(users.id, historyGrants.therapistUserId))
@@ -199,7 +205,7 @@ export async function whoMayRead(input: {
   return {
     clinicians: rows.map((row) => ({
       email: row.email,
-      verified: row.verificationStatus === "verified",
+      verified: row.verified,
     })),
   };
 }
@@ -232,7 +238,8 @@ export async function writeBackSession(input: {
     .select({
       id: users.id,
       organizationId: users.organizationId,
-      verificationStatus: users.verificationStatus,
+      /* 🔴 C285 — a session written into a chart needs the approval, not a copy of it. */
+      verified: verifiedFlag(),
     })
     .from(users)
     .where(
@@ -247,7 +254,7 @@ export async function writeBackSession(input: {
    * whose verification is approved. A partner writing sessions for an unverified account
    * would be the "only certified therapists" claim broken through an integration.
    */
-  if (clinician.verificationStatus !== "verified") {
+  if (!clinician.verified) {
     return { error: "That clinician is not verified with us.", status: 403 };
   }
 

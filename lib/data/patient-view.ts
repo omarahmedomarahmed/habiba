@@ -48,6 +48,15 @@ export type PatientSession = {
   /** `video` or `in_person`. Not a clinical fact. */
   modality: string;
   priceCents: number;
+  /**
+   * 🔴 The currency the session was actually priced in.
+   *
+   * Its absence was a live defect the sprint-52 content seed exposed within a minute of there being
+   * a priced session to look at: the list formatted every amount as USD, so a patient in Cairo who
+   * paid 450 EGP read "$450" on their own record. `sessions.price_currency` has held the answer
+   * since 46 and this row never carried it.
+   */
+  priceCurrency: string;
   paymentStatus: string;
   /**
    * The passage written **to** them, once their clinician has signed it.
@@ -90,6 +99,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       sessionType: sessions.sessionType,
       modality: sessions.modality,
       priceCents: sessions.priceCents,
+      priceCurrency: sessions.priceCurrency,
       paymentStatus: sessions.paymentStatus,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
@@ -133,6 +143,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
       modality: row.modality,
       priceCents: row.priceCents,
+      priceCurrency: row.priceCurrency,
       paymentStatus: row.paymentStatus,
       brief: signed ? row.brief : null,
       briefPending: !signed && at.getTime() < now,

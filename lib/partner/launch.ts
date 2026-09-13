@@ -14,6 +14,7 @@ import {
   users,
   LAUNCH_TOKEN_TTL_SECONDS,
 } from "@/lib/db/schema";
+import { verifiedFlag } from "@/lib/data/verified";
 import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
 import { SESSION_COOKIE } from "@/lib/routing";
@@ -121,7 +122,7 @@ export async function launchClinician(input: {
    * time, and refusing to build a directory is most of this sprint.
    */
   const [clinician] = await controlDb
-    .select({ id: users.id, verificationStatus: users.verificationStatus })
+    .select({ id: users.id, verified: verifiedFlag() })
     .from(users)
     .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
@@ -136,7 +137,7 @@ export async function launchClinician(input: {
 
   if (!clinician) return { error: "No such clinician.", status: 404 };
 
-  if (clinician.verificationStatus !== "verified") {
+  if (!clinician.verified) {
     return { error: "That clinician is not verified with us.", status: 403 };
   }
 
@@ -205,7 +206,7 @@ export async function redeemLaunch(token: string): Promise<RedeemResult> {
    * still allowed.
    */
   const [clinician] = await controlDb
-    .select({ id: users.id, verificationStatus: users.verificationStatus })
+    .select({ id: users.id, verified: verifiedFlag() })
     .from(users)
     .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
@@ -221,7 +222,7 @@ export async function redeemLaunch(token: string): Promise<RedeemResult> {
     )
     .limit(1);
 
-  if (!clinician || clinician.verificationStatus !== "verified") {
+  if (!clinician || !clinician.verified) {
     return { error: "That clinician can no longer be signed in." };
   }
 

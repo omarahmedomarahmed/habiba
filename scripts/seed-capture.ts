@@ -38,6 +38,7 @@
 import { sql } from "drizzle-orm";
 
 import { connect } from "./db";
+import { required } from "./_verify";
 import { hashPassword } from "../lib/auth/password";
 
 /** 🔴 The one endpoint this may write to. Not a prefix match on "not production". */
@@ -104,6 +105,48 @@ export const CAST = {
   },
 } as const;
 
+/**
+ * 🔴 The note the film shows, in the shape the product actually stores.
+ *
+ * `session_notes.content` is structured rather than prose, and that structure IS sprint 47: the
+ * clinician's SOAP note and the patient's brief are different fields written in the same pass,
+ * because "sending the professional document to the person it is about is how a clinician ends up
+ * explaining the word guarded over the phone".
+ *
+ * So a seeded blob of SOAP text would have filmed the wrong thing twice over: it would not render,
+ * and it would have hidden the one decision the sprint was about. Both halves are written here, and
+ * they say different things about the same fifty minutes on purpose — `impressions` carries clinical
+ * language ("self-criticism on display") that `patientBrief` deliberately does not.
+ *
+ * C225: invented, ordinary, and belonging to nobody. See the note on the content section.
+ */
+const NOTE = {
+  "soap": {
+    "subjective": "Reports a one-week return of middle-insomnia, waking around 03:00 with ruminative thinking focused on a work review that was brought forward. Describes a loop between daytime fatigue and anticipatory worry. Partial adherence to the agreed wind-down routine, four nights of seven, with subjectively faster return to sleep on those nights.",
+    "objective": "Alert and engaged throughout. Affect mildly constricted and congruent with reported mood. Speech normal in rate and volume. No perceptual disturbance and no expressed intent to harm self or others.",
+    "assessment": "Recurrence of situational insomnia against a background of anticipatory work anxiety. The adherence data is the useful finding: the intervention worked on the nights it was used and the patient had not connected the two.",
+    "plan": "Make the adherence evidence explicit rather than instructing. Raise the target to six nights. Review sleep at next session and reconsider the formulation if unchanged."
+  },
+  "summary": "Follow-up addressing a one-week recurrence of middle-insomnia linked to anticipatory work anxiety. Partial adherence produced a measurable improvement the patient had not registered; the session focused on making that evidence visible and raising the target.",
+  "patientBrief": "We talked about the sleep coming back this week, and about the review moving to Thursday being underneath it. The useful thing we found is that on the four nights you did the wind-down, you got back to sleep faster. You had not put those two together, and neither of us had said it out loud before today.",
+  "patientSteps": [
+    "Try the wind-down six nights this week rather than four.",
+    "When you wake at three, write down in one line what the thought actually is. We are not going to argue with it yet."
+  ],
+  "patientNext": "Same time next week. If the sleep gets worse before then rather than better, message me and we will bring it forward.",
+  "talkingPoints": [
+    "The adherence data, said back to her rather than instructed",
+    "Whether the review is the whole of it or a trigger for something older"
+  ],
+  "observations": "Noticeably lighter once the adherence pattern was named. Said she did not like needing it pointed out, which is worth returning to.",
+  "impressions": "Adjustment-related insomnia, responsive to behavioural intervention. No indication of a primary mood disorder. Self-criticism on display in how she received a positive finding.",
+  "recommendations": [
+    "Continue behavioural sleep intervention, target six nights",
+    "Revisit the self-critical response to progress if it recurs"
+  ],
+  "followUp": "Weekly. Reassess in three sessions and consider stepping down if sleep holds."
+};
+
 async function main() {
   const url = process.env.DATABASE_URL ?? "";
   const host = url.match(/@([^/:?]+)/)?.[1] ?? "(none)";
@@ -156,6 +199,37 @@ async function main() {
       sql`DELETE FROM enrolments WHERE person_id IN (SELECT id FROM people WHERE last_name = 'Demo')`,
       sql`DELETE FROM ledger_entries WHERE ref_type = 'sponsor'`,
       sql`DELETE FROM sponsor_users WHERE email LIKE '%@example.com'`,
+      /*
+       * 🔴 A SESSION HOLDS A PATIENT DOWN, and the first content run proved it: deleting the cast
+       * patients failed on `sessions_patient_id_patients_id_fk` because the walkthrough had left
+       * sessions behind. The content this seed now writes makes that permanent rather than
+       * accidental, so the whole subtree goes first, children before parents at every level.
+       */
+      sql`DELETE FROM transcript_segments WHERE session_id IN
+            (SELECT s.id FROM sessions s JOIN patients p ON p.id = s.patient_id
+              WHERE p.last_name = 'Demo')`,
+      sql`DELETE FROM session_notes WHERE patient_id IN
+            (SELECT id FROM patients WHERE last_name = 'Demo')`,
+      sql`DELETE FROM assessment_responses WHERE assignment_id IN
+            (SELECT a.id FROM assessment_assignments a JOIN patients p ON p.id = a.patient_id
+              WHERE p.last_name = 'Demo')`,
+      sql`DELETE FROM assessment_assignments WHERE patient_id IN
+            (SELECT id FROM patients WHERE last_name = 'Demo')`,
+      sql`DELETE FROM invoices WHERE session_id IN
+            (SELECT s.id FROM sessions s JOIN patients p ON p.id = s.patient_id
+              WHERE p.last_name = 'Demo')`,
+      sql`DELETE FROM sessions WHERE patient_id IN
+            (SELECT id FROM patients WHERE last_name = 'Demo')`,
+      sql`DELETE FROM homework_items WHERE person_id IN
+            (SELECT id FROM people WHERE last_name = 'Demo')`,
+      sql`DELETE FROM journals WHERE person_id IN
+            (SELECT id FROM people WHERE last_name = 'Demo')`,
+      sql`DELETE FROM clinical_summaries WHERE person_id IN
+            (SELECT id FROM people WHERE last_name = 'Demo')`,
+      sql`DELETE FROM checkin_replies WHERE person_id IN
+            (SELECT id FROM people WHERE last_name = 'Demo')`,
+      sql`DELETE FROM checkins WHERE person_id IN
+            (SELECT id FROM people WHERE last_name = 'Demo')`,
       sql`DELETE FROM patients WHERE last_name = 'Demo'`,
       /*
        * 🔴 The account's children before the account, and the account before the person.
@@ -263,7 +337,9 @@ async function main() {
       INSERT INTO users (organization_id, email, first_name, last_name, role, verification_status,
                          password_hash, profile)
       VALUES (${clinic.id}, ${CAST.clinicClinician.email}, 'Tarek', 'Example', 'therapist',
-              'verified', ${hash},
+              /* 🔴 C285: ignored by 0083's trigger and kept only so the column is named. The
+                 approval below is what makes them verified. */
+              'unverified', ${hash},
               '{"credentials":"MSc Clinical Psychology","licenseState":"EG","timezone":"Africa/Cairo"}'::jsonb)
       RETURNING id`)
     ).rows as { id: string }[];
@@ -311,7 +387,7 @@ async function main() {
       INSERT INTO users (organization_id, email, first_name, last_name, role, verification_status,
                          password_hash, profile)
       VALUES (${partnerOrg.id}, 'partner.clinician@example.com', 'Sara', 'Example', 'therapist',
-              'verified', ${hash},
+              'unverified', ${hash},
               '{"credentials":"MD Psychiatry","licenseState":"EG","timezone":"Africa/Cairo"}'::jsonb)
       RETURNING id`)
     ).rows as { id: string }[];
@@ -340,7 +416,16 @@ async function main() {
      * screens are the ones reading the softer column — which means the real question is what else
      * reads `users.verification_status` and believes it. `FINDINGS.md` carries it.
      *
-     * Seeded from the users table so the two can never disagree HERE, whatever they do elsewhere.
+     * 🔴 C285 CLOSED IT EVERYWHERE, AND THIS SELECT HAD TO CHANGE BECAUSE OF IT.
+     *
+     * 0083 makes `users.verification_status` derived: a trigger forces it to whatever
+     * `therapist_verifications` says on every insert and update. So the first version of this
+     * statement — `WHERE u.verification_status = 'verified'` — now selects NOTHING, because a
+     * freshly inserted clinician derives to `unverified` until this very statement runs. A seed
+     * that read the soft column was only ever working because the soft column was writable.
+     *
+     * It selects active clinicians instead and approves them, which is the honest shape: this is
+     * the seed standing in for the administrator who reviews a licence.
      */
     await db.execute(sql`
       INSERT INTO therapist_verifications (user_id, organization_id, state, country, license_body,
@@ -348,7 +433,7 @@ async function main() {
       SELECT u.id, u.organization_id, 'approved', 'EG', 'Egyptian Psychological Association',
              'DEMO-' || substr(u.id::text, 1, 8), now(), now()
         FROM users u
-       WHERE u.role = 'therapist' AND u.verification_status = 'verified'
+       WHERE u.role = 'therapist' AND u.status = 'active'
          AND NOT EXISTS (SELECT 1 FROM therapist_verifications v WHERE v.user_id = u.id)`);
 
     console.log("verifications: approved for every verified clinician");
@@ -445,6 +530,334 @@ async function main() {
               (SELECT id FROM people WHERE phone = ${CAST.sponsoredPatient.phone}),
               encode(sha256('capture:layla@example.com'::bytea), 'hex'),
               'domain_email', 'active', now())`);
+
+    /* ================================================================ */
+    /*  🔴 THE CONTENT. 52.1b — A CAST WITH NOTHING TO SHOW IS A FILM    */
+    /*  ABOUT AN EMPTY PRODUCT.                                          */
+    /* ================================================================ */
+
+    /*
+     * 🔴 WHY THIS SECTION EXISTS, IN ONE SENTENCE FROM THE FINDINGS PASS:
+     *
+     *   *The best-written sentences in the product are followed by "Nothing to do right now".*
+     *
+     * 52.3 photographed all six portals and found the design right, the structure right and the
+     * writing exceptional — over empty states, on every screen. A cut of a well-written empty room
+     * is a film about how little is in there, so the four cuts would have filmed the gap rather
+     * than the product.
+     *
+     * ## 🔴 C225 GOVERNS THE CONTENT EXACTLY AS IT GOVERNS THE NAMES
+     *
+     * Every row below is invented. The discipline is harder here than it is for a name, because a
+     * journal entry is a piece of writing about a person's inner life: it has to read as though a
+     * real person could have written it **without being anybody**. So the material is deliberately
+     * ordinary and specific-but-common — a review at work, waking at three, a sister's wedding —
+     * rather than distinctive enough to belong to someone. Nothing here is drawn from any real
+     * record, any real person, or anything the founder has described.
+     *
+     * 🔴 And nothing here is a crisis. A synthetic entry that tripped the risk path would seed a
+     * `risk_assessments` row saying a person who does not exist is in danger, and put that sentence
+     * in a marketing film. The journal is `risk_level: 'low'` and says so.
+     *
+     * ## One patient carries the story
+     *
+     * Layla Demo, in the solo practice, seen by Test Therapist and funded by Demo Holdings. The
+     * other two keep their thinner records on purpose: a film needs one person whose history you
+     * can follow and a list that does not look identical all the way down.
+     */
+
+    const layla = required(
+      (
+        await db.execute(sql`
+          SELECT p.id AS patient_id, p.person_id, pa.id AS account_id
+            FROM patients p
+            JOIN patient_accounts pa ON pa.person_id = p.person_id
+           WHERE p.phone = ${CAST.sponsoredPatient.phone}
+           LIMIT 1`)
+      ).rows[0] as { patient_id: string; person_id: string; account_id: string } | undefined,
+      "Layla Demo's record and account",
+    );
+
+    /* ---------------------------------------------------------------- */
+    /*  A session that actually happened: transcript, signed note, paid  */
+    /* ---------------------------------------------------------------- */
+
+    const [past] = (
+      await db.execute(sql`
+      INSERT INTO sessions (organization_id, therapist_id, patient_id, modality, status,
+                            started_at, ended_at, duration_minutes, note_status, price_cents,
+                            price_currency, payment_status, recording_consent, recording_consent_at,
+                            transcript_language, session_type, feedback_token)
+      VALUES (${soloOrgId}, ${therapistId}, ${layla.patient_id}, 'in_person', 'completed',
+              now() - interval '8 days', now() - interval '8 days' + interval '50 minutes', 50,
+              'approved', 45000, 'egp', 'paid', true, now() - interval '8 days',
+              'en', 'standard', replace(gen_random_uuid()::text, '-', ''))
+      RETURNING id`)
+    ).rows as { id: string }[];
+
+    /*
+     * 🔴 A TRANSCRIPT THAT READS LIKE A ROOM, not like a demo script.
+     *
+     * Short, because the transcript panel in a film is read at a glance and a wall of text is a
+     * wall. Ordinary, because this is the one artefact where invented clinical dialogue could be
+     * mistaken for a real person's words if it were vivid enough to be somebody's.
+     */
+    const lines: [string, string][] = [
+      ["therapist", "How has the sleep been since we last spoke?"],
+      ["patient", "Better for about four nights. Then the review got moved up and it went again."],
+      ["therapist", "Went again how? Getting off, or waking?"],
+      ["patient", "Waking. Around three. And then it is just going over the same thing."],
+      ["therapist", "You did the wind-down on the four nights it was better."],
+      ["patient", "I suppose I did. I had not put those two together."],
+    ];
+
+    let seq = 0;
+    for (const [speaker, text] of lines) {
+      seq += 1;
+      await db.execute(sql`
+        INSERT INTO transcript_segments (session_id, organization_id, sequence, speaker, text,
+                                         start_ms, end_ms)
+        VALUES (${past.id}, ${soloOrgId}, ${seq}, ${speaker}, ${text},
+                ${seq * 20000}, ${seq * 20000 + 9000})`);
+    }
+
+    /*
+     * 🔴 The clinician's note is SIGNED and the patient's copy is RELEASED, because 47's whole
+     * shape is that those are two decisions. A film that showed only the first would be showing
+     * half of the sprint the founder called the honest record.
+     */
+    await db.execute(sql`
+      INSERT INTO session_notes (session_id, organization_id, therapist_id, patient_id, content,
+                                 status, approved_at, approved_by, language, provenance,
+                                 patient_status, patient_approved_at, patient_approved_by)
+      VALUES (${past.id}, ${soloOrgId}, ${therapistId}, ${layla.patient_id},
+              ${JSON.stringify(NOTE)}::jsonb,
+              'approved', now() - interval '8 days' + interval '55 minutes', ${therapistId},
+              'en', 'transcript',
+              'approved', now() - interval '8 days' + interval '56 minutes', ${therapistId})`);
+
+    /* 🔴 A PAID INVOICE, so the billing screen is a receipt rather than a heading. */
+    await db.execute(sql`
+      INSERT INTO invoices (organization_id, kind, session_id, amount_cents, status, description,
+                            issued_at, paid_at)
+      VALUES (${soloOrgId}, 'session', ${past.id}, 45000, 'paid',
+              'Session with Test Therapist, 50 minutes',
+              now() - interval '8 days', now() - interval '8 days' + interval '1 hour')`);
+
+    console.log("content: one completed session, transcript, signed note, paid invoice");
+
+    /* ---------------------------------------------------------------- */
+    /*  🔴 A summary with TWO clinicians' versions, which is the point   */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * 🔴 "Every version stays, with the name of whoever wrote it, and nobody can take one back."
+     *
+     * That sentence is on the patient's summary screen and it is one of the best in the product,
+     * and with one version it is a claim rather than a demonstration. Two clinicians, in order, is
+     * the smallest cast that shows what it means: Tarek Example saw her first at the clinic, Test
+     * Therapist added to it rather than over it.
+     */
+    await db.execute(sql`
+      INSERT INTO clinical_summaries (person_id, version, body, approved_by_user_id,
+                                      approved_by_name, approved_by_credentials,
+                                      approved_by_license_body, approved_by_license_number,
+                                      organization_id, approved_at)
+      VALUES (${layla.person_id}, 1,
+              ${`Referred after three months of disturbed sleep and low mood following a change of role. No prior contact with mental health services. Presentation is consistent with an adjustment difficulty rather than a primary mood disorder, and the sleep is the symptom she came for. Agreed a behavioural sleep intervention and six sessions to review.`},
+              ${clinicClinician.id}, 'Tarek Example', 'MSc Clinical Psychology',
+              'Egyptian Psychological Association', 'DEMO-CLINIC-1',
+              ${clinic.id}, now() - interval '10 weeks')`);
+
+    await db.execute(sql`
+      INSERT INTO clinical_summaries (person_id, version, body, approved_by_user_id,
+                                      approved_by_name, approved_by_credentials,
+                                      approved_by_license_body, approved_by_license_number,
+                                      organization_id, session_id, approved_at)
+      VALUES (${layla.person_id}, 2,
+              ${`Continuing work on sleep, now in the solo practice. The picture has narrowed since the first summary: mood has lifted with the role settling, and what remains is a recurrence of middle-insomnia tied to specific work events rather than a constant. The intervention is effective when used and the current work is adherence rather than technique. No change to formulation.`},
+              ${therapistId}, 'Test Therapist', 'LCSW',
+              'NY Office of the Professions', 'DEMO-SOLO-1',
+              ${soloOrgId}, ${past.id}, now() - interval '8 days' + interval '57 minutes')`);
+
+    console.log("content: a clinical summary with two clinicians' versions");
+
+    /* ---------------------------------------------------------------- */
+    /*  Homework in three states                                         */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * 🔴 Three states because the screen has three and an empty one teaches nothing: done, open,
+     * and skipped. The skipped one matters most for the film, because the screen says *"Do them or
+     * do not, nobody is counting"* and a list where everything is ticked quietly contradicts it.
+     */
+    for (const [title, detail, status, days] of [
+      [
+        "The wind-down, six nights this week",
+        "Same as before: screens down, lights low, and out of the bedroom if you are still awake after twenty minutes.",
+        "done",
+        6,
+      ],
+      [
+        "Write down what the three o'clock thought actually is",
+        "One line, on your phone, when it happens. We are not going to argue with it yet, only find out what it says.",
+        "open",
+        1,
+      ],
+      [
+        "Ten minutes of walking before the review",
+        "Optional. If the morning is already too full, leave it.",
+        "skipped",
+        4,
+      ],
+    ] as const) {
+      await db.execute(sql`
+        INSERT INTO homework_items (person_id, session_id, assigned_by_user_id, organization_id,
+                                    title, detail, source, status, due_at, completed_at,
+                                    patient_note)
+        VALUES (${layla.person_id}, ${past.id}, ${therapistId}, ${soloOrgId},
+                ${title}, ${detail}, 'therapist', ${status},
+                now() + interval '${sql.raw(String(7 - days))} days',
+                ${status === "done" ? sql`now() - interval '3 days'` : sql`NULL`},
+                ${status === "done" ? "Did it four nights. The other three I forgot." : null})`);
+    }
+
+    console.log("content: homework in three states");
+
+    /* ---------------------------------------------------------------- */
+    /*  A journal entry                                                  */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * 🔴 THE HARDEST ROW IN THIS FILE TO WRITE HONESTLY.
+     *
+     * C225 says synthetic, and a journal is the one artefact where "synthetic" and "reads like a
+     * person" pull hardest against each other. The rule applied here: ordinary material, specific
+     * enough to be believable, common enough to belong to nobody. A moved deadline and a sister's
+     * wedding are true of thousands of people and identify none of them.
+     *
+     * `risk_level: 'low'`, explicitly, and nothing in the text that would route to the crisis path.
+     * A synthetic entry that raised a risk assessment would put "this person may be in danger" in a
+     * database and then in a promotional film, about somebody who does not exist.
+     */
+    await db.execute(sql`
+      INSERT INTO journals (person_id, account_id, source, body, risk_level, created_at)
+      VALUES (${layla.person_id}, ${layla.account_id}, 'typed',
+              ${`Awake at three again. The review moved to Thursday and I think I have been carrying that around since Monday without noticing.\n\nWhat is strange is that I did the wind-down on the nights it worked and did not connect it. I only saw it when he said it back to me. I do not love that about myself, that I need somebody else to point at the obvious thing.\n\nMy sister's wedding is in three weeks and I would like to be sleeping by then. Not for any dramatic reason. I would just like to enjoy it.`},
+              'low', now() - interval '2 days')`);
+
+    console.log("content: a journal entry");
+
+    /* ---------------------------------------------------------------- */
+    /*  An assessment result, with its per-answer timings                */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * 🔴 The instruments are seeded and published through the PRODUCT'S OWN functions, not by an
+     * INSERT here. `publishInstrument` refuses a licensed instrument and refuses a translated one
+     * nobody has read, and a seed that wrote `published_at` directly would be the one path around
+     * both — which is exactly the shape of defect this sprint keeps finding.
+     */
+    const { seedInstruments, publishInstrument } = await import("../lib/data/assessments");
+    const seeded = await seedInstruments();
+
+    const [adminUser] = (
+      await db.execute(
+        sql`SELECT id FROM users WHERE email = ${CAST.admin.email} LIMIT 1`,
+      )
+    ).rows as { id: string }[];
+
+    /* A named person read the Arabic, which is what 56.11 requires before publication. */
+    await db.execute(sql`
+      UPDATE instruments
+         SET translation_reviewed_by = ${adminUser.id}, translation_reviewed_at = now()
+       WHERE translation_reviewed_by IS NULL`);
+
+    const instrumentRows = (
+      await db.execute(sql`SELECT id, key FROM instruments`)
+    ).rows as { id: string; key: string }[];
+
+    for (const row of instrumentRows) {
+      await publishInstrument({
+        id: row.id,
+        actor: { userId: adminUser.id, role: "super_admin", organizationId: soloOrgId } as never,
+      });
+    }
+
+    const phq9 = required(
+      instrumentRows.find((row) => row.key === "phq9"),
+      "the PHQ-9 instrument",
+    );
+
+    const [assignment] = (
+      await db.execute(sql`
+      INSERT INTO assessment_assignments (instrument_id, patient_id, organization_id,
+                                          assigned_by_user_id, session_id, mode, status, score,
+                                          instrument_version, started_at, completed_at)
+      VALUES (${phq9.id}, ${layla.patient_id}, ${soloOrgId}, ${therapistId}, ${past.id},
+              'homework', 'completed', 11, 1,
+              now() - interval '6 days', now() - interval '6 days' + interval '4 minutes')
+      RETURNING id`)
+    ).rows as { id: string }[];
+
+    /*
+     * 🔴 PER-ANSWER TIMINGS, which is the detail the founder asked for by name and the one thing
+     * here that could not be faked convincingly by hand.
+     *
+     * `answer_ms` is how long each question took. The pattern is the point: the sleep item and the
+     * concentration item take three and four times as long as the rest, because those are the ones
+     * she had to think about. Uniform timings would be a screenshot of a spreadsheet. This is what
+     * somebody answering honestly on a phone looks like.
+     */
+    const answers: [string, number, number][] = [
+      ["interest", 1, 4200],
+      ["mood", 2, 5100],
+      ["sleep", 3, 16400],
+      ["energy", 2, 3800],
+      ["appetite", 0, 2900],
+      ["failure", 1, 11200],
+      ["concentration", 2, 14800],
+      ["psychomotor", 0, 3100],
+      ["selfharm", 0, 6700],
+    ];
+
+    for (const [key, value, ms] of answers) {
+      await db.execute(sql`
+        INSERT INTO assessment_responses (assignment_id, question_key, value, answer_ms,
+                                          answered_at)
+        VALUES (${assignment.id}, ${key}, ${value}, ${ms}, now() - interval '6 days')`);
+    }
+
+    console.log(
+      `content: PHQ-9 completed, score 11, nine answers with timings (${seeded.inserted} instruments seeded)`,
+    );
+
+    /* ---------------------------------------------------------------- */
+    /*  A check-in, and a reply                                          */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * 🔴 44.2 — A CHECK-IN ASKS, IT NEVER INTERPRETS, and the reply seeded here is the ordinary
+     * kind precisely so the film shows the ordinary case. `crisis_alert_raised` is false and there
+     * is no `risk_assessments` row, because the crisis path is a thing to demonstrate in a verifier
+     * and not a thing to stage for a camera.
+     */
+    const [checkin] = (
+      await db.execute(sql`
+      INSERT INTO checkins (person_id, channel, body, locale, sent_at, delivered)
+      VALUES (${layla.person_id}, 'whatsapp',
+              'How have you been since your last session? No need to reply if you would rather not.',
+              'en', now() - interval '4 days', true)
+      RETURNING id`)
+    ).rows as { id: string }[];
+
+    await db.execute(sql`
+      INSERT INTO checkin_replies (checkin_id, person_id, body, crisis_alert_raised, received_at)
+      VALUES (${checkin.id}, ${layla.person_id},
+              'Mixed. Sleeping better at the start of the week. Thanks for asking.',
+              false, now() - interval '4 days' + interval '2 hours')`);
+
+    console.log("content: a check-in and an ordinary reply");
 
     console.log("\nDone. Six principals, one seeded run.");
     console.log(`\npassword for every synthetic account: ${PASSWORD}`);

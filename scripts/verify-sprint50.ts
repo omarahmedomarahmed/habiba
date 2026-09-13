@@ -40,7 +40,7 @@
  * that it does, because if it does not, the operator meets the original
  * symptom again with a cache in place of the missing query.
  */
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 
@@ -84,7 +84,42 @@ async function main() {
     .where(eq(therapistRadar.userId, seeded.userId));
   const original = required(before[0], "radar row to restore afterwards");
 
+  /*
+   * 🔴 C285 TIGHTENED WHAT "ON THE RADAR" MEANS, AND THE CONTROLS HERE CAUGHT IT.
+   *
+   * `listRadar` had no verification filter at all until C285; the gate was only on `toggleRadar`,
+   * so a clinician whose approval was withdrawn stayed on the board until they toggled off. With
+   * the filter in, this fixture's clinician vanished — and all three CONTROLS went red while the
+   * one absence assertion stayed green, which is exactly the arrangement that makes a control worth
+   * writing. "The closed country returns zero rows" is what a broken radar returns too.
+   *
+   * So the fixture now guarantees the thing the board requires: a real approved verification, which
+   * the trigger then reflects onto the user row. Removed again in `restore` if this run created it.
+   */
+  const hadVerification =
+    (
+      await controlDb.execute(
+        sql`SELECT 1 FROM therapist_verifications WHERE user_id = ${seeded.userId} LIMIT 1`,
+      )
+    ).rows.length > 0;
+
+  if (!hadVerification) {
+    await controlDb.execute(sql`
+      INSERT INTO therapist_verifications (user_id, organization_id, state, submitted_at,
+                                           reviewed_at)
+      SELECT id, organization_id, 'approved', now(), now() FROM users WHERE id = ${seeded.userId}`);
+  } else {
+    await controlDb.execute(
+      sql`UPDATE therapist_verifications SET state = 'approved' WHERE user_id = ${seeded.userId}`,
+    );
+  }
+
   const restore = async () => {
+    if (!hadVerification) {
+      await controlDb.execute(
+        sql`DELETE FROM therapist_verifications WHERE user_id = ${seeded.userId}`,
+      );
+    }
     await controlDb
       .update(therapistRadar)
       .set({
