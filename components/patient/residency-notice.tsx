@@ -94,7 +94,7 @@ export function ResidencyNotice({
             })
           }
         >
-          {pending ? "Saving…" : "I understand, and I agree"}
+          {pending ? t("common.saving") : t("pres.iAgree")}
         </Button>
       )}
     </Card>

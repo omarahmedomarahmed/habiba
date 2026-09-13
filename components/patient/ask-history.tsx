@@ -59,9 +59,9 @@ export function AskHistory({
               <p className="text-sm font-medium text-slate-900">{ask.therapistName}</p>
               <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
                 {ask.status === "pending"
-                  ? "Waiting. They have been told, and they can see it on their own screen."
+                  ? t("pask.waiting")
                   : ask.status === "added"
-                    ? "They added what they hold. It is in your profile."
+                    ? t("pask.added")
                     : `They said no. In their words: “${ask.declineReason}”`}
               </p>
             </li>
@@ -114,7 +114,7 @@ export function AskHistory({
               })
             }
           >
-            {pending ? "Asking…" : "Ask them"}
+            {pending ? t("common.working") : t("pask.askThem")}
           </Button>
         </div>
       ) : null}

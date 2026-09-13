@@ -138,7 +138,7 @@ export function PatientEditor({
 
       <div className="flex gap-2.5 pt-1">
         <Button full onClick={handleSave} disabled={pending}>
-          {pending ? "Saving…" : "Save"}
+          {pending ? t("common.saving") : t("common.save")}
         </Button>
       </div>
 

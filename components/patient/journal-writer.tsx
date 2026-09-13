@@ -104,7 +104,7 @@ export function JournalWriter() {
             }`}
           >
             <Mic className="h-3.5 w-3.5" aria-hidden />
-            {listening ? "Stop" : "Say it instead"}
+            {listening ? t("common.stop") : t("pjournal.sayIt")}
           </button>
         ) : null}
 
@@ -121,10 +121,11 @@ export function JournalWriter() {
 }
 
 function Save() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button className="mt-3" full type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save this"}
+      {pending ? t("common.saving") : t("pjournal.saveThis")}
     </Button>
   );
 }

@@ -196,7 +196,7 @@ export function RecordAccess({
                 ) : (
                   <Copy className="h-4 w-4" aria-hidden />
                 )}
-                {copied ? "Copied" : "Copy"}
+                {copied ? t("common.copied") : t("common.copy")}
               </button>
             </div>
             <p className="text-xs text-slate-500">
@@ -219,7 +219,7 @@ export function RecordAccess({
                 onClick={() => cancel(openInvite.id)}
                 className="tap-target h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
-                {pending ? "Working…" : "Cancel that link"}
+                {pending ? t("common.working") : t("pracc.cancelLink")}
               </button>
               <button
                 type="button"
@@ -243,7 +243,7 @@ export function RecordAccess({
               className="tap-target flex h-10 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
             >
               <Link2 className="h-4 w-4" aria-hidden />
-              {pending ? "Working…" : "Create an invite link"}
+              {pending ? t("common.working") : t("pracc.createLink")}
             </button>
           </>
         )}

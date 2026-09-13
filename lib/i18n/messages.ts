@@ -672,6 +672,52 @@ export const en = {
    * it. The rest keep their screen's prefix.
    */
   "pfield.firstName": "First name",
+
+  /*
+   * 🔴 52.4, THE SECOND BLIND SPOT: a string inside a JSX ternary.
+   *
+   * `{pending ? "Saving…" : "Save your name"}` is invisible to `literalsIn` for a different reason
+   * than the `label` prop was: the text-node regex excludes any run containing a brace, so an
+   * expression container is skipped entirely. The Arabic account screen proved it in a frame — the
+   * whole page mirrored and translated, and then **Add a photo** and **Save your name** in English.
+   *
+   * These are the patient surface's share of that shape, keyed. The shape is NOT counted by the
+   * scanner yet and is named as an open gap instead, because a regex for "a quoted string inside a
+   * brace" would also count Tailwind class names and enum values, and a ratchet that counts class
+   * names is a ratchet that moves when somebody restyles a button — the failure sprints 51 and 53
+   * each had to correct. Counting it needs a parser, not a pattern.
+   */
+  "common.sending": "Sending…",
+  "common.checking": "Checking…",
+  "common.uploading": "Uploading…",
+  "common.copy": "Copy",
+  "common.copied": "Copied",
+  "common.confirm": "Confirm",
+  "common.save": "Save",
+  "common.decline": "Decline",
+  "common.stop": "Stop",
+
+  "pban.sendRequest": "Send request",
+  "pask.waiting": "Waiting. They have been told, and they can see it on their own screen.",
+  "pask.added": "They added what they hold. It is in your profile.",
+  "pask.askThem": "Ask them",
+  "pnum.askToChange": "Ask to change it",
+  "pclaim.yoursNow": "Your record is yours now.",
+  "pclaim.oneQuestion": "One question",
+  "pclaim.claimThis": "Claim this record",
+  "pinv.keepsAccess": "Your therapist can still see your profile. You can change that at any time.",
+  "pinv.losesAccess":
+    "Your therapist keeps the notes they wrote, but can no longer see your live profile.",
+  "pinv.thisIsMe": "This is me, claim it",
+  "pid.addPhoto": "Add a photo",
+  "pid.changePhoto": "Change your photo",
+  "pid.saveName": "Save your name",
+  "pjournal.sayIt": "Say it instead",
+  "pjournal.saveThis": "Save this",
+  "pprove.sendMeACode": "Send me a code",
+  "pracc.cancelLink": "Cancel that link",
+  "pracc.createLink": "Create an invite link",
+  "pres.iAgree": "I understand, and I agree",
   "pfield.lastName": "Last name",
   "pfield.lastNameOptional": "Last name (optional)",
   "pfield.email": "Email",
@@ -3492,6 +3538,38 @@ export const ar: Record<MessageKey, string> = {
   "pauth.phoneNote": "بهذا تسجّل الدخول، وبه يجدك معالجك.",
 
   "pfield.firstName": "الاسم الأول",
+
+  "common.sending": "جارٍ الإرسال…",
+  "common.checking": "جارٍ التحقق…",
+  "common.uploading": "جارٍ الرفع…",
+  "common.copy": "نسخ",
+  "common.copied": "تم النسخ",
+  "common.confirm": "تأكيد",
+  "common.save": "حفظ",
+  "common.decline": "رفض",
+  "common.stop": "إيقاف",
+
+  "pban.sendRequest": "أرسل الطلب",
+  "pask.waiting": "في الانتظار. أُبلغ بذلك، ويمكنه رؤيته على شاشته.",
+  "pask.added": "أضاف ما لديه. أصبح في ملفك.",
+  "pask.askThem": "اطلب منه",
+  "pnum.askToChange": "اطلب تغييره",
+  "pclaim.yoursNow": "أصبح سجلك ملكك.",
+  "pclaim.oneQuestion": "سؤال واحد",
+  "pclaim.claimThis": "طالِب بهذا السجل",
+  "pinv.keepsAccess": "سيظل معالجك قادرًا على رؤية ملفك. يمكنك تغيير ذلك في أي وقت.",
+  "pinv.losesAccess":
+    "يحتفظ معالجك بالملاحظات التي كتبها، لكنه لن يعود قادرًا على رؤية ملفك الحالي.",
+  "pinv.thisIsMe": "هذا أنا، أطالب به",
+  "pid.addPhoto": "أضف صورة",
+  "pid.changePhoto": "غيّر صورتك",
+  "pid.saveName": "احفظ اسمك",
+  "pjournal.sayIt": "قلها بصوتك بدلًا من ذلك",
+  "pjournal.saveThis": "احفظ هذا",
+  "pprove.sendMeACode": "أرسل لي رمزًا",
+  "pracc.cancelLink": "ألغِ ذلك الرابط",
+  "pracc.createLink": "أنشئ رابط دعوة",
+  "pres.iAgree": "فهمت، وأوافق",
   "pfield.lastName": "اسم العائلة",
   "pfield.lastNameOptional": "اسم العائلة (اختياري)",
   "pfield.email": "البريد الإلكتروني",

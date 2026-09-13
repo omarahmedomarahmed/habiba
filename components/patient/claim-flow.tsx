@@ -155,7 +155,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
             })
           }
         >
-          {pending ? "Checking…" : "Claim this record"}
+          {pending ? t("common.checking") : t("pclaim.claimThis")}
         </Button>
 
         <button

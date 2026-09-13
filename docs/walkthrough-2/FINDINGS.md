@@ -50,6 +50,37 @@ to 80. That is pre-existing debt becoming visible, and the reasoning is recorded
 
 ---
 
+## 1b. And there was a SECOND blind spot, larger, found in a frame
+
+With the `label` fix in and the patient surface reading **0**, the Arabic account screen still showed
+two English controls: **Add a photo** and **Save your name**.
+
+```tsx
+{busy ? "Uploading…" : hasPhoto ? "Change your photo" : "Add a photo"}
+{pending ? "Saving…" : "Save your name"}
+```
+
+Invisible for a different reason: `literalsIn`'s text-node pattern is `>([^<>{}]+)<`, which excludes
+any run containing a brace, so **a JSX expression container is skipped entirely**. Every string
+inside a ternary — which is where this codebase puts the pending state of every button it has — is
+uncounted.
+
+**That is a zero that does not mean zero**, and it was caught by looking at a picture rather than by
+running a check. Which is the argument for 52.3 existing: the ratchet said the patient surface was
+clean, and a frame said otherwise.
+
+**The patient surface's share is keyed** — 30 more keys across fourteen components, both languages,
+including the four local `Submit` helpers whose `"Working…"` was hardcoded in four separate files.
+The Arabic account screen is now Arabic all the way down.
+
+🔴 **The shape itself is NOT counted, and is left as a named gap rather than closed in a hurry.** A
+regex for "a quoted string inside a brace" would also count Tailwind class names and enum values, and
+a ratchet that counts class names is one that moves when somebody restyles a button — which is
+exactly the failure sprints 51 and 53 each had to correct. Counting this needs a parser, not a
+pattern. It is the next piece of i18n work and it is bigger than this one.
+
+---
+
 ## 2. The patient portal had no way in at all
 
 `patient_accounts` held **zero rows** on the capture branch. The seed created `patients` (what a

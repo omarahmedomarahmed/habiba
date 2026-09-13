@@ -101,7 +101,7 @@ export function AccessBanner({
                   className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 >
                   <Send className="h-3.5 w-3.5" aria-hidden />
-                  {pending ? "Sending…" : "Send request"}
+                  {pending ? t("common.sending") : t("pban.sendRequest")}
                 </button>
                 <button
                   type="button"

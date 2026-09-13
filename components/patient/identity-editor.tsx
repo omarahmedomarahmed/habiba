@@ -77,7 +77,7 @@ export function IdentityEditor({
             onClick={() => picker.current?.click()}
             className="block text-sm font-semibold text-brand-600"
           >
-            {busy ? "Uploading…" : hasPhoto ? "Change your photo" : "Add a photo"}
+            {busy ? t("common.uploading") : hasPhoto ? t("pid.changePhoto") : t("pid.addPhoto")}
           </button>
           {hasPhoto ? (
             <button
@@ -133,10 +133,11 @@ export function IdentityEditor({
 }
 
 function SaveName() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save your name"}
+      {pending ? t("common.saving") : t("pid.saveName")}
     </Button>
   );
 }

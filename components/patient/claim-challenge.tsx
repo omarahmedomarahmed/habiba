@@ -49,7 +49,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
         <p className="text-sm font-semibold text-slate-900">{t("pclaim.everything")}</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {done.length === 1
-            ? "Your record is yours now."
+            ? t("pclaim.yoursNow")
             : `${done.length} records are yours now.`}{" "}
           Next you will be asked what your therapist may still see.
         </p>
@@ -61,7 +61,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
     <Card className="p-5">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
         <ShieldQuestion className="h-4 w-4 text-slate-400" aria-hidden />
-        {challenges.length > 1 ? `Question ${index + 1} of ${challenges.length}` : "One question"}
+        {challenges.length > 1 ? `Question ${index + 1} of ${challenges.length}` : t("pclaim.oneQuestion")}
       </p>
 
       {stage === "seen" ? (
@@ -136,7 +136,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
                   })
                 }
               >
-                {pending ? "Checking…" : "Confirm"}
+                {pending ? t("common.checking") : t("common.confirm")}
               </Button>
               <button
                 type="button"

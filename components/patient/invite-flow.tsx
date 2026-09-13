@@ -39,8 +39,8 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {keepsAccess
-            ? "Your therapist can still see your profile. You can change that at any time."
-            : "Your therapist keeps the notes they wrote, but can no longer see your live profile."}
+            ? t("pinv.keepsAccess")
+            : t("pinv.losesAccess")}
         </p>
         <Link href="/patient" className="mt-4 block">
           <Button full>{t("pclaim.goToSessions")}</Button>
@@ -113,7 +113,7 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
           })
         }
       >
-        {pending ? "Working…" : "This is me, claim it"}
+        {pending ? t("common.working") : t("pinv.thisIsMe")}
       </Button>
     </Card>
   );

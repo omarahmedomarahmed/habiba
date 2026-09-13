@@ -18,10 +18,11 @@ const INITIAL: AccountState = {};
  * take an account needs to know it will not work.
  */
 function Ask() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button type="submit" full disabled={pending}>
-      {pending ? "Sending…" : "Ask to change it"}
+      {pending ? t("common.sending") : t("pnum.askToChange")}
     </Button>
   );
 }

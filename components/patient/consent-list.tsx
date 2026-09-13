@@ -166,7 +166,7 @@ function RequestRow({
                 onClick={() => answer("rejected")}
                 className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
               >
-                {pending ? "Working…" : "Decline"}
+                {pending ? t("common.working") : t("common.decline")}
               </button>
               <button
                 type="button"

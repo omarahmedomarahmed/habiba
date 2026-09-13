@@ -24,10 +24,11 @@ import { useT } from "@/lib/i18n/client";
  */
 
 function Submit({ label }: { label: string }) {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button full size="lg" type="submit" disabled={pending}>
-      {pending ? "Working…" : label}
+      {pending ? t("common.working") : label}
     </Button>
   );
 }
@@ -99,7 +100,7 @@ export function ProveHandle({ handle }: { handle: string }) {
               })
             }
           >
-            {sending ? "Sending…" : "Send me a code"}
+            {sending ? t("common.sending") : t("pprove.sendMeACode")}
           </Button>
         </>
       )}
