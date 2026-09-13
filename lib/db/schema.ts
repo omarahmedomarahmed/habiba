@@ -179,7 +179,8 @@ export const organizations = pgTable(
      * the same point from the patient's side.
      */
     partnerId: uuid("partner_id").references((): AnyPgColumn => partners.id, {
-      onDelete: "set null",
+      /* 🔴 0082 — a CHECK requires this non-null when billing_mode is partner_billed, so SET NULL made a partner undeletable with an error naming the wrong table. 42.1's path for a departing integrator is state = 'closed'. */
+      onDelete: "restrict",
     }),
     billingMode: text("billing_mode").$type<BillingMode>().notNull().default("self"),
 
@@ -367,7 +368,8 @@ export const authSessions = pgTable(
      * remembers where they came from and expires sooner.
      */
     partnerId: uuid("partner_id").references((): AnyPgColumn => partners.id, {
-      onDelete: "set null",
+      /* 🔴 0082 — a launched session exists only because of the launch that made it, and RESTRICT would hold a company's row hostage to a credential that expires in an hour. */
+      onDelete: "cascade",
     }),
     createdVia: text("created_via").$type<AuditVia>(),
 
@@ -4252,7 +4254,8 @@ export const payoutRequests = pgTable(
 
     requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id, {
-      onDelete: "set null",
+      /* 🔴 0082 — a completed change names who approved it. */
+      onDelete: "restrict",
     }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     sentByUserId: uuid("sent_by_user_id").references(() => users.id, { onDelete: "set null" }),
@@ -5027,7 +5030,8 @@ export const patientClinicalFacts = pgTable(
     /** 56.10 — the completed instrument a score came from. */
     assessmentId: uuid("assessment_id"),
     enteredByUserId: uuid("entered_by_user_id").references(() => users.id, {
-      onDelete: "set null",
+      /* 🔴 0082 — sprint 47's honest record: a clinician-entered fact never loses the clinician who entered it. The sharpest of the six. */
+      onDelete: "restrict",
     }),
 
     /** Only ever set for `ai`, and CHECKed that way. */
@@ -5358,7 +5362,8 @@ export const instruments = pgTable(
      * only place it can be held.
      */
     translationReviewedBy: uuid("translation_reviewed_by").references(() => users.id, {
-      onDelete: "set null",
+      /* 🔴 0082 — a published non-English instrument names its reviewer. */
+      onDelete: "restrict",
     }),
     translationReviewedAt: timestamp("translation_reviewed_at", { withTimezone: true }),
 
@@ -6285,7 +6290,8 @@ export const clinicianInvitations = pgTable(
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     /** The clinician this became, once they accepted. Never set by the clinic. */
     acceptedUserId: uuid("accepted_user_id").references(() => users.id, {
-      onDelete: "set null",
+      /* 🔴 0082 — an accepted invitation names who accepted it (54.5). */
+      onDelete: "restrict",
     }),
 
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

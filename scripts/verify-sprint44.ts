@@ -30,7 +30,7 @@ import { readdirSync, statSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 
-import { readSource, reporter, required, writesTo } from "./_verify";
+import { constraintContradictions, readSource, reporter, required, writesTo } from "./_verify";
 import { stubModules } from "./_render";
 
 const { check, finish } = reporter();
@@ -269,21 +269,26 @@ async function main() {
   }
 
   /* 🔴 0079's lesson, permanently, in every sprint's verifier from here. */
-  const doubled = await db.execute(sql`
-    SELECT t.relname AS tbl, string_agg(c.conname, ', ') AS names
-      FROM pg_constraint c
-      JOIN pg_class t ON t.oid = c.conrelid
-      JOIN pg_namespace n ON n.oid = t.relnamespace
-     WHERE c.contype = 'f' AND n.nspname = 'public'
-     GROUP BY t.relname, c.conkey
-    HAVING count(*) > 1`);
+  /*
+   * 🔴 BOTH CONSTRAINT-CONTRADICTION AUDITS, from `scripts/_verify.ts`.
+   *
+   * 0078 left two foreign keys on one column; 0082 fixed six columns where `ON DELETE SET NULL`
+   * contradicted a CHECK requiring the column non-null. The two shapes are siblings and NEITHER
+   * AUDIT SEES THE OTHER'S, which is why they are one function called from every sprint verifier
+   * rather than a query somebody remembers to copy.
+   *
+   * Read by `conrelid` and `conkey`, never by `conname`. That is the lesson rather than the fix.
+   */
+  const contradictions = await constraintContradictions((query) =>
+    db.execute(sql.raw(query)).then((r) => ({ rows: r.rows as Record<string, unknown>[] })),
+  );
 
   check(
-    "🔴 0079 no column anywhere carries two foreign keys, read by conkey rather than by name",
-    doubled.rows.length === 0,
-    doubled.rows.length === 0
-      ? "one rule per column, everywhere"
-      : doubled.rows.map((r) => `${r.tbl}: ${r.names}`).join(" | "),
+    "🔴 0079 / 0082 no constraint on any column contradicts another, in either known shape",
+    contradictions.length === 0,
+    contradictions.length === 0
+      ? "no duplicate foreign key, and no SET NULL against a NOT NULL check"
+      : contradictions.map((c) => `[${c.kind}] ${c.detail}`).join(" | "),
   );
 
   /* ================================================================== */

@@ -165,3 +165,83 @@ export function required<T>(row: T | undefined | null, what: string): T {
 export function readSource(file: string): string {
   return stripCommentsKeepingLines(readFileSync(file, "utf8"));
 }
+
+/**
+ * 🔴 THE TWO CONSTRAINT-CONTRADICTION AUDITS, IN ONE PLACE, BECAUSE THEY ARE SIBLINGS.
+ *
+ * Neither audit can see the other's shape, and both were found the same way: by a script that tidied
+ * up after itself hitting a DELETE the schema cannot perform.
+ *
+ * **Shape one (0078, fixed by 0079): two foreign keys on one column.** 0078 dropped a constraint by
+ * drizzle's DEFAULT name, which had never existed because 0075 named its own by hand. The DROP was a
+ * no-op, the ADD made a second constraint, and two contradictory `ON DELETE` rules sat on one column.
+ * The verification that missed it read `pg_get_constraintdef` for the NAME it expected — presence of
+ * the right thing without absence of the wrong one.
+ *
+ * **Shape two (found in 52, fixed by 0082): `ON DELETE SET NULL` on a column a CHECK requires to be
+ * non-null.** Six instances across six sprints, each somebody reaching for SET NULL as the gentle
+ * default and then adding a CHECK that forbids exactly what it produces. A DELETE then fails with a
+ * check violation naming a table the operator was not touching.
+ *
+ * Both are read from `pg_constraint` by `conrelid` and `conkey` rather than by `conname`, which is
+ * the lesson rather than the fix: a constraint check must ask what rules exist ON THE COLUMN.
+ */
+export type ConstraintContradiction = { kind: "duplicate-fk" | "set-null-vs-check"; detail: string };
+
+export async function constraintContradictions(
+  execute: (query: string) => Promise<{ rows: Record<string, unknown>[] }>,
+): Promise<ConstraintContradiction[]> {
+  const found: ConstraintContradiction[] = [];
+
+  /* Shape one: any column carrying more than one foreign key. */
+  const doubled = await execute(`
+    SELECT t.relname AS tbl, string_agg(c.conname, ', ') AS names
+      FROM pg_constraint c
+      JOIN pg_class t ON t.oid = c.conrelid
+      JOIN pg_namespace n ON n.oid = t.relnamespace
+     WHERE c.contype = 'f' AND n.nspname = 'public'
+     GROUP BY t.relname, c.conkey
+    HAVING count(*) > 1`);
+
+  for (const row of doubled.rows) {
+    found.push({ kind: "duplicate-fk", detail: `${row.tbl}: ${row.names}` });
+  }
+
+  /*
+   * Shape two: an FK with SET NULL whose table has a CHECK requiring one of its columns non-null.
+   *
+   * Matched on the CHECK's own text, because there is no structured way to ask "does this expression
+   * require that column". A text match on `<column> IS NOT NULL` catches every instance the six
+   * known ones took, and a false positive here is a constraint pair worth a human look anyway.
+   */
+  const contradictory = await execute(`
+    WITH fks AS (
+      SELECT t.oid AS reloid, t.relname AS tbl, c.conname,
+             (SELECT array_agg(a.attname ORDER BY a.attnum)
+                FROM pg_attribute a WHERE a.attrelid = t.oid AND a.attnum = ANY(c.conkey)) AS cols
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+       WHERE c.contype = 'f' AND c.confdeltype = 'n' AND n.nspname = 'public'
+    ),
+    checks AS (
+      SELECT c.conrelid AS reloid, c.conname, pg_get_constraintdef(c.oid) AS def
+        FROM pg_constraint c
+        JOIN pg_namespace n ON n.oid = c.connamespace
+       WHERE c.contype = 'c'
+    )
+    SELECT f.tbl, f.conname AS fk, array_to_string(f.cols, ',') AS cols, k.conname AS chk
+      FROM fks f JOIN checks k ON k.reloid = f.reloid
+     WHERE EXISTS (SELECT 1 FROM unnest(f.cols) col
+                    WHERE k.def LIKE '%' || col || ' IS NOT NULL%')
+     ORDER BY f.tbl, f.conname`);
+
+  for (const row of contradictory.rows) {
+    found.push({
+      kind: "set-null-vs-check",
+      detail: `${row.tbl}.${row.cols}: ${row.fk} is ON DELETE SET NULL while ${row.chk} requires it non-null`,
+    });
+  }
+
+  return found;
+}

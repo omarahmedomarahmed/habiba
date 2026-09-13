@@ -33,6 +33,7 @@ import path from "node:path";
 
 import { sql } from "drizzle-orm";
 
+import { launchOptions } from "./_browser";
 import { connect } from "./db";
 
 const OUT = path.resolve("docs/screens");
@@ -137,7 +138,7 @@ async function main() {
   await refuseUnlessDemoOnly();
 
   const { chromium } = await import("playwright");
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOptions());
 
   const shoot = async (dir: string, shots: Shot[], storage?: string) => {
     const target = path.join(OUT, dir);
