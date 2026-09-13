@@ -30,6 +30,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
+import { renderMarkup, stubModules } from "./_render";
 
 const { check, finish } = reporter();
 
@@ -45,6 +46,21 @@ function walk(dir: string, out: string[] = []): string[] {
 
 async function main() {
   writesTo();
+
+  /*
+   * 🔴 FIRST, and it is why this script does NOT run with `--conditions=react-server`.
+   *
+   * 53.24 requires a check on RENDERED OUTPUT, and `_render` needs the full React
+   * build: the react-server build has no `createContext`, so importing a client
+   * component under that condition throws before anything is rendered. Every other
+   * verifier that renders (`verify:sprint21r`) is invoked the same way.
+   *
+   * The cost is that `import "server-only"` would throw in the data modules below,
+   * which is exactly what `stubModules` substitutes away. So it runs before the first
+   * dynamic import rather than beside the render, and the modules under test are the
+   * real ones either way.
+   */
+  await stubModules();
 
   const { controlDb: db } = await import("../lib/db");
   const { sql } = await import("drizzle-orm");
@@ -1380,6 +1396,136 @@ async function main() {
       "🔴 CONTROL …and it still renders a dialler link, so the scan is reading the real orb",
       /tel:/.test(orb),
       "a file that mentioned nothing would pass the check above",
+    );
+
+    /* ================================================================ */
+    /*  53.24 / C242 / C243 · the therapist, ON RENDERED OUTPUT          */
+    /* ================================================================ */
+
+    /*
+     * 🔴 *Nothing changes and nothing shows. And the verifier ASSERTS ON RENDERED
+     * OUTPUT, NEVER ON QUERIES: the check as first written passes against C243's
+     * leak, because that leak is an absence rather than a value.*
+     *
+     * That is the ticket's own instruction and it is the sharpest thing in this
+     * sprint. The leak C243 described was `payer_name` going NULL on a pot payment:
+     * a therapist's earnings list then read a real name against every private
+     * session and nothing against every corporate one, and a query-level check
+     * looking for the employer's name would have found nothing and passed.
+     *
+     * So the therapist's real money component is RENDERED, twice, with two rows
+     * that differ only in how they were funded, and the two markups are compared.
+     * If a pot row renders differently from a card row in any way a human can see,
+     * these differ and this fails.
+     */
+    /*
+     * 🔴 An ELEMENT, not a function call, and getting this wrong is instructive.
+     *
+     * Calling `PaymentHistory({...})` directly invokes `useT` outside a render, and
+     * React's dispatcher is null there: "Cannot read properties of null (reading
+     * 'useContext')". The component has to be handed to the renderer as an element so
+     * the hooks run inside a render pass, which is what `renderMarkup` provides.
+     */
+    const React = (await import("react")).default;
+    const { PaymentHistory } = await import("../components/billing/payment-history");
+
+    const row = (patientName: string | null) => ({
+      id: "verify53-payment",
+      patientName,
+      grossCents: 3_000,
+      therapistNetCents: 2_550,
+      settledInvoiceCents: 0,
+      status: "paid" as const,
+      capture: "platform" as const,
+      receiptUrl: null,
+      createdAt: "13 September 2026",
+      paidAt: "13 September 2026",
+    });
+
+    const named = await renderMarkup(
+      React.createElement(PaymentHistory, { payments: [row("Mona Hassan")], transfers: [] }),
+    );
+    const nameless = await renderMarkup(
+      React.createElement(PaymentHistory, { payments: [row(null)], transfers: [] }),
+    );
+
+    /*
+     * 🔴 THE LEAK IS VISIBLE, WHICH IS WHY THE NAME MUST COME FROM THE CHART.
+     *
+     * Rendering the same props twice would prove nothing, and that was this check's
+     * first draft. What matters is that a row WITH a name and a row WITHOUT one
+     * render DIFFERENTLY — because that difference is exactly C243's leak: if the
+     * name came from `payer_name`, a pot row would have none, and a therapist could
+     * read off which of their caseload is corporate by looking for the blanks.
+     *
+     * So the difference is asserted first, as the thing that would be exploitable,
+     * and then the data layer is asserted to take the name from `patients` so that
+     * no row ever falls into the nameless shape.
+     */
+    check(
+      "🔴 53.24 / C243 a nameless row renders VISIBLY differently, which is the leak itself",
+      named !== nameless && named.includes("Mona Hassan") && !nameless.includes("Mona Hassan"),
+      "so a therapist could read the corporate rows off the blanks, if any row were blank",
+    );
+
+    const connectSource = readSource("lib/billing/connect.ts");
+    const recent = connectSource.slice(
+      connectSource.indexOf("export async function recentPayments"),
+    );
+
+    check(
+      "🔴 53.24 / C243 …and the therapist's own list takes the name from the CHART, never the payer",
+      /patients\.firstName/.test(recent) &&
+        /leftJoin\(patients/.test(recent) &&
+        !/payerName/.test(recent),
+      "every row has a name, because the name is the patient's and not the cardholder's",
+    );
+
+    /*
+     * 🔴 AND THE RENDERED OUTPUT CARRIES NO CORPORATE WORD AT ALL.
+     *
+     * Not "no employer name" — no vocabulary. A therapist must not be able to tell a
+     * sponsored session from a private one, so the surface may not say "sponsor",
+     * "employer", "benefit", "pot", "corporate" or "covered" even generically,
+     * because a word present on some rows and absent on others is the sort order
+     * that reveals the caseload.
+     */
+    /*
+     * 🔴 CONTROL FIRST, because the absence check below is worthless without it.
+     *
+     * `renderMarkup` prints an invalid-hook warning here: there is one React copy for
+     * the renderer and the component reaches `useT` through it. The markup still
+     * comes out, and the patient's name is a PROP, so a check asserting only the name
+     * would pass even if every `t()` call returned nothing — and a surface with no
+     * words in it trivially contains no corporate words. That is the §6 shape for the
+     * third time in this file.
+     *
+     * So a TRANSLATED label is asserted present. The fixture is a paid,
+     * platform-captured payment, which is the branch that renders `tph.heldUntil`.
+     */
+    check(
+      "🔴 CONTROL the rendered markup carries TRANSLATED text, not only the props",
+      named.includes("Held until payouts open"),
+      "a surface whose t() returned nothing would pass the absence check below for free",
+    );
+
+    const corporateWords = ["sponsor", "employer", "benefit", "pot", "corporate", "covered"];
+    const leakedWords = corporateWords.filter((word) => named.toLowerCase().includes(word));
+
+    check(
+      "🔴 53.24 / C242 the therapist's money surface renders no corporate vocabulary at all",
+      leakedWords.length === 0,
+      leakedWords.length === 0
+        ? "six words looked for, none present, so no row can be told from another"
+        : `LEAKS: ${leakedWords.join(", ")}`,
+    );
+
+    check(
+      "🔴 CONTROL …and the same scan WOULD catch one, so it is reading the markup",
+      corporateWords.some((word) =>
+        `${named} this session was covered by a sponsor`.toLowerCase().includes(word),
+      ),
+      "the planted sentence is caught by the same predicate that cleared the real markup",
     );
   } finally {
     await db.execute(sql`DELETE FROM ledger_entries WHERE ref_type = 'sponsor' AND ref_id IN
