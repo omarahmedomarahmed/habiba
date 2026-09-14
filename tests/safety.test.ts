@@ -16,6 +16,7 @@ import {
   tierForSpend,
 } from "../lib/billing/plans";
 import {
+  collectionProblem,
   convertAtRate,
   parseGroup,
   platformFeeOn,
@@ -480,6 +481,110 @@ test("settings refuse a platform fee of zero", () => {
  * applied no floor. The rule is tested here, over the pure arithmetic, because
  * the failure it prevents is a subtraction rather than a query.
  */
+/**
+ * 🔴 C380 — every figure on one charge is in ONE currency.
+ *
+ * The line items were converted at the frozen quote and the application fee was
+ * not, so on an Egyptian checkout we would have taken a forty-eighth of our own
+ * commission. The rule is not "convert the fee"; it is that a charge and every
+ * amount attached to it are denominated the same way, at the same frozen rate.
+ */
+/**
+ * 🔴 C381 — an operator control is read by the code, or it does not exist.
+ *
+ * `collection_provider` was seeded, editable on an admin screen, asserted by a
+ * verifier, and read by no payment code at all. Egypt is seeded `paymob`, there
+ * is no paymob integration, and every enabled country was charged through
+ * Stripe regardless: the wrong entity, the wrong currency, and success on every
+ * screen. C218 ruled on this exact shape once already, for a different column.
+ */
+test("🔴 a country whose payment provider we have not built is REFUSED", () => {
+  const base = SETTINGS_DEFAULTS;
+  void base;
+
+  const stripeCountry = {
+    code: "us",
+    name: "United States",
+    vatBps: 0,
+    currency: "usd",
+    paymentMethods: ["card"],
+    collectionProvider: "stripe",
+    payoutMethods: ["stripe"],
+    entity: "us" as const,
+    regulators: [],
+    idLabelFront: null,
+    idLabelBack: null,
+    licenceLabel: null,
+    sampleImageUrl: null,
+    enabled: true,
+  };
+
+  assert.equal(collectionProblem(stripeCountry), null, "CONTROL: a built rail is allowed");
+
+  /* Egypt as it is seeded TODAY: a provider name with no integration behind it. */
+  assert.match(
+    collectionProblem({ ...stripeCountry, code: "eg", collectionProvider: "paymob" }) ?? "",
+    /not switched on yet/i,
+    "🔴 a named provider we have not built must refuse, never fall back to Stripe",
+  );
+
+  assert.match(
+    collectionProblem({ ...stripeCountry, collectionProvider: null }) ?? "",
+    /no way to take a card payment/i,
+  );
+
+  assert.match(collectionProblem({ ...stripeCountry, enabled: false }) ?? "", /not taking payments/i);
+
+  /*
+   * 🔴 Every refusal points the patient at the free link. A payment that cannot
+   * happen must never read as a session that cannot happen: the session works
+   * exactly the same, and somebody in distress needs to know that.
+   */
+  for (const country of [
+    { ...stripeCountry, enabled: false },
+    { ...stripeCountry, collectionProvider: null },
+    { ...stripeCountry, collectionProvider: "paymob" },
+  ]) {
+    assert.match(
+      collectionProblem(country) ?? "",
+      /free link/i,
+      "a refusal to take money is never a refusal to be seen",
+    );
+  }
+});
+
+test("🔴 a commission is denominated in the currency of the charge it rides on", () => {
+  // ~48 EGP to the dollar, as a fixed-point rate x1e6, which is how 16.6 stores it.
+  const RATE = 48_000_000;
+  const usdCents = (n: number) => n;
+
+  const gross = usdCents(3000);
+  const cut = usdCents(450);
+
+  const presentedGross = convertAtRate(gross, RATE);
+  const presentedCut = convertAtRate(cut, RATE);
+
+  assert.ok(presentedGross > gross * 40, "the charge really is in a weaker currency");
+
+  /*
+   * 🔴 THE DEFECT, stated as a ratio. An unconverted fee on a converted charge
+   * is our commission divided by the exchange rate. At forty-eight to the
+   * dollar, a $4.50 cut is collected as 4.50 EGP, about nine cents.
+   */
+  assert.ok(
+    cut * 40 < presentedCut,
+    `unconverted the fee is ${(presentedCut / cut).toFixed(0)} times too small`,
+  );
+
+  /* And converted, the fee holds its share of the charge. */
+  const shareBefore = cut / gross;
+  const shareAfter = presentedCut / presentedGross;
+  assert.ok(
+    Math.abs(shareAfter - shareBefore) < 0.001,
+    `the fee keeps its proportion: ${shareBefore} against ${shareAfter}`,
+  );
+});
+
 test("🔴 a sponsor cannot difference two balances down to one session", () => {
   /*
    * The attack, stated as the test. A sponsor reads the balance on Monday and

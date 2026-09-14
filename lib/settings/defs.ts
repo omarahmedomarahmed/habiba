@@ -787,6 +787,55 @@ export function hasNoRail(country: CountrySettings): boolean {
 }
 
 /**
+ * 🔴 C381 — the collection providers this code can actually USE.
+ *
+ * `collection_provider` is written by the seed, edited on an admin screen,
+ * asserted by `verify:sprint20`, and **read by no payment code at all**. Egypt
+ * is seeded `paymob`; there is no paymob integration anywhere in this
+ * repository; and every enabled country was routed through Stripe regardless.
+ *
+ * That is C218's ruling word for word, on a second column: *a switch an
+ * operator can set is read by the code, or it does not exist. A dead control is
+ * worse than a missing feature, because a missing feature does not tell
+ * somebody they have acted.*
+ *
+ * Sprint 64 adds the Egyptian adapter and this list gains a second entry. Until
+ * then an Egyptian checkout is REFUSED with a sentence a patient can act on,
+ * rather than silently charged through a rail their card cannot use and their
+ * money cannot legally arrive on.
+ */
+export const IMPLEMENTED_COLLECTION_PROVIDERS = ["stripe"] as const;
+
+/**
+ * Why we cannot take a payment in this country, or null.
+ *
+ * 🔴 C357's sibling. `hasNoRail` answers the same question for the ADMIN screen
+ * and is read by nothing else, so a clinician in a railless country could be
+ * booked and paid and only discover it at payout. This is the version the
+ * payment path calls, and the message is written to be shown to a patient.
+ */
+export function collectionProblem(country: CountrySettings): string | null {
+  if (!country.enabled) {
+    return "We are not taking payments in that country yet. Ask your therapist for a free link: the session itself works exactly the same.";
+  }
+  if (!country.collectionProvider) {
+    return "We have no way to take a card payment in that country yet. Ask your therapist for a free link: the session itself works exactly the same.";
+  }
+  if (
+    !(IMPLEMENTED_COLLECTION_PROVIDERS as readonly string[]).includes(country.collectionProvider)
+  ) {
+    /*
+     * The operator has named a provider we have not built. Say so plainly
+     * rather than falling back to another one: a silent fallback collects the
+     * money into the wrong entity, in the wrong currency, under the wrong
+     * licence, and looks like success from every screen.
+     */
+    return "Card payments in that country are not switched on yet. Ask your therapist for a free link: the session itself works exactly the same.";
+  }
+  return null;
+}
+
+/**
  * Seeded countries.
  *
  * Only the two we can state a rate for. A VAT rate is a legal fact about a

@@ -16,6 +16,7 @@ import {
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
+import { collectionProblem } from "@/lib/settings/defs";
 import { quoteFor } from "./fx";
 import { getStripe } from "./stripe";
 
@@ -455,6 +456,23 @@ export async function createSessionPaymentCheckout(opts: {
     };
   }
 
+  /*
+   * 🔴 C381 — the operator's own answer about this country, read.
+   *
+   * `collection_provider` was written by the seed, editable on an admin screen,
+   * asserted by a verifier, and read by nothing. Egypt is seeded `paymob`, no
+   * paymob integration exists, and every enabled country went through Stripe
+   * regardless: money collected into the wrong entity, in a currency the fee
+   * arithmetic above was also getting wrong (C380), looking like success from
+   * every screen.
+   *
+   * C218 already ruled on this for `country_settings.enabled`. Same column
+   * family, same rule: a switch an operator can set is read by the code, or it
+   * does not exist.
+   */
+  const problem = collectionProblem(country);
+  if (problem) return { error: problem };
+
   const gross = row.session.priceCents;
   const feeBps = settings.session.platformFeeBps;
   const money = sessionMoney({ grossCents: gross, feeBps, vatBps: country.vatBps });
@@ -501,7 +519,31 @@ export async function createSessionPaymentCheckout(opts: {
     }
   }
 
-  const applicationFee = cut + settlement;
+  /*
+   * 🔴 C380 — THE COMMISSION WAS NEVER CONVERTED, and the charge it rides on is.
+   *
+   * Both line items go to Stripe in the PRESENTED currency, converted at the
+   * frozen quote: `convertAtRate(gross, quote.rateMicro)`. The application fee
+   * did not. It was `cut + settlement`, both in USD cents, handed to a payment
+   * intent denominated in `country.currency`.
+   *
+   * Stripe reads `application_fee_amount` in the CHARGE's currency. So on an
+   * Egyptian checkout at roughly 48 EGP to the dollar, a $4.50 commission was
+   * sent as 450 piastres, which is 4.50 EGP, about nine cents. We took a
+   * FORTY-EIGHTH of our own fee, and the same arithmetic applies to any
+   * invoice settlement folded into it: the therapist's debt to us cleared for a
+   * fiftieth of its value, on our own books.
+   *
+   * It has never fired, because C381 below means no country has ever actually
+   * been presented in its own currency. It would have fired on the first
+   * Egyptian checkout.
+   *
+   * The conversion uses the SAME frozen rate as the line items, not a fresh
+   * quote. A fee computed at a different rate from the charge it is taken out
+   * of does not reconcile, and 16.6's whole design is that the rate on a
+   * transaction is photographed once.
+   */
+  const applicationFee = convertAtRate(cut + settlement, quote.rateMicro);
 
   try {
     const checkout = await client.checkout.sessions.create({

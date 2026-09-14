@@ -138,6 +138,15 @@ const SCOPE: Record<string, Scope> = {
   discover: { who: ["clinician", "admin", "patient"], clinical: true },
   usage: { who: ["admin"] },
 
+  /*
+   * 🔴 C379 — Total View. It reads live transcripts, note content and risk
+   * levels straight from the database, and until now no gate could see it.
+   * super_admin only, which `elevated()` enforces on top of the page's guard.
+   */
+  "console/reads": { who: ["admin"], clinical: true },
+  "console/gate": { who: ["admin"] },
+  "console/history": { who: ["admin"], clinical: true },
+
   /* -------------------------------------------------------- back office */
   admin: { who: ["admin"] },
   "radar-admin": { who: ["admin"] },
@@ -251,6 +260,17 @@ function entryPoints(s: Surfaces): string[] {
  * Import-graph reachability, forwards this time: `_surfaces` answers "who
  * imports me", and this needs "what do I import".
  */
+/**
+ * Module prefixes whose contents are clinical reads. C379.
+ *
+ * A module named here is keyed in `SCOPE` by the part of its path after the
+ * prefix, so `lib/console/reads` is `console/reads` and `lib/data/sessions` is
+ * `sessions`. The asymmetry is deliberate: `lib/data` is the bulk and reads
+ * better unprefixed, and a second directory appearing in the scope table is
+ * exactly the signal that a new clinical read path has been created.
+ */
+const TRACKED = ["lib/data/", "lib/console/"];
+
 function buildForwardGraph(s: Surfaces) {
   /*
    * 🔴 Two kinds of import are NOT a data reach, and the first draft counted
@@ -275,10 +295,31 @@ function buildForwardGraph(s: Surfaces) {
   const importsOf = new Map<string, string[]>();
   for (const f of s.files) {
     const src = s.body.get(f)!;
-    const hits = [...src.matchAll(/(^|\n)\s*import(\s+type)?[^;]*?from\s+["']@\/([^"']+)["']/g)]
+    const statics = [...src.matchAll(/(^|\n)\s*import(\s+type)?[^;]*?from\s+["']@\/([^"']+)["']/g)]
       .filter((m) => m[2] === undefined)
       .map((m) => m[3]!);
-    importsOf.set(f, hits);
+
+    /*
+     * 🔴 C378 — `await import()` WAS INVISIBLE, and it is this codebase's
+     * dominant way of reaching the data layer.
+     *
+     * 188 dynamic imports across the app, 36 of them straight into
+     * `lib/data/*`. The pattern is deliberate and documented: a server-only
+     * module imported at the top of a file that also renders would throw, so
+     * half this codebase reaches the database through a lazy import inside the
+     * function that needs it.
+     *
+     * A gate measuring which principal can reach which clinical data, that
+     * cannot see the main way anything reaches anything, passed 12 of 12 while
+     * reading a fraction of the graph. Sprint 63's clinic-staff principal was
+     * going to be proved safe by exactly this check.
+     *
+     * Caught by the auditor pointed at the gates rather than at the product,
+     * which is the argument for having had one.
+     */
+    const dynamic = [...src.matchAll(/import\(\s*["']@\/([^"']+)["']\s*\)/g)].map((m) => m[1]!);
+
+    importsOf.set(f, [...statics, ...dynamic]);
   }
 
   const cache = new Map<string, Set<string>>();
@@ -288,7 +329,22 @@ function buildForwardGraph(s: Surfaces) {
     seen.add(file);
     const out = new Set<string>();
     for (const spec of importsOf.get(file) ?? []) {
-      if (spec.startsWith("lib/data/")) out.add(spec.slice("lib/data/".length));
+      /*
+       * 🔴 C379 — `lib/data/` was the only prefix this tracked, and it is not
+       * the only place clinical reads live.
+       *
+       * `/admin/tv` reads live transcripts, note content and risk levels from
+       * `lib/console/reads.ts`, which queries the database directly and imports
+       * nothing from `lib/data/`. The gate that guarantees "every clinical read
+       * is made by a declared principal" could not see that page at all.
+       *
+       * The prefix list is explicit rather than "anything under lib", because
+       * `lib` also holds pure arithmetic, formatting and types whose reach says
+       * nothing about who may read a chart.
+       */
+      for (const prefix of TRACKED) {
+        if (spec.startsWith(prefix)) out.add(spec.slice(prefix.length));
+      }
       const candidates = [`${spec}.ts`, `${spec}.tsx`, `${spec}/index.ts`];
       const target = candidates.find((c) => importsOf.has(c));
       // A server action guards itself. Do not follow through one.
@@ -307,9 +363,12 @@ function main() {
 
   /* ------------------------------------- 58.6a · every module is declared */
 
-  const modules = readdirSync("lib/data")
-    .filter((f) => f.endsWith(".ts"))
-    .map((f) => f.slice(0, -3));
+  const modules = TRACKED.flatMap((prefix) =>
+    readdirSync(prefix.replace(/\/$/, ""))
+      .filter((f) => f.endsWith(".ts"))
+      .map((f) => prefix.slice("lib/".length) + f.slice(0, -3))
+      .map((key) => (key.startsWith("data/") ? key.slice("data/".length) : key)),
+  );
 
   const undeclared = modules.filter((m) => !(m in SCOPE));
   check(
@@ -416,6 +475,17 @@ function main() {
     "🔴 58.6 CONTROL the forward graph really resolves imports",
     entries.includes(patientAccount) && modulesFrom(patientAccount).size >= 0,
     `${[...modulesFrom("app/(patient)/patient/page.tsx")].length} data modules reached from the patient home`,
+  );
+
+  /*
+   * 🔴 C378 CONTROL. A file that reaches clinical data ONLY through a dynamic
+   * import must now be seen doing it. Without this the widening is a claim.
+   */
+  const cron = "app/api/cron/[job]/route.ts";
+  check(
+    "🔴 58.6 / C378 CONTROL a dynamic `await import()` edge is followed",
+    entries.includes(cron) && modulesFrom(cron).size > 0,
+    `${[...modulesFrom(cron)].length} data modules reached from the cron route, all of them dynamically`,
   );
 
   check(
