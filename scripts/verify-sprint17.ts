@@ -22,6 +22,8 @@ import { withPublishedContent } from "./_content-ready";
 import { writesTo, reporter } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
+import { DICTIONARIES } from "../lib/i18n/messages";
+import { seatMonthlyCents } from "../lib/settings/defs";
 
 /*
  * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
@@ -336,6 +338,22 @@ async function main() {
     ...settings.pricing.tiers
       .filter((t) => t.monthlyCents === 0)
       .map((t) => settings.session.platformFeeCents + t.aiRateCents),
+    /*
+     * 🔴 AMENDED A THIRD TIME BY 62.4, and found by running this gate in sprint 65.
+     *
+     * Sprint 62 put the seat ladder on the pricing page and this set did not know about
+     * it, so a real figure the page renders — $270, the price of a practice at the second
+     * band boundary — had no source here and the check was red. Nobody noticed, because
+     * nothing ran `verify:sprint17` between sprint 62 and sprint 65.
+     *
+     * The rule is unchanged and is the reason this is a derivation rather than a widening:
+     * *no money on this page is a number written in a file.* `seatMonthlyCents` over the
+     * bands in `platform_settings` is where every one of these comes from, so a page that
+     * started printing some other seat price still fails.
+     */
+    ...Array.from({ length: 500 }, (_, i) =>
+      seatMonthlyCents(i + 1, settings.pricing.seatBands),
+    ),
   ]);
 
   check(
@@ -392,12 +410,24 @@ async function main() {
 
   /* ------------------------------------------------------------- C69 */
 
+  /*
+   * 🔴 C200 / 65.14 — THE HANDLE IS THE DICTIONARY KEY, NOT TWO PHRASES INSIDE IT.
+   *
+   * This grepped for "holding your earnings" and "own Stripe account". Sprint 65 shortened
+   * `pricing.netting` and the check went red while C69's property held exactly: the
+   * sentence is published when netting is on, absent when it is off, and it is written
+   * conditionally rather than as a universal.
+   *
+   * The condition is what this check is for, so the presence test reads the string that
+   * IS the conditional, and the hedge test reads its own words rather than a copy of them.
+   */
+  const netting = DICTIONARIES.en["pricing.netting"];
+
   check(
     "🔴 C69 the netting sentence is published, and written conditionally, not as a universal",
     settings.payouts.netFeeFromHeldEarnings
-      ? text.includes("holding your earnings") &&
-          text.includes("own Stripe account")
-      : !text.includes("holding your earnings"),
+      ? text.includes(netting) && /\bwhile\b|\bwhere\b|\bwhen\b/i.test(netting)
+      : !text.includes(netting),
     settings.payouts.netFeeFromHeldEarnings
       ? "netting on, sentence present and hedged"
       : "netting off, sentence absent",

@@ -225,8 +225,18 @@ async function main() {
     "checkin.howToStop",
     "checkin.subject",
     "checkin.settingsTitle",
-    "checkin.settingsBody",
-    "checkin.crisisNote",
+    /*
+     * 🔴 65.12 / C200 — `checkin.settingsBody` and `checkin.crisisNote` became these five.
+     *
+     * Sprint 65 turned two grey paragraphs above a switch into a `SeesWhat`: what a reply
+     * to a check-in can do, and what nobody can do with it. The key names changed and the
+     * rule did not, so the list follows the keys rather than the check being widened.
+     */
+    "checkin.whoReply",
+    "checkin.canDanger",
+    "checkin.canTellTherapist",
+    "checkin.cannotRead",
+    "checkin.cannotMachine",
   ];
 
   const missingAr = keys.filter((key) => !(arabicHalf ?? "").includes(`"${key}":`));
@@ -702,9 +712,18 @@ async function main() {
 
     const patientScreen = readSource("app/(patient)/patient/messages/page.tsx");
 
+    /*
+     * 🔴 44.2 IS AN ARGUMENT ABOUT POSITION, SO THE CHECK IS TOO.
+     *
+     * The rule is that the crisis sentence is said BEFORE somebody replies. It used to be
+     * the last thing on the page, under the switch; sprint 65 made it the CAN column of a
+     * `SeesWhat` above the switch. Asserting the key alone would have passed either way,
+     * so the check now requires it to appear before the control it is about.
+     */
     check(
       "🔴 44.2 …and it says what happens to a worrying reply BEFORE they ever reply",
-      /checkin\.crisisNote/.test(patientScreen),
+      /checkin\.canDanger/.test(patientScreen) &&
+        patientScreen.indexOf("checkin.canDanger") < patientScreen.indexOf("<CheckinSwitch"),
       "the moment to say it is before they write something, not after",
     );
 

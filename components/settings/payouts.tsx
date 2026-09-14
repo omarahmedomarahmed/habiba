@@ -13,6 +13,7 @@ import {
 } from "@/app/(app)/settings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { formatUsd } from "@/lib/billing/plans";
+import { FlowStrip, SplitBar } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
 const INITIAL: SettingsState = {};
@@ -94,6 +95,33 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
                 : t("tpay.notEnabled")}
           </p>
         </div>
+      </div>
+
+      {/*
+        🔴 65.10 — THE PAYOUT RAIL, AS A FLOW WITH THE CLINICIAN'S POSITION ON IT.
+
+        > *The verification requirements, the fee explanation, the payout rails and the
+        > consent rules become components.*
+
+        This screen said one of three sentences depending on where somebody was, and each
+        described a state without showing the other two. A clinician being held is not in
+        an error: they are at step two of three, their money is safe, and the thing that
+        moves it is Stripe rather than anything they can do. A sentence cannot say that
+        without saying all of it; three numbered steps with a tick on the ones behind you
+        say it at a glance.
+
+        🔴 65.22 — AND IT IS NUMBERED BECAUSE IT IS A SEQUENCE. Step three cannot happen
+        before step two, which is the whole reason a held balance is not a problem.
+      */}
+      <div className="mt-4">
+        <FlowStrip
+          steps={[
+            { title: t("tpay.rail1"), detail: t("tpay.rail1Body") },
+            { title: t("tpay.rail2"), detail: t("tpay.rail2Body") },
+            { title: t("tpay.rail3"), detail: t("tpay.rail3Body") },
+          ]}
+          done={state.payoutsEnabled ? 2 : state.connected ? 0 : -1}
+        />
       </div>
 
       {error ? (
@@ -221,18 +249,27 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           </div>
         </Field>
 
+        {/*
+          🔴 65.10 — THE SAME SPLIT BAR THE SESSION FORM DRAWS.
+
+          *The fee split is a diagram, not a paragraph about a diagram.* It was two rows
+          of a table here and a sentence on the new-session form, which is the same fact
+          in two shapes: 65.4's rule is that the same rule on two screens has to look like
+          the same rule, and a clinician who has learned to read the bar once should not
+          have to read a table the second time.
+        */}
         {sessionRateCents > 0 ? (
-          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-            <div className="flex items-baseline justify-between">
-              <span className="text-slate-600">{t("tpay.youKeep")}</span>
-              <span className="text-lg font-bold text-slate-900">{formatUsd(keep)}</span>
-            </div>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-slate-500">
-                {t("tpay.fee", { percent: (state.feeBps / 100).toFixed(0) })}
-              </span>
-              <span className="font-medium text-slate-500">{formatUsd(cut)}</span>
-            </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <SplitBar
+              parts={[
+                { label: `${t("tpay.youKeep")} ${formatUsd(keep)}`, value: keep, kind: "keep" },
+                {
+                  label: `${t("tpay.fee", { percent: (state.feeBps / 100).toFixed(0) })} ${formatUsd(cut)}`,
+                  value: cut,
+                  kind: "fee",
+                },
+              ]}
+            />
           </div>
         ) : null}
 

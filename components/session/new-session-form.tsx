@@ -6,7 +6,7 @@ import { Link2, User, Users, Video } from "lucide-react";
 
 import { startNewSession, type SessionActionState } from "@/app/(app)/sessions/actions";
 import { Button, Field, Input } from "@/components/ui";
-import { SplitBar } from "@/components/visual/primitives";
+import { SeesWhat, SplitBar } from "@/components/visual/primitives";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -173,15 +173,36 @@ export function NewSessionForm({
           onChange={(event) => setTranscribe(event.target.checked)}
           className="mt-0.5 h-4 w-4 rounded border-slate-300"
         />
-        <span>
-          <span className="block text-sm font-medium text-slate-800">
-            {t("portal.new.record")}
-          </span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
-            {t("portal.new.recordBody")}
-          </span>
+        <span className="min-w-0 text-sm font-medium text-slate-800">
+          {t("portal.new.record")}
         </span>
       </label>
+
+      {/*
+        🔴 65.10 — THE CONSENT RULES, AS THE SHAPE THE PATIENT'S OWN SCREEN USES.
+
+        > *The verification requirements, the fee explanation, the payout rails and the
+        > consent rules become components.*
+
+        A clinician ticking this box is deciding something about somebody who is not in
+        the room yet, and the sentence under the checkbox said only the first half of it:
+        the patient is asked first. What it did not say is the half a clinician worries
+        about — that saying no does not cost them the session, and that the note will
+        record when capture actually began rather than implying it covered the hour.
+
+        The patient meets this same rule on `/patient/consent` as two columns. It is the
+        same two columns here, which is 65.4's rule: the same rule on two screens has to
+        look like the same rule, even when the two readers are on opposite sides of it.
+      */}
+      {transcribe ? (
+        <div className="mt-3">
+          <SeesWhat
+            who={t("portal.new.consentWho")}
+            can={[t("portal.new.consentAsked"), t("portal.new.consentStop")]}
+            cannot={[t("portal.new.consentCost"), t("portal.new.consentPretend")]}
+          />
+        </div>
+      ) : null}
 
       {patients.length > 0 ? (
         <Field

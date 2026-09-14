@@ -541,10 +541,24 @@ async function main() {
     "no loss-aversion copy on the screen a guest lands on",
   );
 
+  /*
+   * 🔴 C200 / 65.21 — READ FROM THE DICTIONARY, NOT GREPPED OUT OF THE MARKUP.
+   *
+   * This asserted `you</strong> can read your` against the page source, which made it a
+   * test that two sentences had not been translated. Sprint 65 keyed the whole prompt —
+   * it was English-only on a page any patient can reach — and the check went red while
+   * C130's property held exactly: the copy still says the therapist keeps the record
+   * either way, and still says that what an account changes is who can READ it.
+   */
+  const { DICTIONARIES: DICT } = await import("../lib/i18n/messages");
+  const prompt = `${DICT.en["feedback.seeTitle"]} ${DICT.en["feedback.seeBody"]}`;
+
   check(
     "25.13 …and it says what an account actually changes: that YOU can read it",
-    /you<\/strong> can read your/.test(afterwards) &&
-      /keeps this record whether or not/.test(afterwards),
+    /feedback\.seeBody/.test(afterwards) &&
+      /keeps this record either way/i.test(prompt) &&
+      /who can read it/i.test(prompt),
+    prompt,
   );
 
   /* ------------------------------------------------------ 25.18 · one step */
