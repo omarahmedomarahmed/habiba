@@ -37,7 +37,7 @@ You are running a three-month simulation of 24Therapy: a swarm of agents behavin
 people, using the real product, producing a database that looks like a quarter of trading
 and a folder of screenshots that proves it.
 
-**Read these eight files from the repository first, in this order, before doing anything:**
+**Read these nine files from the repository first, in this order, before doing anything:**
 
 ```
 docs/simulation/00-START-HERE.md      the shape, the five rules, the order of work, the $10 budget
@@ -234,6 +234,33 @@ top says this database rather than the shipped estimate.
 run can never establish (churn, acquisition cost, card fees, video cost) and the rule that a
 short-session cost is never quoted as unit economics.
 
+### Step 8c · 🔴 The offer, and the invoice that decides everything
+
+The offer this business launches with is **one free month, then two at half price, then full
+price**. `08-THE-OFFER.md` is the brief. Three invoices have to exist and be photographed:
+
+| | |
+|---|---|
+| The free one | Wave 1, a therapist's first invoice. **Zero, and it says why.** An invoice that is simply absent is indistinguishable from a billing bug |
+| The half-price one | A wave later. List price, discount line and payable amount, all three visible |
+| 🔴 **The full-price one** | **Age wave 1 one wave further** so a cohort reaches its fourth month and is billed with no discount line |
+
+The third is the single most important frame in the run. The plan assumes a quarter to two
+fifths of customers leave at that moment, and that guess moves break-even by nine months
+either way. **The run cannot tell you whether a real therapist would pay. It can tell you
+whether the product bills them correctly, which is the half that is our fault if it is wrong.**
+
+⚠️ **Automatic promotional billing is not built.** `discount_cents` and `discount_reason`
+exist; the schedule does not. An operator applies each one by hand from `/admin/therapists`.
+Record how long that takes — it is the first thing to build after the beta.
+
+Also: fund a company pot with the **$200 welcome credit**, drain it, and capture the moment it
+empties and the employee is offered the paid route.
+
+```bash
+npm run plan                     # the five scenarios, with the counts you just measured
+```
+
 ### Step 9 · The report
 
 `docs/walkthrough-3/REPORT.md`. What is in it is listed in `00-START-HERE.md`.
@@ -251,6 +278,8 @@ short-session cost is never quoted as unit economics.
 | `npm run physics` | Fits the two-term session cost model. Refuses one duration cluster |
 | `npm run verify:synthetic` | Proves every person is invented, so the console can be committed |
 | `npm run forecast` | The thirty-six month model, four scenarios, from the command line |
+| `npm run plan` | The operating plan: Egypt, the $20k, the offer, five scenarios |
+| `npm run verify:plan` | 25 checks that the plan says which numbers are guesses |
 | `npm run verify:finance` | 30 checks that the forecast is pure, reconciles, and cannot move a price |
 
 ## The five rules, repeated here because they are the whole design
