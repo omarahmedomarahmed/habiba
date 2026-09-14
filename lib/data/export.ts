@@ -534,7 +534,24 @@ async function buildExport(
       status: row.status,
       priceCents: row.priceCents,
       paymentStatus: row.paymentStatus,
-      note: row.noteContent ?? null,
+      /*
+       * 🔴 C372 — AN UNAPPROVED NOTE IS NOT IN THE RECORD.
+       *
+       * This was `row.noteContent ?? null`, unconditionally, while the line
+       * below correctly gated only the "signed" caption on approval. So a
+       * patient's own record extract carried the full text of a DRAFT note: a
+       * model's output with a clinician's name on it that the clinician has not
+       * stood behind, read by the patient as their record.
+       *
+       * §6's rule is that a generated note is a draft until approved, and
+       * sprint 47's provenance work exists so a reader can tell evidence from
+       * recollection. A draft in an export is neither: it is a machine's guess,
+       * delivered as a document, with no clinician between it and the person it
+       * is about. C113's bound arriving through a file instead of a screen.
+       *
+       * A null is honest. The extract already says how many notes are signed.
+       */
+      note: row.noteStatus === "approved" && row.noteApprovedAt ? (row.noteContent ?? null) : null,
       /*
        * 🔴 47.3 / C212 — how the note was made, in the export.
        *
@@ -548,7 +565,8 @@ async function buildExport(
       noteProvenance: row.noteProvenance ?? "clinician",
       noteOffRecordSeconds: row.noteOffRecordSeconds ?? null,
       noteLanguage: row.noteLanguage ?? "en",
-      noteEnglish: row.noteContentEn ?? null,
+      noteEnglish:
+        row.noteStatus === "approved" && row.noteApprovedAt ? (row.noteContentEn ?? null) : null,
       noteSigned: row.noteStatus === "approved" ? row.noteApprovedAt : null,
       /* C127 — the person who stands behind this note, and their licence. */
       signedBy: row.noteApprovedBy ? (signerOf.get(row.noteApprovedBy) ?? null) : null,

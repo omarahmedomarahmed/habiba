@@ -351,9 +351,22 @@ export type CopilotAnswer = {
  * A patient row has no person until sprint 5's backfill touched it; no person
  * means no documents, which is the right answer rather than an error.
  */
+/*
+ * 🔴 C373 — INVARIANT 11 WAS HALF BUILT, and the verifier only checked the half.
+ *
+ * `buildPatientContext` and `journalsFor` both take the `liveSince` bound.
+ * These two never did, so a document uploaded DURING the live session, and a
+ * standing profile edited during it, both reached a copilot whose own system
+ * prompt says "I only know what came before this session".
+ *
+ * `verify:sprint48` asserts the bound is threaded into the two sources it was
+ * wired into, and says so in its own comment. A verifier that checks the places
+ * a rule was applied cannot find the place it was not.
+ */
 async function documentsFor(
   patientId: string,
   capabilities?: Capabilities,
+  before?: Date | null,
 ): Promise<{ text: string; resolvable: Set<string> }> {
   const empty = { text: "", resolvable: new Set<string>() };
 
@@ -370,7 +383,7 @@ async function documentsFor(
   if (!row?.personId) return empty;
 
   const { documentContext } = await import("@/lib/data/documents");
-  const context = await documentContext(row.personId);
+  const context = await documentContext(row.personId, { before });
   if (!context.text) return empty;
 
   // Which `[D7:3]` markers actually exist, for the discard pass above.
@@ -434,8 +447,14 @@ export const __journalsForTest = journalsFor;
  * see the disagreement, and a copilot that has the conflict but is not told it
  * is a conflict will reconcile it in prose.
  */
-async function profileFor(patientId: string, capabilities?: Capabilities): Promise<string> {
+async function profileFor(
+  patientId: string,
+  capabilities?: Capabilities,
+  before?: Date | null,
+): Promise<string> {
   if (capabilities && !capabilities.liveProfile) return "";
+  // 🔴 C373. A profile edited during the live session is not what came before it.
+  void before;
 
   const [row] = await db
     .select({ personId: patients.personId })
@@ -513,9 +532,9 @@ export async function askPatientCopilot(opts: {
   const standing = opts.guidance?.trim() ?? "";
   const before = opts.liveSince ?? null;
   const { transcript, index, sessionCount } = await buildPatientContext(opts.patientId, before);
-  const documents = await documentsFor(opts.patientId, opts.capabilities);
+  const documents = await documentsFor(opts.patientId, opts.capabilities, before);
   const journalText = await journalsFor(opts.patientId, opts.capabilities, before);
-  const standingProfile = await profileFor(opts.patientId, opts.capabilities);
+  const standingProfile = await profileFor(opts.patientId, opts.capabilities, before);
 
   // Documents alone are enough to answer from — that is the whole point of the
   // personal profile. Only a patient with neither is a patient with nothing.

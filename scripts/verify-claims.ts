@@ -75,7 +75,26 @@ const A_DURATION = [
   /\bright\s+away\b/i,
   /خلال\s+(?:دقيقة|دقائق|ثانية|ثوان|ساعة)/,
   /دقائق\s+بدل/,
-  /فورًا/,
+  /*
+   * 🔴 C375 — bare `فورًا` WAS here and is gone, and the removal is a decision
+   * rather than a retreat.
+   *
+   * "Immediately", with no unit attached, is how Arabic describes a SYSTEM
+   * acting: "stopping consent stops any new reading فورًا", "the invite link
+   * works فورًا", "we show you فورًا where to find help". All three are true,
+   * all three are about our own interface, and all six Arabic flags on this
+   * rule's first real run were that word.
+   *
+   * The banned shape is a PROMISE ABOUT A PERSON'S AVAILABILITY, and in both
+   * languages that carries a UNIT: sixty seconds, a minute, an hour, خلال
+   * دقيقة. The sentence we actually shipped and removed in sprint 57 is
+   * `تحدّث إلى معالج حقيقي خلال دقيقة`, which `خلال\s+دقيقة` still catches, and
+   * a control below asserts exactly that so this narrowing cannot quietly
+   * become an off switch.
+   *
+   * The English `right away` stays: it has no innocent system-behaviour usage
+   * in this product's copy, and the proximity and negation rules bound it.
+   */
 ];
 
 /*
@@ -107,8 +126,59 @@ function claimsPerfection(text: string): boolean {
   return abs.some((a) => perf.some((p) => Math.abs((a.index ?? 0) - (p.index ?? 0)) <= NEAR));
 }
 
+/*
+ * 🔴 C375 — TWO THINGS THIS RULE COULD NOT DO, both exposed the moment it was
+ * pointed at the dictionary instead of nine marketing pages.
+ *
+ * 1. NO PROXIMITY. `claimsPerfection` requires its two halves within one clause
+ *    (NEAR = 40). This asked only "does the string contain a duration ANYWHERE
+ *    and a person ANYWHERE", so "stopping consent stops any new reading
+ *    immediately, and it does not erase what the therapist has already read"
+ *    matched: `فورًا` in the first clause, `المعالج` in the second, about
+ *    entirely different things.
+ *
+ * 2. NO NEGATION. `contact.urgentBody` reads "This reaches a person during
+ *    working hours, NOT in the next ten minutes". That sentence exists to
+ *    REFUSE the promise, and the rule flagged it as making one. A gate that
+ *    flags the disclaimer written to satisfy it is a gate somebody deletes.
+ *
+ * Both were invisible while the corpus was small enough that neither shape
+ * occurred. That is the argument for widening a gate's corpus rather than
+ * trusting a clean run on a tenth of it.
+ */
+const NEAR_PERSON = 60;
+
+/** "not in the next ten minutes" is a refusal, not a promise. */
+const DENIED = /\b(?:not|never|no|rather\s+than|instead\s+of)\b|(?:ليس|ليست|لن|بدل|لا\s)/i;
+
 function promisesAPerson(text: string): boolean {
-  return A_DURATION.some((r) => r.test(text)) && A_PERSON.test(text);
+  for (const rule of A_DURATION) {
+    const duration = new RegExp(rule.source, rule.flags.includes("g") ? rule.flags : rule.flags + "g");
+    for (const hit of text.matchAll(duration)) {
+      const at = hit.index ?? 0;
+
+      /*
+       * 🔴 A denial disarms the duration ONLY IF IT GOVERNS IT, and the first
+       * version's forty-character window did not check that.
+       *
+       * `pbook.taken` read "if they do NOT go ahead, this clinician frees up
+       * within a minute". That is a promise about a person's availability with
+       * an unrelated "not" fourteen words earlier, and the rule waved it
+       * through while correctly flagging the identical Arabic sentence, which
+       * happens to phrase its negation differently.
+       *
+       * So the window stops at the nearest clause break. A denial on the other
+       * side of a comma is a different statement.
+       */
+      const lead = text.slice(Math.max(0, at - 40), at);
+      const clause = lead.slice(Math.max(...[...lead.matchAll(/[.,;:،؛]/g)].map((m) => m.index! + 1), 0));
+      if (DENIED.test(clause)) continue;
+
+      const window = text.slice(Math.max(0, at - NEAR_PERSON), at + hit[0].length + NEAR_PERSON);
+      if (A_PERSON.test(window)) return true;
+    }
+  }
+  return false;
 }
 
 /** Words that assert certainty. */
@@ -163,6 +233,10 @@ function harvest(pages: unknown, label: string) {
 
 /* ------------------------------------------------------------ the checks -- */
 
+const DICTIONARY_STRINGS = Object.entries(DICTIONARIES).flatMap(([locale, dict]) =>
+  Object.entries(dict).map(([key, text]) => ({ path: `${locale}:${key}`, text: String(text) })),
+);
+
 const EN = harvest(DEFAULT_PAGES, "en");
 const AR = harvest(DEFAULT_PAGES_AR, "ar");
 
@@ -193,6 +267,31 @@ function scan(corpus: { path: string; text: string }[], label: string) {
 scan(EN, "EN");
 scan(AR, "AR");
 
+/*
+ * 🔴 C374 — THE DICTIONARY, which this never scanned for the two rules that
+ * matter most.
+ *
+ * `DICTIONARIES` was added for C291's subscription rule and nothing else. The
+ * response-time rule and the absolute-performance rule ran only over
+ * `DEFAULT_PAGES`, which is the CMS content: nine marketing pages. Every other
+ * sentence this product renders, on every screen a patient or a clinician
+ * actually uses, lives in `messages.ts` and was never read.
+ *
+ * So the gate built because "marketing copy is a string and every string gate
+ * we own counts whether a string is TRANSLATED, never whether it is TRUE" was
+ * itself only looking at the marketing copy. A gate that reads a tenth of the
+ * strings reports a clean run on the tenth it read, which is C363's shape and
+ * the reason this file has controls at all.
+ */
+scan(
+  DICTIONARY_STRINGS.filter((s) => s.path.startsWith("en:")),
+  "EN dictionary",
+);
+scan(
+  DICTIONARY_STRINGS.filter((s) => s.path.startsWith("ar:")),
+  "AR dictionary",
+);
+
 /* ---------------------------------------------------------- the controls -- */
 
 /*
@@ -216,6 +315,30 @@ const PLANTED_ABSOLUTE = [
 check(
   "🔴 CONTROL the absolute rule catches the sentence we actually shipped",
   PLANTED_ABSOLUTE.every((s) => claimsPerfection(s.text)),
+);
+
+check(
+  "🔴 C375 CONTROL a DENIAL of a response-time promise is not flagged as one",
+  !promisesAPerson("This reaches a person during working hours, not in the next ten minutes.") &&
+    !promisesAPerson("لن يرد عليك أحد خلال دقائق.") &&
+    // 🔴 …and a denial on the FAR side of a comma does not disarm anything.
+    promisesAPerson("If they do not go ahead, this clinician frees up within a minute."),
+  "the sentence written to refuse the promise must not be read as making it",
+);
+
+check(
+  "🔴 C375 CONTROL …and a duration far from a person, about something else, is not",
+  !promisesAPerson(
+    "Stopping consent stops any new reading immediately. It does not erase what the therapist has already read, and nothing is deleted.",
+  ),
+  "one clause about our system, another about a person, is not a promise about a person",
+);
+
+check(
+  "🔴 C375 CONTROL …while the real thing is STILL caught",
+  promisesAPerson("Talk to a real therapist in the next sixty seconds") &&
+    promisesAPerson("تحدّث إلى معالج حقيقي خلال دقيقة"),
+  "the widening must not have switched the rule off",
 );
 
 check(
@@ -280,10 +403,6 @@ check(
  */
 const DENIES_SUBSCRIPTION =
   /\bno\s+subscriptions?\b|\bwithout\s+a\s+subscription\b|\bnever\s+a\s+subscription\b|بلا\s+اشتراك|دون\s+اشتراك|بدون\s+اشتراك/i;
-
-const DICTIONARY_STRINGS = Object.entries(DICTIONARIES).flatMap(([locale, dict]) =>
-  Object.entries(dict).map(([key, text]) => ({ path: `${locale}:${key}`, text: String(text) })),
-);
 
 const ALL_COPY = [...EN, ...AR, ...DICTIONARY_STRINGS];
 

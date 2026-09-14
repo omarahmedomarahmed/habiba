@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -369,7 +369,18 @@ export async function resolveRef(
  */
 export async function documentContext(
   personId: string,
-  opts: { maxChars?: number } = {},
+  opts: {
+    maxChars?: number;
+    /**
+     * 🔴 C373 — the C211 bound, which this never had.
+     *
+     * The in-room copilot reads the record as of the session's `startedAt` and
+     * nothing after it. `buildPatientContext` and `journalsFor` both honoured
+     * that; this did not, so a document uploaded DURING the live session was
+     * handed to a copilot promising it only knew what came before.
+     */
+    before?: Date | null;
+  } = {},
 ): Promise<{ text: string; documents: number; passages: number }> {
   const maxChars = opts.maxChars ?? 40_000;
 
@@ -385,7 +396,15 @@ export async function documentContext(
     })
     .from(documentChunks)
     .innerJoin(personDocuments, eq(personDocuments.id, documentChunks.documentId))
-    .where(eq(personDocuments.personId, personId))
+    .where(
+      opts.before
+        ? and(
+            eq(personDocuments.personId, personId),
+            // 🔴 C373. Uploaded before the session began, or it is not "before".
+            lt(personDocuments.createdAt, opts.before),
+          )
+        : eq(personDocuments.personId, personId),
+    )
     .orderBy(asc(personDocuments.ordinal), asc(documentChunks.sequence));
 
   if (rows.length === 0) return { text: "", documents: 0, passages: 0 };

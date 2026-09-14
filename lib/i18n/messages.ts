@@ -972,8 +972,17 @@ export const en = {
   "pbook.timeLeft": "Time left to complete this booking",
   "pbook.heldBody":
     "This therapist now shows as busy to everyone else. Finish your booking, or close this page so someone else can reach them.",
+  /*
+   * 🔴 C376 — this promised a stranger's availability and shipped for months.
+   *
+   * It said the clinician "frees up within a minute". We do not know that: the
+   * hold may not expire when we expect, and if it does somebody else may take
+   * the slot in the same second. C275 forbids a response-time promise about a
+   * person anywhere in this product, and a patient reading this is deciding
+   * whether to wait.
+   */
   "pbook.taken":
-    "Someone else is on this profile right now. You can still try, if they do not go ahead, this clinician frees up within a minute.",
+    "Someone else is on this profile right now. You can still try: if they do not go ahead, this clinician becomes available again.",
   "pbook.unavailable":
     "This clinician has just become unavailable. Close this and pick someone else, the board updates every few seconds.",
   "pbook.noAccount":
@@ -3864,7 +3873,7 @@ export const ar: Record<MessageKey, string> = {
   "pbook.heldBody":
     "يظهر هذا المعالج الآن مشغولًا لغيرك. أتمّ حجزك، أو أغلق الصفحة ليصل إليه شخص آخر.",
   "pbook.taken":
-    "شخص آخر على هذا الملف الآن. ما زال بإمكانك المحاولة، وإن لم يكمل حجزه يتفرغ هذا المعالج خلال دقيقة.",
+    "شخص آخر على هذا الملف الآن. ما زال بإمكانك المحاولة، وإن لم يكمل حجزه يعود هذا المعالج متاحًا.",
   "pbook.unavailable":
     "أصبح هذا المعالج غير متاح للتو. أغلق هذه النافذة واختر شخصًا آخر، فالشاشة تتحدث كل بضع ثوانٍ.",
   "pbook.noAccount":
