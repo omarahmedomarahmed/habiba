@@ -190,7 +190,7 @@ export function RatingForm({
       <Heading
         date={sessionDate}
         title={t("prating.oneMinute")}
-        blurb="Rate the session and tell us where to send the summary. It is the only thing we ask, and it is what keeps the good therapists visible to the next person."
+        blurb={t("prating.blurb")}
       />
 
       <Card className="space-y-5 p-5">
@@ -198,7 +198,7 @@ export function RatingForm({
           <p className="text-sm font-semibold text-slate-900">
             How was your session with {therapistFirstName}?
           </p>
-          <Stars value={therapistStars} onChange={setTherapistStars} label="Rate your therapist" />
+          <Stars value={therapistStars} onChange={setTherapistStars} label={t("prating.rateTherapist")} />
           <TagRow
             options={THERAPIST_TAGS}
             selected={therapistTags}
@@ -213,7 +213,7 @@ export function RatingForm({
             {" "}
             {therapistFirstName} was the right person.
           </p>
-          <Stars value={sessionStars} onChange={setSessionStars} label="Rate the session" />
+          <Stars value={sessionStars} onChange={setSessionStars} label={t("prating.rateSession")} />
         </div>
 
         {/*
@@ -228,7 +228,7 @@ export function RatingForm({
           <div className="border-t border-slate-100 pt-4">
             <p className="text-sm font-semibold text-slate-900">{t("prating.andApp")}</p>
             <p className="text-xs text-slate-500">{t("prating.andAppBody")}</p>
-            <Stars value={serviceStars} onChange={setServiceStars} label="Rate the service" />
+            <Stars value={serviceStars} onChange={setServiceStars} label={t("prating.rateService")} />
             <TagRow
               options={SERVICE_TAGS}
               selected={serviceTags}

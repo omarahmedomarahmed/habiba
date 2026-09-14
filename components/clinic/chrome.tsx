@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOutClinic } from "@/app/(clinic)/clinic/sign-in/actions";
 import { switchToClinician } from "@/app/(clinic)/clinic/team/actions";
 import type { ClinicCapability } from "@/lib/clinic-auth/capabilities";
+import { NeverBar } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -148,10 +149,22 @@ export function ClinicChrome({
 
       {nav ? (
         <footer className="mx-auto max-w-4xl px-4 pb-10">
-          {/* 🔴 54.9 — on every screen of this portal, in the chrome. */}
-          <p className="border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-500">
-            {t("clinic.neverSees")}
-          </p>
+          {/*
+            🔴 65.11 / 65.12 / 54.9 — THE SAME STANDING VISUAL AS THE SPONSOR'S.
+
+            54.9 put this on every screen of the portal. 65.4's rule is that the same rule
+            on two screens looks like the same rule, and "what this principal will never
+            see" is the same rule for a practice and for an employer: one component, two
+            chromes, one place a fix lands.
+          */}
+          <NeverBar
+            label={t("clinic.neverLabel")}
+            items={[
+              t("clinic.neverNote"),
+              t("clinic.neverRisk"),
+              t("clinic.neverBuilt"),
+            ]}
+          />
         </footer>
       ) : null}
     </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RatingForm } from "@/components/feedback/rating-form";
 import { Card } from "@/components/ui";
 import { feedbackContext } from "@/lib/data/feedback";
+import { BRAND } from "@/lib/brand";
 import { getI18n } from "@/lib/i18n/server";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { SosOrb } from "@/components/patient/sos-orb";
@@ -34,13 +35,12 @@ export default async function FeedbackPage({
     return (
       <Shell>
         <Card className="p-6 text-center">
-          <p className="text-base font-semibold text-slate-900">This link has expired</p>
+          <p className="text-base font-semibold text-slate-900">{t("feedback.expired")}</p>
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
-            Session links stay open for three days. If you still need your summary, ask your
-            therapist to send it again.
+            {t("feedback.expiredBody")}
           </p>
           <Link href="/" className="mt-4 inline-block text-sm font-semibold text-brand-600">
-            24Therapy
+            {BRAND}
           </Link>
         </Card>
       </Shell>
@@ -89,17 +89,13 @@ export default async function FeedbackPage({
       */}
       {signedIn ? null : (
         <Card className="mt-6 p-5">
-          <p className="text-sm font-semibold text-slate-900">Do you want to see this yourself?</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            Your therapist keeps this record whether or not you make an account. Nothing here is
-            about to disappear. What an account changes is that <strong>you</strong> can read your
-            own sessions, and that the record travels with you if you ever see somebody else.
-          </p>
+          <p className="text-sm font-semibold text-slate-900">{t("feedback.seeTitle")}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("feedback.seeBody")}</p>
           <Link
             href="/patient/signup"
             className="mt-4 inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
           >
-            Make it mine
+            {t("feedback.makeMine")}
           </Link>
         </Card>
       )}

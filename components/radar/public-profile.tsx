@@ -104,15 +104,15 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
 
       <dl className="mt-6 space-y-2.5">
         {profile.languages.length > 0 ? (
-          <Row icon={Languages} label="Speaks" value={profile.languages.join(", ")} />
+          <Row icon={Languages} label={t("radar.speaks")} value={profile.languages.join(", ")} />
         ) : null}
         {profile.specialties.length > 0 ? (
-          <Row icon={Check} label="Works with" value={profile.specialties.join(", ")} />
+          <Row icon={Check} label={t("radar.worksWith")} value={profile.specialties.join(", ")} />
         ) : null}
         {profile.city || profile.country ? (
           <Row
             icon={Globe2}
-            label="Based in"
+            label={t("radar.basedIn")}
             value={`${[profile.city, profile.region].filter(Boolean).join(", ")}${
               profile.country ? ` ${countryFlag(profile.country)}` : ""
             }`}
@@ -121,7 +121,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
         {profile.practice ? (
           <Row
             icon={MapPin}
-            label="Walk-ins"
+            label={t("radar.walkIns")}
             value={`${profile.practice.name ?? "Practice"}, ${profile.practice.address}`}
           />
         ) : null}

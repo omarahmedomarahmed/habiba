@@ -38,6 +38,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 import { DEFAULT_PAGES } from "../lib/content/defaults";
 import { DICTIONARIES } from "../lib/i18n/messages";
+import { literalsIn, scanI18n, surfaceOf, type Surface } from "./_i18n-coverage";
 
 const RATCHET = "evals/prose.json";
 
@@ -52,8 +53,7 @@ const PORTALS: Record<string, readonly string[]> = {
   /*
    * 🔴 THE EXPLICIT MAP WINS, and it exists for the prefixes the letter rule below
    * would get wrong. `pricing` and `portal` both start with `p` and are the public
-   * site and the clinician's portal; `records` is a clinic setting; `room` is the
-   * therapy room, which is a clinician's screen with a patient in it.
+   * site and the clinician's portal; `records` is a clinic setting.
    *
    * 🔴 AND EVERY LINE OF IT IS CHECKED BY GREP, NOT BY WHAT THE PREFIX SOUNDS LIKE.
    *
@@ -74,6 +74,16 @@ const PORTALS: Record<string, readonly string[]> = {
    */
   patient: [
     "home",
+    /*
+     * `room` and `preset` are the PATIENT's too, checked the same way. `room.*` renders
+     * in the join flow, the patient room, the rating form and the booking sheet and
+     * nowhere else; `preset` is `components/patient/reset-form.tsx` and is a password
+     * reset rather than a clinician's preset. The letter rule had `room` under the
+     * clinician because it is the therapy room, which is a description of the place
+     * rather than of who reads the words in it.
+     */
+    "room",
+    "preset",
     "pclaim",
     "pbook",
     "prating",
@@ -101,11 +111,9 @@ const PORTALS: Record<string, readonly string[]> = {
    */
   clinician: [
     "portal",
-    "room",
     "import",
     "note",
     "spec",
-    "preset",
     "pted",
     "pracc",
     /* `cassess` renders in `components/assessments/clinician-assessments.tsx`. */
@@ -123,7 +131,7 @@ const PORTALS: Record<string, readonly string[]> = {
    * portal, so attributing them to one would make that portal's ratchet move when a
    * different portal's chrome changed. They get their own line and their own number.
    */
-  shared: ["common", "nav", "lang", "tab", "when", "urgent", "crisis", "radar"],
+  shared: ["common", "nav", "lang", "tab", "when", "urgent", "crisis", "radar", "nf"],
 };
 
 const PREFIX_TO_PORTAL = new Map<string, string>();
@@ -210,8 +218,56 @@ function harvest(): Block[] {
   };
   walk(DEFAULT_PAGES, "pages");
 
+  /*
+   * 🔴 AND THE ENGLISH STILL SITTING IN MARKUP, because otherwise the two ratchets fight.
+   *
+   * This swept the dictionary and the CMS and called that "words a person has to read".
+   * It was not: `components/pay/pay-flow.tsx` had fourteen sentences hard-coded in its
+   * JSX and this sweep could not see one of them, which meant a screen could be made
+   * longer by typing into a component rather than into the dictionary.
+   *
+   * 🔴 IT ALSO PUT THE TWO GATES IN 65.24's PASS IN DIRECT OPPOSITION. Keying a literal
+   * is the work `verify:sprint37l` asks for, and under a dictionary-only sweep it RAISED
+   * this portal's number: 227 words moved out of markup and into the dictionary, and a
+   * reader met exactly the same sentences before and after. A pass whose gates disagree
+   * about whether an improvement happened is a pass somebody switches one half of off.
+   *
+   * So the unit is now the word a reader meets, wherever it is written. Moving a sentence
+   * between the two is neutral here and an improvement there, which is the relationship
+   * those two numbers should have had from the start.
+   */
+  for (const file of scanI18n()) {
+    if (file.literals === 0) continue;
+    for (const literal of literalsIn(readFileSync(file.file, "utf8"))) {
+      const count = words(literal);
+      if (count > 0) {
+        out.push({
+          key: `markup:${file.file}`,
+          portal: PORTAL_OF_SURFACE[surfaceOf(file.file)],
+          words: count,
+          text: literal,
+        });
+      }
+    }
+  }
+
   return out;
 }
+
+/**
+ * 🔴 THE TWO VOCABULARIES, LINED UP.
+ *
+ * `_i18n-coverage.ts` splits the product into five surfaces and this file into eight
+ * portals, because they were written for different questions. `auth` is the clinician's
+ * sign-in and the patient's, so it goes to `shared` rather than picking one.
+ */
+const PORTAL_OF_SURFACE: Record<Surface, string> = {
+  patient: "patient",
+  portal: "clinician",
+  admin: "admin",
+  auth: "shared",
+  shared: "shared",
+};
 
 function totals(blocks: Block[]): Record<string, number> {
   const out: Record<string, number> = {};

@@ -1,23 +1,23 @@
 {
-  "comment": "🔴 65.2 — the high-water mark for rendered prose, in WORDS A PERSON HAS TO READ, per portal. `npm run prose` FAILS when one rises. Lowering it is the work; raising it is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md. A wall split into four keys is the same wall, which is why the unit is a word rather than a key. `origin` is where sprint 65 started and NOTHING writes to it: the accept line asks for half off every portal and 80% off the public site, and a baseline that follows the work downward cannot answer that. The first numbers here attributed `home.*` to the public site and `radar.*` to it as well; both were corrected by grepping the call sites, which moved 221 words into the patient app and 201 into shared. The public figure fell from 5836 to 5460 for that reason alone, and no prose was removed by it. A second correction moved `pted.*` and `pracc.*` (220 words) from the patient app to the clinician's: both render on `app/(app)/patients/[id]/page.tsx`, and they are named for what they are ABOUT rather than who reads them. A third correction moved `cassess.*` (71 words) to the clinician's: it renders in `components/assessments/clinician-assessments.tsx`.",
+  "comment": "🔴 65.2 — the high-water mark for rendered prose, in WORDS A PERSON HAS TO READ, per portal. `npm run prose` FAILS when one rises. Lowering it is the work; raising it is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md. A wall split into four keys is the same wall, which is why the unit is a word rather than a key. `origin` is where sprint 65 started and NOTHING writes to it: the accept line asks for half off every portal and 80% off the public site, and a baseline that follows the work downward cannot answer that. The first numbers here attributed `home.*` to the public site and `radar.*` to it as well; both were corrected by grepping the call sites, which moved 221 words into the patient app and 201 into shared. The public figure fell from 5836 to 5460 for that reason alone, and no prose was removed by it. A second correction moved `pted.*` and `pracc.*` (220 words) from the patient app to the clinician's: both render on `app/(app)/patients/[id]/page.tsx`, and they are named for what they are ABOUT rather than who reads them. A third correction moved `cassess.*` (71 words) to the clinician's: it renders in `components/assessments/clinician-assessments.tsx`. A fourth moved `room.*` and `preset.*` (455 words) to the patient app: `room.*` renders only in the join flow, the patient room, the rating form and the booking sheet, and `preset` is the patient's password reset. 🔴 AND THE INSTRUMENT WAS WRONG ABOUT WHAT A READER MEETS. It swept the dictionary and the CMS and could not see a sentence typed straight into a component, of which `components/pay/pay-flow.tsx` alone had fourteen. Worse, it put the two gates in 65.24's pass in opposition: keying a literal is the work `verify:sprint37l` asks for, and under a dictionary-only sweep it RAISED the portal's number. The sweep now counts markup literals too, through the same `literalsIn` the i18n ratchet uses, so moving a sentence between the two is neutral here and an improvement there. `origin` was re-measured on the commit before sprint 65 with the corrected instrument, in a worktree, so every percentage on this file compares like with like: admin 2564, clinic 1485, clinician 7625, partner 1410, patient 4719, public 5460, shared 1319, sponsor 1193. The admin figure is what it is because the admin console is English by decision (37L.3) and its markup is now counted; it did not grow.",
   "origin": {
-    "shared": 497,
-    "patient": 4202,
-    "clinician": 8082,
+    "shared": 1319,
+    "patient": 4719,
+    "clinician": 7625,
     "public": 5460,
     "sponsor": 1193,
-    "admin": 452,
+    "admin": 2564,
     "clinic": 1485,
     "partner": 1410
   },
   "baseline": {
-    "shared": 497,
-    "patient": 3384,
-    "clinician": 8082,
+    "shared": 1143,
+    "patient": 3887,
+    "clinician": 6592,
     "public": 5460,
-    "sponsor": 1193,
-    "admin": 452,
-    "clinic": 1485,
+    "sponsor": 996,
+    "admin": 2564,
+    "clinic": 1049,
     "partner": 1410
   },
   "measuredOn": "2026-09-14"

@@ -205,13 +205,13 @@ export function BookingSheet({
         ) : null}
 
         <dl className="mt-4 space-y-2.5 text-sm">
-          <Row icon={<Languages className="h-3.5 w-3.5" aria-hidden />} label="Speaks">
+          <Row icon={<Languages className="h-3.5 w-3.5" aria-hidden />} label={t("radar.speaks")}>
             {entry.languages.join(", ") || "Not listed"}
           </Row>
-          <Row icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />} label="Works with">
+          <Row icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />} label={t("radar.worksWith")}>
             {entry.specialties.join(", ") || "Not listed"}
           </Row>
-          <Row icon={<Globe2 className="h-3.5 w-3.5" aria-hidden />} label="Based in">
+          <Row icon={<Globe2 className="h-3.5 w-3.5" aria-hidden />} label={t("radar.basedIn")}>
             {[entry.city, entry.region, countryName(entry.country, locale)].filter(Boolean).join(", ") ||
               "Not shared"}
           </Row>
@@ -309,7 +309,7 @@ export function BookingSheet({
               </span>
             </div>
 
-            <Field label="Your first name" htmlFor="radar-name">
+            <Field label={t("pbook.yourFirstName")} htmlFor="radar-name">
               <Input
                 id="radar-name"
                 name="name"
@@ -320,7 +320,7 @@ export function BookingSheet({
               />
             </Field>
 
-            <Field label="Email" htmlFor="radar-email" hint="Optional, for your receipt.">
+            <Field label={t("pbook.email")} htmlFor="radar-email" hint={t("pbook.emailHint")}>
               <Input
                 id="radar-email"
                 name="email"

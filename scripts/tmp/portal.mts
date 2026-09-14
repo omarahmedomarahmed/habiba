@@ -1,8 +1,8 @@
 import { DICTIONARIES } from "../../lib/i18n/messages";
 
 const PORTALS: Record<string, readonly string[]> = {
-  patient: ["home","pclaim","pbook","prating","pinvite","benefit","checkin","consent","browse","cassess","feedback","homework","jconsent","join","journal","residency","risk"],
-  clinician: ["portal","room","import","note","spec","preset","pted","pracc"],
+  patient: ["home","room","preset","pclaim","pbook","prating","pinvite","benefit","checkin","consent","browse","cassess","feedback","homework","jconsent","join","journal","residency","risk"],
+  clinician: ["portal","import","note","spec","pted","pracc","cassess"],
   clinic: ["clinic","records"],
   sponsor: ["sponsor","sint"],
   partner: ["dev","devs"],

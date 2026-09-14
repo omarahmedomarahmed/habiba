@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { accept, joinWithAccount } from "@/app/(clinic)/clinic/join/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
@@ -17,7 +18,7 @@ function Submit({ label }: { label: string }) {
 }
 
 /**
- * 🔴 63.9 / C328 — THE TWO LISTS, AND THEY ARE ON THE SCREEN THAT DECIDES.
+ * 🔴 63.9 / C328 / 65.11 — THE TWO LISTS, AND THEY ARE ON THE SCREEN THAT DECIDES.
  *
  * > *The inviting therapist gains sight of a colleague's earnings and calendar, and
  * > the colleague has to understand that before, not after.*
@@ -26,67 +27,48 @@ function Submit({ label }: { label: string }) {
  * a person joining with a new account and a person joining with an existing one read
  * the same thing. A sentence copied into two forms is a sentence that ends up in one.
  *
- * 🔴 And the "never" list is the same size as the "will see" list. A disclosure that
- * itemises the reach and summarises the limit in half a line is a disclosure written
- * to be survived rather than read.
+ * ## 🔴 65.4 / 65.11 — AND THE ONE-OFF CARD IS NOW THE SHARED COMPARISON.
+ *
+ * > *What a clinic can and cannot see is the single most important thing on it, and it
+ * > becomes the "who sees what" comparison, on the acceptance screen 63.9 already
+ * > requires.*
+ *
+ *
+ * This screen had the right IDEA before 65 and the wrong build: a bespoke card with two
+ * bullet lists and two uppercase headings, rendered once, here. 65.4's rule is that the
+ * same rule on two screens has to look like the same rule, and this one is also on the
+ * clinic's own chrome, on the patient's record page and on the sponsor's portal. Four
+ * copies of a disclosure is four places a fix has to land.
+ *
+ * 🔴 THE BULLET IN THE "NEVER" LIST WAS TEAL, which is the colour this product uses for
+ * yes. `SeesWhat` uses a cross, because the list is of things that do not happen, and it
+ * keeps the rule above: the never column is the same size as the will-see column.
  */
 function WhatTheySee({ clinicName }: { clinicName: string }) {
   const t = useT();
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 p-4">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {t("clinic.join.seesTitle", { name: clinicName })}
-        </p>
-        <ul className="mt-2 space-y-1.5">
-          {(
-            [
-              "clinic.join.sees.calendar",
-              "clinic.join.sees.names",
-              "clinic.join.sees.radar",
-              "clinic.join.sees.prices",
-              "clinic.join.sees.earnings",
-              "clinic.join.sees.withdrawals",
-            ] as const
-          ).map((key) => (
-            <li key={key} className="flex gap-2 text-xs leading-relaxed text-slate-700">
-              <span aria-hidden className="text-slate-400">
-                &bull;
-              </span>
-              {t(key)}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="border-t border-slate-100 pt-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {t("clinic.join.neverTitle")}
-        </p>
-        <ul className="mt-2 space-y-1.5">
-          {(
-            [
-              "clinic.join.never.notes",
-              "clinic.join.never.risk",
-              "clinic.join.never.copilot",
-              "clinic.join.never.consent",
-            ] as const
-          ).map((key) => (
-            <li key={key} className="flex gap-2 text-xs leading-relaxed text-slate-700">
-              <span aria-hidden className="text-teal-500">
-                &bull;
-              </span>
-              {t(key)}
-            </li>
-          ))}
-        </ul>
-      </div>
+    <div className="space-y-3">
+      <SeesWhat
+        who={t("clinic.join.seesTitle", { name: clinicName })}
+        can={[
+          t("clinic.join.sees.calendar"),
+          t("clinic.join.sees.names"),
+          t("clinic.join.sees.radar"),
+          t("clinic.join.sees.prices"),
+          t("clinic.join.sees.earnings"),
+          t("clinic.join.sees.withdrawals"),
+        ]}
+        cannot={[
+          t("clinic.join.never.notes"),
+          t("clinic.join.never.risk"),
+          t("clinic.join.never.copilot"),
+          t("clinic.join.never.consent"),
+        ]}
+      />
 
       {/* 🔴 63.10 — and the invitation does nothing until they are verified. */}
-      <p className="border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
-        {t("clinic.join.verifyFirst")}
-      </p>
+      <p className="text-xs leading-relaxed text-slate-500">{t("clinic.join.verifyFirst")}</p>
     </div>
   );
 }

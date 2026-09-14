@@ -115,7 +115,7 @@ export function RadarFilters({
       {/* Language, by flag. The flag is an anchor, never the only signal — the
           name is always beside it, because Windows renders letters not flags. */}
       {languages.length > 1 ? (
-        <Scroller label="Language">
+        <Scroller label={t("radar.language")}>
           {languages.map((language) => (
             <Chip
               key={language.value}
@@ -134,7 +134,7 @@ export function RadarFilters({
       ) : null}
 
       {specialties.length > 1 ? (
-        <Scroller label="Works with">
+        <Scroller label={t("radar.worksWith")}>
           {specialties.map((specialty) => (
             <Chip
               key={specialty.value}

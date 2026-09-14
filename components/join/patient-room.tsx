@@ -515,9 +515,18 @@ function Reassurance() {
           <Mail className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
           {t("room.knowSummary")}
         </li>
+        {/*
+          🔴 C184 / C198 — THE SHARED LINE, NOT A SECOND COPY OF IT.
+
+          `room.knowEmergency` said almost exactly what `crisis.notEmergency` says, three
+          words apart, on the screen a patient sits on during a session. Two copies of a
+          safety sentence is the defect that put an American lifeline in front of an
+          Egyptian patient: the fix lands on one of them and nobody knows the other is
+          there. There is one line now, and it is the one `lib/crisis` owns.
+        */}
         <li className="flex gap-2">
           <Phone className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
-          {t("room.knowEmergency")}
+          {t("crisis.notEmergency")}
         </li>
       </ul>
     </Card>

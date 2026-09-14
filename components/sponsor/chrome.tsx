@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { signOutSponsor } from "@/app/(sponsor)/sponsor/sign-in/actions";
+import { NeverBar } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -111,10 +112,23 @@ export function SponsorChrome({
 
       {nav ? (
         <footer className="mx-auto max-w-4xl px-4 pb-10">
-          {/* 🔴 C240 — on every screen of this portal, in the chrome. */}
-          <p className="border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-500">
-            {t("sponsor.noAttendance")}
-          </p>
+          {/*
+            🔴 65.12 / C240 / C227 — A STANDING VISUAL, NOT A SENTENCE IN GREY.
+
+            C240 put the attendance sentence on every screen of this portal and was right
+            to; what it could not fix is that the tenth time somebody scrolls past a grey
+            paragraph they have stopped seeing it. Three crosses are read from their
+            shape, and C227's rule — you will never see an individual — is beside it
+            rather than on a different page.
+          */}
+          <NeverBar
+            label={t("sponsor.neverLabel")}
+            items={[
+              t("sponsor.neverIndividual"),
+              t("sponsor.neverAttendance"),
+              t("sponsor.neverClinical"),
+            ]}
+          />
         </footer>
       ) : null}
     </div>

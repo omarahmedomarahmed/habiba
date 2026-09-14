@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import { BRAND } from "@/lib/brand";
 import {
   CalendarClock,
   CalendarDays,
@@ -112,7 +114,7 @@ export default async function AppLayout({
       <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-slate-200 bg-white lg:flex">
         <div className="px-5 py-5">
           <Link href="/dashboard" className="text-[15px] font-bold tracking-tight text-navy-500">
-            24Therapy
+            {BRAND}
           </Link>
         </div>
 

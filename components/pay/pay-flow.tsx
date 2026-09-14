@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+
+import { useT } from "@/lib/i18n/client";
 import { Globe, Loader2, ShieldCheck } from "lucide-react";
 
 import { priceFor, startPayment, type Breakdown } from "@/app/pay/[token]/actions";
@@ -50,6 +52,7 @@ export function PayFlow({
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const t = useT();
   const [pending, startTransition] = useTransition();
 
   // Price follows the country. Recomputed on the server every time — the VAT
@@ -100,7 +103,7 @@ export function PayFlow({
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Pay for your session</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pay.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">
           {therapistName ? `With ${therapistName}.` : ""} You will not be charged until you confirm
           on the next screen.
@@ -108,7 +111,7 @@ export function PayFlow({
       </div>
 
       <Card className="space-y-4 p-4">
-        <Field label="Where are you paying from?" htmlFor="country">
+        <Field label={t("pay.whereFrom")} htmlFor="country">
           <div className="relative">
             <Globe
               className="pointer-events-none absolute inset-y-0 start-3 my-auto h-4 w-4 text-slate-400"
@@ -120,7 +123,7 @@ export function PayFlow({
               onChange={(e) => setCountry(e.target.value)}
               className="h-12 w-full rounded-xl border border-slate-200 bg-white ps-9 pe-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
             >
-              <option value="">Choose your country…</option>
+              <option value="">{t("pay.chooseCountry")}</option>
               {countries.map((c) => (
                 <option key={c.code} value={c.code}>
                   {c.name} · {c.currency.toUpperCase()}
@@ -129,13 +132,13 @@ export function PayFlow({
             </select>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            This sets your currency and any tax that applies where you are.
+            {t("pay.setsCurrency")}
           </p>
         </Field>
 
         {loading ? (
           <p className="flex items-center gap-2 text-sm text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Working out your price…
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t("pay.working")}
           </p>
         ) : null}
 
@@ -149,7 +152,7 @@ export function PayFlow({
             */}
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-600">Session</dt>
+                <dt className="text-slate-600">{t("pay.session")}</dt>
                 <dd className="tabular-nums text-slate-900">
                   {money(breakdown.presentedGrossCents, breakdown.currency)}
                 </dd>
@@ -159,7 +162,7 @@ export function PayFlow({
                   <dt className="text-slate-600">
                     VAT ({(breakdown.vatBps / 100).toFixed(breakdown.vatBps % 100 === 0 ? 0 : 1)}%)
                     <span className="block text-xs text-slate-400">
-                      Paid to the tax authority in {breakdown.countryName}, not to us.
+                      {t("pay.vatTo", { country: breakdown.countryName })}
                     </span>
                   </dt>
                   <dd className="tabular-nums text-slate-900">
@@ -168,7 +171,7 @@ export function PayFlow({
                 </div>
               ) : null}
               <div className="flex justify-between gap-3 border-t border-slate-200 pt-1.5 font-semibold">
-                <dt className="text-slate-900">Total</dt>
+                <dt className="text-slate-900">{t("pay.total")}</dt>
                 <dd className="tabular-nums text-slate-900">
                   {money(breakdown.presentedTotalCents, breakdown.currency)}
                 </dd>
@@ -177,12 +180,14 @@ export function PayFlow({
 
             {breakdown.currency !== "usd" ? (
               <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                Converted from {money(breakdown.totalCents, "usd")} at{" "}
-                {(breakdown.rateMicro / 1_000_000).toFixed(2)} {breakdown.currency.toUpperCase()} to
-                the dollar. This rate is held for an hour.
+                {t("pay.converted", {
+                  amount: money(breakdown.totalCents, "usd"),
+                  rate: (breakdown.rateMicro / 1_000_000).toFixed(2),
+                  currency: breakdown.currency.toUpperCase(),
+                })}
                 {breakdown.rateSource === "static" ? (
                   <span className="mt-1 block text-amber-700">
-                    Indicative rate, your bank's final figure may differ slightly.
+                    {t("pay.indicative")}
                   </span>
                 ) : null}
               </p>
@@ -192,16 +197,16 @@ export function PayFlow({
 
         {breakdown ? (
           <>
-            <Field label="Your first name" htmlFor="payer-name">
+            <Field label={t("pay.firstName")} htmlFor="payer-name">
               <Input
                 id="payer-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="The name your therapist knows you by"
+                placeholder={t("pay.namePlaceholder")}
                 required
               />
             </Field>
-            <Field label="Email for your receipt (optional)" htmlFor="payer-email">
+            <Field label={t("pay.receiptEmail")} htmlFor="payer-email">
               <Input
                 id="payer-email"
                 type="email"
@@ -227,19 +232,18 @@ export function PayFlow({
         >
           {pending ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Opening checkout…
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t("pay.opening")}
             </>
           ) : breakdown ? (
-            `Pay ${money(breakdown.presentedTotalCents, breakdown.currency)}`
+            t("pay.payAmount", { amount: money(breakdown.presentedTotalCents, breakdown.currency) })
           ) : (
-            "Choose your country to continue"
+            t("pay.chooseToContinue")
           )}
         </Button>
 
         <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
-          Your card is handled by Stripe. We never see the number, and the payment goes to your
-          therapist's own account.
+          {t("pay.stripeNote")}
         </p>
       </Card>
     </main>

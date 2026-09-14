@@ -7,6 +7,7 @@ import { PatientChrome } from "@/components/patient/chrome";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
+import { BRAND } from "@/lib/brand";
 import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { feedbackContext, feedbackTokenForJoin } from "@/lib/data/feedback";
@@ -45,6 +46,7 @@ export default async function JoinPage({
 }) {
   const { token } = await params;
   const { checkout, booked } = await searchParams;
+  const { t } = await getI18n();
 
   // Settle on the redirect as well as by webhook. Stripe cannot reach a preview
   // deployment, and a patient who has just paid must not be told to pay again.
@@ -79,11 +81,8 @@ export default async function JoinPage({
 
     return (
       <Shell>
-        <h1 className="text-xl font-bold text-slate-900">This link is no longer active</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Session links expire after 12 hours and stop working once the session has finished. Ask
-          your therapist to send you a new one.
-        </p>
+        <h1 className="text-xl font-bold text-slate-900">{t("room.linkDead")}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("room.linkDeadBody")}</p>
       </Shell>
     );
   }
@@ -192,7 +191,7 @@ async function Shell({
         chance to fix that, and it has to be visible without scrolling.
       */}
       <header className="flex items-center justify-between px-4 py-5 sm:px-6">
-        <span className="text-[15px] font-bold tracking-tight text-navy-500">24Therapy</span>
+        <span className="text-[15px] font-bold tracking-tight text-navy-500">{BRAND}</span>
         <LanguageSwitch />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 sm:items-center sm:px-6">

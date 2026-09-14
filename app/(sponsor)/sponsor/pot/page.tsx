@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CoverageForm } from "@/components/sponsor/coverage-form";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { Card } from "@/components/ui";
+import { Meter } from "@/components/visual/primitives";
 import { topUpHistory } from "@/lib/billing/invoice";
 
 import { potTerms } from "@/lib/data/sponsor-admin";
@@ -45,6 +46,9 @@ export default async function SponsorPotPage() {
     coverageFor(actor.sponsorId),
   ]);
 
+  /* 65.12 — the meter's denominator, and it is the figure the sponsor last authorised. */
+  const lastTopUpCents = history[0]?.amountCents ?? 0;
+
   const fmt = (cents: number) =>
     new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
       style: "currency",
@@ -54,12 +58,46 @@ export default async function SponsorPotPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
-      <Card className="p-4">
-        <p className="text-xs font-medium text-slate-500">{t("sponsor.balance")}</p>
-        <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-          {pot.balanceCents === null ? t("sponsor.balanceSuppressed") : fmt(pot.balanceCents)}
-        </p>
-      </Card>
+      {/*
+        🔴 65.12 — THE POT, ITS TERMS AND ITS EXPIRY AS A METER WITH THREE STATES.
+
+        A number on its own answers "how much" and not "how long", and how long is the
+        question a sponsor actually has. The bar is spent against the last top-up, so it
+        runs green, then amber past three quarters, then red past nine tenths, and the
+        expiry is the line under it rather than a paragraph three cards down.
+
+        🔴 THE SUPPRESSED CASE KEEPS THE PLAIN CARD, deliberately. C377 publishes a
+        balance only once enough sessions have moved, and a meter drawn from a figure we
+        are refusing to publish would be a picture of a number that does not exist.
+      */}
+      {pot.balanceCents === null ? (
+        <Card className="p-4">
+          <p className="text-xs font-medium text-slate-500">{t("sponsor.balance")}</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            {t("sponsor.balanceSuppressed")}
+          </p>
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <Meter
+            usedLabel={fmt(pot.balanceCents)}
+            ofLabel={
+              lastTopUpCents > 0
+                ? t("sponsor.ofLastTopUp", { amount: fmt(lastTopUpCents) })
+                : t("sponsor.balance")
+            }
+            /* Spent, not remaining: the tone ladder in `Meter` runs red as it fills. */
+            fraction={
+              lastTopUpCents > 0 ? 1 - pot.balanceCents / lastTopUpCents : 0
+            }
+            note={
+              pot.expiresAt
+                ? t("sponsor.expiresOn", { date: pot.expiresAt.toISOString().slice(0, 10) })
+                : undefined
+            }
+          />
+        </Card>
+      )}
 
       {/*
         🔴 60.1 / C311 — the percentage, above the money, because it decides

@@ -5,6 +5,8 @@ import { Plug, PlugZap } from "lucide-react";
 
 import { unlinkPlatform } from "@/app/(patient)/patient/consent/actions";
 import { Button, Card } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Platforms that can identify you here, and the tap that ends it. 55.6, C277.
@@ -34,6 +36,7 @@ export function LinkedPlatforms({
 }: {
   links: { subjectId: string; partnerName: string; linkedLabel: string }[];
 }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,17 +53,27 @@ export function LinkedPlatforms({
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <Plug className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-semibold text-slate-900">
-          Platforms that can identify you
-        </h2>
+        <h2 className="text-sm font-semibold text-slate-900">{t("plat.title")}</h2>
       </div>
 
-      <p className="mt-1.5 text-sm text-slate-600">
-        You confirmed to these that an account of theirs is you. Ending one stops
-        them asking about you and stops sessions they hold arriving in your
-        record here. Nothing already in your record is removed, and no therapist
-        loses anything you gave them.
-      </p>
+      {/*
+        🔴 65.5 / 65.21 — AND THIS WHOLE COMPONENT WAS IN ENGLISH.
+
+        44 words of grey prose under a heading, on a patient screen, in one language.
+        `verify:sprint37l` could see it and nobody was running `verify:sprint37l`, which
+        is the C182 story happening a second time to the instrument built to stop it.
+
+        The paragraph did what a `SeesWhat` does and did it in a sentence: two things
+        ending a link stops, and two things it does not touch. The second half is the one
+        a person hesitating needs, and it was the last clause.
+      */}
+      <div className="mt-3">
+        <SeesWhat
+          who={t("plat.who")}
+          can={[t("plat.stopsAsking"), t("plat.stopsArriving")]}
+          cannot={[t("plat.notRemoves"), t("plat.notTherapist")]}
+        />
+      </div>
 
       {error ? (
         <p className="mt-3 text-sm font-semibold text-red-700">{error}</p>
@@ -76,7 +89,7 @@ export function LinkedPlatforms({
               <p className="truncate text-sm font-medium text-slate-900">
                 {link.partnerName}
               </p>
-              <p className="text-xs text-slate-500">Connected {link.linkedLabel}</p>
+              <p className="text-xs text-slate-500">{t("plat.connected", { date: link.linkedLabel })}</p>
             </div>
 
             <Button
@@ -95,7 +108,7 @@ export function LinkedPlatforms({
               }}
             >
               <PlugZap className="me-1.5 h-3.5 w-3.5" />
-              {pending && busy === link.subjectId ? "…" : "End this"}
+              {pending && busy === link.subjectId ? "…" : t("plat.end")}
             </Button>
           </li>
         ))}

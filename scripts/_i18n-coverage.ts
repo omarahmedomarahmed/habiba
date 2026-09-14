@@ -187,6 +187,31 @@ function isVisibleEnglish(text: string): boolean {
    * translation work, and `_i18n-coverage.json` says so where the numbers moved.
    */
   if (/\?\s*\(|\)\s*:|&&|\|\|/.test(text)) return false;
+  /*
+   * 🔴 AN OBJECT LITERAL OF ELEMENTS IS NOT A SENTENCE, and this is the THIRD phantom
+   * family, found the same way as the first two: a number went up and reading WHY showed
+   * code rather than English.
+   *
+   * `components/patient/category-grid.tsx` maps taxonomy codes to icons:
+   *
+   *     anxiety: <Zap className="h-4 w-4" aria-hidden />,
+   *     depression: <CloudRain className="h-4 w-4" aria-hidden />,
+   *
+   * The `>` of the self-closing `/>`, then `, depression:`, then the next `<`. Fourteen
+   * phantoms in one file, every one of the shape `, <identifier>:`.
+   *
+   * Rejected by the shape rather than by rejecting commas or colons outright, because a
+   * visible label legitimately ends in a colon ("Your name, to them:") and a visible
+   * sentence legitimately contains a comma. What no rendered text node does is BEGIN with
+   * a comma and END with a colon, which is what an object-literal entry between two
+   * elements always looks like.
+   *
+   * This LOWERS the recorded floor by fourteen and translates nothing, which is the same
+   * claim sprints 51 and 53 each had to make, and `_i18n-coverage.json` says so where the
+   * numbers moved. `verify:sprint37l` carries the control: the shape is rejected AND a
+   * genuine label ending in a colon is still counted.
+   */
+  if (/^,\s*[A-Za-z][A-Za-z0-9_]*\s*:$/.test(text)) return false;
   /* Two words, or one word of four letters or more. A lone "OK" is not a
      sentence anybody notices; "Continue" is. */
   if (!/[A-Za-z]{4}/.test(text)) return false;

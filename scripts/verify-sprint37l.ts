@@ -231,6 +231,30 @@ function main() {
     "one more English sentence on a patient screen fails this gate",
   );
 
+  /*
+   * 🔴 65 — THE THIRD PHANTOM FAMILY, AND ITS CONTROL IN BOTH DIRECTIONS.
+   *
+   * Sprint 65 added an icon map to the patient home, `anxiety: <Zap … />,` line after
+   * line, and the scanner read the `, depression:` between one `/>` and the next `<` as
+   * visible English. Fourteen phantoms in one file, which is the same shape sprints 51
+   * and 53 each had to correct.
+   *
+   * Blinding a scanner is cheaper than correcting one and is how a ratchet quietly stops
+   * ratcheting, so the rejection is asserted BOTH WAYS: the object-literal shape does not
+   * count, and a genuine label that happens to end in a colon still does.
+   */
+  check(
+    "🔴 65 an object-literal entry between two elements is not visible English",
+    literalsIn('const I = { a: <Zap x="1" />, depression: <Rain x="1" /> };').length === 0,
+    "`, depression:` is code; a scanner that counts it moves when somebody adds a specialty",
+  );
+
+  check(
+    "🔴 65 CONTROL …and a real label that ends in a colon is still counted",
+    literalsIn('<dt>Your name, to them:</dt>').length === 1,
+    "rejecting every colon would blind the scanner instead of correcting it",
+  );
+
   /* -------------------------------------------------- 🔴 37L.5 · safety copy */
 
   const safetyKeys = enKeys.filter((key) => isSafetyKey(key));

@@ -306,21 +306,20 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
  * lost is a stranger with a domain list and an afternoon.
  */
 export function AskAboutEmployer() {
+  const t = useT();
   const [pending, start] = useTransition();
   const [answer, setAnswer] = useState<string | null>(null);
   const [domain, setDomain] = useState("");
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">
-        Not sure whether your employer offers this?
-      </p>
+      <p className="text-sm font-semibold text-slate-900">{t("benefit.notSure")}</p>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <Input
           value={domain}
           onChange={(event) => setDomain(event.target.value)}
-          placeholder="the part after the @ in your work email"
+          placeholder={t("benefit.domainHint")}
           className="max-w-xs"
         />
         <Button

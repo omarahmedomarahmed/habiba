@@ -310,7 +310,48 @@ export function BeforeAfter({
   );
 }
 
-/* ═══════════════════════════════════════════════════════════ 7 · the split ══ */
+/* ════════════════════════════════════════════════════ 7 · the standing bar ══ */
+
+/**
+ * 🔴 65.12 / C240 / C227 — THE LIMIT AS A STANDING VISUAL IN THE CHROME.
+ *
+ * > *C240's attendance sentence and C227's "you will never see an individual" become a
+ * > standing visual in the chrome.*
+ *
+ * Both rulings are already right about PLACEMENT: the sentence is on every screen of the
+ * portal, because the person who needs it is drafting a policy and will not click
+ * through to find out what they cannot do. What neither ruling could fix is that a
+ * sentence in the smallest grey at the bottom of a page is placement without presence.
+ *
+ * ## 🔴 WHY A ROW OF CROSSES RATHER THAN A SENTENCE
+ *
+ * A cross is read without being read. Somebody scrolling past the footer of the tenth
+ * screen this week takes "three things this product will not do" from the shape, which
+ * is exactly what a standing disclosure is for and exactly what a paragraph they have
+ * scrolled past nine times already cannot do.
+ *
+ * ## 🔴 65.23 — AND IT CANNOT BE COLLAPSED
+ *
+ * No `open` prop, no chevron, no "why?". A regulator or a payer would expect this person
+ * to have seen it, so there is nothing here that could make it not so.
+ */
+export function NeverBar({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="border-t border-slate-200 pt-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
+        {items.map((item) => (
+          <li key={item} className="flex items-start gap-1.5 text-xs text-slate-600">
+            <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" aria-hidden />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════ 8 · the split ══ */
 
 export type SplitPart = {
   label: string;

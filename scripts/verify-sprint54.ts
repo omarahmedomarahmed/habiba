@@ -728,15 +728,31 @@ async function main() {
      * is a no-op silently hiding a real leak, which is the §6 family in one line.
      */
     const { DICTIONARIES } = await import("../lib/i18n/messages");
-    const disclaimer = DICTIONARIES.en["clinic.neverSees"];
+
+    /*
+     * 🔴 65.11 / 65.12 — THE DISCLAIMER IS A `NeverBar` NOW, SO IT IS THREE STRINGS.
+     *
+     * Sprint 65 turned `clinic.neverSees` into three crossed items in the chrome. The
+     * removal below had to follow it, and the CONTROL matters more than it did: three
+     * strings is three chances for one to be silently absent, which would let the sweep
+     * pass by having less to sweep rather than by there being nothing to find.
+     */
+    const disclaimer = [
+      DICTIONARIES.en["clinic.neverNote"],
+      DICTIONARIES.en["clinic.neverRisk"],
+      DICTIONARIES.en["clinic.neverBuilt"],
+    ];
 
     check(
-      "🔴 CONTROL the disclaimer removed before the sweep was actually in the markup",
-      chromeMarkup.includes(disclaimer),
+      "🔴 CONTROL every disclaimer line removed before the sweep was actually in the markup",
+      disclaimer.every((line) => chromeMarkup.includes(line)),
       "removing a sentence that was absent would hide a real leak behind a no-op",
     );
 
-    const swept = chromeMarkup.split(disclaimer).join(" ");
+    const swept = disclaimer.reduce(
+      (markup, line) => markup.split(line).join(" "),
+      chromeMarkup,
+    );
     const leakedWords = CLINICAL_WORDS.filter((word) => swept.toLowerCase().includes(word));
 
     check(
@@ -779,9 +795,23 @@ async function main() {
      * manager wondering where the notes are, and they will not click through to find out
      * the answer is "nowhere, on purpose".
      */
+    /*
+     * 🔴 C200 — READ FROM THE DICTIONARY, NOT GREPPED AS A SENTENCE.
+     *
+     * This asserted `chromeMarkup.includes("never see a note")` and was therefore a test
+     * that the disclosure had not been reworded. Sprint 65 reworded it into a `NeverBar`
+     * and the check went red while the property it exists for held perfectly: the chrome
+     * still states, on every screen, what this portal can never show.
+     *
+     * C200 ruled on exactly this after 37L broke five gates the same way. The property is
+     * "the chrome renders the standing limit", so the assertion names the KEYS and reads
+     * their values, which survives the next rewording and still fails if a page stops
+     * rendering the bar.
+     */
     check(
       "🔴 54.9 …and the chrome states on every screen what this portal can never show",
-      chromeMarkup.includes("never see a note"),
+      disclaimer.every((line) => chromeMarkup.includes(line)) &&
+        chromeMarkup.includes(DICTIONARIES.en["clinic.neverLabel"]),
       "in the chrome, so a new page cannot forget it",
     );
 
