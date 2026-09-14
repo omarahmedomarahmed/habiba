@@ -207,6 +207,16 @@ export async function trialBalance() {
   return {
     cashCents: zero(byAccount.cash ?? 0),
     heldForTherapistsCents: zero(-(byAccount.therapist_payable ?? 0)),
+    /*
+     * 🔴 THE OTHER TWO LIABILITIES, which this summary did not carry.
+     *
+     * Both are somebody else's money sitting in our bank, exactly as
+     * `therapist_payable` is, and a cash figure quoted without them reads as a
+     * balance rather than as a float. The pot has been a liability since 53.10
+     * and never appeared here; `vat_payable` did not exist at all.
+     */
+    potsHeldCents: zero(-(byAccount.sponsor_pot ?? 0)),
+    vatOwedCents: zero(-(byAccount.vat_payable ?? 0)),
     owedByTherapistsCents: zero(byAccount.therapist_receivable ?? 0),
     revenueCents: zero(-(byAccount.platform_revenue ?? 0)),
     expenseCents: zero(byAccount.platform_expense ?? 0),
@@ -302,6 +312,11 @@ export async function postSessionPayment(payment: {
   therapistId: string;
   capture: "destination" | "platform";
   grossCents: number;
+  /**
+   * 🔴 The tax the patient paid ON TOP of `grossCents`, which for four sprints
+   * appeared in no account at all. See `vat_payable` in the schema.
+   */
+  vatCents: number;
   platformFeeCents: number;
   settledInvoiceCents: number;
   therapistNetCents: number;
@@ -312,12 +327,29 @@ export async function postSessionPayment(payment: {
   // part is revenue too, but it is invoice revenue and it is recognised when
   // the invoice is settled, not twice.
   const ourFee = payment.platformFeeCents - payment.settledInvoiceCents;
+  const vat = Math.max(0, payment.vatCents);
 
   if (payment.capture === "destination") {
     await journal({
       kind: "session_payment",
       refType: "session_payment",
       refId: payment.id,
+      /*
+       * 🔴 NO VAT LEG HERE, AND IT IS A DECISION.
+       *
+       * On a destination charge the connected account is the merchant of record
+       * (`on_behalf_of`), the whole charge including the tax line lands in the
+       * clinician's Stripe balance, and our application fee is the platform cut
+       * plus any settlement and contains none of it. So the VAT never reaches
+       * our bank and posting a liability for it would say we hold money we do
+       * not.
+       *
+       * 🔴 WHICH LEAVES A REAL QUESTION THIS CODE CANNOT ANSWER: whether the
+       * clinician is registered for that tax and remits it. Our own bill tells
+       * the patient it is "paid to the government", and on this path we are
+       * relying on somebody else to do it. Recorded as a concern rather than
+       * decided here, because the answer is a licensing one and not a schema one.
+       */
       legs: [
         { account: "cash", amountCents: payment.platformFeeCents, organizationId: org, memo: "Application fee on a session payment" },
         { account: "platform_revenue", amountCents: -ourFee, organizationId: org, userId: user, memo: "Platform fee" },
@@ -342,7 +374,27 @@ export async function postSessionPayment(payment: {
     refType: "session_payment",
     refId: payment.id,
     legs: [
-      { account: "cash", amountCents: payment.grossCents, organizationId: org, memo: "Session payment captured by the platform" },
+      /*
+       * 🔴 GROSS PLUS VAT, because that is what arrived.
+       *
+       * The patient was charged the price and the tax as two Stripe line items
+       * and both cleared into our balance. Recording only the price left the
+       * books short by every VAT cent held, in the one direction that looks
+       * fine: cash too low never trips a reconciliation that compares our own
+       * numbers to each other.
+       */
+      { account: "cash", amountCents: payment.grossCents + vat, organizationId: org, memo: "Session payment captured by the platform" },
+      {
+        /*
+         * 🔴 Negative, because a liability rises with a negative amount, the
+         * same convention `therapist_payable` and `sponsor_pot` carry. This is
+         * somebody else's money sitting in our account until it is remitted.
+         */
+        account: "vat_payable",
+        amountCents: -vat,
+        organizationId: org,
+        memo: "VAT collected from the patient, owed to the tax authority",
+      },
       { account: "platform_revenue", amountCents: -ourFee, organizationId: org, userId: user, memo: "Platform fee" },
       ...(payment.settledInvoiceCents > 0
         ? [
@@ -373,6 +425,13 @@ export async function postSessionRefund(payment: {
   therapistId: string;
   capture: "destination" | "platform";
   grossCents: number;
+  /**
+   * 🔴 Returned to the patient too, because `refunds.create` is sent with no
+   * `amount` and refunds the whole charge, tax line included. The books said
+   * otherwise: cash came back by the price alone, so a refunded payment left
+   * the ledger holding a VAT liability against money that had gone.
+   */
+  vatCents: number;
   platformFeeCents: number;
   settledInvoiceCents: number;
   therapistNetCents: number;
@@ -380,6 +439,7 @@ export async function postSessionRefund(payment: {
   const org = payment.organizationId;
   const user = payment.therapistId;
   const ourFee = payment.platformFeeCents - payment.settledInvoiceCents;
+  const vat = Math.max(0, payment.vatCents);
 
   const legs: Leg[] =
     payment.capture === "destination"
@@ -388,7 +448,13 @@ export async function postSessionRefund(payment: {
           { account: "platform_revenue", amountCents: ourFee, organizationId: org, userId: user, memo: "Platform fee reversed" },
         ]
       : [
-          { account: "cash", amountCents: -payment.grossCents, organizationId: org, memo: "Session payment refunded" },
+          { account: "cash", amountCents: -(payment.grossCents + vat), organizationId: org, memo: "Session payment refunded" },
+          {
+            account: "vat_payable",
+            amountCents: vat,
+            organizationId: org,
+            memo: "VAT returned with the refund, so it is no longer owed",
+          },
           { account: "platform_revenue", amountCents: ourFee, organizationId: org, userId: user, memo: "Platform fee reversed" },
           {
             account: "therapist_payable",

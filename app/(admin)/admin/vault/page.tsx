@@ -16,7 +16,7 @@ import {
   therapistEconomics,
   tractionMetrics,
 } from "@/lib/data/vault";
-import { heldBalances, trialBalance } from "@/lib/billing/ledger";
+import { heldBalances, trialBalance, unbalancedTransactions } from "@/lib/billing/ledger";
 import { allOrganizations } from "@/lib/data/admin";
 import { formatDate } from "@/lib/utils";
 
@@ -26,8 +26,19 @@ export const dynamic = "force-dynamic";
 export default async function VaultPage() {
   const actor = await requireRole("super_admin");
 
-  const [ledger, months, therapists, traction, kinds, invoices, payments, held, books, orgs] =
-    await Promise.all([
+  const [
+    ledger,
+    months,
+    therapists,
+    traction,
+    kinds,
+    invoices,
+    payments,
+    held,
+    books,
+    unbalanced,
+    orgs,
+  ] = await Promise.all([
     ledgerSummary(),
     monthlyLedger(6),
     therapistEconomics(),
@@ -37,6 +48,13 @@ export default async function VaultPage() {
     allSessionPayments(200),
     heldBalances(),
     trialBalance(),
+    /*
+     * 🔴 58.1 again. `unbalancedTransactions` was written so the assertion could
+     * be RUN against real rows rather than trusted, and then no screen ran it:
+     * `verify:reachable` has had it in MUST_WIRE since the gate existed. A
+     * self-check nobody executes is the thing it was written to replace.
+     */
+    unbalancedTransactions(),
     allOrganizations(),
   ]);
 
@@ -54,10 +72,16 @@ export default async function VaultPage() {
       {/*
         Liabilities before results.
         --------------------------
-        Everything below this is revenue, spend and margin — ours. This is the
-        one figure on the page that is somebody else's, and it goes first
-        because a platform that has to be reminded it is holding other people's
-        money is a platform that will eventually forget.
+        Everything below this is revenue, spend and margin — ours. Everything
+        here is somebody else's, and it goes first because a platform that has
+        to be reminded it is holding other people's money is a platform that
+        will eventually forget.
+
+        🔴 That sentence used to say "the one figure on the page", and it was
+        wrong twice over: sponsor pots have been a liability since 53.10 and
+        never appeared here, and the VAT we collect had no account at all until
+        `vat_payable`. A float quoted as a balance is the most flattering way to
+        get this wrong, which is why all three are on one row now.
       */}
       <HeldBalances
         rows={held.map((row) => ({
@@ -72,6 +96,72 @@ export default async function VaultPage() {
         totalHeldCents={books.heldForTherapistsCents}
         outOfBalanceCents={books.outOfBalanceCents}
       />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card className="p-4">
+          <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            Held for clinicians
+          </p>
+          <p className="mt-1 text-xl font-bold text-slate-900">
+            {formatUsd(books.heldForTherapistsCents)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Earned, not yet paid out.</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            Unspent sponsor pots
+          </p>
+          <p className="mt-1 text-xl font-bold text-slate-900">
+            {formatUsd(books.potsHeldCents)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Prepaid by employers, refundable on their terms.
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            VAT collected, not remitted
+          </p>
+          <p className="mt-1 text-xl font-bold text-slate-900">
+            {formatUsd(books.vatOwedCents)}
+          </p>
+          {/*
+            🔴 Only what WE collected. A destination charge puts the tax in the
+            clinician's own balance, where they are merchant of record, and none
+            of it is counted here.
+          */}
+          <p className="mt-1 text-xs text-slate-500">
+            Owed to a tax authority. Excludes tax collected by clinicians on their
+            own charges.
+          </p>
+        </Card>
+      </div>
+
+      {/*
+        🔴 Normally renders nothing, which is the point. The same construction
+        the sponsor reconciliation uses: a discrepancy is a red line at the top
+        of a page somebody opens, rather than a warning in a log nobody tails.
+      */}
+      {unbalanced.length > 0 ? (
+        <div className="rounded-2xl bg-red-50 p-4 ring-1 ring-red-200">
+          <p className="text-sm font-semibold text-red-800">
+            {unbalanced.length} transaction{unbalanced.length === 1 ? "" : "s"} whose legs
+            do not sum to zero
+          </p>
+          <p className="mt-1 text-xs text-red-700">
+            `journal` cannot create one, so each of these was written another way
+            or written before it existed. Nothing below this line can be trusted
+            until they are explained.
+          </p>
+          <ul className="mt-2 space-y-1 font-mono text-xs text-red-700">
+            {unbalanced.map((row) => (
+              <li key={row.txnId}>
+                {row.kind} · {row.txnId.slice(0, 8)}… · off by {formatUsd(row.deltaCents)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {/*
         🔴 58.1 — the escape hatch, which existed as a function and as nothing

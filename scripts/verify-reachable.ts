@@ -72,7 +72,7 @@ const EXPORTS_BY_DESIGN: Record<string, string> = {};
  * by hand and this gate could see none of them. Lower it whenever the number
  * drops; it must never rise.
  */
-const DEAD_EXPORT_BASELINE = 85;
+const DEAD_EXPORT_BASELINE = 84;
 
 /* --------------------------------------------------------------- checks -- */
 

@@ -747,6 +747,8 @@ export async function settleSessionPayment(checkout: {
       therapistId: row.therapistId,
       capture: row.capture,
       grossCents: row.grossCents,
+      /* 🔴 The tax line the patient actually paid. See `vat_payable`. */
+      vatCents: row.vatCents,
       platformFeeCents: row.platformFeeCents,
       settledInvoiceCents: row.settledInvoiceCents,
       therapistNetCents: row.therapistNetCents,
@@ -901,6 +903,8 @@ export async function refundSessionPayment(opts: {
     therapistId: payment.therapistId,
     capture: payment.capture,
     grossCents: payment.grossCents,
+    /* Refunded with the rest of the charge, because no `amount` was sent. */
+    vatCents: payment.vatCents,
     platformFeeCents: payment.platformFeeCents,
     settledInvoiceCents: payment.settledInvoiceCents,
     therapistNetCents: payment.therapistNetCents,

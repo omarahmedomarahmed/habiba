@@ -137,6 +137,8 @@ test("a destination charge puts only the fee on our books", async () => {
     therapistId,
     capture: "destination",
     grossCents: 5000,
+    /* The patient paid tax too, and on this path it never reaches us. */
+    vatCents: 700,
     platformFeeCents: 500,
     settledInvoiceCents: 0,
     therapistNetCents: 4500,
@@ -148,6 +150,19 @@ test("a destination charge puts only the fee on our books", async () => {
   assert.equal(await accountBalance("cash"), 500);
   assert.equal(await accountBalance("platform_revenue"), -500);
   assert.equal(await heldForTherapist(therapistId), 0, "nothing is held on a destination charge");
+  /*
+   * 🔴 AND NO VAT LIABILITY, which is the half a careless fix would get wrong.
+   *
+   * The connected account is the merchant of record, the whole charge including
+   * the tax line lands in the clinician's balance, and our application fee
+   * contains none of it. Posting a liability here would say we hold money that
+   * never touched our bank.
+   */
+  assert.equal(
+    await accountBalance("vat_payable"),
+    0,
+    "a destination charge leaves us owing no tax, because we collected none",
+  );
 });
 
 test("a platform capture records the whole charge and what we owe of it", async () => {
@@ -157,14 +172,26 @@ test("a platform capture records the whole charge and what we owe of it", async 
     therapistId,
     capture: "platform",
     grossCents: 4000,
+    /*
+     * 🔴 Charged on top and cleared into OUR balance, so both halves have to be
+     * on the books: the cash we received and the tax we owe out of it. Before
+     * this existed `cash` was posted at 4000 while 4560 had arrived.
+     */
+    vatCents: 560,
     platformFeeCents: 400,
     settledInvoiceCents: 0,
     therapistNetCents: 3600,
   });
 
   assert.equal(await scopedBalance(), 0);
-  assert.equal(await accountBalance("cash"), 500 + 4000);
+  /* 🔴 The tax is in the cash figure, because the tax is in the bank. */
+  assert.equal(await accountBalance("cash"), 500 + 4000 + 560);
   assert.equal(await heldForTherapist(therapistId), 3600);
+  /*
+   * 🔴 Negative, the liability convention `therapist_payable` and `sponsor_pot`
+   * both carry. We are holding 560 that is not ours.
+   */
+  assert.equal(await accountBalance("vat_payable"), -560, "tax collected and not yet remitted");
 });
 
 test("a bill raised and then cleared from held earnings nets out", async () => {
@@ -205,6 +232,8 @@ test("refunding a held payment takes it back out of what we owe", async () => {
     therapistId,
     capture: "platform",
     grossCents: 4000,
+    /* Refunded with the rest of the charge, so the liability goes with it. */
+    vatCents: 560,
     platformFeeCents: 400,
     settledInvoiceCents: 0,
     therapistNetCents: 3600,
@@ -212,7 +241,13 @@ test("refunding a held payment takes it back out of what we owe", async () => {
 
   assert.equal(await scopedBalance(), 0);
   assert.equal(await heldForTherapist(therapistId), heldBefore - 3600);
-  assert.equal(await accountBalance("cash"), 500 + 4000 - 4000);
+  assert.equal(await accountBalance("cash"), 500 + 4000 + 560 - 4000 - 560);
+  /*
+   * 🔴 BACK TO ZERO. `refunds.create` is sent with no `amount`, so the whole
+   * charge goes back including the tax line, and a liability left standing
+   * against money that has gone is a number somebody would eventually remit.
+   */
+  assert.equal(await accountBalance("vat_payable"), 0, "nothing owed on a refunded payment");
 });
 
 test("a write-off leaves the platform out of pocket, visibly", async () => {

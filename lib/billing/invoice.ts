@@ -100,6 +100,21 @@ export async function invoiceFor(
 
   if (!leg) return null;
 
+  /*
+   * The money that actually arrived for this same transaction. One extra read
+   * rather than deriving it, because the pot leg no longer carries it.
+   */
+  const [cashLeg] = await controlDb
+    .select({ amountCents: ledgerEntries.amountCents })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.txnId, txnId),
+        eq(ledgerEntries.account, "cash"),
+      ),
+    )
+    .limit(1);
+
   const settings = await getSettings();
   const details = settings.invoice.entities.find((row) => row.entity === sponsor.entity);
 
@@ -130,11 +145,19 @@ export async function invoiceFor(
   const position = earlier.findIndex((row) => row.txnId === txnId) + 1;
 
   /*
-   * 🔴 The pot leg is NEGATIVE, because `sponsor_pot` is a liability. The amount
-   * that arrived is its absolute value, and getting this sign wrong would print a
-   * negative total on a customer's invoice.
+   * 🔴 THE TOTAL IS THE CASH LEG, NOT THE POT LEG, since the VAT was split out.
+   *
+   * It used to be the pot leg's absolute value, which was the same number while
+   * the whole top-up went into the pot. `topUpPot` now credits the pot the NET
+   * and raises `vat_payable` for the tax, so the pot leg is what the sponsor may
+   * spend and the cash leg is what they actually paid. An invoice states what
+   * they paid, so it reads the cash.
+   *
+   * 🔴 Positive here, because cash is an asset and money arriving is a positive
+   * leg. The pot leg is negative for the mirror reason, and printing either sign
+   * wrongly would put a negative total on a customer's document.
    */
-  const total = Math.abs(leg.amountCents);
+  const total = Math.abs(cashLeg?.amountCents ?? leg.amountCents);
 
   /*
    * 🔴 VAT is worked backwards out of the amount that actually arrived.

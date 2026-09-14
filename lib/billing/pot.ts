@@ -81,6 +81,22 @@ import { crossingFor, payoutRailFor } from "./money";
  * funding source, never by naming the payer.
  */
 
+/**
+ * The entity's own VAT rate, read from `country_settings` rather than a constant.
+ *
+ * 🔴 A duplicate of `countryVatBps` in `lib/billing/invoice.ts` by necessity:
+ * importing it would make the money module depend on the document module, which
+ * is backwards. Zero is a real answer, not a missing one, and both read the same
+ * row so they cannot disagree about a jurisdiction.
+ */
+async function entityVatBps(entity: string): Promise<number> {
+  const rows = await controlDb.execute(sql`
+    SELECT vat_bps FROM country_settings WHERE entity = ${entity} AND enabled = true LIMIT 1`);
+
+  const row = (rows.rows as { vat_bps: number }[])[0];
+  return Number(row?.vat_bps ?? 0);
+}
+
 /** How much a pot may go below zero is per pot; this is what a missing pot gets. */
 const NO_POT = { potId: null, balanceCents: 0, overdraftCents: 0 } as const;
 
@@ -403,6 +419,14 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     therapistId: row.therapistId,
     capture: "platform",
     grossCents: gross,
+    /*
+     * 🔴 ZERO, and C241 is the reason rather than an oversight. VAT is charged
+     * on the TOP-UP, in the entity that holds the pot, and a pot-funded
+     * `session_payments` row carries `vat_cents = 0` for the same reason this
+     * leg does: taxing the spend of money already taxed at purchase would
+     * charge the employer twice.
+     */
+    vatCents: 0,
     platformFeeCents: money.platformCutCents,
     settledInvoiceCents: 0,
     therapistNetCents: money.therapistNetCents,
@@ -609,6 +633,29 @@ export async function topUpPot(input: {
     return { error: "The refund and expiry terms have to be agreed before a top up." };
   }
 
+  /*
+   * 🔴 THE VAT COMES OUT OF THE TOP-UP BEFORE IT REACHES THE POT.
+   *
+   * `invoiceFor` already works the tax backwards out of the amount that
+   * cleared, because *"the sponsor paid a number and that number is what
+   * cleared"*. So a $5,000 top-up in a 14% jurisdiction is invoiced as $4,386 of
+   * therapy plus $614 of tax. The pot was credited the whole $5,000, which let
+   * the sponsor spend the tax on sessions and left us owing a tax authority out
+   * of money we had already promised to somebody else.
+   *
+   * 🔴 ZERO TODAY, and shipped anyway. `topUpPot` accepts only the `us` entity
+   * (C241 gates the Egyptian one behind e-invoicing), and the US rate is 0, so
+   * `net` and `amountCents` are the same number and no balance moves. Getting it
+   * right now is the difference between a migration and a reconciliation the day
+   * Egypt opens.
+   */
+  const vatBps = await entityVatBps(sponsor.entity);
+  const net =
+    vatBps > 0
+      ? Math.round((input.amountCents * 10_000) / (10_000 + vatBps))
+      : input.amountCents;
+  const vat = input.amountCents - net;
+
   await journal({
     kind: "pot_topup",
     refType: "sponsor",
@@ -616,9 +663,15 @@ export async function topUpPot(input: {
     legs: [
       { account: "cash", amountCents: input.amountCents, memo: "A sponsor topped up their pot" },
       {
+        account: "vat_payable",
+        /* Negative, the same liability convention. Zero legs are dropped. */
+        amountCents: -vat,
+        memo: "VAT on the top-up, owed to the tax authority",
+      },
+      {
         account: "sponsor_pot",
         /* Negative: a liability rises with a negative amount. It is their money. */
-        amountCents: -input.amountCents,
+        amountCents: -net,
         memo: "Held for this sponsor until a session spends it",
       },
     ],

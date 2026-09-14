@@ -2076,6 +2076,26 @@ export const LEDGER_ACCOUNTS = [
    * precondition of ticket 53.10 rather than a parallel task.
    */
   "sponsor_pot",
+  /**
+   * 🔴 TAX WE COLLECTED AND HAVE NOT REMITTED. A liability, like the two above it.
+   *
+   * The patient's own bill says, in both languages, *"VAT, paid to the
+   * government"*. Until this account existed nothing in the books recorded a
+   * penny of it. `sessionMoney` adds VAT on top of the price, Stripe charges it
+   * as its own line, the money arrives, and `postSessionPayment` journalled
+   * `cash` at the price WITHOUT the tax. So the ledger's cash was short by every
+   * VAT cent we were holding, and the amount owed to a tax authority was a number
+   * that existed on an invoice and in no account.
+   *
+   * That is not a rounding problem. It is the difference between money that is
+   * ours and money we are keeping for somebody else, which is exactly the
+   * distinction `therapist_payable` and `sponsor_pot` exist to make. The
+   * reconciliation that covers those two could not cover this one.
+   *
+   * 🔴 NOT posted on a destination charge, and that is a decision rather than an
+   * omission: see the comment in `postSessionPayment`.
+   */
+  "vat_payable",
 ] as const;
 export type LedgerAccount = (typeof LEDGER_ACCOUNTS)[number];
 
