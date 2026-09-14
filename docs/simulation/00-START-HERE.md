@@ -33,19 +33,34 @@ That is the constraint everything else was sized against. Read this section befo
 |---|---|
 | Sessions | **35** |
 | Approved notes | one per session, so 35 |
-| Journal entries | **29** |
-| Audio per session | **4 minutes**, deliberately short |
+| Journal entries | **28** |
+| Audio per session | 🔴 **two lengths: 24 at 3 minutes, 11 at 8**. See below |
+| Total audio | **160 minutes** |
 | In-session copilot | **4 messages**, not the shipped 10. The seed sets it |
 
 | What | Cost |
 |---|---|
-| Per simulated session: transcribe, diarise, note, risk, 4 copilot turns, profile | **$0.042** |
-| 35 sessions | **$1.47** |
+| A 3-minute session: transcribe, diarise, note, risk, 4 copilot turns, profile | **$0.032** |
+| An 8-minute session, same calls | **$0.053** |
+| 24 short + 11 long | **$1.34** |
 | The copilot exam, one full run | **$0.36** |
-| Journal risk scans, document reading, copilot chats between sessions | **$0.32** |
+| Journal risk scans, document reading, copilot chats between sessions | **$0.31** |
 | Retries, re-tasked agents, flows run twice: **× 1.6** | |
-| **Planned total** | **≈ $3.50** |
-| **Left of the $10** | **≈ $6.50** |
+| **Planned total** | **≈ $3.25** |
+| **Left of the $10** | **≈ $6.75** |
+
+### 🔴 Two session lengths, because one cannot be extrapolated from
+
+`01-SEED.md` has the full argument and it is the one part of this design that serves the
+**financial model** rather than the walkthrough. In short: cost is `FIXED + VARIABLE x
+minutes`, the fixed half is 61% of a 3-minute session and 9% of a 50-minute one, and
+multiplying a short session to reach a long one **overstates it by 100%**.
+
+Two unknowns need two measurements, so the run produces two clusters and
+`npm run physics` solves for both from `ai_request_logs`. It **refuses** to fit a single
+cluster rather than returning a confident wrong number.
+
+**Do not flatten the durations to tidy the run.**
 
 ### Where the surplus goes, and what it is NOT for
 
@@ -76,13 +91,20 @@ so treat the figure as a floor, and it says so every time it prints.
 
 ### 🔴 And the number that matters to the business, which is not any of the above
 
-A simulated session is four minutes. **A real one is fifty.** At real length the same
-pipeline costs roughly **$0.25 per session**, and nearly all the difference is the note and
-risk passes reading a transcript twelve times longer.
+A simulated session is 3 or 8 minutes. **A real one is fifty.** At real length the same
+pipeline costs **$0.226**, computed from the two-term fit rather than by multiplication.
 
-Report both, labelled. `npm run spend` prints the extrapolation and marks it as extrapolated.
-**Never quote the four-minute figure as unit economics.** That is the most flattering mistake
-this exercise can produce and every pricing decision downstream would inherit it.
+```
+npm run physics -- --at 50 --json docs/walkthrough-3/PHYSICS.json
+```
+
+It prints the measured short session, the two-term figure for fifty minutes, **and the
+number naive multiplication would have given**, side by side, so the difference is on the
+page rather than in an argument.
+
+Report both, labelled. **Never quote the short-session figure as unit economics**, and never
+quote the multiplied one at all. Those are the two most flattering mistakes this exercise can
+produce and every pricing decision downstream would inherit either.
 
 ## The shape
 
@@ -181,10 +203,12 @@ both scripts this design used to ask you to build are built and have their own v
 | 2 | Confirm the platform is seeded and the applications are waiting | `npm run simulate:seed` | It **refuses**, saying an operator already exists. That refusal is the proof |
 | 3 | Confirm the ageing script obeys its own rule | `npm run verify:age` | 8 checks, including one past and one future timestamp in the same row |
 | 4 | Confirm nothing is spent yet | `npm run spend -- --budget 10` | $0.0000 |
+| 4b | Confirm the physics fitter refuses an empty database | `npm run physics` | It says there is nothing to fit. After the run it will say something else |
 | 5 | Mark the start of wave one | `npm run age -- --marker wave1 --start` | Writes `.simulation-wave1.json` |
 | 6 | Launch the orchestrator with `02-ORCHESTRATION.md` | | It reports its plan before it launches anybody |
 | 7 | Waves one to three | | Each wave: capture, then `npm run spend`, then age |
 | 8 | The copilot exam | `npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json` | |
+| 8b | **Fit the cost model** | `npm run physics -- --at 50 --json docs/walkthrough-3/PHYSICS.json` | Every kind fitted, no refusals. A refusal means the durations came out flat |
 | 9 | Re-record accuracy **only if there is budget** | `npm run evals -- --record` | |
 | 10 | The report | | `docs/walkthrough-3/REPORT.md`, and it is honest |
 
@@ -197,11 +221,14 @@ both scripts this design used to ask you to build are built and have their own v
    invented about people it knew nothing about.
 3. **Every defect**, with the screenshot and the person who hit it.
 4. **A verdict per screen**: finished, thin, unstyled.
-5. **What you actually spent**, from `npm run spend`, against the $3.50 estimate, and why it
-   differed. And the per-real-session extrapolation, labelled as one.
-6. **The AI accuracy**, if there was budget to measure it, and plainly "not re-recorded, no
+5. **What you actually spent**, from `npm run spend`, against the $3.25 estimate, and why it
+   differed.
+6. 🔴 **The fitted cost model**, from `npm run physics`: the fixed and variable terms per AI
+   kind, the r² on each, and what a fifty-minute session costs. This is the input the
+   financial model is built on, and it is the only number in this run that outlives it.
+7. **The AI accuracy**, if there was budget to measure it, and plainly "not re-recorded, no
    budget" if there was not.
-7. **What you could not simulate**, and why.
+8. **What you could not simulate**, and why.
 
 **A clean report means you did not look.** The last two walkthroughs each found defects
 that sixty verifiers had missed, and this one exercises far more of the product than either.

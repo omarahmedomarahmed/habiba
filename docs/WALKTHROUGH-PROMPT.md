@@ -2,11 +2,34 @@
 
 Paste everything below the line into a new session. Nothing above it is part of the prompt.
 
-**Before you paste it, two things and no more:**
+**Before you paste it, one thing:**
 
-1. **Top up OpenAI with $10** and put the key in `.env.local` as `OPENAI_API_KEY`.
-   Put `DAILY_API_KEY` there too. Keep `STRIPE_SECRET_KEY` on **test** keys.
-2. Nothing else. The database branch is made, migrated, seeded and ready.
+**Top up OpenAI with $10.** Then paste your keys into the block at the top of the prompt
+below, replacing the placeholders. You do not need to touch any file: the new session writes
+`.env.local` itself as its first act.
+
+Rotate both keys when the run is done. They will have been in a chat transcript.
+
+---
+
+## 🔴 KEYS. Replace these three lines, then send the whole message.
+
+```
+OPENAI_API_KEY=sk-paste-yours-here
+DAILY_API_KEY=paste-yours-here
+STRIPE_SECRET_KEY=sk_test_paste-yours-here
+```
+
+**Your first action, before reading anything else: write those three lines into
+`.env.local` in the repository root, and add nothing else to that file.** Then confirm it
+with `npm run spend -- --budget 10`, which needs a database and not a key, and with a single
+cheap call once you reach step 2.
+
+If any of the three still says "paste-yours-here", **stop and say so**. A run that starts
+without a funded key produces three months of empty notes and spends an hour doing it.
+
+`STRIPE_SECRET_KEY` must begin `sk_test_`. If it begins `sk_live_`, stop: this simulation
+moves money through every path it can find and a live key would move real money.
 
 ---
 
@@ -43,10 +66,18 @@ the copilot sits an exam about every one of those patients.
 
 | | |
 |---|---|
-| Sessions | **35**, at **4 minutes** of audio each |
-| Planned model spend | **≈ $3.50** |
-| Left over | **≈ $6.50**, which is headroom, not a licence to add sessions |
+| Sessions | **35**: 🔴 **24 at 3 minutes and 11 at 8**, not one length |
+| Total audio | 160 minutes |
+| Planned model spend | **≈ $3.25** |
+| Left over | **≈ $6.75**, which is headroom, not a licence to add sessions |
 | In-session copilot | capped at **4** messages. Already set on the branch |
+
+🔴 **The two session lengths are not a detail and must not be flattened.** Session cost is
+`FIXED + VARIABLE x minutes`; the fixed half is 61% of a 3-minute session and 9% of a
+50-minute one, so multiplying a short session to reach a long one **overstates it by 100%**.
+Two unknowns need two measurements. `01-SEED.md` has the arithmetic, and
+`lib/finance/physics.ts` **refuses** to fit a single cluster rather than returning a
+confident wrong number.
 
 ```
 npm run spend -- --budget 10
@@ -80,14 +111,18 @@ ready is exactly the kind of claim rule 1 exists to distrust. Step 1 below is ho
 
 ## 🔴 Step by step, from a cold start
 
-### Step 1 · Point at the branch and check it
+### Step 1 · Write the keys, point at the branch, check it
 
 ```bash
+# 1. Write .env.local from the KEYS block at the top of this message. Nothing else in it.
+
 export DATABASE_URL='postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require'
 
 npm run verify:migrations      # 101 journal, 101 ledger, 112 tables
 npm run simulate:seed          # MUST REFUSE: "already has an operator". That refusal is the proof
 npm run verify:age             # 8 checks. The ageing script obeys its own rule
+npm run verify:synthetic       # 5 checks. Every person here is invented
+npm run physics                # says there is nothing to fit yet. After the run it says something else
 npm run spend -- --budget 10   # $0.0000, 0.0% used
 ```
 
@@ -134,12 +169,19 @@ Wave 1 ages by **90** days, wave 2 by **60**, wave 3 not at all. Wave 3 is today
 🔴 **Never age before the capture.** The frames would show the wrong dates and cannot be
 retaken.
 
-### Step 6 · The exam
+### Step 6 · The exam, and the cost model
 
 ```bash
 npm run copilot:exam -- --dry                                    # who is about to be examined
 npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json   # ≈ $0.36
+
+npm run physics -- --at 50 --json docs/walkthrough-3/PHYSICS.json   # free, reads rows
 ```
+
+🔴 **`physics` must fit every kind with no refusals.** A refusal means the durations came out
+flat and the financial model that follows this run cannot be built from it. It prints the
+measured short session, the two-term figure for fifty minutes, and the number naive
+multiplication would have given, side by side.
 
 `06-COPILOT-EXAM.md` is the method. Half the questions are about things the record does
 **not** contain, and a copilot that answers those is failing worse than one that forgets.
@@ -155,7 +197,21 @@ npm run evals -- --record      # ≈ $2.00. Only if the line above leaves room
 If it does not, write "not re-recorded, no budget" in the report. That is a better sentence
 than a simulation that stopped in wave two.
 
-### Step 8 · The report
+### Step 8 · The console, photographed in full
+
+```bash
+npm run verify:synthetic       # MUST pass immediately before you commit any operator frame
+```
+
+🔴 **All 23 admin pages, at month 3, committed.** C80 said admin frames are never committed
+and its reason was real names; this run has none, and `verify:synthetic` proves it rather
+than assuming it. `04-CAPTURE.md` lists every page and what each frame has to show.
+
+**Four of the 23 are `requireStaff()`** (verifications, payouts, numbers, support).
+Photograph those signed in as **staff**, not as the owner, or the capture shows a console
+nobody on the rota actually sees.
+
+### Step 9 · The report
 
 `docs/walkthrough-3/REPORT.md`. What is in it is listed in `00-START-HERE.md`.
 
@@ -169,6 +225,8 @@ than a simulation that stopped in wave two.
 | `npm run copilot:exam` | The memory test |
 | `npm run smoke` | Every public page, every locale, 200 with words on it |
 | `npm run verify:boundary` | Nothing hands a function to a client component |
+| `npm run physics` | Fits the two-term session cost model. Refuses one duration cluster |
+| `npm run verify:synthetic` | Proves every person is invented, so the console can be committed |
 
 ## The five rules, repeated here because they are the whole design
 

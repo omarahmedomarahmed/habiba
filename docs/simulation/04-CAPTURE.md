@@ -17,12 +17,14 @@ docs/walkthrough-3/
     p1-layla/
     c1-nile-practice/
     e1-cairo-foundry/
+    op-nour/                    the whole console, 23 pages, committed (C358)
   db/
     m0.md  m1.md  m3.md         the database at each checkpoint, in words
   ar/                            the Arabic pass, same shape, named subset only
   REPORT.md                      the findings
   MONEY.md                       the reconciliation from 03-MONEY.md
   COPILOT.json  COPILOT.md       the exam from 06-COPILOT-EXAM.md
+  PHYSICS.json                   the fitted cost model from npm run physics
   SCRIPT-EN.md  SCRIPT-AR.md     the video scripts, rewritten against this run
 ```
 
@@ -49,7 +51,70 @@ So the capture list is per person and it is the same list every time.
 | **Clinic** | Overview · people · **team and delegated powers** · schedule · **bills** · earnings · records connection |
 | **Employer** | Overview · **the pot meter** · weekly spend · people enrolled · the code · the standing "we never show you" bar |
 | **Partner** | Keys · **usage against the limit** · deliveries |
-| **Operator** | Dashboard · verification queue · radar command · payouts queue · audit · **vault** · **usage**. 🔴 **Taken, read, and never committed.** An admin console shows many people at once and this repository is treated as if it will be public one day. `.gitignore` enforces it; do not work around it |
+| **Operator** | 🔴 **Every page of the console, and they ARE committed this time.** The full list is its own section below |
+
+## 🔴 The whole operator console, and why it is committed this time
+
+C80 has said since sprint 52 that admin frames are **never** committed. Its reason was
+disclosure: a console shows many people at once, and this repository is treated as if it
+will be public one day, so one real name in one frame cannot be recalled.
+
+That reason is about real people. **This run has none.** Every surname is Demo or Example
+and every address is at a domain RFC 2606 reserves, which cannot reach an inbox and
+therefore cannot belong to anybody.
+
+So the precondition is **proved rather than assumed**:
+
+```
+npm run verify:synthetic
+```
+
+It reads every surname and every email column in the schema, discovered from
+`information_schema` rather than from a list, and plants a real-looking name to watch itself
+catch one. **No operator frame is committed until it passes**, and it is run again
+immediately before the commit, because a name that arrives after it passed is a name nobody
+checked. `.gitignore` carries the same instruction and the two lines to restore if it ever
+fails.
+
+### The twenty-three pages, and the two roles that see them
+
+The console has **two audiences** and most captures forget the second one. Four pages are
+`requireStaff()`, which is the 24/7 team; the other nineteen are `requireRole("super_admin")`,
+which is us. **Photograph the four staff pages signed in as staff**, not as the owner, or the
+capture shows a console nobody on the rota actually sees.
+
+| Page | Seen by | What the frame has to show |
+|---|---|---|
+| `/admin` | owner | The dashboard with three months behind it, not an empty state |
+| `/admin/verifications` | **staff** | The queue, and `T4`'s card at the second rejection with the "Reject and clear" warning on it |
+| `/admin/payouts` | **staff** | `T1`'s Egyptian manual payout, before and after the stamp |
+| `/admin/numbers` | **staff** | The number-change queue |
+| `/admin/support` | **staff** | A ticket answered |
+| `/admin/vault` | owner | 🔴 The month table: subscriptions, session fees, income, model spend, left over. The acceptance test in `03-MONEY.md` |
+| `/admin/usage` | owner | Cost per session and the consent rate beside it |
+| `/admin/therapists` | owner | Five clinicians, one of them twice rejected |
+| `/admin/clinics` | owner | Nile Practice, approved, three seats |
+| `/admin/sponsors` | owner | Three employers, one pot empty and one at 10% |
+| `/admin/benefits` | owner | What a sponsor's people are entitled to |
+| `/admin/partners` | owner | Helio Health, its keys and its rate limit |
+| `/admin/radar` | owner | The radar command view with `T3` on it |
+| `/admin/ratings` | owner | What patients said |
+| `/admin/checkins` | owner | The check-in schedule |
+| `/admin/audit` | owner | 🔴 The rejection and the deletion, in the log, with the operator's name |
+| `/admin/settings` | owner | The rates, the countries, and **Egypt's crisis line now filled in** |
+| `/admin/taxonomy` | owner | The categories an operator edits |
+| `/admin/content` | owner | The CMS, with the published pages |
+| `/admin/strings` | owner | The interface dictionary, overridable |
+| `/admin/announce` | owner | An announcement drafted |
+| `/admin/errors` | owner | 🔴 Whatever broke during the run. **An empty errors page after three months of agents is a finding, not a pass** |
+| `/admin/tv` | manager | The wallboard |
+
+**Twenty-three pages, one frame each, at month 3**, plus the four money moments and the
+rejection cycle below. They go in `docs/walkthrough-3/m3/op-nour/` named for the page.
+
+🔴 **The console is only worth photographing full.** A dashboard with three months of real
+trading behind it is the single most convincing frame this run can produce, and it is the one
+the last two walkthroughs never took.
 
 ### And the money moments get their own frames, before and after
 
@@ -68,7 +133,7 @@ particular, because between them they are the whole feature:
 | Frame | What it has to show |
 |---|---|
 | `t4-omar/rejected-1-his-screen.png` | The operator's reason, **word for word**, on his own onboarding page |
-| `op/reject-and-clear-warning.png` | The reviewer's card, before the second no, saying what the second no will do. Operator frame, **not committed**, read and described in the report |
+| `op-nour/reject-and-clear-warning.png` | The reviewer's card, before the second no, saying what the second no will do. 🔴 Committed, like the rest of the console, once `verify:synthetic` passes |
 | `t4-omar/documents-gone.png` | Empty slots with a sentence explaining that we removed them, not that they failed to upload |
 | `t4-omar/invited-but-refused.png` | 🔴 Inside a practice, holding a seat, and still refused at the gate |
 | `t4-omar/approved-at-last.png` | Working, with the count still at two |
@@ -77,8 +142,8 @@ particular, because between them they are the whole feature:
 
 | Frame | What it has to show |
 |---|---|
-| `op/vault-months.png` | The month table: three rows, subscriptions, session fees, income, model spend, left over. Operator frame, **not committed**, transcribed into `MONEY.md` |
-| `op/usage-cost-per-session.png` | What a session costs to run, beside the consent rate |
+| `op-nour/vault-months.png` | The month table: three rows, subscriptions, session fees, income, model spend, left over. Committed, and transcribed into `MONEY.md` as well, because a figure in a report can be searched and a figure in a screenshot cannot |
+| `op-nour/usage-cost-per-session.png` | What a session costs to run, beside the consent rate |
 
 ## The database at each checkpoint, in words
 
@@ -114,10 +179,10 @@ anyway, because a known gap with no picture of it never gets fixed.
 
 ## Volume, and the cap
 
-Roughly 30 screens per checkpoint across the cast, three checkpoints, plus the money
-moments, the rejection cycle and the Arabic subset. **Expect 300 to 450 frames.** If it is
-heading past 600, the capture is photographing states rather than people, and the fix is
-fewer screens per person rather than fewer people.
+Roughly 30 screens per checkpoint across the cast, three checkpoints, plus the **23 console
+pages at month 3**, the money moments, the rejection cycle and the Arabic subset. **Expect
+330 to 480 frames.** If it is heading past 650, the capture is photographing states rather
+than people, and the fix is fewer screens per person rather than fewer people.
 
 Phone width for the patient app and the public site. Desk width for the consoles. A practice
 manager reading a bill at 390px is not how anybody reads a bill.

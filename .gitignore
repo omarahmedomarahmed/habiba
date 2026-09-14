@@ -56,9 +56,29 @@ docs/walkthrough-2/
 # caps them at roughly 600 and says what to photograph; past that, the capture is
 # photographing states rather than people.
 #
-# 🔴 EXCEPT THE OPERATOR'S, WHICH IS C80 AND DOES NOT BEND. An admin console shows many
-# people at once, and this repository is treated as if it will be public one day. The
-# operator agent's frames are taken, read, and never committed.
-docs/walkthrough-3/**/op-*/
-docs/walkthrough-3/**/*admin*
+# 🔴 C358 — THE OPERATOR'S FRAMES ARE COMMITTED FOR THIS RUN, AND THE RULE DID NOT BEND.
+#
+# C80 said admin console frames are never committed. Its reason was disclosure: a console
+# shows many people at once, and this repository is treated as if it will be public one day,
+# so one real name in one frame is something that cannot be recalled.
+#
+# That reason is about REAL PEOPLE, not about admin screens. This simulation has none. Every
+# surname is Demo or Example and every address is at a domain RFC 2606 reserves, which cannot
+# reach an inbox and therefore cannot belong to anybody.
+#
+# So the precondition is PROVED rather than assumed, and the proof is the gate:
+#
+#     npm run verify:synthetic
+#
+# It reads every surname and every email column in the schema, found from information_schema
+# rather than from a list, and it plants a real-looking name to watch itself catch one. No
+# operator frame is committed until it passes, and it is re-run immediately before the commit,
+# because a name that arrives after it passed is a name nobody checked.
+#
+# 🔴 If that check ever fails, restore the two lines below and delete the frames. The right
+# way to relax a rule is to prove what it was protecting, and the right way to lose one is to
+# keep the relaxation after the proof stops holding.
+#
+# docs/walkthrough-3/**/op-*/
+# docs/walkthrough-3/**/*admin*
 

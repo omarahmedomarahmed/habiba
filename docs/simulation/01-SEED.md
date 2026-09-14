@@ -124,21 +124,77 @@ tested on a cast where everybody has five sessions.
 
 So the cadence is **designed**, and it is the first thing the orchestrator drives towards:
 
-| Who | Comes | Sessions | Journals | Docs | Therapists | Why this cadence |
-|---|---|---|---|---|---|---|
-| `P3` Mostafa | **every week** | **11** | **14** | 2 | 2 | Covered at 100%, so there is nothing to stop him. The deep end of the ladder, and the copilot exam's top mark should be his |
-| `P1` Layla | **every two weeks** | **6** | **8** | 1 | 1 | Self-pay, and entirely in Arabic, so the exam covers both languages at depth |
-| `P5` Priya | **every two weeks** | **5** | 3 | 0 | 2 | Covered at 10%, pays the rest, and changes employer half way |
-| `P2` Sarah | **every month** | **3** | 2 | 1 | 2 | Self-pay by card. An ordinary appointment, kept ordinarily |
-| `P4` Hoda | **every month** | **3** | 1 | 0 | 2 | Enrolled after one refusal. Her second therapist is `T4`, after he is finally approved |
-| `P6` Karim | **every month** | **3** | **0** | **0** | 1 | 🔴 **The thin end.** No account, so no journal and no documents. His copilot has transcripts and nothing else |
-| Radar strangers | once each | 2 | 0 | 0 | 1 | `T3`'s crisis arrivals. Nobody comes back |
-| `D1` through the API | n/a | 2 | 0 | 0 | 1 | A partner opens sessions and gets notes back |
-| | | **35** | **28** | **4** | | |
+| Who | Comes | Sessions | **Minutes** | Journals | Docs | Therapists | Why this cadence |
+|---|---|---|---|---|---|---|---|
+| `P3` Mostafa | **every week** | **11** | **8** | **14** | 2 | 2 | Covered at 100%, so there is nothing to stop him. The deep end of the ladder, and the copilot exam's top mark should be his |
+| `P1` Layla | **every two weeks** | **6** | 3 | **8** | 1 | 1 | Self-pay, and entirely in Arabic, so the exam covers both languages at depth |
+| `P5` Priya | **every two weeks** | **5** | 3 | 3 | 0 | 2 | Covered at 10%, pays the rest, and changes employer half way |
+| `P2` Sarah | **every month** | **3** | 3 | 2 | 1 | 2 | Self-pay by card. An ordinary appointment, kept ordinarily |
+| `P4` Hoda | **every month** | **3** | 3 | 1 | 0 | 2 | Enrolled after one refusal. Her second therapist is `T4`, after he is finally approved |
+| `P6` Karim | **every month** | **3** | 3 | **0** | **0** | 1 | 🔴 **The thin end.** No account, so no journal and no documents. His copilot has transcripts and nothing else |
+| Radar strangers | once each | 2 | 3 | 0 | 0 | 1 | `T3`'s crisis arrivals. Nobody comes back |
+| `D1` through the API | n/a | 2 | 3 | 0 | 0 | 1 | A partner opens sessions and gets notes back |
+| | | **35** | **160 total** | **28** | **4** | | |
 
-**A session is 4 minutes of audio, not fifty.** That is the single biggest lever on the bill
-and it changes nothing about which code paths run: the transcript is short, every pass still
-happens, every screen still fills.
+## 🔴 TWO SESSION LENGTHS, AND THE SECOND ONE IS NOT DECORATION
+
+**`P3`'s eleven sessions run 8 minutes. The other twenty-four run 3.** Not a single length,
+and not an accident. This is the only part of the whole design that exists to serve the
+**financial model** rather than the product walkthrough, and without it the forecast that
+comes after this run would be wrong by a factor of two.
+
+### Why
+
+A session's model cost has two terms, not one:
+
+```
+  cost = FIXED + VARIABLE x minutes
+```
+
+The fixed term is everything that happens once whatever the length: the note writer's system
+prompt, measured at **1,133 tokens**; the note it writes, which is the same shape after three
+minutes or fifty; the risk pass and its verdict; the profile rebuild. The variable term is
+transcription, billed by the audio minute, plus the transcript flowing into those prompts.
+
+| | 3 min | 8 min | 50 min |
+|---|---|---|---|
+| Fixed | $0.0195 | $0.0195 | $0.0195 |
+| Variable | $0.0124 | $0.0330 | $0.2065 |
+| **Total** | **$0.032** | **$0.053** | **$0.226** |
+
+At three minutes the fixed term is **61%** of the bill. At fifty it is **9%**. So a run of
+uniform short sessions sits in the regime where linear extrapolation is worst:
+
+> Multiply a 4-minute session by 12.5 to reach 50 and you get **$0.45**.
+> The truth is **$0.226**. Multiplication overstates it by **100%.**
+
+That is not a rounding argument. At a $1 platform fee plus 15%, it is the difference between
+a business with a gross margin and one without.
+
+### How two lengths fix it
+
+Two unknowns need two measurements. One duration gives one equation and the fit is
+underdetermined; a regression through a single cluster returns a slope drawn through noise
+and an intercept equal to the mean, and **it looks exactly as authoritative as a real fit.**
+
+So the run produces two clusters, 3 and 8 minutes, and `npm run physics` solves for both
+terms from `ai_request_logs`. `lib/finance/physics.ts` **refuses to fit** a single cluster
+and says so rather than returning a number.
+
+### What it costs
+
+Nothing. It is cheaper than the flat plan it replaces:
+
+| | Audio | Cost |
+|---|---|---|
+| 35 sessions, flat 4 min | 140 min | $1.47 at the old estimate |
+| **24 at 3 min + 11 at 8 min** | **160 min** | **$1.34** |
+
+And the longer sessions are `P3`'s, which is where the copilot exam wants the richest
+transcripts anyway. The calibration and the memory test want the same thing.
+
+🔴 **Do not flatten the durations to tidy the run.** Every session the same length is the one
+input shape from which scenario two cannot be derived at all.
 
 ### What the ladder has to produce, or the exam measures nothing
 

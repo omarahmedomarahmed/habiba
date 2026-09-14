@@ -138,6 +138,7 @@ Not at the end. **After every agent action**, in one line:
   [wave 2] [T4]   ok   invited by C1, accepted, STILL REFUSED at the gate · the point of T4
   [wave 2] [P3]   ??   claims a session happened, no session row found · re-tasking
   [wave 2] END         depth: P3 6/11 · P1 3/6 · P6 1/3 · spend $0.84 of $10 (8%)
+  [wave 2] END         durations: 14 at 3m, 6 at 8m · both clusters alive
 ```
 
 The main session reads this stream and intervenes when the orchestrator is drifting: taking
@@ -147,7 +148,7 @@ and all four look like progress.
 
 ## 🔴 Cost discipline, and it is the hardest constraint in the design
 
-**The whole run has $10 of OpenAI credit and about $3.50 of planned spend**
+**The whole run has $10 of OpenAI credit and about $3.25 of planned spend**
 (`00-START-HERE.md`). It must not stop halfway. That is not a lot of room, and it is easy to
 spend it four times over on agents re-reading documents.
 
@@ -166,8 +167,11 @@ budget nothing checks is a number somebody read once.
 - Screenshots are taken by the capture agent at checkpoints, **not by every agent
   continuously**. An agent takes one only when it hits something unexpected.
 - If an agent has nothing to do in a wave, it is not woken.
-- 🔴 **Sessions are 4 minutes of audio.** Not fifty. Transcription and the note pass are the
-  largest line in the budget and both scale with length.
+- 🔴 **Sessions run 3 minutes, except `P3`'s eleven, which run 8.** Not fifty, and **not all
+  the same length either.** The two clusters are what let `npm run physics` separate the
+  fixed cost of a session from the variable cost of a minute, and `01-SEED.md` explains why
+  a single length makes the whole financial model underivable. Flattening them to tidy the
+  run is the one shortcut here that cannot be undone afterwards.
 - 🔴 **The in-session copilot is capped at 4 messages**, which the seed already set on this
   branch. Do not raise it.
 
@@ -179,9 +183,11 @@ In this order, and say in the report which of them you did:
    and neither is on the depth ladder.
 2. **Cut `P2` and `P4` to two sessions each.** They are the monthly tier and the exam only
    needs them as middle ground.
-3. 🔴 **Never cut `P3`.** Eleven weekly sessions is the entire top of the ladder, and without
-   it the copilot exam has nothing to correlate against. Cutting him to save sixty cents
-   throws away the most interesting question in the run.
+3. 🔴 **Never cut `P3`, and never shorten his sessions.** His eleven weekly 8-minute sessions
+   are two things at once: the entire top of the copilot exam's ladder, and the **long
+   cluster the cost model is fitted from.** Cutting him to save sixty cents throws away the
+   most interesting question in the run AND makes the financial model underivable. If the
+   budget is genuinely tight, cut short sessions, never long ones.
 
 ## What must never happen
 

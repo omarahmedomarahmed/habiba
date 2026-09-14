@@ -151,9 +151,21 @@ A single reconciliation, and it either balances or the discrepancy is the findin
 
 ### 🔴 And one number that is not in the table, because it is the business
 
-**Cost per real session.** `/admin/usage` computes it from actual rows, and `npm run spend`
-prints it beside an extrapolation. The simulation's sessions are **four minutes** long, so
-the measured figure is roughly a twelfth of what a real fifty-minute session costs.
+**Cost per real session.** `/admin/usage` computes it from actual rows for the sessions that
+happened. For the sessions that did **not** happen, which is to say real fifty-minute ones,
+the answer comes from `npm run physics`, not from multiplication:
+
+```
+npm run physics -- --at 50
+```
+
+The simulation's sessions run 3 and 8 minutes. **Multiplying the short one by 12.5 overstates
+a fifty-minute session by 100%**, because a system prompt, a note and a risk verdict happen
+once per session and not once per minute. The two duration clusters exist precisely so the
+fixed and variable halves can be separated; `01-SEED.md` has the arithmetic.
+
+Measured: **$0.032** at three minutes. Fitted: **$0.226** at fifty. Multiplied: **$0.45**, and
+that last one is the number to never put in a deck.
 
 **Report the measured figure and the extrapolation separately, and label which is which.**
 Quoting a six-minute session's cost as the unit economics is the most flattering mistake
