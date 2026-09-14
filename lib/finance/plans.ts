@@ -51,14 +51,20 @@ const egp = (pounds: number) => pounds / EGP_PER_USD;
 
 const UNIT = {
   /**
-   * 🔴 GUESS. 500 EGP a session.
+   * 🔴 DECIDED, and raised from 500 EGP after the founders set the benchmark.
    *
-   * Private therapy in Cairo runs roughly 300 to 800 EGP. 500 is the middle and
-   * is what a salaried professional can pay weekly without deciding against it.
-   * A clinic in Zamalek charges more; a newly qualified therapist in Mansoura
-   * charges less. The beta measures the real distribution.
+   * **1,000 EGP, or $20.** This is the number the sponsor screens do their
+   * arithmetic against: $200 of welcome credit is 100 sessions at 10% coverage
+   * or 10 sessions at 100%, and an HR manager moving the coverage slider should
+   * see exactly that.
+   *
+   * ⚠️ It sits at the TOP of the Cairo range, not the middle. Private therapy
+   * here runs roughly 300 to 1,000 EGP, so this assumes the therapists on this
+   * platform are at the senior end. It doubles every session-fee line against
+   * the previous draft, which is a large move to make on a benchmark rather than
+   * a measurement. The beta measures the real distribution.
    */
-  sessionPriceUsd: egp(500),
+  sessionPriceUsd: egp(1000),
 
   /**
    * 🔴 DECIDED, and changed from the shipped settings.
@@ -74,7 +80,7 @@ const UNIT = {
   /**
    * 🔴 DECIDED. 50 EGP for the AI on a session, against a MEASURED cost of
    * $0.2167 at fifty minutes. A 4.6x markup on a line the therapist can see the
-   * value of, and 10% of the session rather than the 30% a $3 fee would be.
+   * value of, and 5% of a 1,000 EGP session.
    */
   aiFeeUsd: egp(50),
 
@@ -261,6 +267,15 @@ const SALES = [
   /** 🔴 DECIDED. One hunting companies, one hunting clinics and therapists. */
   { role: "Sales, companies and universities", startMonth: 1, monthlyUsd: 500 },
   { role: "Sales, clinics and therapists", startMonth: 1, monthlyUsd: 500 },
+  /**
+   * 🔴 DECIDED. A marketing person from month one, same rate as sales.
+   *
+   * ⚠️ Their salary is NOT in CAC. CAC counts the people who sell and the money
+   * that markets, and `runPlan` picks sales roles out by name. A marketer's pay
+   * is an operating cost; the budget they spend is the acquisition cost. Folding
+   * the two together is how a CAC figure quietly doubles and nobody can say why.
+   */
+  { role: "Marketing", startMonth: 1, monthlyUsd: 500 },
 ];
 
 /**
@@ -279,10 +294,22 @@ const SALES = [
  * Referral: their followers get a free month, which again is forgone revenue
  * rather than cash, so it appears in the discount line and not here.
  */
+/**
+ * 🔴 ONE MARKETING BUDGET OF $1,000 A MONTH, held by the marketing hire.
+ *
+ * The founders set it as a single number covering production, cast, ad spend and
+ * the influencer sponsorships, rather than three lines that each need their own
+ * argument. Split here only so the run can see where it went; the total is the
+ * decision and the split is the marketer's to change.
+ *
+ * The three videos are a one-off on top, in month one, because production is not
+ * a monthly cost and burying it in the monthly figure would understate month one
+ * and overstate every month after.
+ */
 const MARKETING: { label: string; monthlyUsd: number; startMonth: number; endMonth?: number; everyMonth: boolean }[] = [
-  { label: "Three videos, produced", monthlyUsd: egp(30_000), startMonth: 1, everyMonth: false },
-  { label: "Ad spend", monthlyUsd: egp(15_000), startMonth: 1, everyMonth: true },
-  { label: "Influencer therapists, three of them", monthlyUsd: egp(15_000), startMonth: 1, everyMonth: true },
+  { label: "Three videos, produced and cast", monthlyUsd: egp(30_000), startMonth: 1, everyMonth: false },
+  { label: "Ad spend", monthlyUsd: 600, startMonth: 1, everyMonth: true },
+  { label: "Influencer therapists, three of them", monthlyUsd: 400, startMonth: 1, everyMonth: true },
 ];
 
 /**
@@ -467,10 +494,10 @@ export const PROVENANCE: { path: string; kind: Provenance; why: string }[] = [
   { path: "unit.aiFixedUsd", kind: "measured", why: "Live OpenAI API, 2026-09-14, four durations, three runs" },
   { path: "unit.aiPerMinuteUsd", kind: "measured", why: "Same run. evals/physics.json has every row" },
 
-  { path: "unit.sessionPriceUsd", kind: "guess", why: "500 EGP. Cairo private therapy runs 300 to 800" },
-  { path: "unit.takeRate", kind: "decided", why: "15% and no flat fee. The shipped $1 plus 15% is a quarter of an Egyptian session" },
+  { path: "unit.sessionPriceUsd", kind: "decided", why: "1,000 EGP, the founders' benchmark. ⚠️ Top of the Cairo range, not the middle" },
+  { path: "unit.takeRate", kind: "decided", why: "15% and no flat fee, so $3 on a 1,000 EGP session" },
   { path: "unit.platformFeeUsd", kind: "decided", why: "Zero, for the same reason" },
-  { path: "unit.aiFeeUsd", kind: "decided", why: "50 EGP against a measured cost of $0.2167. A 4.6x markup, and 10% of the session" },
+  { path: "unit.aiFeeUsd", kind: "decided", why: "50 EGP against a measured cost of $0.2167. A 4.6x markup, and 5% of the session" },
   { path: "unit.consentRate", kind: "guess", why: "70%. The one guess the simulation can replace by counting" },
   { path: "unit.sessionMinutes", kind: "decided", why: "A therapy hour is fifty minutes" },
   { path: "unit.videoPerParticipantMinuteUsd", kind: "guess", why: "Daily, per participant-minute. The invoice is not in our database" },
@@ -494,10 +521,10 @@ export const PROVENANCE: { path: string; kind: Provenance; why: string }[] = [
   { path: "therapist.churnAtFullPrice", kind: "guess", why: "🔴 40%. The number the whole beta exists to find out" },
 
   { path: "promo.schedule", kind: "decided", why: "Free, half, half, then full. The offer" },
-  { path: "people", kind: "decided", why: "Two founders and two salespeople at $500 each" },
+  { path: "people", kind: "decided", why: "Two founders, two salespeople and one marketer, $500 each" },
   { path: "spend.videos", kind: "guess", why: "10,000 EGP each for a 60 to 90 second explainer in Cairo" },
-  { path: "spend.ads", kind: "decided", why: "15,000 EGP a month across Meta and TikTok" },
-  { path: "spend.influencers", kind: "guess", why: "5,000 EGP a month each is micro-influencer rate here" },
+  { path: "spend.ads", kind: "decided", why: "Part of the $1,000 a month the marketing hire spends" },
+  { path: "spend.influencers", kind: "decided", why: "The rest of the $1,000. Three therapists with an audience" },
   { path: "openingCashUsd", kind: "decided", why: "The angel's cheque" },
 ];
 

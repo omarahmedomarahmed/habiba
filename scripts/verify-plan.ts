@@ -36,10 +36,10 @@ async function main() {
   );
 
   check(
-    "🔴 the beta is three months, on twenty thousand dollars, with four people on the payroll",
+    "🔴 the beta is three months, on twenty thousand dollars, with five people on the payroll at $500",
     BETA.months === 3 &&
       BETA.openingCashUsd === 20_000 &&
-      BETA.people.length === 4 &&
+      BETA.people.length === 5 &&
       BETA.people.every((p) => p.monthlyUsd === 500),
     `${BETA.people.length} people at $${BETA.people[0]?.monthlyUsd} a month, $${BETA.openingCashUsd} in the bank`,
   );
@@ -343,6 +343,25 @@ async function main() {
   /* ================================================================== */
   /*  The findings the plan rests on                                     */
   /* ================================================================== */
+
+  /*
+   * 🔴 THE MARKETER'S SALARY IS NOT ACQUISITION COST, AND THE CHECK SAYS SO.
+   *
+   * CAC counts the people who SELL and the money that MARKETS. A marketer's pay
+   * is an operating cost; the budget they spend is the acquisition cost. Folding
+   * the two together doubles a CAC figure and nobody can say why. Proved by
+   * raising the marketer's pay and watching CAC not move.
+   */
+  const richerMarketer = runPlan({
+    ...BETA,
+    people: BETA.people.map((p) => (/marketing/i.test(p.role) ? { ...p, monthlyUsd: 5000 } : p)),
+  });
+  check(
+    "🔴 a marketer's salary is an operating cost, not acquisition cost",
+    Math.abs(richerMarketer.blendedCacUsd - runPlan(BETA).blendedCacUsd) < 0.01 &&
+      richerMarketer.months[0]!.peopleUsd > runPlan(BETA).months[0]!.peopleUsd,
+    "paying the marketer ten times more moves the payroll and leaves CAC exactly where it was",
+  );
 
   const runway = runPlan(RUNWAY);
   check(

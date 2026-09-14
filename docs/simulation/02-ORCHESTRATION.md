@@ -189,6 +189,55 @@ In this order, and say in the report which of them you did:
    most interesting question in the run AND makes the financial model underivable. If the
    budget is genuinely tight, cut short sessions, never long ones.
 
+## 🔴 When an agent hits a wall: PAUSE, report, wait, resume
+
+**An agent that hits a broken path must not finish, must not work around it, and must not be
+restarted from scratch.** Restarting is the expensive failure: it spends the budget twice and
+loses the state that made the bug reproducible.
+
+### The protocol
+
+1. **Stop where you are.** Do not retry, do not try a different route to the same goal, do not
+   invent a workaround. A workaround makes the bug invisible, which is the one outcome worse
+   than the bug.
+2. **Write the finding** to `docs/walkthrough-3/BLOCKED.md`, appending, never overwriting:
+
+```
+## BLOCK-<n> · <one line>
+Agent:      <who you are, e.g. T2 Yusuf>
+Wave:       <1, 2 or 3>
+At:         <the exact URL or command>
+Expected:   <what should have happened>
+Got:        <what did, verbatim, including the error>
+Row:        <the database row that proves the state you were in>
+Resume from: <the exact next action once it is fixed>
+Blocks:     <what else cannot proceed until this is fixed>
+```
+
+3. **Tell the orchestrator and stop.** The orchestrator marks you `blocked`, not `done`, and
+   does not launch your replacement.
+4. **The orchestrator carries on with everything that does not depend on you.** One blocked
+   agent is not a blocked run. It reports the block upward immediately, in full.
+5. **The main session pastes the block to the founder and waits.** No guessing, no patching
+   the product mid-run: rule 5 of `00-START-HERE.md` still holds and this is the mechanism
+   that makes it survivable rather than fatal.
+6. **On the fix, resume.** The agent is re-launched with `BLOCKED.md`'s `Resume from` line and
+   the row id, and **continues from that action**. It does not re-register, re-verify or
+   re-book anything it already did.
+
+### 🔴 Why `Resume from` and `Row` are not optional
+
+An agent that writes "the booking page broke" has produced a sentence. An agent that writes
+"session `9f3c…` is `pending` and the pay button 500s; resume by retrying payment on that
+session" has produced a resumable state. The difference is the whole point of pausing rather
+than ending.
+
+### The one exception
+
+If the wall is **budget** rather than a defect, do not write a block. Stop, say so, and let
+`npm run spend` be the evidence. A block file full of "ran out of money" entries buries the
+real findings.
+
 ## What must never happen
 
 | Never | Why |

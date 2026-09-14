@@ -86,10 +86,12 @@ split above the tables.
 
 | | EGP | USD | Label |
 |---|---|---|---|
-| Patient pays the therapist | 500 | $10 | **GUESS.** Cairo private therapy runs 300–800 |
-| Our cut | 75 (15%) | $1.50 | **DECIDED** |
+| Patient pays the therapist | **1,000** | **$20** | **DECIDED**, the founders' benchmark. ⚠️ Top of the Cairo range, not the middle |
+| Our cut | 150 (15%) | $3.00 | **DECIDED** |
 | Flat platform fee | 0 | $0 | **DECIDED**, changed from the shipped $1 |
 | AI fee, if the patient consents | 50 | $1.00 | **DECIDED**, changed from the shipped $3 |
+
+🔴 **The session price is the most load-bearing number in this document.** At 500 EGP the plan runs out of cash; at 1,000 it breaks even in month 7. See Part 5.
 | Patients who consent to recording | — | 70% | **GUESS.** The beta counts this exactly |
 
 🔴 **I changed your pricing and you should know why.** The product currently
@@ -168,7 +170,10 @@ with counted facts.**
 | Co-founder | 500 | month 1 | **DECIDED** |
 | Sales — companies and universities | 500 | month 1 | **DECIDED** |
 | Sales — clinics and therapists | 500 | month 1 | **DECIDED** |
-| **Total payroll** | **$2,000** | | |
+| Marketing | 500 | month 1 | **DECIDED** |
+| **Total payroll** | **$2,500** | | |
+
+🔴 **The marketer's salary is not CAC.** CAC counts who sells and what markets. Their pay is an operating cost; the budget they spend is the acquisition cost. `verify:plan` proves it by paying them ten times more and watching CAC not move.
 
 No employer burden modelled — at this size they are contractors. If you put them
 on formal contracts with social insurance, add roughly 15–20%.
@@ -177,9 +182,11 @@ on formal contracts with social insurance, add roughly 15–20%.
 
 | | EGP | USD | When | Label |
 |---|---|---|---|---|
-| Three videos, produced | 30,000 | $600 | month 1, one-off | **GUESS.** 10,000 EGP each is a competent 60–90s explainer in Cairo |
-| Ad spend, Meta + TikTok | 15,000/mo | $300/mo | every month | **DECIDED.** Egyptian CPMs are low; this buys reach, not a brand |
-| Three influencer therapists | 15,000/mo | $300/mo | every month | **GUESS.** 5,000 EGP each is micro-influencer rate here |
+| Three videos, produced and cast | 30,000 | $600 | month 1, one-off | **GUESS.** 10,000 EGP each is a competent 60–90s explainer in Cairo |
+| Ad spend, Meta + TikTok | 30,000/mo | $600/mo | every month | **DECIDED.** Part of the $1,000 |
+| Three influencer therapists | 20,000/mo | $400/mo | every month | **DECIDED.** The rest of the $1,000 |
+
+**$1,000 a month total**, held by the marketing hire, covering production, cast, ads and sponsorships. The split is theirs to change; the total is the decision.
 
 🔴 **The influencers' free subscription costs you nothing in cash.** Neither does
 the free month you give their referrals. Both are *forgone revenue* and show up
@@ -246,16 +253,15 @@ Total burn for the quarter: **$9,659.**
 
 ### Scenario B — can the $20k alone get you to break-even?
 
-**Yes. Month 10, and the cash never goes negative.**
+**Yes. Month 7, and the cash never goes negative.**
 
 | Month | Sessions | Revenue | Net | Cash |
 |---|---|---|---|---|
-| 3 | 543 | $1,329 | −$2,146 | $10,341 |
-| 6 | 1,217 | $3,220 | −$994 | $6,310 |
-| **9** | 1,749 | $4,720 | **−$10** | **$5,326** ← low point |
-| **10** | 1,911 | $5,177 | **+$289** | $5,615 |
-| 12 | 2,214 | $6,031 | +$849 | $7,040 |
-| 18 | 2,980 | $8,182 | +$2,257 | $17,245 |
+| 3 | 543 | $2,143 | −$2,310 | $8,681 |
+| **6** | 1,217 | $5,046 | **−$434** | **$5,533** ← low point |
+| **7** | 1,402 | $5,845 | **+$205** | $5,738 |
+| 12 | 2,214 | $9,347 | +$2,838 | $16,104 |
+| 18 | 2,980 | $12,653 | +$4,933 | $38,049 |
 
 This is the scenario to show the angel. It says what **their** money buys, not
 what a later round might.
@@ -323,7 +329,20 @@ You are building an AI company whose largest variable cost is a video vendor.
 Worth pricing alternatives, or defaulting to in-person and phone sessions where
 clinically fine.
 
-**2. The half-price finding inverts the usual instinct.** The instinct is to
+**2. 🔴 Everything hangs on the session price, and it is a benchmark not a measurement.**
+
+| Session price | Break even | Lowest the cash ever gets |
+|---|---|---|
+| 500 EGP ($10) | month 13 | **−$3,760. It runs out** |
+| 750 EGP ($15) | month 9 | +$2,236 |
+| **1,000 EGP ($20)** | **month 7** | **+$5,533** |
+| 1,250 EGP ($25) | month 6 | +$7,590 |
+
+Doubling the session price moves break-even by six months and is the difference between
+running out of money and not. It is the first thing the beta should measure, and the answer
+is a query over what therapists actually charged, not a number anybody chose.
+
+**3. The half-price finding inverts the usual instinct.** The instinct is to
 protect margin and let the price-sensitive go. The arithmetic says the opposite,
 because the cliff takes a quarter to two-fifths of everybody, not just the
 marginal ones.
