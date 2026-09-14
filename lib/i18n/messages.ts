@@ -1781,6 +1781,20 @@ export const en = {
   "checkin.mutedOn": "Turned off {date}",
   /* 🔴 What happens to a worrying reply, said before they reply rather than after. */
   "checkin.crisisNote": "If you write something that sounds like you are in danger, we will show you where to get help straight away and tell your therapist. Nothing else about your reply is read by anybody or given to a computer to interpret.",
+  /*
+   * 🔴 67.1 / 67.4 / 67.6 / 67.7 — THE CLINIC'S RECORDS CONNECTION.
+   *
+   * `records.planInstead` is the sentence that makes the plan gate not an upsell: a
+   * disabled button tells somebody they are missing something, and this tells them the
+   * thing they actually want already exists on the plan they are on.
+   */
+  "records.planTitle": "This is on the clinic plan",
+  "records.planBody": "A records connection binds a whole practice to a hospital system: the registration is the practice's, the token is the practice's, and a clinician who leaves loses it because it was never theirs.",
+  "records.planInstead": "On your own account the right tool is already there: a full export of every record you hold, in one file, any time you want it. It is in your settings and it costs nothing.",
+  "records.lastAnswered": "Their server last answered us at {when}.",
+  "records.neverAnswered": "Their server has not answered us yet. This turns green when a real call comes back, not when a URL is saved.",
+  "records.disconnectCount": "{count} clinicians file notes through this connection. Disconnecting stops all of them, and the notes already in the hospital chart stay where they are.",
+  "records.disconnectNone": "Nobody has filed through this connection yet. Disconnecting stops nothing that is happening.",
   "records.title": "Your record system",
   "records.bodyClinic": "Connect the practice's record system once and every clinician here files notes into it. The connection belongs to the practice, so a clinician who leaves loses it the same day, without anybody having to remember.",
   "records.bodySolo": "Connect your record system and approved notes file back into it. The connection belongs to your practice, which is you.",
@@ -4697,6 +4711,14 @@ export const ar: Record<MessageKey, string> = {
   "checkin.off": "لا ترسلوها",
   "checkin.mutedOn": "أُوقفت في {date}",
   "checkin.crisisNote": "إن كتبت ما يبدو أنك في خطر، سنعرض لك فورًا أين تجد المساعدة ونُخبر معالجك. ولا يقرأ أحد شيئًا آخر من ردك ولا يُعطى لحاسوب ليفسّره.",
+  /* 🔴 67.1 / 67.4 / 67.6 / 67.7 — اتصال العيادة بنظام السجلات. */
+  "records.planTitle": "هذا ضمن خطة المركز",
+  "records.planBody": "اتصال السجلات يربط عيادة كاملة بنظام مستشفى: التسجيل للعيادة، والرمز للعيادة، والمعالج الذي يغادر يفقده لأنه لم يكن له أصلًا.",
+  "records.planInstead": "على حسابك الخاص الأداة الصحيحة موجودة بالفعل: تصدير كامل لكل سجل تحتفظ به، في ملف واحد، وقت ما شئت. إنه في إعداداتك ولا يكلّف شيئًا.",
+  "records.lastAnswered": "آخر مرة أجابنا فيها خادمهم: {when}.",
+  "records.neverAnswered": "لم يجبنا خادمهم بعد. يتحول هذا إلى الأخضر حين تعود مكالمة حقيقية، لا حين يُحفظ رابط.",
+  "records.disconnectCount": "{count} معالجين يودعون ملاحظاتهم عبر هذا الاتصال. فصله يوقفهم جميعًا، والملاحظات الموجودة في سجل المستشفى تبقى مكانها.",
+  "records.disconnectNone": "لم يودع أحد شيئًا عبر هذا الاتصال بعد. فصله لا يوقف شيئًا جاريًا.",
   "records.title": "نظام السجلات لديك",
   "records.bodyClinic": "اربط نظام سجلات العيادة مرة واحدة ويودع كل معالج هنا ملاحظاته فيه. الاتصال ملك العيادة، فالمعالج الذي يتركها يفقده في اليوم نفسه بلا حاجة إلى أن يتذكر أحد.",
   "records.bodySolo": "اربط نظام سجلاتك فتودع الملاحظات المعتمدة فيه. الاتصال ملك عيادتك، وهي أنت.",

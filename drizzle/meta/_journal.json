@@ -694,6 +694,13 @@
       "when": 1789600000064,
       "tag": "0098_sponsor_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1789600000065,
+      "tag": "0099_clinic_records",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { RecordsPanel } from "@/components/ehr/records-panel";
 import { requireUser } from "@/lib/auth/guard";
-import { connectionsFor, writebacksFor } from "@/lib/data/ehr";
+import { connectionsFor, filersOn, isClinicOrganization, writebacksFor } from "@/lib/data/ehr";
 import { features } from "@/lib/env";
 import { whatIsMissing } from "@/lib/ehr/owner";
 import { getI18n } from "@/lib/i18n/server";
@@ -24,15 +24,34 @@ export default async function SettingsRecordsPage() {
   const actor = await requireUser();
   const { locale } = await getI18n();
 
-  const [connections, filings] = await Promise.all([
+  const [connections, filings, filers, onClinicPlan] = await Promise.all([
     connectionsFor(actor.organizationId),
     writebacksFor(actor.organizationId),
+    /* 🔴 67.7 — what stops filing if they disconnect. */
+    filersOn(actor.organizationId),
+    /*
+     * 🔴 67.1 — the ORGANISATION's kind, because what a records connection needs is
+     * an organisation that outlives one person. A solo practice is told what to use
+     * instead rather than shown a disabled button.
+     */
+    isClinicOrganization(actor.organizationId),
   ]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
       <RecordsPanel
         isClinic={false}
+        /*
+         * 🔴 67.1 — A SOLO PRACTICE IS TOLD WHY, NOT SHOWN A DISABLED BUTTON.
+         *
+         * This page is reached by a clinician through their own settings, so the
+         * organisation is a solo one unless they are also on a clinic account, in
+         * which case the clinic portal is where this belongs. `onClinicPlan` is the
+         * ORGANISATION's kind rather than a plan tier, because what a records
+         * connection needs is an organisation that outlives one person.
+         */
+        onClinicPlan={onClinicPlan}
+        filers={filers}
         configured={features.ehr}
         missing={whatIsMissing()}
         actions={{ begin, disconnect }}
@@ -40,6 +59,11 @@ export default async function SettingsRecordsPage() {
           id: filing.id,
           state: filing.state,
           lastError: filing.lastError,
+          /* 🔴 67.5 — the status their server returned, and whose note it was. */
+          responseStatus: filing.responseStatus,
+          approvedBy:
+            [filing.approvedByFirstName, filing.approvedByLastName].filter(Boolean).join(" ") ||
+            null,
           createdAt: formatDateTime(filing.createdAt, "UTC", locale),
         }))}
         connections={connections.map((connection) => ({
@@ -49,6 +73,11 @@ export default async function SettingsRecordsPage() {
           /* 🔴 `formatDate`, not `Intl` (37L.9), and formatted here so no date crosses the
              client boundary as an object. */
           connectedAt: formatDate(connection.connectedAt, "UTC", locale),
+          /* 🔴 67.4 — a call that returned, not an exchange that completed. */
+          lastSuccessAt: connection.lastSuccessAt
+            ? formatDateTime(connection.lastSuccessAt, "UTC", locale)
+            : null,
+          lastError: connection.lastError,
           revokedAt: connection.revokedAt ? formatDate(connection.revokedAt, "UTC", locale) : null,
           revokedReason: connection.revokedReason,
         }))}

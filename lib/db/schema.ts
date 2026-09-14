@@ -7837,6 +7837,18 @@ export const ehrConnections = pgTable(
      * able to resolve a hospital's identifier, and the clinical record we hold stays held for
      * the patient.
      */
+    /**
+     * 🔴 67.4 — CONNECTED MEANS A TOKEN THAT WORKS, tested against their server.
+     *
+     * `connectedAt` is when the OAuth exchange completed. A hospital rotating a
+     * client secret, revoking our registration, or letting a refresh token expire
+     * leaves that column exactly where it was and leaves a practice reading
+     * "connected" while every filing fails.
+     */
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    /** Cleared on the next success: a stale error is chased for nothing. */
+    lastError: text("last_error"),
+
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     revokedReason: text("revoked_reason"),
 
@@ -7967,6 +7979,20 @@ export const ehrWritebacks = pgTable(
     /** Their id for the DocumentReference, once they have accepted it. */
     fhirDocumentReferenceId: text("fhir_document_reference_id"),
     /** Why it was refused, in their words, for the person who has to fix it. */
+    /**
+     * 🔴 67.5 — WHOSE NOTE THIS WAS.
+     *
+     * A practice looking at a failed filing needs to know who has to be told their
+     * note is not in the hospital chart, and §7 makes that a named clinician. An id
+     * rather than a name: the screen resolves it, and a log table holding names is a
+     * log table somebody exports.
+     */
+    approvedByUserId: uuid("approved_by_user_id").references((): AnyPgColumn => users.id, {
+      onDelete: "set null",
+    }),
+    /** What their server returned, which is what an engineer reads first. */
+    responseStatus: integer("response_status"),
+
     lastError: text("last_error"),
     attempts: integer("attempts").notNull().default(0),
 

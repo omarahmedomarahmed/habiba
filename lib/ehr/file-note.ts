@@ -207,11 +207,40 @@ export async function fileNote(input: {
     },
   );
 
+  /*
+   * 🔴 67.4 / 67.6 — THE CONNECTION'S OWN STATE IS UPDATED EITHER WAY.
+   *
+   * `connected_at` is when the OAuth exchange completed and says nothing about whether
+   * the token still works. A hospital rotating a client secret leaves it exactly where
+   * it is while every filing fails, and a practice reads "connected" off a screen for
+   * a week. This is the only place that knows whether a real call came back.
+   *
+   * 🔴 AND THE STATUS IS PARSED OUT OF THE MESSAGE RATHER THAN INVENTED. `fhir.ts`
+   * puts it there deliberately, because a 403 about a patient can contain that
+   * patient's details and the STATUS is what a caller may have.
+   */
+  const { recordConnectionResult } = await import("@/lib/data/ehr");
+  const status = Number(/\((\d{3})\)/.exec(result.error ?? "")?.[1] ?? "") || null;
+
   if (result.error || !result.documentReferenceId) {
     await controlDb
       .update(ehrWritebacks)
-      .set({ state: "refused", lastError: result.error?.slice(0, 300) ?? null, updatedAt: new Date() })
+      .set({
+        state: "refused",
+        lastError: result.error?.slice(0, 300) ?? null,
+        /* 🔴 67.5 — what their server returned, which is what an engineer reads first. */
+        responseStatus: status,
+        /* 🔴 67.5 — whose note this was, so the practice knows who to tell. */
+        approvedByUserId: clinician?.id ?? null,
+        updatedAt: new Date(),
+      })
       .where(eq(ehrWritebacks.id, claimed.id));
+
+    await recordConnectionResult({
+      connectionId: connection.connectionId,
+      ok: false,
+      error: result.error ?? null,
+    });
 
     return { error: result.error ?? "That note could not be filed." };
   }
@@ -223,9 +252,14 @@ export async function fileNote(input: {
       fhirDocumentReferenceId: result.documentReferenceId,
       filedAt: new Date(),
       lastError: null,
+      responseStatus: 201,
+      approvedByUserId: clinician?.id ?? null,
       updatedAt: new Date(),
     })
     .where(eq(ehrWritebacks.id, claimed.id));
+
+  /* 🔴 67.4 — a call came back, so the indicator on their page is now true. */
+  await recordConnectionResult({ connectionId: connection.connectionId, ok: true });
 
   await audit({
     actor: clinician ? { userId: clinician.id, organizationId: input.organizationId } : null,

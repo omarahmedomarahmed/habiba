@@ -8,6 +8,7 @@ import {
   ehrConnections,
   ehrLaunches,
   ehrWritebacks,
+  users,
   type EhrVendor,
 } from "@/lib/db/schema";
 import { decryptSecret, encryptSecret, secretsConfigured } from "@/lib/crypto/secretbox";
@@ -268,6 +269,9 @@ export async function connectionsFor(organizationId: string) {
       tenantLabel: ehrConnections.tenantLabel,
       scopes: ehrConnections.scopes,
       connectedAt: ehrConnections.connectedAt,
+      /* 🔴 67.4 — the indicator reads THIS. See the column's own comment. */
+      lastSuccessAt: ehrConnections.lastSuccessAt,
+      lastError: ehrConnections.lastError,
       revokedAt: ehrConnections.revokedAt,
       revokedReason: ehrConnections.revokedReason,
     })
@@ -345,13 +349,93 @@ export async function writebacksFor(organizationId: string, limit = 100) {
       state: ehrWritebacks.state,
       fhirDocumentReferenceId: ehrWritebacks.fhirDocumentReferenceId,
       lastError: ehrWritebacks.lastError,
+      /* 🔴 67.5 — the status their server returned, and whose note it was. */
+      responseStatus: ehrWritebacks.responseStatus,
+      approvedByFirstName: users.firstName,
+      approvedByLastName: users.lastName,
       attempts: ehrWritebacks.attempts,
       filedAt: ehrWritebacks.filedAt,
       createdAt: ehrWritebacks.createdAt,
     })
     .from(ehrWritebacks)
     .innerJoin(ehrConnections, eq(ehrConnections.id, ehrWritebacks.connectionId))
+    /*
+     * 🔴 A LEFT JOIN, because a filing whose clinician has left the practice must
+     * still appear in the log. `approved_by_user_id` is ON DELETE SET NULL, and a
+     * filing that vanished when somebody left would take a failed one with it.
+     */
+    .leftJoin(users, eq(users.id, ehrWritebacks.approvedByUserId))
     .where(eq(ehrConnections.organizationId, organizationId))
     .orderBy(desc(ehrWritebacks.createdAt))
     .limit(limit);
+}
+
+/**
+ * 🔴 67.4 — A CALL TO THEIR SERVER SUCCEEDED, OR IT DID NOT.
+ *
+ * Stamped by whatever actually talks to the FHIR server, so the indicator on the
+ * practice's page means a token that works rather than a URL we stored.
+ *
+ * 🔴 THE ERROR IS CLEARED ON SUCCESS AND SET ON FAILURE, in one function, because two
+ * functions is how a connection ends up green with last week's error beside it.
+ */
+export async function recordConnectionResult(input: {
+  connectionId: string;
+  ok: boolean;
+  error?: string | null;
+}): Promise<void> {
+  await controlDb
+    .update(ehrConnections)
+    .set(
+      input.ok
+        ? { lastSuccessAt: new Date(), lastError: null }
+        : { lastError: (input.error ?? "That call failed.").slice(0, 500) },
+    )
+    .where(eq(ehrConnections.id, input.connectionId));
+}
+
+/**
+ * 🔴 67.7 — WHAT STOPS FILING IF THEY DISCONNECT, as a number, before they do.
+ *
+ * A practice pressing disconnect is deciding something about every clinician on the
+ * account, and "12 clinicians file notes through this" is the fact that decides it.
+ * Without the count the button reads as undoing a setting.
+ */
+export async function filersOn(organizationId: string): Promise<number> {
+  const [row] = await controlDb
+    .select({ n: sql<number>`count(distinct ${ehrWritebacks.approvedByUserId})::int` })
+    .from(ehrWritebacks)
+    .innerJoin(ehrConnections, eq(ehrConnections.id, ehrWritebacks.connectionId))
+    .where(
+      and(
+        eq(ehrConnections.organizationId, organizationId),
+        isNull(ehrConnections.revokedAt),
+      ),
+    );
+
+  return Number(row?.n ?? 0);
+}
+
+/**
+ * 🔴 67.1 — IS THIS ORGANISATION A CLINIC?
+ *
+ * A records connection binds an ORGANISATION to a hospital system: the registration
+ * is the practice's, the token is the practice's, and a clinician who leaves loses it
+ * because it was never theirs (C266). That only makes sense for an organisation that
+ * outlives one person.
+ *
+ * Here rather than read off a plan tier, because the question is about the shape of
+ * the account rather than about what they pay: a clinic on a lapsed subscription
+ * still has three clinicians whose notes belong in one hospital chart.
+ */
+export async function isClinicOrganization(organizationId: string): Promise<boolean> {
+  const { organizations } = await import("@/lib/db/schema");
+
+  const [row] = await controlDb
+    .select({ kind: organizations.kind })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId))
+    .limit(1);
+
+  return row?.kind === "clinic";
 }

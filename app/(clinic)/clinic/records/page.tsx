@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { RecordsPanel } from "@/components/ehr/records-panel";
 import { requireClinic } from "@/lib/clinic-auth/guard";
-import { connectionsFor, writebacksFor } from "@/lib/data/ehr";
+import { connectionsFor, filersOn, writebacksFor } from "@/lib/data/ehr";
 import { features } from "@/lib/env";
 import { whatIsMissing } from "@/lib/ehr/owner";
 import { getI18n } from "@/lib/i18n/server";
@@ -24,15 +24,28 @@ export default async function ClinicRecordsPage() {
   const actor = await requireClinic();
   const { locale } = await getI18n();
 
-  const [connections, filings] = await Promise.all([
+  const [connections, filings, filers] = await Promise.all([
     connectionsFor(actor.clinicOrganizationId),
     writebacksFor(actor.clinicOrganizationId),
+    /* 🔴 67.7 — what stops filing if they disconnect, as a number, before they do. */
+    filersOn(actor.clinicOrganizationId),
   ]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
       <RecordsPanel
         isClinic={true}
+        /*
+         * 🔴 67.1 — THIS PORTAL IS THE CLINIC PLAN.
+         *
+         * `requireClinic` only resolves for an organisation whose `kind` is `clinic`
+         * and whose `clinic_state` is active: both conditions are in
+         * `getClinicActor`'s WHERE clause. Somebody reaching this page has the plan
+         * by construction, so the gate here is `true` rather than a second lookup
+         * that could disagree with the session that let them in.
+         */
+        onClinicPlan={true}
+        filers={filers}
         configured={features.ehr}
         missing={whatIsMissing()}
         actions={{ begin, disconnect }}
@@ -40,6 +53,11 @@ export default async function ClinicRecordsPage() {
           id: filing.id,
           state: filing.state,
           lastError: filing.lastError,
+          /* 🔴 67.5 — the status their server returned, and whose note it was. */
+          responseStatus: filing.responseStatus,
+          approvedBy:
+            [filing.approvedByFirstName, filing.approvedByLastName].filter(Boolean).join(" ") ||
+            null,
           createdAt: formatDateTime(filing.createdAt, "UTC", locale),
         }))}
         connections={connections.map((connection) => ({
@@ -49,6 +67,11 @@ export default async function ClinicRecordsPage() {
           /* 🔴 `formatDate`, not `Intl` (37L.9), and formatted here so no date crosses the
              client boundary as an object. */
           connectedAt: formatDate(connection.connectedAt, "UTC", locale),
+          /* 🔴 67.4 — a call that returned, not an exchange that completed. */
+          lastSuccessAt: connection.lastSuccessAt
+            ? formatDateTime(connection.lastSuccessAt, "UTC", locale)
+            : null,
+          lastError: connection.lastError,
           revokedAt: connection.revokedAt ? formatDate(connection.revokedAt, "UTC", locale) : null,
           revokedReason: connection.revokedReason,
         }))}

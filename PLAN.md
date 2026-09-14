@@ -390,6 +390,9 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C422 | 66 | 🔴 **A connected indicator built on `last_used_at` goes green for a key that has never answered anything.** The limiter stamps that column on every authenticated call including the ones that then fail on a scope or an attestation. **Ruling: `last_success_at`, stamped past every refusal on the one line that returns an answer, and the page reads only that.** 66.7 says it in as many words — *not a green dot that means "we saved your settings"* — and the difference is whether an HR admin whose integration broke on Tuesday can see that it did. 2026-09-14. | major | founder spec | **ruled — built and gated** |
 | C423 | 66 | **Switching employment verification off has to revoke the keys.** A setting that reads "off" while a key still answers is worse than no setting: it tells an HR admin that nothing can ask about their staff, and something can. **Ruling: `setEmploymentVerification(false)` revokes every key on the account, and the screen says so beside the button rather than after it.** 2026-09-14. | major | review | **ruled — built and gated** |
 | C424 | 66 | **A timing sentence written about our own window read as a promise about a person.** `sint.onlyBody` said we ask the HR system "within a few minutes" of somebody typing their number, which is C265's freshness rule and not a response-time commitment; `verify:claims` flagged the Arabic, where the duration sat closer to the person. **Ruling: reword rather than widen the rule.** The gate was measuring the shape it exists to refuse, and the sentence did not need the unit: "the question is only valid for a short window after they typed it" says the same thing. C275 has now been enforced against copy three times and has been right every time. 2026-09-14. | minor | gate | **ruled — reworded** |
+| C425 | 67 | 🔴 **`connected_at` is when the OAuth exchange completed, and says nothing about whether the token still works.** A hospital rotating a client secret, revoking our registration, or letting a refresh token expire leaves that column exactly where it is while every filing fails, and a practice reads "connected" off a screen for a week. **Ruling: `last_success_at` and `last_error`, written by the one function that actually calls their FHIR server, in BOTH directions.** Two functions is how a connection ends up green with last week's error beside it: somebody clears the error on success in one place and not the other. The same defect as C422 one portal over, found by looking for it there. 2026-09-14. | major | founder spec | **ruled — built and gated** |
+| C426 | 67 | **A writeback log without the clinician is a log nobody can act on.** A failed filing means somebody's note is not in the hospital chart, and §7 makes that somebody a named clinician rather than a system. **Ruling: `approved_by_user_id` on the row, resolved to a name by the screen, joined with a LEFT join so a filing whose clinician has left the practice still appears.** An inner join would take a failed filing away with the person who wrote it, which is the one row a practice most needs to see. 2026-09-14. | major | founder spec | **ruled — built and gated** |
+| C427 | 67 | **A disconnect button with no number on it reads as undoing a setting.** A practice manager pressing it is deciding something about every clinician on the account. **Ruling: the count of distinct clinicians who file through the connection, on the screen, before the press.** Distinct CLINICIANS rather than filings: "400 notes" is a number about us and "12 clinicians" is a number about their practice. 2026-09-14. | minor | founder spec | **ruled — built** |
 
 ---
 
@@ -4252,33 +4255,33 @@ is **retroactive**, not marginal:
 > missing is that it reads like an engineer's screen, has no plan gate, and goes
 > silent the moment anything fails.
 
-- [ ] **67.1** 🔴 **Clinic plan only, and the solo plan is told why rather than
+- [x] **67.1** 🔴 **Clinic plan only, and the solo plan is told why rather than
       shown a disabled button.** A records connection binds an organisation to a
       hospital system; a solo practice with one clinician is the case where the
       export in `lib/data/portability.ts` is the right tool, and that is what the
       upsell says
-- [ ] **67.2** **Pick your record system by name** — Epic, Cerner, Athena, the
+- [x] **67.2** **Pick your record system by name** — Epic, Cerner, Athena, the
       SMART sandbox — with the steps changing per vendor, and every field it asks
       for named the way that vendor's own console names it
-- [ ] **67.3** **The full path, visualised**: base URL, the redirect they
+- [x] **67.3** **The full path, visualised**: base URL, the redirect they
       register, the scopes we ask for, the approval their administrator gives,
       the first successful read. Each step shows what "done" looks like
-- [ ] **67.4** 🔴 **Connected means a token that works**, tested against their
+- [x] **67.4** 🔴 **Connected means a token that works**, tested against their
       server, with the time of the last successful exchange. Not "we stored a
       URL"
-- [ ] **67.5** 🔴 **The writeback log is on the clinic's page**: every note we
+- [x] **67.5** 🔴 **The writeback log is on the clinic's page**: every note we
       filed, which patient reference, which clinician approved it, the response,
       and the error when there was one. `ehr_deliveries` already holds this and
       nobody could see it
-- [ ] **67.6** 🔴 **A failed writeback is visible to the practice**, because a
+- [x] **67.6** 🔴 **A failed writeback is visible to the practice**, because a
       note that did not reach a hospital chart is a clinical fact and not an
       infrastructure detail
-- [ ] **67.7** Disconnect from the same page, with the count of what stops
+- [x] **67.7** Disconnect from the same page, with the count of what stops
       filing, and 0086's audit row already names who did it
-- [ ] **67.8** 🔴 **Nothing on this page is clinical.** A delivery log carries a
+- [x] **67.8** 🔴 **Nothing on this page is clinical.** A delivery log carries a
       reference and a status, never note content. The 58.6 matrix proves the
       import graph, not a comment
-- [ ] **67.9** Arabic and RTL
+- [x] **67.9** Arabic and RTL
 
 - **Accept:** a clinic admin on the clinic plan connects Epic from a screen with
       no prose in it, files a note, sees it in the log, breaks it on purpose, and

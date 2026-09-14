@@ -44,6 +44,9 @@ export type FilingRow = {
   state: string;
   lastError: string | null;
   createdAt: string;
+  /** 🔴 67.5 — what their server returned, and whose note it was. */
+  responseStatus: number | null;
+  approvedBy: string | null;
 };
 
 export type ConnectionRow = {
@@ -51,6 +54,9 @@ export type ConnectionRow = {
   vendor: string;
   tenantLabel: string | null;
   connectedAt: string;
+  /** 🔴 67.4 — when a call to their server last returned something. */
+  lastSuccessAt: string | null;
+  lastError: string | null;
   revokedAt: string | null;
   revokedReason: string | null;
 };
@@ -75,6 +81,8 @@ export function RecordsPanel({
   isClinic,
   configured,
   missing,
+  onClinicPlan,
+  filers,
   actions,
 }: {
   connections: ConnectionRow[];
@@ -83,6 +91,18 @@ export function RecordsPanel({
   isClinic: boolean;
   configured: boolean;
   missing: string;
+  /**
+   * 🔴 67.1 — ON THE CLINIC PLAN, AND A SOLO PRACTICE IS TOLD WHY.
+   *
+   * *Not shown a disabled button.* A records connection binds an ORGANISATION to a
+   * hospital system: the registration is the practice's, the token is the practice's,
+   * and a departing clinician loses it because it was never theirs. A solo practice
+   * with one clinician is the case where `lib/data/portability.ts`'s export is the
+   * right tool, and that is what the sentence says instead of a greyed control.
+   */
+  onClinicPlan: boolean;
+  /** 🔴 67.7 — how many clinicians file through this, before they disconnect. */
+  filers: number;
   actions: PanelActions;
 }) {
   const t = useT();
@@ -101,7 +121,18 @@ export function RecordsPanel({
         </p>
       </div>
 
-      {live.length === 0 ? (
+      {/*
+        🔴 67.1 — THE UPSELL SAYS WHAT TO DO INSTEAD, which is what makes it not an
+        upsell. A disabled button tells somebody they are missing something; this
+        tells them the thing they actually want exists on the plan they are on.
+      */}
+      {!onClinicPlan ? (
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-900">{t("records.planTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("records.planBody")}</p>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("records.planInstead")}</p>
+        </Card>
+      ) : live.length === 0 ? (
         <Card className="p-5">
           <p className="text-sm text-slate-600">{t("records.none")}</p>
         </Card>
@@ -122,6 +153,38 @@ export function RecordsPanel({
                   {t("records.connectedOn", { date: connection.connectedAt })}
                 </p>
 
+                {/*
+                  🔴 67.4 — CONNECTED MEANS A TOKEN THAT WORKS.
+
+                  The line above is when the OAuth exchange completed and says nothing
+                  about whether the token still works: a hospital rotating a client
+                  secret leaves it exactly where it is while every filing fails. This
+                  is the last time a call to their server actually returned something,
+                  and the error beside it is what it said when one did not.
+                */}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span
+                    aria-hidden
+                    className={
+                      connection.lastSuccessAt
+                        ? "h-2 w-2 rounded-full bg-teal-500"
+                        : "h-2 w-2 rounded-full bg-slate-300"
+                    }
+                  />
+                  <span className="text-xs text-slate-600">
+                    {connection.lastSuccessAt
+                      ? t("records.lastAnswered", { when: connection.lastSuccessAt })
+                      : t("records.neverAnswered")}
+                  </span>
+                </div>
+
+                {/* 🔴 67.6 — a failed call is a CLINICAL fact, not an infrastructure detail. */}
+                {connection.lastError ? (
+                  <p className="mt-1 text-xs leading-relaxed text-red-600">
+                    {connection.lastError}
+                  </p>
+                ) : null}
+
                 <form action={actions.disconnect} className="mt-3">
                   <input type="hidden" name="connectionId" value={connection.id} />
                   <button
@@ -130,6 +193,20 @@ export function RecordsPanel({
                   >
                     {t("records.disconnect")}
                   </button>
+
+                  {/*
+                    🔴 67.7 — WHAT STOPS FILING, AS A NUMBER, BEFORE THE PRESS.
+
+                    A practice manager pressing this is deciding something about every
+                    clinician on the account. "12 clinicians file notes through this"
+                    is the fact that decides it; without the count the button reads as
+                    undoing a setting.
+                  */}
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                    {filers > 0
+                      ? t("records.disconnectCount", { count: filers })
+                      : t("records.disconnectNone")}
+                  </p>
                 </form>
               </Card>
             </li>
@@ -247,6 +324,22 @@ export function RecordsPanel({
                         : t("records.pending")}
                   </span>
                   <span className="text-xs text-slate-500">{filing.createdAt}</span>
+                  {/*
+                    🔴 67.5 — THE STATUS AND THE CLINICIAN.
+
+                    The person reading this is on a call with an integration team, and
+                    "422" is the whole answer they need. The clinician is the other
+                    half: a failed filing means somebody's note is not in the hospital
+                    chart, and that person has to be told.
+                  */}
+                  {filing.responseStatus !== null ? (
+                    <span className="font-mono text-xs tabular-nums text-slate-500">
+                      {filing.responseStatus}
+                    </span>
+                  ) : null}
+                  {filing.approvedBy ? (
+                    <span className="text-xs text-slate-500">{filing.approvedBy}</span>
+                  ) : null}
                 </div>
                 {filing.lastError ? (
                   <p className="mt-0.5 text-xs text-red-600">{filing.lastError}</p>
