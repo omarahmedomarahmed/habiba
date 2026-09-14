@@ -72,9 +72,17 @@ async function main() {
    * fifty bespoke cards, which is the state this sprint started in: the clinic's
    * acceptance screen had its own two-list card with its own headings, rendered once.
    */
+  /*
+   * 🔴 C205 — `readSource` STRIPS COMMENTS, `readFileSync` DOES NOT.
+   *
+   * This scan asked which files import the vocabulary and did it by reading raw source, so
+   * a file that only MENTIONED `@/components/visual/primitives` in a comment counted as a
+   * user of it. The rule exists because this repository's comments quote the code they are
+   * about, constantly, and every scan that forgets it measures the prose.
+   */
   const importers = walk("app")
     .concat(walk("components"))
-    .filter((file) => readFileSync(file, "utf8").includes("@/components/visual/primitives"));
+    .filter((file) => readSource(file).includes("@/components/visual/primitives"));
 
   check(
     "🔴 65.4 …and it is used across portals rather than in one place",
@@ -472,20 +480,59 @@ async function main() {
   /*
    * 🔴 EVERY REMOVED BLOCK NAMES THE COMPONENT THAT REPLACED IT.
    *
-   * *A shorter screen that dropped a disclaimer is a regression, not an improvement.* The
-   * dictionary carries the pairing where the removal happened, which is the only place
-   * somebody reading the diff would look.
+   * *A shorter screen that dropped a disclaimer is a regression, not an improvement.*
+   *
+   * 🔴 AND THE RECORD IS DATA RATHER THAN A COMMENT, which C205 is the reason for. The
+   * first build of this check counted a marker in `lib/i18n/messages.ts`'s comments, so
+   * it read TypeScript source without stripping it and the rule caught it. The deeper
+   * problem is the one the rule exists to point at: a record only a comment holds is a
+   * record no check can verify. `evals/prose.json` carries it now, so both halves are
+   * assertable.
    */
-  const messages = readFileSync("lib/i18n/messages.ts", "utf8");
-  /* The marker the dictionary uses beside each removal. Built from a code point so
-     this file itself stays clear of the dash `verify:sprint24` forbids. */
-  const marker = new RegExp(`65\\.3 ${String.fromCharCode(8212)}`, "g");
-  const pairings = [...messages.matchAll(marker)];
+  const removed = (ratchet as { translated?: { removed?: Record<string, string> } }).translated
+    ?.removed;
+
+  const { DICTIONARIES: DICT } = await import("../lib/i18n/messages");
+  const en = DICT.en as Record<string, string>;
+  const ar = DICT.ar as Record<string, string>;
+
+  const stillThere = Object.keys(removed ?? {}).filter((key) => key in en || key in ar);
 
   check(
-    "🔴 65.3 every removed block names its replacement, beside it",
-    pairings.length >= 6,
-    `${pairings.length} removals paired with what replaced them`,
+    "🔴 65.3 every block recorded as removed is genuinely gone from BOTH dictionaries",
+    Boolean(removed) && Object.keys(removed!).length >= 20 && stillThere.length === 0,
+    stillThere.join(", ") || `${Object.keys(removed ?? {}).length} removals recorded`,
+  );
+
+  /*
+   * 🔴 AND WHAT REPLACED IT EXISTS, which is the half that makes the record a pairing
+   * rather than a list of deletions.
+   */
+  const missingReplacement = Object.entries(removed ?? {}).filter(([, into]) => {
+    const path = into.split(" ")[0]!;
+    if (!path.includes("/")) return false; /* a key rather than a file, checked below */
+    try {
+      readSource(path);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+
+  check(
+    "🔴 65.3 …and the component named beside each one exists",
+    missingReplacement.length === 0,
+    missingReplacement.map(([key]) => key).join(", ") || "every replacement resolves",
+  );
+
+  const keyReplacements = Object.values(removed ?? {})
+    .filter((into) => !into.includes("/"))
+    .map((into) => into.split(",")[0]!.trim());
+
+  check(
+    "🔴 65.3 …and a block replaced by ANOTHER KEY points at one that exists",
+    keyReplacements.length > 0 && keyReplacements.every((key) => key in en),
+    keyReplacements.join(", "),
   );
 
   finish("sprint 65");

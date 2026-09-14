@@ -22,5 +22,35 @@
     "partner": 1410,
     "legal": 1377
   },
-  "measuredOn": "2026-09-14"
+  "measuredOn": "2026-09-14",
+  "translated": {
+    "comment": "🔴 65.3 — EVERY REMOVED BLOCK, AND WHAT NOW CARRIES THE RULE IT HELD. 'Nothing is deleted, everything is translated': a shorter screen that dropped a disclaimer is a regression, not an improvement. This lived in comments beside each replacement until C205's rule pointed out the obvious: a record only a comment holds is a record no check can read. It is data now, so `verify:sprint65` can assert that every key named here is genuinely gone from both dictionaries and that the component named beside it genuinely exists.",
+    "removed": {
+      "consent.pageBody": "components/visual/primitives.tsx SeesWhat, on /patient/consent",
+      "consent.stopNote": "components/visual/primitives.tsx SeesWhat, on /patient/consent",
+      "consent.newTherapistBody": "components/visual/primitives.tsx FlowStrip, in components/patient/invite-therapist.tsx",
+      "consent.askOldBody": "components/visual/primitives.tsx SeesWhat, in components/patient/ask-history.tsx",
+      "pclinic.body": "components/visual/primitives.tsx SeesWhat, on /patient/record",
+      "pclinic.never": "components/visual/primitives.tsx SeesWhat, on /patient/record",
+      "pclinic.why": "components/visual/primitives.tsx SeesWhat, on /patient/record",
+      "checkin.settingsBody": "components/visual/primitives.tsx SeesWhat, on /patient/messages",
+      "checkin.crisisNote": "components/visual/primitives.tsx SeesWhat, on /patient/messages",
+      "pexport.body": "components/visual/primitives.tsx SeesWhat, in components/patient/export-record.tsx",
+      "pexport.notCertificate": "components/visual/primitives.tsx SeesWhat, in components/patient/export-record.tsx",
+      "pclaim.keepAccessBody": "components/patient/keeps-access.tsx BeforeAfter",
+      "pinvite.keepAccessBody": "components/patient/keeps-access.tsx BeforeAfter",
+      "pprofile.flagNote": "components/visual/primitives.tsx SeesWhat, on /patient/profile",
+      "pbilling.note": "components/visual/primitives.tsx BeforeAfter, on /patient/billing",
+      "tnew.split": "components/visual/primitives.tsx SplitBar, in components/session/new-session-form.tsx",
+      "portal.new.recordBody": "components/visual/primitives.tsx SeesWhat, in components/session/new-session-form.tsx",
+      "portal.onboarding.why": "components/visual/primitives.tsx SeesWhat, on /onboarding",
+      "portal.onboarding.privacy": "components/visual/primitives.tsx SeesWhat, on /onboarding",
+      "clinic.neverSees": "components/visual/primitives.tsx NeverBar, in components/clinic/chrome.tsx",
+      "sponsor.noAttendance": "components/visual/primitives.tsx NeverBar, in components/sponsor/chrome.tsx",
+      "room.knowEmergency": "crisis.notEmergency, the one line lib/crisis owns",
+      "pinv.keepsAccess": "pclaim.doneKept, which said the same sentence",
+      "pinv.losesAccess": "pclaim.doneDropped, which said the same sentence",
+      "consent.askWaiting": "pask.waiting, which said the same sentence and was the one rendered"
+    }
+  }
 }

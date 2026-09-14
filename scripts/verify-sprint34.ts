@@ -188,8 +188,15 @@ async function main() {
       `rules at ${rulesAt}, first fact at ${firstFactAt}`,
     );
 
-    /* And the same rule, in the system prompt, above the schema. */
-    const notes = readSource("lib/ai/notes.ts");
+    /*
+     * And the same rule, in the system prompt, above the schema.
+     *
+     * 🔴 THE PROMPT MOVED IN SPRINT 68 AND THIS PATH DID NOT. `lib/ai/notes.ts` re-exports
+     * everything it used to define, so nothing broke and every import kept working; this
+     * check read the file, found no prompt in it, and reported the rule missing. A path in
+     * a verifier is a dependency like any other and an extraction is where it rots.
+     */
+    const notes = readSource("lib/ai/note-writer.ts");
     const overrideAt = notes.indexOf("RULE THAT OVERRIDES EVERYTHING BELOW");
     const schemaAt = notes.indexOf("Respond with a single JSON object");
     check(

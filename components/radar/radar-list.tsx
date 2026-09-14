@@ -6,6 +6,16 @@ import { Avatar, StatusPill } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
 import { formatUsd } from "@/lib/billing/plans";
 import { useT, useLocale } from "@/lib/i18n/client";
+/*
+ * 🔴 C84 / 12.3 — THE SHARED FORMATTER, NOT AN `Intl` CALL OF ITS OWN.
+ *
+ * This file had its own `Intl.DateTimeFormat("en-GB", …)` for the next-open time, which
+ * `verify:sprint12` and `verify:sprint37l2` both refuse: a component that formats a time
+ * itself is a component that will be wrong about a zone or a locale on its own schedule,
+ * and there is no way to fix every one of them at once. `formatTime` is the repository's
+ * one answer and it takes the zone explicitly.
+ */
+import { formatTime } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn, fullName, relativeDay } from "@/lib/utils";
 
@@ -115,7 +125,7 @@ export function RadarList({
               ) : entry.nextOpenAt ? (
                 <span className="block text-sm font-semibold text-white tabular-nums">
                   {relativeDay(entry.nextOpenAt, zone, locale, t)}
-                  {zone ? ` · ${timeIn(entry.nextOpenAt, zone)}` : ""}
+                  {zone ? ` · ${formatTime(new Date(entry.nextOpenAt), zone)}` : ""}
                 </span>
               ) : (
                 <span className="block text-sm text-white/35">{t("radar.noHours")}</span>
@@ -152,14 +162,4 @@ export function RadarList({
       ))}
     </ul>
   );
-}
-
-/** `14:00` in the reader's own zone. Never called before the zone arrives. */
-function timeIn(iso: string, zone: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: zone,
-  }).format(new Date(iso));
 }

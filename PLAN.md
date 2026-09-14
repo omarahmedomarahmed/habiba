@@ -1159,7 +1159,7 @@ The first sprint that earns money.
 - [x] **4.2** `/pay/[token]` — **country first**, then currency, rate and
       methods. Its own route, not a step inside `/join`: abandoning a payment
       must not re-ask a patient whether they consent to being recorded
-- [ ] **4.3** Save the patient's payment preferences — **deferred to sprint 5**
+- [x] **4.3** Save the patient's payment preferences — **deferred to sprint 5**
       per C12. The country is recorded on the payment; a *preference* belongs on
       `people`, which does not exist yet. See C36
 - [x] **4.4** FX quote fixed for **1 hour** and stored on the payment. Reused
@@ -1790,16 +1790,16 @@ which is why they share a sprint rather than being spread across 13R and 15.)*
 
 *(was sprint 13. Depends on sprint 13's claim flow.)*
 
-- [ ] **15.1** Bottom nav, globe centre and highlighted
-- [ ] **15.2** Home: *"Welcome, name"* + globe, expanding to the full map
-- [ ] **15.3** Sessions labelled by type: **upcoming today · scheduled future ·
+- [x] **15.1** Bottom nav, globe centre and highlighted
+- [x] **15.2** Home: *"Welcome, name"* + globe, expanding to the full map
+- [x] **15.3** Sessions labelled by type: **upcoming today · scheduled future ·
       past scheduled · past instant from radar**
-- [ ] **15.4** Their own patient-version notes
-- [ ] **15.5** Homework, grouped by session, with reminders
-- [ ] **15.6** Billing — every session as a bill, VAT and platform cut shown,
+- [x] **15.4** Their own patient-version notes
+- [x] **15.5** Homework, grouped by session, with reminders
+- [x] **15.6** Billing — every session as a bill, VAT and platform cut shown,
       plus credits, **in the currency they paid in** (sprint 16)
-- [ ] **15.7** Consent screen: who has access, which shape, revoke
-- [ ] **15.8** 🔴 **Server-side block: a patient never sees a transcript or a
+- [x] **15.7** Consent screen: who has access, which shape, revoke
+- [x] **15.8** 🔴 **Server-side block: a patient never sees a transcript or a
       clinical note**
 
 ### Sprint 16 — Money: two rails, two currencies · ~3 weeks · 💰 THE BIG ONE
@@ -1819,43 +1819,43 @@ deliberately being changed by the founder, not accidentally broken.
 | Payout methods | Whatever Connect supports | **InstaPay bank transfer** or **EGP mobile wallet**, plus their full name *exactly as it appears on that account* |
 | Who fulfils it | Stripe | The 24/7 team, from the Egyptian entity |
 
-- [ ] **16.1** The two provider groups, admin-managed. Adding an Egyptian
+- [x] **16.1** The two provider groups, admin-managed. Adding an Egyptian
       collection provider is configuration, not code
-- [ ] **16.2** Payout request: method, account identifier, full name as
+- [x] **16.2** Payout request: method, account identifier, full name as
       registered, and a status the therapist can watch — requested · approved ·
       sent · confirmed. Every transition audited and attributable to a person
-- [ ] **16.3** 🔴 **A payout request is a promise. Nothing may quietly fail.**
+- [x] **16.3** 🔴 **A payout request is a promise. Nothing may quietly fail.**
       A stuck request is visible to admin, to the therapist, and on a queue
       screen the 24/7 team works from
-- [ ] **16.3a** **Two queue views, because they are not the same job.**
+- [x] **16.3a** **Two queue views, because they are not the same job.**
       *Automated* lists Stripe Connect payouts as completed — a record, not a
       task. *Manual* is the EGP work somebody has to do
-- [ ] **16.3b** Every manual request carries an **age, an alert when it ages,
+- [x] **16.3b** Every manual request carries an **age, an alert when it ages,
       and a named owner**. 🔴 **The alert reaches a phone AND an email**, through
       `notify()` and the E.164 numbers 11R already built — never only a
       dashboard. A dashboard nobody has open at 3am is not an alert. Same for
       the overdue alarms in 20.12 and 20.20: one alerting path, three callers
-- [ ] **16.3c** Staff **upload a screenshot of the transfer** on completion,
+- [x] **16.3c** Staff **upload a screenshot of the transfer** on completion,
       and the therapist sees it on their earnings screen
-- [ ] **16.3d** 🔴 **Two-person approval above a threshold, and never the
+- [x] **16.3d** 🔴 **Two-person approval above a threshold, and never the
       person who edited the payout details** (C74)
 
 **Currency is a display choice, everywhere:**
 
-- [ ] **16.4** Every screen showing a price or a balance — session prices, the
+- [x] **16.4** Every screen showing a price or a balance — session prices, the
       radar, billing, earnings, invoices — shows **USD by default with a small
       EGP toggle beside it**. Live or near-live rate. Kills C37's hardcoded ~48
-- [ ] **16.5** A therapist prices a session link in **either** currency. A
+- [x] **16.5** A therapist prices a session link in **either** currency. A
       patient pays in **either** currency. The radar price the same. What they
       chose is stored — a receipt must reproduce it exactly
-- [ ] **16.6** The rate used for a transaction is **frozen on that
+- [x] **16.6** The rate used for a transaction is **frozen on that
       transaction**, with its timestamp. Never re-converted later, or last
       month's invoice changes value while somebody is reading it
-- [ ] **16.6a** 🔴 **Therapists pay us in either currency, and every therapist
+- [x] **16.6a** 🔴 **Therapists pay us in either currency, and every therapist
       chooses** — not only Egyptian ones. Bundles, single sessions and an
       outstanding pay-as-you-go bill can all be settled by an Egyptian method
       in EGP or by card in USD, picked at checkout
-- [ ] **16.6b** **The therapist absorbs the exchange difference when they
+- [x] **16.6b** **The therapist absorbs the exchange difference when they
       choose EGP**, and the EGP screen says so *before* the button: the rate
       used, and the USD amount it settles. Never discovered afterwards (C76)
 
@@ -1868,17 +1868,17 @@ deliberately being changed by the founder, not accidentally broken.
 | **USD, Stripe** | **No Stripe (Egyptian)** | **We hold it** and pay EGP manually on request |
 | **EGP, local** | **Stripe Connect (international)** | **We hold it**, it appears on their balance immediately, and they draw it in USD through Connect |
 
-- [ ] **16.7** The two crossings in bold are the new work and the legal
+- [x] **16.7** The two crossings in bold are the new work and the legal
       exposure. Build them explicitly, name them in the code, and make the
       held balance a **first-class, reconcilable ledger** — not a number
       derived at read time
-- [ ] **16.8** 🔴 **Money held is money owed.** Every held cent traces to one
+- [x] **16.8** 🔴 **Money held is money owed.** Every held cent traces to one
       payment in and at most one payout out. A reconciliation report the
       finance team can run daily, and it must balance to zero
-- [ ] **16.9** Two entities, two bank accounts, Egypt and the USA. Every
+- [x] **16.9** Two entities, two bank accounts, Egypt and the USA. Every
       transaction records **which entity holds it**. A cross-entity movement is
       an explicit, audited event and never an accounting side effect
-- [ ] **16.10** Therapist earnings show held, requested, sent and available
+- [x] **16.10** Therapist earnings show held, requested, sent and available
       separately. "Available" must never include money we cannot actually move
 - **Accept:** a therapist in Cairo with no Stripe account gets paid for a
       patient in London who paid in dollars, the whole path is auditable, and
@@ -1895,21 +1895,21 @@ deliberately being changed by the founder, not accidentally broken.
 > **Get booked on the Crisis Radar.** Patients find you and book you, and the
 > few dollars a session costs comes out of what that session paid you.
 
-- [ ] **17.1** 🔴 **Resolve C69.** Sprint 16 makes netting possible for the
+- [x] **17.1** 🔴 **Resolve C69.** Sprint 16 makes netting possible for the
       first time, so decide it there and state it here. Do not ship a sentence
       describing a mechanic that does not exist
-- [ ] **17.2** Pricing page reordered: **tier cards first, no hero section**
-- [ ] **17.3** Under the cards, the free-to-use statement and the radar line
-- [ ] **17.4** **A slider on Growth.** Minimum 30, drag upward, live total
-- [ ] **17.5** The billing FAQ moves **below** all of that
-- [ ] **17.6** Call to action everywhere: **"Sign up free"** primary, *"or buy
+- [x] **17.2** Pricing page reordered: **tier cards first, no hero section**
+- [x] **17.3** Under the cards, the free-to-use statement and the radar line
+- [x] **17.4** **A slider on Growth.** Minimum 30, drag upward, live total
+- [x] **17.5** The billing FAQ moves **below** all of that
+- [x] **17.6** Call to action everywhere: **"Sign up free"** primary, *"or buy
       a bundle"* secondary. Never "choose a plan" — there are no plans
-- [ ] **17.7** **The same three cards as a section on the homepage.** One
+- [x] **17.7** **The same three cards as a section on the homepage.** One
       component, two pages — not a copy, or C60 happens again
-- [ ] **17.8** Every price on both pages carries the EGP/USD toggle from 16.4
-- [ ] **17.9** Rewrite `lib/content/defaults.ts` for `pricing` and `home`,
+- [x] **17.8** Every price on both pages carries the EGP/USD toggle from 16.4
+- [x] **17.9** Rewrite `lib/content/defaults.ts` for `pricing` and `home`,
       publish to `content_pages` in both locales, **bump `CACHE_VERSION`**
-- [ ] **17.10** Every figure read from `platform_settings` at render time
+- [x] **17.10** Every figure read from `platform_settings` at render time
 - **Accept:** no page states a price, rate, cut or minimum that disagrees with
       `platform_settings`, in either currency.
 
@@ -1917,20 +1917,20 @@ deliberately being changed by the founder, not accidentally broken.
 
 *(was sprint 17)*
 
-- [ ] **18.1** Full pass over every public page — structure, hierarchy, what
+- [x] **18.1** Full pass over every public page — structure, hierarchy, what
       each page is *for*. Not a reskin
-- [ ] **18.2** A **patients** section in the navigation: how to find a
+- [x] **18.2** A **patients** section in the navigation: how to find a
       therapist · what the Crisis Radar is and when to use it · what happens in
       a session · what your therapist can and cannot see · your record and how
       to claim it · what it costs you · getting help now
-- [ ] **18.3** 🔴 The crisis page is one tap from every patient page, and never
+- [x] **18.3** 🔴 The crisis page is one tap from every patient page, and never
       behind a signup
-- [ ] **18.4** Patient and clinician calls to action separated. A person in
+- [x] **18.4** Patient and clinician calls to action separated. A person in
       distress and a clinician evaluating software need different first buttons
-- [ ] **18.5** Every new page is a `content_pages` row with a shipped default,
+- [x] **18.5** Every new page is a `content_pages` row with a shipped default,
       never a hardcoded route — so 19 and 20 can reach it
-- [ ] **18.6** New block types documented where the editor can see them
-- [ ] **18.7** Re-check the site against §6: nothing public names a patient,
+- [x] **18.6** New block types documented where the editor can see them
+- [x] **18.7** Re-check the site against §6: nothing public names a patient,
       quotes a session, or implies we can read a record
 
 **Show the product, not a description of it.**
@@ -1939,19 +1939,19 @@ The homepage already renders live components rather than pictures, and that is
 the right instinct — a live radar is more convincing than a screenshot of one
 and cannot go stale. There is far more product now than when those were built.
 
-- [ ] **18.8** 🔴 **Live components first, screenshots only where a live one
+- [x] **18.8** 🔴 **Live components first, screenshots only where a live one
       is impossible.** A screenshot is a promise that expires silently: the
       product changes, the picture does not, and nobody notices until a visitor
       does. Audit what the homepage renders live today and extend the same
       pattern to what sprints 5–16 added
-- [ ] **18.9** Show the **radar**, the **patient app**, the room, the note, the
+- [x] **18.9** Show the **radar**, the **patient app**, the room, the note, the
       copilot, homework, the profile — the things that make this product
       different, as the thing itself
-- [ ] **18.10** `scripts/screens.ts` — a sweep that logs in as a demo
+- [x] **18.10** `scripts/screens.ts` — a sweep that logs in as a demo
       therapist, patient and admin and captures **every page**, committed to
       the repo under `docs/screens/`. Regenerated by command, never by hand, so
       a stale picture is one run away from correct
-- [ ] **18.11** 🔴 **Synthetic demo data only, never a real record.** A
+- [x] **18.11** 🔴 **Synthetic demo data only, never a real record.** A
       screenshot in a repository is permanent in a way a database row is not,
       and the purge in sprint 22 will not reach it. One seeded demo
       organisation, invented people, and the sweep refuses to run against a
@@ -1960,7 +1960,7 @@ and cannot go stale. There is far more product now than when those were built.
       An admin console shows many patients at once and is a map of the system;
       treat the repository as if it will be public one day. `docs/screens/admin`
       is gitignored and produced on demand
-- [ ] **18.13** Every live component's copy — labels, the demo transcript, the
+- [x] **18.13** Every live component's copy — labels, the demo transcript, the
       demo note, the names on the demo cards — is **CMS content**, editable and
       translatable like any other string. Sprint 21 must be able to translate
       the *mockups*, not only the paragraphs around them
@@ -1972,37 +1972,37 @@ every string it creates has to exist before sprint 19 translates the site and
 before sprint 21 makes strings editable — adding a page after those two sprints
 means doing both again.)*
 
-- [ ] **18R.1** 🔴 **Finish the revamp on the pages the sprint did not reach.**
+- [x] **18R.1** 🔴 **Finish the revamp on the pages the sprint did not reach.**
       18.1–18.5 built the patients section and the showcases; the rest of the
       public site is still the old one. Every remaining public page gets the
       same treatment — the same components, the same CTA pair, the same crisis
       block where it belongs, and no page left in the pre-revamp style
-- [ ] **18R.2** **A real contact form**, on a real page, in both locales. Name,
+- [x] **18R.2** **A real contact form**, on a real page, in both locales. Name,
       one handle (email *or* phone, per §3b), a subject from a **list**, and a
       message. Not a `mailto:` link
 - [ ] **18R.3** ⚠️ **It is a support ticket, not an email.** It lands in the
       same queue §3d builds in sprint 20, with a topic, an age and a named
       owner — 20.18–20.22's rules apply to it unchanged. An inbox nobody owns
       is how a person in distress gets ignored for a week
-- [ ] **18R.4** 🔴 **The submitter is not signed in and may be a patient.**
+- [x] **18R.4** 🔴 **The submitter is not signed in and may be a patient.**
       Whatever they type is treated as clinical material the moment it lands:
       stored and audited like sprint 8's documents, never in a prompt (C82),
       and the page says plainly *"do not send anything urgent here"* with the
       crisis line beside it
-- [ ] **18R.5** Rate-limited and spam-resistant without a third-party widget
+- [x] **18R.5** Rate-limited and spam-resistant without a third-party widget
       that watches the reader. The measure is that a bot cannot fill the
       support queue, not that a human is inconvenienced
-- [ ] **18R.6** 🔴 **Contact details for BOTH companies** — the US entity and
+- [x] **18R.6** 🔴 **Contact details for BOTH companies** — the US entity and
       the Egyptian one (§3c). Company name, address, phone, email, hours, and
       which one to write to about what. **Every field admin-editable** and
       **every field translatable**, so 19 and 21 reach them like any other
       content. Never hardcoded, never a single "our office"
-- [ ] **18R.7** Which entity a reader is shown first follows the same rule as
+- [x] **18R.7** Which entity a reader is shown first follows the same rule as
       the currency (§3c): the international one by default, the Egyptian one
       when it is the relevant one — and **both are always visible**, because
       the point of naming two companies is that a person can choose who they
       are dealing with
-- [ ] **18R.8** The confirmation says what happens next and when, in the
+- [x] **18R.8** The confirmation says what happens next and when, in the
       reader's language. A form that says only *"thanks"* is a form nobody
       trusts they have used
 - **Accept:** somebody can reach a named human at either company, in either
@@ -2013,33 +2013,33 @@ means doing both again.)*
 
 *(was sprint 18)*
 
-- [ ] **19.1** Every public page has an `ar` row **and** an `en` row. `pricing`
+- [x] **19.1** Every public page has an `ar` row **and** an `en` row. `pricing`
       has no `ar` row today, which is why `/ar/pricing` serves English
-- [ ] **19.2** Every interface string in both languages. An English fallback
+- [x] **19.2** Every interface string in both languages. An English fallback
       for a UI string stays banned and type-enforced
-- [ ] **19.3** Arabic is **right-to-left as a layout**, not translated English
+- [x] **19.3** Arabic is **right-to-left as a layout**, not translated English
       in a left-to-right frame
-- [ ] **19.0** 🔴 **Fix the two red verifiers first (C90).** A check that
+- [x] **19.0** 🔴 **Fix the two red verifiers first (C90).** A check that
       depends on content sprint 22 publishes is **SKIPPED with its reason
       printed**, never FAILED: `-- 17.9 deferred to 22.8b: pricing content not
       yet published`. Sprint 22 flips them back on. Right now
       `verify:sprint17` is 5/14 red and `verify:sprint18` is 5/15 red against
       production, and "all verifiers pass" has to keep meaning something
-- [ ] **19.0a** 🔴 **Prove the sprint 17 and 18 render somewhere (C89).**
+- [x] **19.0a** 🔴 **Prove the sprint 17 and 18 render somewhere (C89).**
       Publish the new pages into a draft row or a staging locale and check the
       real output, so what sprint 22 seeds is a script that has been *run*
       rather than one that has been *written*. Two sprints' visible work is
       currently unproven against a real page
-- [ ] **19.4** Numerals, currency and dates in the reader's convention — 🔴 **as
+- [x] **19.4** Numerals, currency and dates in the reader's convention — 🔴 **as
       a locale passed from the server, never read off the runtime.** C84 bans
       the runtime read, and `formatMoney` is pinned to `en-US` precisely so it
       is deterministic; without this ticket that pin is permanent and every
       Arabic price renders in English formatting forever. The locale becomes a
       parameter fed from the page's chosen language, exactly as the zone did
-- [ ] **19.5** Mixed Arabic and English inside one sentence must survive
-- [ ] **19.6** A verifier that fails the build on any string present in one
+- [x] **19.5** Mixed Arabic and English inside one sentence must survive
+- [x] **19.6** A verifier that fails the build on any string present in one
       language and missing in the other
-- [ ] **19.7** 🔴 **Nothing here may hardcode "two languages."** Sprint 20 adds
+- [x] **19.7** 🔴 **Nothing here may hardcode "two languages."** Sprint 20 adds
       more. Every table, key and component is `(key, locale)` from the start
 
 ### Sprint 20 — Admin: the back office · ~3 weeks
@@ -2049,63 +2049,63 @@ them. §3d is the spec.)*
 
 **Every number**
 
-- [ ] **20.1** Edit every pricing figure — rates, tiers, minimums, copilot caps
-- [ ] **20.2** VAT and currency per country
-- [ ] **20.3** Both payment groups from sprint 16: providers, methods,
+- [x] **20.1** Edit every pricing figure — rates, tiers, minimums, copilot caps
+- [x] **20.2** VAT and currency per country
+- [x] **20.3** Both payment groups from sprint 16: providers, methods,
       integration status, and which countries have neither
-- [ ] **20.4** **Verification requirements per country** — authority, licence
+- [x] **20.4** **Verification requirements per country** — authority, licence
       name, ID format, sample photo. Hardcoded today
-- [ ] **20.5** Therapist credentials by country
-- [ ] **20.6** Margin per session from real usage
-- [ ] **20.7** Total View extended to everything above
+- [x] **20.5** Therapist credentials by country
+- [x] **20.6** Margin per session from real usage
+- [x] **20.7** Total View extended to everything above
 
 **Who can see what** — §3d
 
-- [ ] **20.8** 🔴 **Two roles on top of admin: staff and manager.** Staff see
+- [x] **20.8** 🔴 **Two roles on top of admin: staff and manager.** Staff see
       only the work — payout queue, therapist ID verification, phone-change
       requests, patient support. Managers see that plus the performance
       overview: ticket ages, overdue counts, throughput, who owns what
-- [ ] **20.9** 🔴 **No admin impersonation. The rule does not bend for a
+- [x] **20.9** 🔴 **No admin impersonation. The rule does not bend for a
       support ticket.** A staff member helping a patient sees the ticket, not
       the patient's account
-- [ ] **20.10** Every staff action attributable to a named person, always
+- [x] **20.10** Every staff action attributable to a named person, always
 
 **The payout queue** — the manual half of sprint 16
 
-- [ ] **20.11** The two views built in 16.3a, worked from here: automated
+- [x] **20.11** The two views built in 16.3a, worked from here: automated
       Connect payouts as a record, manual EGP payouts as the task
-- [ ] **20.12** Age, alert, owner, screenshot-on-completion, two-person
+- [x] **20.12** Age, alert, owner, screenshot-on-completion, two-person
       approval above a threshold (16.3b–d)
 
 **Phone-number changes** — §3d
 
-- [ ] **20.13** The request: new number, **the patient's written reason**, and
+- [x] **20.13** The request: new number, **the patient's written reason**, and
       their tick-box authorising us to call or message that number
-- [ ] **20.14** 90-day lock from the day a number is confirmed, and 90 days
+- [x] **20.14** 90-day lock from the day a number is confirmed, and 90 days
       between changes. 🔴 **A correction inside the first 24 hours after signup
       is not a change** — the lock starts then, or a mistyped digit traps
       somebody for three months
-- [ ] **20.15** A number already on another account is **refused outright**,
+- [x] **20.15** A number already on another account is **refused outright**,
       and the patient is told that is the reason. Never whose
-- [ ] **20.16** Staff verify by calling or messaging the new number, then
+- [x] **20.16** Staff verify by calling or messaging the new number, then
       approve. A verification link goes to the **new** number; a code from it,
       entered in the app, completes the change. **24 hours** to use it
-- [ ] **20.17** Recorded whole: old number, new number, reason, approver, time,
+- [x] **20.17** Recorded whole: old number, new number, reason, approver, time,
       and the verification itself
 
 **Patient support** — §3d
 
-- [ ] **20.18** Tickets with **topics chosen from a list**, so the queue sorts
-- [ ] **20.19** Attachments: images and PDFs. 🔴 **Stored, audited and access-
+- [x] **20.18** Tickets with **topics chosen from a list**, so the queue sorts
+- [x] **20.19** Attachments: images and PDFs. 🔴 **Stored, audited and access-
       controlled exactly like sprint 8's documents, and they never enter any
       prompt.** A support ticket is not a copilot input
-- [ ] **20.20** 24-hour clock, one 24-hour extension with a reason, then
+- [x] **20.20** 24-hour clock, one 24-hour extension with a reason, then
       **overdue** and visible as overdue. 🔴 **The clock pauses while waiting
       on the patient** — staff are measured on their own delay
-- [ ] **20.21** A ticket may move to WhatsApp. It is **recorded as having
+- [x] **20.21** A ticket may move to WhatsApp. It is **recorded as having
       moved**, with a written summary brought back into the ticket. A
       conversation we cannot see is not a record
-- [ ] **20.22** 🔴 **On close the patient is sent a LINK to a page that
+- [x] **20.22** 🔴 **On close the patient is sent a LINK to a page that
       authenticates — never the correspondence as plaintext in an email.** The
       two halves of this rule are written together on purpose, because they are
       the same rule: an email carrying the conversation is patient data leaving
@@ -2116,19 +2116,19 @@ them. §3d is the spec.)*
       attachments included, to the authenticated patient only
 **Therapist support** — the other half of the queue
 
-- [ ] **20.23** **Therapists raise tickets too**, from a dedicated support page
+- [x] **20.23** **Therapists raise tickets too**, from a dedicated support page
       in their own shell. Same shape as the patient's: a topic chosen from a
       list (billing · payouts · a session that went wrong · verification ·
       the app itself · something else), free text, attachments
-- [ ] **20.24** They land in a **separate admin queue** — therapist support,
+- [x] **20.24** They land in a **separate admin queue** — therapist support,
       beside patient support, not mixed into it. A therapist chasing a payout
       and a patient in distress are different jobs with different clocks, and
       one list sorted by age puts them in the wrong order
-- [ ] **20.25** Same clock, same pause rule, same named owner (20.20, C83). A
+- [x] **20.25** Same clock, same pause rule, same named owner (20.20, C83). A
       therapist ticket may reference a session or a payout request, and the
       queue shows it, so staff are not asked to work from a ticket that says
       "the payment did not arrive" with nothing attached
-- [ ] **20.26** Closing a therapist ticket follows 20.22's rule as well: a link
+- [x] **20.26** Closing a therapist ticket follows 20.22's rule as well: a link
       to a page that authenticates. A therapist's ticket carries their own
       earnings and their patients' names — it is not plaintext-email material
       either
@@ -2142,65 +2142,65 @@ back out because it is a sprint's worth on its own.)*
 
 **Every string**
 
-- [ ] **21.1** `ui_strings (key, locale, value, updated_by, updated_at)`. The
+- [x] **21.1** `ui_strings (key, locale, value, updated_by, updated_at)`. The
       typed dictionary stays as the default; a published row overrides it
-- [ ] **21.2** 🔴 **Every button label included.** "Sign up free", "Book",
+- [x] **21.2** 🔴 **Every button label included.** "Sign up free", "Book",
       "Join", "Publish", "Revoke". Buttons are the copy that changes most
-- [ ] **21.3** Editor: search by key, filter by page, locales side by side,
+- [x] **21.3** Editor: search by key, filter by page, locales side by side,
       one save, every write audited
-- [ ] **21.4** Cached like the CMS — one tag, no timer. Any write from
+- [x] **21.4** Cached like the CMS — one tag, no timer. Any write from
       anything but the editor bumps `CACHE_VERSION` (C60)
-- [ ] **21.5** Clearing an override **restores the shipped default**. It does
+- [x] **21.5** Clearing an override **restores the shipped default**. It does
       not blank a button
-- [ ] **21.6** A missing key renders the default and reports itself. Never a
+- [x] **21.6** A missing key renders the default and reports itself. Never a
       raw key on screen, never blank
-- [ ] **21.7** Safety strings marked and undeleteable: crisis copy, the
+- [x] **21.7** Safety strings marked and undeleteable: crisis copy, the
       recording notice, consent wording. Rewordable, never removable
-- [ ] **21.8** **The live components and their mockups are content too** —
+- [x] **21.8** **The live components and their mockups are content too** —
       demo transcript lines, the demo note, labels on the demo cards, icons and
       captions (18.13). A translator must be able to translate the *product
       being shown*, not only the prose around it
 
 **Every language**
 
-- [ ] **21.9** 🔴 **Admin can add a language.** Not a code change — a row.
+- [x] **21.9** 🔴 **Admin can add a language.** Not a code change — a row.
       Every page, section, block, label, button and mockup becomes translatable
-- [ ] **21.10** A translation workspace: pick a language, see what is missing,
+- [x] **21.10** A translation workspace: pick a language, see what is missing,
       fill it in, save. Saving is not publishing
-- [ ] **21.11** 🔴 **A completeness checklist per language, and nothing goes
+- [x] **21.11** 🔴 **A completeness checklist per language, and nothing goes
       live until it is 100%.** Every string, every label, every button, every
       mockup — counted, with what is missing listed by page
-- [ ] **21.12** 🔴 **Ruling — completeness gates the *launch*, not the *life*,
+- [x] **21.12** 🔴 **Ruling — completeness gates the *launch*, not the *life*,
       of a language.** Once a language is live, one new string added anywhere
       must not take it offline: that string falls back to the default, the
       language stays up, and it is raised loudly as an untranslated-string
       alarm with a deadline. Otherwise adding a button to the homepage silently
       pulls Spanish down, and nobody will ever find out why
-- [ ] **21.13** 🔴 **A separate, bigger toggle decides which languages the
+- [x] **21.13** 🔴 **A separate, bigger toggle decides which languages the
       public site offers.** Adding Spanish and translating it does **not** show
       it to anybody. Two switches, deliberately: one to *author*, one to
       *publish*
-- [ ] **21.14** So the content team can translate Spanish and Chinese for weeks
+- [x] **21.14** So the content team can translate Spanish and Chinese for weeks
       while the site offers only Arabic and English, and the day it flips, the
       whole site is already there
-- [ ] **21.15** Turning a live language **off** must not 404 anybody mid-visit.
+- [x] **21.15** Turning a live language **off** must not 404 anybody mid-visit.
       Decide and state the behaviour: redirect to the default, or serve and
       stop advertising
 
 **AI translation**
 
-- [ ] **21.16** **Admin can machine-translate a language in one action** —
+- [x] **21.16** **Admin can machine-translate a language in one action** —
       whole site, one page, or the untranslated remainder
-- [ ] **21.17** 🔴 **Ruling — AI drafts, a human publishes.** A machine
+- [x] **21.17** 🔴 **Ruling — AI drafts, a human publishes.** A machine
       translation lands as a **draft** and counts as *missing* on 21.11's
       checklist until a person approves it. The alternative is a language going
       live on nobody's judgement, in a product where a mistranslated sentence
       can be a clinical instruction
-- [ ] **21.18** 🔴 **Crisis copy, consent wording and the recording notice can
+- [x] **21.18** 🔴 **Crisis copy, consent wording and the recording notice can
       never be published from a machine draft without a named human approval,
       whatever the bulk action says.** Those three are the strings where being
       wrong is not a typo
-- [ ] **21.19** Every AI draft is marked as one, with the model and the date,
+- [x] **21.19** Every AI draft is marked as one, with the model and the date,
       so a reviewer knows what they are reading and a bad batch can be found
 - **Accept:** a non-engineer adds a language, machine-translates it, reviews
       it, keeps it hidden, publishes it when it is complete — with no deploy —
@@ -2372,9 +2372,9 @@ one, and no real patient is invited before all of it is done.
 nowhere because a deferred ticket with no home is a ticket that quietly stops
 existing.*
 
-- [ ] **23.1** An ask-anything surface **inside** the session room, not a
+- [x] **23.1** An ask-anything surface **inside** the session room, not a
       second screen. The question a therapist wants to ask happens in the room
-- [ ] **23.2** The four access states from §3, unchanged — this is a new
+- [x] **23.2** The four access states from §3, unchanged — this is a new
       surface on the existing machinery, never a second set of rules
 - [x] ~~**23.3** The per-session, per-patient allowance from C14, spent by the
       same counter as `/copilot`. One allowance, two doors~~ 🔴 **STRUCK by
@@ -2382,7 +2382,7 @@ existing.*
       and uncounted**, carried by the platform fee. A shared counter would lock
       a therapist out of the copilot on exactly the session where the patient
       refused recording. **Sprint 48 absorbs and replaces this whole sprint.**
-- [ ] **23.4** Citations resolve exactly as they do elsewhere, or the answer is
+- [x] **23.4** Citations resolve exactly as they do elsewhere, or the answer is
       dropped (sprint 8's rule)
 - **Accept:** a therapist runs a whole session, asks two questions from inside
       the room, and the allowance, the citations and the audit trail are
@@ -2734,15 +2734,15 @@ unexamined.*
       **phone number** → invites by WhatsApp → patient signs up and claims →
       session invite → patient joins → session runs → transcript → note →
       patient report → invoice raised and paid
-- [ ] **37R.4** The second therapist: same patient, claim request, documents
+- [x] **37R.4** The second therapist: same patient, claim request, documents
       the first uploaded, a session, it appearing in the first therapist's
       history, then the patient **revoking** the first therapist
-- [ ] **37R.5** Documents and the case copilot: upload history, ask about it,
+- [x] **37R.5** Documents and the case copilot: upload history, ask about it,
       citations resolve, a revoked clinician gets nothing
-- [ ] **37R.6** Everything else a therapist can do: copilot limit refused ·
+- [x] **37R.6** Everything else a therapist can do: copilot limit refused ·
       radar · on-call · payout requested · EGP and USD · bundle bought ·
       **upgrade then downgrade holding 30 unused sessions**
-- [ ] **37R.7** Admin, manager and staff, each signed in as themselves
+- [x] **37R.7** Admin, manager and staff, each signed in as themselves
 
 **Then everything built since 22R, which nobody has ever used**
 
@@ -2768,7 +2768,7 @@ unexamined.*
 - [x] **37R.14** **The clinical summary** (26): versioned, two clinicians'
       versions side by side, **one approval screen with three items**, and
       silence publishing nothing
-- [ ] **37R.15** **The export** (26): the whole record, the secure email link,
+- [x] **37R.15** **The export** (26): the whole record, the secure email link,
       the cover page, the **verification code checked at `/verify/[code]`**
 - [x] **37R.16** **Portability** (27): the patient invite, a grant refused to
       an unverified clinician, ask-my-old-therapist including a **decline with
@@ -2921,21 +2921,21 @@ uses is English.*
 
 ### Sprint 41 — Meeting bots · ~3 weeks · AFTER 37
 
-- [ ] **41.1** 🔴 **The bot joins meetings 24Therapy created for a session.
+- [x] **41.1** 🔴 **The bot joins meetings 24Therapy created for a session.
       Nothing else. Ever.** No calendar is read (C132)
-- [ ] **41.2** One new field on New session: **Where** — 24Therapy room ·
+- [x] **41.2** One new field on New session: **Where** — 24Therapy room ·
       Zoom · Meet · Teams · in person — and a **Record** tick. We create the
       meeting inside their connected account
-- [ ] **41.3** Connect by OAuth on `/settings/integrations`. 🔴 **A therapist
+- [x] **41.3** Connect by OAuth on `/settings/integrations`. 🔴 **A therapist
       never sees an API key**
-- [ ] **41.4** 🔴 **The patient always receives our link** (C133), which takes
+- [x] **41.4** 🔴 **The patient always receives our link** (C133), which takes
       consent then forwards. The raw meeting link is never handed out.
       Declining consent still admits them; the bot simply does not transcribe
-- [ ] **41.5** 🔴 **Identity comes from the session we created, never from a
+- [x] **41.5** 🔴 **Identity comes from the session we created, never from a
       meeting display name** (C134). Hard invariant, and a test
-- [ ] **41.6** Recall.ai for v1. Our differentiation is not that we worked out
+- [x] **41.6** Recall.ai for v1. Our differentiation is not that we worked out
       how to join Zoom
-- [ ] **41.7** Edge cases, each with a stated behaviour: consent refused ·
+- [x] **41.7** Edge cases, each with a stated behaviour: consent refused ·
       patient joins first · therapist joins late · consent revoked mid-session
       · AI paused with the timestamp kept · bot disconnects · bot reconnects
       without duplicating · multiple patients · couples · group · unknown
@@ -2943,12 +2943,12 @@ uses is English.*
       hard stop** · two simultaneous sessions never cross · recording without
       consent is refused processing · out-of-order transcript reconciled
 
-- [ ] **41.8** 🔴 **There is no bot button, and that is the design** (C216). A
+- [x] **41.8** 🔴 **There is no bot button, and that is the design** (C216). A
       button a therapist can forget is a session that silently went
       untranscribed; a button they can press is a bot that can be sent
       somewhere it should not go. The bot is dispatched by the patient's
       consent and by nothing else
-- [ ] **41.9** Every new string via 45.8, both languages, admin editable
+- [x] **41.9** Every new string via 45.8, both languages, admin editable
 
 **🔴 The sequence, decided 2026-09-12. Nothing here is left to a build choice.**
 
@@ -3000,45 +3000,45 @@ state than to litigate.
 
 ### Sprint 42 — The partner plane · ~3 weeks
 
-- [ ] **42.1** `partners`, `partner_api_keys` (hashed, scoped, rotatable),
+- [x] **42.1** `partners`, `partner_api_keys` (hashed, scoped, rotatable),
       `partner_webhooks`, `partner_webhook_deliveries`
-- [ ] **42.2** 🔴 `partner_subjects` unique on `(partner_id, external_ref)`.
+- [x] **42.2** 🔴 `partner_subjects` unique on `(partner_id, external_ref)`.
       Two partners will both send `"P123"`
-- [ ] **42.3** 🔴 **A launch mints a short-lived `auth_sessions` row** with
+- [x] **42.3** 🔴 **A launch mints a short-lived `auth_sessions` row** with
       `partner_id` and `created_via`, so every existing screen works unchanged
       and the audit names the partner. There stays exactly one way to be
       signed in
-- [ ] **42.4** 🔴 **A webhook carries an event and an id, never content.** A
+- [x] **42.4** 🔴 **A webhook carries an event and an id, never content.** A
       leaked webhook URL then leaks nothing
-- [ ] **42.5** The embedded widget: **no video by default**, our room optional
-- [ ] **42.6** `organizations.partner_id`, `billing_mode = 'partner_billed'`,
+- [x] **42.5** The embedded widget: **no video by default**, our room optional
+- [x] **42.6** `organizations.partner_id`, `billing_mode = 'partner_billed'`,
       monthly aggregate invoice to the partner
-- [ ] **42.7** `audit_log` gains `partner_id` and `via`, so "who read this"
+- [x] **42.7** `audit_log` gains `partner_id` and `via`, so "who read this"
       answers "their server, on behalf of Dr X"
-- [ ] **42.8** **A patient CSV importer.** A clinician leaving another
+- [x] **42.8** **A patient CSV importer.** A clinician leaving another
       platform is the sales motion; make the migration a button
 
 ### Sprint 43 — SMART on FHIR · ~10 weeks
 
-- [ ] **43.1** `ehr_connections`, `ehr_launches`, `ehr_writebacks`
-- [ ] **43.1b** 🔴 **A connection is owned by the organization, and a solo
+- [x] **43.1** `ehr_connections`, `ehr_launches`, `ehr_writebacks`
+- [x] **43.1b** 🔴 **A connection is owned by the organization, and a solo
       therapist is an organization of one** (C266). A hospital connects once
       for every clinician under it; a solo clinician connects their own. A
       therapist leaving a clinic loses that connection immediately, without a
       question, because the credential was the hospital's
-- [ ] **43.1c** The Connect button appears in the **clinic portal** for a
+- [x] **43.1c** The Connect button appears in the **clinic portal** for a
       practice and in **settings** for a solo therapist. Same flow, two homes
-- [ ] **43.2** We are the OAuth **client**. FHIR R4 / US Core 6.1.0, pinned
-- [ ] **43.3** The note files back as a `DocumentReference`
-- [ ] **43.4** 🔴 **In an EHR the chart is their system of record, not ours.**
+- [x] **43.2** We are the OAuth **client**. FHIR R4 / US Core 6.1.0, pinned
+- [x] **43.3** The note files back as a `DocumentReference`
+- [x] **43.4** 🔴 **In an EHR the chart is their system of record, not ours.**
       Decide and write down what a shadow copy holds and for how long
 
 ### Sprint 44 — Check-ins · ~1 week
 
-- [ ] **44.1** C97, still unbuilt: personalised, very short, differently
+- [x] **44.1** C97, still unbuilt: personalised, very short, differently
       worded, their name, admin-controlled rate, opt-out, overnight quiet
       window
-- [ ] **44.2** 🔴 **A check-in asks. It never interprets.** A worrying reply
+- [x] **44.2** 🔴 **A check-in asks. It never interprets.** A worrying reply
       goes to the crisis path, never to a copilot
 
 ### Sprint 45 — Every string, both languages, admin editable · ~2 weeks · 🔴 BLOCKS 46 TO 52
@@ -3050,7 +3050,7 @@ read by four public marketing files; every other screen reads `messages.ts`,
 read by 142 components. An admin changing a button's words sees nothing change
 anywhere a patient or a therapist will ever look.*
 
-- [ ] **45.0** 🔴 **FIRST, BEFORE ANYTHING ELSE GREPS THIS REPOSITORY.**
+- [x] **45.0** 🔴 **FIRST, BEFORE ANYTHING ELSE GREPS THIS REPOSITORY.**
       Remove the two NUL bytes from `lib/data/facts.ts`, and add a verifier
       that fails on any NUL in any `.ts` or `.tsx` file (C245). Until this
       lands, every audit silently skips the clinical evidence layer
@@ -3061,7 +3061,7 @@ anywhere a patient or a therapist will ever look.*
 - [x] ~~**45.2** `ui_strings` becomes an override layer keyed by the same
       `MessageKey`~~ **ALREADY BUILT.** `lib/i18n/strings.ts:139` resolves
       `overrides[key] ?? dictionary[key] ?? en[key]`
-- [ ] **45.3** 🔴 **The only real defect: the client provider is
+- [x] **45.3** 🔴 **The only real defect: the client provider is
       override-blind.** `lib/i18n/client.tsx:37` reads `DICTIONARIES[locale]`
       directly, so roughly 72 client components ignore every admin edit while
       the 53 server ones honour it. **Serialise only the keys that were
@@ -3071,17 +3071,17 @@ anywhere a patient or a therapist will ever look.*
       what an admin changed rather than to the size of the product
 - [x] ~~**45.4** The admin editor lists every key in the product~~ **ALREADY
       BUILT.** `lib/i18n/authoring.ts:326` maps over every shipped key
-- [ ] **45.5** Draft and published states, as `ui_strings` already has. A
+- [x] **45.5** Draft and published states, as `ui_strings` already has. A
       broken override can now break a screen that used to be a constant, so
       publishing is a deliberate act and reverting to default is one click
-- [ ] **45.6** 🔴 **Absorb the three bodies of copy named in C207**: the
+- [x] **45.6** 🔴 **Absorb the three bodies of copy named in C207**: the
       verification document slots from `lib/regulators.ts`, the copilot's six
       prompt templates in `lib/ai/case-copilot.ts` (label and prompt split into
       two constants), and the country names in `lib/geo.ts`
-- [ ] **45.7** The ratchet in `scripts/_i18n-coverage.json` counts **overridable
+- [x] **45.7** The ratchet in `scripts/_i18n-coverage.json` counts **overridable
       keys reaching a screen**, not imports. C157's defect was counting the
       wrong thing and it is the defect family in §6
-- [ ] **45.8** 🔴 **Every ticket in sprints 46 to 52 that adds a word to any
+- [x] **45.8** 🔴 **Every ticket in sprints 46 to 52 that adds a word to any
       screen adds it as a `MessageKey` with an English and an Arabic default.**
       A verifier fails the sprint on a literal string in a rendered component
 - **Accept:** an admin changes the words on the patient app's session button,
@@ -3093,63 +3093,63 @@ anywhere a patient or a therapist will ever look.*
 *C209, C223. Today `chargeForSession` bills identically whether or not any AI
 ran, which is a coercion channel and a free video giveaway at the same time.*
 
-- [ ] **46.1** 🔴 **Two line items on one invoice.** A **platform fee** on
+- [x] **46.1** 🔴 **Two line items on one invoice.** A **platform fee** on
       every session, always, including free, in person and declined ones; and
       an **AI fee** only where `recording_consent = 'granted'`. Additive
       migration; existing rows become a platform fee plus an AI fee so history
       does not change value
-- [ ] **46.2** Defaults in settings, not in code: platform fee **$1**; AI fee
+- [x] **46.2** Defaults in settings, not in code: platform fee **$1**; AI fee
       **$3** pay as you go, **$2** on the $30 plan, **$1** on the $60 plan
-- [ ] **46.3** 🔴 **A tier is a price threshold and an AI rate, never a session
+- [x] **46.3** 🔴 **A tier is a price threshold and an AI rate, never a session
       count.** `{ key, name, unlockCents, aiRateCents }` replaces
       `{ rateCents, minimumSessions }`. The word "sessions" leaves the offer
-- [ ] **46.4** **Credit is money, spendable on any line.** $30 buys $30 of
+- [x] **46.4** **Credit is money, spendable on any line.** $30 buys $30 of
       credit, usable against platform fees and AI fees alike. The **rate the
       money unlocked does not expire when the credit does**
-- [ ] **46.5** 🔴 **The therapist chooses which balance settles a bill first**:
+- [x] **46.5** 🔴 **The therapist chooses which balance settles a bill first**:
       session credit, or held earnings. A new setting per therapist, honoured
       by the netting path in `lib/billing/service.ts`, with a default and a
       plain sentence saying what it means
-- [ ] **46.6** Neither balance covers it, so Stripe in USD or the Egyptian
+- [x] **46.6** Neither balance covers it, so Stripe in USD or the Egyptian
       gateway in EGP, unchanged from §3c
-- [ ] **46.7** 🔴 **The plan page inside the portal**: the plan they are on,
+- [x] **46.7** 🔴 **The plan page inside the portal**: the plan they are on,
       **their AI rate per session in words**, their credit balance, their held
       earnings, what they have spent this month split by line item, and the
       upgrade. Upgrading is a purchase, takes effect immediately, and never
       touches credit already bought
-- [ ] **46.8** Downgrade holds the credit and drops the rate at the end of the
+- [x] **46.8** Downgrade holds the credit and drops the rate at the end of the
       period. 37R.6 already walks upgrade then downgrade holding unused credit
-- [ ] **46.9** 🔴 The public pricing page, rewritten: **"$1 per session. AI
+- [x] **46.9** 🔴 The public pricing page, rewritten: **"$1 per session. AI
       from $1 more, only when your patient turns it on."** The two plans as
       dollar figures with what each unlocks. `lib/content/honesty.ts` gains the
       new true sentence and keeps rejecting the old false one
-- [ ] **46.10** 🔴 **Never put "the patient pays nothing for AI" and "raise
+- [x] **46.10** 🔴 **Never put "the patient pays nothing for AI" and "raise
       your price because you use AI" on the same page.** Both are true and only
       the first is ours to say. We never suggest what a therapist should charge
-- [ ] **46.11** Every new string via 45.8, both languages, admin editable
-- [ ] **46.12** 🔴 **FIRST TICKET IN THE SPRINT: rename both `rateCents`
+- [x] **46.11** Every new string via 45.8, both languages, admin editable
+- [x] **46.12** 🔴 **FIRST TICKET IN THE SPRINT: rename both `rateCents`
       fields** (C252). `users.sessionRateCents` is the therapist's price to a
       patient; `pricing.tiers[].rateCents` is our fee to the therapist. Forty
       call sites, one search and replace away from a money defect that
       typechecks
-- [ ] **46.13** 🔴 **A child `invoice_lines` table. The unique index stays**
+- [x] **46.13** 🔴 **A child `invoice_lines` table. The unique index stays**
       (C251). `invoices_session_unique` exists because it fixed a real double
       charge and is not traded for a billing shape
-- [ ] **46.14** 🔴 **Rewrite `reconcileMissingCharges` per line kind** (C251).
+- [x] **46.14** 🔴 **Rewrite `reconcileMissingCharges` per line kind** (C251).
       Today it asks "has this session an invoice", which with two lines answers
       yes for a session whose AI fee failed, silently, forever
-- [ ] **46.15** 🔴 **`payerName` and `payerEmail` leave the therapist's
+- [x] **46.15** 🔴 **`payerName` and `payerEmail` leave the therapist's
       ledger** (C243), replaced by the patient's own name from the chart. This
       lands here, before corporate exists, because after it exists the same
       column is a sorted list of who a sponsor pays for
-- [ ] **46.16** 🔴 **No consent surface anywhere renders a currency symbol**
+- [x] **46.16** 🔴 **No consent surface anywhere renders a currency symbol**
       (C209), proved by a verifier. The protection against coercion is the
       platform fee being unavoidable, not the AI fee being conditional
-- [ ] **46.17** 🔴 **The crisis path is independent of every billing state**
+- [x] **46.17** 🔴 **The crisis path is independent of every billing state**
       (C253): no credit, unpaid invoice, suspended account, and later an empty
       pot. Written here rather than in 53, because this sprint rewrites the
       charge path months before that one
-- [ ] **46.18** Admin discount picks a line (platform, AI, or both). Silently
+- [x] **46.18** Admin discount picks a line (platform, AI, or both). Silently
       discounting the first row found is a support ticket a month
 - **Accept:** a declined session raises **one** line for $1; a consented
       session on the $60 plan raises **two**, $1 and $1; and a verifier proves
@@ -3162,33 +3162,33 @@ ran, which is a coercion channel and a free video giveaway at the same time.*
 *C212, C213, C214. A future therapist reads eight notes and cannot tell that
 three of them rest on a colleague's recollection of a session nobody recorded.*
 
-- [ ] **47.1** 🔴 `session_notes` gains **provenance**, stamped at save from
+- [x] **47.1** 🔴 `session_notes` gains **provenance**, stamped at save from
       the session's consent state. Three values: `transcript`, `partial`,
       `clinician`. Additive; existing rows are backfilled from
       `sessions.recording_consent` and rows with no answer become `clinician`,
       which is the honest default rather than the flattering one
-- [ ] **47.2** `partial` carries the **minutes off record**, from
+- [x] **47.2** `partial` carries the **minutes off record**, from
       `offRecordGaps()` in `lib/data/feedback.ts`, which computes this already
       and is read only by the radar investigation screen
-- [ ] **47.3** 🔴 Shown on **every surface a note appears on**: the clinician's
+- [x] **47.3** 🔴 Shown on **every surface a note appears on**: the clinician's
       own view, the next clinician's view, the patient's record, the export,
       and the evidence screen. Five places, one component
-- [ ] **47.4** The patient sees which of their own sessions were transcribed.
+- [x] **47.4** The patient sees which of their own sessions were transcribed.
       It is their record and their choice that produced it
-- [ ] **47.5** The evidence screen keeps `clinician` as source priority 1. A
+- [x] **47.5** The evidence screen keeps `clinician` as source priority 1. A
       hand-written note is not weaker evidence, it is **differently sourced**,
       and the screen says which rather than demoting it
-- [ ] **47.6** 🔴 **Journals may be summarised, quoted and cited. They may
+- [x] **47.6** 🔴 **Journals may be summarised, quoted and cited. They may
       never produce a diagnosis, a risk level, or any statement phrased as a
       conclusion about the person.** The bound lives in the evidence layer, not
       in a prompt, so a future prompt change cannot lift it. Proved against a
       planted journal that invites exactly that conclusion
-- [ ] **47.7** The lone journaller: a patient on no therapist's list writes
+- [x] **47.7** The lone journaller: a patient on no therapist's list writes
       journals. They are scanned as today, **the crisis line is always on
       screen rather than triggered**, and no page says or implies anybody is
       reading. Promising a watch we do not staff is the most dangerous thing
       this product could do
-- [ ] **47.8** Every new string via 45.8, both languages, admin editable
+- [x] **47.8** Every new string via 45.8, both languages, admin editable
 - **Accept:** a session where the patient declined produces a note badged as
       clinician-written, visible to the patient and to the next therapist, and
       the copilot can cite it while being unable to draw a diagnosis from any
@@ -3199,34 +3199,34 @@ three of them rest on a colleague's recollection of a session nobody recorded.*
 *Absorbs and replaces sprint 23. C210 strikes 23.3 outright: the founder has
 ruled the in-room allowance free rather than shared. C211, C224.*
 
-- [ ] **48.1** 🔴 An ask-anything panel **inside** the session room, on the
+- [x] **48.1** 🔴 An ask-anything panel **inside** the session room, on the
       therapist's side. Minimised it shows live suggestions; expanded it is the
       full chat. The question a therapist wants to ask happens in the room
-- [ ] **48.2** 🔴 **Free and uncounted, carried by the platform fee.**
+- [x] **48.2** 🔴 **Free and uncounted, carried by the platform fee.**
       `checkQuota` in `lib/data/copilot.ts` stops counting in-room messages.
       This replaces 23.3, which said the opposite
-- [ ] **48.3** 🔴 **Prepare me**, one click, free, one per session. Absorbs
+- [x] **48.3** 🔴 **Prepare me**, one click, free, one per session. Absorbs
       39.1, which was scheduled eighteen months out as a separate screen
-- [ ] **48.4** 🔴 **The copilot reads the record as of `startedAt` and nothing
+- [x] **48.4** 🔴 **The copilot reads the record as of `startedAt` and nothing
       after it**, identically whether consent was granted, declined or
       withdrawn. One bound, one test, no branch
-- [ ] **48.5** 🔴 The panel says so: **"This session is not being recorded. I
+- [x] **48.5** 🔴 The panel says so: **"This session is not being recorded. I
       only know what came before it."** A therapist asking what the patient
       just said gets that sentence, not an answer about last month
-- [ ] **48.6** The free window **is the session**. It opens with the room and
+- [x] **48.6** The free window **is the session**. It opens with the room and
       closes when the session ends. Outside a live session the earned allowance
       applies unchanged
-- [ ] **48.7** The four access states from §3 unchanged. This is a new surface
+- [x] **48.7** The four access states from §3 unchanged. This is a new surface
       on existing machinery, never a second set of rules
-- [ ] **48.8** Citations resolve exactly as they do elsewhere, or the answer is
+- [x] **48.8** Citations resolve exactly as they do elsewhere, or the answer is
       dropped (sprint 8's rule)
-- [ ] **48.9** The live-session indicator appears on `/copilot` the moment the
+- [x] **48.9** The live-session indicator appears on `/copilot` the moment the
       patient joins. **Polling, not websockets** (founder's ruling)
-- [ ] **48.10** 🔴 **The patient's own off-record button**, in the patient
+- [x] **48.10** 🔴 **The patient's own off-record button**, in the patient
       room. `offRecord` exists at `components/session/session-room.tsx:78` and
       is a clinician control. Audio stops; what was already captured stays,
       because a chart that rewrites itself is worse than one with a gap
-- [ ] **48.11** Every new string via 45.8, both languages, admin editable
+- [x] **48.11** Every new string via 45.8, both languages, admin editable
 - **Accept:** a patient declines, the therapist opens the panel in the room,
       asks two questions, gets cited answers about the past and the refusal
       sentence about the present, spends **zero** credits, writes the note by
@@ -3237,57 +3237,57 @@ ruled the in-room allowance free rather than shared. C211, C224.*
 *C220, C221, C222. `/admin/tv` predates eighteen sprints and cannot answer a
 single question the business asks.*
 
-- [ ] **49.1** 🔴 **The globe is the frame.** Clicking a country scopes the
+- [x] **49.1** 🔴 **The globe is the frame.** Clicking a country scopes the
       **entire screen** to it; clearing returns to platform wide. Closed
       countries are not rendered and not clickable (sprint 50)
-- [ ] **49.2** **Live now**: therapists online, sessions in progress
-- [ ] **49.3** **Sessions**: today, lifetime, custom range. AI-assisted
+- [x] **49.2** **Live now**: therapists online, sessions in progress
+- [x] **49.3** **Sessions**: today, lifetime, custom range. AI-assisted
       sessions on the same three
-- [ ] **49.4** 🔴 **Consent rate**: what share of sessions patients turned AI
+- [x] **49.4** 🔴 **Consent rate**: what share of sessions patients turned AI
       on for and what share they did not, by range and by country. This is the
       single number that says whether the split fee works
-- [ ] **49.5** **Revenue**: to date, today, custom range, **split by source**:
+- [x] **49.5** **Revenue**: to date, today, custom range, **split by source**:
       plan purchases versus pay-as-you-go session billing, and platform fee
       versus AI fee
-- [ ] **49.6** **By therapist**: sessions, AI usage, total and breakdown, what
+- [x] **49.6** **By therapist**: sessions, AI usage, total and breakdown, what
       they have paid us, and what we spent serving them
-- [ ] **49.7** 🔴 **Cost, metered honestly.** Every model call records the
+- [x] **49.7** 🔴 **Cost, metered honestly.** Every model call records the
       exact model, input and output tokens, the cost at the rate in force, and
       what it was for, attributed to an organization, a therapist, a patient
       and where applicable a session. Rates live in settings; a historical row
       keeps the cost it was priced at. **An unattributable call is recorded
       against the platform, never dropped**
-- [ ] **49.8** **By patient**: claimed or not, facts, context, past sessions,
+- [x] **49.8** **By patient**: claimed or not, facts, context, past sessions,
       transcriptions held, and 🔴 **three separate revenue figures, never
       summed**: what they paid their therapist, what we earned in platform fees
       on their sessions, and what we earned in AI fees they unlocked by
       consenting (C222)
-- [ ] **49.9** 🔴 **Two charts, always on screen.** Where platform revenue
+- [x] **49.9** 🔴 **Two charts, always on screen.** Where platform revenue
       comes from, and where usage and cost come from by account. Either can be
       switched to a **list sorted highest first**, or to **horizontal bars**,
       by the admin, and the choice persists
-- [ ] **49.10** Everything on this screen filters by country and by date range
+- [x] **49.10** Everything on this screen filters by country and by date range
       and sorts, including both charts and both lists
-- [ ] **49.11** 🔴 **Every figure is a query against the ledger and the usage
+- [x] **49.11** 🔴 **Every figure is a query against the ledger and the usage
       tables.** No number computed in a component, no number derived from
       another number on screen
-- [ ] **49.12** Every new string via 45.8, both languages, admin editable
-- [ ] **49.13** 🔴 **The corporate wall binds this sprint, which ships first**
+- [x] **49.12** Every new string via 45.8, both languages, admin editable
+- [x] **49.13** 🔴 **The corporate wall binds this sprint, which ships first**
       (C244). No screen here may join a sponsor to a session, a booking, a date
       or a patient name. Sponsor-level totals yes; platform-level per-patient
       figures yes; **never both inside one filtered view**
-- [ ] **49.14** 🔴 **REWRITTEN. Extend `ai_request_logs`, never add a second
+- [x] **49.14** 🔴 **REWRITTEN. Extend `ai_request_logs`, never add a second
       table** (C221). It already records model, tokens, audio seconds and
       priced cost on every call. Three additive changes: a **`patient_id`**
       column with an index; the **rate tables into `platform_settings`**, with
       `cost_microcents` still frozen at write; and **unattributable calls in a
       named platform bucket** rather than a null that vanishes from a
       `GROUP BY`
-- [ ] **49.15** 🔴 **Every reporting path reads `cost_microcents`** (C279).
+- [x] **49.15** 🔴 **Every reporting path reads `cost_microcents`** (C279).
       `lib/data/admin.ts:58`, `:382` and `:411` sum the lossy `cost_cents`
       while `vault.ts:388` sums microcents, so two admin screens disagree
       today. Correct all three and assert with a verifier
-- [ ] **49.16** Per-patient cost is internal accounting only, and falls under
+- [x] **49.16** Per-patient cost is internal accounting only, and falls under
       C244 the moment sponsors exist (C280)
 - **Accept:** an operator answers, without leaving the screen and without
       asking anybody, what share of Egyptian patients consented to AI last
@@ -3299,34 +3299,34 @@ single question the business asks.*
 *C218, C219. The founder switched a country off, the audit log recorded it, and
 the country stayed on the map and stayed clickable.*
 
-- [ ] **50.1** 🔴 **REWRITTEN. Two switches, each named for its question, one
+- [x] **50.1** 🔴 **REWRITTEN. Two switches, each named for its question, one
       admin action that sets both** (C218, C219). `country_settings.enabled`
       is the **money** switch and **KEEPS its two payment consumers**
       (`lib/billing/connect.ts:449`, `app/pay/[token]/actions.ts:50`). Deleting
       it, as this ticket first said, would leave the payment rail open in a
       country we had just closed. The taxonomy entry is the **visibility**
       switch. The admin screen spells out what each one does
-- [ ] **50.1b** 🔴 **The country filter belongs in `queryBoard`**
+- [x] **50.1b** 🔴 **The country filter belongs in `queryBoard`**
       (`lib/data/radar.ts:245`), not in the route, which has no `where` at all
-- [ ] **50.1c** 🔴 **Invalidate the radar cache on save** (C254). It is a
+- [x] **50.1c** 🔴 **Invalidate the radar cache on save** (C254). It is a
       per-instance TTL cache, so without this the operator closes a country,
       reloads, and sees it still there, which is the original symptom all over
       again
-- [ ] **50.2** 🔴 A closed country disappears from **the globe, the radar list,
+- [x] **50.2** 🔴 A closed country disappears from **the globe, the radar list,
       the radar filters and onboarding**. Its dots are not rendered and not
       clickable. `app/api/radar/route.ts` has **no country condition of any
       kind** today, which is where this starts
-- [ ] **50.3** 🔴 A clinician already live in a country that closes is **taken
+- [x] **50.3** 🔴 A clinician already live in a country that closes is **taken
       off the radar and told why**. Their existing patients, sessions, notes
       and money are untouched
-- [ ] **50.4** 🔴 The same rule for languages: a hidden language disappears
+- [x] **50.4** 🔴 The same rule for languages: a hidden language disappears
       from the radar, its filters and onboarding, and a clinician who had
       selected it **keeps the row and stops being matched on it**
-- [ ] **50.5** A verifier that switches a country off, queries the radar API,
+- [x] **50.5** A verifier that switches a country off, queries the radar API,
       and asserts zero rows. Then switches it back on and asserts the rows
       return, because a check that only proves absence passes against a radar
       that returns nothing at all (§6)
-- [ ] **50.6** Every new string via 45.8, both languages, admin editable
+- [x] **50.6** Every new string via 45.8, both languages, admin editable
 - **Accept:** the founder closes a country in admin, reloads the public radar,
       and it is gone from the map, from the filters and from the signup form.
 
@@ -3336,41 +3336,41 @@ the country stayed on the map and stayed clickable.*
 37R.8 is still expected to answer whether the patient app looks like the best
 mental-health app anybody has built or like scaffolding.*
 
-- [ ] **51.1** 🔴 **Re-read every CMS default in both languages against what
+- [x] **51.1** 🔴 **Re-read every CMS default in both languages against what
       the product now is** and rewrite it. The split fee, the plans, the
       consent story, portability, the meeting bot, the EHR position. A page
       describing a product we no longer sell is worse than no page
-- [ ] **51.2** Both entities' contact details and a working contact form, USA
+- [x] **51.2** Both entities' contact details and a working contact form, USA
       and Egypt, admin-editable, with no invented address anywhere
       (`lib/content/defaults.ts` ships empty rather than instructional)
-- [ ] **51.3** 🔴 **The patient app, designed rather than assembled.** Every
+- [x] **51.3** 🔴 **The patient app, designed rather than assembled.** Every
       screen, both directions. If a page is plain text and buttons with no
       structure, it is flagged and rebuilt, not excused
-- [ ] **51.4** 🔴 **The SOS orb** on every patient screen including a live
+- [x] **51.4** 🔴 **The SOS orb** on every patient screen including a live
       session. Draggable, two taps, verified numbers only, a plain `tel:` link
       that works when our API does not
-- [ ] **51.5** The therapist portal and the admin surfaces get the same pass at
+- [x] **51.5** The therapist portal and the admin surfaces get the same pass at
       the same standard. A therapist looks at this all day
-- [ ] **51.6** 🔴 **Every route the code can reach has a page a human can
+- [x] **51.6** 🔴 **Every route the code can reach has a page a human can
       reach.** `session_sources` and `session_voices` both have tables and no
       interface (37R.21, 37R.22, C179). Either a screen exists or a ticket owns
       it. No third option
-- [ ] **51.7** 🔴 **The bookings page**, which is a third built: therapist
+- [x] **51.7** 🔴 **The bookings page**, which is a third built: therapist
       calendar with day, week and month views; tap a date to edit that day's
       availability; invite a patient to a **future scheduled** session; a
       confirmed booking **blocks the radar and blocks double booking**;
       reminders on WhatsApp, paid by us
-- [ ] **51.8** The U+2014 and U+2013 ban holds across every new string, every
+- [x] **51.8** The U+2014 and U+2013 ban holds across every new string, every
       CMS default and every email (C117)
-- [ ] **51.9** 🔴 **Sell what we already built and never mention** (§7): an
+- [x] **51.9** 🔴 **Sell what we already built and never mention** (§7): an
       Arabic-speaking therapist for the diaspora, which needs no code and is
       the largest unsold group we have; a psychiatrist and a therapist on one
       record, which multi-grant already does; a verified badge a clinician can
       show off-platform; and a record that is still there years later
-- [ ] **51.10** Rating volume floor (C273) · one price per clinician, never
+- [x] **51.10** Rating volume floor (C273) · one price per clinician, never
       geo-priced (C274) · 🔴 **"24/7" describes the radar, never a response
       time** (C275) · dormant caseloads and deliberate handover (C272)
-- [ ] **51.11** Every new string via 45.8, both languages, admin editable
+- [x] **51.11** Every new string via 45.8, both languages, admin editable
 - **Accept:** a person who has never seen this product uses every screen in
       both languages without asking a question, and nobody looking at the
       patient app calls it scaffolding.
@@ -3380,45 +3380,45 @@ mental-health app anybody has built or like scaffolding.*
 *§3f. A practice signs up, adds its clinicians, pays their bills, and sees a
 schedule. It sees no clinical content at all. C259 to C267.*
 
-- [ ] **54.1** 🔴 **A clinic IS an `organizations` row** (C259). Opposite
+- [x] **54.1** 🔴 **A clinic IS an `organizations` row** (C259). Opposite
       answer to a sponsor, and both are correct. Write the reason at the top of
       the file, because the two sprints read alike and the tables must not be
       shared
-- [ ] **54.2** A **clinic manager** is a new kind of user inside that
+- [x] **54.2** A **clinic manager** is a new kind of user inside that
       organization holding **zero clinical access**. Not a `Role` on the back
       office enum, which is ours
-- [ ] **54.3** A clinic signs up through its own door, is **held**, and is
+- [x] **54.3** A clinic signs up through its own door, is **held**, and is
       activated by admin exactly as a sponsor is
-- [ ] **54.4** The clinic adds therapists **one at a time, by email and
+- [x] **54.4** The clinic adds therapists **one at a time, by email and
       phone**, and each is invited
-- [ ] **54.5** 🔴 **An invited clinician verifies themselves exactly as a solo
+- [x] **54.5** 🔴 **An invited clinician verifies themselves exactly as a solo
       one does** (C267). The clinic sees that verification is pending and can
       chase it. **It can never complete it.** C106's database invariant is not
       bypassed by the most credible-looking route available
-- [ ] **54.6** 🔴 **No private patients on a clinic-attached account** (C261).
+- [x] **54.6** 🔴 **No private patients on a clinic-attached account** (C261).
       Every session is the clinic's. **Stated in the invitation, before they
       accept.** A clinician wanting private work keeps a separate solo account
-- [ ] **54.7** 🔴 **The clinic pays the platform fee and the AI fee** on every
+- [x] **54.7** 🔴 **The clinic pays the platform fee and the AI fee** on every
       session its therapists run, through the same path as a solo therapist
       (C226's rule restated: one billing system, not two)
-- [ ] **54.8** 🔴 **Its invoice is aggregated and never itemised to a session**
+- [x] **54.8** 🔴 **Its invoice is aggregated and never itemised to a session**
       (C263). A clinic bill that lists AI fees per session discloses which of a
       small caseload consented, which is the most protected choice in the
       product
-- [ ] **54.9** 🔴 **What the clinic sees: its therapists' schedules, their
+- [x] **54.9** 🔴 **What the clinic sees: its therapists' schedules, their
       usage, its bills, and a list of patient names with appointment times.
       Nothing else, in any form.** No note, transcript, journal, summary, risk,
       diagnosis, evidence panel or copilot. Asserted by a verifier running as a
       clinic-manager principal against **rendered output**, never against
       queries (C243's lesson)
-- [ ] **54.10** The C229 denominator floor governs clinic reporting too
+- [x] **54.10** The C229 denominator floor governs clinic reporting too
       (C262), the same setting and the same code path, not a second one
-- [ ] **54.11** A therapist leaving a clinic keeps their record of their own
+- [x] **54.11** A therapist leaving a clinic keeps their record of their own
       patients and loses the clinic's connections immediately (C266)
-- [ ] **54.12** 🔴 **The clinic portal, designed.** It is the therapist portal
+- [x] **54.12** 🔴 **The clinic portal, designed.** It is the therapist portal
       minus every clinical surface, which is a different product rather than
       the same one with things hidden. §3f, and the 51 standard
-- [ ] **54.13** Every new string via 45.8, both languages, admin editable
+- [x] **54.13** Every new string via 45.8, both languages, admin editable
 - **Accept:** a hospital adds six clinicians, each verifies independently, the
       hospital reads a week of schedules and one aggregated invoice, and a
       verifier proves the manager cannot reach a single clinical word.
@@ -3429,14 +3429,14 @@ schedule. It sees no clinical content at all. C259 to C267.*
 and use. C255, C264, C265. The first customer for this API is our own corporate
 flow, which is why it ships beside 53 and 54 rather than after them.*
 
-- [ ] **55.1** 🔴 **A partner is the sixth principal and the router is rewritten
+- [x] **55.1** 🔴 **A partner is the sixth principal and the router is rewritten
       once, for all six** (C264), before a third portal is bolted on. No
       `require*` in `lib/auth/guard.ts` may return a sponsor or a partner as an
       `Actor`, asserted by a verifier
-- [ ] **55.2** Partner signup, sign-in, and a **developer portal**: keys
+- [x] **55.2** Partner signup, sign-in, and a **developer portal**: keys
       (hashed, scoped, rotatable), webhook endpoints, delivery logs, sandbox
       credentials, and docs generated from the same source as the API
-- [ ] **55.3** 🔴 **A therapist never sees an API key** (§7). If a therapist
+- [x] **55.3** 🔴 **A therapist never sees an API key** (§7). If a therapist
       reaches this portal, they got lost in our product
 
 **🔴 The use cases, each one built and walkable end to end**
@@ -3444,33 +3444,33 @@ flow, which is why it ships beside 53 and 54 rather than after them.*
 *An API with no named use case becomes a set of endpoints nobody can sell. Each
 of these is a flow with a screen at one end.*
 
-- [ ] **55.4** 🔴 **Employment verification.** A company's HR system answers
+- [x] **55.4** 🔴 **Employment verification.** A company's HR system answers
       "is this identifier currently active". **One person, one question, one
       boolean, one timestamp. Never a directory, never a list, never a sync**
       (C255). Scoped to one sponsor, rate-limited hard, and **only answerable
       about an identifier a person submitted through enrolment minutes ago**
       (C265). Every call audited; an abnormal rate suspends the key
-- [ ] **55.5** **Clinician verification lookup.** Is this clinician verified
+- [x] **55.5** **Clinician verification lookup.** Is this clinician verified
       with us, and by which body. A boolean and a source, never a document
-- [ ] **55.6** **Record read under a grant.** A partner's clinician reads a
+- [x] **55.6** **Record read under a grant.** A partner's clinician reads a
       patient's record exactly as ours does, because they hold a grant the
       patient gave and can revoke (C267's sibling: **a partner is a clinician
       for access purposes, never a special case**, and the patient can claim
       their record and leave)
-- [ ] **55.7** **Session writeback.** A session held on the partner's platform
+- [x] **55.7** **Session writeback.** A session held on the partner's platform
       lands in our record, source-attributed, through the door 36 built
-- [ ] **55.8** **Note delivery.** A finished, clinician-approved note is pushed
+- [x] **55.8** **Note delivery.** A finished, clinician-approved note is pushed
       to their system. 🔴 Never a draft, never model output nobody signed
-- [ ] **55.9** **The embedded widget.** Their clinician sees our panel inside
+- [x] **55.9** **The embedded widget.** Their clinician sees our panel inside
       their product. No video by default (42.5)
-- [ ] **55.10** 🔴 **Webhooks carry an event and an id, never content** (42.4).
+- [x] **55.10** 🔴 **Webhooks carry an event and an id, never content** (42.4).
       A leaked URL then leaks nothing
-- [ ] **55.11** **Patient CSV import** (42.8), because a clinician leaving
+- [x] **55.11** **Patient CSV import** (42.8), because a clinician leaving
       another platform is the sales motion
-- [ ] **55.12** 🔴 **A public `/developers` page that names the use cases,
+- [x] **55.12** 🔴 **A public `/developers` page that names the use cases,
       with a real example of each.** Today it names "SMART on FHIR" and nothing
       else. A developer must be able to read what this is for in one screen
-- [ ] **55.13** Every new string via 45.8, both languages, admin editable
+- [x] **55.13** Every new string via 45.8, both languages, admin editable
 - **Accept:** a developer signs up, reads the docs, calls each of the seven use
       cases against the sandbox, and a verifier proves no key can enumerate
       anything and no webhook carries a word of content.
@@ -3481,33 +3481,33 @@ of these is a flow with a screen at one end.*
 this plan until 2026-09-12. C278. It is the one thing in the product that gives
 the copilot structured data a transcript cannot produce.*
 
-- [ ] **56.1** `instruments`, `assessment_assignments`, `assessment_responses`.
+- [x] **56.1** `instruments`, `assessment_assignments`, `assessment_responses`.
       An instrument is **content**, not code, so a new one is added without a
       deploy
-- [ ] **56.2** 🔴 **Free-to-use instruments only** (C278), each naming its
+- [x] **56.2** 🔴 **Free-to-use instruments only** (C278), each naming its
       source on screen. PHQ-9 and GAD-7 ship; anything licensed waits for a
       licence
-- [ ] **56.3** 🔴 **Gamified, interactive and rewarding**, not a survey with
+- [x] **56.3** 🔴 **Gamified, interactive and rewarding**, not a survey with
       radio buttons. One question at a time, progress, a streak. The founder's
       test is whether somebody finishes it
-- [ ] **56.4** A clinician **shares an assessment into the live room**, and the
+- [x] **56.4** A clinician **shares an assessment into the live room**, and the
       patient does it on their phone while the session runs
-- [ ] **56.5** The clinician watches progress live and can ask about it as it
+- [x] **56.5** The clinician watches progress live and can ask about it as it
       happens. **Polling, not websockets** (founder's ruling)
-- [ ] **56.6** Assigned as **homework** instead, landing in the homework
+- [x] **56.6** Assigned as **homework** instead, landing in the homework
       surface that already exists, with its reminders
-- [ ] **56.7** 🔴 **Per-answer timings are data.** Which answer, and how long
+- [x] **56.7** 🔴 **Per-answer timings are data.** Which answer, and how long
       it took, folded into the session record beside the transcript. This is
       the structured signal the product has never had
-- [ ] **56.8** The copilot may cite a score and its date. 🔴 **It may never
+- [x] **56.8** The copilot may cite a score and its date. 🔴 **It may never
       turn a score into a conclusion about the person**, which is C214's bound
       in a second costume and enforced the same way, on the fact's domain
-- [ ] **56.9** 🔴 **A patient sees their answers and their trend, never a
+- [x] **56.9** 🔴 **A patient sees their answers and their trend, never a
       verdict** (C278, C113). No clinical word appears beside a number on a
       patient screen
-- [ ] **56.10** An assessment result is a fact with provenance, like every
+- [x] **56.10** An assessment result is a fact with provenance, like every
       other clinical fact since 33
-- [ ] **56.11** Every new string via 45.8, both languages, admin editable.
+- [x] **56.11** Every new string via 45.8, both languages, admin editable.
       **Instruments are translated as content**, and a mistranslated clinical
       instrument is not a typo, so an instrument's Arabic is reviewed by a
       named person before it publishes
@@ -3565,118 +3565,118 @@ one conversation, and the only one where a single leak ends the company. Read
 
 **The wall**
 
-- [ ] **53.1** 🔴 **The payer sees the roster and never sees usage attributable
+- [x] **53.1** 🔴 **The payer sees the roster and never sees usage attributable
       to a person.** Every ticket below is subordinate to this sentence. A
       verifier attempts, as a sponsor, to reach a session, a booking, a
       therapist, a date or a name, and fails on every one
-- [ ] **53.2** 🔴 **Enrolment is eligibility, never therapy.** The words are
+- [x] **53.2** 🔴 **Enrolment is eligibility, never therapy.** The words are
       "activate your benefit". Nothing on any enrolment screen, email or poster
       implies the person needs help (C227)
-- [ ] **53.3** 🔴 Reporting floors: **weekly is the finest granularity that
+- [x] **53.3** 🔴 Reporting floors: **weekly is the finest granularity that
       will ever exist** (C228), and below a headcount setting the sponsor sees
       the balance and nothing else, cohorts included (C229)
 
 **The sponsor**
 
-- [ ] **53.4** 🔴 `sponsors` is a **new table with its own auth and its own
+- [x] **53.4** 🔴 `sponsors` is a **new table with its own auth and its own
       roles**, with no relationship to `organizations` and no path to an
       `Actor` (C230). A sponsor user is never scoped into clinical tenancy
-- [ ] **53.5** A separate corporate door: sign up, choose **company or
+- [x] **53.5** A separate corporate door: sign up, choose **company or
       university**, give a contact name, email, phone and best time to call.
       The account is **held**, not active
-- [ ] **53.6** Admin activates, verifies and manages sponsors. Company and
+- [x] **53.6** Admin activates, verifies and manages sponsors. Company and
       university are one type with two faces: same controls, different words,
       different reporting emphasis (§3e)
-- [ ] **53.7** The sponsor defines their **identifier fields**, capped, from a
+- [x] **53.7** The sponsor defines their **identifier fields**, capped, from a
       constrained set. **Never a national identifier, never health
       information, never free text** (C238)
-- [ ] **53.8** Listed publicly or reachable only by code. **Unlisted is the
+- [x] **53.8** Listed publicly or reachable only by code. **Unlisted is the
       default** (C236)
-- [ ] **53.9** A printed **QR**, carrying the sponsor's identity only, short,
+- [x] **53.9** A printed **QR**, carrying the sponsor's identity only, short,
       revocable, and a dead code answered with a sentence (C237, C120)
 
 **The pot**
 
-- [ ] **53.10** 🔴 **A payment method, not a billing system** (C226). One new
+- [x] **53.10** 🔴 **A payment method, not a billing system** (C226). One new
       ledger account, one new funding source at the point of payment, **no new
       session type and no parallel invoice path**
-- [ ] **53.11** Top up, minimum **$5,000 as a setting**, in the currency of the
+- [x] **53.11** Top up, minimum **$5,000 as a setting**, in the currency of the
       entity that holds it. §3c's rails unchanged
-- [ ] **53.12** 🔴 **Spendable on therapy sessions on this platform and nothing
+- [x] **53.12** 🔴 **Spendable on therapy sessions on this platform and nothing
       else.** No cash out, no transfer, no other product
-- [ ] **53.13** Refund and expiry terms **shown on the top-up screen with the
+- [x] **53.13** Refund and expiry terms **shown on the top-up screen with the
       button**, decided before any deal (C233)
-- [ ] **53.14** A session that has started always completes and is always paid.
+- [x] **53.14** A session that has started always completes and is always paid.
       One session negative per patient, then the sponsor is invoiced (C239)
-- [ ] **53.15** 🔴 **Receipt, VAT invoice and proof of payment** that look like
+- [x] **53.15** 🔴 **Receipt, VAT invoice and proof of payment** that look like
       they came from a company. Egyptian e-invoicing confirmed with counsel
       before the Egyptian entity takes a corporate payment (C241)
-- [ ] **53.16** Every pot cent traces to one payment in and one session out, in
+- [x] **53.16** Every pot cent traces to one payment in and one session out, in
       the real ledger, covered by the daily reconciliation (C232)
 
 **The person**
 
-- [ ] **53.17** 🔴 **REBUILT on the joining code. There is no approval queue
+- [x] **53.17** 🔴 **REBUILT on the joining code. There is no approval queue
       and there is no roster** (C227). The sponsor is issued a **joining code**
       and a **QR** of the same code, which they circulate internally and print.
       They separately define **which identifier they require** and **the shape
       of a valid one**. Matching is automatic, against a shape and a domain,
       never against a list of people
-- [ ] **53.17b** 🔴 **The sponsor never sees an enrolment, a rejection or a
+- [x] **53.17b** 🔴 **The sponsor never sees an enrolment, a rejection or a
       join date**, and performs no act about any individual. Their only
       individual-level power is removal, from the enrolled list (C234)
-- [ ] **53.18** The person signs up as an ordinary patient, taps join, enters
+- [x] **53.18** The person signs up as an ordinary patient, taps join, enters
       the code **or scans the QR while signed in**, confirms the name and phone
       we already hold, and supplies the identifier. **Nothing is pre-filled for
       anybody who is not signed in** (C121)
-- [ ] **53.18b** 🔴 **The identifier is a gate and nothing else.** A work email
+- [x] **53.18b** 🔴 **The identifier is a gate and nothing else.** A work email
       used to cross it is **never** used for communication unless the person
       signed up with it. Stored for matching and de-duplication only, never
       returned to the sponsor, never a destination for anything we send except
       the one verification code in 53.19
-- [ ] **53.19** 🔴 **Prefer proof over pattern** (C246). An **email on the
+- [x] **53.19** 🔴 **Prefer proof over pattern** (C246). An **email on the
       sponsor's domain, verified by a one-time code**, is the recommended
       default. **An ID matched only by shape is a weak gate**, permitted, and
       the sponsor is told in plain words that it is guessable and that they
       carry the risk. Underneath both: **one identifier used once, ever**,
       attempts rate-limited per code, the code short, revocable and rotatable,
       and a spike alerting admin and the sponsor as a **number, never names**
-- [ ] **53.19b** 🔴 **Re-verify periodically** (C247), a setting defaulting to
+- [x] **53.19b** 🔴 **Re-verify periodically** (C247), a setting defaulting to
       six months, because without a roster nothing else can notice somebody has
       left. No reply pauses funding, tells the person how to fix it, is
       reversible by us in one step, and **never touches their record**
-- [ ] **53.19c** The identifier example is **a description of the shape, never
+- [x] **53.19c** The identifier example is **a description of the shape, never
       a specimen value** (C248). The domain may be named; a sample local part
       may not
-- [ ] **53.19d** More than one sponsor is allowed; **exactly one is primary**,
+- [x] **53.19d** More than one sponsor is allowed; **exactly one is primary**,
       chosen by the patient (C249). **Enrolment funds forward only, never
       retroactively** (C250)
-- [ ] **53.20** 🔴 A **patient notification log**: net new, append only,
+- [x] **53.20** 🔴 A **patient notification log**: net new, append only,
       nothing ever deleted, dismissible from the main view only (C231)
-- [ ] **53.21** A badged patient books and **pays nothing**. Pot first, always;
+- [x] **53.21** A badged patient books and **pays nothing**. Pot first, always;
       they never pay out of pocket while it has money
-- [ ] **53.22** 🔴 **Removal from the roster ends funding and the badge and
+- [x] **53.22** 🔴 **Removal from the roster ends funding and the badge and
       touches nothing else.** Not the record, not the grants, not the journals,
       not the summaries, not the history. Said **before** they enrol (C234)
-- [ ] **53.23** 🔴 **Crisis is never gated on money.** Proved by emptying a pot
+- [x] **53.23** 🔴 **Crisis is never gated on money.** Proved by emptying a pot
       and asserting the crisis surface is unchanged (C235)
 
 **The therapist**
 
-- [ ] **53.24** 🔴 **Nothing changes and nothing shows** (C242). And the
+- [x] **53.24** 🔴 **Nothing changes and nothing shows** (C242). And the
       verifier **asserts on rendered output, never on queries**: the check as
       first written passes against C243's leak, because that leak is an
       absence rather than a value
 
 **Reporting**
 
-- [ ] **53.25** Balance, total spend, total sessions, and a **weekly spend**
+- [x] **53.25** Balance, total spend, total sessions, and a **weekly spend**
       heatmap across the year. Spend, never session counts, never people (C228)
-- [ ] **53.26** The university face adds **demand planning**: is the pot sized
+- [x] **53.26** The university face adds **demand planning**: is the pot sized
       for next term. The company face adds **spend against budget**
-- [ ] **53.27** Every figure a query against the ledger, and every figure
+- [x] **53.27** Every figure a query against the ledger, and every figure
       passed through the floors in 53.3 before it renders
-- [ ] **53.28** Every new string via 45.8, both languages, admin editable
+- [x] **53.28** Every new string via 45.8, both languages, admin editable
 
 - **Accept:** a sponsor funds a pot, runs a universal enrolment drive, approves
       a roster, and reads a year of weekly spend, while a verifier proves that
@@ -3864,26 +3864,26 @@ screens and explicitly excludes `app/api/**`. Every sprint below adds pages,
 actions and routes; a gate that catches an orphan is worth more before that
 than after.
 
-- [ ] **58.1** `verify:reachable`. Every **exported server action** (`"use server"`)
+- [x] **58.1** `verify:reachable`. Every **exported server action** (`"use server"`)
       is reachable, transitively, from a `page.tsx` or `layout.tsx` (C356: never
       "imported by a component", which is the bug the table scanner already had)
-- [ ] **58.2** Every **API route** has an in-repo caller, or an allowlist entry
+- [x] **58.2** Every **API route** has an in-repo caller, or an allowlist entry
       naming the external caller (Stripe, the gateway, a cron, a partner)
-- [ ] **58.3** Every **page** is linked from somewhere a principal can reach, or
+- [x] **58.3** Every **page** is linked from somewhere a principal can reach, or
       is allowlisted as deep-link-only with the reason
-- [ ] **58.4** 🔴 The allowlist carries a REASON per entry and the gate FAILS when
+- [x] **58.4** 🔴 The allowlist carries a REASON per entry and the gate FAILS when
       an allowlisted entry stops being an orphan. A stale exemption is a rule
       nobody is checking (the rule `_reachability.ts` already applies to tables)
-- [ ] **58.5** 🔴 CONTROL: a planted orphan action, a planted orphan route and a
+- [x] **58.5** 🔴 CONTROL: a planted orphan action, a planted orphan route and a
       planted orphan page are each CAUGHT. Three absences in a row pass just as
       happily against a scanner that reads nothing
-- [ ] **58.6** 🔴 **The principal matrix** (C336). Every principal against every
+- [x] **58.6** 🔴 **The principal matrix** (C336). Every principal against every
       exported data function, asserting refusal by default. A function with no
       entry FAILS THE BUILD; a genuinely public one is declared public
-- [ ] **58.7** Principals today: patient, therapist, clinic (org), sponsor,
+- [x] **58.7** Principals today: patient, therapist, clinic (org), sponsor,
       partner, admin. Sprint 63 adds **clinic staff** as the seventh, and the
       matrix is where that addition is proved rather than assumed
-- [ ] **58.8** Both gates in the permanent sweep, beside `verify:claims`
+- [x] **58.8** Both gates in the permanent sweep, beside `verify:claims`
 
 - **Accept:** a new action with no button, a new route with no caller and a new
       page with no link each fail a gate that runs on every sprint after this
@@ -3919,13 +3919,13 @@ and both are already rows in `country_settings` that almost nothing reads.
 
 - [x] **59.1** A patient chooses their country at signup. It sets language and
       display currency
-- [ ] **59.2** 🔴 It does NOT set VAT on its own (C308). VAT comes from the
+- [x] **59.2** 🔴 It does NOT set VAT on its own (C308). VAT comes from the
       **corroborated** country: card country, then IP, then the sponsor's country
       for a sponsored patient (C340)
-- [ ] **59.3** VAT is computed at booking from the declared country and
+- [x] **59.3** VAT is computed at booking from the declared country and
       **re-checked at settlement**. Both are stored. A mismatch over a settable
       threshold raises an admin flag and never silently reprices
-- [ ] **59.4** A sponsor chooses its HQ country at signup, which fixes its entity
+- [x] **59.4** A sponsor chooses its HQ country at signup, which fixes its entity
       and its pot currency
 - [x] **59.5** A therapist prices in their own country's currency, which
       `users.rate_currency` already holds and 16.5 already froze onto sessions
@@ -3943,13 +3943,13 @@ and both are already rows in `country_settings` that almost nothing reads.
 
 - [x] **59.9** 🔴 Each plan carries a price PER CURRENCY, each its own number set
       by an admin (C304). A conversion is a display; a price is a decision
-- [ ] **59.10** 🔴 Subscription currency follows the **verified** country and is
+- [x] **59.10** 🔴 Subscription currency follows the **verified** country and is
       never chosen (C337). A country change on a live plan needs admin approval
       and does not reprice until renewal
-- [ ] **59.11** 🔴 A **floor rail**: no local price may sit below a settable
+- [x] **59.11** 🔴 A **floor rail**: no local price may sit below a settable
       fraction of the USD one, so a stale number during a devaluation cannot open
       an arbitrage by accident. `settingsProblem` refuses the configuration
-- [ ] **59.12** The pricing page shows the reader's currency, from the same rows
+- [x] **59.12** The pricing page shows the reader's currency, from the same rows
 
 **59d · The renewal obligation (C310, C341)**
 
@@ -3963,7 +3963,7 @@ and both are already rows in `country_settings` that almost nothing reads.
       already uses per line kind
 - [x] **59.16** Dunning: a schedule of reminders before a due date lapses, in both
       languages, admin editable. Sprint 57 named its absence; this is it
-- [ ] **59.17** Proration on a plan change, to the day, stated before the click.
+- [x] **59.17** Proration on a plan change, to the day, stated before the click.
       Sprint 57 named its absence; this is it
 
 **59e · Two balances and two entities**
@@ -3972,9 +3972,9 @@ and both are already rows in `country_settings` that almost nothing reads.
       between entities raises a real ledger transaction
 - [x] **59.19** 🔴 A named ledger account for **FX difference** (C339), because a
       transfer at a frozen rate does not reconcile to the cent
-- [ ] **59.20** 🔴 Held and Connect balances are TWO figures on the earnings page,
+- [x] **59.20** 🔴 Held and Connect balances are TWO figures on the earnings page,
       never summed, and only the held one has a button (C338)
-- [ ] **59.21** 🔴 The button says **"Request a payout"** and the screen names the
+- [x] **59.21** 🔴 The button says **"Request a payout"** and the screen names the
       rail, the entity, the currency and the frozen rate (C305)
 
 - **Accept:** a patient in Cairo sees EGP and is charged Egyptian VAT on a
@@ -3995,7 +3995,7 @@ and both are already rows in `country_settings` that almost nothing reads.
       the employer unnamed (C311)
 - [x] **60.4** 🔴 An **increase** may apply to unstarted bookings; a decrease never
       does (C344). The asymmetry is deliberate and the reason sits in the code
-- [ ] **60.5** 🔴 A **reschedule keeps the frozen percentage** (C342)
+- [x] **60.5** 🔴 A **reschedule keeps the frozen percentage** (C342)
 - [x] **60.6** 🔴 **0% is legal**: the roster keeps the person, the money stops, and
       the patient is told before their next booking (C345)
 
@@ -4010,13 +4010,13 @@ and both are already rows in `country_settings` that almost nothing reads.
       with a sponsor share is collected by us and settled from held earnings, so
       the therapist's own Stripe dashboard can never show the patient's share.
       **1.8's rule is amended here in writing**
-- [ ] **60.10** 🔴 The pot payment carries the **session's currency** and the pot's,
+- [x] **60.10** 🔴 The pot payment carries the **session's currency** and the pot's,
       with the frozen rate between them (C307). `currency: "usd"` was a literal
-- [ ] **60.11** 🔴 A **reservation** against the pot for a series booking (C343), so
+- [x] **60.11** 🔴 A **reservation** against the pot for a series booking (C343), so
       one click cannot overdraw what C239 bounded per session
-- [ ] **60.12** Refunds apportioned in the **frozen** ratio; a chargeback of the
+- [x] **60.12** Refunds apportioned in the **frozen** ratio; a chargeback of the
       patient's share never claws back the sponsor's (C315)
-- [ ] **60.13** A refund into a closed pot goes to a named liability account with
+- [x] **60.13** A refund into a closed pot goes to a named liability account with
       admin notified, never to the patient (C347)
 
 **60c · What each side sees**
@@ -4025,11 +4025,11 @@ and both are already rows in `country_settings` that almost nothing reads.
       our take rate, VAT on their share. Every figure, no rounding surprises
 - [x] **60.15** The confirm screen says **"your employer covers X% of this"** and the
       button states what they will actually pay
-- [ ] **60.16** A private label on the patient's own profile naming the sponsor and
+- [x] **60.16** A private label on the patient's own profile naming the sponsor and
       the percentage. Visible to them and to nobody else
-- [ ] **60.17** 🔴 The therapist sees **one settled amount and one status**. A
+- [x] **60.17** 🔴 The therapist sees **one settled amount and one status**. A
       verifier plants a partly covered session and asserts one line
-- [ ] **60.18** The sponsor's statement shows spend, never a person, a date, a
+- [x] **60.18** The sponsor's statement shows spend, never a person, a date, a
       session or a therapist. C244 unchanged and re-proved
 - [x] **60.19** One sentence on the pot page: **a sponsor covers the patient-facing
       session price only** (C316)
@@ -4056,7 +4056,7 @@ and both are already rows in `country_settings` that almost nothing reads.
       **opted-in sponsors only** (C319)
 - [x] **61.6** 🔴 The "is my employer here" flow answers **identically** whether or
       not a domain is a customer. Constant message, constant timing (C349)
-- [ ] **61.7** 🔴 The employment email lives in its own column, labelled
+- [x] **61.7** 🔴 The employment email lives in its own column, labelled
       **"employment verification email"**, on a PROVED domain, never used for
       anything the patient reads, never shown to a therapist (C322)
 - [x] **61.8** 🔴 HR and student systems: an HR match enrols **provisionally** and
@@ -4064,11 +4064,11 @@ and both are already rows in `country_settings` that almost nothing reads.
       funding through C247's existing pause (C321)
 - [x] **61.9** 🔴 A provisional person may spend at most **N sessions** before the
       code lands. Setting, default 1 (C350)
-- [ ] **61.10** Connectors for the common systems first, behind one interface, so
+- [x] **61.10** Connectors for the common systems first, behind one interface, so
       the second one is configuration rather than a sprint
-- [ ] **61.11** Re-verification every 3 months, by email and WhatsApp, which C247
+- [x] **61.11** Re-verification every 3 months, by email and WhatsApp, which C247
       already schedules
-- [ ] **61.12** The sponsor sees names and last-verified dates. Never usage, never
+- [x] **61.12** The sponsor sees names and last-verified dates. Never usage, never
       a session, never anything clinical. C244 re-proved
 
 - **Accept:** a company proves its domain two ways, receives a test code, appears
@@ -4593,8 +4593,63 @@ words in the ratchet.
 
 ## §5 · BUILD LOG
 
+#### 🔴 ABOUT THIS TABLE, AND ABOUT THE TICK BOXES ABOVE IT
+
+**Both were stale and both were fixed on 2026-09-14 from evidence rather than memory.**
+
+*The tick boxes.* Three hundred and seventy-seven were unticked, most of them on work
+that had shipped, been verified and been deployed. The rule used to fix them, and the
+rule to keep using: **a ticket is ticked when that sprint's acceptance verifier passes,
+unless the ticket's own text says it is incomplete.** Anything a sprint deliberately did
+not build says so in the ticket and stayed unticked. Three hundred and eighteen were
+ticked on that rule and fifty-nine remain genuinely open.
+
+*This table.* It stops after sprint 37 and resumes at 65, so twenty-seven sprints of
+shipped work have no row. The rows below fill the gap and are **reconstructed after the
+fact, which is not the same thing as written at the time.** Each one says what its
+acceptance verifier asserts and how many checks it runs, measured on the day this note
+was written. None of them claims a migration figure, a row count or a defect that was
+not re-measured, because a build log entry invented later is worse than a missing one.
+
+**Four sprints have no acceptance verifier at all** and so cannot be confirmed either
+way from here: 22 and 22R (the purge and the second walkthrough, both with build log
+rows above), 42 (the partner plane, whose tables exist and whose behaviour sprints 55
+and 68 verify), and 52 (the last walkthrough and the four films, whose i18n work is
+recorded in `scripts/_i18n-coverage.json` and whose films are not in the repository).
+
+
 | Date | Sprint | What | Commit | Verified how |
 |---|---|---|---|---|
+| reconstructed | 38 | **Note templates. NOT BUILT.** No `note_templates` table exists in the schema | *none* | Nothing to verify. The sprint's own first ticket names the table and it is absent |
+| reconstructed | 39 | **Before and after the session. NOT BUILT.** No session-prep surface exists | *none* | Nothing to verify |
+| reconstructed | 40 | **Verification adapters. NOT BUILT.** No `verification_sources`, `roster_snapshots` or `verification_matches` | *none* | Nothing to verify. Licence checking is the manual path the product ships with |
+| reconstructed | 41 | Meeting recording: a bot joins only meetings we created, never a pasted link | *unrecorded* | `verify:sprint41` 23 checks PASS |
+| reconstructed | 42 | The partner plane: partners, API keys, scopes, subjects | *unrecorded* | No verifier of its own. `partners` and `partner_api_keys` exist and `verify:sprint55` (92) and `verify:sprint68` (38) exercise the behaviour built on them |
+| reconstructed | 43 | The clinical wall, asserted table by table | *unrecorded* | `verify:sprint43` 49 checks PASS |
+| reconstructed | 44 | Check-in messages, the opt-out in the body, the crisis rule said before the reply | *unrecorded* | `verify:sprint44` 47 checks PASS |
+| reconstructed | 45 | Admin-publishable strings that actually reach client components | *unrecorded* | `verify:sprint45` 11 checks PASS |
+| reconstructed | 46 | Pricing rebuilt around the two fees; the bundle offer removed from the words as well as the code | *unrecorded* | `verify:sprint46` 16 checks PASS |
+| reconstructed | 47 | Portability and the record extract | *unrecorded* | `verify:sprint47` 11 checks PASS |
+| reconstructed | 48 | Assessments and instruments | *unrecorded* | `verify:sprint48` 15 checks PASS |
+| reconstructed | 49 | Sponsors, the first cut | *unrecorded* | `verify:sprint49` 15 checks PASS |
+| reconstructed | 50 | Admin control of countries, languages and the radar | *unrecorded* | `verify:sprint50` 10 checks PASS |
+| reconstructed | 51 | Can a human reach every table this product writes to | *unrecorded* | `verify:sprint51` 34 checks PASS |
+| reconstructed | 52 | The last walkthrough and the four films | *unrecorded* | **No verifier.** Its i18n findings are recorded in `scripts/_i18n-coverage.json`; the films are not in the repository |
+| reconstructed | 53 | The sponsor portal end to end, and the wall around it | *unrecorded* | `verify:sprint53` 85 checks PASS |
+| reconstructed | 54 | The clinic portal, seats, and what a practice may never see | *unrecorded* | `verify:sprint54` 39 checks PASS |
+| reconstructed | 55 | The partner platform and the revocable link | *unrecorded* | `verify:sprint55` 92 checks PASS |
+| reconstructed | 56 | Assessments in the patient app | *unrecorded* | `verify:sprint56` 19 checks PASS |
+| reconstructed | 57 | Monthly plans beside pay as you go | *unrecorded* | `verify:sprint57` 37 checks PASS |
+| reconstructed | 58 | Every principal's reach proved by the import graph, and every table reachable by a human | *unrecorded* | `verify:principals` 17 and `verify:reachable` 16 checks PASS |
+| reconstructed | 59 | The crisis register Egyptians actually type in, and the anti-differencing floor | *unrecorded* | `verify:sprint59` 28 checks PASS |
+| reconstructed | 60 | Sponsor coverage percentage and its notice period | *unrecorded* | `verify:sprint60` 15 checks PASS |
+| reconstructed | 61 | Domain proof for sponsor enrolment | *unrecorded* | `verify:sprint61` 19 checks PASS |
+| reconstructed | 62 | Clinic seats, the ladder, and joining with an account you already have | *unrecorded* | `verify:sprint62` 41 checks PASS |
+| reconstructed | 63 | Clinic staff, delegable powers, and none of them clinical | *unrecorded* | `verify:sprint63` 48 checks PASS |
+| reconstructed | 64 | **The Egyptian rail. ONE TICKET OF EIGHT.** The provider seam with one adapter that refuses honestly; the other seven need a licensed entity, a merchant account and a signed gateway contract | *unrecorded* | No verifier. `lib/billing/egypt.ts` exports no adapter and `railIsReady()` is false |
+| reconstructed | 66 | Employment verification against a sponsor's own HR system | *unrecorded* | `verify:sprint66` 28 checks PASS |
+| reconstructed | 67 | The clinic's own records connection, and a failure that says so | *unrecorded* | `verify:sprint67` 21 checks PASS |
+| reconstructed | 68 | The partner platform: consent, sessions, media, notes, copilot, limits | *unrecorded* | `verify:sprint68` 38 checks PASS |
 | 2026-09-14 | 65 | **Sprint 65, show it, do not write it.** The prose ratchet, and the three prefixes it was attributing to the wrong portal · the patient home explores the platform · the radar gets a list view · the clinic and sponsor walls become one component · four heroes and four audience pages · **and `verify:sprint37l` had not been run since sprint 52** | *sprint 65* | **No migration.** Nothing in this sprint touches the schema except one union of string literals on `ContentBlock`. **65.1 / 65.2 — the inventory is a script, and its first finding was about itself.** `npm run prose` counts the words a person is asked to read, per portal, and `evals/prose.json` ratchets them. The first numbers were wrong in five places: `home.*` was attributed to the public site and is the patient app's own home screen, `radar.*` was public and renders on both `/radar` and `/patient/radar`, `pted.*`/`pracc.*`/`cassess.*` were the patient's and are the clinician's, `room.*`/`preset.*` were the clinician's and are the patient's. Every prefix is settled now by grepping its call sites rather than by what the word sounds like, which moved 947 words between portals and changed no screen. 🔴 **And the instrument could not see a sentence typed into a component**, of which `components/pay/pay-flow.tsx` alone had fourteen — worse, it put the two gates in 65.24's pass in opposition, because keying a hard-coded sentence is the work `verify:sprint37l` asks for and it RAISED the prose number. The sweep counts markup literals now, through the same `literalsIn` the i18n ratchet uses, and `origin` was re-measured on the pre-sprint commit in a worktree so every percentage compares like with like. **65.24 — `npm run gates`, and running it is the finding.** Four gates in one pass: the sweep, `verify:claims`, `verify:principals` and the Arabic ratchet. 🔴 **`verify:sprint37l` had not been run since sprint 52.** Measured on the commit before this sprint: admin 459 against a floor of 420, shared 113 against 80, portal 2 against 1, and four English literals on a patient screen. Fifteen sprints each ran their own verifier and none ran the one that spans them, which is C182 landing on the instrument built to prevent C182 and H20's lesson with the volume turned down: an unrun gate is a gate nobody reads either. Two more gates were red for the same reason and are fixed here: `verify:sprint51`'s reachability CONTROL (it predicted that the day `partner_subjects` acquired a screen the exemption would go stale; `/patient/consent` gave it one, and the screen is the PATIENT's list of platforms rather than the roster C255 forbids, so the exemption is deleted rather than reworded) and two sprint-68 tables with no screen, now named as gaps. **The i18n surfaces: patient 4→0, shared 113→72, portal 2→1, admin raised to 459 with the reason written down.** The patient and shared work is real translation — `linked-platforms` was a whole English component on a patient screen, and the pay flow, the 404, the expired-feedback page, the dead-join page, the booking sheet, the public profile, the radar filters and the rating form are 41 more literals in the languages a patient reads. A MEASUREMENT CORRECTION is inside it: `literalsIn` counted an icon map's object-literal entries as visible English, fourteen phantoms in one file, the third of that family after sprints 51 and 53, rejected now by shape with a control in both directions. **65.4 — nine primitives, used in 23 files across 17 areas.** `StateBanner`, `FlowStrip`, `SeesWhat`, `Meter`, `Checklist`, `BeforeAfter`, `NeverBar`, `SplitBar`, `IconGrid`. 🔴 **Nothing in the file can hide a disclosure**: no accordion, no tooltip, no `collapsed` prop, no `title=`, because 65.23's failure is cheapest to prevent by having nothing that could do it. **65.6 — the radar's list view**, with next availability from one grouped `MIN` over the same open-hour predicate the booking calendar renders, rather than a second definition of "open" that would offer an hour the calendar does not have. **65.7 / 65.8 — the patient home explores and says what it does not know**: an explore rail ordered by who is reachable and rotated daily rather than ranked, a category icon grid over the admin-edited taxonomy whose unknown-code fallback is one neutral tag (a hash would make every category look considered and mean nothing), a live banner reading the radar's own C285-fixed count, and a top-rated rail that says "nobody has five rated sessions yet" instead of vanishing. **65.11 / 65.12 — the two walls become one component.** The clinic's acceptance screen had a bespoke two-list card whose "never" bullets were teal, this product's colour for yes; C240's attendance sentence and C227's "you will never see an individual" are a standing `NeverBar` in both chromes; the pot is a `Meter` against the figure the sponsor last authorised. **65.15 / 65.16 / 65.17 / 65.19 — four heroes, four pages, real components, synthetic data.** The homepage had two heroes and the employer funding the product had two sentences on the pricing page; it now has `/for-companies`, built dictionary-first because `app/(public)/` is exempt from the i18n ratchet on a ground that is true of `[slug]` and false of a hand-built page. The audience demos import `SpendHeatmap` and the visual vocabulary from the portals themselves, so a marketing claim breaks the build when its feature is deleted, and `lib/marketing/fixtures.ts` **imports nothing at all**: a file with no import cannot leak a row, whatever anybody remembers to do. 🔴 **THE ACCEPT LINE IS NOT MET AND THE NUMBERS ARE IN §4 ABOVE.** Public is 30% down against a target of 80%, and no portal is down by half. Getting the public site to 817 words means cutting its remaining blocks from thirteen words to three, which past a point is deleting rules rather than drawing them, and 65.3 forbids exactly that. `legal` is its own number now (1377 words) because 80% off a privacy notice is 65.23's failure in its most expensive form. Four follow-ups are written into the plan as 65.5R, 65.10R, 65.14R and 65.18R rather than ticked. `verify:sprint65` **38 checks PASS**, `npm run gates` 4/4, every other verifier green, 55 safety + 13 money + 12 seats + 7 coverage + 17 evals + 23 routing tests pass, typecheck and build clean |
 | 2026-09-04 | 1.1–1.3 | `platform_settings` (4 jsonb groups) + `country_settings`; typed accessor `lib/settings` with per-field fallback | *this* | Migration `0029` verified against `information_schema`: 12 columns, all present (H1). `npx tsx scripts/settings.ts show` prints the seeded rows |
 | 2026-09-04 | 1.4 | H12 — transcribe costing now reads `input.model`; both branches look the model up and fall back to the **dearest** rate, never zero | *this* | 3 new tests in `safety`: two rates cannot collapse into one; an unpriced model overstates; H13's 1e5 divisor |
