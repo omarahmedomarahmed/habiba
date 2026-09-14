@@ -373,6 +373,10 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C405 | 60 | **The C244 column scan read a NAME and reported on a rule, and `sponsor_share_cents` was about to fail it.** The ruling is that no clinical or payment table carries a sponsor ID. C311 freezes what an employer covered onto the payment as a number of CENTS, which is money and joins nobody to anything. **Ruling: the scan asks what a column IS — a uuid, a text key, or a foreign key to `sponsors` — rather than what it is called, with a control asserting the frozen split is present so the widened scan cannot be relaxed to nothing.** Renaming the column to dodge the check was the other option, and that is how a gate becomes decorative: the same reasoning that widened 53.12's cash-out scan when `refundToPot` arrived. 2026-09-14. | major | review | **ruled — fixed** |
 | C406 | 61 | **A confirmation link carrying a raw row id is one half of C318 handed away.** The mailbox proof is clicked from an inbox, so the link IS the authorisation, and a link built from the `sponsor_domains` id would let anybody who can guess a uuid prove any domain's mailbox. The DNS token cannot stand in for it either: that one is published in DNS on purpose. **Ruling: an HMAC over the id with `AUTH_SECRET`, compared in constant time, minted only inside the module, with single use coming from the update being guarded on the column already being null.** No column, no table, nothing to expire. 2026-09-14. | blocker | review | **ruled — fixed** |
 | C407 | 61 | **A page reached from an email IS reachable, and 58.4 said so within a minute.** `/sponsor/domains/confirm` was added to `PAGES_BY_DESIGN` as an orphan by design, and the next run reported it as no longer an orphan because `addDomain` builds that URL when it sends the mail. **Ruling: the scanner was right and the allowlist entry was wrong.** A link that arrives in an inbox is a link. The allowlist is empty again, which is where an allowlist should spend most of its life. 2026-09-14. | minor | review | **ruled — entry removed** |
+| C408 | 62 | **`takeSeat` read the CLINIC's subscription period, and C355 is about the JOINING CLINICIAN's.** The rule is that a seat is not billed until the therapist's own paid month closes. Looking the subscription up on the hiring organisation dates every seat from the clinic's own renewal, which has nothing to do with the month that person already bought: the sentence would have been enforced against the wrong calendar while looking correct on every screen. **Ruling: `ownOrganizationId` is a required parameter, null means they have never paid us, and a period end already in the past is today rather than a date behind us.** Found by writing the wiring rather than by reading the function. 2026-09-14. | major | review | **ruled — fixed** |
+| C409 | 62 | **A clinician who already pays us had no way to join a clinic at all, so C355 and C329 were rules about a flow that did not exist.** Accepting an invitation created a NEW account, which is the case where neither ruling bites. **Ruling: `joinWithExistingAccount`, which takes the seat with their own period end on it and hands the caller an organisation id to stop renewing at period end.** And the caseload question is settled the same way `removeClinician` settles its mirror image: an account with patients on it is REFUSED, in a sentence naming the alternative, because moving a chart between tenancies moves it out from under the grant the patient gave. A migration would have been the other answer and it is not one this product gets to make on somebody's behalf. 2026-09-14. | major | review | **ruled — built** |
+| C410 | 62 | **A body extraction that stops at the first `\n}` extracts a SIGNATURE when the parameters are an object literal.** Sprint 61's version of the same helper was correct only because its function's parameters fit on one line; the sprint 62 copy silently returned 108 characters of type declaration, and both ordering checks over it compared two `-1`s and passed. **Ruling: `\n}\n` for the close, plus a control asserting the extracted body is longer than the signature could be.** This is the §6 family in its purest form: a check that passes by measuring the wrong thing, and the only reason it was caught is that one of the two orderings happened to be genuinely wrong at the time. 2026-09-14. | major | review | **ruled — fixed** |
+| C411 | 62 | **The seat price on a public page is the C291 shape one table over.** A figure that is true when it is written and false the hour somebody reprices, with nothing failing in between, and wrong in a direction that costs money: the marginal reading of the founder's own table gives $439 at five seats against a published $400. **Ruling: `verify:claims` compares every dollar figure in seat copy, in both languages, to the set `seatMonthlyCents` actually produces, and separately refuses a typed price anywhere in the seat dictionary.** The planted offender is $439 and the planted innocent is $400, so the gate cannot be narrowed to nothing without one of the two controls failing. 2026-09-14. | major | review | **ruled — gated** |
 
 ---
 
@@ -4067,27 +4071,27 @@ is **retroactive**, not marginal:
 | 3 to 4 | $90 each | $270 · **$360** |
 | 5 or more | $80 each | **$400** · $480 · … |
 
-- [ ] **62.1** `organizations` gains `seats`. The bill is a function of the count
+- [x] **62.1** `organizations` gains `seats`. The bill is a function of the count
       and the reached rate, both from `platform_settings`
-- [ ] **62.2** 🔴 The 2 to 3 step is a **+$91 jump** and the slider states it before
+- [x] **62.2** 🔴 The 2 to 3 step is a **+$91 jump** and the slider states it before
       the click, never after
-- [ ] **62.3** 🔴 A rate change is **retroactive within the period**: the remainder
+- [x] **62.3** 🔴 A rate change is **retroactive within the period**: the remainder
       is recomputed and the difference charged or credited as ONE figure, shown
       before the click (C351)
-- [ ] **62.4** 🔴 Adding a seat mid-period is **prorated to the day**, stated before
+- [x] **62.4** 🔴 Adding a seat mid-period is **prorated to the day**, stated before
       the click (C333). The decision sprint 57 deferred
-- [ ] **62.5** Removing a seat: the therapist keeps unlimited to period end and the
+- [x] **62.5** Removing a seat: the therapist keeps unlimited to period end and the
       seat is not renewed. Never refunded, or a clinic cycles seats weekly
-- [ ] **62.6** 🔴 A seat is **not billed until the joining therapist's own
+- [x] **62.6** 🔴 A seat is **not billed until the joining therapist's own
       subscription period ends** (C355), and the seat list shows the start date
-- [ ] **62.7** 🔴 On acceptance, the therapist's own subscription is cancelled at
+- [x] **62.7** 🔴 On acceptance, the therapist's own subscription is cancelled at
       **period end** (C329). Nobody pays twice, nobody loses a month they bought
-- [ ] **62.8** 🔴 A failed clinic renewal drops the **whole clinic** together at
+- [x] **62.8** 🔴 A failed clinic renewal drops the **whole clinic** together at
       period end (C330). Never one therapist at a time
-- [ ] **62.9** The billing page's upgrade section is **replaced** by a seat manager,
+- [x] **62.9** The billing page's upgrade section is **replaced** by a seat manager,
       never removed (C332)
-- [ ] **62.10** The public pricing page gains the seat slider and the table above
-- [ ] **62.11** `verify:claims` gains a rule: the published seat prices match
+- [x] **62.10** The public pricing page gains the seat slider and the table above
+- [x] **62.11** `verify:claims` gains a rule: the published seat prices match
       `platform_settings`, in both languages
 
 - **Accept:** a solo therapist upgrades, adds three seats mid-month, sees one

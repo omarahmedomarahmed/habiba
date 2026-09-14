@@ -84,12 +84,25 @@ export async function savePricing(
     return { error: "Credits have to last at least a month." };
   }
 
-  const problem = settingsProblem({ ...current, pricing: { tiers, creditExpiryMonths } });
+  /*
+   * 🔴 62.1 — the seat ladder is carried through unchanged by this form.
+   *
+   * It has its own editor and its own validation, and merging it in here from
+   * the current settings rather than defaulting it is the difference between
+   * "this form does not edit seats" and "saving the tier table wipes the seat
+   * prices", which is the shape a spread with a missing key produces silently.
+   */
+  const seatBands = current.pricing.seatBands;
+
+  const problem = settingsProblem({
+    ...current,
+    pricing: { tiers, creditExpiryMonths, seatBands },
+  });
   if (problem) return { error: problem };
 
   await writeSettingsGroup({
     group: "pricing",
-    value: { tiers, creditExpiryMonths },
+    value: { tiers, creditExpiryMonths, seatBands },
     updatedBy: actor.userId,
   });
 

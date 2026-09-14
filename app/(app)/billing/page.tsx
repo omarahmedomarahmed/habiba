@@ -4,10 +4,12 @@ import { ChevronRight, Wallet } from "lucide-react";
 
 import { BillingLedger } from "@/components/billing/ledger";
 import { PlanCard } from "@/components/billing/plan-card";
+import { SeatManager } from "@/components/billing/seat-manager";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";
 import { formatUsd } from "@/lib/billing/plans";
+import { currentSeatBill } from "@/lib/billing/seats";
 import { billingSummary, listInvoices, usageBySession } from "@/lib/billing/service";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { features } from "@/lib/env";
@@ -33,11 +35,13 @@ export default async function BillingPage({
     await confirmCheckout(checkout);
   }
 
-  const [summary, invoices, earnings, payments] = await Promise.all([
+  const [summary, invoices, earnings, payments, seatBill] = await Promise.all([
     billingSummary(actor.organizationId),
     listInvoices(actor.organizationId),
     earningsSummary(actor.userId),
     recentPayments(actor.userId),
+    /* 🔴 62.1 — what this account pays for seats, if it has any. */
+    currentSeatBill(actor.organizationId),
   ]);
 
   // One grouped query for every session on the page, rather than one per row.
@@ -66,6 +70,20 @@ export default async function BillingPage({
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
             {t("portal.billing.noPayments")}
           </p>
+        ) : null}
+
+        {/*
+          🔴 62.9 / C332 — the upgrade section is REPLACED by the seat manager
+          for a clinic, never removed.
+          -------------------------------------------------------------------
+          A clinic that upgraded and then found no way to change what it pays
+          would have to contact us to add a colleague, which is the shape of a
+          feature that quietly becomes a support queue. It sits above the plan
+          card because the seat count is what decides the bill once there is
+          one.
+        */}
+        {seatBill.seats > 0 ? (
+          <SeatManager seats={seatBill.seats} monthlyLabel={formatUsd(seatBill.monthlyCents)} />
         ) : null}
 
         <PlanCard

@@ -42,7 +42,7 @@ import { readFileSync } from "node:fs";
 import { DEFAULT_PAGES } from "../lib/content/defaults";
 import { DEFAULT_PAGES_AR } from "../lib/content/defaults-ar";
 import { DICTIONARIES } from "../lib/i18n/messages";
-import { SETTINGS_DEFAULTS } from "../lib/settings/defs";
+import { SETTINGS_DEFAULTS, seatMonthlyCents } from "../lib/settings/defs";
 
 let failures = 0;
 let checks = 0;
@@ -438,6 +438,144 @@ const MENTIONS_MONTHLY = /\ba\s+month\b|\bmonthly\b|\bper\s+month\b|شهريًا
 check(
   "a monthly plan that exists is described on a page somebody can read",
   !sellsASubscription || ALL_COPY.some((s) => MENTIONS_MONTHLY.test(s.text)),
+);
+
+/* ------------------------------------------- 62.11 — the seat prices, checked -- */
+
+/*
+ * 🔴 62.11 / C323 — A SEAT PRICE ON A PAGE IS A SEAT PRICE WE CAN BE HELD TO.
+ *
+ * The seat ladder is rendered from `platform_settings` and nothing on the public
+ * page is typed. That is the design, and this is the gate that keeps it the
+ * design, because the cheapest way to add a seat figure to a marketing sentence
+ * will always be to type it.
+ *
+ * It is the C291 shape one table over: a number that is TRUE when it is written
+ * and false the hour somebody reprices, with nothing failing in between. The
+ * difference here is that the number is wrong in a direction that costs money —
+ * the rate is RETROACTIVE, so a marginal reading of the founder's own table
+ * gives $439 at five seats against a published $400, and a clinic reading the
+ * published one would be billed a figure that never appears on it.
+ *
+ * So: any published string that mentions seats and names a dollar figure must
+ * name one this ladder actually produces. Both languages, because the Arabic
+ * copy is written from scratch rather than translated and drifts on its own.
+ */
+const SEAT_WORDS = /\bseats?\b|مقعد|مقاعد/i;
+const DOLLARS = /\$\s?([\d,]+(?:\.\d{2})?)/g;
+
+/** Every figure the shipped ladder can put on a page, in whole-dollar strings. */
+const LEGITIMATE_SEAT_FIGURES = new Set<string>();
+{
+  const bands = SETTINGS_DEFAULTS.pricing.seatBands;
+  // The monthly total at every count a visitor can drag the slider to.
+  for (let seats = 1; seats <= 500; seats += 1) {
+    LEGITIMATE_SEAT_FIGURES.add((seatMonthlyCents(seats, bands) / 100).toFixed(2));
+  }
+  // And the per-seat rates and flat prices the table's middle column shows.
+  for (const band of bands) {
+    if (band.perSeatCents > 0) LEGITIMATE_SEAT_FIGURES.add((band.perSeatCents / 100).toFixed(2));
+    if (band.flatCents > 0) LEGITIMATE_SEAT_FIGURES.add((band.flatCents / 100).toFixed(2));
+  }
+}
+
+function seatFigureProblem(text: string): string | null {
+  if (!SEAT_WORDS.test(text)) return null;
+
+  for (const hit of text.matchAll(DOLLARS)) {
+    const raw = hit[1]!.replace(/,/g, "");
+    const cents = Math.round(Number(raw) * 100);
+    if (!Number.isFinite(cents)) continue;
+    if (!LEGITIMATE_SEAT_FIGURES.has((cents / 100).toFixed(2))) {
+      return `$${raw} is not a price this seat ladder produces`;
+    }
+  }
+  return null;
+}
+
+const seatOffenders = ALL_COPY.map((s) => ({ ...s, problem: seatFigureProblem(s.text) })).filter(
+  (s) => s.problem,
+);
+
+check(
+  "🔴 62.11 every seat price in published copy is one `platform_settings` produces",
+  seatOffenders.length === 0,
+  seatOffenders.map((s) => `${s.path}: ${s.problem}`).join(" · "),
+);
+
+/*
+ * 🔴 THE CONTROL, and it is two-sided on purpose.
+ *
+ * An absence assertion passes just as happily against a rule that matches
+ * nothing, which is this file's own §6 warning. So the planted offender is the
+ * MARGINAL reading of the founder's table — the exact number a reasonable person
+ * gets by adding a seat to a price — and the planted innocent is the retroactive
+ * one, which must pass.
+ */
+check(
+  "🔴 62.11 CONTROL the rule catches a seat price the ladder does not produce",
+  seatFigureProblem("Five seats is $439 a month") !== null &&
+    seatFigureProblem("مقاعد إضافية بـ $75 لكل مقعد") !== null,
+  "the marginal reading of the founder's own table must fail this",
+);
+
+check(
+  "🔴 62.11 CONTROL …while the retroactive figures on the shipped ladder pass",
+  seatFigureProblem("Five seats is $400 a month") === null &&
+    seatFigureProblem("Three to four seats are $90 each") === null &&
+    seatFigureProblem("One to two seats: $179 a month") === null,
+);
+
+check(
+  "🔴 62.11 CONTROL …and a dollar figure in a sentence about something else is ignored",
+  seatFigureProblem("A session costs $1 plus $2 when the AI runs") === null,
+  "the rule is about seat prices, not about every number on the site",
+);
+
+/*
+ * 🔴 And the other direction, because an absence check alone passes against a
+ * site that mentions no seat price at all: the ladder we sell must be described
+ * somewhere a visitor can read, in BOTH languages.
+ *
+ * This is what makes the rule above a comparison rather than a ban. The page is
+ * required to carry the figures AND the figures are required to match, so the
+ * copy and the bill cannot drift apart whichever of the two moves.
+ */
+const SEAT_COPY = ["en", "ar"].map((locale) => ({
+  locale,
+  strings: DICTIONARY_STRINGS.filter(
+    (s) => s.path.startsWith(`${locale}:pricing.seats`) && s.text.trim().length > 0,
+  ),
+}));
+
+for (const { locale, strings: rows } of SEAT_COPY) {
+  check(
+    `🔴 62.11 the seat ladder is described in ${locale.toUpperCase()}`,
+    rows.length >= 8,
+    `${rows.length} seat strings`,
+  );
+}
+
+/*
+ * 🔴 AND THE FIGURES THEMSELVES ARE SUBSTITUTED, NEVER TYPED.
+ *
+ * Every seat string carrying a price must carry a PLACEHOLDER rather than a
+ * number, because a placeholder is filled from the same settings row the invoice
+ * reads. This is the rule that makes the comparison above almost impossible to
+ * fail: there is nothing to drift.
+ */
+const TYPED_SEAT_PRICE = DICTIONARY_STRINGS.filter(
+  (s) => /:pricing\.seats/.test(s.path) && /\$\s?\d/.test(s.text),
+);
+check(
+  "🔴 62.11 no seat price is typed into the dictionary, they are all substituted",
+  TYPED_SEAT_PRICE.length === 0,
+  TYPED_SEAT_PRICE.map((s) => s.path).join(" · "),
+);
+
+check(
+  "🔴 62.11 CONTROL the typed-price rule would catch one",
+  /\$\s?\d/.test("Seats are $90 each"),
 );
 
 /* --------------------------------------------------------------- the log -- */

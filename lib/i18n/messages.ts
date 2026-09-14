@@ -1440,6 +1440,21 @@ export const en = {
   "clinic.join.accept": "Set my password and join",
   "clinic.join.expired": "That invitation is no longer valid. Ask the practice for a new one.",
   "clinic.join.done": "You are in. Verify your licence next.",
+
+  /*
+   * 🔴 62.6 / 62.7 — the invited clinician who ALREADY PAYS US.
+   *
+   * The sentence that matters is the second one, and it is on the screen rather
+   * than in a help page: they keep the month they bought and it stops renewing.
+   * C329 is that promise; a person deciding whether to accept an invitation on
+   * the eighth of the month is the person who needs it.
+   */
+  "clinic.seatFrom": "This seat is not billed until {date}, because they had already paid for the month when they joined.",
+  "clinic.join.haveAccount": "I already have an account",
+  "clinic.join.newHere": "I am new here",
+  "clinic.join.signInBody":
+    "Sign in and we move you onto {name}'s account. You keep the month you have paid for, it stops renewing after that, and your seat costs the practice nothing until then.",
+  "clinic.join.signIn": "Sign in and join",
   /* --------------------------------------------------------- the developer */
   /*
    * 🔴 SPRINT 55. A developer at another company, and the vocabulary is a developer's:
@@ -2970,6 +2985,30 @@ export const en = {
   "pricing.patientPaysNothing": "Your patient never pays us anything.",
 
   /*
+   * 🔴 62.10 / C323 — SEATS, AND THE ONE SENTENCE A CLINIC MUST READ FIRST.
+   *
+   * `pricing.seatsStep` carries live figures rather than the words "ninety
+   * dollars", because the rate is retroactive: reaching a band reprices EVERY
+   * seat, so the third seat is not the price of a seat. A clinic that learns
+   * that from an invoice is a refund conversation, and this line is where it is
+   * cheapest to prevent. The numbers are substituted from `platform_settings`,
+   * so the sentence cannot become false without the bill changing too.
+   */
+  "pricing.seatsTitle": "Or bring your team",
+  "pricing.seatsHeadSeats": "Seats",
+  "pricing.seatsHeadRate": "Rate",
+  "pricing.seatsHeadMonthly": "A month",
+  "pricing.seatsRange": "{from} to {to}",
+  "pricing.seatsRangeOpen": "{from} or more",
+  "pricing.seatsIncluded": "Included",
+  "pricing.seatsEach": "{amount} each",
+  "pricing.seatsSlider": "How many clinicians?",
+  "pricing.seatsCount": "{count} seats",
+  "pricing.seatsCountOne": "1 seat",
+  "pricing.seatsStep":
+    "The rate applies to every seat, not only the ones above the line. Seat {count} takes the account from {from} to {to} a month.",
+
+  /*
    * 🔴 47.1 / 47.3 / C212 — how a note was made, in the reader's language.
    *
    * The wording is SOURCE, never quality, and 47.5 is why. A hand-written note
@@ -4230,6 +4269,14 @@ export const ar: Record<MessageKey, string> = {
   "clinic.join.accept": "ضع كلمة مروري وانضم",
   "clinic.join.expired": "هذه الدعوة لم تعد صالحة. اطلب من العيادة دعوة جديدة.",
   "clinic.join.done": "أنت بالداخل. وثّق ترخيصك تاليًا.",
+
+  /* 🔴 62.6 / 62.7 — المعالج المدعو الذي يدفع لنا بالفعل. */
+  "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}، لأنه كان قد دفع شهره عند انضمامه.",
+  "clinic.join.haveAccount": "لدي حساب بالفعل",
+  "clinic.join.newHere": "أنا جديد هنا",
+  "clinic.join.signInBody":
+    "سجّل الدخول وننقلك إلى حساب {name}. يبقى لك الشهر الذي دفعته، ثم يتوقف التجديد، ولا يكلّف مقعدك العيادة شيئًا حتى ذلك الحين.",
+  "clinic.join.signIn": "سجّل الدخول وانضم",
   /* ------------------------------------------------------------- المطوّر */
   "dev.signIn": "تسجيل الدخول",
   "dev.signInTitle": "حساب المطوّر",
@@ -5572,6 +5619,21 @@ export const ar: Record<MessageKey, string> = {
     "مع الخطة الشهرية لا يتعلّق أي مبلغ بقرار مريضك بشأن التسجيل، لأنه لا توجد رسوم لكل جلسة أصلًا.",
   "pricing.creditIsMoney": "مع الدفع عند الاستخدام يمكنك الاحتفاظ برصيد لدينا. هو نقود لتغطية رسوم الجلسات والذكاء الاصطناعي، ويُخصم قبل بطاقتك.",
   "pricing.patientPaysNothing": "مريضك لا يدفع لنا شيئًا أبدًا.",
+
+  /* 🔴 62.10 / C323 — المقاعد، والسعر يسري على كل مقعد لا على الزائد فقط. */
+  "pricing.seatsTitle": "أو اجمع فريقك",
+  "pricing.seatsHeadSeats": "المقاعد",
+  "pricing.seatsHeadRate": "السعر",
+  "pricing.seatsHeadMonthly": "شهريًا",
+  "pricing.seatsRange": "{from} إلى {to}",
+  "pricing.seatsRangeOpen": "{from} أو أكثر",
+  "pricing.seatsIncluded": "مشمول",
+  "pricing.seatsEach": "{amount} لكل مقعد",
+  "pricing.seatsSlider": "كم معالجًا؟",
+  "pricing.seatsCount": "{count} مقاعد",
+  "pricing.seatsCountOne": "مقعد واحد",
+  "pricing.seatsStep":
+    "السعر يسري على كل مقعد، لا على المقاعد فوق الحد فقط. المقعد رقم {count} ينقل الحساب من {from} إلى {to} شهريًا.",
 
   /* 🔴 47.1 / 47.3 — how a note was made, in the reader's language. */
   "note.origin.transcript": "من التسجيل",

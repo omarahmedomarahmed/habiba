@@ -44,6 +44,28 @@ import { CURRENCY_BY_ENTITY } from "@/lib/billing/money";
  * buy ten of anything and a page that says it does is the false sentence
  * `lib/content/honesty.ts` exists to reject.
  */
+/**
+ * 🔴 62.1 / C323 — ONE BAND OF THE SEAT LADDER.
+ *
+ * `from` is the seat count at which this band starts and is inclusive. The band
+ * that applies is the highest one whose `from` the count has reached, and it
+ * then prices EVERY seat, which is what "retroactive rather than marginal"
+ * means.
+ *
+ * `flatCents` and `perSeatCents` are exclusive: the first band is a flat price
+ * with seats included, and the ones above it are per seat. A band carrying both
+ * is a configuration nobody can explain on a pricing page, and `settingsProblem`
+ * refuses it.
+ */
+export type SeatBand = {
+  /** Seats at or above this count fall in this band. */
+  from: number;
+  /** A flat monthly price for the whole band. Zero when the band is per seat. */
+  flatCents: number;
+  /** A price per seat, applied to EVERY seat. Zero when the band is flat. */
+  perSeatCents: number;
+};
+
 export type PricingTier = {
   key: string;
   name: string;
@@ -79,6 +101,23 @@ export type PlatformSettings = {
     tiers: PricingTier[];
     /** How long bought credits last. */
     creditExpiryMonths: number;
+    /**
+     * 🔴 62.1 / C323 — SEATS, AND THE RATE IS RETROACTIVE RATHER THAN MARGINAL.
+     *
+     * The founder's figures only work one way round:
+     *
+     *     1 to 2 seats   included in the clinic plan   $179
+     *     3 to 4 seats   $90 each                      $270 · $360
+     *     5 or more      $80 each                      $400 · $480 · …
+     *
+     * Reaching a band reprices EVERY seat, not just the ones above the
+     * threshold. A marginal reading gives $179 + $90 = $269 at three seats and
+     * the founder's table says $270, which looks like a rounding argument and
+     * is not: at five seats marginal gives $179 + 2×$90 + 1×$80 = $439 against
+     * a stated $400. The difference compounds, and a clinic reading the public
+     * table would be billed a number that never appears on it.
+     */
+    seatBands: SeatBand[];
   };
   session: {
     /** Our cut of a patient payment, in basis points. */
@@ -327,6 +366,23 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
       { key: "clinic", name: "Clinic", unlockCents: 0, aiRateCents: 0, monthlyCents: 17900 },
     ],
     creditExpiryMonths: 12,
+    /*
+     * 🔴 The founder's table, as data. C323.
+     *
+     * 1 to 2 seats is the clinic plan itself, so the flat price here is the
+     * same $179 the tier carries and the first two seats are included in it.
+     * From three, every seat is priced, which is why 2 to 3 is a $91 jump
+     * rather than a $90 one: $179 becomes $270, not $179 plus $90.
+     *
+     * That step is stated on the slider before the click (62.2), because a
+     * clinic adding their third clinician and finding a number they did not
+     * expect is a support ticket and a refund conversation.
+     */
+    seatBands: [
+      { from: 1, flatCents: 17_900, perSeatCents: 0 },
+      { from: 3, flatCents: 0, perSeatCents: 9_000 },
+      { from: 5, flatCents: 0, perSeatCents: 8_000 },
+    ],
   },
   session: {
     platformFeeBps: 1500,
@@ -452,6 +508,158 @@ function record(value: unknown): Record<string, unknown> {
     : {};
 }
 
+/**
+ * 🔴 62.1 — the seat ladder, parsed, sorted, and never trusted.
+ *
+ * Sorted by `from` ascending here rather than at every read, because
+ * `seatMonthlyCents` walks the list looking for the highest band a count has
+ * reached and a list in the wrong order gives the wrong answer silently. The
+ * same reasoning `parseTiers` records about its own sort.
+ *
+ * A malformed list falls back to the shipped bands rather than to an empty one:
+ * no bands means every clinic is billed zero, which is the failure direction
+ * that looks fine on every screen until a month closes.
+ */
+function parseSeatBands(value: unknown, fallback: SeatBand[]): SeatBand[] {
+  if (!Array.isArray(value) || value.length === 0) return fallback;
+
+  const bands = value
+    .filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null)
+    .map((row) => ({
+      from: int(row.from, 1, { min: 1, max: 10_000 }),
+      flatCents: int(row.flatCents, 0, { min: 0, max: 100_000_000 }),
+      perSeatCents: int(row.perSeatCents, 0, { min: 0, max: 10_000_000 }),
+    }))
+    .sort((a, b) => a.from - b.from);
+
+  return bands.length > 0 ? bands : fallback;
+}
+
+/**
+ * 🔴 62.1 / C323 — WHAT A CLINIC PAYS A MONTH FOR `seats` SEATS.
+ *
+ * The band that applies is the highest one the count has REACHED, and it then
+ * prices every seat. Retroactive, not marginal.
+ *
+ * The difference is not a rounding argument. Marginal at five seats gives
+ * $179 + 2×$90 + 1×$80 = $439 against the founder's stated $400, and the gap
+ * grows with every seat: a clinic reading the public table would be billed a
+ * number that never appears on it.
+ *
+ * Pure, and here rather than in a query, for the reason `lib/billing/money.ts`
+ * gives about all of this: money bugs are found by reading arithmetic.
+ */
+export function seatMonthlyCents(seats: number, bands: SeatBand[]): number {
+  const count = Math.max(0, Math.floor(seats));
+  if (count === 0) return 0;
+
+  /*
+   * Highest band reached. The list is sorted ascending by `parseSeatBands`, and
+   * this walks it rather than trusting an index, so a hand-built array in a
+   * test cannot be off by one.
+   */
+  let band: SeatBand | null = null;
+  for (const candidate of bands) {
+    if (candidate.from <= count) band = candidate;
+  }
+
+  /*
+   * 🔴 No band reached means the count is below the first one, which for the
+   * shipped ladder cannot happen (`from: 1`). An operator who sets the first
+   * band to start at 3 has made a configuration where one and two seats cost
+   * nothing, and the honest answer is zero rather than a guess at what they
+   * meant. `settingsProblem` refuses that configuration separately.
+   */
+  if (!band) return 0;
+
+  return band.perSeatCents > 0 ? band.perSeatCents * count : band.flatCents;
+}
+
+/**
+ * 🔴 62.3 / 62.4 / C333 / C351 — WHAT CHANGING THE SEAT COUNT COSTS TODAY.
+ *
+ * Sprint 57 deferred proration and named the absence. This is it, and the shape
+ * matters more than the arithmetic: **one figure, stated before the click.**
+ *
+ * ## 🔴 RETROACTIVE WITHIN THE PERIOD (C351)
+ *
+ * Going from two seats to three does not add one seat at $90. It reprices the
+ * whole account from $179 to $270 for the remainder of the month. So the
+ * difference is computed on the WHOLE monthly figure at each count, not on the
+ * seats being added, and the remaining days decide how much of that difference
+ * is owed now.
+ *
+ * ## 🔴 TO THE DAY, AND THE DAY THE CHANGE HAPPENS IS CHARGED
+ *
+ * A change made at 23:50 on the last day of a period costs one day, not zero:
+ * the seat was available that day. Counting it as zero would let a clinic add
+ * seats on the last evening of every month for nothing.
+ *
+ * ## 🔴 A REDUCTION IS A CREDIT, AND IT IS NEGATIVE HERE
+ *
+ * Returned rather than clamped, because the caller has to be able to say
+ * "£41 back" on the screen. What happens to a credit is a billing decision
+ * (62.5 says a released seat is never refunded, so the caller does not apply
+ * this one) and not something this arithmetic gets to make.
+ */
+export type SeatChange = {
+  fromSeats: number;
+  toSeats: number;
+  /** What the account costs a month at the old count and at the new one. */
+  fromMonthlyCents: number;
+  toMonthlyCents: number;
+  /** Days left in the period, counting today. */
+  daysRemaining: number;
+  daysInPeriod: number;
+  /** 🔴 The one figure. Positive is owed now, negative is a credit. */
+  proratedCents: number;
+};
+
+export function seatChange(input: {
+  fromSeats: number;
+  toSeats: number;
+  bands: SeatBand[];
+  now: Date;
+  periodStart: Date;
+  periodEnd: Date;
+}): SeatChange {
+  const fromMonthlyCents = seatMonthlyCents(input.fromSeats, input.bands);
+  const toMonthlyCents = seatMonthlyCents(input.toSeats, input.bands);
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const daysInPeriod = Math.max(
+    1,
+    Math.round((input.periodEnd.getTime() - input.periodStart.getTime()) / DAY),
+  );
+
+  /*
+   * 🔴 `ceil`, so the day the change is made is charged. A change at 23:50 on
+   * the last day costs one day rather than zero, because the seat was available
+   * that day and the alternative is free seats every last evening of the month.
+   */
+  const daysRemaining = Math.min(
+    daysInPeriod,
+    Math.max(0, Math.ceil((input.periodEnd.getTime() - input.now.getTime()) / DAY)),
+  );
+
+  const difference = toMonthlyCents - fromMonthlyCents;
+
+  return {
+    fromSeats: Math.max(0, Math.floor(input.fromSeats)),
+    toSeats: Math.max(0, Math.floor(input.toSeats)),
+    fromMonthlyCents,
+    toMonthlyCents,
+    daysRemaining,
+    daysInPeriod,
+    /*
+     * Rounded once, at the end. Rounding the daily rate first and multiplying
+     * is how a month of prorations drifts from the monthly figure by a few
+     * cents that nobody can explain.
+     */
+    proratedCents: Math.round((difference * daysRemaining) / daysInPeriod),
+  };
+}
+
 function parseTiers(value: unknown): PricingTier[] {
   if (!Array.isArray(value) || value.length === 0) return SETTINGS_DEFAULTS.pricing.tiers;
 
@@ -535,6 +743,7 @@ export function parseGroup<G extends SettingsGroup>(
     case "pricing":
       return {
         tiers: parseTiers(v.tiers),
+        seatBands: parseSeatBands(v.seatBands, d.pricing.seatBands),
         creditExpiryMonths: int(v.creditExpiryMonths, d.pricing.creditExpiryMonths, {
           min: 1,
           max: 120,
@@ -755,6 +964,42 @@ export function parseGroup<G extends SettingsGroup>(
 export function settingsProblem(settings: PlatformSettings): string | null {
   if (settings.session.maxPriceCents < settings.session.minPriceCents) {
     return "The price cap is below the minimum chargeable price.";
+  }
+
+  /*
+   * 🔴 62.1 / C323 — THE SEAT LADDER MUST NOT REWARD BUYING A SEAT.
+   *
+   * A retroactive ladder can go backwards: three seats at $90 each is $270, and
+   * if somebody set the five-seat band to $50 then five seats would cost $250.
+   * A clinic with four clinicians would then pay less by buying a fifth they do
+   * not have, and every one of them would, because it is arithmetic rather than
+   * a loophole.
+   *
+   * This is 59.11's floor rail in a second place, and it is here rather than in
+   * the editor for the same reason: a rule enforced in a form holds for one
+   * button. Checked over the real bands and a margin above the top one, because
+   * the failure is at a band edge and nowhere else.
+   */
+  const bands = settings.pricing.seatBands;
+  if (bands.length === 0) return "There has to be at least one seat band.";
+  if (bands[0]!.from > 1) {
+    return "The first seat band has to start at one seat, or a clinic with one seat is billed nothing.";
+  }
+
+  const ceiling = Math.max(...bands.map((b) => b.from)) + 2;
+  for (let seats = 1; seats < ceiling; seats += 1) {
+    if (seatMonthlyCents(seats + 1, bands) < seatMonthlyCents(seats, bands)) {
+      return `Seat pricing goes backwards: ${seats + 1} seats would cost less than ${seats}. A clinic would buy a seat it does not need, and every one of them would.`;
+    }
+  }
+
+  for (const band of bands) {
+    if (band.flatCents > 0 && band.perSeatCents > 0) {
+      return "A seat band is either a flat price or a price per seat, never both. Nobody can explain the other one on a pricing page.";
+    }
+    if (band.flatCents === 0 && band.perSeatCents === 0) {
+      return "A seat band with no price bills nothing for every clinic that reaches it.";
+    }
   }
   /*
    * 🔴 Sprint 57 / C289 — the free door is a tier with NO threshold AND NO

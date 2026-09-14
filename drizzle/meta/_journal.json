@@ -645,6 +645,13 @@
       "when": 1789600000057,
       "tag": "0091_proving_a_company",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1789600000058,
+      "tag": "0092_seats",
+      "breakpoints": true
     }
   ]
 }

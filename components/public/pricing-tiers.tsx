@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 
 import { PriceTag } from "@/components/money/price-tag";
+import { SeatLadder, type SeatBandRow } from "@/components/public/seat-ladder";
 import { Button } from "@/components/ui";
 import { quoteFor } from "@/lib/billing/fx";
 /*
@@ -16,6 +17,7 @@ import { formatMoney } from "@/lib/billing/plans";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
+import { seatMonthlyCents } from "@/lib/settings/defs";
 
 /**
  * The three rates. PLAN.md 17.2–17.8, 17.10.
@@ -102,6 +104,57 @@ export async function PricingTiers({
   const plans = tiers.filter((tier) => tier.monthlyCents > 0);
   const payg = tiers.find((tier) => tier.monthlyCents === 0) ?? tiers[0]!;
   const cheapestPlan = plans[0];
+
+  /*
+   * 🔴 62.10 / C323 — THE SEAT LADDER, DERIVED FROM THE BANDS RATHER THAN TYPED.
+   *
+   * Every figure below is `seatMonthlyCents` over `settings.pricing.seatBands`,
+   * which is the same call `currentSeatBill` makes when a clinic is charged. The
+   * ranges are read off the band list too, so an admin who adds a fourth band
+   * gets a fourth row and a longer slider with no edit here.
+   *
+   * `verify:claims` asserts the other direction: no published string may name a
+   * seat price these bands do not produce.
+   */
+  const bands = settings.pricing.seatBands;
+  const SEAT_MAX = 12;
+  const monthlyByCount = Array.from({ length: SEAT_MAX }, (_, i) =>
+    seatMonthlyCents(i + 1, bands),
+  );
+
+  const seatRows: SeatBandRow[] = bands.map((band, i) => {
+    const next = bands[i + 1];
+    const upper = next ? next.from - 1 : null;
+    return {
+      range:
+        upper === null
+          ? t("pricing.seatsRangeOpen", { from: band.from })
+          : t("pricing.seatsRange", { from: band.from, to: upper }),
+      rate:
+        band.perSeatCents > 0
+          ? t("pricing.seatsEach", { amount: money(band.perSeatCents) })
+          : t("pricing.seatsIncluded"),
+      monthlyCents: seatMonthlyCents(band.from, bands),
+    };
+  });
+
+  /*
+   * 🔴 THE STEP, at the first band boundary, with both figures on it.
+   *
+   * On the shipped ladder that is seat three: $179 becomes $270 rather than $179
+   * plus $90, because the rate is retroactive. Computed rather than written, so
+   * the sentence cannot survive a reprice as a wrong number. Null when there is
+   * only one band, in which case there is no step to warn about.
+   */
+  const boundary = bands[1]?.from ?? null;
+  const seatStep =
+    boundary !== null
+      ? {
+          count: boundary,
+          from: money(seatMonthlyCents(boundary - 1, bands)),
+          to: money(seatMonthlyCents(boundary, bands)),
+        }
+      : null;
 
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
@@ -261,6 +314,49 @@ export async function PricingTiers({
         <p className="mt-4 text-center text-sm leading-relaxed text-slate-600">
           {t("pricing.creditIsMoney")}
         </p>
+
+        {/*
+          🔴 62.10 — the seat ladder, and not on the homepage.
+
+          `compact` is the homepage, where the job is one price and a button. A
+          three-row table and a slider there would be the third offer on a
+          section that exists to name the first.
+        */}
+        {!compact && seatRows.length > 0 ? (
+          <>
+            <p className="mt-10 text-center text-sm font-semibold text-slate-900">
+              {t("pricing.seatsTitle")}
+            </p>
+
+            <SeatLadder
+              rows={seatRows}
+              monthlyByCount={monthlyByCount}
+              rateMicro={egpRate}
+              locale={tag}
+              strings={{
+                headSeats: t("pricing.seatsHeadSeats"),
+                headRate: t("pricing.seatsHeadRate"),
+                headMonthly: t("pricing.seatsHeadMonthly"),
+                sliderLabel: t("pricing.seatsSlider"),
+                /*
+                 * 🔴 Passed as a function so the plural is decided here, where
+                 * the dictionary is, rather than by a client component building
+                 * a string out of two of them.
+                 */
+                seats: (count: number) =>
+                  count === 1
+                    ? t("pricing.seatsCountOne")
+                    : t("pricing.seatsCount", { count }),
+              }}
+            />
+
+            {seatStep ? (
+              <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
+                {t("pricing.seatsStep", seatStep)}
+              </p>
+            ) : null}
+          </>
+        ) : null}
 
         <Link href="/signup" className="mx-auto mt-8 block max-w-xs">
           <Button full>{t("pricing.signUp")}</Button>

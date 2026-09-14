@@ -191,6 +191,20 @@ export const organizations = pgTable(
     }),
     billingMode: text("billing_mode").$type<BillingMode>().notNull().default("self"),
 
+    /**
+     * 🔴 62.1 / C323 — HOW MANY CLINICIANS THIS CLINIC PAYS FOR.
+     *
+     * The bill is a function of this count and the band it reaches, and the
+     * band prices EVERY seat rather than only the ones above the threshold.
+     *
+     * 🔴 ZERO IS THE DEFAULT AND IT IS NOT ONE. Every organisation that exists
+     * today is a solo practice, which has a subscription rather than seats.
+     * Defaulting to 1 would bill every one of them for a clinic plan the moment
+     * anything read this column, which is the expensive direction for a default
+     * to be wrong in.
+     */
+    seats: integer("seats").notNull().default(0),
+
     /* 54.3 — the contact, for the call that happens before anything is activated. */
     contactName: text("contact_name"),
     contactEmail: text("contact_email"),
@@ -1760,6 +1774,57 @@ export const renewalObligations = pgTable(
 );
 
 export type RenewalObligation = typeof renewalObligations.$inferSelect;
+
+/**
+ * 🔴 62.6 / C355 / C329 — A SEAT, AND WHEN IT STARTS COSTING MONEY.
+ *
+ * A clinician on Practice who accepts a clinic invitation has already paid for
+ * the month. Billing the clinic for their seat at once charges twice for one
+ * person; cancelling the clinician's own plan at once takes away a month they
+ * bought. C329 settles the second half — their subscription is cancelled at
+ * PERIOD END — and this table is the first: the clinic's bill knows which seats
+ * are live and which are waiting for somebody's own period to close.
+ */
+export const clinicSeats = pgTable(
+  "clinic_seats",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    /**
+     * When this seat starts costing money. Null while we are waiting for the
+     * joining clinician's own subscription period to close.
+     */
+    billableFrom: timestamp("billable_from", { withTimezone: true }),
+
+    /**
+     * 🔴 62.5 — released, never refunded. The clinician keeps unlimited to
+     * period end and the seat is not renewed. A refund here means a clinic
+     * cycles seats weekly and pays for none of them.
+     */
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * One live seat per clinician per clinic. A released one stays beside it,
+     * because "when did this person stop costing us money" is asked at renewal.
+     */
+    uniqueIndex("clinic_seats_live_unique")
+      .on(t.organizationId, t.userId)
+      .where(sql`released_at IS NULL`),
+    index("clinic_seats_org_idx").on(t.organizationId, t.releasedAt),
+  ],
+);
+
+export type ClinicSeat = typeof clinicSeats.$inferSelect;
 
 export const subscriptions = pgTable(
   "subscriptions",

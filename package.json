@@ -121,7 +121,9 @@
     "verify:sprint59": "node --import tsx scripts/verify-sprint59.ts",
     "test:coverage": "node --import tsx --test tests/coverage.test.ts",
     "verify:sprint60": "node --import tsx scripts/verify-sprint60.ts",
-    "verify:sprint61": "node --import tsx scripts/verify-sprint61.ts"
+    "verify:sprint61": "node --import tsx scripts/verify-sprint61.ts",
+    "verify:sprint62": "node --import tsx scripts/verify-sprint62.ts",
+    "test:seats": "node --import tsx --test tests/seats.test.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

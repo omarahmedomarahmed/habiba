@@ -47,6 +47,15 @@ export type PersonRow = {
   name: string;
   email: string;
   verificationStatus: string;
+  /**
+   * 🔴 62.6 / C355 — when this seat starts costing the practice money, and null
+   * once it already does.
+   *
+   * A formatted string rather than a `Date`, because C84: a date handed to a
+   * client component renders one way on the server pass and another after
+   * hydration.
+   */
+  seatBillableFrom: string | null;
 };
 
 export type InviteRow = {
@@ -100,6 +109,20 @@ export function ClinicPeopleList({
                     {t(VERIFY_KEYS[person.verificationStatus] ?? "clinic.verifyNone")}
                   </span>
                 </div>
+
+                {/*
+                  🔴 62.6 / C355 — the seat that is not billed yet, and the date.
+
+                  They had already paid for the month when they accepted, so the
+                  practice is not charged twice for one person. Rendered only
+                  while that is still true, because a line on every row is noise
+                  and a line on none is the support ticket it exists to prevent.
+                */}
+                {person.seatBillableFrom ? (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {t("clinic.seatFrom", { date: person.seatBillableFrom })}
+                  </p>
+                ) : null}
 
                 {canManage ? (
                   confirming === person.userId ? (

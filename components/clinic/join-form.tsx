@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { accept } from "@/app/(clinic)/clinic/join/[token]/actions";
+import { accept, joinWithAccount } from "@/app/(clinic)/clinic/join/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
@@ -49,11 +49,77 @@ export function ClinicJoinForm({
 }) {
   const t = useT();
   const [state, formAction] = useActionState(accept, {});
+  const [existingState, existingAction] = useActionState(joinWithAccount, {});
+  const [existing, setExisting] = useState(false);
 
-  if (state.ok) {
+  if (state.ok || existingState.ok) {
     return (
       <Card className="p-5">
         <p className="text-sm font-semibold text-slate-900">{t("clinic.join.done")}</p>
+      </Card>
+    );
+  }
+
+  /*
+   * 🔴 62.6 / 62.7 — THE SECOND PATH, and it is a path rather than a detail.
+   *
+   * Somebody who bought Practice last week and is now being invited by a clinic
+   * is the person C355 and C329 are about. Without this they would create a
+   * second account, pay for two things, and find out later.
+   *
+   * The sentence above the button says what happens to the month they have
+   * already paid for, because that is the question they are actually asking.
+   */
+  if (existing) {
+    return (
+      <Card className="p-5">
+        <form action={existingAction} className="space-y-4">
+          <input type="hidden" name="token" value={token} />
+
+          <p className="text-sm leading-relaxed text-slate-600">
+            {t("clinic.join.signInBody", { name: clinicName })}
+          </p>
+
+          <Field label={t("clinic.email")} htmlFor="join-email">
+            <Input
+              id="join-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+            />
+          </Field>
+          <Field label={t("clinic.password")} htmlFor="join-existing-password">
+            <Input
+              id="join-existing-password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+
+          <div className="space-y-2 rounded-xl bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
+            <p>{t("clinic.join.noPrivate", { name: clinicName })}</p>
+            <p>{t("clinic.join.keepSolo")}</p>
+          </div>
+
+          {existingState.error ? (
+            <p role="alert" className="text-xs text-red-600">
+              {existingState.error}
+            </p>
+          ) : null}
+
+          <Submit label={t("clinic.join.signIn")} />
+
+          <button
+            type="button"
+            onClick={() => setExisting(false)}
+            className="w-full text-center text-xs font-medium text-brand-600 underline"
+          >
+            {t("clinic.join.newHere")}
+          </button>
+        </form>
       </Card>
     );
   }
@@ -98,6 +164,14 @@ export function ClinicJoinForm({
         ) : null}
 
         <Submit label={t("clinic.join.accept")} />
+
+        <button
+          type="button"
+          onClick={() => setExisting(true)}
+          className="w-full text-center text-xs font-medium text-brand-600 underline"
+        >
+          {t("clinic.join.haveAccount")}
+        </button>
       </form>
     </Card>
   );

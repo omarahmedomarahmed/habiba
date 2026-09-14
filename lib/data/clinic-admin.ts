@@ -11,6 +11,7 @@ import {
   clinicianInvitations,
   meetingConnections,
   organizations,
+  patients,
   users,
   type ClinicState,
 } from "@/lib/db/schema";
@@ -420,8 +421,171 @@ export async function acceptInvitation(input: {
     return { error: "That invitation has already been accepted." };
   }
 
+  /*
+   * 🔴 62.6 — the seat, and `ownOrganizationId: null` is the fact rather than a
+   * placeholder.
+   *
+   * This branch creates the account. Somebody who has just been created has
+   * never paid us for a month, so there is no period to wait out and the seat
+   * starts costing the clinic today. The other branch, below, is where C355
+   * actually bites.
+   */
+  const { takeSeat } = await import("@/lib/billing/seats");
+  await takeSeat({
+    organizationId: invitation.organizationId,
+    userId: createdUserId,
+    ownOrganizationId: null,
+  });
+
   log.info("clinician accepted a clinic invitation");
   return { ok: true };
+}
+
+/**
+ * 🔴 62.6 / 62.7 / C355 / C329 — A CLINICIAN WHO ALREADY PAYS US JOINS A CLINIC.
+ *
+ * The branch above creates an account. This is the one the two rulings are
+ * about: somebody who bought Practice three days ago, is invited by a clinic,
+ * and must not end up paying twice or losing the month they bought.
+ *
+ *   - Their seat is not billable until THEIR period ends (`takeSeat`).
+ *   - Their own subscription is cancelled AT PERIOD END, and the caller does it,
+ *     because it is a network call and this is a write path.
+ *
+ * ## 🔴 THEY BRING NOTHING, AND A CASELOAD IS A REFUSAL RATHER THAN A MIGRATION
+ *
+ * Under C261 every patient, session and note belongs to the ORGANISATION, so
+ * moving this person's row to the clinic would move their chart out from under
+ * the grant each patient gave — the exact move sprints 26 and 27 built the
+ * opposite mechanism for, where a PATIENT claims and moves their own record and
+ * a clinician never moves it for them.
+ *
+ * `removeClinician` already settles the mirror image: a therapist who LEAVES
+ * does not take the caseload with them. Letting one arrive with a caseload while
+ * refusing to let them leave with it would be the same rule pointing two ways.
+ *
+ * So an account with patients on it is refused, in a sentence that says what to
+ * do instead. It is a narrower product than a migration and it is the only
+ * version of this that does not silently move clinical records across a tenancy
+ * boundary because somebody accepted an invitation.
+ */
+export async function joinWithExistingAccount(input: {
+  token: string;
+  email: string;
+  password: string;
+}): Promise<{ ok?: true; cancelSubscriptionFor?: string; error?: string }> {
+  const [invitation] = await controlDb
+    .select({
+      id: clinicianInvitations.id,
+      organizationId: clinicianInvitations.organizationId,
+      email: clinicianInvitations.email,
+      termsShownAt: clinicianInvitations.termsShownAt,
+      expiresAt: clinicianInvitations.expiresAt,
+    })
+    .from(clinicianInvitations)
+    .where(
+      and(
+        eq(clinicianInvitations.tokenHash, hashToken(input.token)),
+        eq(clinicianInvitations.state, "sent"),
+      ),
+    )
+    .limit(1);
+
+  if (!invitation) return { error: "That invitation is no longer valid." };
+  if (invitation.expiresAt.getTime() < Date.now()) {
+    return { error: "That invitation has expired. Ask the practice for a new one." };
+  }
+  if (!invitation.termsShownAt) {
+    return { error: "Open the invitation link again before accepting." };
+  }
+
+  const [existing] = await controlDb
+    .select({
+      id: users.id,
+      organizationId: users.organizationId,
+      passwordHash: users.passwordHash,
+      role: users.role,
+    })
+    .from(users)
+    .where(and(eq(users.email, input.email.trim().toLowerCase()), isNull(users.deletedAt)))
+    .limit(1);
+
+  /*
+   * 🔴 One message for a wrong address, a wrong password and an account that is
+   * not a clinician's, and the work is done either way. The same construction
+   * `checkClinicPassword` uses below, for the same reason: a response that is
+   * faster for an unknown address is an account enumerator, and this route is
+   * reachable by anybody holding an invitation link.
+   */
+  if (!existing?.passwordHash || existing.role !== "therapist") {
+    await hashPassword(input.password);
+    return { error: "That email address and password do not match." };
+  }
+
+  if (!(await verifyPassword(input.password, existing.passwordHash))) {
+    return { error: "That email address and password do not match." };
+  }
+
+  /*
+   * 🔴 The caseload check, before anything is written. A clinician with patients
+   * on their own account cannot be moved without moving records across a
+   * tenancy, so they are refused here rather than half-migrated below.
+   */
+  const [carried] = await controlDb
+    .select({ id: patients.id })
+    .from(patients)
+    .where(eq(patients.organizationId, existing.organizationId))
+    .limit(1);
+
+  if (carried) {
+    return {
+      error:
+        "This account already has patient records on it. Those stay with your own practice and cannot move to a clinic. Ask the practice to invite you on an address with no records, or ask each patient to move their own record across.",
+    };
+  }
+
+  /* Claimed first, so two taps cannot move one person twice. */
+  const [claimed] = await controlDb
+    .update(clinicianInvitations)
+    .set({ state: "accepted", acceptedAt: new Date(), acceptedUserId: existing.id })
+    .where(
+      and(
+        eq(clinicianInvitations.id, invitation.id),
+        eq(clinicianInvitations.state, "sent"),
+      ),
+    )
+    .returning({ id: clinicianInvitations.id });
+
+  if (!claimed) return { error: "That invitation has already been accepted." };
+
+  /*
+   * 🔴 THE SEAT BEFORE THE MOVE, because `ownOrganizationId` is the practice
+   * whose period we are waiting for and the next statement overwrites it.
+   */
+  const { takeSeat } = await import("@/lib/billing/seats");
+  await takeSeat({
+    organizationId: invitation.organizationId,
+    userId: existing.id,
+    ownOrganizationId: existing.organizationId,
+  });
+
+  await controlDb
+    .update(users)
+    .set({ organizationId: invitation.organizationId, updatedAt: new Date() })
+    .where(eq(users.id, existing.id));
+
+  log.info("clinician joined a clinic with an existing account", {
+    org: ref(invitation.organizationId),
+  });
+
+  /*
+   * 🔴 62.7 / C329 — returned rather than done, and the caller cancels.
+   *
+   * At period end, never immediately: they keep the month they bought. It is a
+   * network call to a gateway, and a gateway having a bad afternoon must not
+   * roll back a person's seat, so it happens after this returns and on its own.
+   */
+  return { ok: true, cancelSubscriptionFor: existing.organizationId };
 }
 
 /**
@@ -532,6 +696,24 @@ export async function removeClinician(input: {
     .returning({ id: organizations.id });
 
   if (!solo) return { error: "That could not be completed. Try again." };
+
+  /*
+   * 🔴 62.5 — THE SEAT IS RELEASED, AND NOT REFUNDED.
+   *
+   * Before the reparenting, so a crash between the two leaves a released seat on
+   * a clinician still in the clinic, which costs the practice nothing and is
+   * fixed by removing them again. The other order leaves a departed clinician
+   * holding a billable seat in an organisation they are no longer in.
+   *
+   * The clinic keeps paying for the seat until the period ends, which is the
+   * whole of C331: refunding here means a practice adds five seats on the first
+   * of the month, removes them on the last, and pays for none of them.
+   */
+  const { releaseSeat } = await import("@/lib/billing/seats");
+  await releaseSeat({
+    organizationId: input.clinicOrganizationId,
+    userId: input.userId,
+  });
 
   await controlDb
     .update(users)
