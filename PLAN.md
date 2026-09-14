@@ -362,6 +362,9 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C394 | 59 | 🔴 **COLLECTION FOLLOWS THE PATIENT AND PAYOUT FOLLOWS THE CLINICIAN, AND THEY ARE ALLOWED TO DISAGREE.** Founder: *"Egypt patients pay in EGP even if the therapist is in the UK and gets their payout on Stripe in USD, and we collected from the patient in EGP through the Egyptian gateway."* The obvious build asks "which rail is this session on" once and is wrong for every Egyptian patient seeing a foreign clinician. **Ruling: `collectionCurrencyFor` and `collectionRailFor` read the PATIENT's country, `payoutRailFor` reads the CLINICIAN's, and the disagreement is exactly what `isCrossBorder` counts and what an `entity_transfer` settles.** The checkout reads the rule rather than the settings row, so that when the two disagree the refusal fires rather than the row winning. 2026-09-14. | blocker | founder | **ruled — built** |
 | C395 | 59 | 🔴 **AN EGYPTIAN CLINICIAN COULD HAVE BEEN ROUTED TO CONNECT, AND THE EXPOSURE REGISTER WOULD HAVE UNDER-COUNTED.** Founder: *"A therapist in Egypt is on manual payouts even if the patient paid in USD from abroad."* `payoutRailFor` read only `stripeAccountId && payoutsEnabled`, which is a question about our own database rather than about the world. Stripe does not pay out to Egypt, so a mis-set flag or a Connect account opened against a foreign address would have produced `usd_stripe_to_connect` — the ONE crossing `holdsMoney` answers false for. The single predicate §3c exists to count would have under-counted money we were definitely holding, and an under-count reads as good news. **Ruling: Egypt is manual first, before any other condition is asked, from `therapist_verifications.country`.** 2026-09-14. | blocker | founder | **ruled — built** |
 | C396 | 59 | 🔴 **`vatOn` DOCUMENTED A REFUND POLICY THE PRODUCT DOES NOT HAVE.** Its comment read *"a refund returns our cut but never the VAT, because the VAT was remitted to a government that is not refunding it because a session was cancelled"*, sitting directly above the arithmetic, where a reader takes it for a description of the arithmetic. `refundSession` calls `refunds.create` with no `amount`, which returns the whole charge including the tax line, and always has. The same shape as C246's index comment and C377's floor. **Ruling: the behaviour is kept and the sentence is dropped.** Refunding a tax on a service that never happened is the right answer to a patient, and the mechanism to reclaim it is a credit note. **Still owed:** the Egyptian refund path does not exist yet, and when it is built it has to issue an ETA credit note rather than a bare reversal. 2026-09-14. | major | **found by the sonnet audit, correctly** | **ruled — comment fixed, ETA credit note open for sprint 64** |
+| C397 | 59 | 🔴 **THE PARTNER API WAS SIX PRODUCTS FOR ONE BUYER, AND TWO OF THEM BELONGED TO OTHER PORTALS.** Founder, 2026-09-14: *"cut the scope of the partner API to telehealth platforms only."* `employment:verify` had a third party holding a key and asking us about a company's staff, while the company itself is a signed-in principal of ours; `clinician:verify` asked us to answer for licences the telehealth contract puts on the platform. **Ruling: an HR connection is the SPONSOR's own integration, an EHR or FHIR connection is the CLINIC's own setting on the clinic plan, and the partner API is one product: a telehealth platform that has the video and the clinicians and wants the intelligence.** The sponsor's version is strictly safer than what it replaces, because the organisation an identity question is about stops being a field on a form and becomes the portal somebody is signed into. **What it costs:** two endpoints deleted, and the C265 machinery kept whole with a check asserting it survived the move. 2026-09-14. | blocker | founder | **ruled — cut, sprints 66 to 68 build the replacements** |
+| C398 | 59 | **Three gates caught the leftovers of that cut, which is the argument for having them.** 55.12 found `/developers` still printing both deleted endpoints with request bodies and example responses, on the page somebody reads while deciding whether to integrate; the key form still carried C265's warning about a scope it no longer has; the partner apply page still opened with a paragraph about never syncing a directory. **Ruling: two checks that counted to five by hand now read `API_SCOPES.length` and the dictionary, in BOTH directions, so a string describing a deleted endpoint fails as loudly as a missing one.** A number a person has to remember to change is a check with a half-life. 2026-09-14. | major | review | **ruled — fixed** |
+| C399 | 59 | 🔴 **THE CRISIS LINE WAS A WARNING THE MODULE WROTE ABOUT ITSELF AND NOBODY READ.** `lib/crisis/line.ts` has said since sprint 21R that each country's line *"belongs in `country_settings` beside the payment rail, and adding it there is the fix rather than growing this list from memory."* Nothing acted on it for four sprints. The table still held one entry, the United States, while the first market is Egypt: a person in crisis in Cairo was shown a sentence rather than a number. A paragraph inside a module is read by whoever opens that module. **Ruling: four columns, a validated pairing constraint, a red card on the admin screen listing every enabled country with no line, and a badge on the country row.** 🔴 **Seeded empty, including for the United States**, because the same module rules that a wrong number is worse than none and a number recalled by whoever wrote the migration is exactly that. The verified table stays as the fallback so 988 still renders; stating it in two places is how two places come to disagree. 2026-09-14. | blocker | review | **ruled — built, 0088. Egypt's line awaits an operator who has dialled it** |
 
 ---
 
@@ -4162,6 +4165,207 @@ is **retroactive**, not marginal:
 
 
 
+### Sprint 66 — The sponsor's own HR connection · ~3 weeks
+
+> **`employment:verify` came home.** It was a partner scope: a third party held
+> a key and asked us about a company's staff. The company is right here, signed
+> in, and it is their staff. The organisation an identity question is about
+> should be the portal somebody is signed into, not a field on a form.
+
+- [ ] **66.1** A new page, `/sponsor/integrations`, and it is a PAGE rather than
+      a row in settings. Connecting an HR system is a project somebody schedules,
+      not a toggle they flip while looking for something else
+- [ ] **66.2** 🔴 **"Enable employment verification" is off by default and says
+      what it does before it is on.** C227's whole design removed the roster;
+      this is the one thing that touches employment, and the sentence in front of
+      it is *we never read your directory, never sync it, and never store a staff
+      list*
+- [ ] **66.3** 🔴 **C265 is inherited, not re-implemented.** The endpoint still
+      answers only about an identifier somebody typed into their own enrolment
+      minutes ago, from `enrolment_attestations`, consumed once. Moving portals
+      changed the door and nothing behind it
+- [ ] **66.4** 🔴 **The sponsor scope is now structural rather than a CHECK.** A
+      key minted here belongs to the sponsor whose session minted it. There is no
+      form field naming an organisation, so there is no way to name the wrong one
+- [ ] **66.5** **Pick your HR system by name**, from a list with logos, and the
+      steps change to match it. "Generic / other" is on the list and is honest
+      about being a webhook and a key
+- [ ] **66.6** **A step-by-step guide, visualised**, from choosing the system to
+      the first successful call. Numbered because it genuinely is a sequence
+      (65.15), with a copyable snippet per step and the key generated at the step
+      that needs it
+- [ ] **66.7** 🔴 **A live indicator: connected, or not, and when it last
+      answered.** Not a green dot that means "we saved your settings". It means a
+      call succeeded, with the timestamp
+- [ ] **66.8** 🔴 **The delivery log, on their own page**: every webhook we sent
+      them, the event, the response code, and the error when there was one. They
+      debug their side without a support ticket, and we stop being the only
+      people who can see what happened
+- [ ] **66.9** 🔴 **The log names no employee, ever.** An event and an id, the
+      same payload rule 42.4 put on every delivery. A connection log that named
+      the person each call was about would rebuild the roster inside the audit
+      trail
+- [ ] **66.10** Rotate and revoke the key from the same page, and a revoked key
+      shows in the log as the reason a call stopped working
+- [ ] **66.11** 🔴 The spike counter C246 already raises is on this page too, as
+      a NUMBER. Unusual attempts against their joining code is the fact an HR
+      admin can act on
+- [ ] **66.12** Arabic and RTL, with the guide's numbered steps reading right to
+      left correctly rather than by accident
+
+- **Accept:** a sponsor admin connects a named HR system, sees the indicator go
+      green because a real call succeeded, watches deliveries arrive in the log,
+      revokes the key, and sees the failures that follow, without reading a
+      paragraph or opening a ticket.
+
+---
+
+### Sprint 67 — The clinic's own records connection · ~2.5 weeks
+
+> **EHR and FHIR are a clinic setting, on the clinic plan.** `lib/ehr/` already
+> does SMART-on-FHIR and `/clinic/records` already begins a connection. What is
+> missing is that it reads like an engineer's screen, has no plan gate, and goes
+> silent the moment anything fails.
+
+- [ ] **67.1** 🔴 **Clinic plan only, and the solo plan is told why rather than
+      shown a disabled button.** A records connection binds an organisation to a
+      hospital system; a solo practice with one clinician is the case where the
+      export in `lib/data/portability.ts` is the right tool, and that is what the
+      upsell says
+- [ ] **67.2** **Pick your record system by name** — Epic, Cerner, Athena, the
+      SMART sandbox — with the steps changing per vendor, and every field it asks
+      for named the way that vendor's own console names it
+- [ ] **67.3** **The full path, visualised**: base URL, the redirect they
+      register, the scopes we ask for, the approval their administrator gives,
+      the first successful read. Each step shows what "done" looks like
+- [ ] **67.4** 🔴 **Connected means a token that works**, tested against their
+      server, with the time of the last successful exchange. Not "we stored a
+      URL"
+- [ ] **67.5** 🔴 **The writeback log is on the clinic's page**: every note we
+      filed, which patient reference, which clinician approved it, the response,
+      and the error when there was one. `ehr_deliveries` already holds this and
+      nobody could see it
+- [ ] **67.6** 🔴 **A failed writeback is visible to the practice**, because a
+      note that did not reach a hospital chart is a clinical fact and not an
+      infrastructure detail
+- [ ] **67.7** Disconnect from the same page, with the count of what stops
+      filing, and 0086's audit row already names who did it
+- [ ] **67.8** 🔴 **Nothing on this page is clinical.** A delivery log carries a
+      reference and a status, never note content. The 58.6 matrix proves the
+      import graph, not a comment
+- [ ] **67.9** Arabic and RTL
+
+- **Accept:** a clinic admin on the clinic plan connects Epic from a screen with
+      no prose in it, files a note, sees it in the log, breaks it on purpose, and
+      sees exactly which call failed and what the server said.
+
+---
+
+### Sprint 68 — The partner platform, properly · ~6 weeks
+
+> **The founder's product, in one sentence:** a telehealth or teletherapy
+> platform has the video, the booking and the clinicians. We provide the
+> intelligence: the transcript, the note their therapist approves, the copilot
+> their therapist talks to, the memory, and the summary their patient reads.
+> Instead of building what we built, they use us.
+>
+> 🔴 **A scope arrives with its endpoint, never before it.** `WEBHOOK_EVENTS`
+> advertised two events nothing emitted for four sprints, under a green check.
+> Every ticket below adds its route and its scope together or it is not done.
+
+#### What they get
+
+- [ ] **68.1** 🔴 **Consent first, and it is an endpoint before it is anything
+      else.** Their patient sees our consent question on THEIR interface before
+      the session; the answer reaches us; without it we record nothing. Scope
+      `consent:write`
+- [ ] **68.2** 🔴 **Mid-session consent, with the boundary recorded.** Somebody
+      can say yes ten minutes in. We start then, the note covers from then, and
+      the record says the session was partly recorded and when it began. Never a
+      note that implies we heard the first ten minutes
+- [ ] **68.3** **Audio in**, by upload or by stream, scope `session:media`. Their
+      video stays theirs; we never need the stream to be ours
+- [ ] **68.4** **Or our room on their platform**, `lib/video`'s Daily rooms
+      embedded in their interface, for platforms that would rather not build one
+- [ ] **68.5** **Transcript out**, scope `transcript:read`, diarised, with the
+      same source attribution `session_sources` already carries
+- [ ] **68.6** 🔴 **The note their therapist approves**, and the approval is
+      theirs. Scope `note:review`. §7's first hard rule is unchanged across a
+      commercial boundary: content in a chart needs a named clinician who
+      approved that exact text, and a partner's server is not one
+- [ ] **68.7** **Copilot chat about a patient**, scope `copilot:chat`, with the
+      citations that resolve. The same `lib/ai/case-copilot.ts` behind it,
+      including C367's and C373's bounds
+- [ ] **68.8** **The memory layer and the facts**, scope `memory:read`, so a
+      therapist on their platform gets the same continuity ours does
+- [ ] **68.9** **The patient summary, delivered to their patient**, scope
+      `summary:deliver`. Reviewed and edited by their therapist before anybody
+      sees it, like ours
+- [ ] **68.10** 🔴 **Unclaimed patients are allowed**, because a telehealth
+      platform has a caseload before it has our accounts. Everything C127 and the
+      claim flow already rule applies unchanged: the person can claim it and
+      leave, including leaving them
+- [ ] **68.11** 🔴 **The session record is revamped on BOTH sides.** A patient
+      who used the platform for a GP call and then for therapy should see the
+      difference: the therapy one has the steps, the action plan and the summary.
+      This is also 65's work, done once for both audiences
+
+#### Their clinician's own choice
+
+- [ ] **68.12** 🔴 **"For therapists only" is a label, not a filter we enforce.**
+      A general telehealth platform has GPs and physios on it, and an opt-in that
+      says *AI notes, transcripts and a copilot that prepares you for sessions —
+      for therapists* lets the right people find it without us deciding who is
+      one
+- [ ] **68.13** When a clinician enables it they get the copilot with their own
+      patient list, and a button per patient to share the record for insight.
+      Sharing is an act with a name, not a default
+
+#### Money, and the limit they set
+
+- [ ] **68.14** **Priced per session, not per call.** They do the work; we
+      transcribe, write and assist. A call-based price makes an integrator
+      optimise against the product
+- [ ] **68.15** 🔴 **THEY set the limit, and we never exceed it.** A usage page
+      with the number they chose, what they have spent, and the projection
+- [ ] **68.16** 🔴 **80% and 90% alerts**, to the contact on the account, with
+      one tap to raise the limit
+- [ ] **68.17** 🔴 **At the limit, THEIR product keeps working and OURS stops.**
+      No copilot in the room, no transcription, no note, no summary. Their
+      session happens, is held on their side, and is theirs. We did not do the
+      session, so we do not bill for it
+- [ ] **68.18** 🔴 **The stop is explicit on their therapist's screen**, not a
+      silent absence. A copilot that vanishes without a word is read as our
+      outage, and their therapist is mid-session
+- [ ] **68.19** Monthly bill from real usage, on the same ledger every other
+      figure in this product goes through, with the invoice they can hand to
+      their finance team
+
+#### Getting started, and being trusted
+
+- [ ] **68.20** **Sign up, get a dev key, integrate the same hour.** Free, with a
+      daily limit, against a sandbox. "Unlock AI for your therapists" is the
+      sentence and the key is behind it, not behind a sales call
+- [ ] **68.21** 🔴 **Production needs a person.** Documents, a named contact, a
+      phone number, an email, and an admin approval. C264 already rules that
+      activating a partner is the owner's act
+- [ ] **68.22** 🔴 **Sandbox reaches no real patient.** `environment` is already
+      on the key and the rule is already written; this is where it is proved
+      against every new endpoint rather than the old three
+- [ ] **68.23** **World-class documentation, public, with visuals and runnable
+      examples.** Readable before sign-in, because docs behind a login are docs
+      nobody evaluating us can read
+- [ ] **68.24** 🔴 **Every endpoint documented is an endpoint that exists**,
+      asserted by 55.12, which has already caught this exact drift once
+
+- **Accept:** a telehealth platform signs up, gets a dev key, runs a sandbox
+      session end to end with consent, transcript, note and summary, sets a
+      limit, watches the 80% alert arrive, hits the limit and sees their own
+      product keep working while ours stops with a sentence on the screen, then
+      uploads documents and is approved for production.
+
+---
+
 ### Sprint 65 — Show it, do not write it · ~4 weeks · 🔴 LAST, AND AFTER EVERYTHING ELSE
 
 > **Deliberately last.** Every ruling in this document has been shipped as a
@@ -4240,33 +4444,72 @@ state banner usually wins that against a paragraph.
 - [ ] **65.12** **Sponsor portal:** C240's attendance sentence and C227's "you
       will never see an individual" become a standing visual in the chrome. The
       pot, its terms and its expiry become a meter with three states
-- [ ] **65.13** **Public and marketing pages:** every claim already passes
-      `verify:claims`, and it stays that way. A claim rendered as a graphic is
-      still a claim, and the harvester has to reach the new components or the
-      gate silently stops covering the pages it was written for
-- [ ] **65.14** 🔴 **Arabic first, not Arabic after.** Every new component is
+#### The public site, which is four audiences on one set of pages
+
+- [ ] **65.13** **Every claim already passes `verify:claims` and stays that way.**
+      A claim rendered as a graphic is still a claim, and the harvester has to
+      reach the new components or the gate silently stops covering the pages it
+      was written for
+- [ ] **65.14** 🔴 **80% less text on every page of the public site**, measured by
+      the same sweep as the portals. Not a target somebody eyeballs: the number
+      is in the ratchet
+- [ ] **65.15** 🔴 **The homepage has two heroes and both are about the
+      therapist.** That is the whole audience problem in one measurement. It gets
+      four, one per person who arrives:
+      - **A therapist**, which is what is there today
+      - **A company**: bring mental health to your people, and never learn who
+        went. C227 and C244 are the product, and they are the pitch
+      - **A patient**: your record is yours, you can claim it and carry it, and
+        the radar has somebody free now
+      - **A clinic**: seats, colleagues, one set of books, and no clinical
+        content in the admin's hands
+- [ ] **65.16** 🔴 **Every audience gets a real page, not a section.** `/for-companies`,
+      `/for-clinics`, `/for-patients`, `/developers`, each laid out properly
+      rather than as a wall under a heading
+- [ ] **65.17** 🔴 **The components are the REAL ones, rendered.** Not screenshots
+      that rot, not mockups drawn in a design tool: the actual sponsor spend
+      chart, the actual radar card, the actual coverage meter, the actual note
+      view, imported from the portal and fed fixture data. A marketing page that
+      renders the product cannot show a product we do not have
+- [ ] **65.18** **Fed from the demo seed where possible.** The six-month
+      simulation produces exactly the shapes these components need: a spend curve
+      with a real shape, a radar with real distribution, an invoice with real
+      lines. Capture that data as fixtures once the simulation has run, so the
+      marketing site shows a plausible product rather than `Lorem` with a chart
+      library
+- [ ] **65.19** 🔴 **Fixtures are synthetic, and that is not negotiable.** They
+      come from the simulation's SHAPE, never from its rows. No name, no note, no
+      session that traces to a person, seeded or otherwise. C127 does not have a
+      marketing exemption
+- [ ] **65.20** **Cards, banners and explainers per audience**, from the same
+      vocabulary 65.4 builds. A company sees a coverage meter and a wall
+      diagram; a clinic sees a seat ladder; a patient sees the claim flow as
+      three steps; a developer sees a request and a response
+- [ ] **65.21** 🔴 **Arabic first, not Arabic after.** Every new component is
       built and reviewed in Arabic as well, with RTL, because a layout designed
       around an English sentence length breaks on a language that does not have
       it. Sprint 37L is the record of what that costs when it is retrofitted
 
 #### What would make this fail
 
-- [ ] **65.15** 🔴 **Decoration instead of information.** A numbered 01/02/03 strip
+- [ ] **65.22** 🔴 **Decoration instead of information.** A numbered 01/02/03 strip
       over content that is not a sequence, an accent bar that means nothing, an
       icon chosen because the row looked bare. Every visual element encodes
       something true or it does not ship
-- [ ] **65.16** 🔴 **A disclaimer that became a tooltip.** Anything a regulator, a
+- [ ] **65.23** 🔴 **A disclaimer that became a tooltip.** Anything a regulator, a
       payer or a court would expect a person to have seen stays visible without
       an interaction. Hidden is not minimal, it is gone
-- [ ] **65.17** The sweep, `verify:claims`, `verify:principals` and the Arabic
+- [ ] **65.24** The sweep, `verify:claims`, `verify:principals` and the Arabic
       render all run in the same pass, so a page cannot be prettier and less
       truthful at the same time
 
-- **Accept:** the prose ratchet is down by more than half in every portal; a
-      patient opens the app and reaches a therapist from the homepage without
-      reading a paragraph; every removed block names the component that replaced
-      it; and `verify:claims` covers the new components rather than the text
-      they replaced.
+- **Accept:** the prose ratchet is down by more than half in every portal and by
+      80% across the public site; the homepage speaks to four audiences and each
+      has a page of its own; every marketing component is the real one rendered
+      against synthetic fixtures; a patient opens the app and reaches a therapist
+      from the homepage without reading a paragraph; every removed block names
+      the component that replaced it; and `verify:claims` covers the new
+      components rather than the text they replaced.
 
 
 
