@@ -1,123 +1,108 @@
-# The third walkthrough — the prompt for a fresh session
+# The six-month simulation — the prompt for a fresh session
 
 Paste everything below the line into a new session. Nothing above it is part of the prompt.
 
-**Before you paste it, do the one thing no session can do for you:** confirm the capture
-database branch exists and is migrated to the current schema. Everything else in this file
-is instructions for the session; this is the blocker.
+**Before you paste it:**
+
+1. Put a funded `OPENAI_API_KEY` and `DAILY_API_KEY` in `.env.local`. The simulation runs the
+   real AI and real video; without credit it produces six months of empty notes.
+2. Keep `STRIPE_SECRET_KEY` on **test** keys.
+3. Have a **fresh, empty Neon branch** ready and its connection string to hand.
 
 ---
 
-You are walking the whole of 24Therapy, by hand, as every kind of person who uses it, in
-both languages, and writing down what you find. You are not building features. Read
-`PLAN.md` §4's sprint 65 entry and `docs/walkthrough-archive/FINDINGS.md` first, then begin.
+You are running a six-month simulation of 24Therapy: a swarm of agents behaving as real
+people, using the real product, producing a database that looks like six months of trading
+and a folder of screenshots that proves it.
 
-## Why this pass exists
-
-Sixty-eight sprints have shipped. Thousands of automated checks pass. **A human has used
-this product for a handful of hours in its entire history**, and every serious defect ever
-found in it was found that way: an American crisis number shown to an Egyptian patient, a
-duplicate patient record created silently, a product that was never translated. No verifier
-saw any of them. The instrument you are about to run was itself two thirds blind until the
-day before this prompt was written, and nothing noticed.
-
-So the posture is: **a script passing is not evidence that a screen works.** You are the
-evidence.
-
-## What to do, in order
-
-### 1. Prepare the capture branch
+**Read these six files from the repository first, in this order, before doing anything:**
 
 ```
-export DATABASE_URL='<the capture branch: ep-little-sky-a6v9sdx4>'
-npm run db:migrate          # it has not been migrated since sprint 52
-npm run db:reset -- --i-mean-it --demo
-node --import tsx --conditions=react-server scripts/seed-capture.ts
+docs/simulation/00-START-HERE.md    the shape, the five binding rules, the order of work
+docs/simulation/01-SEED.md          the exact cast: 31 identities, 4 waves, one scenario each
+docs/simulation/02-ORCHESTRATION.md the swarm: who launches what, how claims are verified
+docs/simulation/03-MONEY.md         the full money cycle including Egypt, which has no card rail
+docs/simulation/04-CAPTURE.md       what is photographed, where it goes, the video scripts
+docs/simulation/05-AGEING.md        how six months happens in one hour
+```
+
+They are one design in six documents. **Do not start until you have read all six**, because
+each one assumes the others and the most expensive mistake available is launching thirty
+agents against a database that was not prepared.
+
+## In one paragraph
+
+Thirty-one synthetic people sign themselves up and use the product: five therapists, eight
+patients, a practice, three employers, an integrator and an operator. They arrive in four
+waves. Cheap agents act as them. One expensive orchestrator sequences them, makes them wait
+for each other, and **verifies every claim against the database rather than believing the
+agent that made it**. Between waves, a script ages the rows that wave created, so at the end
+the database holds six months of history that was produced in one hour by real interactions
+with the real product. Screenshots are taken at month 0, 1, 3 and 6, per person, on the same
+screens each time, so you can watch one therapist's earnings screen grow up.
+
+## The three things you must build before anybody acts
+
+Neither of the first two exists yet. Build them, prove them, then launch.
+
+| # | What | Specified in | Its own gate |
+|---|---|---|---|
+| 1 | `scripts/age.ts` | `05-AGEING.md` | Age a row with one past and one future timestamp. The past one moved, the future one did not |
+| 2 | `scripts/simulate-seed.ts` | `01-SEED.md` | Every seeded identity can actually sign in. Prove it by signing in, not by counting rows |
+| 3 | The simulation branch, migrated | below | `npm run verify:migrations` passes against it, checked against `information_schema` |
+
+```
+# a fresh, empty branch. Never the production one, never the capture one.
+export DATABASE_URL='<the new simulation branch>'
+npm run db:migrate
+npm run verify:migrations        # the migrator prints success either way; this one reads the catalogue
+npm run settings:seed
 npm run ship:content
+node --import tsx --conditions=react-server scripts/simulate-seed.ts
 ```
 
-Both `reset.ts` and `seed-capture.ts` refuse to run anywhere but that branch, by name. If
-either refuses, stop and read why rather than working around it.
-
-**Check the migration actually landed** against `information_schema` rather than trusting
-the migrator's output. It prints "Migrations applied" either way.
-
-### 2. Run the instrument
+## Then, before the swarm: the number you were asked for
 
 ```
-npm run dev &                # or next start against a build
-WALK_URL=http://localhost:3100 node --import tsx --conditions=react-server scripts/walkthrough.ts
-WALK_URL=http://localhost:3100 node --import tsx --conditions=react-server scripts/walkthrough.ts --locale ar
+npm run evals -- --record
 ```
 
-It walks 105 routes across seven principals, phone-sized for the apps and desk-sized for
-the consoles, and **it now fails if a route exists that no flow visits.** If it fails that
-way, a screen was built and nobody added it to the walk; add it before continuing.
+The accuracy figures in `evals/baseline.json` were recorded on a smaller case set, before
+the account ran out of credit, and the file says so about itself. **You now have credit.
+Re-record them and report the real numbers**, including any that got worse. A figure that
+went down and is reported is worth more than one that went up and was not measured.
 
-It also records a finding every time a control cannot be found by its visible label and a
-CSS selector was needed instead. **A control nobody can describe out loud is a control
-nobody can find.** Those findings are data, not scripting noise.
+## What you report at the end
 
-### 3. Then use it yourself, which is the part that matters
+1. **The measured AI accuracy**, per suite, against the previous figures.
+2. **The money**, reconciled: collected, held, paid out, our share, VAT, per employer pot.
+   The books balance or you say by how much they do not.
+3. **Every defect a person hit**, with the screenshot and who hit it.
+4. **A verdict per screen**: finished, thin, unstyled.
+5. **Four rewritten video scripts**, built only from frames that exist.
+6. **What you could not simulate and why.**
 
-The instrument photographs screens. It cannot tell you a screen is confusing, that a
-sentence is wrong, or that a flow ends somewhere pointless. Open the product and be each
-of these people, in both languages, on a phone:
+## The five rules, repeated here because they are the whole design
 
-| Be | And actually try to |
+1. **A claim without a database row id did not happen.** Agents report what they did, what
+   they photographed, and the row that proves it. The orchestrator checks the row itself.
+2. **Act through the product, never around it.** No agent writes to the database. An agent
+   that cannot finish a flow through the UI has found the thing this exercise exists to find.
+3. **Every person is unmistakably synthetic.** Surname Demo or Example, address at
+   `example.com`. These frames are committed and go in a video.
+4. **Never production.** The write scripts refuse it by name. If one refuses, read why.
+5. **Do not fix defects during the run.** Write them down and carry on. A run that stops at
+   the first defect finds one defect.
+
+## Known environment limits, so they are not filed as bugs
+
+| What | Status |
 |---|---|
-| A stranger in distress | Find somebody free right now and start a session, with no account |
-| A patient | Claim the record a therapist keeps about you, then read it, then take that access back |
-| A patient who has two therapists | Give each one access separately and revoke one |
-| A therapist | Sign up, get verified, run a session, approve a note, send the summary |
-| A therapist on the radar | Go on call, get found, and see whether the alarm actually reaches you |
-| A practice manager | Buy seats, invite a colleague, try to see a note (you must fail) |
-| A delegated member of staff | Do what you are allowed and be refused what you are not |
-| An employer | Fund a pot, watch it spend, try to learn who attended (you must fail) |
-| A developer | Get a key and open a session through the API |
-| An operator | Verify a licence, close a country, answer a support ticket |
+| OpenAI, Daily | **Live and funded.** If notes do not generate, that is a defect, not an environment gap |
+| Stripe | Test mode, deliberately |
+| Egypt card payments | **There is no gateway and the product refuses honestly.** That refusal is correct behaviour and is captured, not worked around. See `03-MONEY.md` |
+| WhatsApp codes | Templates unapproved. Email and password are the walkable paths |
+| Blob storage | Not configured. Document upload is not simulated |
+| Dates in Arabic | A known gap. Photograph it anyway |
 
-### 4. Write it down
-
-Update `docs/walkthrough-3/FINDINGS.md` with what was hard, not only what was broken:
-buttons nobody could find, steps where it was unclear what happens next, screens that
-looked unfinished. Give every page a verdict: finished, thin, or unstyled. The last pass
-found 13 finished, 34 thin and 14 unstyled, and that table became the design brief.
-
-Record every defect as a numbered concern in `PLAN.md` §4 with what it was, why nothing
-caught it, and what now does.
-
-## What is knowingly not walkable, and why
-
-Do not report these as findings. They are environment, not defects:
-
-| What | Why |
-|---|---|
-| Note generation, the copilot, risk classification | The AI account had no credit at last measurement. If the notes do not write themselves, check the balance before filing a bug. |
-| Video calls | Needs a video provider key |
-| File uploads | Needs blob storage |
-| Codes over WhatsApp | The message templates are waiting on approval. Email and password are the walkable paths. |
-| Paying in Egyptian pounds | There is no gateway. The code refuses honestly and that refusal IS the correct behaviour to walk. |
-| Egyptian data staying in Egypt | Designed, switch in place, pointing at the United States |
-
-## The rules that do not bend
-
-- **Never run any of this against production.** Both scripts refuse it by name. Do not
-  remove the guard.
-- **Synthetic people only.** Every person in the capture database is surnamed Demo or
-  Example and every address is at `example.com`. A single real name in one committed frame
-  is a disclosure that cannot be recalled.
-- **Frames are gitignored.** The written record is committed; the screenshots are not.
-  94MB accumulated across two passes and the third would have been read against two older
-  versions of the product.
-- **Do not fix things as you find them.** Finish the walk first. A pass that stops to fix
-  the first defect finds one defect.
-- **When you fix, fix the gate too.** Every defect worth finding is a defect something
-  should have caught. Say what now catches it.
-
-## What good looks like at the end
-
-A findings document somebody can act on, a design verdict per page, a numbered concern per
-defect, and an honest count of what you could not walk and why. Not a clean report.
-
-**A clean report from a walkthrough of a product this size would mean you did not look.**
+**A clean report would mean you did not look.**

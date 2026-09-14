@@ -41,3 +41,24 @@ docs/walkthrough-2/admin_*
 .walkthrough2/sweep.json
 .verify-tmp-*/
 docs/walkthrough-2/frames/*/*admin*
+
+# ── walkthroughs and the simulation ──────────────────────────────────────────
+#
+# The first two walkthroughs' frames were deleted on 2026-09-14 and stay deleted: 94MB of
+# screenshots of two older versions of the product, which a third pass would have been read
+# against. Their WRITTEN record is committed, in docs/walkthrough-archive/.
+docs/walkthrough/
+docs/walkthrough-2/
+
+# 🔴 THE SIMULATION'S FRAMES ARE COMMITTED, DELIBERATELY, and that is the exception rather
+# than a lapse. They are the proof that six months of this product was operated rather than
+# described, and they are the raw material for the films. docs/simulation/04-CAPTURE.md
+# caps them at roughly 600 and says what to photograph; past that, the capture is
+# photographing states rather than people.
+#
+# 🔴 EXCEPT THE OPERATOR'S, WHICH IS C80 AND DOES NOT BEND. An admin console shows many
+# people at once, and this repository is treated as if it will be public one day. The
+# operator agent's frames are taken, read, and never committed.
+docs/walkthrough-3/**/op-*/
+docs/walkthrough-3/**/*admin*
+

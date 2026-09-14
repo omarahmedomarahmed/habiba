@@ -1,3 +1,9 @@
+> ⚠️ **STALE. Replaced by the six-month simulation.**
+>
+> This script was written against a product that had one therapist and one patient in it.
+> `docs/simulation/04-CAPTURE.md` specifies four new cuts, to be written from the frames the
+> simulation actually produces, and they replace this file rather than editing it.
+
 # 52.5 — the English voiceover, timed
 
 One block per screen, in cut order, matching `EDIT-LIST.md`. Timings are **read times at 150 words
