@@ -6063,12 +6063,86 @@ export type SponsorIdentifierField = typeof sponsorIdentifierFields.$inferSelect
  * becomes a select list — and `verify:sprint53` reads that select list rather
  * than trusting this comment.
  */
-export const ENROLMENT_STATES = ["active", "paused", "removed"] as const;
+/**
+ * 🔴 61.8 / C321 — `provisional` arrives in sprint 61, between nothing and active.
+ *
+ * An HR match enrols somebody and funding starts before their mailbox is
+ * confirmed. The alternative is making them wait for an email, which in
+ * practice means they pay for the first session themselves and never come back.
+ * A provisional enrolment funds, and `provisional_sessions_used` caps it.
+ */
+export const ENROLMENT_STATES = ["active", "provisional", "paused", "removed"] as const;
 export type EnrolmentState = (typeof ENROLMENT_STATES)[number];
 
 /** Why funding ended. A fixed list, never free text (§3e). */
 export const REMOVAL_REASONS = ["left", "graduated", "ended", "administrative"] as const;
 export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+
+/**
+ * 🔴 61.1 to 61.3 / C318 / C348 — PROVING A COMPANY IS A COMPANY.
+ *
+ * A joining code funds therapy out of somebody's pot. Until sprint 61 the only
+ * thing between a stranger and a corporate account was an operator reading an
+ * application form and pressing activate.
+ *
+ * ## 🔴 TWO PROOFS, AND NEITHER ALONE ISSUES A CODE
+ *
+ * An email code proves somebody holds a mailbox at the domain. A DNS TXT record
+ * proves somebody controls the domain. They are different facts, and each is
+ * individually forgeable by the wrong person: an employee with a mailbox is not
+ * authorised to commit their employer to anything, and a contractor who can add
+ * a DNS record may never have had an address there.
+ *
+ * ## 🔴 TWO TIMESTAMPS RATHER THAN ONE BOOLEAN
+ *
+ * A boolean answers "is this proved" and loses "proved how, and when", which is
+ * the question asked when somebody disputes an account a year later.
+ *
+ * ## 🔴 C348 — the third path, recorded as what it is
+ *
+ * University IT does not always add a record this quarter. A countersigned
+ * agreement is admin-approved and names the human who approved it, rather than
+ * being written into one of the two columns above as a proof nobody performed.
+ */
+export const sponsorDomains = pgTable(
+  "sponsor_domains",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+
+    /** 61.3 — one organisation is several domains, each proved on its own. */
+    domain: text("domain").notNull(),
+
+    mailboxProvedAt: timestamp("mailbox_proved_at", { withTimezone: true }),
+    dnsProvedAt: timestamp("dns_proved_at", { withTimezone: true }),
+
+    agreementApprovedAt: timestamp("agreement_approved_at", { withTimezone: true }),
+    agreementApprovedBy: uuid("agreement_approved_by").references((): AnyPgColumn => users.id, {
+      onDelete: "set null",
+    }),
+
+    /**
+     * What IT is asked to publish, and what we look for. Generated per domain,
+     * so one organisation's record cannot prove another's.
+     */
+    dnsToken: text("dns_token").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * 🔴 A domain belongs to ONE sponsor. Two companies both proving acme.com
+     * means the second one enrols the first one's staff.
+     */
+    uniqueIndex("sponsor_domains_domain_unique").on(sql`lower(${t.domain})`),
+    index("sponsor_domains_sponsor_idx").on(t.sponsorId),
+  ],
+);
+
+export type SponsorDomain = typeof sponsorDomains.$inferSelect;
 
 export const enrolments = pgTable(
   "enrolments",
@@ -6155,6 +6229,16 @@ export const enrolments = pgTable(
     removalReason: text("removal_reason").$type<RemovalReason>(),
     /** C247 — funding paused because nobody answered the re-verification. */
     pausedAt: timestamp("paused_at", { withTimezone: true }),
+
+    /**
+     * 🔴 61.9 / C350 — how many sessions a PROVISIONAL person has funded.
+     *
+     * Counted on the row rather than derived. The question asked at booking is
+     * "has this person had their one", and deriving it means a join from the
+     * money path to `sessions`, which is exactly the join C244 spends the whole
+     * corporate design avoiding.
+     */
+    provisionalSessionsUsed: integer("provisional_sessions_used").notNull().default(0),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

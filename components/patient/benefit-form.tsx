@@ -4,12 +4,13 @@ import { useState, useTransition } from "react";
 
 import {
   activateBenefit,
+  askAboutEmployer,
   checkCode,
   choosePrimary,
   confirmCode,
   type BenefitState,
 } from "@/app/(patient)/patient/benefit/actions";
-import { Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -283,5 +284,64 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
         </p>
       </Card>
     </div>
+  );
+}
+
+
+/**
+ * 🔴 61.6 / C349 — "IS MY EMPLOYER HERE?", AND WHY THE ANSWER NEVER VARIES.
+ *
+ * People ask this, so refusing to have the question on the screen does not make
+ * it go away: it makes somebody email support, who then answers it by hand and
+ * becomes the oracle themselves.
+ *
+ * So the question is here and the answer is a constant. `askAboutEmployer` does
+ * the lookup either way and returns one message, so neither the words nor the
+ * timing say whether a domain is a customer. Whether a company buys therapy for
+ * its staff is a fact that company publishes or does not (C319), and the
+ * patient-app banner already shows opted-in sponsors only for the same reason.
+ *
+ * 🔴 Nothing is lost. The real answer always reached somebody through their
+ * employer: a code on a poster, an intranet page, an email from HR. What is
+ * lost is a stranger with a domain list and an afternoon.
+ */
+export function AskAboutEmployer() {
+  const [pending, start] = useTransition();
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [domain, setDomain] = useState("");
+
+  return (
+    <Card className="p-4">
+      <p className="text-sm font-semibold text-slate-900">
+        Not sure whether your employer offers this?
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <Input
+          value={domain}
+          onChange={(event) => setDomain(event.target.value)}
+          placeholder="the part after the @ in your work email"
+          className="max-w-xs"
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={pending}
+          className="h-12"
+          onClick={() => {
+            start(async () => {
+              const result = await askAboutEmployer(domain);
+              setAnswer(result.message);
+            });
+          }}
+        >
+          {pending ? "…" : "Ask"}
+        </Button>
+      </div>
+
+      {answer ? (
+        <p className="mt-3 text-sm leading-relaxed text-slate-600">{answer}</p>
+      ) : null}
+    </Card>
   );
 }

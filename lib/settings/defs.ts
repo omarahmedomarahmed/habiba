@@ -236,6 +236,16 @@ export type PlatformSettings = {
      * monthly sees it before it reaches them.
      */
     coverageNoticeDays: number;
+    /**
+     * 🔴 61.9 / C350 — how many sessions a PROVISIONAL enrolment may fund.
+     *
+     * An HR match starts funding before the person confirms their mailbox,
+     * because making them wait for an email means they pay for the first
+     * session themselves and never come back. One is enough to attend while
+     * the confirmation sits unread, and not enough for an unconfirmed match to
+     * spend a term's budget.
+     */
+    provisionalSessions: number;
   };
   /**
    * 🔴 44.1 / C97 — THE CHECK-IN CADENCE IS A SETTING BECAUSE THE FOUNDER SAID TO PROVE IT.
@@ -389,6 +399,7 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     activityFloor: 5,
     verifyCycleMonths: 6,
     coverageNoticeDays: 30,
+    provisionalSessions: 1,
   },
   checkins: {
     /* 🔴 Off. A channel that messages every patient turns on deliberately or not at all. */
@@ -717,6 +728,17 @@ export function parseGroup<G extends SettingsGroup>(
         coverageNoticeDays: int(v.coverageNoticeDays, d.sponsor.coverageNoticeDays, {
           min: 7,
           max: 365,
+        }),
+        /*
+         * 🔴 A CEILING as well as a floor. Zero is legal — an operator who
+         * wants no provisional funding at all is making a real choice — but the
+         * upper bound stops "unlimited until they confirm" being typed into a
+         * box by somebody who has not thought about what an unconfirmed HR
+         * feed can spend.
+         */
+        provisionalSessions: int(v.provisionalSessions, d.sponsor.provisionalSessions, {
+          min: 0,
+          max: 10,
         }),
       } as PlatformSettings[G];
 

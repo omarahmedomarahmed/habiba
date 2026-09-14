@@ -130,7 +130,15 @@ export type Message = {
      * in a work inbox that says "your therapy benefit" is a disclosure to
      * whoever administers that mailbox.
      */
-    | "benefit.verify_code";
+    | "benefit.verify_code"
+    /**
+     * 🔴 61.4 / C318 — the mailbox half of proving a domain.
+     *
+     * Lands in a shared IT mailbox nobody chose to hand us, so it names an
+     * organisation and never a person. 53.2's rule about enrolment strings
+     * applies with more force to a message nobody asked for.
+     */
+    | "sponsor.domain_confirm";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

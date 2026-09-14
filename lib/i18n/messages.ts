@@ -1213,6 +1213,7 @@ export const en = {
   "sponsor.nav.overview": "Overview",
   "sponsor.nav.people": "Your list",
   "sponsor.nav.code": "Joining code",
+  "sponsor.nav.domains": "Domains",
   "sponsor.nav.pot": "Your pot",
   "sponsor.nav.settings": "Settings",
   /* 53.5 — the enquiry. Words about a benefit, never about therapy (53.2). */
@@ -4047,6 +4048,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.nav.overview": "نظرة عامة",
   "sponsor.nav.people": "قائمتك",
   "sponsor.nav.code": "رمز الانضمام",
+  "sponsor.nav.domains": "النطاقات",
   "sponsor.nav.pot": "محفظتك",
   "sponsor.nav.settings": "الإعدادات",
   "sponsor.apply.title": "غطِّ العلاج النفسي لفريقك",

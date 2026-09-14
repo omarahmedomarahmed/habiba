@@ -57,6 +57,15 @@ const ROUTES_BY_DESIGN: Record<string, string> = {
     "Called by Vercel's scheduler, declared in `vercel.json` rather than in TypeScript, and authorised by `CRON_SECRET`. A caller inside this repository would mean we were triggering our own crons from a request, which is the thing the secret exists to prevent.",
 };
 
+/*
+ * 🔴 EMPTY, and `/sponsor/domains/confirm` is the reason it stayed that way.
+ *
+ * It was added here as an orphan by design — a page reached only from a link in
+ * an email — and 58.4 immediately reported it as no longer an orphan, because
+ * `addDomain` builds that URL when it sends the mail. The scanner was right and
+ * the allowlist entry was wrong: a page a shipped code path links to IS
+ * reachable, whether the link arrives in a nav bar or an inbox.
+ */
 const PAGES_BY_DESIGN: Record<string, string> = {};
 
 /*

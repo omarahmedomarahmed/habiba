@@ -106,3 +106,27 @@ export async function choosePrimary(enrolmentId: string): Promise<BenefitState> 
   revalidatePath("/patient/benefit");
   return { ok: true };
 }
+
+
+/**
+ * 🔴 61.6 / C349 — "IS MY EMPLOYER HERE?", AND THE ANSWER IS ALWAYS THE SAME.
+ *
+ * The obvious build looks the domain up and says yes or no. That turns this
+ * product into an oracle for *which companies buy therapy for their staff*,
+ * answerable by anybody with a list of domains and an afternoon. C319 says that
+ * is a fact a company publishes or does not, and the patient-app banner already
+ * shows opted-in sponsors only for the same reason.
+ *
+ * 🔴 `employerLookup` does the work either way and returns one constant
+ * message, so neither the words nor the timing answer the question.
+ *
+ * 🔴 NOTHING IS LOST BY REFUSING. The real answer was always going to reach
+ * somebody through their employer: a code on a poster, an intranet page, an
+ * email from HR. What is lost is the oracle.
+ */
+export async function askAboutEmployer(domain: string): Promise<{ message: string }> {
+  await requirePatient();
+
+  const { employerLookup } = await import("@/lib/data/sponsor-domains");
+  return employerLookup(domain);
+}

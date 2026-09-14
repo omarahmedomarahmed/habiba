@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { BenefitForm } from "@/components/patient/benefit-form";
+import { AskAboutEmployer, BenefitForm } from "@/components/patient/benefit-form";
 import { PatientBack } from "@/components/patient/back";
 import { myBenefits } from "@/lib/data/enrolment";
 import { getI18n } from "@/lib/i18n/server";
@@ -52,6 +52,15 @@ export default async function BenefitPage() {
           verified: benefit.lastVerifiedAt !== null,
         }))}
       />
+
+      {/*
+        🔴 61.6 / C349 — people ask this, and refusing to have the question on
+        the screen does not make it go away: it makes somebody email support,
+        who answers it by hand and becomes the oracle themselves.
+      */}
+      <div className="mt-4">
+        <AskAboutEmployer />
+      </div>
     </main>
   );
 }

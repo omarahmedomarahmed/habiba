@@ -343,6 +343,43 @@ export async function enrol(input: {
     };
   }
 
+  /*
+   * 🔴 61.1 / C318 — A DOMAIN GATE NEEDS A PROVED DOMAIN, AND THIS IS WHERE IT BITES.
+   *
+   * The ruling is *"neither proof alone issues an enrolment code"*, and an
+   * enrolment code that issues nothing is a code that funds nothing. So the
+   * check belongs at the moment somebody crosses the gate rather than at the
+   * moment an operator mints a code: a domain proved after the code was printed
+   * should start working, and a domain whose proof was withdrawn should stop.
+   *
+   * 🔴 ONLY FOR `domain_email`. An `id_number` gate proves nothing about a
+   * domain and never claimed to (C246 says so in as many words: a shape is a
+   * weak gate, permitted, and the sponsor was told). Requiring a proved domain
+   * for it would refuse a real configuration for a reason that does not apply.
+   *
+   * 🔴 THE REFUSAL SAYS NOTHING ABOUT PROOFS. The person standing in a corridor
+   * reading a poster did not configure anything and cannot fix it; they get the
+   * same sentence every other failure here produces, which names nothing.
+   */
+  if (crossed.kind === "domain_email") {
+    const { domainsFor, domainProved } = await import("./sponsor-domains");
+    const domains = await domainsFor(lookup.sponsorId);
+    const typed = input.identifier.trim().toLowerCase().split("@")[1] ?? "";
+
+    const proved = domains.some(
+      (row) => row.domain.trim().toLowerCase() === typed && domainProved(row),
+    );
+
+    if (!proved) {
+      log.warn("enrolment refused: domain not proved", { kind: crossed.kind });
+      return {
+        ok: false,
+        error:
+          "That does not match what your organisation asks for. Check with whoever shared the code. You can use 24Therapy either way.",
+      };
+    }
+  }
+
   const identifierHash = hashIdentifier(lookup.sponsorId, input.identifier);
   /*
    * 🔴 C246 — the cross-sponsor key, written on every enrolment from 0085 on.

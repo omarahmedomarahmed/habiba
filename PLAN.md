@@ -371,6 +371,8 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C403 | 59 | ⚠️ **A reported finding that was WRONG, recorded so it is not re-found.** The audit reported the crisis retry cron as "documented at 5 minutes, runs daily". The five-minute reference in `app/api/cron/[job]/route.ts` is a HISTORICAL note explaining why the schedule is no longer five minutes: it went 5 min to 15 to hourly to daily, deliberately, because the only time-critical sweep (a patient alone in a room) moved onto the patient's own five-second poll where it fires at ten minutes rather than whenever a cron lands. `sweepUndeliveredAlerts` retries an in-product notification insert, not an external send, so the daily cadence covers a database failure rather than a crisis nobody heard about. **No defect. No change.** | minor | **audit finding, rejected on reading the code** | **closed — not a defect** |
 | C404 | 60 | 🔴 **THE POT'S IDEMPOTENCY GUARD STOPPED GUARDING THE MOMENT COVERAGE WENT PARTIAL, AND IT WOULD HAVE LOOKED UNTOUCHED.** `payFromPot` claimed a booking by moving the session `pending -> paid` conditional on `pending`, so a second call matched nothing and the compensating credit put the money back. That is correct while a pot pays all or nothing. A partly covered session STAYS `pending` — the patient still owes their share — so a `pending -> pending` update matches every time and a second call debits the pot again. **Ruling: `session_payments` is unique on `session_id`, so INSERTING IT is the claim.** Exactly one caller wins whatever the session's status is or becomes. The guard that silently stops guarding while the code around it reads unchanged is this repository's most common defect shape, and this one was created and closed inside the same sprint. 2026-09-14. | blocker | review | **ruled — fixed** |
 | C405 | 60 | **The C244 column scan read a NAME and reported on a rule, and `sponsor_share_cents` was about to fail it.** The ruling is that no clinical or payment table carries a sponsor ID. C311 freezes what an employer covered onto the payment as a number of CENTS, which is money and joins nobody to anything. **Ruling: the scan asks what a column IS — a uuid, a text key, or a foreign key to `sponsors` — rather than what it is called, with a control asserting the frozen split is present so the widened scan cannot be relaxed to nothing.** Renaming the column to dodge the check was the other option, and that is how a gate becomes decorative: the same reasoning that widened 53.12's cash-out scan when `refundToPot` arrived. 2026-09-14. | major | review | **ruled — fixed** |
+| C406 | 61 | **A confirmation link carrying a raw row id is one half of C318 handed away.** The mailbox proof is clicked from an inbox, so the link IS the authorisation, and a link built from the `sponsor_domains` id would let anybody who can guess a uuid prove any domain's mailbox. The DNS token cannot stand in for it either: that one is published in DNS on purpose. **Ruling: an HMAC over the id with `AUTH_SECRET`, compared in constant time, minted only inside the module, with single use coming from the update being guarded on the column already being null.** No column, no table, nothing to expire. 2026-09-14. | blocker | review | **ruled — fixed** |
+| C407 | 61 | **A page reached from an email IS reachable, and 58.4 said so within a minute.** `/sponsor/domains/confirm` was added to `PAGES_BY_DESIGN` as an orphan by design, and the next run reported it as no longer an orphan because `addDomain` builds that URL when it sends the mail. **Ruling: the scanner was right and the allowlist entry was wrong.** A link that arrives in an inbox is a link. The allowlist is empty again, which is where an allowlist should spend most of its life. 2026-09-14. | minor | review | **ruled — entry removed** |
 
 ---
 
@@ -4022,25 +4024,25 @@ and both are already rows in `country_settings` that almost nothing reads.
 
 ### Sprint 61 — Proving a company is a company · ~2.5 weeks
 
-- [ ] **61.1** 🔴 **Two proofs** (C318): an email code proves the mailbox; a DNS TXT
+- [x] **61.1** 🔴 **Two proofs** (C318): an email code proves the mailbox; a DNS TXT
       record proves the domain. Neither alone issues an enrolment code
-- [ ] **61.2** 🔴 **Or** a countersigned agreement, admin approved, because
+- [x] **61.2** 🔴 **Or** a countersigned agreement, admin approved, because
       university IT cannot always add a record quickly (C348)
-- [ ] **61.3** Domains are a **list**, each proved separately
-- [ ] **61.4** The setup screen reports **delivery status per attempt** and hands IT
+- [x] **61.3** Domains are a **list**, each proved separately
+- [x] **61.4** The setup screen reports **delivery status per attempt** and hands IT
       a copy-paste block: sending domain, SPF include, IPs, exact From address.
       **Setup is not complete until a code has been received** (C320)
-- [ ] **61.5** 🔴 `listed_publicly` stays default off. The patient-app banner shows
+- [x] **61.5** 🔴 `listed_publicly` stays default off. The patient-app banner shows
       **opted-in sponsors only** (C319)
-- [ ] **61.6** 🔴 The "is my employer here" flow answers **identically** whether or
+- [x] **61.6** 🔴 The "is my employer here" flow answers **identically** whether or
       not a domain is a customer. Constant message, constant timing (C349)
 - [ ] **61.7** 🔴 The employment email lives in its own column, labelled
       **"employment verification email"**, on a PROVED domain, never used for
       anything the patient reads, never shown to a therapist (C322)
-- [ ] **61.8** 🔴 HR and student systems: an HR match enrols **provisionally** and
+- [x] **61.8** 🔴 HR and student systems: an HR match enrols **provisionally** and
       funding starts; the email code confirms within a window; failure PAUSES
       funding through C247's existing pause (C321)
-- [ ] **61.9** 🔴 A provisional person may spend at most **N sessions** before the
+- [x] **61.9** 🔴 A provisional person may spend at most **N sessions** before the
       code lands. Setting, default 1 (C350)
 - [ ] **61.10** Connectors for the common systems first, behind one interface, so
       the second one is configuration rather than a sprint

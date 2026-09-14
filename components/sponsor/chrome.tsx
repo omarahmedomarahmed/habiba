@@ -32,6 +32,12 @@ const TABS: { href: string; key: MessageKey }[] = [
   { href: "/sponsor/people", key: "sponsor.nav.people" },
   { href: "/sponsor/code", key: "sponsor.nav.code" },
   { href: "/sponsor/pot", key: "sponsor.nav.pot" },
+  /*
+   * 🔴 61.1 — proving the domain is a setup task with a state, not a settings
+   * field. It gets a tab because it stays visibly unfinished until it is
+   * finished (C320) and because somebody has to come back to it days later.
+   */
+  { href: "/sponsor/domains", key: "sponsor.nav.domains" },
   { href: "/sponsor/settings", key: "sponsor.nav.settings" },
 ];
 

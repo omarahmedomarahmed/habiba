@@ -136,6 +136,17 @@ const SCOPE: Record<string, Scope> = {
    * partner are `grants`, one entry up, and that one IS clinical.
    */
   "partner-links": { who: ["patient"] },
+  /*
+   * 🔴 NOT clinical, and the select lists are the argument rather than the
+   * subject matter.
+   *
+   * It reads `sponsor_domains`: a domain, two proof timestamps and a DNS token.
+   * No person appears in this module at all, which is C227 holding — a sponsor
+   * performs no act about any individual — and it is why the same module can be
+   * read by the sponsor's own setup screen and by an operator without the
+   * matrix having to argue about it.
+   */
+  "sponsor-domains": { who: ["sponsor", "admin"] },
   residency: { who: ["patient", "admin"], clinical: true },
   // Also reached by the public rating link `/t/[id]` and the radar, which
   // carry a one-time token rather than a session. C273: a rating is never

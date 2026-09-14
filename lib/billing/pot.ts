@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
@@ -182,14 +182,27 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
    * this was one of them, found by reading the two files against each other.
    */
   const [benefit] = await controlDb
-    .select({ sponsorId: enrolments.sponsorId })
+    .select({
+      sponsorId: enrolments.sponsorId,
+      enrolmentId: enrolments.id,
+      state: enrolments.state,
+      provisionalSessionsUsed: enrolments.provisionalSessionsUsed,
+    })
     .from(enrolments)
     .innerJoin(sponsors, eq(sponsors.id, enrolments.sponsorId))
     .where(
       and(
         eq(enrolments.personId, row.personId),
         eq(enrolments.isPrimary, true),
-        eq(enrolments.state, "active"),
+        /*
+         * 🔴 61.8 / C321 — `provisional` funds too, and that is the point of it.
+         *
+         * An HR match enrols somebody and the money starts before their mailbox
+         * is confirmed. Making them wait for an email means they pay for the
+         * first session themselves and never come back. The cap below is what
+         * bounds it.
+         */
+        inArray(enrolments.state, ["active", "provisional"]),
         isNull(enrolments.removedAt),
         isNull(enrolments.pausedAt),
         isNotNull(enrolments.lastVerifiedAt),
@@ -199,6 +212,65 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     .limit(1);
 
   if (!benefit) return { paid: false, reason: "no_benefit" };
+
+  /*
+   * 🔴 61.9 / C350 — A PROVISIONAL PERSON HAS A LIMIT, AND IT IS CLAIMED HERE.
+   *
+   * The cap is a settable number, default one: enough that somebody can book
+   * and attend while their confirmation email sits unread, not enough that an
+   * unconfirmed HR match can spend a term's budget.
+   *
+   * 🔴 CLAIMED WITH A CONDITIONAL UPDATE, not read and then written. The same
+   * construction C382 forced on the pot debit, for the same reason: two
+   * bookings arriving together both read "0 used", both pass a check, and both
+   * spend. The increment's own WHERE clause is what makes the limit a limit.
+   */
+  /*
+   * 🔴 Tracked, because a claim taken and not used has to be given back.
+   *
+   * The allowance is claimed BEFORE the pot is debited, which is the right
+   * order — the conditional UPDATE is what makes the cap hold under two
+   * simultaneous bookings, and checking it after the money moved would be a
+   * read-then-write with a window in it. The cost is that every path which
+   * returns without funding from here on has to release it, exactly as the pot
+   * debit has its compensating credit. A person whose one provisional session
+   * was consumed by a booking that never happened has lost their allowance to
+   * our bookkeeping.
+   */
+  let provisionalClaimed = false;
+
+  if (benefit.state === "provisional") {
+    const settings = await getSettings();
+    const cap = settings.sponsor.provisionalSessions;
+
+    const [claimedProvisional] = await controlDb
+      .update(enrolments)
+      .set({
+        provisionalSessionsUsed: sql`${enrolments.provisionalSessionsUsed} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(enrolments.id, benefit.enrolmentId),
+          sql`${enrolments.provisionalSessionsUsed} < ${cap}`,
+        ),
+      )
+      .returning({ id: enrolments.id });
+
+    if (!claimedProvisional) {
+      /*
+       * 🔴 NOT an error the patient sees as a refusal of care. They are offered
+       * the ordinary pay link, exactly as an empty pot does, and the fix is in
+       * their inbox. `no_benefit` is the reason code every caller already knows
+       * how to present gently.
+       */
+      log.info("provisional enrolment has spent its allowance", { session: ref(sessionId) });
+      return { paid: false, reason: "no_benefit" };
+    }
+
+    /* Only once the UPDATE matched, so a refused claim releases nothing. */
+    provisionalClaimed = true;
+  }
 
   const pot = await potRow(benefit.sponsorId);
   if (!pot.potId) return { paid: false, reason: "no_pot" };
@@ -269,8 +341,25 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
    * session needs $28, and refusing on $70 would turn a funded booking away
    * because a pot could not afford a number nobody is asking it for.
    */
+  /**
+   * Give the provisional allowance back. Unconditional, like the pot's own
+   * compensating credit: we took it a moment ago and the thing it was for did
+   * not happen, so putting it back can never be wrong.
+   */
+  const releaseProvisional = async () => {
+    if (!provisionalClaimed) return;
+    await controlDb
+      .update(enrolments)
+      .set({
+        provisionalSessionsUsed: sql`GREATEST(0, ${enrolments.provisionalSessionsUsed} - 1)`,
+        updatedAt: new Date(),
+      })
+      .where(eq(enrolments.id, benefit.enrolmentId));
+  };
+
   if (pot.balanceCents + pot.overdraftCents < sponsorShare) {
     log.info("pot cannot fund this booking", { session: ref(sessionId) });
+    await releaseProvisional();
     return { paid: false, reason: "insufficient" };
   }
 
@@ -328,6 +417,7 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
 
   if (!debited) {
     log.info("pot lost the race to fund this booking", { session: ref(sessionId) });
+    await releaseProvisional();
     return { paid: false, reason: "insufficient" };
   }
 
@@ -410,6 +500,7 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       })
       .where(eq(sponsorPots.id, pot.potId));
 
+    await releaseProvisional();
     return { paid: false, reason: "nothing_to_pay" };
   }
 
