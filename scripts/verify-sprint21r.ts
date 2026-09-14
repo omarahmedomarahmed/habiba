@@ -675,6 +675,55 @@ async function main() {
       .orderBy(desc(schema.patientAuthTokens.createdAt))
       .limit(1);
 
+    /*
+     * 🔴 C357 — BEING THROTTLED IS THE PRODUCT WORKING, AND THIS BLOCK USED TO
+     * REPORT IT AS FIVE DEFECTS AND THEN CRASH.
+     *
+     * The reset route is rate limited per connection. Run this verifier a few
+     * times in a row, which is exactly what somebody debugging it does, and the
+     * limiter correctly refuses: no token is issued, the next five checks fail
+     * for a reason that is not a defect, and then `token!.id` throws a
+     * TypeError over the top of them.
+     *
+     * That is the same shape as C355 one file over. A gate that crashes instead
+     * of reporting teaches whoever runs it to stop reading its output, and a
+     * gate that prints red lines about correct behaviour teaches the same
+     * lesson faster.
+     *
+     * So the throttle is detected by name and the block is SKIPPED, loudly,
+     * naming what it is waiting for. `finish` does not count a skip as a
+     * failure, and the reason says what to do: come back in a few minutes.
+     */
+    /*
+     * 🔴 C357 — THE LIMITER REFUSING IS THIS ROUTE WORKING, AND THIS BLOCK USED
+     * TO REPORT IT AS FIVE DEFECTS AND THEN CRASH.
+     *
+     * `requestPatientReset` is rate limited per connection, five in fifteen
+     * minutes, because without it one script turns this product into a way to
+     * make a stranger's phone buzz all night. Run this verifier a few times in
+     * a row, which is exactly what somebody debugging it does, and the limiter
+     * correctly refuses. No token is issued, the next five checks fail for a
+     * reason that is not a defect, and then `token!.id` throws a TypeError over
+     * the top of them.
+     *
+     * That is C355's shape one file over. A gate that crashes instead of
+     * reporting teaches whoever runs it to stop reading its output, and a gate
+     * that prints red lines about correct behaviour teaches it faster.
+     *
+     * 🔴 The refusal is read from the route's own words rather than inferred
+     * from a missing token, because "no token" is ALSO the genuine failure this
+     * check exists to catch. Two different states that look identical from the
+     * database are separated by asking the thing that knows.
+     */
+    const throttled = /too many (?:requests|attempts) from this connection/i.test(
+      request.error ?? "",
+    );
+
+    await skipUnless(
+      !throttled,
+      "the rate limiter's own cooldown, a few minutes",
+      `21R.4, ${request.error ?? ""} Five resets in fifteen minutes is the product working`,
+      async () => {
     check(
       "🔴 21R.4 / C94 a patient with NO EMAIL can ask for a reset. The code goes to their phone",
       request.sent === true && token?.channel === "whatsapp",
@@ -781,6 +830,8 @@ async function main() {
       "🔴 21R.4 …and the code works ONCE, a message forwarded to somebody else buys them nothing",
       spent?.usedAt !== null && replay.error !== undefined,
       replay.error ?? "THE SAME CODE WORKED TWICE",
+    );
+      },
     );
 
     /* ------------------------------------- 21R.1 · the wrong door, both ways */

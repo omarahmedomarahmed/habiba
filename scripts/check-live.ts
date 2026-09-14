@@ -78,9 +78,23 @@ export async function fetchLive(
 export const REVERSED_CLAIM =
   /(?:the money is a direct charge into your own stripe account|money goes straight to your own stripe account)[^.]*we never (?:hold|touch) it/i;
 
-/** A price stated in prose. The cards carry the numbers; sentences do not. */
-export const PRICE_IN_PROSE =
-  /\$\d+(?:\.\d+)?\s+(?:buys|a session|per session)|\$\d+;? (?:and )?thirty/i;
+/*
+ * 🔴 C356 — DELETED, AND THE DELETION IS THE FIX.
+ *
+ * `PRICE_IN_PROSE` matched a price in rendered text, and both places that ran
+ * it have now stopped, for the same reason written out twice: rendered HTML
+ * cannot tell a price interpolated from `platform_settings` a millisecond ago
+ * from one typed into a CMS body in 2025, and the rule is about which of those
+ * it is. `verify:sprint21r` moved the question to the source in sprint 46 and
+ * left this copy running; it condemned the homepage and the pricing page on
+ * every run from then until now.
+ *
+ * Keeping the export "in case" is how a scan nobody can justify gets picked up
+ * again by the next person who needs a regex for prices. The question it was
+ * meant to ask is asked, at the source, by `verify:sprint21r`'s `LITERAL_PRICE`
+ * over `lib/content/defaults.ts` and `defaults-ar.ts`, with a control in both
+ * directions. That is the one to reach for.
+ */
 
 export const LIVE_PAGES: { path: string; locales: string[] }[] = [
   { path: "/", locales: ["en", "ar"] },
@@ -136,17 +150,55 @@ async function main() {
     process.exit(0);
   }
 
+  /*
+   * 🔴 C356 — THE CARD MARKER IS DERIVED FROM THE DICTIONARY, NOT TYPED HERE.
+   *
+   * This asked `/per session|session rate|EGP|USD/i`. Two things were wrong
+   * with it and both were already diagnosed, in `verify:sprint21r`, which fixed
+   * them in its own copy of this check and left this one alone.
+   *
+   * It is English, so the Arabic pricing page failed it while rendering its
+   * cards perfectly: Arabic money is not formatted with the letters "USD". And
+   * it is a hardcoded phrase for copy the product owns, so 46.9's rewrite of
+   * the card to "{amount} every session" would have taken it red on a correct
+   * page in English too.
+   *
+   * `pricing.platformLine` IS the card, so the wording around its placeholder
+   * is the marker, in whichever language the reader asked for, taken from the
+   * same dictionary the page renders from.
+   */
+  const { DICTIONARIES } = await import("../lib/i18n/messages");
+  const cardMarker = (locale: string) =>
+    (DICTIONARIES[locale === "ar" ? "ar" : "en"]["pricing.platformLine"] ?? "")
+      .replace(/\{\w+\}/g, "")
+      .trim();
+
   let bad = 0;
   for (const page of pages) {
     const problems: string[] = [];
     if (REVERSED_CLAIM.test(page.text))
       problems.push("states the claim §3c reversed");
-    if (PRICE_IN_PROSE.test(page.text))
-      problems.push("states a price in prose");
-    if (
-      page.path === "/pricing" &&
-      !/per session|session rate|EGP|USD/i.test(page.text)
-    ) {
+    /*
+     * 🔴 C356 — `PRICE_IN_PROSE` IS NOT RUN OVER RENDERED HTML, AND THAT IS THE
+     * WHOLE POINT OF THE RULE.
+     *
+     * "The cards carry the numbers" means a price must come from
+     * `platform_settings` through the pricing component rather than be typed
+     * into an editable CMS body where it goes stale the day the fee changes.
+     * **Rendered HTML cannot tell those two apart**: `$4 a session` looks
+     * identical whether it was interpolated a millisecond ago or typed in 2025.
+     *
+     * So this check condemned `pricing.headline`, which 46.9 asked for and
+     * whose numbers ARE read live from settings, and it did so on the homepage
+     * and the pricing page on every run. `verify:sprint21r` reached exactly
+     * this conclusion and moved the question to the source, where it is
+     * answerable: no CMS default, in either language, may contain a literal
+     * currency amount.
+     *
+     * That scan lives there. This file reads the live site, so it asks the
+     * questions only a live site can answer and leaves that one alone.
+     */
+    if (page.path === "/pricing" && !page.text.includes(cardMarker(page.locale))) {
       problems.push("has no tier cards");
     }
 
