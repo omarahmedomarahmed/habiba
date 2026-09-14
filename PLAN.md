@@ -4162,6 +4162,115 @@ is **retroactive**, not marginal:
 
 
 
+### Sprint 65 — Show it, do not write it · ~4 weeks · 🔴 LAST, AND AFTER EVERYTHING ELSE
+
+> **Deliberately last.** Every ruling in this document has been shipped as a
+> paragraph on a screen, because a paragraph is how a ruling is written and
+> nobody stopped to translate it. This sprint translates all of them at once,
+> against the final shape of the product rather than against a moving one.
+
+**The founder's sentence, and it is a measurement rather than a complaint:**
+
+> *There is too much text. On every single page of every single portal. Chunks
+> of text that explain important things, important titles, important
+> descriptions, important disclaimers. Instead of boxes of text everywhere, we
+> need to visualize it into components, with minimal text.*
+
+#### 🔴 Why this is a safety sprint and not a design sprint
+
+A disclaimer nobody reads is a disclaimer that does not exist. This repository
+has spent fifty sprints making sure a rule is true in the database rather than
+in a comment, and then rendered the rule to the person it protects as grey
+prose in a box they scroll past. C240 already ruled that the attendance sentence
+must be *in the chrome, on every sponsor screen*, because a person drafting a
+policy will not click through to find out. That ruling is about placement. This
+one is about whether the placement worked.
+
+The measure is not "fewer words". It is **whether the person can answer the
+question the text was there to answer**, and a diagram, an icon row or a three
+state banner usually wins that against a paragraph.
+
+- [ ] **65.1** 🔴 **Inventory first, and it is a script, not a walk-through.**
+      `scripts/prose-sweep.ts` finds every rendered block over a threshold of
+      words in every portal, every marketing page and every dictionary entry,
+      and prints them by route with the word count. Nothing is redesigned until
+      the list exists, because the list is also the acceptance criterion
+- [ ] **65.2** 🔴 **A ratchet, not a one-off.** Total rendered prose words per
+      portal only goes down, in the sweep, the way `DEAD_EXPORT_BASELINE` works.
+      A sprint that adds a paragraph has to spend one
+- [ ] **65.3** 🔴 **Nothing is deleted, everything is translated.** Every rule the
+      prose carried is still communicated, and the sweep pairs each removed block
+      with the component that replaced it. A shorter screen that dropped a
+      disclaimer is a regression, not an improvement
+- [ ] **65.4** A small vocabulary of **visual primitives**, built once and reused:
+      a state banner with an icon and one line, a three-step flow strip, a
+      "who sees what" comparison, a coverage meter, an eligibility checklist, a
+      before-and-after pair. Never a new one-off card per page
+
+#### The patient app, which is the worst of it and the most important
+
+- [ ] **65.5** 🔴 **No dead grey text anywhere in `app/(patient)`.** It is the one
+      portal whose reader may be in distress, and a wall of grey is the format
+      least likely to be read by somebody who is
+- [ ] **65.6** 🔴 **The radar gets a LIST VIEW** beside the map: therapists as
+      rows, with photo, name, languages, price, next availability and a rating.
+      The map answers "who is near me" and the list answers "who is there",
+      and most people are asking the second question
+- [ ] **65.7** A **homepage that explores the platform**, in the shape a mobile
+      app uses rather than a document:
+      - **Explore therapists**, a horizontal card rail
+      - **Top rated**, drawn from real ratings and honest when there are few
+      - **Explore by category**, an icon grid over the existing taxonomy
+      - A **banner** for what is live right now, which is the radar
+- [ ] **65.8** 🔴 Every one of those sections is **empty-state honest**. C288
+      ruled that the homepage may not promise a therapist in sixty seconds; a
+      "top rated" rail invented out of four ratings is the same lie with a
+      nicer layout. Few ratings says few ratings
+- [ ] **65.9** Icons and visuals on the category grid come from the **taxonomy an
+      admin already edits**, so a new specialty appears without a deploy
+
+#### Every other portal, and the public site
+
+- [ ] **65.10** **Therapist portal:** the verification requirements, the fee
+      explanation, the payout rails and the consent rules become components. The
+      fee split is a diagram, not a paragraph about a diagram
+- [ ] **65.11** **Clinic portal:** what a clinic can and cannot see is the single
+      most important thing on it and is currently a wall. It becomes the
+      "who sees what" comparison, on the acceptance screen 63.9 already requires
+- [ ] **65.12** **Sponsor portal:** C240's attendance sentence and C227's "you
+      will never see an individual" become a standing visual in the chrome. The
+      pot, its terms and its expiry become a meter with three states
+- [ ] **65.13** **Public and marketing pages:** every claim already passes
+      `verify:claims`, and it stays that way. A claim rendered as a graphic is
+      still a claim, and the harvester has to reach the new components or the
+      gate silently stops covering the pages it was written for
+- [ ] **65.14** 🔴 **Arabic first, not Arabic after.** Every new component is
+      built and reviewed in Arabic as well, with RTL, because a layout designed
+      around an English sentence length breaks on a language that does not have
+      it. Sprint 37L is the record of what that costs when it is retrofitted
+
+#### What would make this fail
+
+- [ ] **65.15** 🔴 **Decoration instead of information.** A numbered 01/02/03 strip
+      over content that is not a sequence, an accent bar that means nothing, an
+      icon chosen because the row looked bare. Every visual element encodes
+      something true or it does not ship
+- [ ] **65.16** 🔴 **A disclaimer that became a tooltip.** Anything a regulator, a
+      payer or a court would expect a person to have seen stays visible without
+      an interaction. Hidden is not minimal, it is gone
+- [ ] **65.17** The sweep, `verify:claims`, `verify:principals` and the Arabic
+      render all run in the same pass, so a page cannot be prettier and less
+      truthful at the same time
+
+- **Accept:** the prose ratchet is down by more than half in every portal; a
+      patient opens the app and reaches a therapist from the homepage without
+      reading a paragraph; every removed block names the component that replaced
+      it; and `verify:claims` covers the new components rather than the text
+      they replaced.
+
+
+
+
 ## §5 · BUILD LOG
 
 | Date | Sprint | What | Commit | Verified how |
