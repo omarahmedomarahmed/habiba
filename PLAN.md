@@ -4170,8 +4170,13 @@ is **retroactive**, not marginal:
 > Needs a licensed Egyptian entity, a merchant account and a signed gateway
 > contract. **Start those the day this is read**; no amount of code shortens them.
 
-- [ ] **64.1** 🔴 A **provider interface** with one adapter, never a vendor name in
-      a call site. C37 already refuses a static FX rate for the same reason
+- [x] **64.1** 🔴 A **provider interface** with one adapter, never a vendor name in
+      a call site. C37 already refuses a static FX rate for the same reason.
+      **Shipped 2026-09-14**, because it is the one ticket here that needs no
+      paperwork: `lib/billing/egypt.ts` is the seam, the one adapter is
+      `uncontracted` and refuses with a sentence naming what is missing,
+      `whatTheRailNeeds()` renders that on the admin settings screen, and the
+      Stripe path asks `railIsReady()` rather than assuming the answer
 - [ ] **64.2** Patient pays for a session in EGP
 - [ ] **64.3** A sponsor funds a pot in EGP
 - [ ] **64.4** A therapist's renewal obligation is paid in EGP by payment link,

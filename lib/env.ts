@@ -146,6 +146,21 @@ export const env = {
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
 
+  /*
+   * 🔴 64.1 — THE EGYPTIAN RAIL, AND BOTH OF THESE ARE EMPTY ON PURPOSE.
+   *
+   * Sprint 64 is blocked on a licensed Egyptian entity, a merchant account and a
+   * signed gateway contract. These exist so `whatTheRailNeeds()` can name what is
+   * missing in a sentence an operator can act on, rather than the product discovering
+   * the absence when somebody in Cairo tries to pay.
+   *
+   * No vendor is named here either. Which gateway goes behind these is a decision
+   * nobody has made, and putting one in an environment variable name would be making
+   * it in a place nobody reviews.
+   */
+  egyptGatewayKey: process.env.EGYPT_GATEWAY_KEY || "",
+  egyptMerchantId: process.env.EGYPT_MERCHANT_ID || "",
+
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "24Therapy <noreply@24therapy.ai>",
 

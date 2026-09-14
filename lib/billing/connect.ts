@@ -542,6 +542,43 @@ export async function createSessionPaymentCheckout(opts: {
    */
   const collectionCurrency = collectionCurrencyFor(country.code);
   if (collectionRailFor(country.code) !== "stripe_usd" || collectionCurrency !== "usd") {
+    /*
+     * 🔴 64.1 — AND THE OTHER RAIL IS ASKED WHETHER IT IS READY, rather than assumed
+     * not to be.
+     *
+     * Today it never is: sprint 64 is blocked on a licensed Egyptian entity, a
+     * merchant account and a signed gateway contract. The day those land, this
+     * branch stops being the end of the road and becomes the fork it was always
+     * shaped as, and nothing else in this function changes.
+     *
+     * 🔴 THE PATIENT'S MESSAGE DOES NOT NAME A GATEWAY OR A COUNTRY. Somebody
+     * trying to pay for therapy is not the person who can act on "the Egyptian
+     * merchant account is not open yet", and telling them which rail is missing is
+     * telling them about our paperwork. The operator's version of this is on the
+     * admin settings screen, where the person who can clear it reads it.
+     */
+    const { railIsReady } = await import("./egypt");
+
+    if (!railIsReady()) {
+      return {
+        error:
+          "Card payments in that country go through a different rail, which is not switched on yet. Ask your therapist for a free link: the session itself works exactly the same.",
+      };
+    }
+
+    /*
+     * 🔴 NOT BUILT, AND SAYING SO RATHER THAN FALLING THROUGH.
+     *
+     * `railIsReady()` returning true means somebody has configured a gateway that
+     * this build has no adapter for, which is a deployment mistake rather than a
+     * patient's problem. Falling through to the Stripe path below would charge them
+     * in the wrong currency on the wrong rail.
+     */
+    const { egyptianRail } = await import("./egypt");
+    log.error("a collection rail is configured with no adapter", {
+      rail: egyptianRail().name,
+    });
+
     return {
       error:
         "Card payments in that country go through a different rail, which is not switched on yet. Ask your therapist for a free link: the session itself works exactly the same.",

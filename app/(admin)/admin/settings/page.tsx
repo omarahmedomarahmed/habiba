@@ -13,6 +13,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import { tractionMetrics } from "@/lib/data/vault";
 import { getCountries, getSettings } from "@/lib/settings";
 import { hasNoRail } from "@/lib/settings/defs";
+import { whatTheRailNeeds } from "@/lib/billing/egypt";
 import { countriesMissingACrisisLine } from "@/lib/crisis/line";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
@@ -45,6 +46,9 @@ export default async function SettingsPage() {
   ]);
 
   const unreachable = countries.filter(hasNoRail);
+
+  /* 🔴 64.1 — what the Egyptian rail is waiting for, which is paperwork not code. */
+  const railNeeds = whatTheRailNeeds();
 
   /*
    * 🔴 21R.8 / C98 / 0088 — WHERE A PERSON IN CRISIS GETS A SENTENCE, NOT A NUMBER.
@@ -117,6 +121,35 @@ export default async function SettingsPage() {
             &ldquo;call your local emergency number&rdquo;, which is true and is not a number.
             Enter each one below only after dialling it. A wrong number looks like help, presses
             like help, and does nothing.
+          </p>
+        </Card>
+      ) : null}
+
+      {/*
+        🔴 64.1 — WHAT THE EGYPTIAN RAIL IS WAITING FOR, ON THE SCREEN.
+
+        Sprint 64 is blocked on a licensed entity, a merchant account and a signed
+        gateway contract. That is a fact about paperwork rather than about code, and
+        the person who can clear it reads this screen: discovering it when somebody in
+        Cairo tries to pay is the failure this card exists to prevent.
+
+        `whatTheRailNeeds` returns an empty list when both are configured, so this
+        disappears the day the contract lands rather than becoming a stale banner.
+      */}
+      {railNeeds.length > 0 ? (
+        <Card className="border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">
+            Egypt has no payment rail yet
+          </p>
+          <ul className="mt-1 space-y-1 text-sm leading-relaxed text-amber-900/90">
+            {railNeeds.map((need) => (
+              <li key={need}>{need}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
+            Until then an Egyptian patient cannot pay in EGP, and an Egyptian therapist
+            is on the manual payout queue, which is the designed path for them either
+            way. No code shortens the contract: start it the day you read this.
           </p>
         </Card>
       ) : null}
