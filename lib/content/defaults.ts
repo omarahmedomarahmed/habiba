@@ -27,7 +27,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "home",
     title: "24Therapy: your session notes, written for you",
     description:
-      "Record a therapy session on your phone and walk away with a SOAP note, clinical insights and a report you can send to your patient.",
+      "Record a session and walk away with a SOAP note, insights and a report for your patient.",
     layout: "marketing",
     navLabel: null,
     navOrder: null,
@@ -39,18 +39,53 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "Crisis Radar",
         heading: "Find a therapist who is available now",
-        body: "Every dot is a verified clinician who has said they are free. Filter by language or by what you need help with, pick someone, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance. Nobody is on duty and nobody is promised to you: if the map is empty, it is empty.",
+        body: "Every dot is a verified clinician who has said they are free. If the map is empty, it is empty. Your record is yours, and it travels with you.",
+        ctaLabel: "What this is for patients",
+        ctaHref: "/for-patients",
         demo: "radar",
       },
+      /*
+       * 🔴 65.15 — FOUR HEROES, ONE PER PERSON WHO ARRIVES.
+       *
+       * > *The homepage has two heroes and both are about the therapist. That is the
+       * > whole audience problem in one measurement.*
+       *
+       * A company, a patient and a clinic each arrive at this page with a different
+       * question, and until sprint 65 the page answered a therapist's twice. Each hero
+       * below is one line and the real component that audience would use, which is 65.14
+       * and 65.17 in the same block: the picture carries what the paragraph used to.
+       *
+       * 🔴 AND EACH ONE LEADS TO ITS OWN PAGE (65.16), because a hero is a door rather
+       * than an argument, and an audience given a section instead of a page has been
+       * told they are a footnote to somebody else's product.
+       */
       {
         type: "hero",
         eyebrow: "For therapists",
         heading: "Finish your notes before you leave the room",
-        body: "Start a session on your phone. 24Therapy transcribes it live, then writes the SOAP note, the summary and the follow-up while you are still saying goodbye. You review, approve, and send.",
+        body: "Transcribed live, written while you say goodbye. You review, approve and send.",
         ctaLabel: "Start your first session free",
         ctaHref: "/signup",
         demo: "session-room",
         backgroundImage: "/backgrounds/mesh.svg",
+      },
+      {
+        type: "hero",
+        eyebrow: "For companies",
+        heading: "Cover therapy for your people, and never learn who went",
+        body: "You fund a pot and watch it spend. Attendance cannot be required through us.",
+        ctaLabel: "How it works for companies",
+        ctaHref: "/for-companies",
+        demo: "company",
+      },
+      {
+        type: "hero",
+        eyebrow: "For clinics",
+        heading: "Seats, colleagues and one set of books",
+        body: "A practice sees schedules and bills. It never sees a note.",
+        ctaLabel: "How it works for clinics",
+        ctaHref: "/for-clinics",
+        demo: "clinic",
       },
       {
         type: "showcase",
@@ -58,25 +93,25 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "The transcript writes itself",
-            body: "Audio is captured in short chunks and transcribed as the session runs. On a video call each person is on their own track, so who said what is known rather than guessed. This is the real panel from the session room.",
+            body: "Captured in chunks as the session runs. On video each person has their own track, so who said what is known rather than guessed.",
             icon: "mic",
             demo: "transcript",
           },
           {
             title: "The note is ready when you stand up",
-            body: "Ending a session starts generation immediately: a full SOAP note plus summary, talking points, observations, impressions and a follow-up. Everything is a draft with your name on it until you approve it.",
+            body: "A SOAP note, a summary and a follow-up, the moment a session ends. A draft with your name on it until you approve it.",
             icon: "fileText",
             demo: "note",
           },
           {
             title: "Risk language is scanned for, in Arabic and English",
-            body: "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified, so it survives a failed delivery. It is a prompt for your attention, not a safety net: it misses things, it raises false alarms, and it never replaces your own judgement.",
+            body: "Each segment is scanned for risk language as it arrives, and the alert is written down before anyone is notified. A prompt for your attention rather than a safety net: it misses things and raises false alarms.",
             icon: "shield",
             demo: "risk",
           },
           {
             title: "A quiet second opinion",
-            body: "At most two short prompts at a time, and only when there is something worth saying. It suggests, never instructs, and staying silent is the expected answer.",
+            body: "Two short prompts at most, and only when there is something worth saying. Silence is the expected answer.",
             icon: "brain",
             demo: "copilot",
           },
@@ -88,32 +123,32 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Start",
-            body: "Tap New session, type a first name, tap Start. In-person or video, no scheduling, no forms, no setup wizard.",
+            body: "A first name and a tap. In person or video, no forms.",
             icon: "zap",
           },
           {
             title: "Talk",
-            body: "The transcript builds itself beside you. Tap Off record whenever the conversation should not be captured.",
+            body: "The transcript builds beside you. Tap Off record whenever it should not.",
             icon: "mic",
           },
           {
             title: "Send",
-            body: "End the session and the note is waiting. Read it, edit anything, approve it, and email the patient a plain-language summary.",
+            body: "End the session and the note is waiting. Edit, approve, send.",
             icon: "mail",
           },
           {
             title: "Patients need no account",
-            body: "Send a link. They type their first name and join. No password, no app, no portal to support.",
+            body: "A link, a first name, and they are in. No password, no app.",
             icon: "users",
           },
           {
             title: "PHI stays where it belongs",
-            body: "Every read of a chart is written to an append-only audit log. No transcript text ever reaches application logs.",
+            body: "Every read of a chart is logged. No transcript text reaches application logs.",
             icon: "lock",
           },
           {
             title: "Built for a phone",
-            body: "Therapists work from their phone, so this was designed for one. Desktop is the enhancement, not the other way round.",
+            body: "Designed for a phone. Desktop is the enhancement.",
             icon: "clock",
           },
           /*
@@ -128,7 +163,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
            */
           {
             title: "A verified page you can show anywhere",
-            body: "We check your licence against the register before you see a patient. Once you pass, you get a page of your own with your name, your languages and your hours on it, that works as a link in a bio or a message. Being checked is worth something outside this product too.",
+            body: "We check your licence against the register. You get a page of your own that works as a link in a bio.",
             icon: "shield",
           },
         ],
@@ -150,7 +185,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "cta",
         heading: "Your first session is free",
-        body: "No card, no onboarding wizard. Sign up and start a session in under a minute.",
+        body: "No card, no wizard.",
         ctaLabel: "Create your account",
         ctaHref: "/signup",
         backgroundImage: "/backgrounds/waves.svg",
@@ -172,7 +207,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     slug: "for-patients",
     title: "For patients",
     description:
-      "Your therapy record, owned by you and readable by nobody until you say so. What the intelligence does, what it never does, and how the record moves with you.",
+      "Your therapy record, owned by you and readable by nobody until you say so.",
     layout: "marketing",
     navLabel: "For patients",
     navOrder: 0,
@@ -181,12 +216,29 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "For patients",
         heading: "Your therapy record, and it is actually yours",
-        body: "Most people who have had therapy cannot lay their hands on a single page of it. Here the record has your name on it, you can read it, you can take it to the next therapist in one tap, and you can take that back just as fast. Below is how each of those works, and what we refuse to do with any of it.",
+        body: "Read it, hand it to the next therapist in one tap, and take that back just as fast.",
         ctaLabel: "See who is online now",
         ctaHref: "/radar",
         demo: "none",
         icon: "shield",
         backgroundImage: "/backgrounds/waves.svg",
+      },
+      /*
+       * 🔴 65.20 — THE CLAIM FLOW AS THREE STEPS, which is the ticket's own example.
+       *
+       * This was four feature cards of prose describing an ordered process: you generate
+       * a code, they enter it, you are asked. 65.22 forbids numbering content that is not
+       * a sequence; this one is, so it is numbered, and the numbers are the information
+       * the four paragraphs were spending words to establish.
+       */
+      {
+        type: "flow",
+        heading: "How your record reaches a new therapist",
+        steps: [
+          { title: "You make a code", detail: "On its own it shows them nothing" },
+          { title: "They enter it", detail: "We ask you whether they may read your history" },
+          { title: "You decide", detail: "Nothing moves until you say yes, and one tap ends it" },
+        ],
       },
       {
         type: "features",
@@ -194,22 +246,12 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "One record, however many therapists",
-            body: "A second therapist does not start you from nothing. Your clinical summary is versioned and every version stays, with the name of whoever wrote it, so the new person reads what the last one thought rather than asking you to say it all again.",
+            body: "Every version of your summary stays, under its author's name.",
             icon: "users",
           },
           {
-            title: "You hand it over, nobody takes it",
-            body: "You generate a code and read it to your therapist. That asks you whether they may read your history. Nothing about you moves until you answer, and the code on its own shows them nothing at all.",
-            icon: "lock",
-          },
-          {
-            title: "Taking it back costs one tap and no explanation",
-            body: "Who can read your history is a permanent screen in the app, with the date each person got access and a button to end it. You are never asked why, and they are never told why.",
-            icon: "shield",
-          },
-          {
             title: "A copy you can keep",
-            body: "Every session, every note a clinician signed, every version of your summary, what you wrote yourself. Emailed to you, never over WhatsApp, with the licence of whoever signed each note printed on it.",
+            body: "Every session, note and summary, emailed to you, never over WhatsApp.",
             icon: "fileText",
           },
         ],
@@ -220,13 +262,13 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Your summary, with both therapists on it",
-            body: "This is the real screen, with invented people on it. Version two is a clinician who picked you up from somebody else; version one is still there with the first name on it. Nobody can edit or delete a version, including us.",
+            body: "The real screen. Version one is still there under its author's name, and nobody can delete a version, including us.",
             icon: "fileText",
             demo: "summary",
           },
           {
             title: "What you wrote, between sessions",
-            body: "A week is a long time to remember. You write or say whatever you want to keep, and a therapist you have given access to can read it. Nobody else, and nothing on that screen pretends somebody is watching it.",
+            body: "A week is a long time to remember. Only a therapist you allowed can read it.",
             icon: "heart",
             demo: "journal",
           },
@@ -238,22 +280,22 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "There is no chatbot here, and there will not be one",
-            body: "You cannot message the intelligence, and it cannot message you. There is no screen in the patient app where you are typing to a model. That is enforced in the code rather than promised in a paragraph: nothing a patient can open is allowed to reach it, even indirectly.",
+            body: "No screen in the patient app types to a model, and the import graph is what stops it.",
             icon: "lock",
           },
           {
             title: "What it does instead",
-            body: "It reads what happened in your sessions and what you wrote, and it puts that in front of the clinician who is treating you, with the sentence it came from attached so they can disagree with it.",
+            body: "It puts what it read in front of your clinician, with the sentence it came from attached.",
             icon: "brain",
           },
           {
             title: "Only a clinician you chose can ask it anything",
-            body: "And only about you, and only while you have given them access. Take the access back and the assistant stops being able to read your history that same second.",
+            body: "Only about you, and only while you allow it. Take it back and it stops that second.",
             icon: "shield",
           },
           {
             title: "Nothing written by a machine reaches you unsigned",
-            body: "The summary after a session is drafted by software and does not leave the building until the person who was in the room with you has read it and put their name on it.",
+            body: "The person who was in the room reads it and puts their name on it first.",
             icon: "check",
           },
         ],
@@ -264,17 +306,17 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "The Crisis Radar",
-            body: "A live map of clinicians who are online right now. Filter by language or by what you need help with. Nobody on it is a bot, a queue or a callback. They are people with a session open.",
+            body: "A live map of clinicians who are online now. No bot, no queue, no callback.",
             icon: "zap",
           },
           {
             title: "When to use it",
-            body: "For when waiting until Tuesday is not the answer. It is not an emergency service and it is not a substitute for one. If somebody is free you can start now; if nobody is, you can book the first hour that suits you.",
+            body: "For when waiting until Tuesday is not the answer. Not an emergency service.",
             icon: "clock",
           },
           {
             title: "Booking an hour instead",
-            body: "If you are not in a hurry, every clinician has a calendar. Pick an hour that suits you and you will get a reminder before it.",
+            body: "Every clinician has a calendar, and a reminder goes out before the hour.",
             icon: "clock",
           },
           /*
@@ -288,7 +330,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
            */
           {
             title: "A therapist who speaks your first language",
-            body: "Filter the radar by language. If you grew up in Arabic and live somewhere that does not, you can talk to somebody in the language you think in rather than the one you translate into. They are licensed, they are online now, and the distance does not matter.",
+            body: "Filter the radar by language, and talk in the one you think in rather than the one you translate into.",
             icon: "users",
           },
         ],
@@ -299,65 +341,62 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Your sessions, in your own app",
-            body: "Once you claim your record you have your own screens: the sessions you have booked, the ones you found on the radar, and the note your therapist wrote to you after each. This is that screen.",
+            body: "The sessions you booked, the ones you found on the radar, and the note written to you after each.",
             icon: "users",
             demo: "patient-sessions",
           },
           {
             title: "The steps you agreed, not homework marked out of ten",
-            body: "What you and your therapist agreed to try, written the way you agreed it. Nobody scores you, and nothing is shown to anybody else.",
+            body: "What you agreed to try, written the way you agreed it. Nobody scores you.",
             icon: "check",
             demo: "homework",
           },
         ],
       },
+      /*
+       * 🔴 65.20 / 65.11 — THE WALL, DRAWN THE WAY THE PRODUCT DRAWS IT.
+       *
+       * Six feature cards of prose, on the public site, describing the rule the patient
+       * app itself renders as two columns. A person who reads it here and then meets it
+       * inside the product had to learn it twice.
+       */
+      {
+        type: "seesWhat",
+        heading: "What your therapist can and cannot see",
+        who: "A therapist you allow",
+        can: [
+          "The sessions they ran with you, and their own notes",
+          "Your history, while you allow it",
+          "What you wrote, if you gave them access",
+        ],
+        cannot: [
+          "Another therapist's notes, unless you say so",
+          "Anything at all before you say yes",
+          "Your record after you end their access",
+        ],
+      },
       {
         type: "features",
-        heading: "What your therapist can and cannot see",
+        heading: "The rest of it",
         items: [
           {
-            title: "They see the sessions they ran with you",
-            body: "Their own notes about their own sessions, exactly as any therapist keeps notes. Nothing about anybody else.",
-            icon: "fileText",
-          },
-          {
-            title: "A second therapist sees nothing until you say so",
-            body: "If you see two people, neither can read the other's notes. You can share your history with a new therapist, in one tap, and take it back in one tap.",
-            icon: "lock",
-          },
-          {
             title: "You can be recorded, or not",
-            body: "Recording is asked for, not assumed, and you can stop it at any point in the session. The note says when recording started, so nothing pretends to a completeness it does not have.",
+            body: "Asked for, not assumed, and stoppable mid-session.",
             icon: "mic",
           },
           {
-            title: "Your record is yours to claim",
-            body: "If a therapist has already been seeing you, the record has your name on it and you can claim it with your phone number. We ask you two questions first, proving a phone number is not proving a person.",
+            title: "Claim it with your phone number",
+            body: "We ask two questions first: a number is not a person.",
             icon: "shield",
           },
-          /*
-           * 🔴 51.9 — a psychiatrist and a therapist on one record.
-           *
-           * Multi-grant has done this since sprint 7 and no page has ever said
-           * so. It is the single most common shape of real care in this market
-           * and the one people assume no software handles, because none of the
-           * software they have used did.
-           */
           {
             title: "A psychiatrist and a therapist, on one record",
-            body: "Most people who see two clinicians have to carry the story between them. Here you grant each of them access yourself, separately, and take either one back on its own. They see what you gave them and nothing else, and neither of them has to ask you to repeat the last year.",
+            body: "Grant each separately, take either back on its own.",
             icon: "users",
           },
-          /*
-           * 🔴 51.9 — a record that is still there years later.
-           *
-           * Portability is §7's whole go-to-market and every page describes it
-           * as moving between therapists. Nobody says the other half: it is
-           * still yours when you are not in therapy at all.
-           */
           {
             title: "It is still there in three years",
-            body: "If you stop, nothing is deleted and nothing expires. Come back after a year, or after five, and the record is where you left it, still yours, still readable, and still something you can hand to somebody new. Stopping therapy is not the same as starting again.",
+            body: "Nothing is deleted and nothing expires.",
             icon: "clock",
           },
         ],
@@ -368,27 +407,27 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             q: "Do I pay to use 24Therapy?",
-            a: "No. You pay the therapist for the session, at the price shown before you book. We take a share of that from them, not from you, and there is no fee for having an account.",
+            a: "No. You pay the therapist the price shown before you book. Our share comes from them.",
           },
           {
             q: "Can I pay in Egyptian pounds?",
-            a: "Yes. The price is shown in both, at the rate of the day, and the rate you were shown is the rate you are charged. It is fixed onto the payment rather than recalculated later.",
+            a: "Yes. The rate you were shown is the rate you are charged.",
           },
           {
             q: "What if the therapist does not turn up?",
-            a: "After five minutes you are offered somebody else at the same price or less, or your money back. If the replacement costs less, the difference comes back to you as credit rather than disappearing.",
+            a: "After five minutes: somebody else at the same price or less, or your money back.",
           },
           {
             q: "Do I need an account?",
-            a: "Not to have a session. You need one to keep your history, see the notes written to you, and claim a record a therapist already keeps about you.",
+            a: "Not for a session. Yes to keep your history and claim a record.",
           },
           {
             q: "If I stop using 24Therapy, do I lose everything?",
-            a: "No. Ask for a copy of your record and it is emailed to you: every session, every signed note, every version of your summary, and the licence of the clinician behind each. It is a record extract rather than a certificate, which means it says what we hold and when, and does not claim that a diagnosis in it is correct.",
+            a: "No. Ask for a copy and it is emailed to you. It is a record extract, not a certificate.",
           },
           {
             q: "Can a therapist read my record without me agreeing?",
-            a: "No, and there is no screen anywhere that ends in them having access. Every grant needs you, signed in, answering a question. You are sent a message every time one starts, so if somebody ever pressured you into it you will see it afterwards, and ending it takes one tap.",
+            a: "No. Every grant needs you, signed in, answering. You are messaged each time one starts.",
           },
         ],
       },
@@ -408,7 +447,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "Features",
         heading: "The whole product is one screen",
-        body: "Most clinical software asks you to learn it. This asks you to press Start. Everything below is the real component, running on invented data, not a picture of one.",
+        body: "Everything below is the real component on invented data, not a picture of one.",
         // 18R.1 — the same CTA pair as the header: the clinician's action is
         // the button, and the patient's route is one line away rather than
         // absent (18.4).
@@ -423,25 +462,25 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Live transcript, both voices",
-            body: "On video, the therapist and the patient arrive on separate audio tracks, so each line is attributed with certainty. In person, one microphone hears the room and the note works out who was speaking from context.",
+            body: "On video each person has their own track. In person, one microphone and the words decide.",
             icon: "mic",
             demo: "transcript",
           },
           {
             title: "Suggestions, not instructions",
-            body: "The copilot reads the last few minutes and offers at most two short prompts. It fires every few segments rather than constantly, because advice that changes every eight seconds is noise.",
+            body: "Two short prompts at most, every few segments. Advice that changes every eight seconds is noise.",
             icon: "brain",
             demo: "copilot",
           },
           {
             title: "Crisis language raises a flag",
-            body: "Alerts go to you and only to you. A patient on a join link never sees a risk level, only a supportive message and a crisis line.",
+            body: "To you and only you. A patient sees a supportive message and a crisis line, never a level.",
             icon: "alert",
             demo: "risk",
           },
           {
             title: "The note you would have written",
-            body: "Subjective, objective, assessment and plan, plus summary, talking points, observations, impressions and follow-up. Editable everywhere, signed only by you.",
+            body: "SOAP, plus summary, talking points and follow-up. Editable everywhere, signed only by you.",
             icon: "fileText",
             demo: "note",
           },
@@ -453,17 +492,17 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Off record",
-            body: "One tap stops capture without ending the session. Nothing recorded, nothing transcribed, nothing stored.",
+            body: "One tap stops capture without ending the session.",
             icon: "shield",
           },
           {
             title: "Video when you need it",
-            body: "Private rooms with a per-participant token that expires. In-person sessions skip video entirely.",
+            body: "Private rooms, per-participant tokens that expire.",
             icon: "video",
           },
           {
             title: "Patient report by email",
-            body: "Approve a note and optionally send a plain-language summary. Clinical impressions stay in your chart.",
+            body: "Approve, then send a plain-language summary. Impressions stay in your chart.",
             icon: "mail",
           },
         ],
@@ -500,19 +539,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "The patient has an app too",
-            body: "Their own sessions, the ones they booked and the ones they found on the radar, and the note you wrote to them once you signed it. It has no field that could hold your clinical note. That is a property of the query, not of the screen.",
+            body: "Their sessions and the note you signed. No field could hold your clinical note: that is the query, not the screen.",
             icon: "users",
             demo: "patient-sessions",
           },
           {
             title: "What you agreed, on both phones",
-            body: "Homework as the steps you actually agreed, not a scoreboard. Nobody is marked, and nothing is shown to anybody else.",
+            body: "The steps you agreed, not a scoreboard.",
             icon: "check",
             demo: "homework",
           },
           {
             title: "A profile that is dated observations, not prose",
-            body: "Every line traceable to the session it came from. No paragraph of machine writing about a person.",
+            body: "Every line traceable to its session. No machine paragraph about a person.",
             icon: "brain",
             demo: "profile",
           },
@@ -521,7 +560,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "cta",
         heading: "Start free. Your first session is on us",
-        body: "Or if you are looking for a therapist rather than software, the radar has people online now.",
+        body: "Looking for a therapist rather than software? The radar is live.",
         ctaLabel: "Sign up free",
         ctaHref: "/signup",
         backgroundImage: "/backgrounds/mesh.svg",
@@ -565,19 +604,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
              * a trial, and because somebody running four sessions a week should
              * not be pushed onto a plan they do not need.
              */
-            a: "Pay as you go costs nothing to be on and bills you per session, with the AI fee added only when your patient turns the AI on. A monthly plan costs one flat price and bills you nothing per session at all. You can move between them whenever you like and nothing about your patients, notes or history changes either way.",
+            a: "Pay as you go bills per session; a plan bills one flat price and nothing per session. Move between them any time.",
           },
           {
             q: "When am I charged on pay as you go?",
-            a: "When a session is marked complete. Your first one is free, and the invoice appears on your billing page immediately. You can pay several at once with a single link.",
+            a: "When a session is marked complete. Your first is free.",
           },
           {
             q: "What does the session rate actually include?",
-            a: "The full session, live transcription, the SOAP note, the patient report and crisis alerts, plus the copilot questions about that patient shown on the cards above, for every session you run with them, and unused ones roll over. Only questions you ask count; the copilot's own answers and the notes it saves from a live session do not.",
+            a: "The session, transcription, the note, the report, crisis alerts, and the copilot questions on the cards above. Unused ones roll over.",
           },
           {
             q: "What does a monthly plan include?",
-            a: "Unlimited sessions and unlimited AI, with nothing charged per session. Everything on the pay-as-you-go list is included and not metered: transcription, notes, reports, crisis alerts and the copilot. Our share of what a patient pays you is a separate figure and does not change on a plan.",
+            a: "Unlimited sessions and AI, nothing per session. Our share of what a patient pays you is separate and unchanged.",
           },
           {
             q: "Which one should I be on?",
@@ -587,7 +626,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
              * `platform_settings` at render time. A worked example typed into
              * this file would be a second copy of the price, which is C60.
              */
-            a: "Divide the monthly price by what one session with AI costs you on pay as you go. Above roughly that many sessions a month the plan is cheaper, below it pay as you go is. Both numbers are on the cards above. There is no penalty either way and nothing to commit to.",
+            a: "Divide the monthly price by one session on pay as you go. Above that many sessions, the plan is cheaper.",
           },
           {
             q: "What happens when I cancel a plan?",
@@ -596,11 +635,11 @@ export const DEFAULT_PAGES: DefaultPage[] = [
              * answered: am I locked in, do I lose the month I paid for, and do
              * I lose my records. The third is the one nobody asks out loud.
              */
-            a: "Cancelling stops the next charge and nothing else. The plan runs to the date shown on your billing page, and after that you go back to pay as you go and are charged per session again. Nothing is deleted, nothing is locked, and every note, patient and recording stays exactly where it was.",
+            a: "It stops the next charge and nothing else. The plan runs to its date, then pay as you go resumes.",
           },
           {
             q: "What if a renewal payment fails?",
-            a: "You keep the plan for the month you have already paid for. We do not cut anything off mid-month over a card that expired. If it is still unpaid when that period ends, the account goes back to pay as you go and carries on working.",
+            a: "You keep the month you paid for. Still unpaid at the end of it, and pay as you go resumes.",
           },
           {
             q: "What if a session was a mistake?",
@@ -618,11 +657,11 @@ export const DEFAULT_PAGES: DefaultPage[] = [
              * Sending a reader to the cards for the percentage sends them
              * somewhere it is not.
              */
-            a: "A share of what that session paid you, stated as a percentage on the pricing page, and nothing else. That is separate from what you pay us to use 24Therapy, whether that is per session or a month at a time. Where you have a Stripe account the money is charged straight into it and we never hold it. Where you do not, as in Egypt today, we collect it, hold it, and pay you out on request, and you can watch every step of that on your earnings page. You see exactly what you keep before you set a price.",
+            a: "A share of what the session paid you, at the percentage on this page. With a Stripe account we never hold the money; without one we hold it and pay out on request.",
           },
           {
             q: "Can I pay my 24Therapy bill out of my earnings?",
-            a: "Yes. When we are holding your earnings the session fee comes out of them automatically. If your patients pay straight into your own Stripe account, anything you owe can instead be settled out of the next payment rather than a card, never more than what that session would have paid you, and you can turn it off.",
+            a: "Yes. What you owe comes out of what you are paid rather than a card, never more than your share, and you can turn it off.",
           },
           {
             /*
@@ -635,7 +674,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
              * has dropped is the same defect as a test asserting one.
              */
             q: "What happens to credit I added and did not spend?",
-            a: "Credit is money, not a number of sessions. It lasts as long as the pricing page says, it pays for session fees and AI fees alike, and it is always spent before your card is. It has nothing to do with which plan you are on and it is not needed on a monthly plan, where sessions cost you nothing.",
+            a: "Credit is money, not sessions. It pays session and AI fees, and it is spent before your card.",
           },
         ],
       },

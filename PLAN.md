@@ -4427,19 +4427,19 @@ The measure is not "fewer words". It is **whether the person can answer the
 question the text was there to answer**, and a diagram, an icon row or a three
 state banner usually wins that against a paragraph.
 
-- [ ] **65.1** 🔴 **Inventory first, and it is a script, not a walk-through.**
+- [x] **65.1** 🔴 **Inventory first, and it is a script, not a walk-through.**
       `scripts/prose-sweep.ts` finds every rendered block over a threshold of
       words in every portal, every marketing page and every dictionary entry,
       and prints them by route with the word count. Nothing is redesigned until
       the list exists, because the list is also the acceptance criterion
-- [ ] **65.2** 🔴 **A ratchet, not a one-off.** Total rendered prose words per
+- [x] **65.2** 🔴 **A ratchet, not a one-off.** Total rendered prose words per
       portal only goes down, in the sweep, the way `DEAD_EXPORT_BASELINE` works.
       A sprint that adds a paragraph has to spend one
-- [ ] **65.3** 🔴 **Nothing is deleted, everything is translated.** Every rule the
+- [x] **65.3** 🔴 **Nothing is deleted, everything is translated.** Every rule the
       prose carried is still communicated, and the sweep pairs each removed block
       with the component that replaced it. A shorter screen that dropped a
       disclaimer is a regression, not an improvement
-- [ ] **65.4** A small vocabulary of **visual primitives**, built once and reused:
+- [x] **65.4** A small vocabulary of **visual primitives**, built once and reused:
       a state banner with an icon and one line, a three-step flow strip, a
       "who sees what" comparison, a coverage meter, an eligibility checklist, a
       before-and-after pair. Never a new one-off card per page
@@ -4449,21 +4449,21 @@ state banner usually wins that against a paragraph.
 - [ ] **65.5** 🔴 **No dead grey text anywhere in `app/(patient)`.** It is the one
       portal whose reader may be in distress, and a wall of grey is the format
       least likely to be read by somebody who is
-- [ ] **65.6** 🔴 **The radar gets a LIST VIEW** beside the map: therapists as
+- [x] **65.6** 🔴 **The radar gets a LIST VIEW** beside the map: therapists as
       rows, with photo, name, languages, price, next availability and a rating.
       The map answers "who is near me" and the list answers "who is there",
       and most people are asking the second question
-- [ ] **65.7** A **homepage that explores the platform**, in the shape a mobile
+- [x] **65.7** A **homepage that explores the platform**, in the shape a mobile
       app uses rather than a document:
       - **Explore therapists**, a horizontal card rail
       - **Top rated**, drawn from real ratings and honest when there are few
       - **Explore by category**, an icon grid over the existing taxonomy
       - A **banner** for what is live right now, which is the radar
-- [ ] **65.8** 🔴 Every one of those sections is **empty-state honest**. C288
+- [x] **65.8** 🔴 Every one of those sections is **empty-state honest**. C288
       ruled that the homepage may not promise a therapist in sixty seconds; a
       "top rated" rail invented out of four ratings is the same lie with a
       nicer layout. Few ratings says few ratings
-- [ ] **65.9** Icons and visuals on the category grid come from the **taxonomy an
+- [x] **65.9** Icons and visuals on the category grid come from the **taxonomy an
       admin already edits**, so a new specialty appears without a deploy
 
 #### Every other portal, and the public site
@@ -4471,22 +4471,22 @@ state banner usually wins that against a paragraph.
 - [ ] **65.10** **Therapist portal:** the verification requirements, the fee
       explanation, the payout rails and the consent rules become components. The
       fee split is a diagram, not a paragraph about a diagram
-- [ ] **65.11** **Clinic portal:** what a clinic can and cannot see is the single
+- [x] **65.11** **Clinic portal:** what a clinic can and cannot see is the single
       most important thing on it and is currently a wall. It becomes the
       "who sees what" comparison, on the acceptance screen 63.9 already requires
-- [ ] **65.12** **Sponsor portal:** C240's attendance sentence and C227's "you
+- [x] **65.12** **Sponsor portal:** C240's attendance sentence and C227's "you
       will never see an individual" become a standing visual in the chrome. The
       pot, its terms and its expiry become a meter with three states
 #### The public site, which is four audiences on one set of pages
 
-- [ ] **65.13** **Every claim already passes `verify:claims` and stays that way.**
+- [x] **65.13** **Every claim already passes `verify:claims` and stays that way.**
       A claim rendered as a graphic is still a claim, and the harvester has to
       reach the new components or the gate silently stops covering the pages it
       was written for
 - [ ] **65.14** 🔴 **80% less text on every page of the public site**, measured by
       the same sweep as the portals. Not a target somebody eyeballs: the number
       is in the ratchet
-- [ ] **65.15** 🔴 **The homepage has two heroes and both are about the
+- [x] **65.15** 🔴 **The homepage has two heroes and both are about the
       therapist.** That is the whole audience problem in one measurement. It gets
       four, one per person who arrives:
       - **A therapist**, which is what is there today
@@ -4496,10 +4496,10 @@ state banner usually wins that against a paragraph.
         the radar has somebody free now
       - **A clinic**: seats, colleagues, one set of books, and no clinical
         content in the admin's hands
-- [ ] **65.16** 🔴 **Every audience gets a real page, not a section.** `/for-companies`,
+- [x] **65.16** 🔴 **Every audience gets a real page, not a section.** `/for-companies`,
       `/for-clinics`, `/for-patients`, `/developers`, each laid out properly
       rather than as a wall under a heading
-- [ ] **65.17** 🔴 **The components are the REAL ones, rendered.** Not screenshots
+- [x] **65.17** 🔴 **The components are the REAL ones, rendered.** Not screenshots
       that rot, not mockups drawn in a design tool: the actual sponsor spend
       chart, the actual radar card, the actual coverage meter, the actual note
       view, imported from the portal and fed fixture data. A marketing page that
@@ -4510,29 +4510,29 @@ state banner usually wins that against a paragraph.
       lines. Capture that data as fixtures once the simulation has run, so the
       marketing site shows a plausible product rather than `Lorem` with a chart
       library
-- [ ] **65.19** 🔴 **Fixtures are synthetic, and that is not negotiable.** They
+- [x] **65.19** 🔴 **Fixtures are synthetic, and that is not negotiable.** They
       come from the simulation's SHAPE, never from its rows. No name, no note, no
       session that traces to a person, seeded or otherwise. C127 does not have a
       marketing exemption
-- [ ] **65.20** **Cards, banners and explainers per audience**, from the same
+- [x] **65.20** **Cards, banners and explainers per audience**, from the same
       vocabulary 65.4 builds. A company sees a coverage meter and a wall
       diagram; a clinic sees a seat ladder; a patient sees the claim flow as
       three steps; a developer sees a request and a response
-- [ ] **65.21** 🔴 **Arabic first, not Arabic after.** Every new component is
+- [x] **65.21** 🔴 **Arabic first, not Arabic after.** Every new component is
       built and reviewed in Arabic as well, with RTL, because a layout designed
       around an English sentence length breaks on a language that does not have
       it. Sprint 37L is the record of what that costs when it is retrofitted
 
 #### What would make this fail
 
-- [ ] **65.22** 🔴 **Decoration instead of information.** A numbered 01/02/03 strip
+- [x] **65.22** 🔴 **Decoration instead of information.** A numbered 01/02/03 strip
       over content that is not a sequence, an accent bar that means nothing, an
       icon chosen because the row looked bare. Every visual element encodes
       something true or it does not ship
-- [ ] **65.23** 🔴 **A disclaimer that became a tooltip.** Anything a regulator, a
+- [x] **65.23** 🔴 **A disclaimer that became a tooltip.** Anything a regulator, a
       payer or a court would expect a person to have seen stays visible without
       an interaction. Hidden is not minimal, it is gone
-- [ ] **65.24** The sweep, `verify:claims`, `verify:principals` and the Arabic
+- [x] **65.24** The sweep, `verify:claims`, `verify:principals` and the Arabic
       render all run in the same pass, so a page cannot be prettier and less
       truthful at the same time
 
@@ -4544,6 +4544,48 @@ state banner usually wins that against a paragraph.
       the component that replaced it; and `verify:claims` covers the new
       components rather than the text they replaced.
 
+#### 🔴 WHERE SPRINT 65 ACTUALLY LANDED, AND THE TWO NUMBERS IT DID NOT HIT
+
+**The accept line is not met on its first clause and is not close on its second.**
+Measured by the sprint's own instrument, against an `origin` re-measured on the
+commit before it started: **public 30%**, clinic 29%, patient 18%, sponsor 17%,
+clinician 14%, shared 13%, partner 0%, admin 0%, legal 0%. The target was half off
+every portal and 80% off the public site.
+
+**Why, said plainly rather than argued away.** Getting the public site to 80% from
+where sprint 65 left it means cutting its remaining blocks from about thirteen words
+each to about three. Past a point that is not "visualise it into components", it is
+deleting rules, and **65.3 forbids exactly that**: *a shorter screen that dropped a
+disclaimer is a regression, not an improvement.* The walls are gone — the largest
+block on the public site was 122 words and is now 44 — and what is left is a site
+made of short lines, which is a different thing from a site of 817 words.
+
+**Two structural corrections are inside those figures and neither is progress.**
+`legal` is now its own number (1377 words across privacy, terms, HIPAA and security),
+because cutting a privacy notice by 80% is 65.23's failure in its most expensive
+form. And roughly 250 words became newly COUNTED when `/for-clinics` moved out of
+hand-typed markup into the dictionary, which is fewer words on the screen and more
+words in the ratchet.
+
+- [ ] **65.14R** 🔴 **The public site from 30% to 80% is a second pass, and it is a
+      content pass rather than an engineering one.** Every remaining block is already
+      one or two lines; getting to 817 words means somebody deciding which rules the
+      marketing site may stop stating and which have to move into the product where
+      the person they protect will meet them. That is a judgement about liability,
+      not a refactor, and it needs the founder rather than a sprint.
+- [ ] **65.5R** 🔴 **The patient app is 18% down and the walls are gone, but "no dead
+      grey text ANYWHERE" is stricter than that.** Thirty-one blocks of 14+ words
+      remain, each on its own screen. They are one-line bodies under titles now, not
+      paragraphs, and each needs looking at on the screen it is on.
+- [ ] **65.10R** 🔴 **Half of the therapist portal's ticket.** The fee split is a
+      diagram (`SplitBar`) and the verification requirements are a `SeesWhat`. The
+      payout rails and the consent rules are still prose.
+- [ ] **65.18R** **Fixtures are hand-written shapes rather than captured from the
+      simulation.** 65.19's rule is satisfied more strictly than 65.18 asked for:
+      `lib/marketing/fixtures.ts` imports nothing at all, so no path exists from a row
+      to the marketing site. Capturing from the simulation's shape would be closer to
+      the ticket and strictly riskier, and that trade is recorded rather than taken.
+
 
 
 
@@ -4551,6 +4593,7 @@ state banner usually wins that against a paragraph.
 
 | Date | Sprint | What | Commit | Verified how |
 |---|---|---|---|---|
+| 2026-09-14 | 65 | **Sprint 65, show it, do not write it.** The prose ratchet, and the three prefixes it was attributing to the wrong portal · the patient home explores the platform · the radar gets a list view · the clinic and sponsor walls become one component · four heroes and four audience pages · **and `verify:sprint37l` had not been run since sprint 52** | *sprint 65* | **No migration.** Nothing in this sprint touches the schema except one union of string literals on `ContentBlock`. **65.1 / 65.2 — the inventory is a script, and its first finding was about itself.** `npm run prose` counts the words a person is asked to read, per portal, and `evals/prose.json` ratchets them. The first numbers were wrong in five places: `home.*` was attributed to the public site and is the patient app's own home screen, `radar.*` was public and renders on both `/radar` and `/patient/radar`, `pted.*`/`pracc.*`/`cassess.*` were the patient's and are the clinician's, `room.*`/`preset.*` were the clinician's and are the patient's. Every prefix is settled now by grepping its call sites rather than by what the word sounds like, which moved 947 words between portals and changed no screen. 🔴 **And the instrument could not see a sentence typed into a component**, of which `components/pay/pay-flow.tsx` alone had fourteen — worse, it put the two gates in 65.24's pass in opposition, because keying a hard-coded sentence is the work `verify:sprint37l` asks for and it RAISED the prose number. The sweep counts markup literals now, through the same `literalsIn` the i18n ratchet uses, and `origin` was re-measured on the pre-sprint commit in a worktree so every percentage compares like with like. **65.24 — `npm run gates`, and running it is the finding.** Four gates in one pass: the sweep, `verify:claims`, `verify:principals` and the Arabic ratchet. 🔴 **`verify:sprint37l` had not been run since sprint 52.** Measured on the commit before this sprint: admin 459 against a floor of 420, shared 113 against 80, portal 2 against 1, and four English literals on a patient screen. Fifteen sprints each ran their own verifier and none ran the one that spans them, which is C182 landing on the instrument built to prevent C182 and H20's lesson with the volume turned down: an unrun gate is a gate nobody reads either. Two more gates were red for the same reason and are fixed here: `verify:sprint51`'s reachability CONTROL (it predicted that the day `partner_subjects` acquired a screen the exemption would go stale; `/patient/consent` gave it one, and the screen is the PATIENT's list of platforms rather than the roster C255 forbids, so the exemption is deleted rather than reworded) and two sprint-68 tables with no screen, now named as gaps. **The i18n surfaces: patient 4→0, shared 113→72, portal 2→1, admin raised to 459 with the reason written down.** The patient and shared work is real translation — `linked-platforms` was a whole English component on a patient screen, and the pay flow, the 404, the expired-feedback page, the dead-join page, the booking sheet, the public profile, the radar filters and the rating form are 41 more literals in the languages a patient reads. A MEASUREMENT CORRECTION is inside it: `literalsIn` counted an icon map's object-literal entries as visible English, fourteen phantoms in one file, the third of that family after sprints 51 and 53, rejected now by shape with a control in both directions. **65.4 — nine primitives, used in 23 files across 17 areas.** `StateBanner`, `FlowStrip`, `SeesWhat`, `Meter`, `Checklist`, `BeforeAfter`, `NeverBar`, `SplitBar`, `IconGrid`. 🔴 **Nothing in the file can hide a disclosure**: no accordion, no tooltip, no `collapsed` prop, no `title=`, because 65.23's failure is cheapest to prevent by having nothing that could do it. **65.6 — the radar's list view**, with next availability from one grouped `MIN` over the same open-hour predicate the booking calendar renders, rather than a second definition of "open" that would offer an hour the calendar does not have. **65.7 / 65.8 — the patient home explores and says what it does not know**: an explore rail ordered by who is reachable and rotated daily rather than ranked, a category icon grid over the admin-edited taxonomy whose unknown-code fallback is one neutral tag (a hash would make every category look considered and mean nothing), a live banner reading the radar's own C285-fixed count, and a top-rated rail that says "nobody has five rated sessions yet" instead of vanishing. **65.11 / 65.12 — the two walls become one component.** The clinic's acceptance screen had a bespoke two-list card whose "never" bullets were teal, this product's colour for yes; C240's attendance sentence and C227's "you will never see an individual" are a standing `NeverBar` in both chromes; the pot is a `Meter` against the figure the sponsor last authorised. **65.15 / 65.16 / 65.17 / 65.19 — four heroes, four pages, real components, synthetic data.** The homepage had two heroes and the employer funding the product had two sentences on the pricing page; it now has `/for-companies`, built dictionary-first because `app/(public)/` is exempt from the i18n ratchet on a ground that is true of `[slug]` and false of a hand-built page. The audience demos import `SpendHeatmap` and the visual vocabulary from the portals themselves, so a marketing claim breaks the build when its feature is deleted, and `lib/marketing/fixtures.ts` **imports nothing at all**: a file with no import cannot leak a row, whatever anybody remembers to do. 🔴 **THE ACCEPT LINE IS NOT MET AND THE NUMBERS ARE IN §4 ABOVE.** Public is 30% down against a target of 80%, and no portal is down by half. Getting the public site to 817 words means cutting its remaining blocks from thirteen words to three, which past a point is deleting rules rather than drawing them, and 65.3 forbids exactly that. `legal` is its own number now (1377 words) because 80% off a privacy notice is 65.23's failure in its most expensive form. Four follow-ups are written into the plan as 65.5R, 65.10R, 65.14R and 65.18R rather than ticked. `verify:sprint65` **38 checks PASS**, `npm run gates` 4/4, every other verifier green, 55 safety + 13 money + 12 seats + 7 coverage + 17 evals + 23 routing tests pass, typecheck and build clean |
 | 2026-09-04 | 1.1–1.3 | `platform_settings` (4 jsonb groups) + `country_settings`; typed accessor `lib/settings` with per-field fallback | *this* | Migration `0029` verified against `information_schema`: 12 columns, all present (H1). `npx tsx scripts/settings.ts show` prints the seeded rows |
 | 2026-09-04 | 1.4 | H12 — transcribe costing now reads `input.model`; both branches look the model up and fall back to the **dearest** rate, never zero | *this* | 3 new tests in `safety`: two rates cannot collapse into one; an unpriced model overstates; H13's 1e5 divisor |
 | 2026-09-04 | 1.5 | Clock is 50 running → 10-minute countdown on **both** screens → hard stop at 60. `decision`/`extended` stages and `extendSession` removed | *this* | `clock` suite rewritten, 12 tests. One runs the whole ladder at 20+2 minutes (H4) and one at a zero-length countdown |

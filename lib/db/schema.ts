@@ -2727,7 +2727,23 @@ export type ContentBlock =
       body?: string;
       ctaLabel?: string;
       ctaHref?: string;
-      demo?: "session-room" | "radar" | "note" | "none";
+      /*
+       * 🔴 65.15 — FOUR AUDIENCES, SO FOUR DEMOS.
+       *
+       * *The homepage has two heroes and both are about the therapist. That is the whole
+       * audience problem in one measurement.* Each of the new three renders the REAL
+       * component that audience would use, fed `lib/marketing/fixtures.ts` (65.17): a
+       * company sees the spend chart and the wall, a clinic sees seats and the wall, a
+       * patient sees the radar card.
+       */
+      demo?:
+        | "session-room"
+        | "radar"
+        | "note"
+        | "none"
+        | "company"
+        | "clinic"
+        | "fee-split";
       icon?: ContentIcon;
       /** Absolute https:// image URL, or empty for the default gradient. */
       backgroundImage?: string;
@@ -2749,6 +2765,36 @@ export type ContentBlock =
       items: { title: string; body: string; icon?: ContentIcon; demo?: ContentDemo }[];
     }
   | { type: "faq"; heading?: string; items: { q: string; a: string }[] }
+  /*
+   * 🔴 65.20 — THE 65.4 VOCABULARY, AVAILABLE TO THE CMS.
+   *
+   * > *Cards, banners and explainers per audience, from the same vocabulary 65.4 builds.
+   * > A company sees a coverage meter and a wall diagram; a clinic sees a seat ladder; a
+   * > patient sees the claim flow as three steps; a developer sees a request and a
+   * > response.*
+   *
+   * Without these two block types the marketing pages could only express a rule as a
+   * paragraph, which is how "what your therapist can and cannot see" ended up as six
+   * feature cards of prose on `/for-patients` while the patient app itself renders the
+   * same rule as two columns. The same rule on two screens has to look like the same
+   * rule, and that is not achievable if one of the two screens has no way to draw it.
+   *
+   * 🔴 AND AN ADMIN CAN EDIT THEM. They are `content_pages` rows like every other block,
+   * so the CAN and CANNOT lists are published rather than compiled, which is sprint 21's
+   * rule and the reason a disclosure can be corrected without a deploy.
+   */
+  | {
+      type: "flow";
+      heading?: string;
+      steps: { title: string; detail?: string }[];
+    }
+  | {
+      type: "seesWhat";
+      heading?: string;
+      who: string;
+      can: string[];
+      cannot: string[];
+    }
   | {
       /**
        * The three rates, rendered from `platform_settings` at request time.

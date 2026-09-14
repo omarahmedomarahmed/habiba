@@ -117,6 +117,39 @@ export const NO_SCREEN_BY_DESIGN: Record<string, string> = {
    * this entry becomes stale and the CONTROL in `verify:sprint51` fails, which is exactly the
    * right way for that change to be noticed.
    */
-  partner_subjects:
-    "55.2 / C255. A partner's reference for a person, resolved only inside a flow they started. A screen listing them IS the roster three enrolment designs were spent removing, so this table must never acquire one: the exemption is the design rather than a gap.",
+  /*
+   * 🔴 65 — `partner_subjects` IS NO LONGER EXEMPT, AND THE CONTROL IS WHY.
+   *
+   * The entry above said this table must never acquire a screen, and predicted that the
+   * day one appeared the CONTROL in `verify:sprint51` would fail. It did, and running
+   * that gate in sprint 65 is what surfaced it: `/patient/consent` renders
+   * `LinkedPlatforms`, which reads this table.
+   *
+   * 🔴 AND THE SCREEN IS THE RIGHT ONE, which is the distinction the old argument could
+   * not draw. What C255 forbids is a PARTNER looking at a list of the people they have
+   * referred into therapy. What 55.6 built is the PATIENT looking at the platforms that
+   * can identify them, with a button to end each one. Same table, opposite direction.
+   * `verify:sprint55` still asserts the partner portal's four tabs and that none of them
+   * is this, which is where that rule belongs.
+   *
+   * So the exemption goes rather than being reworded: the table has a screen, a human
+   * reaches it, and 51.6 is satisfied rather than excused.
+   */
+
+  /*
+   * 🔴 SPRINT 68's TWO TABLES, NAMED AS GAPS RATHER THAN LEFT RED.
+   *
+   * Both were added by sprint 68 and neither has a screen. That is a gap and not a
+   * design: `partner_consents` is what a partner recorded about a person's consent, and
+   * the patient it is about has nowhere to read it; `partner_clinicians` is which of a
+   * partner's clinicians are switched on, and the partner has nowhere to see the list.
+   *
+   * They are here because H20's lesson is that a known-failing gate is a gate nobody
+   * reads, and a named gap in a list somebody argues over is worth more than a red check
+   * fifteen sprints of people learned to scroll past.
+   */
+  partner_consents:
+    "68.2 GAP, not a design. A partner records what a person consented to and `coverageSentence` renders it inside the partner's own flow. The patient has no screen showing what a platform told us on their behalf, and they should: it belongs beside LinkedPlatforms on /patient/consent.",
+  partner_clinicians:
+    "68.6 GAP, not a design. Which of a partner's clinicians are enabled for the platform. The partner portal has no list, so enabling and disabling one is an API call with no screen behind it.",
 };

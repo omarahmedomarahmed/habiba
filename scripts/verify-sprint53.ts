@@ -1253,9 +1253,22 @@ async function main() {
      */
     const chrome = readSource("components/sponsor/chrome.tsx");
 
+    /*
+     * 🔴 65.12 / C200 — THE SENTENCE BECAME A STANDING VISUAL, AND THE CHECK FOLLOWED IT.
+     *
+     * This asserted the key name `sponsor.noAttendance`. Sprint 65 turned that paragraph
+     * into a `NeverBar` of three crossed items in the chrome, and the check went red
+     * while the property it exists for got stronger: C240's rule is that the limit is on
+     * every screen of this portal, and it now is, in a form somebody reads from its shape
+     * rather than one they have scrolled past nine times.
+     *
+     * C200 ruled on this exact shape after 37L broke five gates by grepping for copy. The
+     * property is "the chrome carries the standing limit, and the attendance rule is one
+     * of the things it says", so both halves are named.
+     */
     check(
       "🔴 C240 the attendance sentence is in the chrome, so it is on every sponsor screen",
-      /sponsor\.noAttendance/.test(chrome),
+      /<NeverBar/.test(chrome) && /sponsor\.neverAttendance/.test(chrome),
       "the person drafting a policy will not click through to find out",
     );
 

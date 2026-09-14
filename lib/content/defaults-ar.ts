@@ -34,18 +34,45 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
         type: "hero",
         eyebrow: "رادار الأزمات",
         heading: "ابحث عن معالج متاح الآن",
-        body: "كل نقطة على الخريطة معالج موثّق قال إنه متفرغ. اختر اللغة أو ما تحتاج المساعدة فيه، اختر شخصًا، أخبره بما يناديك به، وتكون داخل الجلسة. بلا حساب، بلا قوائم انتظار، وبلا استمارات تأمين. لا أحد في نوبة عمل ولا أحد محجوز لك: إن كانت الخريطة فارغة فهي فارغة.",
+        body: "كل نقطة معالج موثّق قال إنه متفرغ. وإن كانت الخريطة فارغة فهي فارغة. وسجلك ملكك ويسافر معك.",
+        ctaLabel: "ماذا يعني هذا للمرضى",
+        ctaHref: "/for-patients",
         demo: "radar",
       },
+      /*
+       * 🔴 65.15 / 65.21 — أربعة أبطال، واحد لكل من يصل، وبالعربية معهم.
+       *
+       * The four heroes exist in Arabic in the same order and the same shape. 65.21's
+       * rule is that a component is built and reviewed in Arabic as well, and a homepage
+       * whose fourth audience only exists in English is a homepage that has three.
+       */
       {
         type: "hero",
         eyebrow: "للمعالجين",
         heading: "أنهِ ملاحظاتك قبل أن تغادر الغرفة",
-        body: "ابدأ الجلسة من هاتفك. يكتب 24Therapy النص مباشرة أثناء الحديث، ثم يعدّ الملاحظة السريرية والملخص والمتابعة بينما لا تزال تودّع مريضك. تراجعها، تعتمدها، وترسلها.",
+        body: "تُكتب مباشرة أثناء الحديث، وتجهز بينما تودّع مريضك. تراجع وتعتمد وترسل.",
         ctaLabel: "ابدأ جلستك الأولى مجانًا",
         ctaHref: "/signup",
         demo: "session-room",
         backgroundImage: "/backgrounds/mesh.svg",
+      },
+      {
+        type: "hero",
+        eyebrow: "للشركات",
+        heading: "غطِّ العلاج النفسي لموظفيك، ولا تعرف أبدًا من ذهب",
+        body: "تموّل محفظة وترى إنفاقها. ولا يمكن اشتراط الحضور من خلالنا.",
+        ctaLabel: "كيف يعمل هذا للشركات",
+        ctaHref: "/for-companies",
+        demo: "company",
+      },
+      {
+        type: "hero",
+        eyebrow: "للعيادات",
+        heading: "مقاعد وزملاء ودفاتر واحدة",
+        body: "ترى العيادة الجداول والفواتير. ولا ترى ملاحظة أبدًا.",
+        ctaLabel: "كيف يعمل هذا للعيادات",
+        ctaHref: "/for-clinics",
+        demo: "clinic",
       },
       {
         type: "showcase",

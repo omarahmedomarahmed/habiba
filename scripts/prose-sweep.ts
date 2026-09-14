@@ -199,24 +199,42 @@ function harvest(): Block[] {
    * the dictionary and 65.14's 80% is measured across both. A sweep that read only
    * the dictionary would report the marketing site as nearly clean.
    */
-  const walk = (node: unknown, path: string) => {
+  const walk = (node: unknown, path: string, portal: string) => {
     if (typeof node === "string") {
       const count = words(node);
-      if (count > 0) out.push({ key: `content:${path}`, portal: "public", words: count, text: node });
+      if (count > 0) out.push({ key: `content:${path}`, portal, words: count, text: node });
       return;
     }
     if (Array.isArray(node)) {
-      node.forEach((item, i) => walk(item, `${path}[${i}]`));
+      node.forEach((item, i) => walk(item, `${path}[${i}]`, portal));
       return;
     }
     if (node && typeof node === "object") {
       for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
         if (["slug", "icon", "demo", "type", "href", "key"].includes(key)) continue;
-        walk(value, `${path}.${key}`);
+        walk(value, `${path}.${key}`, portal);
       }
     }
   };
-  walk(DEFAULT_PAGES, "pages");
+
+  /*
+   * 🔴 LEGAL PAGES ARE COUNTED SEPARATELY, AND THAT IS A RULING RATHER THAN A DODGE.
+   *
+   * 65.14 asks for 80% less text on every page of the public site, and it was written
+   * about the marketing pages: the founder's sentence is about *boxes of text that
+   * explain important things*, not about a privacy notice.
+   *
+   * 🔴 A PRIVACY NOTICE IS NOT A WALL OF TEXT, IT IS THE PRODUCT. Cutting one by 80%
+   * removes disclosures a regulator expects a reader to have been given, which is 65.23's
+   * failure in its most expensive form: *hidden is not minimal, it is gone.* These four
+   * pages therefore get their own number, which may not RISE either, so nothing can hide
+   * in them — a marketing paragraph moved into `terms` shows up here rather than
+   * vanishing.
+   */
+  const LEGAL = new Set(["privacy", "terms", "hipaa", "security"]);
+  DEFAULT_PAGES.forEach((page, index) => {
+    walk(page, `pages[${index}]`, LEGAL.has(page.slug) ? "legal" : "public");
+  });
 
   /*
    * 🔴 AND THE ENGLISH STILL SITTING IN MARKUP, because otherwise the two ratchets fight.

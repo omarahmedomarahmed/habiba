@@ -156,8 +156,7 @@ export const en = {
    * subscription while a tier carries a monthly price.
    */
   "pricing.free": "Joining is free. Pay per session, or a flat price a month.",
-  "pricing.freeBody":
-    "No seat fee, no setup fee, no minimum, and your first completed session is on us. A monthly plan is there if you want it and never required.",
+  "pricing.freeBody": "No seat fee, no setup fee, no minimum, and your first session is on us.",
   "pricing.perSession": "/ session",
   "pricing.tier.payg": "Pay as you go",
   "pricing.tier.practice": "Practice",
@@ -176,13 +175,11 @@ export const en = {
   "pricing.signUp": "Sign up free",
   "pricing.noFees":
     "Joining is free. No seat fee, no setup fee, no minimum.",
-  "pricing.credits":
-    "On pay as you go you are charged only when you run a session, and your first completed session is free. Credit lasts {months} months and is always spent before anything new is billed, so it is never stranded by a change of mind.",
+  "pricing.credits": "Charged only when you run a session, and your first is free. Credit lasts {months} months and is spent before anything new is billed.",
   "pricing.radarLead": "Get booked on the Crisis Radar.",
   "pricing.radarBody":
     "Patients find you and book you, and we take {percent}% of what that session paid you, and nothing else.",
-  "pricing.netting":
-    "When we are holding your earnings, the session fee comes out of them automatically, so there is nothing to pay by card. If your patients pay straight into your own Stripe account, we bill you for it instead.",
+  "pricing.netting": "While we hold your earnings the session fee comes out of them. Where Stripe pays you directly, we bill you instead.",
   "pricing.sliderLabel": "{name}: how many sessions?",
   "pricing.showEgp": "Show EGP",
   "pricing.showUsd": "Show USD",
@@ -214,8 +211,7 @@ export const en = {
    * read English.
    */
   "contact.urgentLead": "Do not send anything urgent here.",
-  "contact.urgentBody":
-    "This reaches a person during working hours, not in the next ten minutes. If you need somebody now, open the radar. Clinicians are online this minute and you need no account. If you are in immediate danger, call your local emergency number.",
+  "contact.urgentBody": "This reaches a person during working hours, not in the next ten minutes. If you need somebody now, open the radar.",
   "contact.radarWord": "radar",
   "contact.name": "What should we call you?",
   "contact.reply": "How should we reply?",
@@ -242,11 +238,9 @@ export const en = {
     "Optional. Up to 25 MB. Only the person answering you sees it.",
   "contact.send": "Send",
   "contact.sending": "Sending…",
-  "contact.kept":
-    "What you write is kept like anything else you tell a clinician here: stored, access controlled, read only by the person answering you, and never used to train anything.",
+  "contact.kept": "Stored, access controlled, read only by the person answering you, and never used to train anything.",
   "contact.received": "We have it.",
-  "contact.reference":
-    "Your reference is {reference}. A named person picks this up and answers within {hours} hours, by email or by message, whichever you left us. If it is urgent, do not wait for us: use the radar.",
+  "contact.reference": "Your reference is {reference}. A named person answers within {hours} hours. If it is urgent, use the radar.",
   "contact.attachmentFailed":
     "Your message is safe, but the attachment did not go through: {reason}",
 
@@ -1591,6 +1585,28 @@ export const en = {
   "pcode.createAccount": "Create your account",
   "pcode.signIn": "Sign in",
   "pcode.createAnyway": "Create an account anyway",
+  "nav.integrations": "What this connects to",
+  "marketing.clinics.notYetTitle": "What is not here yet",
+  "marketing.companies.title": "Cover therapy for your people, and never learn who went",
+  "marketing.companies.lede": "You fund a pot. They choose their own therapist. We tell you what it cost, and nothing else.",
+  "marketing.companies.step1": "You fund a pot",
+  "marketing.companies.step1Body": "Spendable on sessions here, never withdrawable as cash",
+  "marketing.companies.step2": "Your people enrol themselves",
+  "marketing.companies.step2Body": "With a code, or an email address on your domain",
+  "marketing.companies.step3": "You watch the money, not the people",
+  "marketing.companies.step3Body": "Weekly totals, with small figures suppressed",
+  "marketing.companies.cta": "Talk to us",
+  "marketing.clinics.title": "Several clinicians, one practice, one set of books",
+  "marketing.clinics.lede": "Seats you buy, colleagues who verify themselves, and a wall your practice cannot see through.",
+  "marketing.clinics.q1": "Who can see a patient's chart?",
+  "marketing.clinics.a1": "The clinician treating them. Not a colleague, not a practice manager, not us, and there is no administrative override.",
+  "marketing.clinics.q2": "What happens when a clinician leaves?",
+  "marketing.clinics.a2": "Their notes stay in the record. Their access ends with their account, and their patients hand the record on themselves.",
+  "marketing.clinics.q3": "Can we get our data out?",
+  "marketing.clinics.a3": "A patient can have their whole record emailed to them today. A clinic-level export into your own system is not built.",
+  "marketing.clinics.q4": "Where does it run, and under what law?",
+  "marketing.clinics.a4": "On infrastructure in the United States. Egyptian data staying in Egypt is designed and not live.",
+  "marketing.clinics.notYet": "Pushing a note into the record system you already use, and a shared clinic-level view. Both are on the integrations page, marked as not built.",
   "plat.title": "Platforms that can identify you",
   "plat.who": "Ending a link",
   "plat.stopsAsking": "Stops them asking about you",
@@ -1666,6 +1682,7 @@ export const en = {
   "clinic.cap.seats": "Buy seats",
   "clinic.cap.clinicians": "Invite and remove clinicians",
   "clinic.cap.export": "Export what they can see",
+  "clinic.seatsWord": "clinicians on seats",
   "clinic.seatFrom": "This seat is not billed until {date}, because they had already paid for the month when they joined.",
   /*
    * 🔴 63.9 / C328 — WHAT THE PRACTICE WILL SEE, ENUMERATED BEFORE THEY ACCEPT.
@@ -3189,14 +3206,13 @@ export const en = {
   "pricing.headlinePaygOnly":
     "Free to join. {amount} per session, and {ai} more only when your patient turns the AI on.",
   "pricing.platformLine": "{amount} every session",
-  "pricing.platformWhat": "The record, the booking, the reminders, your place on the radar, and the copilot inside the room. Charged whether or not the AI ran.",
+  "pricing.platformWhat": "The record, the booking, the reminders, your place on the radar, and the copilot. Charged whether or not the AI ran.",
   "pricing.aiLine": "+ {amount} with AI",
   "pricing.aiWhat": "Only when your patient turns it on. Nothing when they do not, and nothing changes for them either way.",
   "pricing.paygTitle": "Pay as you go",
   "pricing.paygBody": "No monthly fee and no minimum. You are charged when you run a session and not otherwise.",
   "pricing.plansTitle": "Or one price a month",
-  "pricing.plansBody":
-    "Unlimited sessions and unlimited AI, with nothing charged per session. Cancel any time and you keep the month you have paid for.",
+  "pricing.plansBody": "Unlimited sessions and AI, nothing per session. Cancel any time and keep the month you paid for.",
   "pricing.monthlyPer": "{amount} a month",
   "pricing.monthlyGets": "Unlimited sessions, unlimited AI, nothing per session.",
   /*
@@ -3205,9 +3221,8 @@ export const en = {
    * unlimited plan is not only cheaper at volume: it takes the money out of a
    * consent conversation entirely (C209).
    */
-  "pricing.plansNoMeter":
-    "On a monthly plan nothing rides on what your patient decides about recording. There is no per-session fee to be affected by it.",
-  "pricing.creditIsMoney": "On pay as you go you can hold credit with us. It is money against your session and AI fees, spent before your card is.",
+  "pricing.plansNoMeter": "On a plan there is no per-session fee, so nothing rides on the recording question.",
+  "pricing.creditIsMoney": "Credit is money against your session and AI fees, spent before your card is.",
   "pricing.patientPaysNothing": "Your patient never pays us anything.",
 
   /*
@@ -3423,8 +3438,7 @@ export const ar: Record<MessageKey, string> = {
 
   /* pricing — 21R.8. Written as Arabic, not rendered from the English. */
   "pricing.free": "الانضمام مجاني. ادفع عن كل جلسة، أو سعرًا ثابتًا شهريًا.",
-  "pricing.freeBody":
-    "بلا رسوم مقعد، وبلا رسوم تجهيز، وبلا حد أدنى، وأول جلسة مكتملة علينا. والخطة الشهرية متاحة إن أردتها وليست شرطًا.",
+  "pricing.freeBody": "بلا رسوم مقعد ولا إعداد ولا حد أدنى، وجلستك الأولى علينا.",
   "pricing.perSession": "/ الجلسة",
   "pricing.tier.payg": "الدفع عند الاستخدام",
   "pricing.tier.practice": "العيادة الفردية",
@@ -3443,13 +3457,11 @@ export const ar: Record<MessageKey, string> = {
   "pricing.signUp": "أنشئ حسابك مجانًا",
   "pricing.noFees":
     "الانضمام مجاني. بلا رسوم مقعد، وبلا رسوم تجهيز، وبلا حد أدنى.",
-  "pricing.credits":
-    "مع الدفع عند الاستخدام تُحتسب الرسوم حين تجري جلسة فقط، وأول جلسة مكتملة مجانية. ورصيدك يبقى {months} شهرًا ويُصرف قبل أي محاسبة جديدة، فلا يضيع منك مهما غيّرت رأيك.",
+  "pricing.credits": "لا تُحاسَب إلا حين تجري جلسة، وأولاها مجانية. ويدوم الرصيد {months} شهرًا ويُنفَق قبل أي محاسبة جديدة.",
   "pricing.radarLead": "احجز مكانك على رادار الأزمات.",
   "pricing.radarBody":
     "يجدك المرضى ويحجزون معك، ونأخذ {percent}% مما دفعته تلك الجلسة لك، ولا شيء غير ذلك.",
-  "pricing.netting":
-    "حين نكون نحن من يحتفظ بأرباحك تُخصم قيمة الجلسة منها تلقائيًا، فلا شيء تدفعه بالبطاقة. وإن كان مرضاك يدفعون مباشرة إلى حساب Stripe الخاص بك فنرسل إليك الفاتورة بدلًا من ذلك.",
+  "pricing.netting": "ما دمنا نحتفظ بأرباحك تُخصم رسوم الجلسة منها. وحيث تدفع لك سترايب مباشرة نرسل لك فاتورة.",
   "pricing.sliderLabel": "{name}: كم جلسة؟",
   "pricing.showEgp": "بالجنيه المصري",
   "pricing.showUsd": "بالدولار",
@@ -3467,8 +3479,7 @@ export const ar: Record<MessageKey, string> = {
     "بلا حساب، وبلا بطاقة، وبلا استمارات. تعطي اسمك الأول فتكون داخل الجلسة.",
 
   "contact.urgentLead": "لا ترسل شيئًا عاجلًا من هنا.",
-  "contact.urgentBody":
-    "هذه الرسالة تصل إلى شخص خلال ساعات العمل، لا خلال العشر دقائق القادمة. إن كنت تحتاج أحدًا الآن فافتح الرادار، هناك معالجون متاحون في هذه اللحظة ولا تحتاج حسابًا. وإن كنت في خطر مباشر فاتصل برقم الطوارئ في بلدك.",
+  "contact.urgentBody": "يصل هذا إلى شخص خلال ساعات العمل، لا خلال عشر دقائق. وإن احتجت أحدًا الآن فافتح الرادار.",
   "contact.radarWord": "الرادار",
   "contact.name": "بماذا نناديك؟",
   "contact.reply": "كيف نردّ عليك؟",
@@ -3495,11 +3506,9 @@ export const ar: Record<MessageKey, string> = {
     "اختياري. حتى 25 ميغابايت. لا يراه إلا الشخص الذي يردّ عليك.",
   "contact.send": "إرسال",
   "contact.sending": "جارٍ الإرسال…",
-  "contact.kept":
-    "ما تكتبه يُحفظ كأي شيء تقوله لمعالج هنا: مخزَّن، ومقيَّد الوصول، ولا يقرأه إلا من يردّ عليك، ولا يُستخدم في تدريب أي نموذج.",
+  "contact.kept": "يُحفَظ ويُقيَّد الوصول إليه، ولا يقرؤه إلا من يرد عليك، ولا يُستخدم في تدريب أي شيء.",
   "contact.received": "وصلتنا رسالتك.",
-  "contact.reference":
-    "رقمك المرجعي {reference}. يتولّاها شخص باسمه ويردّ خلال {hours} ساعة، بالبريد أو برسالة، حسب ما تركته لنا. وإن كان الأمر عاجلًا فلا تنتظرنا: استخدم الرادار.",
+  "contact.reference": "مرجعك هو {reference}. ويرد عليك شخص باسمه خلال {hours} ساعة. وإن كان الأمر عاجلًا فاستخدم الرادار.",
   "contact.attachmentFailed": "رسالتك محفوظة، لكن المرفق لم يصل: {reason}",
 
   "blocks.address": "العنوان",
@@ -4573,6 +4582,28 @@ export const ar: Record<MessageKey, string> = {
   "pcode.createAccount": "أنشئ حسابك",
   "pcode.signIn": "تسجيل الدخول",
   "pcode.createAnyway": "أنشئ حسابًا على أي حال",
+  "nav.integrations": "بماذا يتصل هذا",
+  "marketing.clinics.notYetTitle": "ما ليس موجودًا بعد",
+  "marketing.companies.title": "غطِّ العلاج النفسي لموظفيك، ولا تعرف أبدًا من ذهب",
+  "marketing.companies.lede": "أنت تموّل محفظة. وهم يختارون معالجهم. ونخبرك بالتكلفة، ولا شيء غيرها.",
+  "marketing.companies.step1": "تموّل محفظة",
+  "marketing.companies.step1Body": "تُنفَق على الجلسات هنا، ولا تُسحب نقدًا",
+  "marketing.companies.step2": "يسجّل موظفوك أنفسهم",
+  "marketing.companies.step2Body": "برمز، أو ببريد على نطاقك",
+  "marketing.companies.step3": "تراقب المال لا الأشخاص",
+  "marketing.companies.step3Body": "إجماليات أسبوعية، مع إخفاء الأرقام الصغيرة",
+  "marketing.companies.cta": "تحدّث إلينا",
+  "marketing.clinics.title": "عدة معالجين، عيادة واحدة، دفاتر واحدة",
+  "marketing.clinics.lede": "مقاعد تشتريها، وزملاء يوثّقون أنفسهم، وجدار لا ترى عيادتك من خلفه.",
+  "marketing.clinics.q1": "من يستطيع رؤية ملف المريض؟",
+  "marketing.clinics.a1": "المعالج الذي يعالجه. لا زميل ولا مدير عيادة ولا نحن، ولا يوجد تجاوز إداري.",
+  "marketing.clinics.q2": "ماذا يحدث حين يغادر معالج؟",
+  "marketing.clinics.a2": "تبقى ملاحظاته في السجل. وينتهي إذنه بانتهاء حسابه، ويسلّم مرضاه السجل بأنفسهم.",
+  "marketing.clinics.q3": "هل نستطيع إخراج بياناتنا؟",
+  "marketing.clinics.a3": "يستطيع المريض استلام سجله كاملًا بالبريد اليوم. أما تصدير على مستوى العيادة إلى نظامكم فغير مبني.",
+  "marketing.clinics.q4": "أين يعمل، وتحت أي قانون؟",
+  "marketing.clinics.a4": "على بنية تحتية في الولايات المتحدة. وبقاء البيانات المصرية في مصر مُصمَّم ولم يُفعَّل بعد.",
+  "marketing.clinics.notYet": "إيداع الملاحظة في نظام السجلات لديكم، وعرض مشترك على مستوى العيادة. كلاهما على صفحة التكاملات، موسوم بأنه غير مبني.",
   "plat.title": "منصات تستطيع التعرف عليك",
   "plat.who": "إنهاء الربط",
   "plat.stopsAsking": "يوقف سؤالها عنك",
@@ -4639,6 +4670,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.cap.seats": "شراء المقاعد",
   "clinic.cap.clinicians": "دعوة المعالجين وإزالتهم",
   "clinic.cap.export": "تصدير ما يستطيع رؤيته",
+  "clinic.seatsWord": "معالجون على مقاعد",
   "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}، لأنه كان قد دفع شهره عند انضمامه.",
   /* 🔴 63.9 / C328 — ما ستراه العيادة، مُعدَّدًا قبل القبول. */
   "clinic.join.seesTitle": "ما ستستطيع {name} رؤيته",
@@ -5954,19 +5986,17 @@ export const ar: Record<MessageKey, string> = {
   "pricing.headlinePaygOnly":
     "الانضمام مجاني. {amount} لكل جلسة، و{ai} إضافية فقط عندما يُشغّل مريضك الذكاء الاصطناعي.",
   "pricing.platformLine": "{amount} لكل جلسة",
-  "pricing.platformWhat": "السجل والحجز والتذكيرات ومكانك على الرادار والمساعد داخل الغرفة. تُحتسب سواء عمل الذكاء الاصطناعي أم لا.",
+  "pricing.platformWhat": "السجل والحجز والتذكيرات ومكانك على الرادار والمساعد. وتُحتسب سواء عمل الذكاء أم لا.",
   "pricing.aiLine": "+ {amount} مع الذكاء الاصطناعي",
   "pricing.aiWhat": "فقط عندما يُشغّله مريضك. ولا شيء عندما لا يفعل، ولا يتغير شيء بالنسبة له في الحالتين.",
   "pricing.paygTitle": "الدفع عند الاستخدام",
   "pricing.paygBody": "بلا رسوم شهرية وبلا حد أدنى. تُحتسب الرسوم حين تجري جلسة فقط.",
   "pricing.plansTitle": "أو سعر واحد شهريًا",
-  "pricing.plansBody":
-    "جلسات بلا حدود وذكاء اصطناعي بلا حدود، وبلا أي رسوم لكل جلسة. ألغِ متى شئت ويبقى لك الشهر الذي دفعته.",
+  "pricing.plansBody": "جلسات وذكاء بلا حد، ولا رسوم لكل جلسة. ألغِ متى شئت واحتفظ بالشهر الذي دفعته.",
   "pricing.monthlyPer": "{amount} شهريًا",
   "pricing.monthlyGets": "جلسات بلا حدود، وذكاء اصطناعي بلا حدود، ولا شيء لكل جلسة.",
-  "pricing.plansNoMeter":
-    "مع الخطة الشهرية لا يتعلّق أي مبلغ بقرار مريضك بشأن التسجيل، لأنه لا توجد رسوم لكل جلسة أصلًا.",
-  "pricing.creditIsMoney": "مع الدفع عند الاستخدام يمكنك الاحتفاظ برصيد لدينا. هو نقود لتغطية رسوم الجلسات والذكاء الاصطناعي، ويُخصم قبل بطاقتك.",
+  "pricing.plansNoMeter": "على الاشتراك لا توجد رسوم لكل جلسة، فلا شيء معلّق على سؤال التسجيل.",
+  "pricing.creditIsMoney": "الرصيد مال مقابل رسوم الجلسات والذكاء، ويُنفَق قبل بطاقتك.",
   "pricing.patientPaysNothing": "مريضك لا يدفع لنا شيئًا أبدًا.",
 
   /* 🔴 62.10 / C323 — المقاعد، والسعر يسري على كل مقعد لا على الزائد فقط. */

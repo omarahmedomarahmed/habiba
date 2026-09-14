@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 
 import { ComponentShowcase } from "@/components/demo/component-showcase";
+import { ClinicDemo, CompanyDemo, TherapistSplitDemo } from "@/components/public/audience-demos";
+import { FlowStrip, SeesWhat } from "@/components/visual/primitives";
 import { SessionDemo } from "@/components/demo/session-demo";
 import { ContentIconMark } from "@/components/public/icons";
 import { ContactForm } from "@/components/public/contact-form";
@@ -121,6 +123,26 @@ function Block({
       return <Showcase block={block} demo={demo} />;
     case "faq":
       return <Faq block={block} />;
+    /*
+     * 🔴 65.20 — THE MARKETING SITE DRAWS THE SAME SHAPES THE PORTALS DO.
+     *
+     * `FlowStrip` and `SeesWhat` are `components/visual/primitives.tsx`, the vocabulary
+     * the patient app, the clinic portal and the sponsor portal all render. A rule
+     * described on the public site and drawn inside the product is a rule a reader has
+     * to learn twice; these are the same component, so it is not.
+     */
+    case "flow":
+      return (
+        <Section heading={block.heading}>
+          <FlowStrip steps={block.steps} />
+        </Section>
+      );
+    case "seesWhat":
+      return (
+        <Section heading={block.heading}>
+          <SeesWhat who={block.who} can={block.can} cannot={block.cannot} />
+        </Section>
+      );
     case "cta":
       return <Cta block={block} />;
     case "prose":
@@ -294,7 +316,19 @@ function Hero({
           ) : null}
         </div>
 
+        {/*
+          🔴 65.15 / 65.17 — THE HERO'S DEMO IS THE AUDIENCE'S OWN COMPONENT.
+
+          Four heroes, four audiences, and each one shows the thing that audience would
+          actually be looking at: the session room for a therapist, the spend chart and
+          the wall for a company, seats and the wall for a clinic, the radar card for a
+          patient. Every one of them is the component the portal renders, fed synthetic
+          fixtures (65.19), so a hero cannot outlive the feature it is about.
+        */}
         {block.demo === "session-room" ? <SessionDemo /> : null}
+        {block.demo === "company" ? <CompanyDemo /> : null}
+        {block.demo === "clinic" ? <ClinicDemo /> : null}
+        {block.demo === "fee-split" ? <TherapistSplitDemo /> : null}
       </div>
     </section>
   );
@@ -683,6 +717,26 @@ async function ContactBlock({
           strings={strings}
         />
       </div>
+    </section>
+  );
+}
+
+/**
+ * 🔴 ONE WRAPPER FOR THE TWO PRIMITIVE BLOCKS, and it is deliberately plain.
+ *
+ * A heading and the component. No card, no gradient, no eyebrow: 65.22's rule is that a
+ * visual element encodes something true or it does not ship, and a decorative frame
+ * around a diagram encodes nothing except that somebody had a frame.
+ */
+function Section({ heading, children }: { heading?: string; children: React.ReactNode }) {
+  return (
+    <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+      {heading ? (
+        <h2 className="mb-6 text-balance text-2xl font-bold tracking-tight text-slate-900">
+          {heading}
+        </h2>
+      ) : null}
+      {children}
     </section>
   );
 }
