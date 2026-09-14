@@ -49,16 +49,62 @@ export type CrisisLine = {
   label: string;
   /** What `tel:` dials. Digits only. */
   tel: string;
+  /**
+   * 🔴 C350 — WHAT TO PRESS ONCE IT ANSWERS.
+   *
+   * Egypt's line is one number for the whole ministry. Dial it and a menu
+   * answers; the mental health service is two choices in. A person in the
+   * minute this file exists for does not explore a phone menu, so a correct
+   * number with no route through it fails in the same way a wrong number does,
+   * only more slowly.
+   *
+   * Both languages, because the first choice on that menu IS the language and a
+   * reader who needs the Arabic branch is the reader least likely to be handed
+   * English instructions. Stored beside the number rather than in the interface
+   * dictionary on purpose: this is a fact about one country's phone system that
+   * whoever verified the number verified at the same time, and splitting the two
+   * across two files is how a number gets updated and its menu does not.
+   *
+   * Absent for a line that answers directly. Never guessed.
+   */
+  steps?: { en: string; ar: string };
 };
 
 /**
- * Verified lines, by ISO country. One entry, deliberately.
+ * Verified lines, by ISO country.
  *
  * Adding to this is a decision somebody makes with a phone in their hand, not
  * a translation task.
+ *
+ * 🔴 C350 — EGYPT HAS A NUMBER NOW, AND WHO SAID SO IS PART OF THE ENTRY.
+ *
+ * Every paragraph above this asked for one thing before Egypt could be listed:
+ * a person who has actually dialled it, rather than a recollection turned into
+ * a `tel:` href. On 2026-09-14 the product's owner gave it directly — the
+ * Ministry of Health and Population line, 105, the only one of the published
+ * Egyptian numbers that answers, and the two menu choices that reach the mental
+ * health service from it.
+ *
+ * That is the standard this table was waiting for and it is written down here
+ * so the next reader knows the entry has a source. It is still correctable from
+ * `/admin/settings`, which stamps the operator's name and the date over the top
+ * of it: a configured line wins over this table, and this table wins over
+ * silence.
+ *
+ * The seed stays null for Egypt, as it does for the United States, and for the
+ * reason `lib/settings/defs.ts` gives in as many words: stating a number in two
+ * places is how two places come to disagree.
  */
 export const CRISIS_LINES: Record<string, CrisisLine> = {
   US: { label: "988", tel: "988" },
+  EG: {
+    label: "105",
+    tel: "105",
+    steps: {
+      en: "Press 1 for Arabic, then 1 for mental health.",
+      ar: "اضغط ١ للعربية، ثم ١ للصحة النفسية.",
+    },
+  },
 };
 
 /**

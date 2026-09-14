@@ -701,6 +701,13 @@
       "when": 1789600000065,
       "tag": "0099_clinic_records",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1789600000066,
+      "tag": "0100_reapply_after_two_rejections",
+      "breakpoints": true
     }
   ]
 }

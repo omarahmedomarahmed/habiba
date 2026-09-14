@@ -163,6 +163,21 @@ export async function submitForReview(): Promise<OnboardingState> {
 
   const missing = missingFrom(current);
   if (missing.length > 0) {
+    /*
+     * 🔴 C351 — WHY THE SLOTS ARE EMPTY, NOT JUST THAT THEY ARE.
+     *
+     * After a second rejection we delete the documents, so this branch is
+     * reached by two people whose situations have nothing in common: somebody
+     * who has not finished the form, and somebody whose files we removed. The
+     * bare list reads to the second person as though the product lost their
+     * upload, which is the support ticket `reviewNote` was written to avoid,
+     * one step further along.
+     */
+    if (current.documentsClearedAt) {
+      return {
+        error: `We reviewed this twice and could not verify it, so we did not keep the documents. Upload them again and it goes back to our queue. Still needed: ${missing.join(", ")}.`,
+      };
+    }
     return { error: `Still needed: ${missing.join(", ")}.` };
   }
 

@@ -472,7 +472,7 @@ export function CountryEditor({
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
             Dial it before you save it. A wrong number looks like help, presses like
             help and does nothing, which is worse than the honest sentence we show
-            without one. Leave both blank until somebody has checked it.
+            without one.
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <Field

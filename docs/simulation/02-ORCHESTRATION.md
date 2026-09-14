@@ -7,9 +7,9 @@ orchestrator.**
 
 | Tier | Model | Count | Job |
 |---|---|---|---|
-| Main session | Opus 5 | 1 | Prepares the branch, builds the two scripts, launches the orchestrator, checks on it, writes the report |
+| Main session | Opus 5 | 1 | Prepares the branch, builds the two scripts, launches the orchestrator, checks on it, runs the copilot exam, writes the report |
 | Orchestrator | the best you can afford | 1 | Owns the wave clock. Wakes agents, sequences them, **verifies every claim against the database**, decides when a wave is complete |
-| Agents | Haiku or Sonnet | 31, never more than 6 awake | Each one is one person, doing what that person would do |
+| Agents | Haiku or Sonnet | 22, never more than 6 awake | Each one is one person, doing what that person would do |
 
 The asymmetry is the design. **Acting like a patient is cheap. Knowing whether the patient
 actually booked is expensive**, and it is expensive because it means reading the database
@@ -22,21 +22,20 @@ then stays available for the orchestrator to wake with its context intact. Use
 `SendMessage` to the agent by name; a fresh `Agent` call starts a stranger who has never
 met their own patients.
 
-This matters more than it sounds. At month 6, Layla must revoke access from the therapist
+This matters more than it sounds. At month 3, Layla must revoke access from the therapist
 she chose at month 0. That is the same person making a decision about a relationship she
-formed five months and four waves earlier, and an agent that was restarted has no idea who
+formed three months and two waves earlier, and an agent that was restarted has no idea who
 he is.
 
 ```
   wave 1: P1 wakes, finds T3 on the radar, has a session, claims her record, sleeps
-  wave 2: P1 stays asleep
-  wave 3: P1 wakes, has two more sessions with T3, writes in her journal, sleeps
-  wave 4: P1 wakes, revokes T3's access, and knows exactly why she is doing it
+  wave 2: P1 wakes briefly, has two more sessions, writes in her journal, sleeps
+  wave 3: P1 wakes, revokes T3's access, and knows exactly why she is doing it
 ```
 
 ## Six awake at once, never more
 
-Thirty-one agents at once is a thundering herd against one dev server, a bill nobody wants,
+Twenty-two agents at once is a thundering herd against one dev server, a bill nobody wants,
 and a transcript nobody can read. **Six.** The orchestrator queues the rest.
 
 Choose the six by dependency, not by number. A patient cannot book a therapist who has not
@@ -68,9 +67,22 @@ orchestrator's real job is this ordering**, and the order is:
 **A wave is not complete because every agent said it was done.** It is complete when the
 database says so and the frames exist.
 
-## The two standing agents
+### 🔴 And one extra gate on every wave, which is new
 
-These two never sleep. They are awake for the whole simulation because their real-world
+Before the wave is called complete, the orchestrator checks the **record depth ladder** in
+`01-SEED.md` and reports where each patient stands against their target.
+
+`P3` Mostafa is meant to finish the simulation with nine to eleven sessions and a dozen
+journal entries. That will not happen on its own: a cheap agent playing a patient does the
+thing it was asked once and reports success. **The depth is driven, wave by wave, or the
+copilot exam at the end has nothing to measure.**
+
+If a wave ends with every patient on three sessions, the orchestrator says so and the main
+session decides whether to run a catch-up pass before ageing.
+
+## The three standing agents
+
+These three never sleep. They are awake for the whole simulation because their real-world
 counterparts are.
 
 ### The growth and operations agent
@@ -79,15 +91,42 @@ Plays the platform: the operator console, and the outbound motion that brings pe
 
 - Approves clinic and employer applications, on camera
 - Works the verification queue as each therapist submits documents
+- 🔴 **Owns the `T4` rejection cycle end to end** (`01-SEED.md`). Thirteen steps, two
+  rejections, a deletion, a practice invitation that changes nothing, and an approval. This
+  agent writes the rejection reasons itself, in its own words, and **reads them back on
+  `T4`'s screen** to prove they arrived verbatim
 - Opens and closes countries, edits the taxonomy, answers a support ticket
 - **Announces each new arrival to the orchestrator**, which is what triggers a new agent to
   be launched. Growth is an event, not a schedule: when this agent approves a clinic, a
-  clinic agent wakes.
+  clinic agent wakes
 
 ### The money agent
 
-Owns `03-MONEY.md` end to end, for all six months. Read that document; it is long because
+Owns `03-MONEY.md` end to end, for all three months. Read that document; it is long because
 the money is the half of this product that cannot be checked by looking at a screen.
+
+🔴 Its scope now includes the **expense** side: at the end of each wave it reads
+`/admin/vault`'s month table and reports income, model spend and what was left over, from
+the screen rather than from a query. A month that lost money is reported as a month that
+lost money.
+
+### 🔴 The codes agent
+
+Small, and it exists so that twenty other agents do not each reinvent the same workaround.
+
+Email and WhatsApp verification codes are **assumed delivered** (`00-START-HERE.md`). When
+any agent reaches a "we have sent you a code" screen, it asks this agent for the code, gets
+it, and types it into the form.
+
+The codes agent does two things and only two:
+
+1. Reads the code that the product actually generated, for that one person, right then.
+2. **Records that the wrong code was tried first and refused**, once per agent, because a
+   gate everybody was handed the answer to is a gate nobody tested.
+
+It never creates a code, never marks one used, and never touches a row the form would have
+touched. If a code cannot be found for somebody who was told one was sent, **that is a
+defect and it is a serious one**, and it is reported rather than worked around.
 
 ## What the orchestrator reports upward, continuously
 
@@ -95,23 +134,30 @@ Not at the end. **After every agent action**, in one line:
 
 ```
   [wave 2] [C1-B] ok   T1 joined Nile Practice · seat 2/3 · own subscription cancelled · 14 patients followed
-  [wave 2] [P5]   FAIL enrolment refused, staff number not recognised — EXPECTED, captured
-  [wave 2] [P6]   ??   claims a session happened, no session row found — re-tasking
+  [wave 2] [P4]   ok   enrolment refused, staff number not recognised · EXPECTED, captured
+  [wave 2] [T4]   ok   invited by C1, accepted, STILL REFUSED at the gate · the point of T4
+  [wave 2] [P3]   ??   claims a session happened, no session row found · re-tasking
 ```
 
 The main session reads this stream and intervenes when the orchestrator is drifting: taking
-reports on trust, skipping verification to keep up, or quietly dropping a scenario because
-it was hard. **All three are the failure mode of a swarm**, and all three look like progress.
+reports on trust, skipping verification to keep up, quietly dropping a scenario because it
+was hard, or letting the depth ladder slide. **All four are the failure mode of a swarm**,
+and all four look like progress.
 
 ## Cost discipline
+
+The whole run is budgeted at about **$14 of model spend** (`00-START-HERE.md`). That is not
+a lot, and it is easy to spend it four times over on agents re-reading documents.
 
 - Agents get the **cheapest model that can do their job**. A patient booking a session does
   not need a frontier model.
 - An agent's brief is its scenario row from `01-SEED.md` and nothing else. Do not paste this
-  whole document into thirty-one agents.
+  whole document into twenty-two agents.
 - Screenshots are taken by the capture agent at checkpoints, **not by every agent
   continuously**. An agent takes one only when it hits something unexpected.
 - If an agent has nothing to do in a wave, it is not woken.
+- 🔴 **Sessions are six minutes of audio.** Not sixty. The transcription and note passes are
+  the largest single line in the budget and they scale with length.
 
 ## What must never happen
 
@@ -123,3 +169,4 @@ it was hard. **All three are the failure mode of a swarm**, and all three look l
 | A wave aged before its capture | The frames would show the wrong dates |
 | Fixing a defect mid-run | A run that stops at the first defect finds one defect |
 | Skipping a scenario because it was hard | The hard ones are the ones nobody has ever run |
+| Letting every patient end on three sessions | Then the copilot exam measures nothing |

@@ -392,7 +392,14 @@ export async function decideTherapistVerification(
     action: approve ? "verification.approve" : "verification.reject",
     resourceType: "verification",
     resourceId: verificationId,
-    reason: trimmed || "approved",
+    /*
+     * 🔴 C351 — the count and the clearing are in the audit line, because
+     * deleting somebody's identity documents is an act and "verification.reject"
+     * alone does not record that it happened.
+     */
+    reason: approve
+      ? "approved"
+      : `${trimmed} [rejection ${decided.rejectionCount}${decided.documentsCleared ? ", documents cleared" : ""}]`,
   });
 
   const [person] = await db
@@ -409,7 +416,15 @@ export async function decideTherapistVerification(
         subject: approve ? "You are verified on 24Therapy" : "We need something else from you",
         body: approve
           ? `Your practice has been verified. You can start sessions, go on the Crisis Radar and take payments from patients right away.\n\nYour first completed session is on us.`
-          : `We could not verify your practice yet.\n\n${trimmed}\n\nSign in and update your details. It goes straight back to the front of our queue.`,
+          : /*
+             * 🔴 C351 — the second no tells them what it cost, in the same
+             * message that gives the reason. Discovering that the documents are
+             * gone by signing in and finding empty slots is how a decision we
+             * made on purpose reads as a product that lost their files.
+             */
+            decided.documentsCleared
+            ? `We could not verify your practice.\n\n${trimmed}\n\nThis is the second time we have looked, so we have not kept the documents you sent. If you want us to look again, sign in and upload them fresh along with anything that answers the above.`
+            : `We could not verify your practice yet.\n\n${trimmed}\n\nSign in and update your details. It goes straight back to the front of our queue.`,
       }),
     );
   }

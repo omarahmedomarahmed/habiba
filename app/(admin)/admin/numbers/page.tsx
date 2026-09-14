@@ -27,10 +27,17 @@ export default async function NumbersPage() {
         subtitle="The identity a patient's whole record hangs on. Check the new number yourself."
       />
 
+      {/*
+        🔴 C349's sweep. This card carried the RULE and then the ARGUMENT for the
+        rule: "a mistyped digit must not trap somebody outside their own record
+        for three months". That argument is why the first-day exemption exists,
+        it is addressed to whoever is deciding policy, and a reviewer working
+        this queue at nine in the morning is not that person. It belongs here, in
+        the source, where the next person to shorten LOCK_DAYS will read it.
+      */}
       <Card className="mb-4 p-4 text-sm leading-relaxed text-slate-600">
-        A confirmed number is locked for {LOCK_DAYS} days, and a correction inside the first day
-        after signing up is not a change at all, a mistyped digit must not trap somebody outside
-        their own record for three months.
+        A confirmed number is locked for {LOCK_DAYS} days. A correction inside the first day after
+        signing up is not a change at all.
       </Card>
 
       <NumberQueue

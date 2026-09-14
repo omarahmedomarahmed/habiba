@@ -75,9 +75,13 @@ export default async function VaultPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Vault</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Every dollar in, every dollar of model spend, and the margin between them.
-        </p>
+        {/*
+          🔴 C349's sweep, on this page's own subtitle. It described the table
+          that now sits six inches below it, column by column, which is sprint
+          65's rule almost exactly inverted: the page was writing what it was
+          about to show.
+        */}
+        <p className="mt-1 text-sm text-slate-500">Money in, money out, what is left.</p>
       </div>
 
       {/*
@@ -256,36 +260,108 @@ export default async function VaultPage() {
       </section>
 
       {/* ------------------------------------------------------------- chart */}
+      {/*
+        🔴 C349 — THE FIGURES ARE PRINTED, NOT HOVERED.
+        ----------------------------------------------
+        Two bars and a `title=` attribute is what this was: the shape of the
+        month was visible and every number behind it required a mouse, on a
+        touchscreen showed nothing at all, and was read to a screen reader as an
+        afterthought. Sprint 65's rule is that a disclosure a reader has to
+        uncover is a disclosure most readers never see.
+
+        So the bars keep their job — which is comparison at a glance, the one
+        thing a table is bad at — and the figures sit under them where they can
+        be read, copied and totalled. The split between subscriptions and
+        session fees is on the page for the first time: `monthlyLedger` counted
+        only the first of those until C349, so this chart and the summary card
+        above it were answering the same question differently.
+      */}
       {months.length > 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">Revenue vs model spend</p>
+          <p className="text-sm font-semibold text-slate-900">Income and spend, by month</p>
           <div className="mt-4 flex items-end gap-3">
             {months.map((month) => (
               <div key={month.month} className="flex flex-1 flex-col items-center gap-1">
                 <div className="flex h-28 w-full items-end justify-center gap-1">
                   <div
-                    className="w-1/2 rounded-t bg-teal-500"
+                    className="flex w-1/2 flex-col-reverse"
                     style={{ height: `${Math.max(2, (month.collected / peak) * 100)}%` }}
-                    title={`Collected ${formatUsd(month.collected)}`}
-                  />
+                  >
+                    <div
+                      className="rounded-b bg-teal-600"
+                      style={{
+                        height: `${month.collected > 0 ? (month.invoiceCents / month.collected) * 100 : 0}%`,
+                      }}
+                    />
+                    <div className="flex-1 rounded-t bg-teal-400" />
+                  </div>
                   <div
                     className="w-1/2 rounded-t bg-slate-300"
                     style={{ height: `${Math.max(2, (month.spent / peak) * 100)}%` }}
-                    title={`Spend ${formatUsd(month.spent)}`}
                   />
                 </div>
                 <span className="text-[10px] text-slate-400">{month.month.slice(5)}</span>
               </div>
             ))}
           </div>
-          <p className="mt-3 flex gap-4 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-sm bg-teal-500" /> Collected
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-sm bg-slate-300" /> Model spend
-            </span>
-          </p>
+          {/*
+            🔴 NO LEGEND, and that is the point rather than an omission.
+            A legend is a second list of the same three names, sitting between
+            the bars and the table that already names them. The swatches moved
+            into the column headings instead, so the colour a reader is matching
+            is on the word they are matching it to.
+          */}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs text-slate-500">
+                  <th className="py-2 text-start font-medium">Month</th>
+                  <th className="py-2 text-end font-medium">
+                    <Swatch className="bg-teal-600" />
+                    Subscriptions
+                  </th>
+                  <th className="py-2 text-end font-medium">
+                    <Swatch className="bg-teal-400" />
+                    Session fees
+                  </th>
+                  <th className="py-2 text-end font-medium">Income</th>
+                  <th className="py-2 text-end font-medium">
+                    <Swatch className="bg-slate-300" />
+                    Spend
+                  </th>
+                  <th className="py-2 text-end font-medium">Left</th>
+                </tr>
+              </thead>
+              <tbody>
+                {months.map((month) => (
+                  <tr key={month.month} className="border-b border-slate-50 last:border-0">
+                    <td className="py-2 text-slate-600">{month.month}</td>
+                    <td className="py-2 text-end tabular-nums text-slate-600">
+                      {formatUsd(month.invoiceCents)}
+                    </td>
+                    <td className="py-2 text-end tabular-nums text-slate-600">
+                      {formatUsd(month.sessionFeeCents)}
+                    </td>
+                    <td className="py-2 text-end font-semibold tabular-nums text-slate-900">
+                      {formatUsd(month.collected)}
+                    </td>
+                    <td className="py-2 text-end tabular-nums text-slate-600">
+                      {formatUsd(month.spent)}
+                    </td>
+                    <td
+                      className={
+                        month.collected - month.spent < 0
+                          ? "py-2 text-end font-semibold tabular-nums text-rose-600"
+                          : "py-2 text-end font-semibold tabular-nums text-teal-700"
+                      }
+                    >
+                      {formatUsd(month.collected - month.spent)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       ) : null}
 
@@ -476,9 +552,7 @@ export default async function VaultPage() {
             />
           ))}
           {payments.length === 0 ? (
-            <li className="px-4 py-6 text-sm text-slate-500">
-              Nobody has paid a clinician through the platform yet.
-            </li>
+            <li className="px-4 py-6 text-sm text-slate-500">No patient payments yet.</li>
           ) : null}
         </ul>
       </Card>
@@ -514,6 +588,11 @@ function Money({
       {sub ? <p className="text-xs text-slate-400">{sub}</p> : null}
     </Card>
   );
+}
+
+/** The bar's colour, beside the column it belongs to, so no legend is needed. */
+function Swatch({ className }: { className: string }) {
+  return <span className={`me-1.5 inline-block h-2 w-2 rounded-sm align-[1px] ${className}`} />;
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {

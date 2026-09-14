@@ -49,6 +49,7 @@
     "settings:rails": "tsx scripts/settings.ts rails",
     "settings:reprice": "tsx scripts/settings.ts reprice",
     "evals": "node --import tsx --conditions=react-server evals/run.ts",
+    "copilot:exam": "node --import tsx --conditions=react-server scripts/copilot-exam.ts",
     "test:evals": "node --import tsx --test tests/evals.test.ts",
     "test:facts": "node --import tsx --test tests/facts.test.ts",
     "i18n:count": "node --import tsx --conditions=react-server scripts/_i18n-coverage.ts",
@@ -130,6 +131,7 @@
     "verify:sprint66": "node --import tsx scripts/verify-sprint66.ts",
     "verify:sprint67": "node --import tsx scripts/verify-sprint67.ts",
     "verify:sprint68": "node --import tsx scripts/verify-sprint68.ts",
+    "verify:sprint69": "node --import tsx --conditions=react-server scripts/verify-sprint69.ts",
     "test:seats": "node --import tsx --test tests/seats.test.ts"
   },
   "dependencies": {

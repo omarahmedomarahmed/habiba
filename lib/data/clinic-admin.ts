@@ -12,6 +12,7 @@ import {
   meetingConnections,
   organizations,
   patients,
+  therapistVerifications,
   users,
   type ClinicState,
 } from "@/lib/db/schema";
@@ -602,6 +603,30 @@ export async function joinWithExistingAccount(input: {
     .update(users)
     .set({ organizationId: invitation.organizationId, updatedAt: new Date() })
     .where(eq(users.id, existing.id));
+
+  /*
+   * 🔴 C352 — THE VERIFICATION ROW MOVES WITH THE PERSON.
+   *
+   * The statement above moved the clinician. Their verification did not, so it
+   * went on pointing at the practice they left, and `reviewQueue` reads the
+   * practice name off exactly that column.
+   *
+   * It is invisible for the ordinary case — an approved clinician is never in
+   * the queue again — and it is not invisible for the case this whole path
+   * exists for. A clinician rejected on their own account, then invited by a
+   * practice, is still rejected: `isCleared` reads the verification state and
+   * C267 is the rule that a practice's invitation is not evidence of a licence.
+   * So they resubmit, from inside the practice, and the operator reviewing them
+   * reads the name of a practice that has nothing to do with the application in
+   * front of them.
+   *
+   * Their documents, their state and their rejection count all stay put, which
+   * is the point: joining a practice is not a way to start again.
+   */
+  await controlDb
+    .update(therapistVerifications)
+    .set({ organizationId: invitation.organizationId, updatedAt: new Date() })
+    .where(eq(therapistVerifications.userId, existing.id));
 
   log.info("clinician joined a clinic with an existing account", {
     org: ref(invitation.organizationId),

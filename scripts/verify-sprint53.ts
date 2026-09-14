@@ -1463,20 +1463,25 @@ async function main() {
     const { crisisLine, lineForNumber } = await import("../lib/crisis/line");
 
     /*
-     * 🔴 TWO READERS, and the first draft used only the Egyptian one.
+     * 🔴 TWO READERS, and the first draft used only the reader with no line.
      *
-     * There is one verified line in the table, for the US, so `lineForNumber` returns
-     * null for a `+20` number — which is the honest answer and is what the orb renders
-     * "call your local emergency number" for. My first version compared that null
-     * across three pot states and read green, which is three nulls agreeing about
-     * nothing. The CONTROL below caught it, which is the whole reason it is there.
+     * The first version compared a null across three pot states and read green, which
+     * is three nulls agreeing about nothing. The CONTROL below caught it, which is the
+     * whole reason it is there. So both readers are compared: one with a line and one
+     * without. "Unchanged" has to hold for both.
      *
-     * So both readers are compared: a reader with a line and a reader without one.
-     * "Unchanged" has to hold for both, and the null case is the one most of this
-     * product's patients are in.
+     * 🔴 C350 — THE READER WITHOUT A LINE USED TO BE THE EGYPTIAN ONE, AND IS NOT NOW.
+     *
+     * Egypt's 105 was verified on 2026-09-14 and entered in `lib/crisis/line.ts`, so a
+     * `+20` number resolves to a real line and this control went red while the property
+     * it protects stayed true. That is the §6 shape one level up: the check was pinned
+     * to a fact about the table's CONTENTS rather than to the behaviour it exists to
+     * assert. A UK number is the null half now, because the United Kingdom genuinely
+     * has no verified entry, and if one is ever added this comment is the instruction:
+     * move the null reader again, do not weaken the check.
      */
     const withLine = "+12025550100";
-    const withoutLine = "+201234567890";
+    const withoutLine = "+447700900000";
 
     const snapshot = () =>
       JSON.stringify([lineForNumber(withLine), lineForNumber(withoutLine), crisisLine("US")]);

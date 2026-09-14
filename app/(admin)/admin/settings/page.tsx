@@ -116,11 +116,17 @@ export default async function SettingsPage() {
             {noCrisisLine.length} enabled countr{noCrisisLine.length === 1 ? "y has" : "ies have"}{" "}
             no crisis line
           </p>
+          {/*
+            🔴 C349's sweep, applied here: the sentence "a wrong number looks
+            like help, presses like help and does nothing" was on this screen
+            TWICE, once here and once beside the field an operator types the
+            number into. The second one is the one they read while typing, so it
+            stays and this one goes. Nothing is lost and a paragraph is.
+          */}
           <p className="mt-1 text-sm leading-relaxed text-red-900/90">
-            {noCrisisLine.map((c) => c.name).join(", ")}. A person in crisis there is shown
-            &ldquo;call your local emergency number&rdquo;, which is true and is not a number.
-            Enter each one below only after dialling it. A wrong number looks like help, presses
-            like help, and does nothing.
+            {noCrisisLine.map((c) => c.name).join(", ")}. Until somebody dials one and enters it
+            below, a person in crisis there is shown &ldquo;call your local emergency
+            number&rdquo;, which is true and is not a number.
           </p>
         </Card>
       ) : null}

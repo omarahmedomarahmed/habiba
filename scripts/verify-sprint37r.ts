@@ -63,9 +63,30 @@ async function main() {
 
   /* ------------------------------------------- C184 · the crisis number */
 
+  /*
+   * 🔴 C350 — WHAT C184 IS ABOUT, ASSERTED INSTEAD OF WHAT IT HAPPENED TO IMPLY.
+   *
+   * This check read `lineForNumber("+20…") === null`, and it passed for two
+   * different reasons that looked identical from here: because the guard sends
+   * a reader only their own country's line, and because Egypt had no line to
+   * send. The second was an accident of the table's contents, not the rule, and
+   * the moment Egypt's 105 was verified the check failed while the defect it
+   * was written about stayed fixed.
+   *
+   * That is the §6 family: a check passing by measuring the wrong thing. So it
+   * asks the question C184 is actually about — WHOSE line does a reader get —
+   * using a country that genuinely has none as the null half, which is a
+   * property of the guard rather than of the table on any given day.
+   */
   check(
-    "🔴 C184 an Egyptian number is offered NO crisis line, not the only one in the table",
-    lineForNumber("+201001234567") === null,
+    "🔴 C184 an Egyptian number is offered EGYPT's line, never another country's",
+    lineForNumber("+201001234567")?.tel === "105",
+    "988 in Cairo is a button that looks like help and reaches nothing",
+  );
+
+  check(
+    "🔴 C184 …and a country with no verified line is offered none at all",
+    lineForNumber("+447700900000") === null && lineForNumber("+491701234567") === null,
     "the sentence that is true everywhere, instead of a number that does not dial",
   );
 
@@ -73,6 +94,19 @@ async function main() {
     "🔴 C184 …and a United States number still gets 988",
     lineForNumber("+15551234567")?.tel === "988",
     "the guard refuses the wrong country, not everybody",
+  );
+
+  check(
+    "🔴 C350 a number that answers with a menu carries the route through it",
+    lineForNumber("+201001234567")?.steps?.en.includes("1") === true &&
+      lineForNumber("+201001234567")?.steps?.ar.includes("١") === true,
+    "105 opens a menu two choices deep, and nobody explores a phone menu in that minute",
+  );
+
+  check(
+    "🔴 C350 CONTROL, a line that answers directly carries no invented menu",
+    lineForNumber("+15551234567")?.steps === undefined,
+    "inventing a menu is the same failure as inventing a number",
   );
 
   const orb = readSource("components/patient/sos-orb.tsx");

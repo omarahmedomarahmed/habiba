@@ -10,7 +10,7 @@ import {
   identityDocumentPath,
   type IdentityKind,
 } from "@/lib/documents/identity-access";
-import { reviewQueue } from "@/lib/data/verification";
+import { REJECTIONS_BEFORE_REAPPLYING, reviewQueue } from "@/lib/data/verification";
 import { countryFlag, countryName } from "@/lib/geo";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
@@ -141,6 +141,10 @@ export default async function VerificationsPage({
               submittedAt={row.submittedAt ? formatDate(row.submittedAt, actor.timezone, "en") : null}
               reviewNote={row.reviewNote}
               decided={bucket !== "submitted"}
+              /* 🔴 C351 — a reviewer sees which number of no this one is. */
+              rejectionCount={row.rejectionCount}
+              documentsCleared={row.documentsClearedAt !== null}
+              finalAt={REJECTIONS_BEFORE_REAPPLYING}
             />
           ))}
         </div>

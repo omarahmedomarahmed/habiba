@@ -14,14 +14,40 @@ import { countryFromE164 } from "../lib/phone/e164";
  * verified line in the product unreachable.
  */
 
-test("🔴 an Egyptian number gets no line, because we have not verified one", () => {
-  assert.equal(lineForNumber("+201001234567"), null);
-  assert.equal(countryForNumber("+201001234567"), null);
+/**
+ * 🔴 C350 — this test used to assert that an Egyptian number gets NO line.
+ *
+ * That was the correct assertion for as long as it was true: nobody had dialled
+ * the number, and `lib/crisis/line.ts` refuses to print a number from memory.
+ * On 2026-09-14 the product's owner verified 105 and the two menu choices that
+ * reach the mental health service, so the honest assertion changed with the
+ * fact. It is written out here rather than quietly edited, because a test that
+ * flips from "must be absent" to "must be present" with no note reads like
+ * somebody moved a goalpost.
+ *
+ * What did NOT change is the rule underneath, and the test below it is the
+ * control that proves so: four countries with no verified line still get
+ * nothing. A table that answers for everybody would pass this test and fail the
+ * product.
+ */
+test("🔴 an Egyptian number gets 105, and the menu choices that reach the service", () => {
+  const line = lineForNumber("+201001234567");
+  assert.equal(line?.tel, "105");
+  assert.equal(line?.label, "105");
+  assert.equal(countryForNumber("+201001234567"), "EG");
+
+  /* The number alone is not the answer: 105 opens a menu two choices deep. */
+  assert.ok(line?.steps?.en.includes("1"), "the English route must name what to press");
+  assert.ok(line?.steps?.ar.includes("١"), "and the Arabic route in Arabic digits");
 });
 
-test("🔴 …and a United States number still gets 988", () => {
+test("🔴 …and a United States number still gets 988, with no menu", () => {
   assert.deepEqual(lineForNumber("+15551234567"), { label: "988", tel: "988" });
   assert.equal(countryForNumber("+15551234567"), "US");
+
+  /* Steps are absent, not empty: 988 answers directly and inventing a menu for
+     it would be the same failure as inventing a number. */
+  assert.equal(lineForNumber("+15551234567")?.steps, undefined);
 });
 
 test("every country we have a dialling code for is answered, one way or the other", () => {
@@ -63,8 +89,19 @@ test("the country lookup for a form is display only and may tie-break", () => {
   assert.ok(["US", "CA"].includes(countryFromE164("+14165550000")!));
 });
 
-test("the old by-country lookup is unchanged", () => {
+test("the old by-country lookup answers for both verified countries and nobody else", () => {
   assert.deepEqual(crisisLine("US"), { label: "988", tel: "988" });
-  assert.equal(crisisLine("EG"), null);
+  assert.equal(crisisLine("EG")?.tel, "105");
+  assert.equal(crisisLine("GB"), null, "no verified line, so no number");
   assert.equal(crisisLine(null), null);
+});
+
+test("🔴 a line an operator configured wins, and carries no menu it was not given", () => {
+  /* `country_settings` has a label and a number and no third column, so a
+     configured line has no steps. Falling back to the table's menu for a
+     number an operator has REPLACED would print the route through one phone
+     system beside a different phone system's number. */
+  const configured = crisisLine("EG", { label: "16000", tel: "16000" });
+  assert.equal(configured?.tel, "16000");
+  assert.equal(configured?.steps, undefined);
 });

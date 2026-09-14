@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Phone, X } from "lucide-react";
 
 import { countryForNumber, lineForNumber, type CrisisLine } from "@/lib/crisis/line";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
@@ -59,6 +59,7 @@ type Props = {
 
 export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: Props) {
   const t = useT();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"start" | "end">("end");
   const [top, setTop] = useState(0.62);
@@ -172,6 +173,18 @@ export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: 
                   <span className="text-xs font-semibold">{entry.word}</span>
                   <span className="text-lg font-bold tracking-wide">{entry.line.label}</span>
                   <span className="text-[11px] opacity-80">{entry.label}</span>
+                  {/*
+                    🔴 C350 — the menu, on the button, before the call.
+                    Egypt's 105 answers with a menu and the mental health
+                    service is two choices in. Printed here rather than after
+                    the number is dialled, because by then the reader is on a
+                    phone and this screen is behind it.
+                  */}
+                  {entry.line.steps ? (
+                    <span className="mt-0.5 text-center text-[11px] leading-snug opacity-90">
+                      {locale === "ar" ? entry.line.steps.ar : entry.line.steps.en}
+                    </span>
+                  ) : null}
                 </a>
               ))}
 
@@ -204,9 +217,14 @@ export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: 
 }
 
 /** Names as a reader would say them, beside a flag. */
-const COUNTRY_LABEL: Record<string, string> = { US: "United States" };
+const COUNTRY_LABEL: Record<string, string> = { US: "United States", EG: "مصر · Egypt" };
 
-/** The word for help, in the language of that country. */
-const HELP_WORD: Record<string, string> = { US: "Help" };
+/**
+ * The word for help, in the language of that country.
+ *
+ * 🔴 C350 — Egypt's is Arabic, not an English word with an Arabic line under
+ * it. The button is for somebody dialling an Arabic menu.
+ */
+const HELP_WORD: Record<string, string> = { US: "Help", EG: "نجدة" };
 
-const FLAG: Record<string, string> = { US: "🇺🇸" };
+const FLAG: Record<string, string> = { US: "🇺🇸", EG: "🇪🇬" };

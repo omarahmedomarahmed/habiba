@@ -175,7 +175,33 @@ export async function allSessionPayments(limit = 200) {
     .limit(limit);
 }
 
-/** Money in and model spend, month by month. */
+/**
+ * Money in and model spend, month by month.
+ *
+ * 🔴 C349 — THE SAME SCREEN REPORTED TWO DIFFERENT REVENUES AND NEITHER WAS
+ * LABELLED AS PARTIAL.
+ *
+ * `ledgerSummary` has counted revenue as invoices **plus** the application fees
+ * on patient payments since the Connect rail existed, and says so in its own
+ * comment: the fee on a card charge is our second revenue line. This function
+ * summed invoices alone. So the card at the top of `/admin/vault` and the bars
+ * below it were computed from different definitions of the word income, and on
+ * a month whose revenue is mostly session fees the chart reads near zero while
+ * the card reads correctly.
+ *
+ * It is the exact failure the deprecated `cost_cents` column carries a fifty
+ * line warning about, one table across: two screens, one question, two answers,
+ * and no way to tell from either which one is short.
+ *
+ * Both lines now, per month, and the split is returned rather than folded, so a
+ * reader can see whether a month was carried by subscriptions or by sessions.
+ * `collected` stays the total, so every existing caller keeps its meaning and
+ * gains the missing half.
+ *
+ * Settled invoice cents are netted off exactly as `ledgerSummary` nets them,
+ * for the same reason: a therapist's own outstanding bill can ride along inside
+ * an application fee, and it is already a paid invoice on the other line.
+ */
 export async function monthlyLedger(months = 6) {
   const since = new Date();
   since.setUTCMonth(since.getUTCMonth() - months);
@@ -192,6 +218,16 @@ export async function monthlyLedger(months = 6) {
     .groupBy(sql`date_trunc('month', ${invoices.issuedAt})`)
     .orderBy(sql`date_trunc('month', ${invoices.issuedAt})`);
 
+  const fees = await db
+    .select({
+      month: sql<string>`to_char(date_trunc('month', ${sessionPayments.paidAt}), 'YYYY-MM')`,
+      fees: sql<number>`COALESCE(SUM(${sessionPayments.platformFeeCents} - ${sessionPayments.settledInvoiceCents}), 0)::int`,
+    })
+    .from(sessionPayments)
+    .where(and(eq(sessionPayments.status, "paid"), gte(sessionPayments.paidAt, since)))
+    .groupBy(sql`date_trunc('month', ${sessionPayments.paidAt})`)
+    .orderBy(sql`date_trunc('month', ${sessionPayments.paidAt})`);
+
   const cost = await db
     .select({
       month: sql<string>`to_char(date_trunc('month', ${aiRequestLogs.createdAt}), 'YYYY-MM')`,
@@ -202,15 +238,32 @@ export async function monthlyLedger(months = 6) {
     .groupBy(sql`date_trunc('month', ${aiRequestLogs.createdAt})`)
     .orderBy(sql`date_trunc('month', ${aiRequestLogs.createdAt})`);
 
-  const byMonth = new Map<string, { month: string; collected: number; spent: number }>();
-  for (const row of revenue) {
-    byMonth.set(row.month, { month: row.month, collected: row.collected, spent: 0 });
-  }
-  for (const row of cost) {
-    const entry = byMonth.get(row.month) ?? { month: row.month, collected: 0, spent: 0 };
-    entry.spent = row.spent;
-    byMonth.set(row.month, entry);
-  }
+  type Row = {
+    month: string;
+    /** Subscriptions and seats. Bills we raised and somebody paid. */
+    invoiceCents: number;
+    /** Our cut of what a patient paid a therapist, net of any bill it settled. */
+    sessionFeeCents: number;
+    /** The two above. What the summary card at the top of the page calls income. */
+    collected: number;
+    /** What the models cost us to earn it. */
+    spent: number;
+  };
+
+  const byMonth = new Map<string, Row>();
+  const at = (month: string): Row => {
+    const existing = byMonth.get(month);
+    if (existing) return existing;
+    const fresh: Row = { month, invoiceCents: 0, sessionFeeCents: 0, collected: 0, spent: 0 };
+    byMonth.set(month, fresh);
+    return fresh;
+  };
+
+  for (const row of revenue) at(row.month).invoiceCents = row.collected;
+  for (const row of fees) at(row.month).sessionFeeCents = row.fees;
+  for (const row of cost) at(row.month).spent = row.spent;
+
+  for (const row of byMonth.values()) row.collected = row.invoiceCents + row.sessionFeeCents;
 
   return [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month));
 }

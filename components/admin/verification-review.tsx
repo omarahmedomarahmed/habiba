@@ -28,6 +28,12 @@ export function VerificationReview(props: {
   submittedAt: string | null;
   reviewNote: string | null;
   decided: boolean;
+  /** 🔴 C351 — how many times this application has already been turned down. */
+  rejectionCount: number;
+  /** Whether the documents were removed after the second one. */
+  documentsCleared: boolean;
+  /** The count at which a rejection removes the documents. */
+  finalAt: number;
 }) {
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState("");
@@ -100,6 +106,31 @@ export function VerificationReview(props: {
         ))}
       </div>
 
+      {/*
+        🔴 C351 — THE CONSEQUENCE OF THIS PARTICULAR NO, BEFORE IT IS GIVEN.
+        ------------------------------------------------------------------
+        Every rejection looks identical from this card: one button, one field.
+        They are not identical. The second one deletes the applicant's identity
+        documents and means they cannot come back without uploading again, and
+        an operator who learns that afterwards has already done it.
+
+        Shown as a state rather than a warning inside a tooltip, because the
+        whole point is that it is read without being sought.
+      */}
+      {props.documentsCleared ? (
+        <p className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-xs text-slate-600">
+          Turned down {props.rejectionCount} times. Documents not kept.
+        </p>
+      ) : props.rejectionCount >= props.finalAt - 1 && !props.decided ? (
+        <p className="border-t border-amber-100 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
+          Turned down once. Rejecting again deletes their documents and they start over.
+        </p>
+      ) : props.rejectionCount > 0 ? (
+        <p className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-xs text-slate-600">
+          Turned down {props.rejectionCount} time{props.rejectionCount === 1 ? "" : "s"} before.
+        </p>
+      ) : null}
+
       {props.decided ? (
         props.reviewNote ? (
           <p className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-600">
@@ -128,7 +159,7 @@ export function VerificationReview(props: {
             </Button>
             <Button size="sm" variant="danger" disabled={pending} onClick={() => decide(false)}>
               <X className="h-3.5 w-3.5" aria-hidden />
-              Reject
+              {props.rejectionCount >= props.finalAt - 1 ? "Reject and clear" : "Reject"}
             </Button>
           </div>
         </div>

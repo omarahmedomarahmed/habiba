@@ -509,6 +509,29 @@ export const therapistVerifications = pgTable(
     /** Shown to the clinician verbatim when rejected — so make it useful. */
     reviewNote: text("review_note"),
 
+    /**
+     * 🔴 C351 — HOW MANY TIMES WE HAVE SAID NO.
+     *
+     * Resubmitting was free: `submitForReview` checked that every field was
+     * filled in and never that anything had changed, so the same rejected
+     * document could go round the queue until an operator gave up. The second
+     * rejection now takes the documents away, and this is the counter that
+     * decides when that happens.
+     *
+     * Never reset. A person reapplying is the same person making the same
+     * claim, and a counter that forgets is a counter that can be waited out.
+     */
+    rejectionCount: integer("rejection_count").notNull().default(0),
+    /**
+     * When those documents were removed, so a screen can say so.
+     *
+     * Null and "no documents" are the same state to look at and completely
+     * different to read: one is somebody who has not started, the other is
+     * somebody we have twice told no. A form that appears to have emptied
+     * itself produces exactly the support ticket `reviewNote` exists to avoid.
+     */
+    documentsClearedAt: timestamp("documents_cleared_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

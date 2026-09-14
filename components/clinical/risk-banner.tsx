@@ -3,8 +3,21 @@
 import { AlertTriangle, Phone, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 import type { CrisisLine } from "@/lib/crisis/line";
+
+/**
+ * 🔴 C350 — the menu choices that reach a service, in the reader's language.
+ *
+ * A number that answers with a menu is not an answer on its own. Rendered
+ * wherever the number is, rather than once somewhere else, because these two
+ * facts are only useful together.
+ */
+function CrisisSteps({ line, className }: { line: CrisisLine; className?: string }) {
+  const locale = useLocale();
+  if (!line.steps) return null;
+  return <span className={className}>{locale === "ar" ? line.steps.ar : line.steps.en}</span>;
+}
 
 /**
  * Clinician-facing risk alert. Shows the level and, optionally, the phrases
@@ -63,13 +76,16 @@ export function RiskBanner({
             </p>
           ) : null}
           {line ? (
-            <a
-              href={`tel:${line.tel}`}
-              className="tap-target mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white"
-            >
-              <Phone className="h-3.5 w-3.5" aria-hidden />
-              {t("risk.call", { label: line.label })}
-            </a>
+            <>
+              <a
+                href={`tel:${line.tel}`}
+                className="tap-target mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white"
+              >
+                <Phone className="h-3.5 w-3.5" aria-hidden />
+                {t("risk.call", { label: line.label })}
+              </a>
+              <CrisisSteps line={line} className="mt-1.5 block text-xs text-red-800" />
+            </>
           ) : (
             <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-red-900">
               <Phone className="h-3.5 w-3.5" aria-hidden />
@@ -137,6 +153,7 @@ export function PatientSupportNotice({
           <>{t("crisis.localNumberFree")}</>
         )}
       </p>
+      {line ? <CrisisSteps line={line} className="mt-1.5 block text-xs text-teal-800" /> : null}
     </div>
   );
 }

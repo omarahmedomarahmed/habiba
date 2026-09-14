@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
@@ -188,6 +188,14 @@ export async function reviewQueue(state: "submitted" | "approved" | "rejected" =
       headshotUrl: therapistVerifications.headshotUrl,
       submittedAt: therapistVerifications.submittedAt,
       reviewNote: therapistVerifications.reviewNote,
+      /*
+       * 🔴 C351 — a reviewer should know they are the second, before they
+       * decide rather than after. This is the whole reason the count is not
+       * merely an internal gate: the operator whose "no" removes somebody's
+       * documents is entitled to see that their "no" is the one that does it.
+       */
+      rejectionCount: therapistVerifications.rejectionCount,
+      documentsClearedAt: therapistVerifications.documentsClearedAt,
       firstName: users.firstName,
       lastName: users.lastName,
       email: users.email,
@@ -215,20 +223,41 @@ export async function pendingReviewCount(): Promise<number> {
  * The conditional on `state = 'submitted'` means two administrators clicking at
  * once produce one decision, not two contradictory audit entries.
  */
+/**
+ * 🔴 C351 — how many rejections before the documents have to be new.
+ *
+ * Two. The first rejection is a correction: the licence photo was cut off, the
+ * name did not match, send it again. The second is a decision, and a decision a
+ * person can undo by pressing a button they have already pressed is not one.
+ */
+export const REJECTIONS_BEFORE_REAPPLYING = 2;
+
 export async function decideVerification(opts: {
   verificationId: string;
   approve: boolean;
   note: string;
   adminUserId: string;
-}): Promise<{ userId: string } | null> {
+}): Promise<{ userId: string; rejectionCount: number; documentsCleared: boolean } | null> {
+  const now = new Date();
+
   const [row] = await db
     .update(therapistVerifications)
     .set({
       state: opts.approve ? "approved" : "rejected",
-      reviewedAt: new Date(),
+      reviewedAt: now,
       reviewedBy: opts.adminUserId,
       reviewNote: opts.note.trim() || null,
-      updatedAt: new Date(),
+      /*
+       * 🔴 C351 — the count moves inside the same UPDATE that makes the
+       * decision, and it reads the column rather than a number this process
+       * loaded a moment ago. Two operators clearing the queue at once is the
+       * ordinary case, not the exotic one, and `count + 1` computed in
+       * JavaScript is how the second decision overwrites the first.
+       */
+      rejectionCount: opts.approve
+        ? sql`${therapistVerifications.rejectionCount}`
+        : sql`${therapistVerifications.rejectionCount} + 1`,
+      updatedAt: now,
     })
     .where(
       and(
@@ -236,9 +265,60 @@ export async function decideVerification(opts: {
         eq(therapistVerifications.state, "submitted"),
       ),
     )
-    .returning({ userId: therapistVerifications.userId });
+    .returning({
+      userId: therapistVerifications.userId,
+      rejectionCount: therapistVerifications.rejectionCount,
+      idFrontUrl: therapistVerifications.idFrontUrl,
+      idBackUrl: therapistVerifications.idBackUrl,
+      licenseDocUrl: therapistVerifications.licenseDocUrl,
+      headshotUrl: therapistVerifications.headshotUrl,
+    });
 
   if (!row) return null;
+
+  /*
+   * 🔴 C351 — THE SECOND NO TAKES THE DOCUMENTS WITH IT.
+   *
+   * Two things happen here and they are the same thing seen from two sides.
+   *
+   * From the queue's side it closes the loop `submitForReview` left open: that
+   * function asks whether every field is filled in and never whether anything
+   * changed, so a rejected applicant could resubmit the identical unreadable
+   * licence indefinitely. With the columns empty, `missingFrom` reports them
+   * missing and the resubmission is refused by the check that was already
+   * there — no new branch, no second rule to keep in step with the first.
+   *
+   * From the applicant's side it is retention. 29.1 is the whole argument: we
+   * are holding a stranger's passport, and once we have twice decided it does
+   * not clear them there is no reason left to hold it. The blobs go too, not
+   * just the columns; a row pointing at nothing while the file sits in storage
+   * is the version of this that looks done and is not.
+   *
+   * An approval clears nothing. The documents are the evidence for the decision
+   * and outlive it.
+   */
+  const cleared = !opts.approve && row.rejectionCount >= REJECTIONS_BEFORE_REAPPLYING;
+
+  if (cleared) {
+    const { deleteDocument } = await import("@/lib/uploads");
+    await Promise.all(
+      [row.idFrontUrl, row.idBackUrl, row.licenseDocUrl, row.headshotUrl].map((url) =>
+        deleteDocument(url),
+      ),
+    );
+
+    await db
+      .update(therapistVerifications)
+      .set({
+        idFrontUrl: null,
+        idBackUrl: null,
+        licenseDocUrl: null,
+        headshotUrl: null,
+        documentsClearedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(therapistVerifications.id, opts.verificationId));
+  }
 
   /*
    * 🔴 C285 — THE MIRROR WRITE IS GONE, AND ITS ABSENCE IS THE FIX.
@@ -252,5 +332,5 @@ export async function decideVerification(opts: {
    * every path there will be. A mirror maintained by whoever remembers to maintain it is not a
    * mirror; it is a second opinion.
    */
-  return row;
+  return { userId: row.userId, rejectionCount: row.rejectionCount, documentsCleared: cleared };
 }
