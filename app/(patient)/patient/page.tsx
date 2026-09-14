@@ -6,8 +6,12 @@ import { eq, sql } from "drizzle-orm";
 
 import { Badge, Card } from "@/components/ui";
 import { PatientAvatar } from "@/components/patient/avatar";
+import { CategoryGrid } from "@/components/patient/category-grid";
+import { ExploreRail } from "@/components/patient/explore-rail";
 import { TherapistCard } from "@/components/patient/therapist-card";
-import { categories, topRated } from "@/lib/data/discover";
+import { StateBanner } from "@/components/visual/primitives";
+import { categories, exploreTherapists, RATING_BAR, topRated } from "@/lib/data/discover";
+import { radarCount } from "@/lib/data/radar";
 import { pendingRequestsFor } from "@/lib/data/grants";
 import { openAssignmentsForPerson } from "@/lib/data/assessments";
 import { nextStepFor } from "@/lib/data/homework";
@@ -74,8 +78,19 @@ export default async function PatientHomePage({
    */
   const { claimed } = await searchParams;
 
-  const [waiting, next, openAssessments, sessions, cats, best, person, attached, i18n] =
-    await Promise.all([
+  const [
+    waiting,
+    next,
+    openAssessments,
+    sessions,
+    cats,
+    best,
+    explore,
+    liveNow,
+    person,
+    attached,
+    i18n,
+  ] = await Promise.all([
     // 7.4 — an unanswered request is the one thing on this page waiting on them.
     pendingRequestsFor(actor.personId),
     // 9.5 — one step, and `nextStepFor` cannot return a rate, a streak or a
@@ -92,6 +107,16 @@ export default async function PatientHomePage({
     sessionsForPatient(actor.personId),
     categories(),
     topRated(4),
+    // 65.7 — a rail of who is here, ordered by who is reachable and then rotated.
+    exploreTherapists(10),
+    /*
+     * 65.8 — the live count, and it is the radar's own.
+     *
+     * C285 already fixed this number once on the public home page: it counted rows this
+     * product would not show if anybody clicked. Reusing it rather than writing a second
+     * count is the whole point, because the second one is the one that drifts.
+     */
+    radarCount(),
     db
       .select({ claimedAt: people.claimedAt, avatarUrl: people.avatarUrl })
       .from(people)
@@ -162,18 +187,51 @@ export default async function PatientHomePage({
 
       {/* ------------------------------------------------------------ the globe */}
 
-      <Link
-        href="/patient/radar"
-        className="flex items-center gap-3 rounded-2xl bg-brand-500 px-4 py-3.5 text-white shadow-sm active:scale-[0.99]"
-      >
-        <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold">{t("home.findNow")}</span>
-          <span className="block text-xs text-white/80">
-            {t("home.findNowBody")}
+      {/*
+        🔴 65.7 / 65.8 — THE BANNER FOR WHAT IS LIVE RIGHT NOW, AND IT COUNTS.
+
+        This was a fixed brand-coloured card reading *"Therapists who are online and
+        free this minute"*, rendered identically at four in the morning with nobody on
+        shift. C288 ruled that the public homepage may not promise a therapist in sixty
+        seconds; the same promise inside the app, to somebody who opened it because they
+        needed one, is the version that costs something.
+
+        So the banner reads `radarCount()`, which is the count C285 fixed to mean the
+        people this product would actually show if anybody tapped. Above zero it is the
+        number, live. At zero it says so and points at the hours that are bookable,
+        which is the thing that is true instead.
+      */}
+      {liveNow > 0 ? (
+        <Link
+          href="/patient/radar"
+          className="flex items-center gap-3 rounded-2xl bg-brand-500 px-4 py-3.5 text-white shadow-sm active:scale-[0.99]"
+        >
+          <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">{t("home.findNow")}</span>
+            <span className="block text-xs text-white/80">
+              {liveNow === 1 ? t("home.liveOne") : t("home.liveMany", { count: liveNow })}
+            </span>
           </span>
-        </span>
-      </Link>
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-sm font-bold tabular-nums">
+            <span className="live-dot">●</span>
+            {liveNow}
+          </span>
+        </Link>
+      ) : (
+        <Link
+          href="/patient/browse"
+          className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:scale-[0.99]"
+        >
+          <Globe2 className="h-6 w-6 shrink-0 text-slate-400" aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-slate-900">
+              {t("home.liveNone")}
+            </span>
+            <span className="block text-xs text-slate-500">{t("home.liveNoneBody")}</span>
+          </span>
+        </Link>
+      )}
 
       {/* --------------------------------------------------- what is waiting */}
 
@@ -248,37 +306,81 @@ export default async function PatientHomePage({
         </Card>
       ) : null}
 
+      {/* ------------------------------------------------------- explore them */}
+
+      {/*
+        🔴 65.7 — EXPLORE THERAPISTS, AND IT COMES BEFORE THE RANKED RAIL.
+
+        A person who has just arrived is finding out whether there is anybody here, not
+        choosing between the best four. `exploreTherapists` puts whoever is online first
+        and rotates the rest daily, so the rail is a sample of the platform rather than
+        a leaderboard with a softer word over it.
+      */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold text-slate-900">{t("home.exploreTitle")}</h2>
+          {explore.length > 0 ? (
+            <Link href="/patient/browse" className="text-xs font-semibold text-brand-600">
+              {t("home.exploreAll")}
+            </Link>
+          ) : null}
+        </div>
+        <div className="mt-2.5">
+          {explore.length > 0 ? (
+            <ExploreRail therapists={explore} />
+          ) : (
+            /* 🔴 65.8 — an empty platform says it is empty. */
+            <StateBanner tone="info">{t("home.nobodyListed")}</StateBanner>
+          )}
+        </div>
+      </section>
+
       {/* --------------------------------------------------------- categories */}
 
+      {/*
+        🔴 65.7 / 65.9 — AN ICON GRID OVER THE TAXONOMY AN ADMIN ALREADY EDITS.
+
+        This was a sideways-scrolling row of grey pills: the least scannable form a list
+        of eight things can take, on the one screen whose reader may be in distress.
+
+        🔴 It is hidden when empty rather than given an honest sentence, and that is a
+        deliberate difference from the two rails above. Those make a claim about the
+        platform, so their absence has to be spoken. This is a shortcut into search, and
+        a shortcut that is not offered claims nothing at all.
+      */}
       {cats.length > 0 ? (
         <section>
           <h2 className="text-sm font-semibold text-slate-900">{t("home.areas")}</h2>
-          <ul className="mt-2.5 flex gap-2 overflow-x-auto pb-1">
-            {cats.slice(0, 8).map((category) => (
-              <li key={category.code} className="shrink-0">
-                <Link
-                  href={`/patient/browse?q=${encodeURIComponent(category.code)}`}
-                  className="block rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
-                >
-                  {category.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-2.5">
+            <CategoryGrid categories={cats.slice(0, 8)} />
+          </div>
         </section>
       ) : null}
 
       {/* ------------------------------------------------------- the top rail */}
 
-      {best.length > 0 ? (
-        <section>
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-            <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-            {t("home.ratedHighest")}
-          </h2>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            {t("home.ratedHighestBody")}
-          </p>
+      {/*
+        🔴 65.8 — FEW RATINGS SAYS FEW RATINGS.
+
+        The rail used to vanish when nobody cleared the bar, which reads to a patient as
+        a product that has no ratings feature rather than one that refuses to invent a
+        ranking. And it carried a 24-word paragraph explaining the bar, under a heading,
+        above a list nobody had scrolled to yet.
+
+        Both are now one line with two numbers in it, and the zero case is on the screen
+        rather than absent from it.
+      */}
+      <section>
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+          <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
+          {t("home.ratedHighest")}
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-500">
+          {best.length === 0
+            ? t("home.ratedNone", { bar: RATING_BAR })
+            : t("home.ratedSome", { count: best.length, bar: RATING_BAR })}
+        </p>
+        {best.length > 0 ? (
           <ul className="mt-2.5 space-y-2.5">
             {best.map((therapist) => (
               <li key={therapist.userId}>
@@ -286,8 +388,8 @@ export default async function PatientHomePage({
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+        ) : null}
+      </section>
 
       {/* ---------------------------------------------------------- sessions */}
 

@@ -8,6 +8,7 @@ import { Check } from "lucide-react";
 
 import { acceptInvite } from "@/app/(patient)/patient/claim/actions";
 import { Button, Card } from "@/components/ui";
+import { KeepsAccess } from "@/components/patient/keeps-access";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -59,22 +60,11 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
       </div>
 
       <div className="rounded-2xl border border-slate-200 p-4">
-        <label className="flex cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={keepsAccess}
-            onChange={(e) => setKeepsAccess(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-          />
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-slate-800">
-              {t("pinvite.keepAccess")}
-            </span>
-            <span className="mt-1 block text-xs leading-relaxed text-slate-500">
-              {t("pinvite.keepAccessBody")}
-            </span>
-          </span>
-        </label>
+        <KeepsAccess
+          label={t("pinvite.keepAccess")}
+          checked={keepsAccess}
+          onChange={setKeepsAccess}
+        />
       </div>
 
       {error ? (

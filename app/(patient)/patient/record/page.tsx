@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ExportRecord } from "@/components/patient/export-record";
 import { PatientBack } from "@/components/patient/back";
 import { Card } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
 import {
   clinicVisibilityFor,
   markClinicVisibilityShown,
@@ -51,32 +52,53 @@ export default async function RecordExportPage() {
 
       {visibility.practices.length > 0 ? (
         <Card className="p-5">
+          {/*
+            🔴 65.5 / 65.11 / C327 — THE PRACTICE'S REACH, AS TWO COLUMNS.
+
+            This card carried three paragraphs, 100 words, around one small table. The
+            longest of them was the list of things the practice never sees, written as a
+            sentence with seven commas in it, which is the format a reader's eye slides
+            off exactly when it matters most.
+
+            🔴 THE "NEVER" COLUMN IS THE SAME SIZE AS THE "CAN" COLUMN, which is
+            `SeesWhat`'s whole reason to exist and was the one thing the old card got
+            right: what they never see was already in the same breath and the same size.
+
+            🔴 AND THEIR NAME AS THE PRACTICE READS IT STAYS, because it is the one item
+            here somebody can check rather than trust. "They see: Sarah M." beats any
+            sentence describing the rule that produced it.
+          */}
           <h2 className="text-sm font-bold tracking-tight text-slate-900">
-            {t("pclinic.title")}
+            {t("pclinic.title", { practice: visibility.practices.join(", ") })}
           </h2>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
-            {t("pclinic.body", { practice: visibility.practices.join(", ") })}
-          </p>
+
+          <div className="mt-3">
+            <SeesWhat
+              who={visibility.practices.join(", ")}
+              can={[
+                `${t("pclinic.theySee")} ${visibility.asTheySeeIt}`,
+                t("pclinic.andWhenValue"),
+                t("pclinic.theyPay"),
+              ]}
+              cannot={[
+                t("pclinic.notNotes"),
+                t("pclinic.notJournal"),
+                t("pclinic.notDiagnosis"),
+                t("pclinic.notSaid"),
+              ]}
+            />
+          </div>
 
           {/*
-            🔴 THEIR OWN NAME, AS THE PRACTICE READS IT, and not a description of
-            the rule. "They see: Sarah M." is something somebody can check. "We
-            show your first name and last initial" is a policy they have to trust.
-          */}
-          <dl className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
-            <div className="flex flex-wrap gap-x-2">
-              <dt className="text-slate-500">{t("pclinic.theySee")}</dt>
-              <dd className="font-semibold text-slate-900">{visibility.asTheySeeIt}</dd>
-            </div>
-            <div className="flex flex-wrap gap-x-2">
-              <dt className="text-slate-500">{t("pclinic.andWhen")}</dt>
-              <dd className="font-semibold text-slate-900">{t("pclinic.andWhenValue")}</dd>
-            </div>
-          </dl>
+            🔴 65.23 — TWO SENTENCES SURVIVE, BECAUSE NEITHER IS A DESCRIPTION.
 
-          {/* 🔴 What they will NEVER see, in the same breath and the same size. */}
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">{t("pclinic.never")}</p>
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">{t("pclinic.why")}</p>
+            "Not a setting: it is not built" is a claim about the product's construction
+            and is the reason the column above can be believed. The second is the
+            patient's alternative, and a disclosure that names no alternative is a
+            notification rather than a choice.
+          */}
+          <p className="mt-3 text-sm font-medium text-slate-900">{t("pclinic.notBuilt")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("pclinic.orAlone")}</p>
         </Card>
       ) : null}
     </main>

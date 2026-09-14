@@ -96,6 +96,79 @@ async function listableRows() {
     .limit(500);
 }
 
+function shape(
+  row: Awaited<ReturnType<typeof listableRows>>[number],
+  rating: { average: number; count: number } | undefined,
+): DiscoverTherapist {
+  return {
+    userId: row.userId,
+    name: [row.firstName, row.lastName].filter(Boolean).join(" "),
+    credentials: row.profile?.credentials ?? null,
+    headline: row.headline,
+    photoUrl: row.photoUrl,
+    languages: row.languages ?? [],
+    specialties: row.specialties ?? [],
+    /* 🔴 Below the bar there is no score, so the caller is handed a zero count
+       and renders nothing rather than a star with no number behind it. */
+    rating:
+      rating && rating.count >= RATINGS_VISIBLE_AFTER
+        ? { average: Math.round(rating.average * 10) / 10, count: rating.count }
+        : { average: 0, count: 0 },
+    online: row.status === "online",
+  };
+}
+
+/**
+ * 🔴 65.7 / 65.8 — THE EXPLORE RAIL, AND ITS ORDER IS NOT A RANKING.
+ *
+ * *Explore therapists, a horizontal card rail.* The tempting build sorts by rating and
+ * calls the result "recommended", which is `topRated` with a dishonest label, or sorts
+ * by nothing in particular and lets whoever the planner returned first own the rail for
+ * the life of the product.
+ *
+ * ## 🔴 65.22 — THE ORDER ENCODES TWO TRUE THINGS AND NOTHING ELSE
+ *
+ * **Who is online now comes first.** That is a fact about what the reader can do in the
+ * next minute, it is already on the card as a badge, and it is the one ordering a
+ * patient would choose for themselves.
+ *
+ * **Everybody else rotates by the day.** A fixed order would mean the four clinicians
+ * whose names sort first are the platform's shopfront forever and the rest are a page
+ * nobody scrolls to. The rotation is seeded on the date, so it is stable within a day
+ * (the server render and any refetch agree) and every listed clinician reaches the rail
+ * across a month.
+ *
+ * 🔴 IT DOES NOT SORT ON RATING. A rail ordered by score with "explore" written over it
+ * is a ranking that denies being one, and the product already has a rail that ranks and
+ * says so.
+ */
+export async function exploreTherapists(
+  limit = 10,
+  today = new Date(),
+): Promise<DiscoverTherapist[]> {
+  const [rows, ratings] = await Promise.all([listableRows(), therapistRatings()]);
+
+  /*
+   * The seed is the calendar day in UTC. Deliberately not `Math.random()`: the page is
+   * server rendered and the client refetches, and a rail that reshuffles under somebody
+   * mid-tap is a different clinician than the one they aimed at.
+   */
+  const day = Math.floor(today.getTime() / 86_400_000);
+  const place = (userId: string) => {
+    let hash = day;
+    for (const character of userId) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+    return hash;
+  };
+
+  return rows
+    .map((row) => shape(row, ratings.get(row.userId)))
+    .sort(
+      (a, b) =>
+        Number(b.online) - Number(a.online) || place(a.userId) - place(b.userId),
+    )
+    .slice(0, limit);
+}
+
 /**
  * The rail. Empty is a legitimate answer and the caller must render nothing.
  */

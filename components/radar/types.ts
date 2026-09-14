@@ -51,6 +51,13 @@ export type RadarEntry = {
   sessionRateCents: number;
   /** Null until enough sessions have been rated for a number to mean anything. */
   rating: { average: number; count: number } | null;
+  /**
+   * 🔴 65.6 — the next hour they have open, as an ISO string, or null for none published.
+   *
+   * A string rather than a `Date` because this object arrives by two routes — the server
+   * render and the `/api/radar` poll — and only one of them preserves a `Date`.
+   */
+  nextOpenAt: string | null;
   status: "online" | "pending" | "in_session";
   /**
    * True when the pending state is this visitor's own reservation — the

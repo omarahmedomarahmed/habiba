@@ -6,6 +6,7 @@ import { ChevronDown, Loader2, PanelLeftClose, PanelRightClose, Radio } from "lu
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
 import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components/radar/filters";
+import { RadarList } from "@/components/radar/radar-list";
 import { TherapistCard } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
 import { useT } from "@/lib/i18n/client";
@@ -64,6 +65,15 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
   const [rightOpen, setRightOpen] = useState(true);
   const [mobileTab, setMobileTab] = useState<"filters" | "list">("list");
   const [sheetOpen, setSheetOpen] = useState(true);
+  /*
+   * 🔴 65.6 — WHICH QUESTION THE FLOOR IS ANSWERING.
+   *
+   * *The map answers "who is near me" and the list answers "who is there", and most
+   * people are asking the second question.* The globe stays the default because it is
+   * the product's front door and it is what the marketing site shows, but the second
+   * question now has a control rather than a scroll.
+   */
+  const [view, setView] = useState<"map" | "list">("map");
 
   useEffect(() => setEntries(initial), [initial]);
 
@@ -138,22 +148,51 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
 
   return (
     <div className="relative h-[calc(100dvh-3.5rem)] min-h-[560px] w-full overflow-hidden bg-[#04101f]">
-      {/* The globe is the floor. Everything else floats. */}
+      {/*
+        The floor. The globe, or the list that answers the other question.
+
+        Swapped rather than stacked: a list under a globe is a scroll, and a person who
+        came to compare six clinicians on price and next availability should not have to
+        drag a planet out of the way first.
+      */}
       <div className="absolute inset-0">
-        <Globe
-          entries={visible}
-          selected={filter.country || null}
-          onSelect={(code) => setFilter((f) => ({ ...f, country: code ?? "", region: "" }))}
-          onPick={(entry) => setSelectedId(entry.userId)}
-          className="h-full w-full"
-        />
+        {view === "map" ? (
+          <Globe
+            entries={visible}
+            selected={filter.country || null}
+            onSelect={(code) => setFilter((f) => ({ ...f, country: code ?? "", region: "" }))}
+            onPick={(entry) => setSelectedId(entry.userId)}
+            className="h-full w-full"
+          />
+        ) : (
+          <div className="h-full overflow-y-auto px-3 pt-16 pb-[56dvh] sm:px-4 sm:pb-6 sm:ps-[20.5rem]">
+            {visible.length === 0 ? (
+              <div className="mx-auto max-w-md rounded-2xl bg-white/5 p-4 text-center">
+                <p className="text-sm font-semibold text-white">
+                  {t("radar.nobodyMatchingTitle")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setFilter(NO_FILTER)}
+                  className="mt-3 text-xs font-semibold text-teal-300 hover:text-teal-200"
+                >
+                  {t("radar.showEveryone")}
+                </button>
+              </div>
+            ) : (
+              <RadarList entries={visible} onSelect={(entry) => setSelectedId(entry.userId)} />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Vignette: keeps panel text legible over whatever the globe is doing. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(4,16,31,0.82)_100%)]"
-      />
+      {view === "map" ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(4,16,31,0.82)_100%)]"
+        />
+      ) : null}
 
       {/* ------------------------------------------------------------ status */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3 sm:p-4">
@@ -179,9 +218,37 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
           ) : null}
         </div>
 
-        <p className="pointer-events-none hidden rounded-full bg-[#04101f]/70 px-3 py-1.5 text-xs text-white/45 backdrop-blur sm:block">
-          {t("radar.dragToSpin")}
-        </p>
+        <div className="flex items-center gap-2">
+          {view === "map" ? (
+            <p className="pointer-events-none hidden rounded-full bg-[#04101f]/70 px-3 py-1.5 text-xs text-white/45 backdrop-blur lg:block">
+              {t("radar.dragToSpin")}
+            </p>
+          ) : null}
+
+          {/*
+            🔴 65.6 — TWO VIEWS, BOTH LABELLED, NEITHER HIDDEN.
+
+            A segmented control rather than an icon that toggles: the reader can see that
+            a list exists before they have tried the button, which is the whole reason
+            this ticket is not "make the panel taller".
+          */}
+          <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#04101f]/80 p-1 backdrop-blur">
+            {(["map", "list"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setView(option)}
+                aria-pressed={view === option}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                  view === option ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80",
+                )}
+              >
+                {option === "map" ? t("radar.mapView") : t("radar.listView")}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* --------------------------------------------------- desktop panels */}
@@ -196,15 +263,23 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
           {filterContent}
         </Panel>
 
-        <Panel
-          side="right"
-          open={rightOpen}
-          onToggle={() => setRightOpen((v) => !v)}
-          title={t("radar.whoIsFree")}
-          summary={`${visible.length} showing`}
-        >
-          {listContent}
-        </Panel>
+        {/*
+          The right panel is the globe's legend, so it goes when the globe does.
+
+          In list view it would be the same people twice, in a narrower column, with
+          less about each of them.
+        */}
+        {view === "map" ? (
+          <Panel
+            side="right"
+            open={rightOpen}
+            onToggle={() => setRightOpen((v) => !v)}
+            title={t("radar.whoIsFree")}
+            summary={t("radar.countShowing", { count: visible.length })}
+          >
+            {listContent}
+          </Panel>
+        ) : null}
       </div>
 
       {/* ---------------------------------------------------- mobile sheet */}
@@ -218,7 +293,12 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
       */}
       <section className="absolute inset-x-0 bottom-0 z-10 flex max-h-[52dvh] flex-col rounded-t-2xl border-t border-white/10 bg-[#071a2e]/95 backdrop-blur-md sm:hidden">
         <div className="flex shrink-0 items-center gap-1 border-b border-white/10 p-2">
-          {(["list", "filters"] as const).map((tab) => (
+          {/*
+            In list view the floor already IS the list, so the sheet offers narrowing
+            only. Two copies of the same people on a 375px screen is the thing the
+            mobile sheet was built to stop.
+          */}
+          {(view === "list" ? (["filters"] as const) : (["list", "filters"] as const)).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -243,7 +323,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
         </div>
         {sheetOpen ? (
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            {mobileTab === "list" ? listContent : filterContent}
+            {mobileTab === "list" && view === "map" ? listContent : filterContent}
           </div>
         ) : null}
       </section>

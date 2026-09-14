@@ -333,16 +333,24 @@ export function BookingSheet({
 
             <Submit sessionRateCents={entry.sessionRateCents} />
 
+            {/*
+              🔴 65.5 / C198 — THE CRISIS SENTENCE IS THE SHARED ONE, NOT A COPY.
+
+              `pbook.noAccount` carried its own *"if you are in immediate danger"* clause
+              glued onto a sentence about Stripe. C184 and C198 are both the same defect:
+              a safety line written a second time somewhere else, which then does not get
+              the fix when the fix happens. It renders `crisis.notEmergency`, the line
+              `lib/crisis` already owns, and `pbook.noAccount` is about payment only.
+            */}
             <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               {t("pbook.noAccount")}
             </p>
+            <p className="text-xs leading-relaxed text-slate-500">{t("crisis.notEmergency")}</p>
           </form>
         ) : (
           <p className="mt-5 rounded-xl bg-slate-100 px-3.5 py-3 text-sm text-slate-600">
-            {entry.status === "pending"
-              ? "Someone is with them on this page right now. If they do not go ahead, this clinician is back on the radar within a minute, this page updates by itself."
-              : "They are in a session at the moment. They will reappear on the radar as soon as they are free."}
+            {entry.status === "pending" ? t("pbook.taken") : t("pbook.unavailable")}
           </p>
         )}
       </div>

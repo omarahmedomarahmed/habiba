@@ -4,6 +4,7 @@ import { Lock, ShieldCheck } from "lucide-react";
 
 import { VerificationForm } from "@/components/onboarding/verification-form";
 import { Card } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
 import { requireUser } from "@/lib/auth/guard";
 import {
   documentRequirements,
@@ -93,19 +94,41 @@ export default async function OnboardingPage() {
         stated in a sentence they can actually parse. Vagueness here reads as
         data harvesting, which is the opposite of what this is.
       */}
+      {/*
+        🔴 65.10 — WHY WE ASK, AND WHO SEES IT, AS TWO COLUMNS INSTEAD OF TWO PARAGRAPHS.
+
+        94 words in a grey card above the upload form, at the exact moment somebody is
+        deciding whether to photograph their passport. Vagueness here reads as data
+        harvesting, and so does length: a clinician who skims a 56-word justification has
+        been given a reason they did not read.
+
+        The privacy half is the one that decides it, and it was the second paragraph.
+        Both halves are now at the same size, and the CANNOT column is the promise:
+        patients and other clinicians never see any of it.
+      */}
       {verification.state !== "approved" ? (
-        <Card className="mt-5 border-slate-200 bg-slate-50 p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <div className="mt-5">
+          <p className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Lock className="h-4 w-4 text-slate-500" aria-hidden />
             {t("portal.onboarding.whyWeAsk")}
           </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            {t("portal.onboarding.why")}
+          <SeesWhat
+            who={t("portal.onboarding.whoSees")}
+            can={[
+              t("portal.onboarding.reasonRecords"),
+              t("portal.onboarding.reasonPartners"),
+              t("portal.onboarding.reasonCrisis"),
+            ]}
+            cannot={[
+              t("portal.onboarding.notPatients"),
+              t("portal.onboarding.notClinicians"),
+              t("portal.onboarding.notElse"),
+            ]}
+          />
+          <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
+            {t("portal.onboarding.publicOnly")}
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            {t("portal.onboarding.privacy")}
-          </p>
-        </Card>
+        </div>
       ) : null}
 
       <div className="mt-5">

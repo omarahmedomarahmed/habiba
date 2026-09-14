@@ -1,0 +1,346 @@
+/**
+ * 🔴 65.1 / 65.2 — THE INVENTORY, AND IT IS A SCRIPT RATHER THAN A WALK-THROUGH.
+ *
+ *   npm run prose
+ *   npm run prose -- --portal patient
+ *
+ * ## The founder's sentence, as a measurement
+ *
+ * > *There is too much text. On every single page of every single portal. Chunks of
+ * > text that explain important things, important titles, important descriptions,
+ * > important disclaimers. Instead of boxes of text everywhere, we need to visualize
+ * > it into components, with minimal text.*
+ *
+ * ## 🔴 WHY THIS IS A SAFETY SCRIPT AND NOT A DESIGN ONE
+ *
+ * A disclaimer nobody reads is a disclaimer that does not exist. This repository has
+ * spent fifty sprints making sure a rule is true in the database rather than in a
+ * comment, and then rendered the rule to the person it protects as grey prose in a box
+ * they scroll past.
+ *
+ * The measure is not "fewer words". It is whether the person can answer the question
+ * the text was there to answer, and nothing automated can measure that. What this CAN
+ * measure is where the walls are, which is the first thing nobody knew.
+ *
+ * ## 🔴 65.3 — AND IT COUNTS WORDS, NOT KEYS
+ *
+ * A wall split into four keys is the same wall. The unit is the word a person has to
+ * read, summed per portal, which is the only unit the founder's sentence is in.
+ *
+ * ## 🔴 65.2 — A RATCHET, THE WAY `DEAD_EXPORT_BASELINE` WORKS
+ *
+ * `evals/prose.json` holds the high-water mark per portal, and this exits non-zero
+ * when one rises. A sprint that adds a paragraph has to spend one, which is the whole
+ * mechanism: H20's lesson is that a gate nobody can pass gets switched off, and a
+ * gate that only ever moves in one direction is one somebody can live with.
+ */
+import { readFileSync, writeFileSync } from "node:fs";
+
+import { DEFAULT_PAGES } from "../lib/content/defaults";
+import { DICTIONARIES } from "../lib/i18n/messages";
+
+const RATCHET = "evals/prose.json";
+
+/**
+ * 🔴 WHICH PORTAL A KEY BELONGS TO, AND THE MAP IS EXHAUSTIVE BY CONSTRUCTION.
+ *
+ * Every prefix in the dictionary resolves to one of these or to `other`, and `other`
+ * is printed with its prefixes so it cannot quietly become the biggest bucket. A map
+ * that silently dropped a prefix would be a ratchet with a hole in it.
+ */
+const PORTALS: Record<string, readonly string[]> = {
+  /*
+   * 🔴 THE EXPLICIT MAP WINS, and it exists for the prefixes the letter rule below
+   * would get wrong. `pricing` and `portal` both start with `p` and are the public
+   * site and the clinician's portal; `records` is a clinic setting; `room` is the
+   * therapy room, which is a clinician's screen with a patient in it.
+   *
+   * 🔴 AND EVERY LINE OF IT IS CHECKED BY GREP, NOT BY WHAT THE PREFIX SOUNDS LIKE.
+   *
+   * `home` sat under `public` for exactly that reason: the word means the front door
+   * of the marketing site to anybody reading the map, and every one of those keys is
+   * rendered by `app/(patient)/patient/page.tsx`. The patient app's own home screen,
+   * the worst wall in the product and the one 65.5 is written about, was being counted
+   * against the public site's ratchet and subtracted from the patient's.
+   *
+   * A misattributed prefix is worse than an unattributed one, because `other` is
+   * printed and this was not. The method that settles it is one command:
+   *
+   *   grep -rn 't("<prefix>\.' app components lib
+   *
+   * and the portal is wherever the call sites are. `radar` came back rendered by both
+   * `/radar` and `/patient/radar`, which is what `shared` is for; `blocks` came back
+   * public-only despite living beside `common` and `nav`.
+   */
+  patient: [
+    "home",
+    "pclaim",
+    "pbook",
+    "prating",
+    "pinvite",
+    "benefit",
+    "checkin",
+    "consent",
+    "browse",
+    "feedback",
+    "homework",
+    "jconsent",
+    "join",
+    "journal",
+    "residency",
+    "risk",
+  ],
+  /*
+   * 🔴 `pted` AND `pracc` ARE THE CLINICIAN'S, and the letter rule had them backwards.
+   *
+   * Both render on `app/(app)/patients/[id]/page.tsx`, the clinician's view of a
+   * patient's record. They are named for what they are ABOUT rather than who reads
+   * them, which is the same trap `home` fell into from the other direction. These are
+   * the strings 37L.2 deferred, so having them counted against the patient app was
+   * hiding work in the wrong column twice over.
+   */
+  clinician: [
+    "portal",
+    "room",
+    "import",
+    "note",
+    "spec",
+    "preset",
+    "pted",
+    "pracc",
+    /* `cassess` renders in `components/assessments/clinician-assessments.tsx`. */
+    "cassess",
+  ],
+  clinic: ["clinic", "records"],
+  sponsor: ["sponsor", "sint"],
+  partner: ["dev", "devs"],
+  public: ["pricing", "contact", "public", "marketing", "blocks"],
+  admin: ["admin", "aclinic", "apartner", "asponsor", "acheckin"],
+  /*
+   * 🔴 SHARED IS A REAL CATEGORY, NOT A BIN.
+   *
+   * `common`, `nav`, `lang`, `tab`, `when` and `urgent` render in more than one
+   * portal, so attributing them to one would make that portal's ratchet move when a
+   * different portal's chrome changed. They get their own line and their own number.
+   */
+  shared: ["common", "nav", "lang", "tab", "when", "urgent", "crisis", "radar"],
+};
+
+const PREFIX_TO_PORTAL = new Map<string, string>();
+for (const [portal, prefixes] of Object.entries(PORTALS)) {
+  for (const prefix of prefixes) PREFIX_TO_PORTAL.set(prefix, portal);
+}
+
+/**
+ * 🔴 AND A LETTER RULE UNDERNEATH IT, so the map does not need a line per screen.
+ *
+ * This repository's dictionary is prefixed by portal already: `p…` is the patient
+ * app, `t…` is the therapist's, `a…` is the back office. Sixty prefixes were falling
+ * through to `other` because nobody had listed them, and a bucket nobody can attribute
+ * is a ratchet nobody can act on: somebody lowers a portal's number by moving a key
+ * into a prefix the map does not know.
+ *
+ * The explicit map above wins, so `pricing` stays public and `portal` stays the
+ * clinician's.
+ */
+function portalOf(prefix: string): string {
+  const explicit = PREFIX_TO_PORTAL.get(prefix);
+  if (explicit) return explicit;
+
+  if (/^p[a-z]/.test(prefix)) return "patient";
+  if (/^t[a-z]/.test(prefix)) return "clinician";
+  if (/^a[a-z]/.test(prefix)) return "admin";
+
+  return "other";
+}
+
+function words(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * 🔴 A BLOCK, and the threshold is where a sentence becomes a paragraph.
+ *
+ * Twenty-five words is about two sentences. Below it a string is a label, a button or
+ * a line of help; above it somebody is being asked to read something, and that is the
+ * thing this sprint is about.
+ */
+const BLOCK_WORDS = 25;
+
+type Block = { key: string; portal: string; words: number; text: string };
+
+function harvest(): Block[] {
+  const out: Block[] = [];
+
+  for (const [key, value] of Object.entries(DICTIONARIES.en)) {
+    const text = String(value);
+    const count = words(text);
+    if (count === 0) continue;
+
+    const prefix = key.split(".")[0]!;
+    out.push({
+      key,
+      portal: portalOf(prefix),
+      words: count,
+      text,
+    });
+  }
+
+  /*
+   * 🔴 THE CMS PAGES TOO, because the public site's prose lives there rather than in
+   * the dictionary and 65.14's 80% is measured across both. A sweep that read only
+   * the dictionary would report the marketing site as nearly clean.
+   */
+  const walk = (node: unknown, path: string) => {
+    if (typeof node === "string") {
+      const count = words(node);
+      if (count > 0) out.push({ key: `content:${path}`, portal: "public", words: count, text: node });
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item, i) => walk(item, `${path}[${i}]`));
+      return;
+    }
+    if (node && typeof node === "object") {
+      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+        if (["slug", "icon", "demo", "type", "href", "key"].includes(key)) continue;
+        walk(value, `${path}.${key}`);
+      }
+    }
+  };
+  walk(DEFAULT_PAGES, "pages");
+
+  return out;
+}
+
+function totals(blocks: Block[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const block of blocks) out[block.portal] = (out[block.portal] ?? 0) + block.words;
+  return out;
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  const only = argv.includes("--portal") ? argv[argv.indexOf("--portal") + 1] : null;
+  const write = argv.includes("--write");
+
+  const blocks = harvest();
+  const byPortal = totals(blocks);
+
+  console.log("\n🔴 Prose sweep. Words a person has to read, per portal.\n");
+
+  const ratchet = JSON.parse(readFileSync(RATCHET, "utf8")) as {
+    baseline: Record<string, number>;
+    origin?: Record<string, number>;
+  };
+
+  let rose = false;
+
+  for (const portal of Object.keys(byPortal).sort()) {
+    if (only && portal !== only) continue;
+
+    const now = byPortal[portal]!;
+    const was = ratchet.baseline[portal];
+    const mark =
+      was === undefined
+        ? "NEW"
+        : now > was
+          ? `UP from ${was}`
+          : now < was
+            ? `down from ${was}, LOWER THE BASELINE`
+            : "level";
+
+    if (was !== undefined && now > was) rose = true;
+
+    /*
+     * 🔴 65.14 / THE ACCEPT LINE, AS A COLUMN RATHER THAN A JUDGEMENT.
+     *
+     * > *the prose ratchet is down by more than half in every portal and by 80% across
+     * > the public site*
+     *
+     * A baseline that moves down every time somebody spends a paragraph cannot answer
+     * that question: by the end it agrees with wherever the sprint stopped. `origin` is
+     * the measurement this sprint started from and NOTHING writes to it, so the sprint's
+     * own acceptance criterion is a number on this screen instead of a recollection.
+     */
+    const from = ratchet.origin?.[portal];
+    const cut =
+      from === undefined || from === 0
+        ? ""
+        : `   ${String(Math.round(((from - now) / from) * 100)).padStart(3)}% off ${from}`;
+
+    console.log(`  ${String(now).padStart(6)}  ${portal.padEnd(10)} ${mark.padEnd(34)}${cut}`);
+  }
+
+  /*
+   * 🔴 `other` IS PRINTED WITH ITS PREFIXES, so a map with a hole in it is visible.
+   *
+   * A prefix that falls through lands here, and a bucket nobody can attribute is a
+   * ratchet nobody can act on: somebody would lower a portal's number by moving a key
+   * into a prefix the map does not know.
+   */
+  const stray = new Set(
+    blocks.filter((b) => b.portal === "other").map((b) => b.key.split(".")[0]!),
+  );
+  if (stray.size > 0) {
+    console.log(`\n  unattributed prefixes: ${[...stray].sort().join(", ")}`);
+  }
+
+  /* The walls themselves, biggest first, because the list IS the work. */
+  const walls = blocks
+    .filter((b) => (!only || b.portal === only))
+    .sort((a, b) => b.words - a.words);
+
+  /*
+   * 🔴 `--all` PRINTS EVERY BLOCK, and `--min` LOWERS THE FLOOR.
+   *
+   * Twenty is the right number to read at the start of a sprint and the wrong one to
+   * work from: a portal with 43 walls is worked through in four passes, and each pass
+   * needs the next twenty rather than the same twenty. `--min 12` matters too, because a
+   * portal's total is mostly NOT its walls — 43 blocks of 25+ words are a third of the
+   * patient app's count and the rest is two-line bodies under titles.
+   */
+  const all = argv.includes("--all");
+  const floor = argv.includes("--min") ? Number(argv[argv.indexOf("--min") + 1]) : BLOCK_WORDS;
+  const shown = walls.filter((wall) => wall.words >= floor);
+
+  console.log(
+    `\n  ${shown.length} blocks of ${floor}+ words. ${all ? "All of them:" : "The twenty largest:"}\n`,
+  );
+  for (const wall of all ? shown : shown.slice(0, 20)) {
+    console.log(`  ${String(wall.words).padStart(4)}  ${wall.portal.padEnd(10)} ${wall.key}`);
+    console.log(`        ${wall.text.slice(0, 100)}${wall.text.length > 100 ? "…" : ""}`);
+  }
+
+  if (write) {
+    writeFileSync(
+      RATCHET,
+      `${JSON.stringify(
+        {
+          comment: ratchet ? (ratchet as { comment?: string }).comment : undefined,
+          /*
+           * 🔴 `origin` IS CARRIED, NEVER RECOMPUTED. A `--write` that refreshed it
+           * would make every portal 0% off its own current state, which is the shape
+           * of a target that has been quietly redefined as whatever was achieved.
+           */
+          origin: ratchet.origin,
+          baseline: byPortal,
+          measuredOn: new Date().toISOString().slice(0, 10),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    console.log(`\n  wrote ${RATCHET}\n`);
+    return;
+  }
+
+  if (rose) {
+    console.log("\n🔴 A portal's prose went UP. A sprint that adds a paragraph spends one.\n");
+    process.exit(1);
+  }
+
+  console.log("\n  no portal rose.\n");
+}
+
+main();

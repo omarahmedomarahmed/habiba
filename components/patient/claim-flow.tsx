@@ -7,6 +7,7 @@ import { Check, ShieldCheck } from "lucide-react";
 import { confirmClaim, declineClaim, sendClaimCode } from "@/app/(patient)/patient/claim/actions";
 import type { ClaimSuggestion } from "@/lib/data/claims";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { KeepsAccess } from "@/components/patient/keeps-access";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -114,24 +115,11 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
           Step 7. Unchecked, and the consequence of each answer is stated before
           they choose — not after, and not in a tooltip.
         */}
-        <div className="rounded-2xl border border-slate-200 p-4">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={keepsAccess}
-              onChange={(e) => setKeepsAccess(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-            />
-            <span className="min-w-0">
-              <span className="block text-sm font-medium text-slate-800">
-                {t("pclaim.keepAccess")}
-              </span>
-              <span className="mt-1 block text-xs leading-relaxed text-slate-500">
-                {t("pclaim.keepAccessBody")}
-              </span>
-            </span>
-          </label>
-        </div>
+        <KeepsAccess
+          label={t("pclaim.keepAccess")}
+          checked={keepsAccess}
+          onChange={setKeepsAccess}
+        />
 
         {error ? (
           <p role="alert" aria-live="assertive" className="text-sm text-red-600">

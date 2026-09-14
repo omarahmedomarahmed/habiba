@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { and, desc, eq, gte, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNotNull, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
@@ -120,6 +120,21 @@ export type RadarTherapist = {
   rating: { average: number; count: number } | null;
   status: "online" | "pending" | "in_session";
   /**
+   * 🔴 65.6 — THE NEXT HOUR THIS CLINICIAN HAS OPEN, OR NULL.
+   *
+   * *The map answers "who is near me" and the list answers "who is there", and most
+   * people are asking the second question.* A list without this answers neither: it
+   * shows somebody who is offline and gives the reader nothing to do about it.
+   *
+   * An ISO string rather than a `Date`, because this same object reaches the client
+   * twice — once through the server render and once as JSON from `/api/radar` — and a
+   * `Date` survives one path and arrives as a string on the other. One type on both.
+   *
+   * Null means they have published no hours, which is a real state and is different
+   * from having none left this week.
+   */
+  nextOpenAt: string | null;
+  /**
    * True when the pending state is *this* visitor's own reservation. The
    * difference between "someone is booking them" and "you are booking them",
    * which the UI absolutely has to be able to tell apart.
@@ -223,6 +238,8 @@ type Board = {
    * and what stops a second query appearing inside a map().
    */
   hiddenLanguages: Set<string>;
+  /** 65.6 — the next open hour per clinician, from the one predicate `openHours` uses. */
+  nextOpen: Map<string, Date>;
 };
 let board: { at: number; value: Promise<Board> } | null = null;
 
@@ -244,12 +261,13 @@ async function loadBoard(): Promise<Board> {
    * for. Storing the in-flight promise means they all wait on the first one.
    */
   const value = (async () => {
-    const [rows, ratings, hiddenLanguages] = await Promise.all([
+    const [rows, ratings, hiddenLanguages, nextOpen] = await Promise.all([
       queryBoard(),
       therapistRatings(),
       closedCodes("language"),
+      nextOpenHours(),
     ]);
-    return { rows, ratings, hiddenLanguages };
+    return { rows, ratings, hiddenLanguages, nextOpen };
   })();
 
   board = { at: fresh, value };
@@ -265,8 +283,43 @@ async function loadBoard(): Promise<Board> {
 
 export async function listRadar(viewer?: string | null): Promise<RadarTherapist[]> {
   const viewerHash = viewer ? hashViewer(viewer) : null;
-  const { rows, ratings, hiddenLanguages } = await loadBoard();
-  return shapeBoard(rows, ratings, viewerHash, hiddenLanguages);
+  const { rows, ratings, hiddenLanguages, nextOpen } = await loadBoard();
+  return shapeBoard(rows, ratings, viewerHash, hiddenLanguages, nextOpen);
+}
+
+/**
+ * 🔴 65.6 — THE NEXT OPEN HOUR, FOR EVERY CLINICIAN, IN ONE QUERY.
+ *
+ * One grouped `MIN` rather than a call per row: a list of a hundred clinicians with a
+ * query each is the N+1 that turns a two-query board into a hundred and two, and it
+ * would happen inside the cached load where nobody would see it.
+ *
+ * 🔴 THE PREDICATE IS `openHours`' OWN, spelled the same way on purpose. A held hour
+ * whose hold has lapsed is open again, and a second definition of "open" living here
+ * would drift from the one the booking calendar renders: the list would offer an hour
+ * the calendar does not have, or hide one it does.
+ */
+async function nextOpenHours(): Promise<Map<string, Date>> {
+  const now = new Date();
+
+  const rows = await db
+    .select({
+      userId: availabilitySlots.therapistUserId,
+      at: sql<string>`MIN(${availabilitySlots.startsAt})`,
+    })
+    .from(availabilitySlots)
+    .where(
+      and(
+        gt(availabilitySlots.startsAt, now),
+        or(
+          eq(availabilitySlots.status, "open"),
+          and(eq(availabilitySlots.status, "held"), lt(availabilitySlots.heldUntil, now)),
+        ),
+      ),
+    )
+    .groupBy(availabilitySlots.therapistUserId);
+
+  return new Map(rows.map((row) => [row.userId, new Date(row.at)]));
 }
 
 async function queryBoard() {
@@ -389,6 +442,7 @@ function shapeBoard(
   ratings: Map<string, { average: number; count: number }>,
   viewerHash: string | null,
   hiddenLanguages: Set<string> = new Set(),
+  nextOpen: Map<string, Date> = new Map(),
 ): RadarTherapist[] {
   const nowMs = Date.now();
 
@@ -454,6 +508,7 @@ function shapeBoard(
           : null;
       })(),
       status: status as "online" | "pending" | "in_session",
+      nextOpenAt: nextOpen.get(row.userId)?.toISOString() ?? null,
       reservedByYou:
         Boolean(viewerHash) && !lapsed && row.reservedBy === viewerHash && row.status === "pending",
     };

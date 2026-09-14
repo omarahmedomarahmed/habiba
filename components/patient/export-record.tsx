@@ -6,6 +6,7 @@ import { Mail } from "lucide-react";
 
 import { exportMyRecord, type ExportState } from "@/app/(patient)/patient/record/actions";
 import { Button, Card } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -45,8 +46,33 @@ export function ExportRecord({ email }: { email: string | null }) {
   return (
     <Card className="p-5">
       <p className="text-sm font-semibold text-slate-900">{t("pexport.title")}</p>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-        {t("pexport.body", { email })}
+
+      {/*
+        🔴 65.5 / 65.23 — WHAT IS IN IT, AND WHAT IT IS NOT, IN ONE SHAPE.
+
+        Two paragraphs, 77 words, one above the button listing the contents in a single
+        sentence with four commas and one below it in the smallest type on the card
+        saying it is not a certificate.
+
+        The second is the one a person might rely on in front of an insurer or a court,
+        so it cannot be the footnote: it is the CANNOT column, at the same size as the
+        contents. 65.23 in one edit — hidden is not minimal, and neither is small.
+      */}
+      <div className="mt-3">
+        <SeesWhat
+          who={t("pexport.who")}
+          can={[
+            t("pexport.hasSessions"),
+            t("pexport.hasNotes"),
+            t("pexport.hasSummaries"),
+            t("pexport.hasYours"),
+          ]}
+          cannot={[t("pexport.notCert"), t("pexport.notRight"), t("pexport.notForCourt")]}
+        />
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-slate-600">
+        {t("pexport.delivery", { email })}
       </p>
 
       {state.sentTo ? (
@@ -56,8 +82,7 @@ export function ExportRecord({ email }: { email: string | null }) {
           </p>
           {state.code ? (
             <p className="mt-1.5 text-xs leading-relaxed text-teal-900/80">
-              The cover page carries the code {state.code}. Anybody you hand the document to can
-              check that code and confirm we produced it.
+              {t("pexport.coverCode", { code: state.code })}
             </p>
           ) : null}
         </div>
@@ -78,9 +103,6 @@ export function ExportRecord({ email }: { email: string | null }) {
         {pending ? t("pexport.preparing") : state.sentTo ? t("pexport.sent") : t("pexport.button")}
       </Button>
 
-      <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        {t("pexport.notCertificate")}
-      </p>
     </Card>
   );
 }

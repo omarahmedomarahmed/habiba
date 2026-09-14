@@ -52,7 +52,10 @@ export async function TherapistCard({ therapist }: { therapist: DiscoverTherapis
         {therapist.rating.count > 0 ? (
           <span className="mt-1 flex items-center gap-1 text-xs text-slate-500">
             <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
-            {therapist.rating.average} from {therapist.rating.count} sessions
+            {t("common.ratingFrom", {
+              average: therapist.rating.average,
+              count: therapist.rating.count,
+            })}
           </span>
         ) : null}
       </span>

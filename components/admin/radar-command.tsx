@@ -142,6 +142,15 @@ export function RadarCommand({
           clinicName: null,
           sessionRateCents: row.sessionRateCents,
           rating: row.rating,
+          /*
+           * 🔴 65.6 — null on the operator's globe, for the same reason as `clinicName`.
+           *
+           * Next availability is a fact a PATIENT acts on. This screen is about whether
+           * a clinician is live, stale, suspended or reported, and its own table carries
+           * the operational columns. A next-open cell here is one more query on a screen
+           * that does not use the answer.
+           */
+          nextOpenAt: null,
           status: row.status as "online" | "pending" | "in_session",
           reservedByYou: false,
         })),

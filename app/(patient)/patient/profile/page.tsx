@@ -4,6 +4,7 @@ import { inArray } from "drizzle-orm";
 
 import { OwnProfilePanel } from "@/components/documents/own-profile-panel";
 import { Card } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
 import { PatientBack } from "@/components/patient/back";
 import { listDiagnoses } from "@/lib/data/diagnoses";
 import { listDocuments } from "@/lib/data/documents";
@@ -71,8 +72,10 @@ export default async function OwnProfilePage() {
     createdAt: document.createdAt.toISOString(),
     // 8.7 — provenance in the words a patient reads, not a role name.
     addedBy: document.uploadedByAccountId
-      ? "You added this"
-      : `Added by ${nameOf.get(document.uploadedByUserId ?? "") ?? "your therapist"}`,
+      ? t("pprofile.addedByYou")
+      : t("pprofile.addedBy", {
+          name: nameOf.get(document.uploadedByUserId ?? "") ?? t("pprofile.yourTherapist"),
+        }),
     flags: document.flags,
   }));
 
@@ -119,9 +122,22 @@ export default async function OwnProfilePage() {
                 </li>
               ))}
           </ul>
-          <p className="mt-3 text-xs leading-relaxed text-slate-500">
-            {t("pprofile.flagNote")}
-          </p>
+          {/*
+            🔴 65.5 — WHAT FLAGGING DOES AND WHAT IT CANNOT DO.
+
+            44 words in the smallest grey on the page, under a list of diagnoses, doing
+            three jobs: where to flag, what a flag reaches, and that nothing is erased.
+            The third is the one a patient will be wrong about, and it is the reason the
+            second is safe, so both belong in a column rather than at the tail of a
+            sentence somebody stopped reading two clauses ago.
+          */}
+          <div className="mt-3">
+            <SeesWhat
+              who={t("pprofile.flagWho")}
+              can={[t("pprofile.flagWarns")]}
+              cannot={[t("pprofile.flagNotErase"), t("pprofile.flagNotChange")]}
+            />
+          </div>
         </Card>
       ) : null}
     </main>

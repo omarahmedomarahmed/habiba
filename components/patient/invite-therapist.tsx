@@ -9,6 +9,7 @@ import {
   type InviteState,
 } from "@/app/(patient)/patient/consent/actions";
 import { Button, Card } from "@/components/ui";
+import { FlowStrip } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -49,9 +50,28 @@ export function InviteTherapist({
   return (
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">{t("consent.newTherapist")}</p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">
-        {t("consent.newTherapistBody")}
-      </p>
+
+      {/*
+        🔴 65.5 / 65.22 — A SEQUENCE, SO IT IS NUMBERED.
+
+        `consent.newTherapistBody` was 37 words describing three things that happen in
+        an order: you make a code, they enter it, you are asked. 65.22 forbids a numbered
+        strip over content that is not a sequence; this one is, and the numbers are what
+        the paragraph was spending words to establish.
+
+        The sentence the copy could not afford to lose is step three's: *nothing about
+        you moves until you say yes.* It is a step's own detail now rather than the tail
+        of a paragraph, which is where somebody skimming stops reading.
+      */}
+      <div className="mt-3">
+        <FlowStrip
+          steps={[
+            { title: t("consent.inviteStep1"), detail: t("consent.inviteStep1Body") },
+            { title: t("consent.inviteStep2"), detail: t("consent.inviteStep2Body") },
+            { title: t("consent.inviteStep3"), detail: t("consent.inviteStep3Body") },
+          ]}
+        />
+      </div>
 
       {live.length > 0 ? (
         <ul className="mt-3 space-y-2.5">

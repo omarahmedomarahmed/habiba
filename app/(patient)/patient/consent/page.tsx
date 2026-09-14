@@ -8,6 +8,7 @@ import { PatientBack } from "@/components/patient/back";
 import { ConsentList } from "@/components/patient/consent-list";
 import { InviteTherapist } from "@/components/patient/invite-therapist";
 import { LinkedPlatforms } from "@/components/patient/linked-platforms";
+import { SeesWhat } from "@/components/visual/primitives";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patients, sessions, users } from "@/lib/db/schema";
@@ -97,10 +98,27 @@ export default async function ConsentPage() {
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
           {t("consent.pageTitle")}
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {t("consent.pageBody")}
-        </p>
       </div>
+
+      {/*
+        🔴 65.5 / 65.11 / 65.23 — THE RULE, AS TWO COLUMNS INSTEAD OF TWO PARAGRAPHS.
+
+        This screen opened with a 27-word sentence under the title and closed with a
+        35-word one in grey at the bottom, and between them sat the controls. The second
+        carried the fact a patient is most likely to be wrong about — that stopping
+        access does not un-read what was read, or erase the notes — in the smallest type
+        on the page, below everything.
+
+        Both are now one `SeesWhat`, above the controls, where the "keep" fact sits in
+        the CAN column at the same size as everything else. 65.23 is the reason it is a
+        component rather than a disclosure somebody taps: what a court would expect this
+        person to have seen stays visible without an interaction.
+      */}
+      <SeesWhat
+        who={t("consent.whoTherapist")}
+        can={[t("consent.mayRead"), t("consent.mayKeep"), t("consent.mayAskAgain")]}
+        cannot={[t("consent.neverBefore"), t("consent.neverAfter"), t("consent.neverWhy")]}
+      />
 
       <ConsentList
         requests={requests.map((r) => ({
@@ -161,14 +179,14 @@ export default async function ConsentPage() {
       />
 
       {/*
-        Said once, at the bottom, and phrased as fact rather than warning.
-        §3: revoking stops new reading and cannot un-read what was already
-        seen — the patient is entitled to know that before they rely on it,
-        and not to be alarmed by it.
+        🔴 65.3 — `consent.stopNote` was here and is not deleted, it has MOVED UP.
+
+        §3's rule is that revoking stops new reading and cannot un-read what was already
+        seen. The patient is entitled to know that before they rely on it, which is an
+        argument for the top of the screen rather than the bottom, and the `SeesWhat`
+        above now carries it as `consent.canKeep`.
       */}
-      <p className="px-1 pb-4 text-xs leading-relaxed text-slate-500">
-        {t("consent.stopNote")}
-      </p>
+      <div className="pb-4" />
     </main>
   );
 }

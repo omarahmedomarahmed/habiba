@@ -56,7 +56,7 @@ export function TherapistCard({
               dark ? "text-white" : "text-slate-900",
             )}
           >
-            {fullName(entry.firstName, entry.lastName, "Clinician")}
+            {fullName(entry.firstName, entry.lastName, t("radar.clinician"))}
           </span>
           {entry.rating ? (
             <span
@@ -76,7 +76,7 @@ export function TherapistCard({
         <span className={cn("block truncate text-xs", dark ? "text-white/50" : "text-slate-500")}>
           {[entry.credentials, entry.languages.slice(0, 2).join(" · ")]
             .filter(Boolean)
-            .join(", ") || "Licensed clinician"}
+            .join(", ") || t("radar.licensed")}
         </span>
 
         {entry.specialties.length > 0 || entry.practice || entry.clinicName ? (
@@ -137,10 +137,10 @@ export function TherapistCard({
 
       <span className="shrink-0 text-end">
         <span className={cn("block text-sm font-bold", dark ? "text-white" : "text-slate-900")}>
-          {entry.sessionRateCents > 0 ? formatUsd(entry.sessionRateCents) : "Free"}
+          {entry.sessionRateCents > 0 ? formatUsd(entry.sessionRateCents) : t("radar.free")}
         </span>
         <span className={cn("block text-[10px]", dark ? "text-white/40" : "text-slate-400")}>
-          30 min
+          {t("radar.perHalfHour")}
         </span>
       </span>
 
@@ -204,9 +204,9 @@ export function StatusPill({
 }) {
   const t = useT();
   const map = {
-    online: { label: "Available", light: "bg-teal-100 text-teal-800", dark: "bg-teal-400/20 text-teal-300" },
-    pending: { label: "Being booked", light: "bg-amber-100 text-amber-800", dark: "bg-amber-400/20 text-amber-200" },
-    in_session: { label: "In session", light: "bg-slate-200 text-slate-600", dark: "bg-white/10 text-white/50" },
+    online: { label: t("radar.available"), light: "bg-teal-100 text-teal-800", dark: "bg-teal-400/20 text-teal-300" },
+    pending: { label: t("radar.beingBooked"), light: "bg-amber-100 text-amber-800", dark: "bg-amber-400/20 text-amber-200" },
+    in_session: { label: t("radar.inSession"), light: "bg-slate-200 text-slate-600", dark: "bg-white/10 text-white/50" },
   } as const;
 
   // "Being booked" shown to the person doing the booking is the bug this whole
@@ -214,7 +214,7 @@ export function StatusPill({
   const tone =
     mine && status === "pending"
       ? {
-          label: "Held for you",
+          label: t("radar.heldForYou"),
           light: "bg-brand-100 text-brand-800",
           dark: "bg-brand-400/20 text-brand-200",
         }

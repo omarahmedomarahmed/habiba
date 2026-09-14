@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { askPreviousTherapist } from "@/app/(patient)/patient/consent/actions";
 import { Button, Card } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -48,9 +49,26 @@ export function AskHistory({
       <p className="text-sm font-semibold text-slate-900">
         {t("consent.askOld")}
       </p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">
-        {t("consent.askOldBody")}
-      </p>
+
+      {/*
+        🔴 65.5 — THE PROMISE AND ITS LIMIT, IN THE SAME SHAPE AS THE ONE ABOVE.
+
+        `consent.askOldBody` was 32 words doing two jobs at once: warning that an old
+        clinician may refuse, and promising that the patient hears back either way. A
+        paragraph makes the reader hold both at once; two columns let them read the
+        limit and the guarantee as the separate facts they are.
+
+        C108's ruling is the "cannot" column. The database refuses a decline with no
+        reason, so *"leave you without an answer"* is a thing this product structurally
+        prevents rather than a service promise.
+      */}
+      <div className="mt-3">
+        <SeesWhat
+          who={t("consent.askWho")}
+          can={[t("consent.askCanAdd"), t("consent.askCanRefuse")]}
+          cannot={[t("consent.askCannotIgnore")]}
+        />
+      </div>
 
       {asks.length > 0 ? (
         <ul className="mt-3 space-y-2">
@@ -62,7 +80,7 @@ export function AskHistory({
                   ? t("pask.waiting")
                   : ask.status === "added"
                     ? t("pask.added")
-                    : `They said no. In their words: “${ask.declineReason}”`}
+                    : t("consent.askDeclined", { reason: ask.declineReason ?? "" })}
               </p>
             </li>
           ))}

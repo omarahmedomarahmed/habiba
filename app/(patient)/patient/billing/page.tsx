@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { Card } from "@/components/ui";
+import { BeforeAfter } from "@/components/visual/primitives";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientCredits, patients, sessionPayments, sessions, users } from "@/lib/db/schema";
@@ -193,9 +194,19 @@ export default async function PatientBillingPage() {
         </ul>
       )}
 
-      <p className="text-xs leading-relaxed text-slate-400">
-        {t("pbilling.note")}
-      </p>
+      {/*
+        🔴 65.5 — TWO CURRENCIES, AS TWO COLUMNS.
+
+        41 words in the palest grey on the page explaining which of two numbers is which,
+        under a list in which both numbers appear. A reader comparing two figures does not
+        want a paragraph about the comparison, they want the comparison.
+      */}
+      <BeforeAfter
+        beforeLabel={t("pbilling.youPaidLabel")}
+        before={t("pbilling.youPaidBody")}
+        afterLabel={t("pbilling.theyGetLabel")}
+        after={t("pbilling.theyGetBody")}
+      />
     </main>
   );
 }

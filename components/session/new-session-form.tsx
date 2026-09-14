@@ -2,10 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { DollarSign, Link2, User, Users, Video } from "lucide-react";
+import { Link2, User, Users, Video } from "lucide-react";
 
 import { startNewSession, type SessionActionState } from "@/app/(app)/sessions/actions";
 import { Button, Field, Input } from "@/components/ui";
+import { SplitBar } from "@/components/visual/primitives";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -319,14 +320,37 @@ export function NewSessionForm({
                  * told truthfully today is their own side of the split, so that
                  * is all this says.
                  */
-                <p className="flex items-center gap-1.5 text-xs text-slate-600">
-                  <DollarSign className="h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
-                  {t("tnew.split", {
-                    keep: formatUsd(priceCents - cut),
-                    fee: formatUsd(cut),
-                    percent: payments.feeBps / 100,
-                  })}
-                </p>
+                /*
+                 * 🔴 65.10 — THE SPLIT IS THE BAR NOW, and the numbers are its legend.
+                 *
+                 * The sentence it replaced was arithmetically complete and told a
+                 * clinician nothing at a glance: "You keep $51, 24Therapy takes $9
+                 * (15%)" makes the reader do the division to find out whether that is a
+                 * lot. The bar has done it before they reach the second figure.
+                 *
+                 * VAT is still absent and still for the reason above: it is a fact about
+                 * the PATIENT's country, which nobody knows until they open the pay page
+                 * and choose one. `SplitBar` takes two parts here and is honest about
+                 * being a split of what the clinician charges.
+                 */
+                <SplitBar
+                  parts={[
+                    {
+                      label: t("tnew.youKeep", { amount: formatUsd(priceCents - cut) }),
+                      value: priceCents - cut,
+                      kind: "keep",
+                    },
+                    {
+                      label: t("tnew.ourFee", {
+                        amount: formatUsd(cut),
+                        percent: payments.feeBps / 100,
+                      }),
+                      value: cut,
+                      kind: "fee",
+                    },
+                  ]}
+                  note={t("tnew.vatOnTop")}
+                />
               ) : null}
             </div>
           ) : null}

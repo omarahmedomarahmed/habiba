@@ -23,6 +23,8 @@ export const en = {
   /* ------------------------------------------------------------ generic -- */
   /* 51.3 — the divider between two ways of doing the same thing. */
   "common.or": "or",
+  /* 37L / 65.21 — the rating line, which was English markup inside a shared card. */
+  "common.ratingFrom": "{average} from {count} sessions",
   "common.continue": "Continue",
   "common.cancel": "Cancel",
   "common.back": "Back",
@@ -64,8 +66,7 @@ export const en = {
      their share on. The patient's card handling is unchanged either way, which
      is the part this line exists to reassure them about.
   */
-  "join.privateNotePaid":
-    "Payment is handled by Stripe and goes to your therapist. We never see your card. Your session is private and is not shared with anyone else.",
+  "join.privateNotePaid": "Stripe takes the payment and it goes to your therapist. We never see your card.",
   "join.paymentReceived": "Payment received",
   "join.takingYouIn": "Taking you into your session…",
 
@@ -82,14 +83,10 @@ export const en = {
    */
   "consent.noCost": "Your answer does not change whether you are seen, or what you pay.",
   "consent.question": "May your therapist record this session?",
-  "consent.point.notes":
-    "The recording is turned into your therapist's clinical notes, and a plain-language summary for you.",
-  "consent.point.private":
-    "Only your therapist can see it. It is never sold, never used for advertising, and never shown to another patient.",
-  "consent.point.changeMind":
-    "You can change your mind during the session: ask your therapist to stop and the recording indicator turns amber.",
-  "consent.refusal":
-    "If you say no the session still happens, exactly the same. Your therapist writes their notes by hand instead.",
+  "consent.point.notes": "The recording becomes your therapist's notes, and a plain-language summary for you.",
+  "consent.point.private": "Only your therapist sees it. Never sold, never advertising, never shown to another patient.",
+  "consent.point.changeMind": "Ask your therapist to stop at any point and the recording indicator turns amber.",
+  "consent.refusal": "Say no and the session happens exactly the same. Your therapist writes by hand.",
   "consent.grant": "Yes, you may record",
   "consent.decline": "No, please do not record",
   "consent.required":
@@ -106,8 +103,7 @@ export const en = {
   "room.doNotClose": "Do not close this tab.",
   "room.youGetToRate":
     "You get to rate {therapist} and this session as soon as it ends, right here, on this page.",
-  "room.closingCost":
-    "Closing the tab is the one thing we cannot undo: the rating and your written summary both live on the other side of it, and there is no way for us to bring you back.",
+  "room.closingCost": "Closing the tab is the one thing we cannot undo. The rating and your written summary are on the other side of it.",
   "room.anonymous":
     "Your rating is anonymous. {therapist} sees the stars and the words, never who wrote them.",
   "room.recording": "Recording",
@@ -146,8 +142,7 @@ export const en = {
   "feedback.email": "Where should we send your summary?",
   "feedback.submit": "Send and get my summary",
   "feedback.expired": "This link has expired",
-  "feedback.expiredBody":
-    "Session links stay open for three days. If you still need your summary, ask your therapist to send it again.",
+  "feedback.expiredBody": "Links stay open three days. Ask your therapist to send your summary again.",
   "feedback.emergency":
     "If you are in immediate danger, call your local emergency number.",
 
@@ -349,12 +344,17 @@ export const en = {
   "home.yourAccount": "Your account",
   "home.searchPlaceholder": "What do you want help with?",
   "home.findNow": "Find someone now",
-  "home.findNowBody": "Therapists who are online and free this minute.",
+  /* 65.7 / 65.8 — the banner counts instead of promising. */
+  "home.liveOne": "One therapist is free this minute",
+  "home.liveMany": "{count} therapists are free this minute",
+  "home.liveNone": "Nobody is online right now",
+  "home.liveNoneBody": "Book an hour with someone instead",
+  "home.exploreTitle": "Therapists here",
+  "home.exploreAll": "See everyone",
+  "home.nobodyListed": "No therapist is listed yet",
   "home.claimedTitle": "That record is yours now",
-  "home.claimedKept":
-    "Your therapist can still see your profile. You can change that whenever you like, under who can read your history.",
-  "home.claimedDropped":
-    "Your therapist keeps the notes they already wrote, and can no longer see your live profile. You can give access back at any time.",
+  "home.claimedKept": "They can still see your profile. Change it under who can read your history.",
+  "home.claimedDropped": "They keep the notes they wrote, and no longer see your live profile. Reversible any time.",
   "home.askedTitle": "Somebody asked to read your history",
   "home.askedOne": "A therapist has asked. You decide, and you can change your mind later.",
   "home.askedMany": "{count} therapists have asked. You decide, and you can change your mind later.",
@@ -364,8 +364,15 @@ export const en = {
   "home.openAndMore": "Open this and {count} more",
   "home.areas": "Areas people come here for",
   "home.ratedHighest": "Rated highest by patients",
-  "home.ratedHighestBody":
-    "Only therapists with at least five rated sessions. Below that there is no score to show, so they are not here.",
+  /*
+   * 🔴 65.3 — the bar is still stated, in two numbers instead of two sentences.
+   *
+   * The removed paragraph carried one rule: below five rated sessions there is no score,
+   * so nobody is ranked. "{count} with {bar}+ rated sessions" carries it and survives the
+   * case the paragraph never covered, which is {count} being zero.
+   */
+  "home.ratedSome": "{count} with {bar}+ rated sessions",
+  "home.ratedNone": "Nobody has {bar} rated sessions yet",
   "home.yourRecord": "Your record",
   "home.yours": "Yours",
   "home.notClaimed": "Not claimed yet",
@@ -409,11 +416,9 @@ export const en = {
 
   /* --------------------------------------------------------------- journal */
   "journal.title": "Your journal",
-  "journal.body":
-    "Whatever you want to keep. Between sessions, a week is a long time to remember, and this is yours whether or not you ever show it to anybody.",
+  "journal.body": "Whatever you want to keep between sessions. Yours, and shown to nobody unless you choose.",
   "journal.whoCanOpen": "Who can open this",
-  "journal.nobody":
-    "Nobody. You have not given any therapist access to your history, so what you write here stays with you until you do.",
+  "journal.nobody": "Nobody. No therapist has access to your history, so this stays with you.",
   "journal.readers": "These therapists can read your journal: {names}.",
   "journal.placeholder": "Today…",
   "journal.save": "Save this",
@@ -423,20 +428,16 @@ export const en = {
 
   /* --------------------------------------------------------------- summary */
   "psummary.title": "Your clinical summary",
-  "psummary.body":
-    "Written by the therapists you have seen, about the course of your therapy rather than one session. It is yours. Every version stays, with the name of whoever wrote it, and nobody can take one back.",
+  "psummary.body": "Your therapists write it, version by version, each with its author's name. It is yours.",
   "psummary.none": "Nothing has been written yet.",
-  "psummary.noneBody":
-    "A therapist adds a version when they finish a session. It is theirs to write and yours to keep.",
+  "psummary.noneBody": "A therapist adds a version when they finish a session. Theirs to write, yours to keep.",
   "psummary.version": "Version {n} · {date}",
 
   /* ---------------------------------------------------------- whole record */
   "precord.title": "Your whole record",
-  "precord.body":
-    "Everything this platform holds about your therapy, in one document you can keep, print, or hand to somebody.",
+  "precord.body": "Everything this platform holds about your therapy, in one document you can keep.",
   "precord.copyTitle": "A copy of everything",
-  "precord.copyBody":
-    "We send a record extract to an email address and nowhere else. Not WhatsApp: it is the most personal document we hold about you, and a message on a shared phone is not where it belongs.",
+  "precord.copyBody": "Email only, never WhatsApp: a shared phone is not where this belongs.",
   "precord.addEmail": "Add an email to get your record",
   "precord.send": "Send it to {email}",
   "precord.sending": "Sending…",
@@ -444,24 +445,21 @@ export const en = {
 
   /* --------------------------------------------------------------- profile */
   "pprofile.title": "Your profile",
-  "pprofile.body":
-    "Letters, prescriptions, reports and anything you want a therapist to know. It travels with you, you decide who reads it.",
+  "pprofile.body": "Letters, prescriptions and reports. It travels with you, and you decide who reads it.",
   "pprofile.sayInstead": "Want to say how things have been?",
-  "pprofile.sayInsteadBody":
-    "Write a journal instead. It is yours, a therapist you have given access to can read it, and it is a lot easier than filing paperwork about yourself.",
-  "pprofile.empty":
-    "Nothing here yet. Letters, prescriptions, scans and old reports all belong here, a photograph of a page is fine.",
+  "pprofile.sayInsteadBody": "Write a journal instead. Yours, readable by a therapist you allow, and far less work.",
+  "pprofile.empty": "Nothing here yet. Letters, prescriptions, scans and old reports belong here.",
 
   /* ---------------------------------------------------------------- browse */
   "browse.title": "Find a therapist",
   "browse.placeholder": "Anxiety, sleep, a language…",
   "browse.none": "Nobody has been listed yet.",
-  "browse.noneBody": "The radar shows who is free right now, and it is the quickest way in.",
+  "browse.noneBody": "The radar shows who is free right now.",
   "browse.openRadar": "Open the radar",
 
   /* -------------------------------------------------------------- homework */
   "homework.title": "What to try",
-  "homework.body": "Small things you and your therapist agreed on. Do them or do not, nobody is counting.",
+  "homework.body": "Small things you and your therapist agreed on. Nobody is counting.",
   "homework.none": "Nothing yet",
   "homework.noneBody": "Your therapist adds these after a session.",
   "homework.done": "Done",
@@ -475,8 +473,10 @@ export const en = {
   /* 🔴 53.21 — a covered session, named without naming an employer (C227, C243). */
   "pbilling.covered": "Covered",
   "pbilling.coveredBody": "Your benefit paid for this one. There is nothing for you to pay.",
-  "pbilling.note":
-    "The headline figure is what you were actually charged, in the currency you paid in, at the rate quoted at the time. The breakdown is in the currency your therapist is paid in. That is the amount a refund would return.",
+  "pbilling.youPaidLabel": "You paid",
+  "pbilling.youPaidBody": "The headline figure, in your currency, at the rate quoted then. A refund returns this.",
+  "pbilling.theyGetLabel": "Your therapist is paid",
+  "pbilling.theyGetBody": "The breakdown, in their currency.",
 
   /* --------------------------------------------------------------- account */
   "paccount.title": "Your account",
@@ -488,22 +488,19 @@ export const en = {
 
   /* ------------------------------------------------------------- residency */
   "residency.title": "Where your record is kept",
-  "residency.home": "In {country}, which is where it belongs. Nothing crosses a border, so there is nothing for you to agree to here.",
+  "residency.home": "In {country}, where it belongs. Nothing crosses a border, so there is nothing to agree to.",
 
   /* ----------------------------------------------------------------- claim */
   "pclaim.title": "Have you seen a therapist before?",
   "pclaim.body": "If they already keep notes about you, you can take ownership of them, {name}.",
   "pclaim.handleTitle": "First, is this number yours?",
-  "pclaim.handleBody":
-    "We have not looked yet. A phone number proves a number, not a person, so we check that you can receive a message at {handle} before we say anything about any record.",
+  "pclaim.handleBody": "We have not looked yet. First we check you can receive a message at {handle}.",
   "pclaim.sendCode": "Send me a code",
   "pclaim.codeLabel": "Six-digit code",
   "pclaim.checkCode": "Check the code",
-  "pclaim.channelDown":
-    "Codes over WhatsApp are not switched on yet, so one may not arrive. Ask your therapist for an invite link instead: it does the same thing.",
+  "pclaim.channelDown": "WhatsApp codes are not switched on yet. Ask your therapist for an invite link instead.",
   "pclaim.nothingFound": "We could not find a record under that number.",
-  "pclaim.nothingFoundBody":
-    "That is normal. Your therapist can send you an invite link, which works straight away.",
+  "pclaim.nothingFoundBody": "Normal. An invite link from your therapist works straight away.",
 
   /* ---------------------------------------------------------------- invite */
   "pinvite.title": "Your therapist sent you this",
@@ -512,11 +509,8 @@ export const en = {
   "pinvite.create": "Create an account",
   "pinvite.signIn": "Sign in",
   "pinvite.takeTitle": "Take ownership of your record",
-  "pinvite.takeBody":
-    "Your therapist keeps notes under the name {masked}. Claiming it means the record is yours: it travels with you, and you decide who reads it.",
+  "pinvite.takeBody": "{masked} keeps notes under this name. Claiming it makes the record yours: it travels with you.",
   "pinvite.keepAccess": "Let this therapist keep seeing my profile",
-  "pinvite.keepAccessBody":
-    "Off by default, even though they sent you this link. If you leave it off they keep the notes they already wrote and nothing else. You can change it whenever you like.",
   "pinvite.claimIt": "This is me, claim it",
   "pinvite.claiming": "Claiming…",
   "pinvite.dead": "This link is no longer valid.",
@@ -532,13 +526,26 @@ export const en = {
 
   /* ------------------------------------------------ 🔴 consent, the patient's */
   "consent.pageTitle": "Who can read your history",
-  "consent.pageBody":
-    "Your history is yours. A therapist can ask to read it, and you can stop them at any time, they do not have to agree and you do not have to explain.",
+  /*
+   * 🔴 65.3 — `consent.pageBody` and `consent.stopNote` became these six.
+   *
+   * Two paragraphs, 62 words, one at the top of the screen and one in grey at the
+   * bottom. Every rule they carried is in the `SeesWhat` on `/patient/consent`, and the
+   * one a patient is most likely to be wrong about — that stopping access does not
+   * un-read what was read — is now in the CAN column at full size rather than a footnote
+   * under the controls.
+   */
+  "consent.whoTherapist": "A therapist you allow",
+  "consent.mayRead": "Read your history while you allow it",
+  "consent.mayKeep": "Keep what they read, and the notes they wrote",
+  "consent.mayAskAgain": "Ask you again later",
+  "consent.neverBefore": "Read anything before you say yes",
+  "consent.neverAfter": "Keep reading after you stop it",
+  "consent.neverWhy": "Make you explain why",
   "consent.waiting": "Waiting for your answer",
   "consent.nobodyAsked": "Nobody has asked to read your history.",
   "consent.whoHasAccess": "Who has access",
-  "consent.nobodyCanRead":
-    "Nobody can read your history. Your therapists still keep their own notes about the sessions you had with them, that part is their record, not yours to remove.",
+  "consent.nobodyCanRead": "Nobody can read your history. Your therapists keep their own notes, which are their record.",
   "consent.yesDay": "Yes, for 24 hours",
   "consent.yesUntil": "Yes, until I change my mind",
   "consent.no": "No thanks",
@@ -552,21 +559,26 @@ export const en = {
   "consent.youDeclined": "You declined",
   "common.working": "Working…",
   "consent.askedOn": "Asked on {date}",
-  "consent.stopNote":
-    "Stopping access stops any further reading straight away. It does not erase what a therapist already read or the notes they wrote, those are their own clinical records, which they are required to keep.",
   "consent.newTherapist": "Seeing somebody new?",
-  "consent.newTherapistBody":
-    "Give them a code. They enter it, which asks you whether they may read your history, and you decide then. Nothing about you moves until you say yes, and the code on its own shows them nothing.",
+  /* 🔴 65.3 / 65.22 — `consent.newTherapistBody` was three steps in an order. */
+  "consent.inviteStep1": "You make a code",
+  "consent.inviteStep1Body": "On its own it shows them nothing",
+  "consent.inviteStep2": "They enter it",
+  "consent.inviteStep2Body": "We ask you whether they may read your history",
+  "consent.inviteStep3": "You decide",
+  "consent.inviteStep3Body": "Nothing about you moves until you say yes",
   "consent.inviteTherapist": "Invite a therapist",
   "consent.goodUntil": "Good until {date}",
   "consent.cancelCode": "Cancel it",
   "consent.usedWaiting": "Used by {name}. Their request is waiting for your answer above.",
   "consent.usedAnswered": "Used by {name}. You have already answered them.",
-  "consent.readItOut":
-    "Read it to your therapist. It works until {date}, once, and you will be asked to approve before they can read anything.",
+  "consent.readItOut": "Read it to your therapist. Works once, until {date}, and you approve before they read anything.",
   "consent.askOld": "Ask a therapist you saw before to add what they hold",
-  "consent.askOldBody":
-    "They do not have to, and we cannot make them. What we can do is make sure you hear back: they either add it, or they say no and tell you why.",
+  /* 🔴 65.3 — `consent.askOldBody` was a limit and a guarantee in one sentence. */
+  "consent.askWho": "A therapist you ask",
+  "consent.askCanAdd": "Add what they hold to your record",
+  "consent.askCanRefuse": "Say no, with a reason you read",
+  "consent.askCannotIgnore": "Leave you without an answer",
   "consent.chooseTherapist": "Choose a therapist you have seen",
   "consent.askThem": "Ask them",
   "consent.askNote": "Anything you want to say to them (optional)",
@@ -576,18 +588,21 @@ export const en = {
   "pprofile.diagnoses": "Diagnoses on your record",
   "pprofile.diagnosesBody":
     "Taken from the documents above, in their own words, and confirmed by a clinician.",
-  "pprofile.flagNote":
-    "If any of this is out of date or wrong, flag it on the document it came from. Flagging marks it for every clinician who reads it. It does not erase what was written, because a medical record has to stay as it was.",
+  "pprofile.flagWho": "Flagging something wrong",
+  "pprofile.flagWarns": "Warns every clinician who reads it",
+  "pprofile.flagNotErase": "Erases what was written",
+  "pprofile.flagNotChange": "Changes the record: it stays as it was",
+  "pprofile.addedByYou": "You added this",
+  "pprofile.addedBy": "Added by {name}",
+  "pprofile.yourTherapist": "your therapist",
   "browse.searchAria": "What do you need help with?",
-  "browse.nothingMatched":
-    "Nobody on 24Therapy has listed that yet. Try one of the areas below, or open the radar to see who is free right now.",
+  "browse.nothingMatched": "Nobody has listed that yet. Try an area below, or open the radar.",
   "browse.areas": "What do you want help with?",
   "browse.areasBody": "Only areas a verified therapist has actually listed. The number is how many.",
   "paccount.phone": "Phone",
   "paccount.email": "Email",
   "paccount.timezone": "Time zone",
-  "paccount.addEmailBody":
-    "You signed up with your phone number. Adding an email lets you sign in with it too, and is the only way we can send you a copy of your record.",
+  "paccount.addEmailBody": "Another way to sign in, and the only way to receive a copy of your record.",
   "paccount.whoCanSee": "Who can see your record",
   "paccount.whoCanSeeBody": "Give access, take it back, and see what you were asked.",
   "paccount.ownDocuments": "Your own documents",
@@ -598,8 +613,7 @@ export const en = {
   "pauth.signInBody": "Sign in to see your notes, your homework and who can read your record.",
   "pauth.signUpTitle": "Create your account",
   "pauth.signUpBody": "Your record becomes yours: it travels with you, and you decide who reads it.",
-  "pauth.signUpInvited":
-    "{name} invited you. Your record becomes yours: it travels with you, and you decide who reads it.",
+  "pauth.signUpInvited": "{name} invited you. The record becomes yours, and you decide who reads it.",
   "pauth.forgot": "Forgot your password?",
   "pauth.newHere": "New here?",
   "pauth.alreadyHaveOne": "Already have one?",
@@ -611,56 +625,57 @@ export const en = {
   "pauth.practiceReset": "Reset your practice password",
   "pauth.resetTitle": "Get back into your account",
   "pinvite.usedTitle": "This link is no longer valid",
-  "pinvite.usedBody":
-    "It may have been used already, expired, or been taken back. Ask your therapist for a new one.",
+  "pinvite.usedBody": "Used, expired, or taken back. Ask your therapist for a new one.",
   "pclaim.noneTitle": "Nothing to claim yet",
-  "pclaim.noneBody":
-    "We could not find a record under your email or phone number. That is completely normal, most therapists write a name down and nothing else.",
-  "pclaim.noneAsk":
-    "If you know your therapist keeps notes about you, ask them for an invite link. It takes them one tap and it connects that exact record to this account.",
+  "pclaim.noneBody": "Nothing under your email or phone number. That is normal: most therapists write down a name.",
+  "pclaim.noneAsk": "Ask your therapist for an invite link. One tap, and it connects that exact record.",
   "pclaim.skip": "Skip for now",
   "pclaim.doneTitle": "That record is yours now",
   "pclaim.doneKept": "Your therapist can still see your profile. You can change that at any time.",
-  "pclaim.doneDropped":
-    "Your therapist keeps the notes they wrote, but can no longer see your live profile. You can give access back whenever you want to.",
+  "pclaim.doneDropped": "They keep the notes they wrote, and no longer see your live profile. Reversible any time.",
   "pclaim.goToSessions": "Go to my sessions",
   "pclaim.checkWhatsapp": "Check WhatsApp",
   "pclaim.checkEmail": "Check your email",
   "pclaim.codeSent": "We sent a six-digit code. It expires in thirty minutes.",
-  "pclaim.fellBack": "We could not reach you on WhatsApp, so the code went to your email instead.",
+  "pclaim.fellBack": "WhatsApp did not reach you, so the code went to your email.",
   "pclaim.yourCode": "Your code",
   "pclaim.keepAccess": "Let this therapist keep seeing my profile",
-  "pclaim.keepAccessBody":
-    "If you leave this off, they keep the notes they already wrote and nothing else, no new sessions, no live profile. You can turn it on later, and off again, whenever you like.",
+  /*
+   * 🔴 65.3 / 65.4 — `pclaim.keepAccessBody` and `pinvite.keepAccessBody` became these five.
+   *
+   * The same decision on two screens had a paragraph each, 65 words between them, and
+   * both described only what happens if the box is left OFF. `components/patient/keeps-access.tsx`
+   * renders both outcomes side by side with the control, which is a shorter screen AND
+   * an answer to the question the old copy left the reader to infer.
+   */
+  "pkeep.off": "Left off",
+  "pkeep.offKeeps": "The notes they already wrote, and nothing else",
+  "pkeep.on": "Turned on",
+  "pkeep.onKeeps": "Your live profile, and sessions from now on",
+  "pkeep.change": "You can change this whenever you like.",
   "pclaim.notMe": "This is not me",
   "pclaim.matchedEmail": "A therapist keeps notes for someone with your email address, under the name:",
   "pclaim.matchedPhone": "A therapist keeps notes for someone with your phone number, under the name:",
   "pclaim.isThatYou": "Is that you?",
   "pclaim.yesSendCode": "Yes, send me a code",
-  "pclaim.initialsOnly":
-    "We only show initials until you have confirmed the code. Nobody learns anything about you from this screen that you did not already tell us.",
+  "pclaim.initialsOnly": "Initials only until you confirm the code. This screen tells you nothing you did not tell us.",
   "consent.sayWhy": "You can say why, or say nothing. Either is fine.",
   "pclaim.everything": "That is everything",
   "pclaim.seenBefore": "Have you seen {name} before?",
-  "pclaim.seenBeforeBody":
-    "Your number matched a record they keep. If you have never seen them, say no. Nothing about that record is shown to you either way.",
+  "pclaim.seenBeforeBody": "Your number matched a record they keep. If you have never seen them, say no.",
   "pclaim.noHaveNot": "No, I have not",
-  "pclaim.typeName": "Type it as you gave it to them. We will not show it to you.",
+  "pclaim.typeName": "As you gave it to them. We will not show it to you.",
   "pclaim.firstName": "First name",
   "pcode.title": "Enter your code",
-  "pcode.body":
-    "If that phone number or email has an account, a six-digit code is on its way. It expires in ten minutes.",
-  "pcode.channelDown":
-    "Codes over WhatsApp are not switched on yet, so one may not arrive. If you set a password, sign in with that instead.",
+  "pcode.body": "If that number or address has an account, a six-digit code is on its way.",
+  "pcode.channelDown": "WhatsApp codes are not switched on yet. Sign in with your password instead.",
   "pcode.useCode": "Sign in with a code instead",
-  "pcode.useCodeBody":
-    "No password needed. We send a code to your phone number or your email, whichever you signed up with.",
+  "pcode.useCodeBody": "No password needed. We send a code to whichever you signed up with.",
   "pjournal.placeholder": "How has it been?",
   "psessions.writing": "Your therapist is still writing your summary.",
   "residency.withdraw": "Withdraw that",
   "pidentity.removePhoto": "Remove it",
-  "pidentity.photoPrivate":
-    "Your photo is not public. It is stored privately and shown only to you and to a therapist you are in a session with.",
+  "pidentity.photoPrivate": "Not public. Shown to you, and to a therapist you are in a session with.",
   "pauth.invitePhoneNote": "The number your therapist sent this invite to.",
   "pauth.phonePlaceholder": "Phone or WhatsApp",
   "pauth.phoneNote": "This is how you sign in and how your therapist finds you.",
@@ -713,8 +728,7 @@ export const en = {
   "pclaim.oneQuestion": "One question",
   "pclaim.claimThis": "Claim this record",
   "pinv.keepsAccess": "Your therapist can still see your profile. You can change that at any time.",
-  "pinv.losesAccess":
-    "Your therapist keeps the notes they wrote, but can no longer see your live profile.",
+  "pinv.losesAccess": "They keep the notes they wrote, and no longer see your live profile.",
   "pinv.thisIsMe": "This is me, claim it",
   "pid.addPhoto": "Add a photo",
   "pid.changePhoto": "Change your photo",
@@ -732,8 +746,7 @@ export const en = {
   "pfield.handle": "Phone number or email",
   "pfield.password": "Password",
   "pfield.passwordOptional": "Password (optional)",
-  "pfield.passwordOptionalHint":
-    "Leave it empty and sign in with a code instead, sent to the number or address above.",
+  "pfield.passwordOptionalHint": "Leave it empty and sign in with a code instead.",
   "pfield.sixDigitCode": "Six-digit code",
   "pfield.newPassword": "New password",
   "pfield.passwordLengthHint": "At least 10 characters.",
@@ -741,16 +754,14 @@ export const en = {
   "pfield.checkTheCode": "Check the code",
   "pfield.sendMeACode": "Send me a code",
 
-  "pted.retention":
-    "Records cannot be deleted, and cannot be emailed out of here. Sessions and notes are kept for the retention period your regulator requires. If this patient asks for their data or asks you to erase it, send them to us, we handle both, and you will be told when we do.",
+  "pted.retention": "Kept for the period your regulator requires, never deleted, never emailed out. Send data and erasure requests to us.",
   "pted.emailHint": "Used only to send session summaries.",
   "pted.diagnoses": "Working diagnoses",
   "pted.diagnosesHint": "Comma separated. Included as context when notes are written.",
   "pted.goals": "Treatment goals",
   "pted.goalsHint": "Comma separated.",
 
-  "pban.asked":
-    "You have asked for access. They will see your note next time they sign in. We do not chase them for you.",
+  "pban.asked": "Asked. They see your note next time they sign in. We do not chase them.",
   "pban.ask": "Ask for access",
   "pban.whyLabel": "Why are you asking? They read this.",
   "pban.example":
@@ -764,8 +775,7 @@ export const en = {
   "pnum.whyHint": "A person reads this.",
 
   "pracc.lockedOutTitle": "Somebody is locked out",
-  "pracc.lockedOutBody":
-    "Three wrong answers to \u201Cwhat name did you give them?\u201D. If that is your patient mistyping their own name, let them try again. If you are not expecting anybody to be claiming this record, do not.",
+  "pracc.lockedOutBody": "Three wrong answers to the name question. Let them try again only if you are expecting this claim.",
   "pracc.letThemTry": "Let them try again",
   "pracc.released":
     "Released. They have three more attempts, and it is on the record that you did it.",
@@ -781,16 +791,29 @@ export const en = {
   "pracc.whyPlaceholder": "Why, e.g. spoke to her, she typed her married name",
   "radar.freeNow": "Free now",
   "pexport.title": "A copy of everything",
-  "pexport.body":
-    "Every session, every note your therapists signed, every version of your summary, what you wrote yourself, and the dates. We email a link to {email} and nowhere else. It opens without a password and stops working after three days.",
+  /*
+   * 🔴 65.3 — `pexport.body` and `pexport.notCertificate` became these eight.
+   *
+   * 77 words, the contents in one sentence above the button and the limit in the
+   * smallest type below it. The limit is the half somebody might rely on in front of an
+   * insurer or a court, so it is the CANNOT column of a `SeesWhat` at the same size as
+   * the contents rather than a footnote under a control they have already pressed.
+   */
+  "pexport.who": "The copy we send you",
+  "pexport.hasSessions": "Every session, with its date",
+  "pexport.hasNotes": "Every note your therapists signed",
+  "pexport.hasSummaries": "Every version of your summary",
+  "pexport.hasYours": "What you wrote yourself",
+  "pexport.delivery": "Emailed to {email} and nowhere else. No password, and the link dies after three days.",
   "pexport.onItsWay": "On its way to {email}. Nobody here read it.",
   "pexport.button": "Email me my record",
   "pexport.preparing": "Putting it together…",
   "pexport.sent": "Sent",
-  "pexport.notCertificate":
-    "It is a record extract, not a certificate. It says what we hold and when it was written. It does not say that a diagnosis in it is right, and nothing in it is written for a court.",
-  "pidentity.photoPrivateRecord":
-    "Your photo is not public. It is stored privately and shown only to you and to a therapist who already has a record for you.",
+  "pexport.notCert": "A certificate",
+  "pexport.notRight": "A statement that a diagnosis is right",
+  "pexport.notForCourt": "A document written for a court",
+  "pexport.coverCode": "The cover page carries the code {code}. Anybody you hand it to can check it against us.",
+  "pidentity.photoPrivateRecord": "Not public. Shown to you, and to a therapist who already has a record for you.",
   "pcode.expires": "It expires in fifteen minutes.",
   "consent.whichTherapist": "Which therapist",
   "preset.changed": "Password changed",
@@ -806,13 +829,10 @@ export const en = {
   "preset.title": "Get back into your account",
   "preset.body": "Tell us the phone number or email you sign in with and we will send you a code.",
   "pnumber.requested": "We have your request",
-  "pnumber.requestedBody":
-    "Somebody will contact the new number to check it is you, then send it a code. Enter that code here and your account moves. Nothing changes until then.",
+  "pnumber.requestedBody": "Nothing changes until you enter the code we send the new number.",
   "pnumber.yours": "Your number",
-  "pnumber.body":
-    "This is how we know it is you, so changing it takes a person and a day. We call or message the new number first, then send it a code. Nobody here can move your account without that code.",
-  "pnumber.locked":
-    "Your number was confirmed recently, so it is locked until {date}. If you cannot wait, write to us and a person will look at it.",
+  "pnumber.body": "How we know it is you, so changing it takes a person and a day.",
+  "pnumber.locked": "Locked until {date}, because it was confirmed recently. Write to us if you cannot wait.",
   "pnumber.newNumber": "New number",
   "pnumber.country": "Country",
   "pnumber.mayCall": "You may call or message the new number to check it is me.",
@@ -853,7 +873,7 @@ export const en = {
    * what they answered belongs on the clinician's screen (56.9, C113).
    */
   "passess.title": "A few questions",
-  "passess.body": "Your therapist asked you to answer these. There are no right answers and nobody is marking them.",
+  "passess.body": "Your therapist asked you to answer these. No right answers, and nobody is marking them.",
   "passess.none": "Nothing to answer right now",
   "passess.noneBody": "When your therapist sends you a set of questions, it appears here.",
   "passess.start": "Start",
@@ -908,8 +928,7 @@ export const en = {
   "jconsent.on": "On",
   "jconsent.turnOn": "Turn on",
   "jconsent.changeAnyTime": "You can change these at any time during the session.",
-  "jconsent.cannotUndo":
-    "Changed your mind about recording? It cannot be switched off part-way, anything already recorded exists. Ask your therapist to end the session, and answer no next time.",
+  "jconsent.cannotUndo": "Recording cannot be stopped part-way. Ask your therapist to end the session, and answer no next time.",
   "radar.globeLabel": "A globe showing where therapists are online right now",
   "radar.spinningUp": "Spinning up…",
   "radar.clearFilters": "Clear all filters",
@@ -934,14 +953,27 @@ export const en = {
   "radar.nobodyYetBody":
     "Clinicians appear here the moment they go online. If you need help right now, call your local emergency number.",
   "radar.nobodyMatchingTitle": "Nobody matching that is on shift",
+  /* 65.6 — the list view beside the map. */
+  "radar.countShowing": "{count} showing",
+  "radar.mapView": "Map",
+  "radar.listView": "List",
+  "radar.nextOpen": "Next open",
+  "radar.noHours": "No hours published",
+  "radar.noRating": "Not rated yet",
+  "radar.noLanguages": "No languages listed",
+  "radar.clinician": "Clinician",
+  "radar.perHalfHour": "30 min",
+  "radar.licensed": "Licensed clinician",
+  "radar.available": "Available",
+  "radar.beingBooked": "Being booked",
+  "radar.inSession": "In session",
+  "radar.heldForYou": "Held for you",
   "prating.yourSession": "Your session",
   "prating.summaryOnWay": "Your summary is below, and a copy is on its way to your inbox.",
-  "prating.stillWriting":
-    "{name} is still writing up the session. Your summary will arrive by email as soon as it is approved, usually within the hour.",
-  "prating.keepLink": "Your summary is below. Keep this link if you want to come back to it.",
+  "prating.stillWriting": "{name} is still writing it up. It arrives by email once approved.",
+  "prating.keepLink": "Your summary is below. Keep this link to come back to it.",
   "prating.yourSummary": "Your summary",
-  "prating.writtenForYou":
-    "This is written for you. Your therapist keeps a separate clinical note, which stays with them.",
+  "prating.writtenForYou": "Written for you. Your therapist keeps a separate clinical note.",
   "prating.oneMinute": "One minute, and your summary is yours",
   "prating.andSession": "And the session itself?",
   "prating.andApp": "And 24Therapy itself?",
@@ -951,8 +983,7 @@ export const en = {
   "prating.noName": "Your therapist sees this without your name on it.",
   "prating.commentPlaceholder": "What helped, what did not.",
   "prating.whereSummary": "Where shall we send your summary?",
-  "prating.summaryBody":
-    "A plain-language summary of what you talked about and what you agreed. We use this address for that and to reach you about this session, nothing else.",
+  "prating.summaryBody": "Where we send your summary. Used for this session and nothing else.",
   "prating.ratingsAndEmail": "The ratings and an email address, and it is yours.",
   "prating.reported": "Reported",
   "prating.neverJoined": "They never joined, I want my money back",
@@ -964,14 +995,13 @@ export const en = {
   "pbook.firstName": "Your first name",
   "pbook.email": "Email",
   "pbook.phone": "Phone or WhatsApp",
-  "pbook.oneOfThese": "Give us one of these so we can send you the link and tell you if anything changes.",
+  "pbook.oneOfThese": "One of these, so we can send the link and tell you if anything changes.",
   "pbook.note": "Anything they should know before you meet? (optional)",
   "pbook.pickAnother": "Pick another time",
   "pbook.fullProfile": "See their full profile",
   "pbook.onlyYou": "You are the only one who can book them",
   "pbook.timeLeft": "Time left to complete this booking",
-  "pbook.heldBody":
-    "This therapist now shows as busy to everyone else. Finish your booking, or close this page so someone else can reach them.",
+  "pbook.heldBody": "They now show as busy to everyone else. Finish, or close this page.",
   /*
    * 🔴 C376 — this promised a stranger's availability and shipped for months.
    *
@@ -981,21 +1011,16 @@ export const en = {
    * person anywhere in this product, and a patient reading this is deciding
    * whether to wait.
    */
-  "pbook.taken":
-    "Someone else is on this profile right now. You can still try: if they do not go ahead, this clinician becomes available again.",
-  "pbook.unavailable":
-    "This clinician has just become unavailable. Close this and pick someone else, the board updates every few seconds.",
-  "pbook.noAccount":
-    "No account needed. Payment goes to your therapist through Stripe, we never see your card. If you are in immediate danger, call your local emergency number.",
+  "pbook.taken": "Someone is on this profile now. If they do not go ahead, this clinician frees up.",
+  "pbook.unavailable": "They have just become unavailable. The board updates every few seconds.",
+  "pbook.noAccount": "No account needed. Stripe takes the payment, we never see your card.",
   "pbook.walkIns": "Accepts walk-in visits",
   "pbook.directions": "Get directions",
   "pbook.emailAddress": "Email me the address",
   "pbook.addressSent": "Sent. Check your inbox.",
   "pbook.whereToSend": "Where to send the directions",
-  "pbook.addressOnce":
-    "We send the address and nothing else, once. It is not stored and you are not signed up to anything.",
-  "pbook.notAnAppointment":
-    "Turning up is not an appointment. Booking a session above is the only way to be certain someone is free.",
+  "pbook.addressOnce": "We send the address once, and nothing else. It is not stored.",
+  "pbook.notAnAppointment": "Turning up is not an appointment. Booking above is the only certainty.",
   "pbook.send": "Send",
   "pbook.sending": "Sending…",
   "psessions.which": "Which sessions",
@@ -1006,8 +1031,7 @@ export const en = {
   "psessions.pastBooked": "Past appointments",
   "psessions.pastBookedBlurb": "Sessions you booked.",
   "pclaim.nothingTitle": "Nothing to claim yet",
-  "pclaim.nothingBody":
-    "Nobody has written you down under this number or address. If you are seeing a therapist, ask them for an invite link, which works straight away.",
+  "pclaim.nothingBody": "Nobody has written you down under this number or address. An invite link works straight away.",
 
   /* ------------------------------------------------- the therapist portal --
      37L.2. Clinical Arabic is a different register from the patient app's:
@@ -1082,7 +1106,7 @@ export const en = {
    * screen rather than only in a CHECK constraint. A clinician who reads this
    * knows why they cannot paste a link in.
    */
-  "portal.source.onlyOurs": "The recorder only ever joins a meeting 24Therapy created for this session. There is nowhere to paste a link somebody sent you, and that is deliberate.",
+  "portal.source.onlyOurs": "The recorder only joins a meeting 24Therapy created. There is nowhere to paste a link, deliberately.",
   "portal.source.tokenTitle": "Upload door",
   "portal.source.tokenBody": "A one-time credential for uploading this session's audio from somewhere else. It expires on its own and you can revoke it now.",
   "portal.source.tokenIssue": "Issue a credential",
@@ -1107,7 +1131,7 @@ export const en = {
   "portal.voices.bindTherapist": "This is me",
   "portal.voices.bindPatient": "This is the patient",
   "portal.voices.unbind": "That is wrong, take the name off",
-  "portal.voices.unbindBody": "Taking a name off also puts every line that claimed that person back to unnamed, so the transcript stops asserting something you have just said is wrong.",
+  "portal.voices.unbindBody": "Taking a name off also returns every line that claimed that person to unnamed.",
   "portal.voices.saving": "Saving…",
   /* 51.7 — the bookings page. */
   "portal.nav.bookings": "Calendar",
@@ -1128,7 +1152,7 @@ export const en = {
    * seen using it.
    */
   "benefit.title": "Activate your benefit",
-  "benefit.body": "If your employer or university has arranged this, enter the code they gave you. Your sessions are then paid for.",
+  "benefit.body": "Enter the code your employer or university gave you. Your sessions are then paid for.",
   "benefit.codeLabel": "The code from your organisation",
   "benefit.activate": "Activate",
   "benefit.activating": "Activating…",
@@ -1137,20 +1161,20 @@ export const en = {
    * 🔴 53.18b — the sentence that has to be on the screen where the identifier
    * is asked for, because it is the one thing somebody hesitating needs.
    */
-  "benefit.identifierNeverShared": "This is only used to check you are eligible. It is never sent to your organisation, never used to contact you, and it is not kept in a form anybody here can read.",
+  "benefit.identifierNeverShared": "Checked once for eligibility, then unreadable. Never sent to them, never used to contact you.",
   "benefit.confirmDetails": "We will use the name and number you already gave us",
   /* 🔴 53.22 / C234 — said BEFORE they enrol, not after. */
   "benefit.whatTheySee": "What your organisation can and cannot see",
-  "benefit.theySeeName": "They see that you are on the list, and the date everybody on it was last checked. That date is the same for everybody, so it says nothing about when you joined.",
-  "benefit.theyNeverSee": "They never see whether you have booked, when, with whom, or anything about it. Not a date, not a count, not a word.",
-  "benefit.ifRemoved": "If they end the benefit, your record, your notes, your history and everybody you have shared them with stay exactly as they are. Only the payment changes.",
+  "benefit.theySeeName": "That you are on the list. The date beside it is the same for everybody on it.",
+  "benefit.theyNeverSee": "Whether you booked, when, with whom, or anything about it. Not a date, not a count.",
+  "benefit.ifRemoved": "Only the payment changes. Your record, your notes and your history stay exactly as they are.",
   /* 🔴 C250 — said on the screen, because somebody will ask. */
   "benefit.startsNow": "This starts now. Sessions you have already paid for stay as they are.",
   "benefit.active": "Your sessions are paid for by {name}",
   "benefit.paused": "Your benefit is paused",
-  "benefit.pausedBody": "We could not reach you to confirm you are still eligible. One message fixes it, and nothing about your record has changed.",
+  "benefit.pausedBody": "We could not reach you to confirm you are still eligible. One message fixes it.",
   "benefit.choosePrimary": "Which one pays",
-  "benefit.choosePrimaryBody": "You are on more than one list. Choose which pays for your sessions. Neither organisation is told about the other.",
+  "benefit.choosePrimaryBody": "Choose which list pays. Neither organisation is told about the other.",
   "benefit.makePrimary": "Use this one",
   "benefit.primary": "Paying for your sessions",
   /* 🔴 C231 — the patient's own log. No employer named, no reason. */
@@ -1520,12 +1544,24 @@ export const en = {
    * acknowledgement, nothing to dismiss.
    */
   "pclinic.title": "What {practice} can see",
-  "pclinic.body": "Your therapist works inside {practice}. The people who run the practice pay for your hour, so their administrative staff can see that an appointment exists.",
+  /*
+   * 🔴 65.3 — `pclinic.body`, `pclinic.never` and `pclinic.why` became these seven.
+   *
+   * 100 words around a two-row table, on the screen C327 exists for. Every rule they
+   * carried is in the `SeesWhat` on `/patient/record`: what the practice sees is the CAN
+   * column, the seven-comma sentence listing what it never sees is the CANNOT column one
+   * item at a time, and the two claims that are not descriptions kept their own line.
+   */
+  "pclinic.theyPay": "That they are paying for your hour",
   "pclinic.theySee": "Your name, to them:",
   "pclinic.andWhen": "And:",
   "pclinic.andWhenValue": "the day and time of each appointment",
-  "pclinic.never": "They never see a note, a transcript, your journal, a summary, a diagnosis, a risk flag, or anything you say in a session. Not hidden behind a setting: it is not built.",
-  "pclinic.why": "We tell you this rather than leaving you to assume it. If you would rather no practice saw your name at all, you can book with a therapist who works on their own, and that choice is yours to make at any point.",
+  "pclinic.notNotes": "Your notes or a transcript",
+  "pclinic.notJournal": "Your journal or your summary",
+  "pclinic.notDiagnosis": "A diagnosis or a risk flag",
+  "pclinic.notSaid": "Anything you say in a session",
+  "pclinic.notBuilt": "Not hidden behind a setting: it is not built.",
+  "pclinic.orAlone": "Prefer that no practice saw your name? Book with a therapist who works on their own.",
   "pclinic.radarLabel": "Practice",
   "clinic.nav.earnings": "Earnings",
   /* 🔴 63.17 / C334 — the file says who took it and when, inside the file. */
@@ -1775,12 +1811,24 @@ export const en = {
   "checkin.subject": "How are you?",
   /* The patient's own screen, for the people who prefer a switch to a reply. */
   "checkin.settingsTitle": "Messages asking how you are",
-  "checkin.settingsBody": "We send a short message now and then asking how you are. It goes to you, nobody reads your reply unless you write something that worries us, and you can turn it off here or by replying with the word stop.",
+  /*
+   * 🔴 65.3 — `checkin.settingsBody` and `checkin.crisisNote` became these five.
+   *
+   * 82 words in two grey paragraphs around one switch. 44.2's ruling is that the crisis
+   * rule is said BEFORE somebody replies rather than after, which is an argument about
+   * position, and it was the last thing on the page. It is now the CAN column of a
+   * `SeesWhat` above the switch, and "nobody reads your reply" is the CANNOT column
+   * beside it at the same size rather than a clause in the middle of a sentence.
+   */
+  "checkin.whoReply": "Your reply to a check-in",
+  "checkin.canDanger": "Show you where to get help, if it sounds like danger",
   "checkin.on": "Send them",
   "checkin.off": "Do not send them",
   "checkin.mutedOn": "Turned off {date}",
   /* 🔴 What happens to a worrying reply, said before they reply rather than after. */
-  "checkin.crisisNote": "If you write something that sounds like you are in danger, we will show you where to get help straight away and tell your therapist. Nothing else about your reply is read by anybody or given to a computer to interpret.",
+  "checkin.canTellTherapist": "Tell your therapist, in that one case",
+  "checkin.cannotRead": "Be read by anybody otherwise",
+  "checkin.cannotMachine": "Be given to a machine to interpret",
   /*
    * 🔴 67.1 / 67.4 / 67.6 / 67.7 — THE CLINIC'S RECORDS CONNECTION.
    *
@@ -1819,7 +1867,7 @@ export const en = {
   "records.pending": "Filing",
   "records.refused": "Refused",
   "portal.meet.title": "Meeting accounts",
-  "portal.meet.body": "Connect an account and 24Therapy creates the meeting for you, inside it. You get the join link for your calendar and your patient gets a different one.",
+  "portal.meet.body": "Connect an account and we create the meeting inside it. You get the calendar link, your patient a different one.",
   "portal.meet.connect": "Connect {name}",
   "portal.meet.connected": "Connected as {account}",
   "portal.meet.connectedOn": "Connected {date}",
@@ -1844,7 +1892,7 @@ export const en = {
   "portal.new.record": "Transcribe this session",
   "portal.new.recordBody": "Your patient is asked first, on their own screen. If they say no, the session runs exactly the same way without a transcript.",
   "portal.new.yourLink": "Your link, for your calendar",
-  "portal.new.patientLinkDiffers": "Your patient gets a different link. Theirs asks the recording question and then forwards them here, which is why we create the meeting rather than you.",
+  "portal.new.patientLinkDiffers": "Your patient gets a different link: theirs asks the recording question first.",
   "portal.new.connectFirst": "Connect an account in Settings to run sessions there.",
   "portal.session.patientDeclined": "The patient chose not to turn the AI on.",
   "portal.book.title": "Your calendar",
@@ -1882,8 +1930,8 @@ export const en = {
   "portal.book.inviteSending": "Inviting…",
   "portal.book.invited": "{name} has been told about this hour.",
   "portal.book.inviteNone": "You have nobody in your caseload to invite yet.",
-  "portal.book.reminder": "We send them a reminder the day before, on WhatsApp where we have a number. It costs them nothing and it costs you nothing.",
-  "portal.book.blocksRadar": "A booked hour takes you off the radar from fifteen minutes before it until it ends, so nobody in crisis is handed an appointment you cannot answer.",
+  "portal.book.reminder": "We remind them the day before, on WhatsApp where we have a number. It costs nobody anything.",
+  "portal.book.blocksRadar": "A booked hour takes you off the radar from fifteen minutes before until it ends.",
   "portal.patients.title": "Patients",
   "portal.patients.none": "No patients yet",
   /*
@@ -1892,11 +1940,11 @@ export const en = {
    * do not come across, so the screen says so before the upload rather than after.
    */
   "import.title": "Bring your caseload with you",
-  "import.body": "Upload the file your old platform gave you. We read a name and a phone number, show you what we found, and create nothing until you say so.",
-  "import.notesNever": "Notes, diagnoses, histories and risk flags do not come across, whatever is in the file. Clinical text in a record needs a clinician who approved that exact wording, and a spreadsheet has nobody who did. The list below names every column we are dropping.",
+  "import.body": "Upload the file your old platform gave you. We read a name and a number, and create nothing until you say so.",
+  "import.notesNever": "Notes, diagnoses, histories and risk flags never come across. Clinical text needs a clinician who approved that wording.",
   "import.file": "The file",
   "import.country": "Which country are these numbers in",
-  "import.countryNote": "We will read every national number in the file as this country. A number written with a plus and a country code keeps its own.",
+  "import.countryNote": "Every national number in the file is read as this country. One with a country code keeps its own.",
   "import.preview": "Show me what is in it",
   "import.found": "{count} people we can add",
   "import.matched": "Columns we are reading",
@@ -1926,8 +1974,7 @@ export const en = {
     "Written by them, between sessions. They chose to give you access to their history, which is what puts these here.",
   "portal.docs.noRecord":
     "This patient has no personal record yet. Adding a document creates one.",
-  "portal.evidence.blurb":
-    "Every line here came from somewhere, and the sentence it came from is underneath it. If one of them is wrong, say so: nothing is deleted, and the next clinician sees that you disagreed.",
+  "portal.evidence.blurb": "Every line came from somewhere and the sentence is underneath it. Say so if one is wrong: nothing is deleted.",
   "portal.evidence.back": "Back to the patient",
   "portal.notes.title": "Notes",
   "portal.notes.none": "No notes yet",
@@ -1954,8 +2001,7 @@ export const en = {
   "portal.settings.practice": "Your practice",
   "portal.settings.openVerification": "Open verification",
   "portal.settings.qr": "Your QR code",
-  "portal.settings.qrBlurb":
-    "A code for the wall or the end of a session. It names you and nothing else, and you can revoke one when a poster goes out of date.",
+  "portal.settings.qrBlurb": "A code for the wall. It names you and nothing else, and you can revoke one when a poster goes stale.",
   "portal.settings.openCodes": "Open your codes",
   "portal.settings.admin": "Admin console",
   "portal.settings.adminBlurb":
@@ -1967,17 +2013,19 @@ export const en = {
   "portal.settings.tabSecurity": "Security",
   "portal.settings.tabAdmin": "Admin",
   "portal.codes.title": "Your QR code",
-  "portal.codes.blurb":
-    "For the wall, the desk, or the end of an in-person session. Somebody scans it, creates their own account, and can then take ownership of the notes you keep about them.",
+  "portal.codes.blurb": "For the wall, the desk, or the end of a session. Somebody scans it and can then claim the notes you keep.",
   "portal.codes.carries": "What it carries",
-  "portal.codes.carriesBody":
-    "Only you. It names you and your practice and nothing else, because a poster on a wall is public and anybody walking past can photograph it. It cannot identify a patient, and scanning it does not give anybody access to anything: matching a record still needs a confirmed phone number or email, and the name question.",
+  "portal.codes.carriesBody": "Only you. A poster on a wall is public, so it names you and your practice and nothing else. Scanning it grants nothing.",
   "portal.codes.revoke":
     "Revoke a code when the poster it is on goes out of date. Scanning a revoked code says so, rather than failing.",
-  "portal.onboarding.why":
-    "You will be treating vulnerable people, writing clinical records and taking payment through us. As a HIPAA business associate we have to know who is doing that, and so do our payment and insurance partners. It is also the only thing standing between a patient in crisis and someone who is not a therapist at all.",
-  "portal.onboarding.privacy":
-    "Your ID and licence are seen only by our compliance team. They are never shown to patients, never shown to other clinicians and never used for anything else. Only your headshot, name, credentials, languages and specialties appear publicly.",
+  "portal.onboarding.whoSees": "Our compliance team, and only them",
+  "portal.onboarding.reasonRecords": "You will write clinical records and take payment",
+  "portal.onboarding.reasonPartners": "Our payment and insurance partners require it",
+  "portal.onboarding.reasonCrisis": "It is what stands between a patient in crisis and somebody who is not a therapist",
+  "portal.onboarding.notPatients": "Be shown to patients",
+  "portal.onboarding.notClinicians": "Be shown to other clinicians",
+  "portal.onboarding.notElse": "Be used for anything else",
+  "portal.onboarding.publicOnly": "Public: your headshot, name, credentials, languages and specialties.",
   "portal.assistant.title": "Assistant",
   "portal.connect.title": "Connect",
   "portal.support.title": "Support",
@@ -2026,8 +2074,7 @@ export const en = {
   "portal.patient.joinedByLink": "joined by link",
   "portal.minutes": "{count} min",
   "portal.earnings.subtitle": "What your patients have paid you.",
-  "portal.earnings.heldBody":
-    "While {amount} is with us, any session bill you run up is cleared from it automatically. Nothing to pay by card, and nothing to remember.",
+  "portal.earnings.heldBody": "While {amount} is with us, any session bill is cleared from it automatically.",
   "portal.docs.spoken": "spoken",
   "portal.docs.viewedBy": "{name} · viewed by {who}",
   "portal.billing.creditWaiting": "A credit is waiting on your next invoice",
@@ -2039,8 +2086,7 @@ export const en = {
   "portal.copilot.noneBody":
     "Run a session and a copilot conversation appears here for that patient.",
   "portal.oncall.subtitle": "Fill a free half hour with someone who needs one now.",
-  "portal.oncall.body":
-    "Radar sessions work exactly like any other: they are transcribed, they produce a note you approve, and they open a copilot thread for that patient. See {link} for what a patient sees.",
+  "portal.oncall.body": "Radar sessions work like any other: transcribed, a note you approve, a copilot thread. See {link}.",
   "portal.patients.subtitle": "{count} on your caseload",
   "portal.patients.noneBody":
     "Add one above, or a record is created the first time you start a session with somebody.",
@@ -2110,8 +2156,7 @@ export const en = {
   "tset.signOutBody":
     "Signing out here signs you out on this device. Changing your password above signs you out everywhere.",
   "tset.zone": "Your time zone",
-  "tset.zoneBody":
-    "The hours you publish are read in this zone, and we will not send you or your patients a reminder in the middle of the night here.",
+  "tset.zoneBody": "Your published hours are read in this zone, and no reminder goes out in the middle of the night here.",
   "tset.zoneLabel": "Time zone",
   "tset.zoneNow": "It is {time} in {place} right now.",
   "tset.zoneNotSaved": "We have not saved one yet. Your browser says {zone}.",
@@ -2132,12 +2177,10 @@ export const en = {
     "We are holding {amount} of yours until Stripe finishes verifying you. It moves to your account by itself the moment they do.",
   "tpay.enabled":
     "Charge for a session link and the money goes straight into your own Stripe account, we never touch it.",
-  "tpay.notEnabled":
-    "Charge for a session from today. Once Stripe has verified you the money goes straight into your own account; until then we hold your share and pass it on automatically.",
+  "tpay.notEnabled": "Charge from today. Once Stripe verifies you the money goes straight to your account; until then we hold your share.",
   "tpay.openingStripe": "Opening Stripe…",
   "tpay.setUp": "Set up payouts",
-  "tpay.setUpBody":
-    "Stripe handles identity checks, payouts to your bank and your tax forms. It takes about three minutes and you can come back to it.",
+  "tpay.setUpBody": "Stripe handles identity checks, payouts and tax forms. About three minutes, and you can come back to it.",
   "tpay.chargesOk": "Ready to take payments",
   "tpay.chargesWait": "Stripe is still verifying you",
   "tpay.payoutsOk": "Payouts on",
@@ -2157,13 +2200,11 @@ export const en = {
   "tpay.youKeep": "You keep",
   "tpay.fee": "24Therapy fee ({percent}%)",
   "tpay.autoSettle": "Pay my 24Therapy bill out of my earnings",
-  "tpay.autoSettleBody":
-    "When a patient pays you, anything you owe us is taken out of the same charge instead of your card, never more than what you would have received.",
+  "tpay.autoSettleBody": "What you owe us comes out of the same charge rather than your card, never more than your share.",
   "tpay.owedNow": "You currently owe {amount}.",
   "tpay.saveSettings": "Save payment settings",
   "tver.underReview": "With us for review",
-  "tver.underReviewBody":
-    "A person is checking your documents, usually within a working day. We will email you the moment it is done. You can look around the product in the meantime; sessions unlock as soon as you are approved.",
+  "tver.underReviewBody": "A person is checking your documents, usually within a working day. Sessions unlock the moment you are approved.",
   "tver.rejected": "We could not verify you yet",
   "tver.rejectedBody":
     "Fix what is described above and submit again. It goes back to the front of the queue.",
@@ -2182,8 +2223,7 @@ export const en = {
   "tver.languages": "Languages you can work in",
   "tver.specialties": "What you work with",
   "tver.documents": "Documents",
-  "tver.documentsBody":
-    "Photos are fine, take them with your phone. Everything except the headshot is private to our compliance team and is never shown to patients or other clinicians.",
+  "tver.documentsBody": "Phone photos are fine. Everything except the headshot is private to compliance.",
   "tver.showingFor": "Showing what {country} needs.",
   "tver.thisCountry": "this country",
   "tver.chooseCountryFirst":
@@ -2237,10 +2277,10 @@ export const en = {
   "tnew.chargeBody":
     "The link becomes a payment link. They cannot enter the room until it clears.",
   "tnew.price": "Price for this session",
-  "tnew.split":
-    "You keep {keep}, 24Therapy takes {fee} ({percent}%). Your patient also pays VAT on top, set by their country.",
-  "tnew.linkNote":
-    "Your patient joins from a private link, no account, no download. The link expires in 12 hours and stops working the moment the session ends.",
+  "tnew.youKeep": "You keep {amount}",
+  "tnew.ourFee": "24Therapy takes {amount} ({percent}%)",
+  "tnew.vatOnTop": "Your patient also pays VAT on top, set by their country.",
+  "tnew.linkNote": "A private link, no account, no download. It expires in 12 hours and dies when the session ends.",
   "tnew.consent": "Confirm your patient has consented to being recorded before you start.",
   "trad.saveProfile": "Save radar profile",
   "trad.you": "You",
@@ -2250,15 +2290,12 @@ export const en = {
   "trad.inSession": "In a session",
   "trad.headlineOn": "You are visible to the world",
   "trad.headlineOff": "Fill a free half hour",
-  "trad.bodyOn":
-    "Anyone on the public radar can see you and start a session with you right now. The alarm will reach you anywhere in the app.",
-  "trad.bodyOff":
-    "Go on call between appointments. Someone who needs help now finds you, pays you, and you are in the room in under a minute.",
+  "trad.bodyOn": "Anyone on the public radar can start a session with you now. The alarm reaches you anywhere in the app.",
+  "trad.bodyOff": "Go on call between appointments. Somebody who needs help now finds you, pays you, and you are in the room.",
   "trad.rate": "Your rate · 30 min",
   "trad.free": "Free",
   "trad.youKeep": "You keep",
-  "trad.heldNote":
-    "Go on the radar and charge your rate now, Stripe has not verified you yet, so we hold your share and send it to your account the moment they do. Nothing to claim.",
+  "trad.heldNote": "Charge your rate today. Until Stripe verifies you we hold your share and send it on. Nothing to claim.",
   "trad.goOffline": "Go offline",
   "trad.goOnline": "Go on the radar",
   "trad.silentWarning": "You are live but your browser is silent, turn the alarm on below.",
@@ -2276,10 +2313,8 @@ export const en = {
   "trad.whereHint": "Country only, never your address.",
   "trad.notShared": "Not shared",
   "trad.canWeRing": "Can we ring you?",
-  "trad.canWeRingBody":
-    "You are about to be visible to people in crisis. Your browser will not play a sound until you allow it, tap below and you will hear the alarm straight away, so you know it works before anyone needs it.",
-  "trad.soundRefused":
-    "Your browser refused. Open the padlock in the address bar, allow {sound} and reload. You can still go on the radar. You will get the on-screen banner and a flashing tab title instead.",
+  "trad.canWeRingBody": "You are about to be visible to people in crisis. Tap to hear the alarm now, before anybody needs it.",
+  "trad.soundRefused": "Your browser refused. Open the padlock, allow {sound} and reload. You still get the banner and a flashing tab.",
   "trad.soundWord": "Sound",
   "trad.turningOn": "Turning it on…",
   "trad.turnOnAndGoLive": "Turn the alarm on and go live",
@@ -2295,8 +2330,7 @@ export const en = {
   "trad.hearWaiting": "Hear a patient waiting",
   "trad.soundOn": "Sound is on",
   "trad.turnOn": "Turn the alarm on",
-  "trad.soundsNote":
-    "Sounds reach you anywhere in 24Therapy, not just this page, including when this tab is behind something else. While a patient is waiting the tab title flashes too, which no browser setting can switch off.",
+  "trad.soundsNote": "Sounds reach you anywhere in 24Therapy, including when this tab is behind something else.",
   "torb.suspended": "Suspended from the radar",
   "torb.suspendedBody": "An administrator has taken you off the radar.",
   "torb.offBody": "Nobody can find you on the map.",
@@ -2357,11 +2391,9 @@ export const en = {
   "tpres.mutedNote": "Sound off for this one. The next patient will still ring.",
   "tpres.blockedTitle": "Your browser is blocking the alarm",
   "tpres.armTitle": "Turn on your alarm",
-  "tpres.blockedBody":
-    "Sound is switched off for this site. Open the padlock in the address bar, set {sound} to {allow}, and reload, otherwise a patient can be waiting in your room with nothing to tell you.",
+  "tpres.blockedBody": "Sound is off for this site. Open the padlock, set {sound} to {allow}, and reload.",
   "tpres.allowWord": "Allow",
-  "tpres.armBody":
-    "Browsers stay silent until you say otherwise. One tap and 24Therapy can ring you anywhere in the portal, including when this tab is in the background.",
+  "tpres.armBody": "Browsers stay silent until you say otherwise. One tap and we can ring you anywhere in the portal.",
   "tpres.forced": "Someone is booking you right now and you cannot hear it.",
   "tpres.willFix": "I will fix it in my browser",
   "tpres.notNow": "Not now",
@@ -2387,8 +2419,7 @@ export const en = {
   "tprac.confirmed": "Confirmed location",
   "tprac.openInMaps": "Open this pin in maps and check it",
   "tprac.walkIns": "Accept walk-in visits",
-  "tprac.walkInsOn":
-    "Your address becomes public on the radar and patients can get directions to it. Only turn this on for a place you are happy for a stranger to arrive at.",
+  "tprac.walkInsOn": "Your address becomes public and patients can get directions. Only for a place a stranger may arrive at.",
   "tprac.walkInsOff": "Confirm an address first.",
   "tprac.save": "Save practice",
   "tprac.remove": "Remove",
@@ -2426,8 +2457,7 @@ export const en = {
   "tcop.listening": "Listening, press Stop and I will type it out for you to check.",
   "tcop.left": "{count} left",
   "tcop.ask": "Ask",
-  "tcop.citeNote":
-    "Every answer cites the exact moment it came from, and a citation that does not match a real transcript line is discarded rather than shown. It can still be wrong, read the source before you rely on it, and correct it when it is.",
+  "tcop.citeNote": "Every answer cites the moment it came from, and a citation with no matching line is discarded. It can still be wrong.",
   "tcop.readAloud": "Read aloud",
   "tcop.voiceSettings": "Voice settings",
   "tcop.voice": "Voice",
@@ -2446,10 +2476,8 @@ export const en = {
   "tcop.someoneSaid": "Someone said",
   "tcop.citedAt": "{who} · {date} at {time}",
   "tcop.freshStart": "Fresh start",
-  "tcop.clearedOne":
-    "One message cleared. I kept {kept} of the notes I wrote during sessions, and every transcript, ask me anything and I will build it back up from those.",
-  "tcop.clearedMany":
-    "{removed} messages cleared. I kept {kept} of the notes I wrote during sessions, and every transcript, ask me anything and I will build it back up from those.",
+  "tcop.clearedOne": "One message cleared. I kept {kept} of my session notes and every transcript.",
+  "tcop.clearedMany": "{removed} messages cleared. I kept {kept} of my session notes and every transcript.",
   "tcop.startOverButton": "Start this chat over",
   "tcop.startOver": "Start over",
   "tcop.goes": "Your questions, my answers, and the corrections you gave me",
@@ -2469,8 +2497,7 @@ export const en = {
   "tcop.removeLine": "Remove: {line}",
   "tcop.correctionSaved":
     "Noted. I will read that before every answer about this patient from now on.",
-  "tcop.correctionBody":
-    "This changes how I write, not what I know. Tone, length, things to stop doing, those belong here. Facts about the patient do not: I cannot cite a note left in this box, so put their history and diagnosis on the patient’s record instead. For what language to answer in, use the setting above. It is more reliable than telling me here.",
+  "tcop.correctionBody": "Tone, length, things to stop doing. Facts about a patient belong on their record: I cannot cite what is written here.",
   "tcop.correctionPlaceholder": "Keep answers to three sentences. Stop suggesting homework.",
   "tcop.saveCorrection": "Save correction",
   "tcop.errGeneric": "Something went wrong.",
@@ -2508,8 +2535,7 @@ export const en = {
   "tnote.plan": "Plan",
   "tnote.followUp": "Follow-up",
   "tnote.saveChanges": "Save changes",
-  "tnote.machineNote":
-    "A machine translation of the note above, for a supervisor or an insurer. The record you sign is the {language} one, switch back to edit or approve it.",
+  "tnote.machineNote": "A machine translation, for a supervisor or an insurer. The record you sign is the {language} one.",
   "tnote.edit": "Edit",
   "tnote.sign": "Sign the note",
   "tnote.signedNote":
@@ -2523,12 +2549,9 @@ export const en = {
   "tnote.approveAndSend": "Approve and send",
   "tnote.sentTitle": "Their summary has been sent",
   "tnote.releasedTitle": "Their summary is released",
-  "tnote.sentBody":
-    "{email} gets exactly what is above, not the clinical note, the moment they complete their session rating, or straight away if they already have. If they have not, we email them once to say it is waiting.",
-  "tnote.releasedBody":
-    "Your patient receives exactly what is above, not the clinical note, when they rate the session and give us an address. Nothing is sent until they ask for it.",
-  "tnote.nothingSent":
-    "Nothing has been sent. Approving this is what releases it, the clinical note is never part of it, whether or not it is signed.",
+  "tnote.sentBody": "{email} gets exactly what is above, never the clinical note, once they rate the session.",
+  "tnote.releasedBody": "Your patient receives what is above, never the clinical note, when they rate the session and give an address.",
+  "tnote.nothingSent": "Nothing has been sent. Approving is what releases it, and the clinical note is never part of it.",
   "tnote.beforeNext": "Before we next meet",
   "tnote.stepLabel": "Step {number}",
   "tnote.removeStep": "Remove step {number}",
@@ -2538,16 +2561,14 @@ export const en = {
   "tappr.body":
     "Three things, one button. Nothing here happens unless you tick it, and nothing is published by walking away.",
   "tappr.patientVersion": "Add a version to their clinical summary",
-  "tappr.patientVersionBody":
-    "Written to them, not about them: no diagnosis, no impressions, no risk language. A diagnosis belongs on the diagnoses list, where it carries the sentence it came from.",
+  "tappr.patientVersionBody": "Written to them, not about them: no diagnosis, no impressions, no risk language.",
   "tappr.signNote": "Sign the clinical note",
   "tappr.leaveEmpty": "Leave this empty and no version is published.",
   "tshow.joining": "Joining shortly",
   "tshow.joiningBody":
     "Your therapist has not joined yet. Stay here, this page will open the moment they do.",
   "tshow.nobody": "Nobody is free right now",
-  "tshow.nobodyBody":
-    "We could not find another therapist who is online. This is our failure, not yours, take your money back and we will be sorry about it properly.",
+  "tshow.nobodyBody": "No other therapist is online. Our failure, not yours: take your money back.",
   "tshow.refund": "Refund me in full",
   "tshow.someoneElse": "Somebody else can see you now",
   "tshow.someoneElseBody":
@@ -2562,8 +2583,7 @@ export const en = {
   "tappr.releasedBody": "Released. There is no unsending, which is why it was its own decision.",
   "tappr.releaseBody":
     "The plain-language summary of today, written to them. Once released it cannot be unsent.",
-  "tappr.summaryBody":
-    "This one belongs to {name} rather than to your practice. It is about the course of treatment rather than today, the next clinician they see will read it, and every version stays: yours is added beside whatever is already there, never over it.",
+  "tappr.summaryBody": "This belongs to {name}, not your practice. About the course of treatment, read by the next clinician, and added beside earlier versions.",
   "tappr.versionBy": "Version {version}, by {name} on {date}",
   "tappr.publish": "Publish what is ticked",
   "tappr.nothingTicked": "Nothing ticked",
@@ -2625,15 +2645,12 @@ export const en = {
   "tled.date": "Date",
   "tled.directNote":
     "Paid directly into your own Stripe account, we never held this money. Stripe pays it out to your bank on its own schedule.",
-  "tled.heldNote":
-    "Stripe had not finished verifying you when this was paid, so we took it and are holding your share. It moves to your account automatically the moment verification completes.",
+  "tled.heldNote": "Stripe had not verified you when this was paid, so we hold your share. It moves automatically.",
   "tearn.waiting": "{amount} is waiting for you",
-  "tearn.waitingBody":
-    "Your patients have paid. We are holding your share because Stripe has not verified you yet. It goes to your account automatically the moment they do, and there is nothing to claim.",
+  "tearn.waitingBody": "Your patients have paid. We hold your share until Stripe verifies you, then it moves by itself.",
   "tearn.finishSetup": "Finish setting up payouts",
   "tearn.chargeTitle": "Charge for your sessions",
-  "tearn.chargeBody":
-    "Set a price and the patient pays before they join. You can start today, if Stripe has not verified you yet we hold your share and send it on when they do.",
+  "tearn.chargeBody": "Set a price and the patient pays before they join. Start today: we hold your share until Stripe verifies you.",
   "tearn.title": "Your earnings",
   "tearn.unavailable": "Balance unavailable, check your Stripe dashboard.",
   "tearn.availableNow": "available now",
@@ -2660,8 +2677,7 @@ export const en = {
   "twd.holding": "Money we are holding for you",
   "twd.held": "Held",
   "twd.availableNow": "Available now",
-  "twd.availableNote":
-    "Available is what you can withdraw today. It excludes anything already requested, that money is on its way and cannot be asked for twice.",
+  "twd.availableNote": "Available is what you can withdraw today. It excludes anything already requested.",
   "twd.where": "Where your money goes",
   "twd.instapay": "InstaPay",
   "twd.wallet": "Mobile wallet",
@@ -2677,8 +2693,7 @@ export const en = {
   "twd.withdraw": "Withdraw",
   "twd.amountUsd": "Amount (USD)",
   "twd.request": "Request",
-  "twd.rateNote":
-    "We send Egyptian pounds at the rate quoted when you request, and that rate is fixed on your request. It does not move while you wait.",
+  "twd.rateNote": "Egyptian pounds at the rate quoted when you request. It is fixed then and does not move while you wait.",
   "twd.yours": "Your withdrawals",
   "twd.requestedOn": "Requested {date}",
   "twd.updatedOn": "updated {date}",
@@ -2724,8 +2739,7 @@ export const en = {
     "Your therapist is here with you. If you need immediate help right now,",
   "crisis.canCallOrText": "you can call or text {label} at any time.",
   "crisis.localNumberFree": "call your local emergency number. It is free from any phone.",
-  "tev.none":
-    "Nothing has been recorded about this person yet. Facts appear here as sessions are written up, documents are read, and you enter things yourself.",
+  "tev.none": "Nothing recorded yet. Facts appear as sessions are written up and documents are read.",
   "tev.youDisagreed": "you disagreed",
   "tev.contradicts": "This contradicts:",
   "tev.recordDisagreement": "Record my disagreement",
@@ -2736,11 +2750,9 @@ export const en = {
   "tcon.gaveCode": "A patient gave you a code",
   "tcon.gaveCodeBody":
     "Enter it and they are asked whether you may read their history. They decide, and you will see the answer on their record.",
-  "tcon.notClearedYet":
-    "Your licence is still being checked here, so even once they agree, access will not start until we approve you. They can see that too, so nobody is left wondering.",
+  "tcon.notClearedYet": "Your licence is still being checked, so access will not start until we approve you. They can see that too.",
   "tcon.asking": "People asking you for their own history",
-  "tcon.askingBody":
-    "They have moved on and would like what you hold added to the record they own. You do not have to. If you would rather not, say so in a sentence: they read it, and hearing nothing is worse for them than hearing no.",
+  "tcon.askingBody": "They want what you hold added to the record they own. You do not have to, but say so: hearing nothing is worse than hearing no.",
   "tcon.added": "I have added it",
   "tcon.decline": "Decline, with that reason",
   "tcon.declinePlaceholder": "If you are declining, why? They read this.",
@@ -2816,8 +2828,7 @@ export const en = {
   "troom.errPatientAudio":
     "Could not capture the patient's audio. Their side may not be transcribed.",
   "troom.errCopy": "Could not copy. Long-press the link to copy it manually.",
-  "troom.audioDropped":
-    "Your patient's audio dropped. The session is still recording, but from here we work out who said what from the words rather than from their microphone.",
+  "troom.audioDropped": "Your patient's audio dropped. Still recording, but who said what now comes from the words.",
   "tav.title": "Hours people can book",
   "tav.blurb":
     "Whole hours only. Somebody who is not in crisis books one of these instead of pulling you out of your evening.",
@@ -2860,8 +2871,7 @@ export const en = {
   "tdoc.save": "Save",
   "tdx.title": "Diagnoses in the documents",
   "tdx.blurb": "Only what a document states in words. Never inferred from symptoms.",
-  "tdx.none":
-    "Nothing yet. Add a letter or a report and read it here, anything stated as a diagnosis will be offered for you to confirm.",
+  "tdx.none": "Nothing yet. Add a letter or a report: anything stated as a diagnosis is offered for you to confirm.",
   "tdx.reading": "Reading…",
   "tdx.readDocuments": "Read documents",
   "tdx.confirmed": "Confirmed",
@@ -2891,8 +2901,7 @@ export const en = {
   "tasst.voiceAmericanM": "American, male",
   "tach.newChat": "New chat",
   "tach.roster": "Your roster only, names, dates and what is waiting. Not clinical notes.",
-  "tach.blurb":
-    "Ask about your week. “Who have I not seen in a month?” “How many notes am I behind on?” For anything about what a patient actually said, open their own copilot, this one cannot see clinical records.",
+  "tach.blurb": "Ask about your week. For anything a patient actually said, open their own copilot: this one cannot see clinical records.",
   "tach.askWeek": "Ask about your week…",
   "tach.startFirst": "Start a chat first",
   "tach.send": "Send",
@@ -2909,15 +2918,13 @@ export const en = {
   "tra.beforeBody":
     "This history is for you. It was not shown to the system that read the session, so what it found is about today.",
   "common.loadingWord": "Loading",
-  "tdoc.photoNote":
-    "A photo of a page is fine. Up to {mb} MB. Photos and scans are stored and shown, but the copilot cannot read inside them.",
+  "tdoc.photoNote": "A photo of a page is fine, up to {mb} MB. The copilot cannot read inside images.",
   "tdl.outdated": "This is outdated",
   "tdl.wrong": "This is wrong",
   "tdl.newTabNote":
     "This file opens in a new tab. Everything you open is recorded against your name.",
   "tsup.reference": "Reference {ref}",
-  "tsup.picksUp":
-    "A named person picks this up and answers within {hours} hours. When it is closed you get a link to read the reply. We do not put it in an email.",
+  "tsup.picksUp": "A named person answers within {hours} hours. You get a link to read the reply, never an email.",
   "tsup.about": "What is this about?",
   "tsup.topicBilling": "Billing, credit, invoices, what I was charged",
   "tsup.topicSession": "A session that went wrong",
@@ -3061,7 +3068,7 @@ export const en = {
    * is the question a clinician actually has and the one a short notice leaves
    * them to guess at.
    */
-  "trad.countryClosed": "We have paused new bookings in {country}, so you are not on the radar at the moment. Nothing else has changed: your patients, your sessions, your notes and your money are exactly where they were, and you can still work with everyone on your list.",
+  "trad.countryClosed": "New bookings are paused in {country}, so you are off the radar. Your patients, sessions, notes and money are untouched.",
   "trad.countryClosedTitle": "Bookings paused where you practise",
 
   /*
@@ -3296,6 +3303,7 @@ export type MessageKey = keyof typeof en;
  */
 export const ar: Record<MessageKey, string> = {
   "common.or": "أو",
+  "common.ratingFrom": "{average} من {count} جلسة",
   "common.continue": "متابعة",
   "common.cancel": "إلغاء",
   "common.back": "رجوع",
@@ -3327,21 +3335,16 @@ export const ar: Record<MessageKey, string> = {
   "join.linkDead": "هذا الرابط لم يعد صالحًا. اطلب من معالجك رابطًا جديدًا.",
   "join.tooManyAttempts": "محاولات كثيرة. انتظر لحظة ثم حاول مرة أخرى.",
   "join.privateNote": "جلستك خاصة ولا تُشارَك مع أي شخص آخر.",
-  "join.privateNotePaid":
-    "الدفع يتم عبر Stripe ويذهب إلى معالجك، نحن لا نرى بطاقتك أبدًا. جلستك خاصة ولا تُشارَك مع أي شخص آخر.",
+  "join.privateNotePaid": "سترايب تتولى الدفع ويذهب إلى معالجك. ولا نرى بطاقتك أبدًا.",
   "join.paymentReceived": "تم استلام الدفع",
   "join.takingYouIn": "جارٍ إدخالك إلى جلستك…",
 
   "consent.noCost": "إجابتك لا تغيّر شيئًا: لا فيما إذا كنت ستُقابَل، ولا فيما تدفعه.",
   "consent.question": "هل تسمح لمعالجك بتسجيل هذه الجلسة؟",
-  "consent.point.notes":
-    "يتحول التسجيل إلى ملاحظات معالجك السريرية، وإلى ملخص بلغة بسيطة لك أنت.",
-  "consent.point.private":
-    "معالجك وحده من يستطيع الاطلاع عليه. لا يُباع أبدًا، ولا يُستخدم في الإعلانات، ولا يُعرض على مريض آخر.",
-  "consent.point.changeMind":
-    "يمكنك تغيير رأيك أثناء الجلسة، اطلب من معالجك التوقف وسيتحول مؤشر التسجيل إلى اللون الكهرماني.",
-  "consent.refusal":
-    "إذا رفضت فالجلسة تتم كما هي تمامًا. سيكتب معالجك ملاحظاته بخط يده بدلاً من ذلك.",
+  "consent.point.notes": "يتحول التسجيل إلى ملاحظات معالجك، وإلى ملخص بلغة واضحة لك.",
+  "consent.point.private": "لا يراه إلا معالجك. لا يُباع ولا يُستخدم في إعلان ولا يُعرض على مريض آخر.",
+  "consent.point.changeMind": "اطلب من معالجك التوقف في أي لحظة فيتحول مؤشر التسجيل إلى الكهرماني.",
+  "consent.refusal": "قل لا وتجري الجلسة كما هي تمامًا. ويكتب معالجك بخط يده.",
   "consent.grant": "نعم، يمكنك التسجيل",
   "consent.decline": "لا، من فضلك لا تسجّل",
   "consent.required": "من فضلك اختر ما إذا كان يمكن لمعالجك تسجيل الجلسة.",
@@ -3355,8 +3358,7 @@ export const ar: Record<MessageKey, string> = {
   "room.doNotClose": "لا تغلق هذه الصفحة.",
   "room.youGetToRate":
     "ستتمكن من تقييم {therapist} وتقييم هذه الجلسة فور انتهائها، هنا، في هذه الصفحة.",
-  "room.closingCost":
-    "إغلاق الصفحة هو الشيء الوحيد الذي لا يمكننا التراجع عنه: التقييم وملخصك المكتوب كلاهما خلفها، ولا سبيل لدينا لإعادتك.",
+  "room.closingCost": "إغلاق التبويب هو الشيء الوحيد الذي لا يمكن التراجع عنه. التقييم وملخصك المكتوب خلفه.",
   "room.anonymous":
     "تقييمك مجهول الهوية. يرى {therapist} النجوم والكلمات، ولا يرى أبدًا من كتبها.",
   "room.recording": "جارٍ التسجيل",
@@ -3393,8 +3395,7 @@ export const ar: Record<MessageKey, string> = {
   "feedback.email": "إلى أين نرسل ملخصك؟",
   "feedback.submit": "أرسل واحصل على ملخصي",
   "feedback.expired": "انتهت صلاحية هذا الرابط",
-  "feedback.expiredBody":
-    "تبقى روابط الجلسات مفتوحة لثلاثة أيام. إذا كنت لا تزال بحاجة إلى ملخصك، اطلب من معالجك إرساله مرة أخرى.",
+  "feedback.expiredBody": "تبقى الروابط مفتوحة ثلاثة أيام. اطلب من معالجك إرسال ملخصك مرة أخرى.",
   "feedback.emergency": "إذا كنت في خطر مباشر، اتصل برقم الطوارئ في بلدك.",
 
   /* pricing — 21R.8. Written as Arabic, not rendered from the English. */
@@ -3530,12 +3531,16 @@ export const ar: Record<MessageKey, string> = {
   "home.yourAccount": "حسابك",
   "home.searchPlaceholder": "ما الذي تحتاج مساعدة فيه؟",
   "home.findNow": "ابحث عن أحد الآن",
-  "home.findNowBody": "معالجون متاحون في هذه اللحظة.",
+  "home.liveOne": "معالج واحد متاح في هذه اللحظة",
+  "home.liveMany": "{count} معالجين متاحون في هذه اللحظة",
+  "home.liveNone": "لا أحد متصل الآن",
+  "home.liveNoneBody": "احجز موعدًا مع أحدهم بدلًا من ذلك",
+  "home.exploreTitle": "المعالجون هنا",
+  "home.exploreAll": "شاهد الجميع",
+  "home.nobodyListed": "لا يوجد معالج مُدرج بعد",
   "home.claimedTitle": "أصبح هذا السجل ملكك",
-  "home.claimedKept":
-    "ما زال معالجك يستطيع رؤية ملفك الشخصي. يمكنك تغيير ذلك وقتما تشاء من صفحة من يمكنه قراءة تاريخك.",
-  "home.claimedDropped":
-    "يحتفظ معالجك بالملاحظات التي كتبها بالفعل، ولم يعد يرى ملفك الشخصي. يمكنك إعادة الإذن له في أي وقت.",
+  "home.claimedKept": "ما زال يرى ملفك. غيّر ذلك من صفحة من يمكنه قراءة تاريخك.",
+  "home.claimedDropped": "يحتفظ بالملاحظات التي كتبها، ولم يعد يرى ملفك الحي. ويمكن التراجع متى شئت.",
   "home.askedTitle": "أحدهم طلب قراءة تاريخك",
   "home.askedOne": "طلب معالج قراءة تاريخك. القرار قرارك، ويمكنك تغييره لاحقًا.",
   "home.askedMany": "طلب {count} معالجين قراءة تاريخك. القرار قرارك، ويمكنك تغييره لاحقًا.",
@@ -3545,8 +3550,8 @@ export const ar: Record<MessageKey, string> = {
   "home.openAndMore": "افتح هذا و{count} غيره",
   "home.areas": "مجالات يأتي الناس إلينا من أجلها",
   "home.ratedHighest": "الأعلى تقييمًا من المرضى",
-  "home.ratedHighestBody":
-    "المعالجون الذين لديهم خمس جلسات مُقيَّمة على الأقل. ما دون ذلك لا يوجد تقييم يُعرض، فلا يظهرون هنا.",
+  "home.ratedSome": "{count} لديهم {bar} جلسات مُقيَّمة أو أكثر",
+  "home.ratedNone": "لا أحد لديه {bar} جلسات مُقيَّمة بعد",
   "home.yourRecord": "سجلك",
   "home.yours": "ملكك",
   "home.notClaimed": "لم يُستلَم بعد",
@@ -3590,11 +3595,9 @@ export const ar: Record<MessageKey, string> = {
 
   /* ------------------------------------------------------------- المذكرات */
   "journal.title": "مذكراتك",
-  "journal.body":
-    "اكتب ما تشاء. بين الجلسة والأخرى، الأسبوع مدة طويلة على الذاكرة، وهذه المساحة لك سواء أريتها لأحد أم لا.",
+  "journal.body": "ما تشاء أن تحتفظ به بين الجلسات. ملكك، ولا يراه أحد إلا إن أردت.",
   "journal.whoCanOpen": "من يستطيع فتحها",
-  "journal.nobody":
-    "لا أحد. لم تمنح أي معالج إذنًا بقراءة تاريخك، فما تكتبه هنا يبقى معك وحدك حتى تفعل.",
+  "journal.nobody": "لا أحد. لم تمنح أي معالج إذنًا بتاريخك، فيبقى هذا معك.",
   "journal.readers": "هؤلاء المعالجون يستطيعون قراءة مذكراتك: {names}.",
   "journal.placeholder": "اليوم…",
   "journal.save": "احفظ هذا",
@@ -3604,20 +3607,16 @@ export const ar: Record<MessageKey, string> = {
 
   /* -------------------------------------------------------------- الملخص */
   "psummary.title": "ملخصك السريري",
-  "psummary.body":
-    "يكتبه المعالجون الذين رأيتهم، عن مسار علاجك لا عن جلسة واحدة. وهو ملكك. كل نسخة تبقى، ومعها اسم كاتبها، ولا يستطيع أحد سحب نسخته.",
+  "psummary.body": "يكتبه معالجوك نسخةً بعد نسخة، وكل نسخة باسم كاتبها. وهو ملكك.",
   "psummary.none": "لم يُكتب شيء بعد.",
-  "psummary.noneBody":
-    "يضيف المعالج نسخة عند انتهاء جلسة. كتابتها له، والاحتفاظ بها لك.",
+  "psummary.noneBody": "يضيف المعالج نسخة عند انتهاء الجلسة. هو يكتبها وأنت تحتفظ بها.",
   "psummary.version": "النسخة {n} · {date}",
 
   /* --------------------------------------------------------- السجل كاملًا */
   "precord.title": "سجلك كاملًا",
-  "precord.body":
-    "كل ما تحتفظ به هذه المنصة عن علاجك، في مستند واحد يمكنك حفظه أو طباعته أو تسليمه لمن تشاء.",
+  "precord.body": "كل ما تحتفظ به هذه المنصة عن علاجك، في مستند واحد تحتفظ به.",
   "precord.copyTitle": "نسخة من كل شيء",
-  "precord.copyBody":
-    "نرسل نسخة السجل إلى بريد إلكتروني ولا نرسلها في أي مكان آخر. ليس عبر واتساب: هذا أكثر مستند خصوصية نحتفظ به عنك، ورسالة على هاتف مشترك ليست مكانه.",
+  "precord.copyBody": "بالبريد الإلكتروني فقط، لا عبر واتساب: الهاتف المشترك ليس مكان هذا المستند.",
   "precord.addEmail": "أضف بريدًا إلكترونيًا لتصلك نسختك",
   "precord.send": "أرسلها إلى {email}",
   "precord.sending": "جارٍ الإرسال…",
@@ -3625,24 +3624,21 @@ export const ar: Record<MessageKey, string> = {
 
   /* ------------------------------------------------------- الملف الشخصي */
   "pprofile.title": "ملفك الشخصي",
-  "pprofile.body":
-    "التقارير والروشتات والخطابات وأي شيء تريد أن يعرفه معالجك. ينتقل معك، وأنت من يقرر من يقرأه.",
+  "pprofile.body": "الخطابات والروشتات والتقارير. تسافر معك، وأنت من يقرر من يقرؤها.",
   "pprofile.sayInstead": "تريد أن تحكي كيف كانت الأيام؟",
-  "pprofile.sayInsteadBody":
-    "اكتب في مذكراتك بدلًا من ذلك. هي ملكك، ويستطيع معالج منحته الإذن أن يقرأها، وهي أسهل كثيرًا من تجهيز أوراق عن نفسك.",
-  "pprofile.empty":
-    "لا شيء هنا بعد. الخطابات والروشتات والأشعة والتقارير القديمة مكانها هنا، وصورة بالهاتف لصفحة تكفي.",
+  "pprofile.sayInsteadBody": "اكتب في مذكراتك بدلًا من ذلك. ملكك، ويقرؤها معالج تسمح له، وأسهل كثيرًا.",
+  "pprofile.empty": "لا شيء هنا بعد. الخطابات والروشتات والأشعة والتقارير القديمة مكانها هنا.",
 
   /* --------------------------------------------------------------- البحث */
   "browse.title": "ابحث عن معالج",
   "browse.placeholder": "قلق، نوم، لغة معينة…",
   "browse.none": "لم يُدرج أحد بعد.",
-  "browse.noneBody": "شاشة المتاحين الآن تعرض من هو متفرغ في هذه اللحظة، وهي أسرع طريق.",
+  "browse.noneBody": "يعرض الرادار من هو متاح الآن.",
   "browse.openRadar": "افتح شاشة المتاحين",
 
   /* ------------------------------------------------------------- الخطوات */
   "homework.title": "ما يمكن تجربته",
-  "homework.body": "أشياء صغيرة اتفقت عليها مع معالجك. افعلها أو لا تفعلها، لا أحد يحصي عليك.",
+  "homework.body": "أشياء صغيرة اتفقت عليها مع معالجك. ولا أحد يعدّها.",
   "homework.none": "لا شيء بعد",
   "homework.noneBody": "يضيف معالجك هذه بعد الجلسة.",
   "homework.done": "تم",
@@ -3655,8 +3651,10 @@ export const ar: Record<MessageKey, string> = {
   "pbilling.noneBody": "الجلسات التي تدفع مقابلها تظهر هنا بتفصيلها الكامل.",
   "pbilling.covered": "مغطاة",
   "pbilling.coveredBody": "ميزتك دفعت مقابل هذه الجلسة. لا شيء عليك.",
-  "pbilling.note":
-    "الرقم الأساسي هو ما خُصم منك فعلًا، بالعملة التي دفعت بها، وبالسعر المعلن وقتها. التفصيل بعملة معالجك، وهو المبلغ الذي يعود إليك عند الاسترداد.",
+  "pbilling.youPaidLabel": "ما دفعته",
+  "pbilling.youPaidBody": "الرقم الأساسي بعملتك وبالسعر المعلن وقتها. والاسترداد يعيد هذا المبلغ.",
+  "pbilling.theyGetLabel": "ما يتقاضاه معالجك",
+  "pbilling.theyGetBody": "التفصيل بعملته هو.",
 
   /* -------------------------------------------------------------- حسابك */
   "paccount.title": "حسابك",
@@ -3668,22 +3666,19 @@ export const ar: Record<MessageKey, string> = {
 
   /* --------------------------------------------------- مكان حفظ السجل */
   "residency.title": "أين يُحفظ سجلك",
-  "residency.home": "في {country}، وهو مكانه الطبيعي. لا شيء يعبر الحدود، فلا يوجد ما توافق عليه هنا.",
+  "residency.home": "في {country}، حيث ينبغي أن يكون. لا شيء يعبر حدودًا، فلا شيء توافق عليه.",
 
   /* ------------------------------------------------------------- الاستلام */
   "pclaim.title": "هل زرت معالجًا من قبل؟",
   "pclaim.body": "إن كان يحتفظ بملاحظات عنك، يمكنك استلامها يا {name}.",
   "pclaim.handleTitle": "أولًا، هل هذا الرقم رقمك؟",
-  "pclaim.handleBody":
-    "لم نبحث بعد. رقم الهاتف يثبت رقمًا لا شخصًا، فنتأكد أولًا أنك تستقبل رسالة على {handle} قبل أن نقول لك أي شيء عن أي سجل.",
+  "pclaim.handleBody": "لم نبحث بعد. نتأكد أولًا أنك تستقبل رسالة على {handle}.",
   "pclaim.sendCode": "أرسل لي رمزًا",
   "pclaim.codeLabel": "رمز من ستة أرقام",
   "pclaim.checkCode": "تحقق من الرمز",
-  "pclaim.channelDown":
-    "إرسال الرموز عبر واتساب غير مفعّل بعد، وقد لا يصلك الرمز. اطلب من معالجك رابط دعوة بدلًا من ذلك، فهو يؤدي الغرض نفسه.",
+  "pclaim.channelDown": "رموز واتساب غير مفعّلة بعد. اطلب من معالجك رابط دعوة بدلًا منها.",
   "pclaim.nothingFound": "لم نجد سجلًا تحت هذا الرقم.",
-  "pclaim.nothingFoundBody":
-    "هذا أمر طبيعي. يستطيع معالجك إرسال رابط دعوة لك، ويعمل فورًا.",
+  "pclaim.nothingFoundBody": "طبيعي. ورابط دعوة من معالجك يعمل فورًا.",
 
   /* -------------------------------------------------------------- الدعوة */
   "pinvite.title": "معالجك أرسل لك هذا",
@@ -3692,11 +3687,8 @@ export const ar: Record<MessageKey, string> = {
   "pinvite.create": "أنشئ حسابًا",
   "pinvite.signIn": "تسجيل الدخول",
   "pinvite.takeTitle": "استلم ملكية سجلك",
-  "pinvite.takeBody":
-    "يحتفظ معالجك بملاحظات تحت اسم {masked}. استلامه يعني أن السجل صار ملكك: ينتقل معك، وأنت من يقرر من يقرأه.",
+  "pinvite.takeBody": "يحتفظ {masked} بملاحظات تحت هذا الاسم. واستلامه يجعل السجل ملكك، يسافر معك.",
   "pinvite.keepAccess": "اسمح لهذا المعالج بمواصلة رؤية ملفي",
-  "pinvite.keepAccessBody":
-    "غير مفعّل افتراضيًا، حتى وإن كان هو من أرسل لك الرابط. إن تركته مغلقًا يحتفظ بالملاحظات التي كتبها ولا شيء غيرها. يمكنك تغيير ذلك وقتما تشاء.",
   "pinvite.claimIt": "هذا أنا، استلمه",
   "pinvite.claiming": "جارٍ الاستلام…",
   "pinvite.dead": "هذا الرابط لم يعد صالحًا.",
@@ -3712,13 +3704,17 @@ export const ar: Record<MessageKey, string> = {
 
   /* --------------------------------------------------- 🔴 الإذن، من جهة المريض */
   "consent.pageTitle": "من يمكنه قراءة تاريخك",
-  "consent.pageBody":
-    "تاريخك ملكك. يستطيع المعالج أن يطلب قراءته، وتستطيع أنت إيقافه في أي وقت، لا هو مضطر للموافقة ولا أنت مضطر للشرح.",
+  "consent.whoTherapist": "معالج سمحت له",
+  "consent.mayRead": "يقرأ تاريخك ما دمت تسمح",
+  "consent.mayKeep": "يحتفظ بما قرأه وبالملاحظات التي كتبها",
+  "consent.mayAskAgain": "يطلب منك مرة أخرى لاحقًا",
+  "consent.neverBefore": "يقرأ أي شيء قبل موافقتك",
+  "consent.neverAfter": "يواصل القراءة بعد إيقافك له",
+  "consent.neverWhy": "يُلزمك بتوضيح السبب",
   "consent.waiting": "في انتظار ردك",
   "consent.nobodyAsked": "لم يطلب أحد قراءة تاريخك.",
   "consent.whoHasAccess": "من لديه إذن",
-  "consent.nobodyCanRead":
-    "لا أحد يستطيع قراءة تاريخك. معالجوك يحتفظون بملاحظاتهم عن الجلسات التي حضرتها معهم، وهذا الجزء سجلهم هم، وليس لك إزالته.",
+  "consent.nobodyCanRead": "لا أحد يستطيع قراءة تاريخك. ويحتفظ معالجوك بملاحظاتهم، وهي سجلهم هم.",
   "consent.yesDay": "نعم، لمدة ٢٤ ساعة",
   "consent.yesUntil": "نعم، حتى أغيّر رأيي",
   "consent.no": "لا، شكرًا",
@@ -3732,21 +3728,24 @@ export const ar: Record<MessageKey, string> = {
   "consent.youDeclined": "رفضت",
   "common.working": "جارٍ التنفيذ…",
   "consent.askedOn": "طلب في {date}",
-  "consent.stopNote":
-    "إيقاف الإذن يوقف أي قراءة جديدة فورًا. ولا يمحو ما قرأه المعالج بالفعل ولا الملاحظات التي كتبها، فتلك سجلاته السريرية الملزَم بحفظها.",
   "consent.newTherapist": "تزور معالجًا جديدًا؟",
-  "consent.newTherapistBody":
-    "أعطه رمزًا. يدخله فيصلك سؤال عما إذا كان يُسمح له بقراءة تاريخك، وتقرر أنت عندها. لا شيء عنك يتحرك حتى توافق، والرمز وحده لا يُظهر له شيئًا.",
+  "consent.inviteStep1": "أنت تُنشئ رمزًا",
+  "consent.inviteStep1Body": "الرمز وحده لا يُظهر له شيئًا",
+  "consent.inviteStep2": "هو يُدخل الرمز",
+  "consent.inviteStep2Body": "فنسألك إن كان يُسمح له بقراءة تاريخك",
+  "consent.inviteStep3": "أنت تقرر",
+  "consent.inviteStep3Body": "لا شيء عنك يتحرك حتى توافق",
   "consent.inviteTherapist": "ادعُ معالجًا",
   "consent.goodUntil": "صالح حتى {date}",
   "consent.cancelCode": "ألغِه",
   "consent.usedWaiting": "استخدمه {name}. طلبه في انتظار ردك بالأعلى.",
   "consent.usedAnswered": "استخدمه {name}. وقد رددت عليه بالفعل.",
-  "consent.readItOut":
-    "اقرأه على معالجك. يعمل حتى {date}، مرة واحدة، وسيصلك طلب موافقة قبل أن يقرأ أي شيء.",
+  "consent.readItOut": "اقرأه لمعالجك. يعمل مرة واحدة حتى {date}، وتوافق أنت قبل أن يقرأ شيئًا.",
   "consent.askOld": "اطلب من معالج زرته سابقًا أن يضيف ما لديه",
-  "consent.askOldBody":
-    "ليس ملزَمًا، ولا نستطيع إجباره. ما نستطيعه هو أن نضمن وصول رد إليك: إما أن يضيف ما لديه، وإما أن يعتذر ويخبرك بالسبب.",
+  "consent.askWho": "معالج تطلب منه",
+  "consent.askCanAdd": "يضيف ما لديه إلى سجلك",
+  "consent.askCanRefuse": "يعتذر، ويذكر سببًا تقرأه",
+  "consent.askCannotIgnore": "يتركك بلا رد",
   "consent.chooseTherapist": "اختر معالجًا زرته",
   "consent.askThem": "اطلب منه",
   "consent.askNote": "أي شيء تحب أن تقوله له (اختياري)",
@@ -3756,18 +3755,21 @@ export const ar: Record<MessageKey, string> = {
   "pprofile.diagnoses": "التشخيصات المسجلة عنك",
   "pprofile.diagnosesBody":
     "مأخوذة من المستندات أعلاه، بنصها، ومؤكَّدة من طبيب أو معالج.",
-  "pprofile.flagNote":
-    "إن كان أي من هذا قديمًا أو غير صحيح، ضع عليه علامة في المستند الذي جاء منه. العلامة تظهر لكل من يقرأه. وهي لا تمحو ما كُتب، لأن السجل الطبي يجب أن يبقى كما كان.",
+  "pprofile.flagWho": "وضع علامة على شيء خاطئ",
+  "pprofile.flagWarns": "ينبّه كل من يقرأه من الأطباء",
+  "pprofile.flagNotErase": "يمحو ما كُتب",
+  "pprofile.flagNotChange": "يغيّر السجل: يبقى كما كان",
+  "pprofile.addedByYou": "أضفته أنت",
+  "pprofile.addedBy": "أضافه {name}",
+  "pprofile.yourTherapist": "معالجك",
   "browse.searchAria": "ما الذي تحتاج مساعدة فيه؟",
-  "browse.nothingMatched":
-    "لم يدرج أحد هذا المجال بعد. جرّب أحد المجالات بالأسفل، أو افتح شاشة المتاحين لترى من هو متفرغ الآن.",
+  "browse.nothingMatched": "لم يدرجه أحد بعد. جرّب مجالًا بالأسفل، أو افتح الرادار.",
   "browse.areas": "ما الذي تحتاج مساعدة فيه؟",
   "browse.areasBody": "المجالات التي أدرجها معالجون موثّقون فقط. الرقم هو عددهم.",
   "paccount.phone": "الهاتف",
   "paccount.email": "البريد الإلكتروني",
   "paccount.timezone": "المنطقة الزمنية",
-  "paccount.addEmailBody":
-    "سجّلت برقم هاتفك. إضافة بريد إلكتروني تتيح لك الدخول به أيضًا، وهي الطريقة الوحيدة لإرسال نسخة من سجلك إليك.",
+  "paccount.addEmailBody": "طريقة أخرى للدخول، والطريقة الوحيدة لاستلام نسخة من سجلك.",
   "paccount.whoCanSee": "من يستطيع رؤية سجلك",
   "paccount.whoCanSeeBody": "امنح الإذن، أو اسحبه، وشاهد ما طُلب منك.",
   "paccount.ownDocuments": "مستنداتك أنت",
@@ -3778,8 +3780,7 @@ export const ar: Record<MessageKey, string> = {
   "pauth.signInBody": "سجّل الدخول لترى ملاحظاتك وخطواتك ومن يمكنه قراءة سجلك.",
   "pauth.signUpTitle": "أنشئ حسابك",
   "pauth.signUpBody": "سجلك يصبح ملكك: ينتقل معك، وأنت من يقرر من يقرأه.",
-  "pauth.signUpInvited":
-    "دعاك {name}. سجلك يصبح ملكك: ينتقل معك، وأنت من يقرر من يقرأه.",
+  "pauth.signUpInvited": "دعاك {name}. يصبح السجل ملكك، وأنت من يقرر من يقرؤه.",
   "pauth.forgot": "نسيت كلمة المرور؟",
   "pauth.newHere": "أول مرة هنا؟",
   "pauth.alreadyHaveOne": "لديك حساب بالفعل؟",
@@ -3791,56 +3792,49 @@ export const ar: Record<MessageKey, string> = {
   "pauth.practiceReset": "استعد كلمة مرور عيادتك",
   "pauth.resetTitle": "استعد الدخول إلى حسابك",
   "pinvite.usedTitle": "هذا الرابط لم يعد صالحًا",
-  "pinvite.usedBody":
-    "ربما استُخدم من قبل، أو انتهت مدته، أو سُحب. اطلب من معالجك رابطًا جديدًا.",
+  "pinvite.usedBody": "استُخدم أو انتهى أو سُحب. اطلب من معالجك رابطًا جديدًا.",
   "pclaim.noneTitle": "لا يوجد ما تستلمه بعد",
-  "pclaim.noneBody":
-    "لم نجد سجلًا تحت بريدك أو رقم هاتفك. وهذا طبيعي تمامًا، فأغلب المعالجين يكتبون الاسم فقط ولا شيء غيره.",
-  "pclaim.noneAsk":
-    "إن كنت تعرف أن معالجك يحتفظ بملاحظات عنك، اطلب منه رابط دعوة. يكلفه ضغطة واحدة، ويربط ذلك السجل تحديدًا بحسابك هذا.",
+  "pclaim.noneBody": "لا شيء تحت بريدك أو رقمك. وهذا طبيعي: أكثر المعالجين يكتبون اسمًا فقط.",
+  "pclaim.noneAsk": "اطلب من معالجك رابط دعوة. ضغطة واحدة، ويربط ذلك السجل تحديدًا.",
   "pclaim.skip": "تخطَّ الآن",
   "pclaim.doneTitle": "أصبح هذا السجل ملكك",
   "pclaim.doneKept": "ما زال معالجك يستطيع رؤية ملفك. يمكنك تغيير ذلك في أي وقت.",
-  "pclaim.doneDropped":
-    "يحتفظ معالجك بالملاحظات التي كتبها، لكنه لم يعد يرى ملفك. يمكنك إعادة الإذن له متى شئت.",
+  "pclaim.doneDropped": "يحتفظ بالملاحظات التي كتبها، ولم يعد يرى ملفك الحي. ويمكن التراجع متى شئت.",
   "pclaim.goToSessions": "اذهب إلى جلساتي",
   "pclaim.checkWhatsapp": "تفقد واتساب",
   "pclaim.checkEmail": "تفقد بريدك الإلكتروني",
   "pclaim.codeSent": "أرسلنا رمزًا من ستة أرقام. ينتهي خلال ثلاثين دقيقة.",
-  "pclaim.fellBack": "لم نستطع الوصول إليك عبر واتساب، فأرسلنا الرمز إلى بريدك الإلكتروني.",
+  "pclaim.fellBack": "لم يصلك واتساب، فذهب الرمز إلى بريدك.",
   "pclaim.yourCode": "رمزك",
   "pclaim.keepAccess": "اسمح لهذا المعالج بمواصلة رؤية ملفي",
-  "pclaim.keepAccessBody":
-    "إن تركته مغلقًا يحتفظ بالملاحظات التي كتبها ولا شيء غيرها، لا جلسات جديدة ولا ملف حي. يمكنك تشغيله لاحقًا، وإغلاقه مرة أخرى، متى شئت.",
+  "pkeep.off": "إن تركته مغلقًا",
+  "pkeep.offKeeps": "الملاحظات التي كتبها فقط، ولا شيء غيرها",
+  "pkeep.on": "إن شغّلته",
+  "pkeep.onKeeps": "ملفك الحي، والجلسات من الآن فصاعدًا",
+  "pkeep.change": "يمكنك تغيير هذا متى شئت.",
   "pclaim.notMe": "هذا ليس أنا",
   "pclaim.matchedEmail": "يحتفظ معالج بملاحظات لشخص يحمل بريدك الإلكتروني، تحت اسم:",
   "pclaim.matchedPhone": "يحتفظ معالج بملاحظات لشخص يحمل رقم هاتفك، تحت اسم:",
   "pclaim.isThatYou": "هل هذا أنت؟",
   "pclaim.yesSendCode": "نعم، أرسل لي رمزًا",
-  "pclaim.initialsOnly":
-    "لا نعرض سوى الأحرف الأولى حتى تؤكد الرمز. لا أحد يعرف عنك من هذه الشاشة شيئًا لم تخبرنا به بالفعل.",
+  "pclaim.initialsOnly": "الأحرف الأولى فقط حتى تؤكد الرمز. وهذه الشاشة لا تخبرك بشيء لم تخبرنا به.",
   "consent.sayWhy": "يمكنك أن تقول السبب أو لا تقول. كلاهما مقبول.",
   "pclaim.everything": "هذا كل شيء",
   "pclaim.seenBefore": "هل زرت {name} من قبل؟",
-  "pclaim.seenBeforeBody":
-    "رقمك طابق سجلًا لديه. إن لم تزره من قبل فقل لا. ولن يُعرض عليك شيء عن ذلك السجل في الحالتين.",
+  "pclaim.seenBeforeBody": "طابق رقمك سجلًا لديه. وإن لم تره من قبل فقل لا.",
   "pclaim.noHaveNot": "لا، لم أزره",
-  "pclaim.typeName": "اكتبه كما أعطيته له. لن نعرضه عليك.",
+  "pclaim.typeName": "كما أعطيته له. ولن نعرضه عليك.",
   "pclaim.firstName": "الاسم الأول",
   "pcode.title": "أدخل رمزك",
-  "pcode.body":
-    "إن كان لهذا الرقم أو البريد حساب، فرمز من ستة أرقام في طريقه إليك. ينتهي خلال عشر دقائق.",
-  "pcode.channelDown":
-    "إرسال الرموز عبر واتساب غير مفعّل بعد، وقد لا يصلك الرمز. إن كنت قد وضعت كلمة مرور، فادخل بها بدلًا من ذلك.",
+  "pcode.body": "إن كان لذلك الرقم أو العنوان حساب، فرمز من ستة أرقام في طريقه إليك.",
+  "pcode.channelDown": "رموز واتساب غير مفعّلة بعد. ادخل بكلمة المرور بدلًا منها.",
   "pcode.useCode": "ادخل برمز بدلًا من ذلك",
-  "pcode.useCodeBody":
-    "لا حاجة إلى كلمة مرور. نرسل رمزًا إلى رقم هاتفك أو بريدك، أيهما سجّلت به.",
+  "pcode.useCodeBody": "بلا كلمة مرور. نرسل رمزًا إلى ما سجّلت به.",
   "pjournal.placeholder": "كيف كانت الأيام؟",
   "psessions.writing": "معالجك ما زال يكتب ملخصك.",
   "residency.withdraw": "اسحب الموافقة",
   "pidentity.removePhoto": "احذفها",
-  "pidentity.photoPrivate":
-    "صورتك ليست علنية. تُحفظ بشكل خاص، ولا تظهر إلا لك ولمعالج أنت في جلسة معه.",
+  "pidentity.photoPrivate": "ليست علنية. تظهر لك، ولمعالج أنت في جلسة معه.",
   "pauth.invitePhoneNote": "الرقم الذي أرسل إليه معالجك هذه الدعوة.",
   "pauth.phonePlaceholder": "هاتف أو واتساب",
   "pauth.phoneNote": "بهذا تسجّل الدخول، وبه يجدك معالجك.",
@@ -3866,8 +3860,7 @@ export const ar: Record<MessageKey, string> = {
   "pclaim.oneQuestion": "سؤال واحد",
   "pclaim.claimThis": "طالِب بهذا السجل",
   "pinv.keepsAccess": "سيظل معالجك قادرًا على رؤية ملفك. يمكنك تغيير ذلك في أي وقت.",
-  "pinv.losesAccess":
-    "يحتفظ معالجك بالملاحظات التي كتبها، لكنه لن يعود قادرًا على رؤية ملفك الحالي.",
+  "pinv.losesAccess": "يحتفظ بالملاحظات التي كتبها، ولم يعد يرى ملفك الحي.",
   "pinv.thisIsMe": "هذا أنا، أطالب به",
   "pid.addPhoto": "أضف صورة",
   "pid.changePhoto": "غيّر صورتك",
@@ -3885,8 +3878,7 @@ export const ar: Record<MessageKey, string> = {
   "pfield.handle": "رقم الهاتف أو البريد الإلكتروني",
   "pfield.password": "كلمة المرور",
   "pfield.passwordOptional": "كلمة المرور (اختيارية)",
-  "pfield.passwordOptionalHint":
-    "اتركها فارغة وسجّل الدخول برمز يُرسل إلى الرقم أو العنوان أعلاه.",
+  "pfield.passwordOptionalHint": "اتركها فارغة وادخل برمز بدلًا منها.",
   "pfield.sixDigitCode": "رمز من ستة أرقام",
   "pfield.newPassword": "كلمة مرور جديدة",
   "pfield.passwordLengthHint": "عشرة أحرف على الأقل.",
@@ -3894,16 +3886,14 @@ export const ar: Record<MessageKey, string> = {
   "pfield.checkTheCode": "تحقق من الرمز",
   "pfield.sendMeACode": "أرسل لي رمزًا",
 
-  "pted.retention":
-    "لا يمكن حذف السجلات، ولا يمكن إرسالها بالبريد خارج هذا المكان. تُحفظ الجلسات والملاحظات للمدة التي تفرضها الجهة المنظمة لك. إذا طلب هذا المريض بياناته أو طلب منك محوها، أرسله إلينا، فنحن نتولى الأمرين، وسنخبرك حين نفعل.",
+  "pted.retention": "تُحفظ للمدة التي تفرضها جهتك المنظِّمة، ولا تُحذف ولا تُرسل بالبريد. وأحِل إلينا طلبات البيانات والمحو.",
   "pted.emailHint": "يُستخدم فقط لإرسال ملخصات الجلسات.",
   "pted.diagnoses": "التشخيصات المبدئية",
   "pted.diagnosesHint": "افصل بينها بفواصل. تُضاف كسياق عند كتابة الملاحظات.",
   "pted.goals": "أهداف العلاج",
   "pted.goalsHint": "افصل بينها بفواصل.",
 
-  "pban.asked":
-    "لقد طلبت الاطلاع. سيرى طلبك في المرة القادمة التي يسجّل فيها الدخول. نحن لا نلاحقه نيابة عنك.",
+  "pban.asked": "تم الطلب. سيرى ملاحظتك عند دخوله القادم. ولا نلاحقه نيابة عنك.",
   "pban.ask": "اطلب الاطلاع",
   "pban.whyLabel": "لماذا تطلب؟ هو من سيقرأ هذا.",
   "pban.example": "أستعد لجلستنا يوم الخميس وأود الاطلاع على تاريخك.",
@@ -3916,8 +3906,7 @@ export const ar: Record<MessageKey, string> = {
   "pnum.whyHint": "سيقرأ هذا شخص حقيقي.",
 
   "pracc.lockedOutTitle": "شخص ما محجوب عن الدخول",
-  "pracc.lockedOutBody":
-    "ثلاث إجابات خاطئة على \u201Cما الاسم الذي أعطيته له؟\u201D. إن كان هذا مريضك يخطئ في كتابة اسمه، فاسمح له بمحاولة أخرى. وإن كنت لا تتوقع أن يطالب أحد بهذا السجل، فلا تفعل.",
+  "pracc.lockedOutBody": "ثلاث إجابات خاطئة عن سؤال الاسم. لا تسمح بمحاولة أخرى إلا إن كنت تتوقع هذا الطلب.",
   "pracc.letThemTry": "اسمح له بمحاولة أخرى",
   "pracc.released": "تم السماح. أمامه ثلاث محاولات أخرى، ومسجّل أنك من سمح بذلك.",
   "pracc.ownAccessTitle": "اطلاعه على سجله",
@@ -3932,16 +3921,21 @@ export const ar: Record<MessageKey, string> = {
   "pracc.whyPlaceholder": "لماذا، مثلًا: تحدثت معها، وكتبت اسمها بعد الزواج",
   "radar.freeNow": "متاح الآن",
   "pexport.title": "نسخة من كل شيء",
-  "pexport.body":
-    "كل جلسة، وكل ملاحظة وقّعها معالجوك، وكل نسخة من ملخصك، وما كتبته بنفسك، والتواريخ. نرسل رابطًا إلى {email} ولا نرسله إلى أي مكان آخر. يُفتح بلا كلمة مرور، ويتوقف بعد ثلاثة أيام.",
+  "pexport.who": "النسخة التي نرسلها إليك",
+  "pexport.hasSessions": "كل جلسة وتاريخها",
+  "pexport.hasNotes": "كل ملاحظة وقّعها معالجوك",
+  "pexport.hasSummaries": "كل نسخة من ملخصك",
+  "pexport.hasYours": "ما كتبته بنفسك",
+  "pexport.delivery": "تُرسل إلى {email} ولا مكان غيره. بلا كلمة مرور، والرابط يتوقف بعد ثلاثة أيام.",
   "pexport.onItsWay": "في طريقها إلى {email}. لم يقرأها أحد هنا.",
   "pexport.button": "أرسل لي سجلي بالبريد",
   "pexport.preparing": "جارٍ تجهيزها…",
   "pexport.sent": "أُرسلت",
-  "pexport.notCertificate":
-    "هذه نسخة من السجل، وليست شهادة. تقول ما لدينا ومتى كُتب. ولا تقول إن تشخيصًا فيها صحيح، ولا شيء فيها مكتوب لمحكمة.",
-  "pidentity.photoPrivateRecord":
-    "صورتك ليست علنية. تُحفظ بشكل خاص، ولا تظهر إلا لك ولمعالج لديه سجل عنك بالفعل.",
+  "pexport.notCert": "شهادة",
+  "pexport.notRight": "إقرارًا بأن تشخيصًا فيها صحيح",
+  "pexport.notForCourt": "مستندًا مكتوبًا لمحكمة",
+  "pexport.coverCode": "تحمل الصفحة الأولى الرمز {code}، ويستطيع من تسلّمه أن يتحقق منه لدينا.",
+  "pidentity.photoPrivateRecord": "ليست علنية. تظهر لك، ولمعالج لديه سجل عنك بالفعل.",
   "pcode.expires": "ينتهي خلال خمس عشرة دقيقة.",
   "consent.whichTherapist": "أي معالج",
   "preset.changed": "تم تغيير كلمة المرور",
@@ -3957,13 +3951,10 @@ export const ar: Record<MessageKey, string> = {
   "preset.title": "استعد الدخول إلى حسابك",
   "preset.body": "أخبرنا برقم الهاتف أو البريد الذي تسجّل الدخول به وسنرسل لك رمزًا.",
   "pnumber.requested": "وصلنا طلبك",
-  "pnumber.requestedBody":
-    "سيتصل أحدهم بالرقم الجديد للتأكد أنه أنت، ثم يرسل إليه رمزًا. أدخل الرمز هنا وينتقل حسابك. ولا يتغير شيء قبل ذلك.",
+  "pnumber.requestedBody": "لا يتغير شيء حتى تُدخل الرمز الذي نرسله إلى الرقم الجديد.",
   "pnumber.yours": "رقمك",
-  "pnumber.body":
-    "بهذا الرقم نعرف أنك أنت، ولذلك يحتاج تغييره إلى شخص ويوم. نتصل بالرقم الجديد أو نراسله أولًا، ثم نرسل إليه رمزًا. ولا يستطيع أحد هنا نقل حسابك بغير ذلك الرمز.",
-  "pnumber.locked":
-    "رقمك أُكِّد حديثًا، فهو مغلق حتى {date}. إن لم تستطع الانتظار فاكتب إلينا وسينظر فيه شخص.",
+  "pnumber.body": "بهذا نعرف أنك أنت، ولذلك يحتاج تغييره إلى شخص ويوم.",
+  "pnumber.locked": "مغلق حتى {date} لأنه أُكِّد حديثًا. اكتب إلينا إن لم تستطع الانتظار.",
   "pnumber.newNumber": "الرقم الجديد",
   "pnumber.country": "الدولة",
   "pnumber.mayCall": "يمكنكم الاتصال بالرقم الجديد أو مراسلته للتأكد أنه أنا.",
@@ -3996,7 +3987,7 @@ export const ar: Record<MessageKey, string> = {
   "psteps.didThis": "فعلت هذا",
   "psteps.couldNot": "لم أستطع فعل هذا",
   "passess.title": "بعض الأسئلة",
-  "passess.body": "طلب منك معالجك الإجابة على هذه الأسئلة. لا توجد إجابات صحيحة ولا أحد يصححها.",
+  "passess.body": "طلب منك معالجك الإجابة عنها. لا توجد إجابات صحيحة ولا أحد يصححها.",
   "passess.none": "لا يوجد شيء للإجابة عليه الآن",
   "passess.noneBody": "عندما يرسل لك معالجك مجموعة من الأسئلة، تظهر هنا.",
   "passess.start": "ابدأ",
@@ -4040,8 +4031,7 @@ export const ar: Record<MessageKey, string> = {
   "jconsent.on": "مفعّل",
   "jconsent.turnOn": "فعّل",
   "jconsent.changeAnyTime": "يمكنك تغييرها في أي وقت أثناء الجلسة.",
-  "jconsent.cannotUndo":
-    "غيّرت رأيك في التسجيل؟ لا يمكن إيقافه في المنتصف، وما سُجّل يبقى موجودًا. اطلب من معالجك إنهاء الجلسة، وأجب بلا في المرة القادمة.",
+  "jconsent.cannotUndo": "لا يمكن إيقاف التسجيل في منتصفه. اطلب من معالجك إنهاء الجلسة، وأجب بلا في المرة القادمة.",
   "radar.globeLabel": "كرة أرضية تعرض أماكن المعالجين المتاحين الآن",
   "radar.spinningUp": "جارٍ التشغيل…",
   "radar.clearFilters": "امسح كل عوامل التصفية",
@@ -4066,14 +4056,26 @@ export const ar: Record<MessageKey, string> = {
   "radar.nobodyYetBody":
     "يظهر المعالجون هنا لحظة اتصالهم. إن كنت تحتاج مساعدة الآن، اتصل برقم الطوارئ في بلدك.",
   "radar.nobodyMatchingTitle": "لا أحد مطابق لذلك على الشاشة الآن",
+  "radar.countShowing": "{count} ظاهرون",
+  "radar.mapView": "خريطة",
+  "radar.listView": "قائمة",
+  "radar.nextOpen": "أقرب موعد",
+  "radar.noHours": "لا مواعيد منشورة",
+  "radar.noRating": "بلا تقييم بعد",
+  "radar.noLanguages": "لم تُذكر لغات",
+  "radar.clinician": "معالج",
+  "radar.perHalfHour": "٣٠ دقيقة",
+  "radar.licensed": "معالج مرخَّص",
+  "radar.available": "متاح",
+  "radar.beingBooked": "قيد الحجز",
+  "radar.inSession": "في جلسة",
+  "radar.heldForYou": "محجوز لك",
   "prating.yourSession": "جلستك",
   "prating.summaryOnWay": "ملخصك بالأسفل، ونسخة منه في طريقها إلى بريدك.",
-  "prating.stillWriting":
-    "{name} ما زال يكتب تقرير الجلسة. سيصلك الملخص بالبريد فور اعتماده، وغالبًا خلال ساعة.",
-  "prating.keepLink": "ملخصك بالأسفل. احتفظ بهذا الرابط إن أردت العودة إليه.",
+  "prating.stillWriting": "ما زال {name} يكتبه. ويصلك بالبريد فور اعتماده.",
+  "prating.keepLink": "ملخصك بالأسفل. احتفظ بهذا الرابط للعودة إليه.",
   "prating.yourSummary": "ملخصك",
-  "prating.writtenForYou":
-    "هذا مكتوب لك أنت. ويحتفظ معالجك بملاحظة سريرية منفصلة تبقى عنده.",
+  "prating.writtenForYou": "مكتوب لك أنت. ويحتفظ معالجك بملاحظة سريرية منفصلة.",
   "prating.oneMinute": "دقيقة واحدة، ويصبح ملخصك لك",
   "prating.andSession": "والجلسة نفسها؟",
   "prating.andApp": "و24Therapy نفسه؟",
@@ -4083,8 +4085,7 @@ export const ar: Record<MessageKey, string> = {
   "prating.noName": "يرى معالجك هذا بلا اسمك عليه.",
   "prating.commentPlaceholder": "ما الذي ساعد، وما الذي لم يساعد.",
   "prating.whereSummary": "إلى أين نرسل ملخصك؟",
-  "prating.summaryBody":
-    "ملخص بلغة بسيطة لما تحدثتما فيه وما اتفقتما عليه. نستخدم هذا العنوان لذلك وللتواصل معك بشأن هذه الجلسة، ولا شيء غير ذلك.",
+  "prating.summaryBody": "إلى هنا نرسل ملخصك. يُستخدم لهذه الجلسة ولا شيء غيرها.",
   "prating.ratingsAndEmail": "التقييمات وعنوان بريد، ويصبح الملخص لك.",
   "prating.reported": "تم الإبلاغ",
   "prating.neverJoined": "لم يحضر، وأريد استرداد أموالي",
@@ -4096,29 +4097,23 @@ export const ar: Record<MessageKey, string> = {
   "pbook.firstName": "اسمك الأول",
   "pbook.email": "البريد الإلكتروني",
   "pbook.phone": "هاتف أو واتساب",
-  "pbook.oneOfThese": "أعطنا واحدًا منهما لنرسل لك الرابط ونخبرك إن تغير شيء.",
+  "pbook.oneOfThese": "واحد من هذين، لنرسل لك الرابط ونخبرك إن تغيّر شيء.",
   "pbook.note": "أي شيء ينبغي أن يعرفه قبل اللقاء؟ (اختياري)",
   "pbook.pickAnother": "اختر موعدًا آخر",
   "pbook.fullProfile": "اطّلع على ملفه كاملًا",
   "pbook.onlyYou": "أنت الوحيد الذي يستطيع حجزه الآن",
   "pbook.timeLeft": "الوقت المتبقي لإتمام الحجز",
-  "pbook.heldBody":
-    "يظهر هذا المعالج الآن مشغولًا لغيرك. أتمّ حجزك، أو أغلق الصفحة ليصل إليه شخص آخر.",
-  "pbook.taken":
-    "شخص آخر على هذا الملف الآن. ما زال بإمكانك المحاولة، وإن لم يكمل حجزه يعود هذا المعالج متاحًا.",
-  "pbook.unavailable":
-    "أصبح هذا المعالج غير متاح للتو. أغلق هذه النافذة واختر شخصًا آخر، فالشاشة تتحدث كل بضع ثوانٍ.",
-  "pbook.noAccount":
-    "لا حاجة إلى حساب. الدفع يذهب إلى معالجك عبر Stripe، ولا نرى بطاقتك أبدًا. إن كنت في خطر مباشر، اتصل برقم الطوارئ في بلدك.",
+  "pbook.heldBody": "يظهر الآن مشغولًا للجميع. أكمل الحجز أو أغلق هذه الصفحة.",
+  "pbook.taken": "أحدهم على هذا الملف الآن. وإن لم يمض قدمًا يعود المعالج متاحًا.",
+  "pbook.unavailable": "لم يعد متاحًا الآن. وتتحدث الشاشة كل بضع ثوانٍ.",
+  "pbook.noAccount": "بلا حساب. سترايب تتولى الدفع، ولا نرى بطاقتك.",
   "pbook.walkIns": "يستقبل زيارات بلا موعد",
   "pbook.directions": "احصل على الاتجاهات",
   "pbook.emailAddress": "أرسل لي العنوان بالبريد",
   "pbook.addressSent": "أُرسل. تفقد بريدك.",
   "pbook.whereToSend": "إلى أين نرسل الاتجاهات",
-  "pbook.addressOnce":
-    "نرسل العنوان ولا شيء غيره، مرة واحدة. ولا يُحفظ، ولست مشتركًا في أي شيء.",
-  "pbook.notAnAppointment":
-    "الحضور بلا موعد ليس حجزًا. حجز جلسة بالأعلى هو الطريقة الوحيدة للتأكد من وجود شخص متفرغ.",
+  "pbook.addressOnce": "نرسل العنوان مرة واحدة ولا شيء غيره. ولا يُحفظ.",
+  "pbook.notAnAppointment": "الحضور ليس موعدًا. والحجز بالأعلى هو الضمان الوحيد.",
   "pbook.send": "أرسل",
   "pbook.sending": "جارٍ الإرسال…",
   "psessions.which": "أي الجلسات",
@@ -4129,8 +4124,7 @@ export const ar: Record<MessageKey, string> = {
   "psessions.pastBooked": "مواعيد سابقة",
   "psessions.pastBookedBlurb": "جلسات حجزتها.",
   "pclaim.nothingTitle": "لا يوجد ما تستلمه بعد",
-  "pclaim.nothingBody":
-    "لم يسجلك أحد تحت هذا الرقم أو هذا البريد. إن كنت تزور معالجًا، اطلب منه رابط دعوة، ويعمل فورًا.",
+  "pclaim.nothingBody": "لم يسجّلك أحد تحت هذا الرقم أو العنوان. ورابط الدعوة يعمل فورًا.",
 
   /* ------------------------------------------------- the therapist portal -- */
   "portal.nav.primary": "التنقّل الرئيسي",
@@ -4186,7 +4180,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.source.kind.in_person": "في الغرفة، وجهًا لوجه",
   "portal.source.kind.upload": "رُفع لاحقًا",
   "portal.source.provisioned": "أنشأته 24Therapy في {date}",
-  "portal.source.onlyOurs": "المسجّل ينضم فقط إلى اجتماع أنشأته 24Therapy لهذه الجلسة. لا يوجد مكان للصق رابط أرسله لك أحد، وهذا مقصود.",
+  "portal.source.onlyOurs": "لا ينضم المسجّل إلا لاجتماع أنشأته 24Therapy. ولا مكان للصق رابط، عن قصد.",
   "portal.source.tokenTitle": "باب الرفع",
   "portal.source.tokenBody": "بيانات اعتماد لمرة واحدة لرفع صوت هذه الجلسة من مكان آخر. تنتهي صلاحيتها تلقائيًا ويمكنك إلغاؤها الآن.",
   "portal.source.tokenIssue": "أصدر بيانات اعتماد",
@@ -4206,27 +4200,27 @@ export const ar: Record<MessageKey, string> = {
   "portal.voices.bindTherapist": "هذا أنا",
   "portal.voices.bindPatient": "هذا المريض",
   "portal.voices.unbind": "هذا خطأ، أزل الاسم",
-  "portal.voices.unbindBody": "إزالة الاسم تعيد أيضًا كل سطر نُسب إلى ذلك الشخص إلى «غير مسمى»، فيتوقف النص عن تأكيد شيء قلت للتو إنه خطأ.",
+  "portal.voices.unbindBody": "نزع الاسم يعيد كل سطر نُسب إلى ذلك الشخص إلى غير مسمّى.",
   "portal.voices.saving": "جارٍ الحفظ…",
   "portal.nav.bookings": "التقويم",
   "benefit.title": "فعّل ميزتك",
-  "benefit.body": "إن كانت جهة عملك أو جامعتك قد رتّبت هذا، أدخل الرمز الذي أعطوك إياه. تصبح جلساتك مدفوعة.",
+  "benefit.body": "أدخل الرمز الذي أعطته لك جهة عملك أو جامعتك. عندها تُدفع جلساتك.",
   "benefit.codeLabel": "الرمز من جهتك",
   "benefit.activate": "فعّل",
   "benefit.activating": "جارٍ التفعيل…",
   "benefit.identifierLabel": "ما تطلبه {name}",
-  "benefit.identifierNeverShared": "يُستخدم هذا فقط للتحقق من أهليتك. لا يُرسل إلى جهتك أبدًا، ولا يُستخدم للتواصل معك، ولا يُحفظ بصورة يستطيع أحد هنا قراءتها.",
+  "benefit.identifierNeverShared": "يُفحص مرة للتحقق من الأهلية ثم يصبح غير مقروء. لا يُرسل إليهم ولا يُستخدم للتواصل معك.",
   "benefit.confirmDetails": "سنستخدم الاسم والرقم الذين أعطيتنا إياهما بالفعل",
   "benefit.whatTheySee": "ما تراه جهتك وما لا تراه",
-  "benefit.theySeeName": "يرون أنك على القائمة، وتاريخ آخر تحقق لكل من عليها. وهذا التاريخ واحد للجميع، فلا يقول شيئًا عن موعد انضمامك.",
-  "benefit.theyNeverSee": "لا يرون أبدًا إن كنت قد حجزت، ولا متى، ولا مع من، ولا أي شيء عن ذلك. لا تاريخًا ولا عددًا ولا كلمة.",
-  "benefit.ifRemoved": "إن أنهوا الميزة، يبقى ملفك وملاحظاتك وتاريخك وكل من شاركته معهم كما هي تمامًا. الدفع وحده هو ما يتغير.",
+  "benefit.theySeeName": "أنك على القائمة. والتاريخ بجوارها واحد لكل من عليها.",
+  "benefit.theyNeverSee": "هل حجزت، ومتى، ومع من، وأي شيء عن ذلك. لا تاريخًا ولا عددًا.",
+  "benefit.ifRemoved": "الدفع وحده هو ما يتغير. سجلك وملاحظاتك وتاريخك تبقى كما هي تمامًا.",
   "benefit.startsNow": "يبدأ هذا الآن. والجلسات التي دفعت ثمنها بالفعل تبقى كما هي.",
   "benefit.active": "جلساتك مدفوعة من {name}",
   "benefit.paused": "ميزتك متوقفة مؤقتًا",
-  "benefit.pausedBody": "لم نستطع الوصول إليك لتأكيد أنك ما زلت مؤهلًا. رسالة واحدة تحل الأمر، ولم يتغير شيء في ملفك.",
+  "benefit.pausedBody": "لم نستطع الوصول إليك للتأكد من استمرار أهليتك. رسالة واحدة تحل الأمر.",
   "benefit.choosePrimary": "أي واحدة تدفع",
-  "benefit.choosePrimaryBody": "أنت على أكثر من قائمة. اختر التي تدفع لجلساتك. ولا تُبلَّغ أي جهة عن الأخرى.",
+  "benefit.choosePrimaryBody": "اختر أي قائمة تدفع. ولا تُخبَر أي جهة عن الأخرى.",
   "benefit.makePrimary": "استخدم هذه",
   "benefit.primary": "تدفع لجلساتك",
   "pnotice.benefitStarted": "جلساتك مدفوعة الآن.",
@@ -4509,12 +4503,16 @@ export const ar: Record<MessageKey, string> = {
   /* 🔴 63.3 إلى 63.8 — فريق العيادة والأدوار التي تسمّيها. */
   /* 🔴 63.12 / 63.13 / C327 / C354 — ما تراه العيادة، ويُقال للمريض. */
   "pclinic.title": "ما تستطيع {practice} رؤيته",
-  "pclinic.body": "معالجك يعمل داخل {practice}. من يديرون العيادة يدفعون مقابل ساعتك، لذا يستطيع موظفوهم الإداريون رؤية أن هناك موعدًا.",
+  "pclinic.theyPay": "أنهم يدفعون مقابل ساعتك",
   "pclinic.theySee": "اسمك لديهم:",
   "pclinic.andWhen": "و:",
   "pclinic.andWhenValue": "يوم كل موعد ووقته",
-  "pclinic.never": "لا يرون ملاحظة ولا تفريغًا ولا مذكراتك ولا ملخصًا ولا تشخيصًا ولا تنبيه خطر ولا أي شيء تقوله في الجلسة. ليس مخفيًا خلف إعداد: هو غير مبني أصلًا.",
-  "pclinic.why": "نقول لك هذا بدل أن نتركك تفترضه. وإن كنت تفضّل ألا ترى أي عيادة اسمك، يمكنك الحجز مع معالج يعمل بمفرده، والقرار لك في أي وقت.",
+  "pclinic.notNotes": "ملاحظاتك أو تفريغ الجلسة",
+  "pclinic.notJournal": "مذكراتك أو ملخصك",
+  "pclinic.notDiagnosis": "تشخيصًا أو تنبيه خطر",
+  "pclinic.notSaid": "أي شيء تقوله في الجلسة",
+  "pclinic.notBuilt": "ليس مخفيًا خلف إعداد: هو غير مبني أصلًا.",
+  "pclinic.orAlone": "تفضّل ألا ترى أي عيادة اسمك؟ احجز مع معالج يعمل بمفرده.",
   "pclinic.radarLabel": "عيادة",
   "clinic.nav.earnings": "الأرباح",
   "clinic.exportCsv": "نزّله كجدول بيانات",
@@ -4706,11 +4704,14 @@ export const ar: Record<MessageKey, string> = {
   "checkin.howToStop": "إن كنت تفضل ألا تصلك هذه الرسائل، اكتب كلمة إيقاف وستتوقف.",
   "checkin.subject": "كيف حالك؟",
   "checkin.settingsTitle": "رسائل تسأل عن حالك",
-  "checkin.settingsBody": "نرسل رسالة قصيرة من حين إلى آخر نسأل فيها عن حالك. تصلك أنت، ولا يقرأ أحد ردك إلا إذا كتبت ما يقلقنا، ويمكنك إيقافها من هنا أو بالرد بكلمة إيقاف.",
+  "checkin.whoReply": "ردك على رسالة الاطمئنان",
+  "checkin.canDanger": "يعرض لك أين تجد المساعدة إن بدا أنك في خطر",
   "checkin.on": "أرسلوها",
   "checkin.off": "لا ترسلوها",
   "checkin.mutedOn": "أُوقفت في {date}",
-  "checkin.crisisNote": "إن كتبت ما يبدو أنك في خطر، سنعرض لك فورًا أين تجد المساعدة ونُخبر معالجك. ولا يقرأ أحد شيئًا آخر من ردك ولا يُعطى لحاسوب ليفسّره.",
+  "checkin.canTellTherapist": "ويُخبر معالجك في تلك الحالة وحدها",
+  "checkin.cannotRead": "يقرأه أحد فيما عدا ذلك",
+  "checkin.cannotMachine": "يُعطى لآلة لتفسّره",
   /* 🔴 67.1 / 67.4 / 67.6 / 67.7 — اتصال العيادة بنظام السجلات. */
   "records.planTitle": "هذا ضمن خطة المركز",
   "records.planBody": "اتصال السجلات يربط عيادة كاملة بنظام مستشفى: التسجيل للعيادة، والرمز للعيادة، والمعالج الذي يغادر يفقده لأنه لم يكن له أصلًا.",
@@ -4742,7 +4743,7 @@ export const ar: Record<MessageKey, string> = {
   "records.pending": "قيد الإيداع",
   "records.refused": "مرفوضة",
   "portal.meet.title": "حسابات الاجتماعات",
-  "portal.meet.body": "اربط حسابًا وينشئ 24Therapy الاجتماع نيابة عنك داخله. تحصل أنت على رابط الانضمام لتقويمك، ويحصل مريضك على رابط مختلف.",
+  "portal.meet.body": "اربط حسابًا فننشئ الاجتماع داخله. يصلك رابط التقويم، ويصل مريضك رابط آخر.",
   "portal.meet.connect": "اربط {name}",
   "portal.meet.connected": "مرتبط باسم {account}",
   "portal.meet.connectedOn": "رُبط في {date}",
@@ -4758,7 +4759,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.new.record": "فرّغ هذه الجلسة نصًا",
   "portal.new.recordBody": "يُسأل مريضك أولًا على شاشته. وإن رفض، تجري الجلسة كما هي تمامًا بلا نص.",
   "portal.new.yourLink": "رابطك، لتقويمك",
-  "portal.new.patientLinkDiffers": "يحصل مريضك على رابط مختلف. رابطه يسأل سؤال التسجيل ثم يحوّله إلى هنا، ولهذا ننشئ نحن الاجتماع لا أنت.",
+  "portal.new.patientLinkDiffers": "يحصل مريضك على رابط مختلف: رابطه يسأل عن التسجيل أولًا.",
   "portal.new.connectFirst": "اربط حسابًا من الإعدادات لتجري الجلسات هناك.",
   "portal.session.patientDeclined": "اختار المريض ألا يشغّل الذكاء الاصطناعي.",
   "portal.book.title": "تقويمك",
@@ -4788,16 +4789,16 @@ export const ar: Record<MessageKey, string> = {
   "portal.book.inviteSending": "جارٍ الدعوة…",
   "portal.book.invited": "أُبلغ {name} بهذه الساعة.",
   "portal.book.inviteNone": "لا يوجد لديك مرضى لدعوتهم بعد.",
-  "portal.book.reminder": "نرسل لهم تذكيرًا قبل الموعد بيوم، عبر واتساب حيث لدينا رقم. لا يكلفهم شيئًا ولا يكلفك شيئًا.",
-  "portal.book.blocksRadar": "الساعة المحجوزة تخرجك من الرادار من ربع ساعة قبلها وحتى نهايتها، حتى لا يُحال أحد في أزمة إلى موعد لا تستطيع الرد فيه.",
+  "portal.book.reminder": "نذكّره قبلها بيوم، عبر واتساب إن كان لدينا رقم. ولا يكلّف ذلك أحدًا شيئًا.",
+  "portal.book.blocksRadar": "الساعة المحجوزة تخرجك من الرادار من ربع ساعة قبلها وحتى نهايتها.",
   "portal.patients.title": "المرضى",
   "portal.patients.none": "لا مرضى بعد",
   "import.title": "انقل قائمة مرضاك معك",
-  "import.body": "ارفع الملف الذي أعطتك إياه منصتك السابقة. نقرأ الاسم ورقم الهاتف، ونعرض لك ما وجدناه، ولا ننشئ شيئًا حتى توافق.",
-  "import.notesNever": "الملاحظات والتشخيصات والتاريخ المرضي وإشارات الخطر لا تُنقل، أيًا كان ما في الملف. النص السريري في السجل يحتاج معالجًا اعتمد ذلك النص بعينه، ولا أحد في جدول بيانات اعتمده. القائمة أدناه تسمي كل عمود نتركه.",
+  "import.body": "ارفع الملف الذي أعطتك إياه منصتك السابقة. نقرأ اسمًا ورقمًا، ولا ننشئ شيئًا حتى تأذن.",
+  "import.notesNever": "لا تُنقل الملاحظات ولا التشخيصات ولا التواريخ ولا تنبيهات الخطر. فالنص السريري يحتاج طبيبًا اعتمد صياغته.",
   "import.file": "الملف",
   "import.country": "في أي بلد هذه الأرقام",
-  "import.countryNote": "سنقرأ كل رقم محلي في الملف على أنه من هذا البلد. والرقم المكتوب بعلامة زائد ومفتاح دولة يحتفظ بمفتاحه.",
+  "import.countryNote": "يُقرأ كل رقم محلي في الملف على أنه من هذا البلد. وما حمل مفتاح دولة يبقى كما هو.",
   "import.preview": "أرني ما في الملف",
   "import.found": "{count} أشخاص يمكننا إضافتهم",
   "import.matched": "الأعمدة التي نقرأها",
@@ -4825,8 +4826,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.docs.journalsBlurb":
     "كتبها بنفسه بين الجلسات. وهو من اختار أن يمنحك حق الاطّلاع على سجلّه، ولهذا تظهر هنا.",
   "portal.docs.noRecord": "لا يوجد سجلّ شخصي لهذا المريض بعد. إضافة مستند تُنشئ واحدًا.",
-  "portal.evidence.blurb":
-    "كل سطر هنا جاء من مكان ما، والجملة التي جاء منها مكتوبة تحته. إن كان أحدها خطأً فقُل ذلك: لا يُحذف شيء، ويرى الأخصائي التالي أنك اعترضت.",
+  "portal.evidence.blurb": "كل سطر جاء من مكان، والجملة تحته. قل إن كان أحدها خاطئًا: لا شيء يُحذف.",
   "portal.evidence.back": "العودة إلى المريض",
   "portal.notes.title": "الملاحظات",
   "portal.notes.none": "لا ملاحظات بعد",
@@ -4852,8 +4852,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.settings.practice": "عيادتك",
   "portal.settings.openVerification": "افتح التحقّق",
   "portal.settings.qr": "رمز QR الخاص بك",
-  "portal.settings.qrBlurb":
-    "رمز للحائط أو لنهاية الجلسة. يحمل اسمك ولا شيء غيره، ويمكنك إلغاؤه متى انتهت صلاحية الملصق.",
+  "portal.settings.qrBlurb": "رمز للحائط. يذكر اسمك ولا شيء غيره، ويمكنك إلغاؤه حين يقدم الملصق.",
   "portal.settings.openCodes": "افتح رموزك",
   "portal.settings.admin": "لوحة الإدارة",
   "portal.settings.adminBlurb": "إدارة الأخصائيين، ومراجعة سجلّ التدقيق، وتحرير الموقع العام.",
@@ -4864,17 +4863,19 @@ export const ar: Record<MessageKey, string> = {
   "portal.settings.tabSecurity": "الأمان",
   "portal.settings.tabAdmin": "الإدارة",
   "portal.codes.title": "رمز QR الخاص بك",
-  "portal.codes.blurb":
-    "للحائط أو للمكتب أو لنهاية جلسة حضورية. يمسحه شخص، فيُنشئ حسابه الخاص، ثم يصبح بإمكانه تملّك الملاحظات التي تحتفظ بها عنه.",
+  "portal.codes.blurb": "للحائط أو المكتب أو نهاية الجلسة. يمسحه أحدهم فيستطيع استلام الملاحظات التي تحتفظ بها عنه.",
   "portal.codes.carries": "ما الذي يحمله",
-  "portal.codes.carriesBody":
-    "أنت وحدك. يحمل اسمك واسم عيادتك ولا شيء غير ذلك، لأن الملصق على الحائط علنيّ ويستطيع أي مارّ تصويره. لا يمكنه تحديد هوية مريض، ومسحه لا يمنح أحدًا حق الوصول إلى أي شيء: مطابقة السجلّ ما زالت تتطلب رقم هاتف أو بريدًا مؤكَّدًا، وسؤال الاسم.",
+  "portal.codes.carriesBody": "أنت وحدك. الملصق على الحائط علني، فهو يذكر اسمك وعيادتك ولا شيء غير ذلك. ومسحه لا يمنح أحدًا شيئًا.",
   "portal.codes.revoke":
     "ألغِ الرمز متى انتهت صلاحية الملصق الموجود عليه. ومسح رمز ملغى يخبر صاحبه بذلك، بدل أن يفشل دون تفسير.",
-  "portal.onboarding.why":
-    "سوف تعالج أشخاصًا في وضع هشّ، وتكتب سجلّات إكلينيكية، وتستلم مدفوعات عبرنا. وبصفتنا شريكًا خاضعًا لـ HIPAA، علينا أن نعرف من يفعل ذلك، وكذلك شركاؤنا في المدفوعات والتأمين. وهو أيضًا الشيء الوحيد الذي يحول بين مريض في أزمة وبين شخص ليس معالجًا من الأساس.",
-  "portal.onboarding.privacy":
-    "لا يطّلع على هويتك وترخيصك إلا فريق الامتثال لدينا. لا تُعرض على المرضى، ولا على أخصائيين آخرين، ولا تُستخدم لأي غرض آخر. ولا يظهر علنًا سوى صورتك واسمك ومؤهلاتك ولغاتك وتخصصاتك.",
+  "portal.onboarding.whoSees": "فريق الامتثال لدينا، ولا أحد غيره",
+  "portal.onboarding.reasonRecords": "ستكتب سجلات سريرية وتتقاضى أموالًا",
+  "portal.onboarding.reasonPartners": "شركاؤنا في الدفع والتأمين يشترطون ذلك",
+  "portal.onboarding.reasonCrisis": "وهو ما يفصل بين مريض في أزمة ومن ليس معالجًا أصلًا",
+  "portal.onboarding.notPatients": "تُعرض على المرضى",
+  "portal.onboarding.notClinicians": "تُعرض على معالجين آخرين",
+  "portal.onboarding.notElse": "تُستخدم لأي غرض آخر",
+  "portal.onboarding.publicOnly": "العلني: صورتك واسمك ومؤهلاتك ولغاتك وتخصصاتك.",
   "portal.assistant.title": "المساعد",
   "portal.connect.title": "الربط",
   "portal.support.title": "الدعم",
@@ -4918,8 +4919,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.patient.joinedByLink": "انضم عبر رابط",
   "portal.minutes": "{count} دقيقة",
   "portal.earnings.subtitle": "ما دفعه لك مرضاك.",
-  "portal.earnings.heldBody":
-    "ما دام {amount} لدينا، تُسدَّد منه تلقائيًا أي فاتورة جلسة تترتب عليك. لا دفع بالبطاقة، ولا شيء تتذكره.",
+  "portal.earnings.heldBody": "ما دام {amount} لدينا، تُسدَّد منه فواتير الجلسات تلقائيًا.",
   "portal.docs.spoken": "مُملاة",
   "portal.docs.viewedBy": "{name} · اطّلع عليه {who}",
   "portal.billing.creditWaiting": "هناك رصيد في انتظار فاتورتك القادمة",
@@ -4930,8 +4930,7 @@ export const ar: Record<MessageKey, string> = {
     "كل جلسة تكملها تمنحك {count} أسئلة للمساعد عن ذلك المريض. وما لا تستخدمه يُرحَّل ويبقى {months} شهرًا.",
   "portal.copilot.noneBody": "أجرِ جلسة وتظهر هنا محادثة مساعد لذلك المريض.",
   "portal.oncall.subtitle": "اشغل نصف ساعة فارغة بشخص يحتاجها الآن.",
-  "portal.oncall.body":
-    "جلسات الرادار تعمل تمامًا كغيرها: تُفرَّغ نصًّا، وتنتج ملاحظة تعتمدها، وتفتح محادثة مساعد لذلك المريض. راجع {link} لترى ما يراه المريض.",
+  "portal.oncall.body": "جلسات الرادار كغيرها: تُفرَّغ، وتنتج ملاحظة تعتمدها، وتفتح محادثة مساعد. انظر {link}.",
   "portal.patients.subtitle": "{count} ضمن قائمة مرضاك",
   "portal.patients.noneBody":
     "أضف واحدًا بالأعلى، أو يُنشأ السجلّ تلقائيًا أول مرة تبدأ فيها جلسة مع شخص.",
@@ -5001,8 +5000,7 @@ export const ar: Record<MessageKey, string> = {
   "tset.signOutBody":
     "تسجيل الخروج من هنا يخرجك من هذا الجهاز وحده. أما تغيير كلمة المرور بالأعلى فيخرجك من كل مكان.",
   "tset.zone": "منطقتك الزمنية",
-  "tset.zoneBody":
-    "تُقرأ الساعات التي تنشرها بهذه المنطقة، ولن نرسل لك أو لمرضاك تذكيرًا في منتصف الليل بتوقيتها.",
+  "tset.zoneBody": "تُقرأ ساعاتك المنشورة بهذا التوقيت، ولا يخرج تذكير في منتصف الليل هنا.",
   "tset.zoneLabel": "المنطقة الزمنية",
   "tset.zoneNow": "الساعة الآن {time} في {place}.",
   "tset.zoneNotSaved": "لم نحفظ واحدة بعد. متصفحك يقول {zone}.",
@@ -5023,12 +5021,10 @@ export const ar: Record<MessageKey, string> = {
     "نحتفظ لك بمبلغ {amount} إلى أن تنتهي Stripe من التحقّق منك. وينتقل إلى حسابك تلقائيًا لحظة انتهائها.",
   "tpay.enabled":
     "حدّد سعرًا لرابط الجلسة وتذهب النقود مباشرة إلى حساب Stripe الخاص بك، ولا نمسّها إطلاقًا.",
-  "tpay.notEnabled":
-    "حدّد سعرًا لجلساتك من اليوم. وبمجرد تحقّق Stripe منك تذهب النقود مباشرة إلى حسابك؛ وحتى ذلك الحين نحتفظ بحصتك ونحوّلها إليك تلقائيًا.",
+  "tpay.notEnabled": "تقاضَ من اليوم. فور توثيق سترايب يذهب المال إلى حسابك مباشرة، وحتى ذلك نحتفظ بحصتك.",
   "tpay.openingStripe": "جارٍ فتح Stripe…",
   "tpay.setUp": "فعّل التحويلات",
-  "tpay.setUpBody":
-    "تتولى Stripe التحقّق من الهوية، والتحويل إلى بنكك، ونماذجك الضريبية. يستغرق الأمر نحو ثلاث دقائق ويمكنك العودة إليه لاحقًا.",
+  "tpay.setUpBody": "تتولى سترايب التحقق من الهوية والتحويلات والنماذج الضريبية. نحو ثلاث دقائق، ويمكنك العودة إليها.",
   "tpay.chargesOk": "جاهز لاستلام المدفوعات",
   "tpay.chargesWait": "ما زالت Stripe تتحقّق منك",
   "tpay.payoutsOk": "التحويلات مفعّلة",
@@ -5047,13 +5043,11 @@ export const ar: Record<MessageKey, string> = {
   "tpay.youKeep": "تحصل على",
   "tpay.fee": "رسوم 24Therapy ({percent}%)",
   "tpay.autoSettle": "سدّد فاتورتي لدى 24Therapy من أرباحي",
-  "tpay.autoSettleBody":
-    "حين يدفع لك مريض، يُخصم ما عليك لنا من الدفعة نفسها بدل بطاقتك، ولا يتجاوز ذلك أبدًا ما كنت ستستلمه.",
+  "tpay.autoSettleBody": "ما تدين به لنا يُخصم من الدفعة نفسها لا من بطاقتك، ولا يتجاوز حصتك أبدًا.",
   "tpay.owedNow": "عليك حاليًا {amount}.",
   "tpay.saveSettings": "حفظ إعدادات الدفع",
   "tver.underReview": "لدينا قيد المراجعة",
-  "tver.underReviewBody":
-    "يراجع مستنداتك شخص حقيقي، عادة خلال يوم عمل. وسنراسلك بالبريد فور الانتهاء. يمكنك تصفّح المنتج في هذه الأثناء؛ وتُفتح الجلسات بمجرد اعتمادك.",
+  "tver.underReviewBody": "يفحص شخص مستنداتك، عادة خلال يوم عمل. وتُفتح الجلسات فور اعتمادك.",
   "tver.rejected": "لم نتمكّن من التحقّق منك بعد",
   "tver.rejectedBody": "صحّح ما هو موضّح أعلاه ثم أرسل مرة أخرى. وسيعود طلبك إلى مقدمة الطابور.",
   "tver.noUploads":
@@ -5070,8 +5064,7 @@ export const ar: Record<MessageKey, string> = {
   "tver.languages": "اللغات التي تستطيع العمل بها",
   "tver.specialties": "ما الذي تعمل عليه",
   "tver.documents": "المستندات",
-  "tver.documentsBody":
-    "الصور تكفي، التقطها بهاتفك. وكل شيء عدا صورة الوجه يبقى خاصًا بفريق الامتثال لدينا ولا يُعرض على مريض ولا على أخصائي آخر.",
+  "tver.documentsBody": "صور الهاتف تكفي. وكل شيء عدا صورة الوجه خاص بفريق الامتثال.",
   "tver.showingFor": "نعرض ما تطلبه {country}.",
   "tver.thisCountry": "هذه الدولة",
   "tver.chooseCountryFirst": "اختر دولتك بالأعلى وستتغيّر هذه إلى المستندات التي تصدرها فعلًا.",
@@ -5122,10 +5115,10 @@ export const ar: Record<MessageKey, string> = {
   "tnew.charge": "اطلب من المريض الدفع قبل الانضمام",
   "tnew.chargeBody": "يتحول الرابط إلى رابط دفع. ولا يستطيع دخول الغرفة قبل أن تتم العملية.",
   "tnew.price": "سعر هذه الجلسة",
-  "tnew.split":
-    "تحصل على {keep}، وتأخذ 24Therapy مبلغ {fee} ({percent}%). ويدفع مريضك ضريبة القيمة المضافة فوق ذلك، بحسب دولته.",
-  "tnew.linkNote":
-    "ينضم مريضك من رابط خاص، بلا حساب وبلا تنزيل. وتنتهي صلاحية الرابط خلال اثنتي عشرة ساعة ويتوقف لحظة انتهاء الجلسة.",
+  "tnew.youKeep": "تحتفظ بـ {amount}",
+  "tnew.ourFee": "تأخذ 24Therapy مبلغ {amount} ({percent}%)",
+  "tnew.vatOnTop": "ويدفع مريضك ضريبة القيمة المضافة فوق ذلك، بحسب بلده.",
+  "tnew.linkNote": "رابط خاص، بلا حساب ولا تنزيل. ينتهي بعد 12 ساعة ويتوقف بانتهاء الجلسة.",
   "tnew.consent": "تأكّد من موافقة مريضك على التسجيل قبل أن تبدأ.",
   "trad.saveProfile": "حفظ ملف الرادار",
   "trad.you": "أنت",
@@ -5135,15 +5128,12 @@ export const ar: Record<MessageKey, string> = {
   "trad.inSession": "في جلسة",
   "trad.headlineOn": "أنت ظاهر للعالم",
   "trad.headlineOff": "اشغل نصف ساعة فارغة",
-  "trad.bodyOn":
-    "يستطيع أي شخص على الرادار العام أن يراك ويبدأ جلسة معك الآن. وسيصلك التنبيه في أي مكان داخل التطبيق.",
-  "trad.bodyOff":
-    "كن متاحًا بين المواعيد. من يحتاج المساعدة الآن يجدك، ويدفع لك، وتكون في الغرفة خلال أقل من دقيقة.",
+  "trad.bodyOn": "يستطيع أي أحد على الرادار العلني بدء جلسة معك الآن. ويصلك التنبيه في أي مكان بالتطبيق.",
+  "trad.bodyOff": "كن متاحًا بين المواعيد. من يحتاج المساعدة الآن يجدك ويدفع لك وتكونان في الغرفة.",
   "trad.rate": "سعرك · ثلاثون دقيقة",
   "trad.free": "مجانًا",
   "trad.youKeep": "تحصل على",
-  "trad.heldNote":
-    "اظهر على الرادار وتقاضَ سعرك الآن. لم تتحقّق Stripe منك بعد، لذا نحتفظ بحصتك ونرسلها إلى حسابك لحظة تحقّقها. ولا شيء عليك المطالبة به.",
+  "trad.heldNote": "تقاضَ سعرك اليوم. وإلى أن توثّقك سترايب نحتفظ بحصتك ثم نرسلها. ولا شيء تطالب به.",
   "trad.goOffline": "اقطع الاتصال",
   "trad.goOnline": "اظهر على الرادار",
   "trad.silentWarning": "أنت متاح لكن متصفحك صامت، فعّل التنبيه بالأسفل.",
@@ -5160,10 +5150,8 @@ export const ar: Record<MessageKey, string> = {
   "trad.whereHint": "الدولة فقط، ولا عنوانك أبدًا.",
   "trad.notShared": "غير مُشارَك",
   "trad.canWeRing": "هل نستطيع تنبيهك بصوت؟",
-  "trad.canWeRingBody":
-    "أنت على وشك أن تصبح ظاهرًا لأشخاص في أزمة. لن يشغّل متصفحك أي صوت حتى تسمح له، فاضغط بالأسفل وستسمع التنبيه فورًا، لتعرف أنه يعمل قبل أن يحتاجه أحد.",
-  "trad.soundRefused":
-    "رفض متصفحك. افتح القفل في شريط العنوان، واسمح بـ {sound}، ثم أعد التحميل. ويمكنك مع ذلك الظهور على الرادار، وستحصل على الشريط الظاهر على الشاشة وعنوان تبويب وامض بدلًا من الصوت.",
+  "trad.canWeRingBody": "أنت على وشك أن تكون مرئيًا لأشخاص في أزمة. اضغط لتسمع التنبيه الآن، قبل أن يحتاجه أحد.",
+  "trad.soundRefused": "رفض متصفحك. افتح القفل، واسمح بـ {sound}، وأعد التحميل. وسيصلك الشريط وتبويب وامض.",
   "trad.soundWord": "الصوت",
   "trad.turningOn": "جارٍ التفعيل…",
   "trad.turnOnAndGoLive": "فعّل التنبيه واظهر",
@@ -5179,8 +5167,7 @@ export const ar: Record<MessageKey, string> = {
   "trad.hearWaiting": "اسمع صوت مريض ينتظر",
   "trad.soundOn": "الصوت مفعّل",
   "trad.turnOn": "فعّل التنبيه",
-  "trad.soundsNote":
-    "تصلك الأصوات في أي مكان داخل 24Therapy، لا في هذه الصفحة وحدها، حتى لو كان هذا التبويب خلف نافذة أخرى. وما دام مريض ينتظر يومض عنوان التبويب أيضًا، وهو ما لا يستطيع أي إعداد في المتصفح إيقافه.",
+  "trad.soundsNote": "تصلك الأصوات في أي مكان داخل 24Therapy، حتى وهذا التبويب خلف غيره.",
   "torb.suspended": "موقوف عن الرادار",
   "torb.suspendedBody": "أوقفك مسؤول عن الرادار.",
   "torb.offBody": "لا يستطيع أحد العثور عليك على الخريطة.",
@@ -5241,11 +5228,9 @@ export const ar: Record<MessageKey, string> = {
   "tpres.mutedNote": "الصوت مغلق لهذه المرة. والمريض التالي سيُسمِع تنبيهه.",
   "tpres.blockedTitle": "متصفحك يحجب التنبيه",
   "tpres.armTitle": "فعّل تنبيهك",
-  "tpres.blockedBody":
-    "الصوت معطّل لهذا الموقع. افتح القفل في شريط العنوان، واضبط {sound} على {allow}، ثم أعد التحميل، وإلا قد ينتظرك مريض في غرفتك دون أن يخبرك شيء.",
+  "tpres.blockedBody": "الصوت مغلق لهذا الموقع. افتح القفل، واضبط {sound} على {allow}، ثم أعد التحميل.",
   "tpres.allowWord": "السماح",
-  "tpres.armBody":
-    "تبقى المتصفحات صامتة حتى تأذن لها. ضغطة واحدة ويستطيع 24Therapy تنبيهك في أي مكان داخل البوابة، حتى لو كان هذا التبويب في الخلفية.",
+  "tpres.armBody": "تبقى المتصفحات صامتة حتى تأذن. ضغطة واحدة ونستطيع تنبيهك في أي مكان بالبوابة.",
   "tpres.forced": "شخص يحجز معك الآن وأنت لا تسمع ذلك.",
   "tpres.willFix": "سأصلح ذلك في متصفحي",
   "tpres.notNow": "ليس الآن",
@@ -5271,8 +5256,7 @@ export const ar: Record<MessageKey, string> = {
   "tprac.confirmed": "موقع مؤكَّد",
   "tprac.openInMaps": "افتح هذا الموضع في الخرائط وتحقّق منه",
   "tprac.walkIns": "اقبل الزيارات دون موعد",
-  "tprac.walkInsOn":
-    "يصبح عنوانك علنيًا على الرادار ويستطيع المرضى الوصول إليه بالاتجاهات. فعّل هذا فقط لمكان ترضى أن يصل إليه شخص غريب.",
+  "tprac.walkInsOn": "يصبح عنوانك علنيًا ويستطيع المرضى الوصول إليه. لا تفعّله إلا لمكان يمكن لغريب أن يأتي إليه.",
   "tprac.walkInsOff": "أكّد عنوانًا أولًا.",
   "tprac.save": "حفظ العيادة",
   "tprac.remove": "إزالة",
@@ -5310,8 +5294,7 @@ export const ar: Record<MessageKey, string> = {
   "tcop.listening": "أستمع، اضغط إيقاف وسأكتبه لك لتراجعه.",
   "tcop.left": "بقي {count}",
   "tcop.ask": "اسأل",
-  "tcop.citeNote":
-    "كل إجابة تستشهد باللحظة التي جاءت منها بالضبط، وأي استشهاد لا يطابق سطرًا حقيقيًا في النصّ يُستبعد بدل أن يُعرض. ومع ذلك قد تخطئ، فاقرأ المصدر قبل أن تعتمد عليها، وصحّحها متى أخطأت.",
+  "tcop.citeNote": "كل إجابة تستشهد باللحظة التي جاءت منها، وأي استشهاد بلا سطر مطابق يُهمل. ومع ذلك قد تخطئ.",
   "tcop.readAloud": "القراءة بصوت",
   "tcop.voiceSettings": "إعدادات الصوت",
   "tcop.voice": "الصوت",
@@ -5330,10 +5313,8 @@ export const ar: Record<MessageKey, string> = {
   "tcop.someoneSaid": "قال أحدهم",
   "tcop.citedAt": "{who} · {date} عند {time}",
   "tcop.freshStart": "بداية جديدة",
-  "tcop.clearedOne":
-    "مُسحت رسالة واحدة. واحتفظت بـ{kept} من الملاحظات التي كتبتها أثناء الجلسات، وبكل النصوص، فاسألني ما شئت وسأعيد البناء منها.",
-  "tcop.clearedMany":
-    "مُسحت {removed} رسائل. واحتفظت بـ{kept} من الملاحظات التي كتبتها أثناء الجلسات، وبكل النصوص، فاسألني ما شئت وسأعيد البناء منها.",
+  "tcop.clearedOne": "مُسحت رسالة واحدة. واحتفظت بـ {kept} من ملاحظات الجلسات وبكل التفريغات.",
+  "tcop.clearedMany": "مُسحت {removed} رسالة. واحتفظت بـ {kept} من ملاحظات الجلسات وبكل التفريغات.",
   "tcop.startOverButton": "ابدأ هذه المحادثة من جديد",
   "tcop.startOver": "البدء من جديد",
   "tcop.goes": "أسئلتك وإجاباتي والتصحيحات التي أعطيتني إياها",
@@ -5352,8 +5333,7 @@ export const ar: Record<MessageKey, string> = {
   "tcop.howIAnswer": "كيف أجيب",
   "tcop.removeLine": "احذف: {line}",
   "tcop.correctionSaved": "سُجّل. سأقرأ ذلك قبل كل إجابة عن هذا المريض من الآن فصاعدًا.",
-  "tcop.correctionBody":
-    "هذا يغيّر كيف أكتب، لا ما أعرفه. النبرة والطول والأشياء التي تريدني أن أتوقف عنها مكانها هنا. أما الحقائق عن المريض فلا: لا أستطيع الاستشهاد بملاحظة تُركت في هذا الصندوق، فضع تاريخه وتشخيصه في سجلّ المريض بدل ذلك. ولاختيار لغة الإجابة استخدم الإعداد بالأعلى، فهو أوثق من إخباري هنا.",
+  "tcop.correctionBody": "النبرة والطول وما تريدني أن أتوقف عنه. أما الحقائق عن المريض فمكانها سجله: لا أستطيع الاستشهاد بما يُكتب هنا.",
   "tcop.correctionPlaceholder": "اجعل الإجابات في ثلاث جمل. وتوقّف عن اقتراح واجبات.",
   "tcop.saveCorrection": "حفظ التصحيح",
   "tcop.errGeneric": "حدث خطأ ما.",
@@ -5391,8 +5371,7 @@ export const ar: Record<MessageKey, string> = {
   "tnote.plan": "الخطة",
   "tnote.followUp": "المتابعة",
   "tnote.saveChanges": "حفظ التعديلات",
-  "tnote.machineNote":
-    "ترجمة آلية للملاحظة أعلاه، لمشرف أو لجهة تأمين. أما السجلّ الذي توقّعه فهو النسخة بـ{language}، فارجع إليها لتعديلها أو اعتمادها.",
+  "tnote.machineNote": "ترجمة آلية، لمشرف أو لشركة تأمين. أما السجل الذي توقّعه فهو {language}.",
   "tnote.edit": "تعديل",
   "tnote.sign": "وقّع الملاحظة",
   "tnote.signedNote": "موقّعة. تبقى في الملف، ولا يُرسل أي شيء من هذا التبويب إلى مريض أبدًا.",
@@ -5405,12 +5384,9 @@ export const ar: Record<MessageKey, string> = {
   "tnote.approveAndSend": "اعتمد وأرسل",
   "tnote.sentTitle": "أُرسل ملخّصه",
   "tnote.releasedTitle": "أُفرج عن ملخّصه",
-  "tnote.sentBody":
-    "يستلم {email} ما هو أعلاه بالضبط، لا الملاحظة الإكلينيكية، لحظة إتمامه تقييم الجلسة، أو فورًا إن كان قد أتمّه. وإن لم يفعل، نراسله مرة واحدة لنخبره أنه في انتظاره.",
-  "tnote.releasedBody":
-    "يستلم مريضك ما هو أعلاه بالضبط، لا الملاحظة الإكلينيكية، حين يقيّم الجلسة ويعطينا عنوانًا. ولا يُرسل شيء قبل أن يطلبه.",
-  "tnote.nothingSent":
-    "لم يُرسل شيء. الاعتماد هو ما يُفرج عنه، والملاحظة الإكلينيكية ليست جزءًا منه أبدًا، سواء وُقّعت أم لا.",
+  "tnote.sentBody": "يستلم {email} ما هو بالأعلى تمامًا، لا الملاحظة السريرية، بعد تقييمه للجلسة.",
+  "tnote.releasedBody": "يستلم مريضك ما بالأعلى، لا الملاحظة السريرية، حين يقيّم الجلسة ويعطي عنوانًا.",
+  "tnote.nothingSent": "لم يُرسل شيء. الاعتماد هو ما يُطلقه، والملاحظة السريرية ليست جزءًا منه أبدًا.",
   "tnote.beforeNext": "قبل لقائنا القادم",
   "tnote.stepLabel": "الخطوة {number}",
   "tnote.removeStep": "احذف الخطوة {number}",
@@ -5420,15 +5396,13 @@ export const ar: Record<MessageKey, string> = {
   "tappr.body":
     "ثلاثة أمور وزرّ واحد. لا يحدث شيء هنا إلا إن أشّرت عليه، ولا يُنشر شيء لمجرد انصرافك.",
   "tappr.patientVersion": "أضف نسخة إلى ملخّصه الإكلينيكي",
-  "tappr.patientVersionBody":
-    "مكتوبة له لا عنه: بلا تشخيص، وبلا انطباعات، وبلا لغة خطورة. فالتشخيص مكانه قائمة التشخيصات، حيث يحمل الجملة التي جاء منها.",
+  "tappr.patientVersionBody": "مكتوب إليه لا عنه: بلا تشخيص ولا انطباعات ولا لغة خطر.",
   "tappr.signNote": "وقّع الملاحظة الإكلينيكية",
   "tappr.leaveEmpty": "اتركه فارغًا ولن تُنشر أي نسخة.",
   "tshow.joining": "ينضم بعد قليل",
   "tshow.joiningBody": "لم ينضم معالجك بعد. ابقَ هنا، وستُفتح هذه الصفحة لحظة انضمامه.",
   "tshow.nobody": "لا أحد متاح الآن",
-  "tshow.nobodyBody":
-    "لم نجد معالجًا آخر متصلًا. هذا تقصير منا لا منك، فاسترد نقودك وسنعتذر عن ذلك كما يجب.",
+  "tshow.nobodyBody": "لا يوجد معالج آخر متاح. هذا تقصيرنا لا تقصيرك: استرد أموالك.",
   "tshow.refund": "استرد لي المبلغ كاملًا",
   "tshow.someoneElse": "يستطيع شخص آخر استقبالك الآن",
   "tshow.someoneElseBody":
@@ -5441,8 +5415,7 @@ export const ar: Record<MessageKey, string> = {
   "tappr.release": "أفرج عن نسخة {name}",
   "tappr.releasedBody": "أُفرج عنه. ولا سبيل إلى التراجع، ولهذا كان قرارًا مستقلًا بذاته.",
   "tappr.releaseBody": "ملخّص اليوم بلغة بسيطة، مكتوب له. وبمجرد الإفراج عنه لا يمكن سحبه.",
-  "tappr.summaryBody":
-    "هذه النسخة ملك {name} لا ملك عيادتك. وهي عن مسار العلاج لا عن اليوم وحده، وسيقرأها الأخصائي التالي الذي يزوره، وتبقى كل النسخ: تُضاف نسختك بجانب ما هو موجود، لا فوقه.",
+  "tappr.summaryBody": "هذا ملك {name} لا ملك عيادتك. عن مسار العلاج، يقرؤه المعالج التالي، ويُضاف بجوار النسخ السابقة.",
   "tappr.versionBy": "النسخة {version}، بقلم {name} في {date}",
   "tappr.publish": "انشر ما أشّرت عليه",
   "tappr.nothingTicked": "لم تؤشّر على شيء",
@@ -5502,15 +5475,12 @@ export const ar: Record<MessageKey, string> = {
   "tled.date": "التاريخ",
   "tled.directNote":
     "دُفعت مباشرة إلى حساب Stripe الخاص بك، ولم نحتجز هذه النقود إطلاقًا. وتحوّلها Stripe إلى بنكك وفق جدولها.",
-  "tled.heldNote":
-    "لم تكن Stripe قد أنهت التحقّق منك حين دُفعت، فاستلمناها ونحتفظ بحصتك. وتنتقل إلى حسابك تلقائيًا لحظة اكتمال التحقّق.",
+  "tled.heldNote": "لم تكن سترايب قد وثّقتك حين دُفع هذا، فنحتفظ بحصتك. وتنتقل تلقائيًا.",
   "tearn.waiting": "{amount} في انتظارك",
-  "tearn.waitingBody":
-    "دفع مرضاك. ونحتفظ بحصتك لأن Stripe لم تتحقّق منك بعد. وتذهب إلى حسابك تلقائيًا لحظة تحقّقها، ولا شيء عليك المطالبة به.",
+  "tearn.waitingBody": "دفع مرضاك. نحتفظ بحصتك حتى توثّقك سترايب، ثم تنتقل وحدها.",
   "tearn.finishSetup": "أكمل إعداد التحويلات",
   "tearn.chargeTitle": "تقاضَ أجرًا عن جلساتك",
-  "tearn.chargeBody":
-    "حدّد سعرًا ويدفع المريض قبل أن ينضم. ويمكنك البدء اليوم؛ وإن لم تتحقّق Stripe منك بعد فنحن نحتفظ بحصتك ونرسلها إليك حين تتحقّق.",
+  "tearn.chargeBody": "حدد سعرًا ويدفع المريض قبل دخوله. ابدأ اليوم: نحتفظ بحصتك حتى توثّقك سترايب.",
   "tearn.title": "أرباحك",
   "tearn.unavailable": "الرصيد غير متاح، راجع لوحة Stripe الخاصة بك.",
   "tearn.availableNow": "متاح الآن",
@@ -5537,8 +5507,7 @@ export const ar: Record<MessageKey, string> = {
   "twd.holding": "المبالغ التي نحتفظ بها لك",
   "twd.held": "محتجزة",
   "twd.availableNow": "المتاح الآن",
-  "twd.availableNote":
-    "المتاح هو ما يمكنك سحبه اليوم. ولا يشمل ما سبق طلبه، فذلك المال في طريقه ولا يُطلب مرتين.",
+  "twd.availableNote": "المتاح هو ما تستطيع سحبه اليوم. ولا يشمل ما طلبته بالفعل.",
   "twd.where": "إلى أين تذهب نقودك",
   "twd.instapay": "إنستاباي",
   "twd.wallet": "محفظة الهاتف",
@@ -5554,8 +5523,7 @@ export const ar: Record<MessageKey, string> = {
   "twd.withdraw": "سحب",
   "twd.amountUsd": "المبلغ (دولار)",
   "twd.request": "اطلب",
-  "twd.rateNote":
-    "نرسل بالجنيه المصري بالسعر المعلن لحظة طلبك، وذلك السعر يُثبَّت على طلبك. ولا يتغيّر أثناء انتظارك.",
+  "twd.rateNote": "بالجنيه المصري بالسعر المعلن وقت طلبك. يُثبَّت وقتها ولا يتغير أثناء الانتظار.",
   "twd.yours": "عمليات سحبك",
   "twd.requestedOn": "طُلبت في {date}",
   "twd.updatedOn": "حُدّثت في {date}",
@@ -5599,8 +5567,7 @@ export const ar: Record<MessageKey, string> = {
   "crisis.therapistHere": "معالجك معك هنا. وإن كنت تحتاج مساعدة فورية الآن،",
   "crisis.canCallOrText": "يمكنك الاتصال بـ {label} أو مراسلته في أي وقت.",
   "crisis.localNumberFree": "اتصل برقم الطوارئ في بلدك. وهو مجاني من أي هاتف.",
-  "tev.none":
-    "لم يُسجَّل شيء عن هذا الشخص بعد. تظهر المعلومات هنا كلما كُتبت الجلسات، وقُرئت المستندات، وأدخلت أنت أشياء بنفسك.",
+  "tev.none": "لا شيء مسجَّل بعد. تظهر الحقائق مع كتابة الجلسات وقراءة المستندات.",
   "tev.youDisagreed": "اعترضت",
   "tev.contradicts": "هذا يناقض:",
   "tev.recordDisagreement": "سجّل اعتراضي",
@@ -5611,11 +5578,9 @@ export const ar: Record<MessageKey, string> = {
   "tcon.gaveCode": "أعطاك مريض رمزًا",
   "tcon.gaveCodeBody":
     "أدخله وسيُسأل هو إن كان يسمح لك بقراءة سجلّه. القرار قراره، وسترى الإجابة على سجلّه.",
-  "tcon.notClearedYet":
-    "ما زال ترخيصك قيد الفحص لدينا، فحتى بعد موافقته لن يبدأ الوصول قبل اعتمادنا لك. وهو يرى ذلك أيضًا، فلا يبقى أحد في حيرة.",
+  "tcon.notClearedYet": "ما زال ترخيصك قيد الفحص، فلن يبدأ الإذن قبل اعتمادنا لك. وهو يرى ذلك أيضًا.",
   "tcon.asking": "أشخاص يطلبون منك سجلّهم الخاص",
-  "tcon.askingBody":
-    "انتقلوا إلى غيرك ويرغبون في إضافة ما لديك إلى السجلّ الذي يملكونه. ولست مضطرًا. وإن فضّلت الرفض فقل ذلك في جملة: هم يقرأونها، وألّا يسمعوا شيئًا أسوأ لهم من أن يسمعوا رفضًا.",
+  "tcon.askingBody": "يريد إضافة ما لديك إلى السجل الذي يملكه. لست ملزَمًا، لكن قل ذلك: ألا يسمع شيئًا أسوأ من أن يسمع لا.",
   "tcon.added": "أضفته",
   "tcon.decline": "ارفض، مع ذلك السبب",
   "tcon.declinePlaceholder": "إن كنت ترفض، فلماذا؟ هو يقرأ هذا.",
@@ -5688,8 +5653,7 @@ export const ar: Record<MessageKey, string> = {
   "troom.consentFirst": "تأكّد من موافقة مريضك على التسجيل.",
   "troom.errPatientAudio": "تعذّر التقاط صوت المريض. وقد لا يُفرَّغ جانبه من الحديث.",
   "troom.errCopy": "تعذّر النسخ. اضغط مطوّلًا على الرابط لنسخه يدويًا.",
-  "troom.audioDropped":
-    "انقطع صوت مريضك. ما زالت الجلسة تُسجَّل، لكننا من هنا نستنتج من قال ماذا من الكلام لا من ميكروفونه.",
+  "troom.audioDropped": "انقطع صوت مريضك. ما زال التسجيل جاريًا، لكن نسبة الكلام تأتي الآن من الألفاظ.",
   "tav.title": "ساعات يمكن حجزها",
   "tav.blurb": "ساعات كاملة فقط. من ليس في أزمة يحجز واحدة من هذه بدل أن يقتطع من مسائك.",
   "tav.from": "من",
@@ -5728,8 +5692,7 @@ export const ar: Record<MessageKey, string> = {
   "tdoc.save": "حفظ",
   "tdx.title": "التشخيصات الواردة في المستندات",
   "tdx.blurb": "ما ينصّ عليه المستند بالكلمات فقط. ولا يُستنتج من الأعراض أبدًا.",
-  "tdx.none":
-    "لا شيء بعد. أضف خطابًا أو تقريرًا واقرأه هنا، وسيُعرض عليك كل ما ورد كتشخيص لتؤكّده.",
+  "tdx.none": "لا شيء بعد. أضف خطابًا أو تقريرًا: وكل ما يُذكر كتشخيص يُعرض عليك لتأكيده.",
   "tdx.reading": "جارٍ القراءة…",
   "tdx.readDocuments": "اقرأ المستندات",
   "tdx.confirmed": "مؤكَّد",
@@ -5758,8 +5721,7 @@ export const ar: Record<MessageKey, string> = {
   "tasst.voiceAmericanM": "أمريكي، ذكر",
   "tach.newChat": "محادثة جديدة",
   "tach.roster": "قائمة مرضاك فقط: الأسماء والتواريخ وما ينتظرك. لا الملاحظات الإكلينيكية.",
-  "tach.blurb":
-    "اسأل عن أسبوعك. «من لم أره منذ شهر؟» «كم ملاحظة تأخّرت عنها؟» ولأي شيء عمّا قاله مريض فعلًا، افتح المساعد الخاص به، فهذا لا يرى السجلّات الإكلينيكية.",
+  "tach.blurb": "اسأل عن أسبوعك. أما ما قاله مريض فعلًا فافتح مساعده الخاص: هذا لا يرى السجلات السريرية.",
   "tach.askWeek": "اسأل عن أسبوعك…",
   "tach.startFirst": "ابدأ محادثة أولًا",
   "tach.send": "إرسال",
@@ -5775,14 +5737,12 @@ export const ar: Record<MessageKey, string> = {
   "tra.beforeBody":
     "هذا التاريخ لك أنت. ولم يُعرض على النظام الذي قرأ الجلسة، فما وجده يخصّ اليوم وحده.",
   "common.loadingWord": "جارٍ التحميل",
-  "tdoc.photoNote":
-    "صورة للصفحة تكفي. حتى {mb} ميجابايت. تُحفظ الصور والمسوحات وتُعرض، لكن المساعد لا يستطيع القراءة داخلها.",
+  "tdoc.photoNote": "صورة الصفحة تكفي، حتى {mb} ميجابايت. والمساعد لا يقرأ داخل الصور.",
   "tdl.outdated": "هذا قديم",
   "tdl.wrong": "هذا خطأ",
   "tdl.newTabNote": "يُفتح هذا الملف في تبويب جديد. وكل ما تفتحه يُسجَّل باسمك.",
   "tsup.reference": "الرقم المرجعي {ref}",
-  "tsup.picksUp":
-    "يتولّاها شخص باسمه ويردّ خلال {hours} ساعة. وعند إغلاقها يصلك رابط لقراءة الرد. ولا نضعه في بريد إلكتروني.",
+  "tsup.picksUp": "يرد عليك شخص باسمه خلال {hours} ساعة. ويصلك رابط لقراءة الرد، لا بريد.",
   "tsup.about": "عمّ يدور هذا؟",
   "tsup.topicBilling": "الفوترة والرصيد والفواتير وما خُصم مني",
   "tsup.topicSession": "جلسة سارت على غير ما يجب",
@@ -5890,7 +5850,7 @@ export const ar: Record<MessageKey, string> = {
   "tcop.tpl.progress.text": "هل هناك دليل على تقدّم نحو الأهداف التي ذكرها؟",
 
   /* 🔴 50.3 — a clinician taken off the radar is told why. */
-  "trad.countryClosed": "أوقفنا مؤقتًا الحجوزات الجديدة في {country}، لذلك لا تظهر على الرادار حاليًا. لم يتغير أي شيء آخر: مرضاك وجلساتك وملاحظاتك وأموالك كما هي تمامًا، ويمكنك مواصلة العمل مع كل من في قائمتك.",
+  "trad.countryClosed": "أوقفنا الحجوزات الجديدة في {country}، فأنت خارج الرادار. ومرضاك وجلساتك وملاحظاتك وأموالك كما هي.",
   "trad.countryClosedTitle": "الحجوزات متوقفة مؤقتًا في بلد ممارستك",
 
   /* 🔴 46.7 — the plan page, after the fee split. */

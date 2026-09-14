@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { PatientBack } from "@/components/patient/back";
 import { CheckinSwitch } from "@/components/patient/checkin-switch";
-import { Card } from "@/components/ui";
+import { SeesWhat } from "@/components/visual/primitives";
 import { isMuted } from "@/lib/data/checkins";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -48,18 +48,32 @@ export default async function PatientMessagesPage() {
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
           {t("checkin.settingsTitle")}
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("checkin.settingsBody")}</p>
       </div>
+
+      {/*
+        🔴 65.5 / 44.2 — WHO READS A CHECK-IN REPLY, AS TWO COLUMNS.
+
+        This screen was 98 words in three grey paragraphs around one switch: what a
+        check-in is, what happens if a reply sounds like danger, and how to stop them.
+        The middle one is the only thing on the page a person needs before they answer,
+        and it was the last thing on it.
+
+        🔴 SAID BEFORE THEY REPLY RATHER THAN AFTER, which is 44.2, and that argument is
+        an argument about position. Above the switch, in the same size as everything
+        else, is where it has to be for the ruling to be true.
+      */}
+      <SeesWhat
+        who={t("checkin.whoReply")}
+        can={[t("checkin.canDanger"), t("checkin.canTellTherapist")]}
+        cannot={[t("checkin.cannotRead"), t("checkin.cannotMachine")]}
+      />
 
       <CheckinSwitch
         on={!muted}
         mutedOn={mutedAt ? formatDate(mutedAt, "UTC", locale) : null}
       />
 
-      {/* 🔴 44.2, said before they reply rather than after. */}
-      <Card className="p-5">
-        <p className="text-sm leading-relaxed text-slate-600">{t("checkin.crisisNote")}</p>
-      </Card>
+      <p className="text-sm leading-relaxed text-slate-600">{t("checkin.howToStop")}</p>
     </div>
   );
 }

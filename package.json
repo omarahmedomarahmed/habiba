@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "prose": "node --import tsx --conditions=react-server scripts/prose-sweep.ts",
     "verify:nul": "node --import tsx scripts/verify-nul.ts",
     "verify:sprint43": "node --import tsx scripts/verify-sprint43.ts",
     "verify:sprint44": "node --import tsx scripts/verify-sprint44.ts",
