@@ -514,6 +514,8 @@ async function main() {
         { at: "/login", name: "login" },
         { at: "/forgot-password", name: "forgot-password" },
         { at: "/verify", name: "verify" },
+        /* The operator's own door, which a stranger can reach and should meet a wall. */
+        { at: "/staff/sign-in", name: "staff-sign-in" },
       ]);
 
       await context.close();
@@ -702,9 +704,14 @@ async function main() {
 
       await tour(page, "clinic", [
         { at: "/clinic/apply", name: "apply" },
+        /*
+         * 🔴 ONE DOOR FOR THE PRACTICE, and the delegated member of staff uses it too.
+         *
+         * Sprint 63 gave a practice manager capabilities rather than a separate login, so
+         * there is no staff door here. `/staff/sign-in` is the OPERATOR's, and it is shot
+         * in the admin flow where it belongs.
+         */
         { at: "/clinic/sign-in", name: "sign-in" },
-        /* 63 — the delegated member of staff has a door of their own. */
-        { at: "/staff/sign-in", name: "staff-sign-in" },
       ]);
 
       const inside = await signIn(
