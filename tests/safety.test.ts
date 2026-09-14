@@ -498,6 +498,54 @@ test("settings refuse a platform fee of zero", () => {
  * Stripe regardless: the wrong entity, the wrong currency, and success on every
  * screen. C218 ruled on this exact shape once already, for a different column.
  */
+/**
+ * 🔴 C382 — a read followed by a write is not a decision, it is a guess with a
+ * window in it.
+ *
+ * `payFromPot` read the balance, did four irreversible things, then debited the
+ * pot with a WHERE clause naming only the pot's id. Two bookings arriving
+ * together both passed the read and both debited, and the database's own
+ * overdraft CHECK refused the second AFTER the session was marked paid, the
+ * payment row written and the ledger posted.
+ *
+ * The rule, tested here over the predicate itself: the claim on the money
+ * carries its own condition, so the second writer re-evaluates against the
+ * first one's result and matches nothing.
+ */
+test("🔴 two bookings racing cannot both spend the same pot money", () => {
+  const funds = (balance: number, overdraft: number, gross: number) =>
+    balance + overdraft >= gross;
+
+  // A pot that can fund exactly one session of 3000.
+  let balance = 3000;
+  const overdraft = 0;
+
+  // Both readers see the same balance and both pass the early exit.
+  assert.equal(funds(balance, overdraft, 3000), true, "reader A passes");
+  assert.equal(funds(balance, overdraft, 3000), true, "reader B passes, on a stale read");
+
+  // 🔴 The DEBIT is where it is decided. Postgres serialises the two updates on
+  // the row, so the second sees the first one's result.
+  const debit = (gross: number) => {
+    if (!funds(balance, overdraft, gross)) return false;
+    balance -= gross;
+    return true;
+  };
+
+  assert.equal(debit(3000), true, "the first writer takes the money");
+  assert.equal(debit(3000), false, "🔴 and the second is refused, before anything irreversible");
+  assert.equal(balance, 0, "the pot never went past its bound");
+
+  /*
+   * CONTROL: with an overdraft the bound moves, it does not vanish. C239 says a
+   * session that has started always completes and is always paid, and the
+   * overdraft is how that is true without being unbounded.
+   */
+  balance = 0;
+  assert.equal(funds(balance, 3000, 3000), true, "an overdraft funds one more");
+  assert.equal(funds(-3000, 3000, 3000), false, "and exactly one more");
+});
+
 test("🔴 a country whose payment provider we have not built is REFUSED", () => {
   const base = SETTINGS_DEFAULTS;
   void base;

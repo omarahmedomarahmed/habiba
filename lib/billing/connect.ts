@@ -834,6 +834,27 @@ export async function refundSessionPayment(opts: {
 
   if (!payment) return { error: "Payment not found." };
   if (payment.status !== "paid") return { error: "Only a settled payment can be refunded." };
+
+  /*
+   * 🔴 C383 — A POT PAYMENT IS REFUNDED TO THE POT, and until now it was
+   * refunded nowhere.
+   *
+   * This is the only refund path in the product and the guard below turned a
+   * sponsored session away: a pot payment has no Stripe charge by construction,
+   * because the money arrived at top-up and the session only moved it.
+   *
+   * So a no-show, a cancellation or an admin correction on a sponsored session
+   * returned nothing. The employer paid for a session that did not happen, every
+   * time, and the only remedy was a manual ledger adjustment by a super admin
+   * who knew to go looking. `refundNoShow` calls straight through here, so the
+   * automatic clock-driven refund was silently a no-op for every sponsored
+   * patient in the product.
+   */
+  if (payment.fundingSource === "pot") {
+    const { refundToPot } = await import("./pot");
+    return refundToPot({ paymentId: payment.id, reason: opts.reason });
+  }
+
   if (!payment.stripePaymentIntentId) {
     return { error: "That payment has no Stripe charge to refund." };
   }

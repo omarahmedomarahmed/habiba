@@ -185,6 +185,25 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
    * here: this runs at booking. `sessions.payment_status` is never read by the
    * room, which is what makes that true rather than hopeful.
    */
+  /*
+   * 🔴 C382 — THE READ BELOW IS NOT THE GUARD. The guard is the debit.
+   *
+   * This check reads the balance and the real spend happens two hundred lines
+   * later in an UPDATE whose only condition is the pot's id. Two bookings
+   * arriving together both read a balance that can fund one, both pass here,
+   * and both debit. The database's own `sponsor_pots_overdraft_bounded` CHECK
+   * then refuses the second one, which sounds like the bound holding and is
+   * worse than it failing: by that point the session is already marked paid,
+   * the payment row is written and the ledger is posted, so the sponsor has a
+   * free session and the books do not balance.
+   *
+   * So this stays as an EARLY EXIT, which is worth having because it avoids the
+   * work and gives the patient the right message, and the actual claim on the
+   * money is made below with the condition in the WHERE clause. The same
+   * construction `settleSessionPayment` and `cancelSession` use, for the same
+   * reason: a read followed by a write is not a decision, it is a guess with a
+   * window in it.
+   */
   if (pot.balanceCents + pot.overdraftCents < gross) {
     log.info("pot cannot fund this booking", { session: ref(sessionId) });
     return { paid: false, reason: "insufficient" };
@@ -203,9 +222,40 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   });
 
   /*
+   * 🔴 C382 — THE MONEY IS CLAIMED FIRST, because it is the scarce thing.
+   *
+   * The debit moved up here from the end of the function and gained its
+   * condition. `balance + overdraft >= gross` inside the WHERE means two
+   * concurrent bookings cannot both succeed: Postgres serialises the two
+   * updates on the row, the second re-evaluates the predicate against the first
+   * one's result, and matches nothing.
+   *
+   * Order matters as much as the condition. The pot is the resource that can
+   * run out; the session claim is idempotency. Claiming the session first and
+   * discovering the pot is empty afterwards leaves a session marked paid that
+   * nobody paid for, which is exactly what the CHECK constraint firing used to
+   * produce.
+   */
+  const [debited] = await controlDb
+    .update(sponsorPots)
+    .set({ balanceCents: sql`${sponsorPots.balanceCents} - ${gross}`, updatedAt: new Date() })
+    .where(
+      and(
+        eq(sponsorPots.id, pot.potId),
+        sql`${sponsorPots.balanceCents} + ${sponsorPots.overdraftCents} >= ${gross}`,
+      ),
+    )
+    .returning({ id: sponsorPots.id });
+
+  if (!debited) {
+    log.info("pot lost the race to fund this booking", { session: ref(sessionId) });
+    return { paid: false, reason: "insufficient" };
+  }
+
+  /*
    * The claim on the session, conditional on it still being unpaid. If this
-   * matches nothing, another path already settled it and we must not spend the
-   * pot: the pot debit below happens only inside this branch.
+   * matches nothing, another path already settled it and the pot must be made
+   * whole: the money was taken a moment ago and nothing is going to use it.
    */
   const [claimed] = await controlDb
     .update(sessions)
@@ -213,7 +263,22 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     .where(and(eq(sessions.id, sessionId), eq(sessions.paymentStatus, "pending")))
     .returning({ id: sessions.id });
 
-  if (!claimed) return { paid: false, reason: "nothing_to_pay" };
+  if (!claimed) {
+    /*
+     * 🔴 The compensating credit, and it is unconditional on purpose.
+     *
+     * We took this money one statement ago and the thing it was for did not
+     * happen. Putting it back can never be wrong and can never overdraw
+     * anything, so it carries no predicate that could fail and leave a sponsor
+     * short.
+     */
+    await controlDb
+      .update(sponsorPots)
+      .set({ balanceCents: sql`${sponsorPots.balanceCents} + ${gross}`, updatedAt: new Date() })
+      .where(eq(sponsorPots.id, pot.potId));
+
+    return { paid: false, reason: "nothing_to_pay" };
+  }
 
   const [payment] = await controlDb
     .insert(sessionPayments)
@@ -343,13 +408,139 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     therapistNetCents: money.therapistNetCents,
   });
 
-  await controlDb
-    .update(sponsorPots)
-    .set({ balanceCents: sql`${sponsorPots.balanceCents} - ${gross}`, updatedAt: new Date() })
-    .where(eq(sponsorPots.id, pot.potId));
+  // 🔴 C382 — the debit used to be here, unconditional, after every irreversible
+  // effect above it. It is now the first thing this function claims.
 
   log.info("session funded from a pot", { session: ref(sessionId) });
   return { paid: true, sponsorId: benefit.sponsorId, amountCents: gross };
+}
+
+/**
+ * 🔴 C383 — give a sponsor their money back, which was impossible.
+ *
+ * ## What was wrong
+ *
+ * `refundSessionPayment` is the only refund path in this product and its third
+ * guard is `if (!payment.stripePaymentIntentId) return { error: "That payment
+ * has no Stripe charge to refund." }`. A pot payment has no Stripe charge by
+ * construction: the money arrived at top-up and the session only moved it.
+ *
+ * So a no-show, a cancellation or an admin correction on a sponsored session
+ * returned nothing. The employer paid for a session that did not happen, every
+ * time, and the only way to put it right was a manual ledger adjustment by a
+ * super admin who knew to look.
+ *
+ * ## Finding the sponsor without creating the join C244 forbids
+ *
+ * `session_payments` deliberately carries NO sponsor id. C244 is explicit that
+ * no screen, the admin console included, may join a sponsor to a session, and a
+ * column there would put that join one line of SQL away for ever.
+ *
+ * The ledger already holds it, on `ref_type`/`ref_id`, which is inside the wall
+ * rather than outside it: the pot's own accounting has to know whose pot it is.
+ * So this walks the transaction rather than adding a column, and the sponsor is
+ * never returned to the caller.
+ *
+ * ## The reversal reuses the transaction id
+ *
+ * `journal` takes a `txnId` for exactly this, so a person auditing a pot cent
+ * can walk from the spend to the reversal and see them as one story rather than
+ * two unrelated entries that happen to cancel.
+ */
+export async function refundToPot(input: {
+  paymentId: string;
+  reason: string;
+}): Promise<{ ok?: true; error?: string }> {
+  const [payment] = await controlDb
+    .select({
+      id: sessionPayments.id,
+      sessionId: sessionPayments.sessionId,
+      grossCents: sessionPayments.grossCents,
+      status: sessionPayments.status,
+      fundingSource: sessionPayments.fundingSource,
+    })
+    .from(sessionPayments)
+    .where(eq(sessionPayments.id, input.paymentId))
+    .limit(1);
+
+  if (!payment) return { error: "Payment not found." };
+  if (payment.fundingSource !== "pot") return { error: "That payment did not come from a pot." };
+  if (payment.status !== "paid") return { error: "Only a settled payment can be refunded." };
+
+  /*
+   * The sponsor, walked out of the ledger in two hops.
+   *
+   * `ledger_entries` has no session id, deliberately: it keys on
+   * `ref_type`/`ref_id`. `postSessionPayment` refs the PAYMENT, and
+   * `payFromPot` posts its pot leg under the SAME `txnId` for exactly this
+   * reason, which its own comment calls out: "a person auditing a pot cent can
+   * walk from the pot leg to the session payment". This walks it the other way.
+   *
+   * `sponsor_pot` legs are positive when spent, because the pot is a liability
+   * and spending it reduces what we owe. So the spend to reverse is the
+   * positive one.
+   */
+  const [link] = await controlDb
+    .select({ txnId: ledgerEntries.txnId })
+    .from(ledgerEntries)
+    .where(
+      and(eq(ledgerEntries.refType, "session_payment"), eq(ledgerEntries.refId, payment.id)),
+    )
+    .limit(1);
+
+  if (!link?.txnId) return { error: "That payment is not on the books." };
+
+  const [spend] = await controlDb
+    .select({ txnId: ledgerEntries.txnId, refId: ledgerEntries.refId })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.txnId, link.txnId),
+        eq(ledgerEntries.account, "sponsor_pot"),
+        eq(ledgerEntries.refType, "sponsor"),
+        sql`${ledgerEntries.amountCents} > 0`,
+      ),
+    )
+    .limit(1);
+
+  if (!spend?.refId) {
+    return { error: "No pot spend is on the books for that session." };
+  }
+
+  const pot = await potRow(spend.refId);
+  if (!pot.potId) return { error: "That sponsor no longer has a pot." };
+
+  /*
+   * 🔴 The credit is unconditional. Putting money back can never overdraw
+   * anything, so it carries no predicate that could fail and leave a sponsor
+   * short of money we have already agreed to return.
+   */
+  await controlDb
+    .update(sponsorPots)
+    .set({
+      balanceCents: sql`${sponsorPots.balanceCents} + ${payment.grossCents}`,
+      updatedAt: new Date(),
+    })
+    .where(eq(sponsorPots.id, pot.potId));
+
+  await journal({
+    kind: "session_payment",
+    txnId: spend.txnId,
+    refType: "sponsor",
+    refId: spend.refId,
+    legs: [
+      { account: "sponsor_pot", amountCents: -payment.grossCents, memo: input.reason.slice(0, 200) },
+      { account: "cash", amountCents: payment.grossCents, memo: "Returned to the pot" },
+    ],
+  });
+
+  await controlDb
+    .update(sessionPayments)
+    .set({ status: "refunded" })
+    .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")));
+
+  log.info("pot session refunded", { session: ref(payment.sessionId) });
+  return { ok: true };
 }
 
 /**
