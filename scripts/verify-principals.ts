@@ -126,6 +126,16 @@ const SCOPE: Record<string, Scope> = {
   recovery: { who: ["patient", "admin"], clinical: true },
   "name-match": { who: ["clinician", "admin"], clinical: true },
   "phone-change": { who: ["patient", "admin"], clinical: true },
+  /*
+   * 🔴 NOT clinical, and the reason is the select list rather than the subject.
+   *
+   * It reads `partner_subjects` and `partners`: a platform's name, when the link
+   * was made, and whether it is live. Neither table can produce a session, a
+   * note, a diagnosis or a date of care, so the person's own consent screen can
+   * read it without widening anything. The clinicians who arrived through a
+   * partner are `grants`, one entry up, and that one IS clinical.
+   */
+  "partner-links": { who: ["patient"] },
   residency: { who: ["patient", "admin"], clinical: true },
   // Also reached by the public rating link `/t/[id]` and the radar, which
   // carry a one-time token rather than a session. C273: a rating is never

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { isRejectionReason } from "@/lib/access/state";
 import { decideGrant, revokeGrant } from "@/lib/data/grants";
+import { unlinkPartner } from "@/lib/data/partner-links";
 import { askForHistory, createInvite, revokeInviteCode } from "@/lib/data/portability";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import type { GrantShape } from "@/lib/db/schema";
@@ -123,6 +124,52 @@ export async function askPreviousTherapist(
   });
 
   if (!result.ok) return { error: result.error };
+
+  revalidatePath("/patient/consent");
+  return { ok: true };
+}
+
+/* ------------------------------------------- 55.6 · C277 · cutting a link */
+
+/**
+ * 🔴 "The patient can claim the record and leave", and this is the leaving.
+ *
+ * C277 says a partner's access is *"scoped, revocable"*. Revoking a grant closed
+ * one door; `partner_subjects` was the other one and had no handle on it at all.
+ * A person who revoked everything was still, permanently, that platform's
+ * "P123", and `writeBackSession` asks about the subject and about no grant, so
+ * sessions could keep landing in their chart.
+ *
+ * 🔴 THE PARTNER IS TOLD, and that is not a courtesy.
+ *
+ * Access that ends silently is C108's shape from the other side: their next six
+ * calls return "no such subject" and their engineers read it as our outage. The
+ * webhook carries the event and the subject id, which is everything a delivery
+ * has ever carried.
+ *
+ * Best effort on the telling. A partner with no endpoint registered, or a queue
+ * that fails, must not leave the link uncut: the person pressed the button, and
+ * what they asked for is already true in the database by the time we get here.
+ */
+export async function unlinkPlatform(subjectId: string): Promise<ConsentState> {
+  const actor = await requirePatient();
+
+  const result = await unlinkPartner({
+    personId: actor.personId,
+    accountId: actor.accountId,
+    subjectId,
+  });
+
+  if (result.error || !result.partnerId) {
+    return { error: result.error ?? "That connection could not be ended." };
+  }
+
+  const { queueWebhook } = await import("@/lib/partner/webhooks");
+  await queueWebhook({
+    partnerId: result.partnerId,
+    event: "subject.unlinked",
+    subjectId,
+  });
 
   revalidatePath("/patient/consent");
   return { ok: true };

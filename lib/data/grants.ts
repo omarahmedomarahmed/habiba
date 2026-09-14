@@ -461,7 +461,7 @@ export async function revokeGrant(input: {
         eq(historyGrants.status, "granted"),
       ),
     )
-    .returning({ id: historyGrants.id });
+    .returning({ id: historyGrants.id, therapistUserId: historyGrants.therapistUserId });
 
   if (!updated) return { ok: false, error: "That access has already ended." };
 
@@ -472,6 +472,28 @@ export async function revokeGrant(input: {
     action: "grant.revoked",
     resourceType: "history_grant",
     resourceId: updated.id,
+  });
+
+  /*
+   * 🔴 55.10 / C277 — AND THE PARTNER IS TOLD, WHICH UNTIL NOW NOTHING DID.
+   *
+   * `grant.revoked` has been a subscribable webhook event since 42.4 and was never
+   * emitted: `queueWebhook` had no caller anywhere in the product. So a partner's own
+   * copy of who may read what could drift from ours for as long as they kept it, while
+   * a green check asserted they were told.
+   *
+   * Scoped inside `notifyGrantRevoked` to the partner whose own clinician lost this
+   * grant, because a partner hearing about a revocation involving somebody else's
+   * clinician is a partner learning that somebody else was treating their subject.
+   *
+   * 🔴 After the revocation and outside anything that could roll it back. The access
+   * is already ended by the time this runs, and a partner we failed to reach must
+   * never mean a grant that stayed live.
+   */
+  const { notifyGrantRevoked } = await import("@/lib/partner/webhooks");
+  await notifyGrantRevoked({
+    personId: input.personId,
+    therapistUserId: updated.therapistUserId,
   });
 
   return { ok: true };

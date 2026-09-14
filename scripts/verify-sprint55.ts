@@ -65,7 +65,16 @@ function identifierHash(value: string, salt: string): string {
  * thing that cannot be off by a nested block.
  */
 function functionSource(source: string, name: string): string {
-  const start = source.indexOf(`export async function ${name}`);
+  /*
+   * 🔴 Exported OR not. `resolveSubject` is module-private on purpose, and it is the
+   * single chokepoint every partner endpoint resolves a person through, so it is
+   * exactly the function a check most wants to read. Looking only for `export`
+   * returned the empty string for it, and an empty string contains no query, so the
+   * check failed against correct code: the §6 shape inside the verifier, twice in
+   * this one helper now.
+   */
+  let start = source.indexOf(`export async function ${name}`);
+  if (start === -1) start = source.indexOf(`async function ${name}`);
   if (start === -1) return "";
 
   /*
@@ -519,10 +528,132 @@ async function main() {
       "an email and a boolean per clinician, against the grants table",
     );
 
+    /*
+     * 🔴 AND THE WRITE SIDE HAD NONE OF IT, WHICH WAS THE MORE SERIOUS HALF.
+     *
+     * `writeBackSession` found the clinician by email alone: every `users` row in the
+     * product with that address, `.limit(1)`, no ordering, no partner scope. So a key
+     * could attribute a real session, with a time and a duration, into the chart of a
+     * verified clinician at a practice with no commercial relationship to that partner,
+     * provided it knew an address and the person was a patient there. And because
+     * `users_org_email_unique` is unique on (organisation, email) rather than on email,
+     * an address held twice made the destination arbitrary rather than merely wrong.
+     *
+     * The check reads the same two lines as the one above, deliberately, because the
+     * point is that there is ONE definition of "this partner's clinician" in this file.
+     */
+    const writeBack = functionSource(api, "writeBackSession");
+
     check(
-      "🔴 55.6 / C277 grant.revoked and record.claimed are webhook events, so a partner is TOLD",
+      "🔴 55.7 writeBackSession writes only into THIS PARTNER'S clinicians' charts",
+      writeBack !== "" &&
+        /organizations\.partnerId, input\.key\.partnerId/.test(writeBack) &&
+        /billingMode, "partner_billed"/.test(writeBack),
+      writeBack === "" ? "writeBackSession not found" : "the same scope whoMayRead carries",
+    );
+
+    check(
+      "🔴 55.7 …and it finds the clinician THROUGH the subject's own chart, not by email alone",
+      /eq\(patients\.personId, subject\.personId\)/.test(writeBack) &&
+        !/\.from\(users\)/.test(writeBack),
+      "the join is the scope, rather than a check that runs after the row was chosen",
+    );
+
+    check(
+      "🔴 55.7 …and an ambiguous address is REFUSED rather than resolved by arrival order",
+      /candidates\.length > 1/.test(writeBack) && /limit\(2\)/.test(writeBack),
+      "one address in two organisations must not put a real session in a coin-flip chart",
+    );
+
+    check(
+      "🔴 CONTROL …and it still writes a session, so the scope is not an empty function",
+      /recordExternalSession/.test(writeBack) && /externalMeetingId/.test(writeBack),
+      "a writer that refuses everything is not a writer",
+    );
+
+    /*
+     * 🔴 THIS CHECK USED TO READ THE ENUM AND REPORT ON THE DELIVERY.
+     *
+     * It asserted that "grant.revoked" and "record.claimed" are in `WEBHOOK_EVENTS`,
+     * which they have been since 42.4, and passed for four sprints while NOTHING IN
+     * THE PRODUCT EVER EMITTED ONE. `queueWebhook` had no caller at all, which is why
+     * `verify:reachable` had it in `MUST_WIRE` the whole time: two gates disagreeing,
+     * and the one with the reassuring sentence was the one being read.
+     *
+     * The §6 family, fifteenth instance. So the enum check stays, as the cheap half,
+     * and the emission is asserted separately against the code that has to run.
+     */
+    check(
+      "🔴 55.6 / C277 grant.revoked and record.claimed are webhook events",
       WEBHOOK_EVENTS.includes("grant.revoked") && WEBHOOK_EVENTS.includes("record.claimed"),
       "our one promise is false for every partner-sourced patient if they cannot hear it",
+    );
+
+    check(
+      "🔴 55.10 …AND SOMETHING EMITS THEM, which for four sprints nothing did",
+      /notifyGrantRevoked/.test(readSource("lib/data/grants.ts")) &&
+        /notifyRecordClaimed/.test(readSource("lib/data/claims.ts")),
+      "an event in an enum that no code path raises is a promise on a settings screen",
+    );
+
+    check(
+      "🔴 55.10 …and the revocation is told only to the partner whose OWN clinician lost it",
+      /billingMode, "partner_billed"/.test(readSource("lib/partner/webhooks.ts")) &&
+        /organizations\.id, users\.organizationId/.test(
+          readSource("lib/partner/webhooks.ts"),
+        ),
+      "a partner hearing about somebody else's revocation learns somebody else was treating their subject",
+    );
+
+    /* ================================================================== */
+    /*  55.6 · C277 · the link itself can be cut                           */
+    /* ================================================================== */
+
+    /*
+     * 🔴 C277: "scoped, revocable, and the patient can claim the record and leave."
+     *
+     * The grant was revocable. The LINK was not: `partner_subjects` had no revocation
+     * column, no function and no screen, so a person who revoked every grant was still
+     * permanently that partner's "P123". And it was a live capability rather than a
+     * stale row, because `writeBackSession` resolves the subject and asks about no
+     * grant at all.
+     */
+    const links = readSource("lib/data/partner-links.ts");
+
+    check(
+      "🔴 55.6 / C277 a person can cut the link itself, not only the grants under it",
+      /revokedAt: new Date\(\)/.test(links) && /revokedByAccountId/.test(links),
+      "revoking every grant left the partner still able to write sessions into their chart",
+    );
+
+    check(
+      "🔴 55.6 …and it is the PERSON'S act: the person id is a condition, not a check after",
+      /eq\(partnerSubjects\.personId, input\.personId\)/.test(links),
+      "a borrowed subject id must unlink nobody",
+    );
+
+    /*
+     * 🔴 THE ONE PLACE, and this is the check that matters most of the three.
+     *
+     * `resolveSubject` is the only function in the partner plane that turns an
+     * external reference into a person, by design. Filtering there closes
+     * `whoMayRead`, `writeBackSession` and `deliverNote` at once, and closes the
+     * next endpoint before it is written. A revocation checked in each caller would
+     * be three checks and the fourth endpoint would have two of them.
+     */
+    check(
+      "🔴 55.6 / C277 a cut link resolves to NOTHING, at the single chokepoint",
+      /isNull\(partnerSubjects\.revokedAt\)/.test(functionSource(api, "resolveSubject")),
+      "filtered in resolveSubject, so every endpoint inherits it including the next one",
+    );
+
+    check(
+      "🔴 55.6 …and the partner is TOLD, so their integration does not read it as our outage",
+      WEBHOOK_EVENTS.includes("subject.unlinked") &&
+        /event: "subject\.unlinked"/.test(
+          readSource("app/(patient)/patient/consent/actions.ts"),
+        ),
+      "access that ends silently is C108's shape from the other side",
     );
 
     /* ================================================================== */

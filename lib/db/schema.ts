@@ -6650,6 +6650,18 @@ export const WEBHOOK_EVENTS = [
   "note.approved",
   "grant.revoked",
   "record.claimed",
+  /**
+   * 🔴 C277 / 0087 — the person cut the link, so the partner stops getting answers.
+   *
+   * Without this event a partner's next six calls return "no such subject" and
+   * their integration reads it as our bug. Telling them is not a courtesy: an
+   * access that ends silently is the failure C108 names one table over, where a
+   * silent request is worse than a refusal.
+   *
+   * The payload is what every other delivery carries and nothing more: the event
+   * and the subject id. Never why, never who, never when they claimed anything.
+   */
+  "subject.unlinked",
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
@@ -6728,6 +6740,33 @@ export const partnerSubjects = pgTable(
     /** Their id for this person, in their system. Opaque to us. */
     externalRef: text("external_ref").notNull(),
     personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
+
+    /**
+     * 🔴 C277's "revocable", which for four sprints applied to the grant and not
+     * to this row. Added in 0087.
+     *
+     * Linking takes the person's own act: 55.6 will not point a subject at
+     * anybody on a partner's say-so. Unlinking had no act at all, no column and
+     * no screen, so a person who revoked every grant and claimed their record
+     * was still permanently "P123" to that partner.
+     *
+     * And it was not a dead link. `writeBackSession` asks about the subject and
+     * about no grant, so a partner could keep writing real sessions into the
+     * chart of somebody who had withdrawn everything they were asked to consent
+     * to. `resolveSubject` filters on this column, which is the one place every
+     * partner endpoint goes through.
+     *
+     * 🔴 Revoked rather than deleted, like every other revocation here: "when
+     * did this stop" is a question somebody asks later, and a deleted row
+     * answers it with silence. The unique index stays, so re-linking means the
+     * person confirms again rather than a partner inserting beside it.
+     */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    /** 🔴 Always a patient. There is no operator path and no partner path here. */
+    revokedByAccountId: uuid("revoked_by_account_id").references(
+      (): AnyPgColumn => patientAccounts.id,
+      { onDelete: "set null" },
+    ),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

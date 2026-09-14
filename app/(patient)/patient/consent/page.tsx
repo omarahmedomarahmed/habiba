@@ -7,9 +7,11 @@ import { AskHistory } from "@/components/patient/ask-history";
 import { PatientBack } from "@/components/patient/back";
 import { ConsentList } from "@/components/patient/consent-list";
 import { InviteTherapist } from "@/components/patient/invite-therapist";
+import { LinkedPlatforms } from "@/components/patient/linked-platforms";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patients, sessions, users } from "@/lib/db/schema";
+import { linkedPartners } from "@/lib/data/partner-links";
 import { asksForPerson, invitesForPerson } from "@/lib/data/portability";
 import { grantsForPerson, pendingRequestsFor } from "@/lib/data/grants";
 import { getI18n } from "@/lib/i18n/server";
@@ -45,11 +47,19 @@ export default async function ConsentPage() {
   const actor = await requirePatient();
   const { t } = await getI18n();
 
-  const [requests, grants, invites, asks, seen] = await Promise.all([
+  const [requests, grants, invites, asks, platforms, seen] = await Promise.all([
     pendingRequestsFor(actor.personId),
     grantsForPerson(actor.personId),
     invitesForPerson(actor.personId),
     asksForPerson(actor.personId),
+    /*
+     * 🔴 55.6 / C277 — who can say "that account is this person".
+     *
+     * A different question from the grants above it: somebody can revoke every
+     * grant and still be a platform's "P123", which was the state everybody was
+     * in until this list existed.
+     */
+    linkedPartners(actor.personId),
     /*
      * 27.7 — only clinicians who have actually seen them. Drawn from their own
      * sessions rather than typed, so this cannot become a way to message any
@@ -107,6 +117,18 @@ export default async function ConsentPage() {
           expiresAt: g.expiresAt,
           decidedAt: g.decidedAt,
           revokedAt: g.revokedAt,
+        }))}
+      />
+
+      {/*
+        🔴 55.6 / C277 — renders nothing at all for the people who have never
+        used one, which is most of them.
+      */}
+      <LinkedPlatforms
+        links={platforms.map((link) => ({
+          subjectId: link.subjectId,
+          partnerName: link.partnerName,
+          linkedLabel: link.linkedAt.toISOString().slice(0, 10),
         }))}
       />
 

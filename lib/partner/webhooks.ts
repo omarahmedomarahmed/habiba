@@ -7,8 +7,11 @@ import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import { encryptSecret, decryptSecret, secretsConfigured } from "@/lib/crypto/secretbox";
 import { controlDb } from "@/lib/db";
 import {
+  organizations,
+  partnerSubjects,
   partnerWebhookDeliveries,
   partnerWebhooks,
+  users,
   type WebhookEvent,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -119,6 +122,100 @@ export async function queueWebhook(input: {
   );
 
   return { queued: subscribed.length };
+}
+
+/**
+ * 🔴 THE TWO EVENTS THAT EXISTED AND WERE NEVER SENT.
+ *
+ * `WEBHOOK_EVENTS` has carried `grant.revoked` and `record.claimed` since 42.4, the
+ * CHECK in 0075 lists them, a partner can subscribe to them on their own screen, and
+ * `verify:sprint55` has a green check reading *"grant.revoked and record.claimed are
+ * webhook events, so a partner is TOLD"*.
+ *
+ * Nothing ever emitted one. `queueWebhook` had no caller in the product at all, which
+ * is why `verify:reachable` named it in `MUST_WIRE`. The check above is the §6 family
+ * again: it measured the enum and reported on the delivery.
+ *
+ * That matters more than an unsent message. C277's promise to a patient is that a
+ * partner's access is revocable and that they can claim their record and leave. The
+ * mechanism that tells the partner their access just changed did not run, so the
+ * partner's own copy of who may read what could drift for as long as they kept it.
+ *
+ * ## 🔴 WHO HEARS ABOUT A REVOKED GRANT, AND WHY IT IS NOT EVERYBODY
+ *
+ * Only the partner whose OWN clinician lost the grant. The same scope `whoMayRead`
+ * was fixed to carry, for the same reason: a partner learning that this person
+ * revoked access to somebody is a partner learning that somebody else was treating
+ * them. The payload is an event and a subject id, and even that is one fact too many
+ * when the grant was nothing to do with them.
+ */
+export async function notifyGrantRevoked(input: {
+  personId: string;
+  therapistUserId: string;
+}): Promise<{ queued: number }> {
+  const rows = await controlDb
+    .select({
+      partnerId: organizations.partnerId,
+      subjectId: partnerSubjects.id,
+    })
+    .from(users)
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
+    .innerJoin(
+      partnerSubjects,
+      and(
+        eq(partnerSubjects.partnerId, organizations.partnerId),
+        eq(partnerSubjects.personId, input.personId),
+      ),
+    )
+    .where(
+      and(
+        eq(users.id, input.therapistUserId),
+        /* 🔴 The one definition of "this partner's clinician", third use. */
+        eq(organizations.billingMode, "partner_billed"),
+        /* A link the person already cut hears nothing more. */
+        isNull(partnerSubjects.revokedAt),
+      ),
+    );
+
+  let queued = 0;
+  for (const row of rows) {
+    if (!row.partnerId) continue;
+    const result = await queueWebhook({
+      partnerId: row.partnerId,
+      event: "grant.revoked",
+      subjectId: row.subjectId,
+    });
+    queued += result.queued;
+  }
+
+  return { queued };
+}
+
+/**
+ * 🔴 The record was claimed, and every platform holding a live link is told.
+ *
+ * Broader than the one above, deliberately. A claim changes this person's standing
+ * with US: from here they hold their own record and every access to it is theirs to
+ * end. A partner with a confirmed link to them is entitled to know that, and it
+ * discloses nothing about anybody else, which is what made the revocation case narrow.
+ */
+export async function notifyRecordClaimed(personId: string): Promise<{ queued: number }> {
+  const subjects = await controlDb
+    .select({ partnerId: partnerSubjects.partnerId, subjectId: partnerSubjects.id })
+    .from(partnerSubjects)
+    .where(and(eq(partnerSubjects.personId, personId), isNull(partnerSubjects.revokedAt)));
+
+  let queued = 0;
+  for (const subject of subjects) {
+    const result = await queueWebhook({
+      partnerId: subject.partnerId,
+      event: "record.claimed",
+      subjectId: subject.subjectId,
+    });
+    queued += result.queued;
+  }
+
+  return { queued };
 }
 
 /**

@@ -395,6 +395,20 @@ export async function verifyClaim(input: {
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
 
+  /*
+   * 🔴 55.10 / C277 — every platform holding a live link is told the record was claimed.
+   *
+   * `record.claimed` has been a subscribable event since 42.4 and was never emitted,
+   * because nothing in the product called `queueWebhook` at all. A claim changes this
+   * person's standing with us: from here the record is theirs and every access to it is
+   * theirs to end, which is precisely the fact a partner's integration needs.
+   *
+   * Outside the transaction and after it, for the reason the grant call above it gives:
+   * a claim that succeeded must not be undone because a queue insert was slow.
+   */
+  const { notifyRecordClaimed } = await import("@/lib/partner/webhooks");
+  await notifyRecordClaimed(claim.personId);
+
   log.info("person claimed", { person: ref(claim.personId) });
   return { ok: true, personId: claim.personId, patientsMoved };
 }
@@ -594,6 +608,10 @@ export async function redeemInvite(input: {
     accountId: input.accountId,
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
+
+  /* 🔴 The same telling as the matching route. §3: from step 7 they are identical. */
+  const { notifyRecordClaimed: tellPartners } = await import("@/lib/partner/webhooks");
+  await tellPartners(resolved.personId);
 
   log.info("person claimed by invite", { person: ref(resolved.personId) });
   return { ok: true, personId: resolved.personId, patientsMoved };

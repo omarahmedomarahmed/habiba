@@ -34,7 +34,12 @@ import type { AuthedKey } from "./keys";
  * check. A partner is a way for a clinician to arrive, never a reason to let them in.
  */
 
-export type ApiFailure = { error: string; status: 400 | 403 | 404 };
+/*
+ * 🔴 409 added for one case: an email that matches two accounts both holding the
+ * subject. It is a conflict in the caller's own data rather than a refusal, and a 403
+ * would send an integrator looking for a permission they already have.
+ */
+export type ApiFailure = { error: string; status: 400 | 403 | 404 | 409 };
 
 /**
  * 🔴 55.5 — IS THIS CLINICIAN VERIFIED WITH US, AND BY WHICH BODY.
@@ -234,20 +239,107 @@ export async function writeBackSession(input: {
   const subject = await resolveSubject(input.key.partnerId, input.externalRef);
   if (!subject?.personId) return { error: "No such subject.", status: 404 };
 
-  const [clinician] = await controlDb
+  /*
+   * 🔴 THE CLINICIAN IS FOUND THROUGH THE SUBJECT'S OWN CHART, NOT BY EMAIL ALONE.
+   *
+   * The first version selected from `users` on the email and nothing else, took the
+   * first row, and looked the patient up afterwards. Two things were wrong with that,
+   * and only one of them was the check that came later.
+   *
+   * 🔴 ONE: `users_org_email_unique` is unique on (organisation, email), so one
+   * address CAN exist in two organisations. `sprint 54` even discusses that case: a
+   * clinician with both a clinic account and private work is told to use a second
+   * address precisely because one address in two organisations is ambiguous. A
+   * `.limit(1)` with no ORDER BY over an ambiguous email picks whichever row Postgres
+   * hands back first, so the session landed in a nondeterministic organisation. Not a
+   * wrong chart it could be argued into: an arbitrary one, differing between calls.
+   *
+   * 🔴 TWO: the scope was a step rather than a join, which is the defect this module's
+   * own `deliverNote` was fixed for. *"The join is the scope, in the query, rather
+   * than a check somebody remembers afterwards."* Here the check did exist and ran
+   * second, so the failure mode was not an open door, it was that the door being
+   * checked was chosen at random before anybody checked it.
+   *
+   * So the person comes first. The query starts at the patient rows for this subject's
+   * person and joins to the clinician who holds them, which makes "a clinician
+   * unconnected to this person" unrepresentable rather than rejected.
+   *
+   * 🔴 THREE: it was not scoped to THIS PARTNER'S clinicians, and `whoMayRead` twenty
+   * lines up already is.
+   *
+   * That function was fixed for the same shape: it returned every clinician holding a
+   * live grant, so a partner asking who may read their subject's record learned the
+   * address of the patient's OTHER therapist. The scope it took is the one the launch
+   * uses, `organizations.partner_id` with `billing_mode = 'partner_billed'`, so there is
+   * one definition of "this partner's clinician" rather than two.
+   *
+   * Writing was the more serious half and had none of it. A key could attribute a real
+   * session, with a time and a duration, into the chart of a verified clinician at a
+   * practice with no commercial relationship to that partner at all, provided the
+   * partner knew an email address and the person was a patient there. The same scope
+   * goes here.
+   */
+  const candidates = await controlDb
     .select({
       id: users.id,
       organizationId: users.organizationId,
+      patientId: patients.id,
       /* 🔴 C285 — a session written into a chart needs the approval, not a copy of it. */
       verified: verifiedFlag(),
     })
-    .from(users)
+    .from(patients)
+    /*
+     * 🔴 Joined on the ORGANISATION, not on `patients.therapist_id`, which is the
+     * semantics the two-step version had and is the one to keep. A colleague inside
+     * the same practice holding a session for a patient assigned to somebody else is
+     * a real thing that happens, and narrowing to the assigned clinician inside a bug
+     * fix would refuse it for the first time with no ruling behind the refusal.
+     */
+    .innerJoin(users, eq(users.organizationId, patients.organizationId))
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
-      and(eq(users.email, input.clinicianEmail.trim().toLowerCase()), isNull(users.deletedAt)),
+      and(
+        /* The subject's person, resolved through `partner_subjects` above. */
+        eq(patients.personId, subject.personId),
+        eq(users.email, input.clinicianEmail.trim().toLowerCase()),
+        isNull(users.deletedAt),
+        isNull(patients.deletedAt),
+        /* 🔴 Their clinician. The same two lines `whoMayRead` was fixed to carry. */
+        eq(organizations.partnerId, input.key.partnerId),
+        eq(organizations.billingMode, "partner_billed"),
+      ),
     )
-    .limit(1);
+    /* Deliberately not limited: an ambiguous answer has to be visible to be refused. */
+    .limit(2);
 
-  if (!clinician) return { error: "No such clinician.", status: 404 };
+  if (candidates.length === 0) {
+    /*
+     * One message for "no such clinician" and "not this person's clinician".
+     * Separating them would let a partner enumerate our clinicians' addresses by
+     * watching which error comes back.
+     */
+    return {
+      error:
+        "That person is not a patient of that clinician here. The clinician invites them, or the patient claims their record.",
+      status: 403,
+    };
+  }
+
+  if (candidates.length > 1) {
+    /*
+     * 🔴 REFUSED RATHER THAN GUESSED. That address belongs to two accounts that both
+     * hold this person, and a session is a fact about one clinician's practice: writing
+     * it into whichever row came back first would put a real session in a real chart
+     * for a reason nobody could reconstruct afterwards.
+     */
+    return {
+      error:
+        "That address matches more than one account holding this person. Tell us which practice, or use the address for that account.",
+      status: 409,
+    };
+  }
+
+  const clinician = candidates[0]!;
 
   /*
    * 🔴 §7's second hard rule, applied here: a session in a chart belongs to a clinician
@@ -259,35 +351,20 @@ export async function writeBackSession(input: {
   }
 
   /*
-   * The patient row inside that clinician's practice, which is what a session needs. Found
-   * rather than created: a partner that could create patient rows in a practice could
-   * populate somebody else's caseload.
+   * 🔴 The patient row came back WITH the clinician, from the one query above.
+   *
+   * It is found rather than created, which is the rule that matters: a partner that
+   * could create patient rows in a practice could populate somebody else's caseload.
+   * What changed is that it can no longer be found for a clinician chosen before
+   * anybody looked.
    */
-  const [patient] = await controlDb
-    .select({ id: patients.id })
-    .from(patients)
-    .where(
-      and(
-        eq(patients.personId, subject.personId),
-        eq(patients.organizationId, clinician.organizationId),
-      ),
-    )
-    .limit(1);
-
-  if (!patient) {
-    return {
-      error:
-        "That person is not a patient of that clinician here. The clinician invites them, or the patient claims their record.",
-      status: 403,
-    };
-  }
 
   const { recordExternalSession } = await import("./writeback");
   const result = await recordExternalSession({
     partnerId: input.key.partnerId,
     organizationId: clinician.organizationId,
     therapistId: clinician.id,
-    patientId: patient.id,
+    patientId: clinician.patientId,
     startedAt: input.startedAt,
     durationMinutes: input.durationMinutes,
     externalMeetingId: input.externalMeetingId,
@@ -411,6 +488,20 @@ async function resolveSubject(
       and(
         eq(partnerSubjects.partnerId, partnerId),
         eq(partnerSubjects.externalRef, externalRef.trim()),
+        /*
+         * 🔴 C277 / 0087 — A CUT LINK RESOLVES TO NOTHING, AND HERE IS WHY IT IS HERE.
+         *
+         * This function is the one place an external reference becomes a person, by
+         * design: *"there is no function that resolves an `external_ref` on its own,
+         * because the first one written would be the collision."* That property is now
+         * doing a second job. Every partner endpoint that can reach a person reaches it
+         * through this line, so one `isNull` closes `whoMayRead`, `writeBackSession` and
+         * `deliverNote` at once, and closes the next one before it is written.
+         *
+         * A revocation checked in each caller would be three checks, and the fourth
+         * endpoint would have two of them.
+         */
+        isNull(partnerSubjects.revokedAt),
       ),
     )
     .limit(1);

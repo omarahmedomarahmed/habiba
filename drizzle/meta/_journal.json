@@ -610,6 +610,13 @@
       "when": 1789600000052,
       "tag": "0086_audit_the_other_principals",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1789600000053,
+      "tag": "0087_a_partner_link_can_be_cut",
+      "breakpoints": true
     }
   ]
 }
