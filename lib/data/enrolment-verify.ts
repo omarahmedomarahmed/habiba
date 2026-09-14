@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomInt } from "node:crypto";
 
-import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
@@ -10,6 +10,7 @@ import {
   enrolmentVerifications,
   enrolments,
   patientNotifications,
+  people,
   sponsors,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
@@ -308,4 +309,57 @@ export async function unpause(enrolmentId: string): Promise<{ ok: true }> {
     .where(eq(enrolments.id, enrolmentId));
 
   return { ok: true };
+}
+
+/**
+ * 🔴 C247 — the QUEUE, because "reversible in one step" needs somewhere to stand.
+ *
+ * `unpause` was written for C247's promise and then had no caller for four
+ * sprints. A one-step remedy nobody can reach is a zero-step remedy: the person
+ * on extended leave whose funding stopped had, in the shipped product, no way to
+ * get it back other than reaching an inbox they cannot reach.
+ *
+ * ## 🔴 WHY THIS IS A QUEUE AND NOT A SEARCH BOX
+ *
+ * C247 calls the pause *"a real and unfair outcome"*. A search box waits for the
+ * person to notice, work out who to ask, and ask. A queue means an operator sees
+ * every one of them whether or not anybody rang, which is the difference between
+ * a remedy and a remedy on paper.
+ *
+ * ## 🔴 WHAT THIS LIST IS NOT
+ *
+ * Not a roster. `roster()` is the sponsor's list of everybody enrolled and the
+ * admin sponsor page refuses to render it, for the stated reason that somebody
+ * will screenshot it for the customer who asked. This returns ONLY paused rows,
+ * which is a work queue, and it is never handed to a sponsor: C244's wall is
+ * about what a payer can see, and no sponsor surface imports this module.
+ *
+ * 🔴 And it says nothing clinical. 53.2: enrolment is eligibility, never
+ * therapy. A paused benefit means a re-verification went unanswered. It does not
+ * mean the person has had a session, and this query cannot reach one.
+ */
+export async function pausedBenefits() {
+  return controlDb
+    .select({
+      enrolmentId: enrolments.id,
+      firstName: people.firstName,
+      lastName: people.lastName,
+      /*
+       * 🔴 Their OWN address, the one they signed up with, and never the work
+       * one: that is a hash and has no column (53.18b). It is here because an
+       * operator on a phone call has to match a caller to a row, and two people
+       * called Ahmed at one company is the normal case rather than the edge.
+       */
+      email: people.email,
+      sponsorName: sponsors.name,
+      sponsorKind: sponsors.kind,
+      identifierKind: enrolments.identifierKind,
+      pausedAt: enrolments.pausedAt,
+    })
+    .from(enrolments)
+    .innerJoin(people, eq(people.id, enrolments.personId))
+    .innerJoin(sponsors, eq(sponsors.id, enrolments.sponsorId))
+    .where(and(isNotNull(enrolments.pausedAt), isNull(enrolments.removedAt)))
+    /* Longest paused first: the person waiting longest is the one being failed. */
+    .orderBy(enrolments.pausedAt);
 }

@@ -5882,8 +5882,34 @@ export const enrolments = pgTable(
      * read by a support agent with a screenshot. It still de-duplicates, which
      * is C246's "one identifier used once, ever" — enforced by a unique index
      * rather than by a service that checks first.
+     *
+     * 🔴 This one has the SPONSOR ID INSIDE THE HASH, so it de-duplicates
+     * within one organisation and cannot see across two. That is what
+     * `identifierHashGlobal` below is for, and for a while it did not exist.
      */
     identifierHash: text("identifier_hash").notNull(),
+
+    /**
+     * 🔴 C246, the half that was missing. Hashed WITHOUT the sponsor id.
+     *
+     * `enrolments_identifier_unique` is global and its comment says why: an
+     * identifier that crossed one gate must not cross another. But
+     * `hashIdentifier` puts the sponsor id in the digest, so the same invented
+     * student number at two organisations produced two different hashes and the
+     * global index never fired. The index stated the ruling and the hash
+     * function quietly made it unenforceable.
+     *
+     * This column carries the same value hashed without the sponsor, and
+     * `enrolments_identifier_global_unique` is unique on it. The pair is
+     * deliberate: `identifier_hash` stays the per-sponsor key that everything
+     * else looks up by, this one is the cross-sponsor guard.
+     *
+     * 🔴 NULLABLE, and it will stay null on rows written before 0085. The
+     * plaintext was never stored (C245), so old hashes cannot be recomputed.
+     * The index is partial for that reason. This reaches forward and does not
+     * pretend to reach back.
+     */
+    identifierHashGlobal: text("identifier_hash_global"),
     identifierKind: text("identifier_kind").$type<IdentifierKind>().notNull(),
 
     /**
@@ -5905,14 +5931,25 @@ export const enrolments = pgTable(
   },
   (t) => [
     /*
-     * 🔴 C246 — ONE IDENTIFIER, USED ONCE, EVER.
+     * 🔴 Per sponsor, despite the name. The hash has the sponsor id in it, so
+     * this refuses the same identifier twice at one organisation and sees
+     * nothing across two. Kept because every lookup goes through it.
+     */
+    uniqueIndex("enrolments_identifier_unique").on(t.identifierHash),
+    /*
+     * 🔴 C246 — ONE IDENTIFIER, USED ONCE, EVER. This is the index that does it.
      *
      * Across every sponsor, not per sponsor: an identifier that crossed one
      * gate must not cross another. A unique index rather than a service check,
      * because two people submitting the same guessed student number in the
      * same second is exactly the case a check-then-insert loses.
+     *
+     * Partial, because rows from before 0085 have no global hash and must not
+     * collide with each other on null.
      */
-    uniqueIndex("enrolments_identifier_unique").on(t.identifierHash),
+    uniqueIndex("enrolments_identifier_global_unique")
+      .on(t.identifierHashGlobal)
+      .where(sql`identifier_hash_global IS NOT NULL`),
     /* One live enrolment per person per sponsor. Removed ones stay beside it. */
     uniqueIndex("enrolments_person_sponsor_unique")
       .on(t.personId, t.sponsorId)

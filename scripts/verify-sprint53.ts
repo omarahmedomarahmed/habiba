@@ -26,7 +26,7 @@
  * is not a wall, it is a product with no corporate feature and a green test.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
@@ -611,16 +611,31 @@ async function main() {
      * An identifier that crossed one gate must not cross another. Two people
      * submitting the same guessed student number in the same second is exactly
      * what a check-then-insert loses, so it is a unique index.
+     *
+     * ## 🔴 REWRITTEN, and the old version is worth keeping in the comment
+     *
+     * The first version invented one random hex string and inserted it twice.
+     * It passed, and it proved that a unique index is unique, which is true of
+     * every unique index and says nothing about this ruling.
+     *
+     * It passed for the entire time C246 was unenforced. The product never
+     * writes a hash by hand: it calls `hashIdentifier`, which puts the sponsor
+     * id INSIDE the digest, so one plaintext identifier at two sponsors produced
+     * two different column values and the index whose own comment said "not per
+     * sponsor" never fired. A check that hand-crafts the value the code would
+     * have computed differently is the §6 family again: it measures the column
+     * and reports on the rule.
+     *
+     * So this one takes ONE plaintext identifier through the REAL functions at
+     * TWO sponsors, which is the attack C246 describes: one invented employee
+     * number, two printed QR codes, two pots.
      */
+    const { hashIdentifier, hashIdentifierGlobal } = await import("../lib/data/enrolment");
+
     const [person] = (await db.execute(sql`SELECT id FROM people LIMIT 1`)).rows as {
       id: string;
     }[];
     const who = required(person, "a person to enrol");
-    const identifier = createHash("sha256").update(randomBytes(16)).digest("hex");
-
-    await db.execute(sql`
-      INSERT INTO enrolments (sponsor_id, person_id, identifier_hash, identifier_kind)
-      VALUES (${fixture.id}, ${who.id}, ${identifier}, 'domain_email')`);
 
     const [second] = (
       await db.execute(sql`
@@ -629,11 +644,44 @@ async function main() {
     ).rows as { id: string }[];
     const otherSponsor = required(second, "a second sponsor");
 
+    /* One plaintext, the shape somebody would actually invent off a poster. */
+    const plain = `${randomBytes(6).toString("hex")}@verify53.test`;
+    const identifier = hashIdentifier(fixture.id, plain);
+    const atOther = hashIdentifier(otherSponsor.id, plain);
+    const global = hashIdentifierGlobal(plain);
+
+    /*
+     * Stated first, so the refusal below is known to come from the global
+     * column and not from the per-sponsor one. If these two were ever equal the
+     * check underneath would pass for the wrong reason.
+     */
+    check(
+      "🔴 C246 the per-sponsor hash of one identifier DIFFERS at two sponsors",
+      identifier !== atOther,
+      "which is exactly why enrolments_identifier_unique could not enforce the ruling its comment states",
+    );
+
+    check(
+      "🔴 C246 the global hash is domain separated from the per-sponsor one",
+      global !== identifier && global !== atOther,
+      "neither column can be used to test a guess against the other",
+    );
+
+    check(
+      "🔴 C246 case and surrounding space are one identifier, not three",
+      hashIdentifierGlobal(`  ${plain.toUpperCase()}  `) === global,
+      "or the same work address enrols twice by being typed differently",
+    );
+
+    await db.execute(sql`
+      INSERT INTO enrolments (sponsor_id, person_id, identifier_hash, identifier_hash_global, identifier_kind)
+      VALUES (${fixture.id}, ${who.id}, ${identifier}, ${global}, 'domain_email')`);
+
     let reusedRefused = false;
     try {
       await db.execute(sql`
-        INSERT INTO enrolments (sponsor_id, person_id, identifier_hash, identifier_kind)
-        VALUES (${otherSponsor.id}, ${who.id}, ${identifier}, 'domain_email')`);
+        INSERT INTO enrolments (sponsor_id, person_id, identifier_hash, identifier_hash_global, identifier_kind)
+        VALUES (${otherSponsor.id}, ${who.id}, ${atOther}, ${global}, 'domain_email')`);
     } catch {
       reusedRefused = true;
     }
@@ -642,6 +690,21 @@ async function main() {
       "🔴 C246 the same identifier cannot enrol again, at this sponsor or any other",
       reusedRefused,
       "one identifier, used once, ever, enforced by an index rather than a check",
+    );
+
+    /*
+     * 🔴 And the writer has to fill the column, or the index guards nothing.
+     *
+     * The refusal above is a fact about the database. This is the other half:
+     * `enrol` computes the global hash and passes it, so a real enrolment is
+     * covered rather than only a hand-written insert in a test.
+     */
+    const enrolSource = readSource("lib/data/enrolment.ts");
+    check(
+      "🔴 C246 enrol itself writes the global hash on every enrolment",
+      /hashIdentifierGlobal\(input\.identifier\)/.test(enrolSource) &&
+        /identifierHashGlobal,/.test(enrolSource),
+      "a partial index over a column nobody fills refuses nothing",
     );
 
     /*
@@ -992,6 +1055,29 @@ async function main() {
       "🔴 CONTROL …and the hash IS there, so the gate can still match and de-duplicate",
       names.includes("identifier_hash") && names.includes("code_hash"),
       "a salted hash for matching, and a hash of the code",
+    );
+
+    /*
+     * 🔴 C246 — the index itself, read off the database rather than the schema file.
+     *
+     * The refusal earlier in this run proves the constraint fires here and now.
+     * This says which object did it and that it is unique and partial, so a
+     * future migration that quietly drops or widens it fails a named check
+     * instead of turning one green test into a silent hole.
+     */
+    const globalIndex = (
+      await db.execute(sql`
+        SELECT indexdef FROM pg_indexes
+         WHERE tablename = 'enrolments'
+           AND indexname = 'enrolments_identifier_global_unique'`)
+    ).rows as { indexdef: string }[];
+
+    check(
+      "🔴 C246 a UNIQUE index on the sponsor-free hash exists in the database",
+      names.includes("identifier_hash_global") &&
+        /UNIQUE INDEX/i.test(globalIndex[0]?.indexdef ?? "") &&
+        /identifier_hash_global IS NOT NULL/i.test(globalIndex[0]?.indexdef ?? ""),
+      globalIndex[0]?.indexdef ?? "no such index",
     );
 
     /*
@@ -1532,14 +1618,44 @@ async function main() {
      * out. So the check is over its EXPORTS: nothing named for a withdrawal, a
      * refund, a transfer or a payout exists, and the control asserts the two that
      * should exist do. An absence assertion over an empty module passes.
+     *
+     * ## 🔴 WIDENED, because the name scan alone was about to be wrong
+     *
+     * C383 added `refundToPot`, which sends the refund of a pot-funded session
+     * back to the pot rather than to a card that never paid a thing. That moves
+     * money IN. The name scan saw the word "refund" and called it a cash out,
+     * which is the §6 family from the other side: a check failing on the name
+     * of a thing rather than on what the thing does.
+     *
+     * The fix is NOT to rename the function around the check, which is how a
+     * gate becomes decorative. A name that matches is now allowed through only
+     * while its body **credits the balance and never debits it**. So a future
+     * `refundToBank` that actually takes money out fails here, and so does an
+     * edit that turns this one into a way out. The scan reads what the money
+     * does, and the name is only what makes it look.
      */
     const potExports = [...potSource.matchAll(/export async function (\w+)/g)].map(
       (match) => match[1]!,
     );
 
-    const cashOut = potExports.filter((name) =>
-      /withdraw|cashOut|payout|transfer|refund/i.test(name),
-    );
+    /** The text of one exported function, up to the next top-level export. */
+    function potBody(name: string): string {
+      const start = potSource.indexOf(`export async function ${name}`);
+      if (start < 0) return "";
+      const next = potSource.indexOf("\nexport ", start + 1);
+      return potSource.slice(start, next < 0 ? potSource.length : next);
+    }
+
+    const DEBIT = /balanceCents\}\s*-/;
+    const CREDIT = /balanceCents\}\s*\+/;
+
+    const cashOut = potExports
+      .filter((name) => /withdraw|cashOut|payout|transfer|refund/i.test(name))
+      .filter((name) => {
+        const body = potBody(name);
+        /* Allowed only while it puts money in and takes none out. */
+        return DEBIT.test(body) || !CREDIT.test(body);
+      });
 
     check(
       "🔴 53.12 no function in the pot module can take money out except a session",
@@ -1547,6 +1663,23 @@ async function main() {
       cashOut.length === 0
         ? `${potExports.join(", ")}: one way in, one way out, and out is a session`
         : `CASH OUT: ${cashOut.join(", ")}`,
+    );
+
+    /*
+     * 🔴 CONTROL for the widening above. Without this the relaxed scan could be
+     * relaxed to nothing and still read green.
+     *
+     * `payFromPot` is the one function that debits, and it is not named like a
+     * cash out, so it is invisible to the filter. Asserting the debit is in it
+     * and in nothing else is what keeps "one way out" a fact about the module
+     * rather than a fact about its vocabulary.
+     */
+    const debiters = potExports.filter((name) => DEBIT.test(potBody(name)));
+
+    check(
+      "🔴 CONTROL exactly one exported function debits the pot, and it is the session spend",
+      debiters.length === 1 && debiters[0] === "payFromPot",
+      debiters.length === 0 ? "NOTHING debits the pot" : `debits: ${debiters.join(", ")}`,
     );
 
     check(

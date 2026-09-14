@@ -9,6 +9,7 @@ import {
   Globe2,
   HeartPulse,
   Hospital,
+  PauseCircle,
   Plug,
   LayoutDashboard,
   Radio,
@@ -141,6 +142,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             opens a corporate account and opening a pot commits us to refund terms.
           */}
           {isOwner ? <AdminLink href="/admin/sponsors" icon={Building2}>{t("asponsor.nav")}</AdminLink> : null}
+          {/*
+            🔴 C247 — the pause is "a real and unfair outcome" and must be
+            "reversible by us in one step". A door beside the sponsors one,
+            because it is the same authority: lifting a pause restarts an
+            employer's funding without the proof the cycle exists to collect.
+
+            Separate from that screen on purpose. The sponsors page refuses to
+            render who is enrolled; this is a short work queue ordered by who
+            has waited longest, which is a different object.
+          */}
+          {isOwner ? <AdminLink href="/admin/benefits" icon={PauseCircle}>Paused benefits</AdminLink> : null}
           {/*
             54.3 — the owner's too. Activating a clinic opens an organisation that will
             hold clinical records, which is a strictly larger act than activating a

@@ -101,6 +101,34 @@ export function hashIdentifier(sponsorId: string, value: string): string {
     .digest("hex");
 }
 
+/**
+ * 🔴 C246 — THE SAME IDENTIFIER, HASHED WITHOUT THE SPONSOR. The cross-sponsor key.
+ *
+ * `hashIdentifier` above puts the sponsor id inside the digest, which is right
+ * for every lookup and wrong for the one ruling C246 actually makes. Read the
+ * index comment in `0072_corporate.sql`: *"Not per sponsor: an identifier that
+ * crossed one gate must not cross another."* With the sponsor in the hash that
+ * index cannot see across two sponsors, so the ruling was written down in one
+ * place and absent from the other, and the attack C246 names was open the whole
+ * time: invent a plausible employee number at one printed QR, invent the same
+ * one at a second organisation's QR, and be funded twice from two pots.
+ *
+ * This is the value `enrolments.identifier_hash_global` holds and
+ * `enrolments_identifier_global_unique` refuses a second time.
+ *
+ * 🔴 Domain-separated with a literal `global` field rather than just dropping
+ * the sponsor id, so a global digest and a per-sponsor digest can never collide
+ * and neither column can be used to test a guess against the other.
+ *
+ * 🔴 Trimmed and lowercased exactly as the per-sponsor hash does, which is what
+ * makes `Ahmed@Corp.com` and `ahmed@corp.com` one identifier rather than two.
+ */
+export function hashIdentifierGlobal(value: string): string {
+  return createHash("sha256")
+    .update(`${env.authSecret}global${value.trim().toLowerCase()}`)
+    .digest("hex");
+}
+
 export type CodeLookup =
   | {
       ok: true;
@@ -316,14 +344,25 @@ export async function enrol(input: {
   }
 
   const identifierHash = hashIdentifier(lookup.sponsorId, input.identifier);
+  /*
+   * 🔴 C246 — the cross-sponsor key, written on every enrolment from 0085 on.
+   *
+   * `identifierHash` above cannot enforce "once, ever" because the sponsor id is
+   * inside it. This one can, and `enrolments_identifier_global_unique` is what
+   * refuses the second use. The insert below is allowed to fail on it, and the
+   * catch already says nothing about which constraint fired, which is what keeps
+   * this from becoming an oracle telling a guesser they guessed a real one.
+   */
+  const identifierHashGlobal = hashIdentifierGlobal(input.identifier);
 
   /*
    * 🔴 C249 — is this their FIRST enrolment? Then it is primary.
    *
    * Read before the insert only to choose the flag, never to decide whether the
-   * insert is allowed: `enrolments_one_primary` and
-   * `enrolments_identifier_unique` are what make this safe under a race, and
-   * the insert below is allowed to fail.
+   * insert is allowed: `enrolments_one_primary`,
+   * `enrolments_identifier_unique` and `enrolments_identifier_global_unique`
+   * are what make this safe under a race, and the insert below is allowed to
+   * fail on any of them.
    */
   const [existing] = await controlDb
     .select({ id: enrolments.id })
@@ -340,6 +379,7 @@ export async function enrol(input: {
         sponsorId: lookup.sponsorId,
         personId: input.personId,
         identifierHash,
+        identifierHashGlobal,
         identifierKind: crossed.kind,
         isPrimary: !existing,
         /*
