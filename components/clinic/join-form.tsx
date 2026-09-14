@@ -17,6 +17,81 @@ function Submit({ label }: { label: string }) {
 }
 
 /**
+ * 🔴 63.9 / C328 — THE TWO LISTS, AND THEY ARE ON THE SCREEN THAT DECIDES.
+ *
+ * > *The inviting therapist gains sight of a colleague's earnings and calendar, and
+ * > the colleague has to understand that before, not after.*
+ *
+ * A component rather than a paragraph, rendered in BOTH branches of this screen, so
+ * a person joining with a new account and a person joining with an existing one read
+ * the same thing. A sentence copied into two forms is a sentence that ends up in one.
+ *
+ * 🔴 And the "never" list is the same size as the "will see" list. A disclosure that
+ * itemises the reach and summarises the limit in half a line is a disclosure written
+ * to be survived rather than read.
+ */
+function WhatTheySee({ clinicName }: { clinicName: string }) {
+  const t = useT();
+
+  return (
+    <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {t("clinic.join.seesTitle", { name: clinicName })}
+        </p>
+        <ul className="mt-2 space-y-1.5">
+          {(
+            [
+              "clinic.join.sees.calendar",
+              "clinic.join.sees.names",
+              "clinic.join.sees.radar",
+              "clinic.join.sees.prices",
+              "clinic.join.sees.earnings",
+              "clinic.join.sees.withdrawals",
+            ] as const
+          ).map((key) => (
+            <li key={key} className="flex gap-2 text-xs leading-relaxed text-slate-700">
+              <span aria-hidden className="text-slate-400">
+                &bull;
+              </span>
+              {t(key)}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="border-t border-slate-100 pt-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {t("clinic.join.neverTitle")}
+        </p>
+        <ul className="mt-2 space-y-1.5">
+          {(
+            [
+              "clinic.join.never.notes",
+              "clinic.join.never.risk",
+              "clinic.join.never.copilot",
+              "clinic.join.never.consent",
+            ] as const
+          ).map((key) => (
+            <li key={key} className="flex gap-2 text-xs leading-relaxed text-slate-700">
+              <span aria-hidden className="text-teal-500">
+                &bull;
+              </span>
+              {t(key)}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* 🔴 63.10 — and the invitation does nothing until they are verified. */}
+      <p className="border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
+        {t("clinic.join.verifyFirst")}
+      </p>
+    </div>
+  );
+}
+
+/**
  * Accepting a practice's invitation. PLAN.md 54.5, 54.6, C261, C267.
  *
  * ## 🔴 C261 — THE SENTENCE IS ABOVE THE BUTTON, NOT ON A LATER PAGE
@@ -99,6 +174,8 @@ export function ClinicJoinForm({
             />
           </Field>
 
+          <WhatTheySee clinicName={clinicName} />
+
           <div className="space-y-2 rounded-xl bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
             <p>{t("clinic.join.noPrivate", { name: clinicName })}</p>
             <p>{t("clinic.join.keepSolo")}</p>
@@ -152,6 +229,8 @@ export function ClinicJoinForm({
           what belongs to the practice, and the honest alternative if they want
           private patients too.
         */}
+        <WhatTheySee clinicName={clinicName} />
+
         <div className="space-y-2 rounded-xl bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
           <p>{t("clinic.join.noPrivate", { name: clinicName })}</p>
           <p>{t("clinic.join.keepSolo")}</p>

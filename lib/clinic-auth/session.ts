@@ -6,10 +6,21 @@ import { cookies, headers } from "next/headers";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
-import { clinicAuthSessions, clinicManagers, organizations } from "@/lib/db/schema";
+import {
+  clinicAuthSessions,
+  clinicManagers,
+  clinicRoles,
+  clinicStaffAssignments,
+  organizations,
+} from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { CLINIC_COOKIE } from "@/lib/routing";
 import type { ClinicRole, ClinicState } from "@/lib/db/schema";
+import {
+  ADMIN_CAPABILITIES,
+  parseCapabilities,
+  type ClinicCapability,
+} from "./capabilities";
 
 /**
  * The clinic manager's session. PLAN.md 54.2, §3f, C259, C264.
@@ -66,6 +77,34 @@ export type ClinicActor = {
   /** 🔴 `ClinicRole`, never `Role`. Admin or viewer, and neither is ours. */
   role: ClinicRole;
   email: string;
+  /**
+   * 🔴 63.4 / 63.5 / C325 / C353 — WHAT THIS PRINCIPAL MAY DO, resolved once.
+   *
+   * Built by `capabilitiesFor` from the closed vocabulary in
+   * `lib/clinic-auth/capabilities.ts`, so a string that is not a capability
+   * cannot be in here and asking about one returns false rather than matching.
+   *
+   * It is on the ACTOR rather than fetched per check because a permission read
+   * that can fail open under load is not a permission. One query, at the same
+   * moment the session is resolved, from the same row.
+   */
+  capabilities: ClinicCapability[];
+  /**
+   * 🔴 63.4 / C325 — the clinicians this principal may see under a scoped
+   * capability, or `null` meaning ALL OF THEM.
+   *
+   * Null is the clinic admin, and it is null rather than a list of everybody
+   * because a list would go stale the moment a clinician joined. An empty ARRAY
+   * is a staff member with no assignments and means nothing, which is the safe
+   * direction for an empty list to point and the opposite of what null means:
+   * the two are distinguished on purpose and every consumer must handle both.
+   */
+  therapistIds: string[] | null;
+  /**
+   * 🔴 63.2 / C352 — the clinician account that is the same human, if there is
+   * one. The switcher in the header renders only when this is set.
+   */
+  linkedUserId: string | null;
 };
 
 function hashToken(token: string): string {
@@ -117,10 +156,15 @@ export async function getClinicActor(): Promise<ClinicActor | null> {
       clinicName: organizations.name,
       role: clinicManagers.role,
       email: clinicManagers.email,
+      linkedUserId: clinicManagers.linkedUserId,
+      /* 🔴 63.3 — the custom role's stored strings, which mean nothing yet. */
+      roleCapabilities: clinicRoles.capabilities,
+      roleDeletedAt: clinicRoles.deletedAt,
     })
     .from(clinicAuthSessions)
     .innerJoin(clinicManagers, eq(clinicManagers.id, clinicAuthSessions.clinicManagerId))
     .innerJoin(organizations, eq(organizations.id, clinicManagers.organizationId))
+    .leftJoin(clinicRoles, eq(clinicRoles.id, clinicManagers.roleId))
     .where(
       and(
         eq(clinicAuthSessions.tokenHash, hashToken(token)),
@@ -142,7 +186,53 @@ export async function getClinicActor(): Promise<ClinicActor | null> {
     .set({ lastSeenAt: now })
     .where(eq(clinicAuthSessions.tokenHash, hashToken(token)));
 
-  return row;
+  /*
+   * 🔴 63.4 / 63.5 / C353 — THE CAPABILITIES, AND THE ADMIN IS NOT A ROLE LOOKUP.
+   *
+   * An admin holds everything, derived from the vocabulary rather than stored,
+   * so there is no row anybody can edit to take the practice's own owner out of
+   * their account and none to edit to put somebody else in.
+   *
+   * Below that: a custom role's strings, filtered through the closed list. A
+   * DELETED role grants nothing, checked here rather than in the join, because a
+   * left join that also filtered would have produced a null row and silently
+   * turned a staff member into a viewer with no capabilities instead of a person
+   * whose role was withdrawn. Both end at the same place today; only one of them
+   * says why.
+   */
+  const capabilities: ClinicCapability[] =
+    row.role === "admin"
+      ? [...ADMIN_CAPABILITIES]
+      : row.roleDeletedAt
+        ? []
+        : parseCapabilities(row.roleCapabilities);
+
+  /*
+   * 🔴 63.4 / C325 — NULL IS THE ADMIN AND AN EMPTY ARRAY IS NOBODY.
+   *
+   * The assignment query runs only for a non-admin, because an admin is not
+   * scoped and a list of every clinician would go stale the moment one joined.
+   */
+  const therapistIds =
+    row.role === "admin"
+      ? null
+      : (
+          await controlDb
+            .select({ userId: clinicStaffAssignments.userId })
+            .from(clinicStaffAssignments)
+            .where(eq(clinicStaffAssignments.clinicManagerId, row.clinicManagerId))
+        ).map((assignment) => assignment.userId);
+
+  return {
+    clinicManagerId: row.clinicManagerId,
+    clinicOrganizationId: row.clinicOrganizationId,
+    clinicName: row.clinicName,
+    role: row.role,
+    email: row.email,
+    capabilities,
+    therapistIds,
+    linkedUserId: row.linkedUserId,
+  };
 }
 
 export async function revokeClinicSession(): Promise<void> {

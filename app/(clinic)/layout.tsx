@@ -30,7 +30,12 @@ export default async function ClinicLayout({ children }: { children: React.React
   const actor = await getClinicActor();
 
   return (
-    <ClinicChrome nav={actor !== null} clinicName={actor?.clinicName ?? null}>
+    <ClinicChrome
+      nav={actor !== null}
+      clinicName={actor?.clinicName ?? null}
+      capabilities={actor?.capabilities ?? []}
+      linked={Boolean(actor?.linkedUserId)}
+    >
       {children}
     </ClinicChrome>
   );

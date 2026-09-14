@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { controlDb } from "@/lib/db";
@@ -50,6 +50,10 @@ export async function applyToClinic(input: {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  /* 🔴 63.18 — asked at application rather than on the call. */
+  registrationNumber?: string | null;
+  registrationAuthority?: string | null;
+  intendedClinicians?: string[];
 }): Promise<{ ok?: true; error?: string }> {
   const name = input.name.trim().slice(0, 200);
   const contactName = input.contactName.trim().slice(0, 120);
@@ -60,6 +64,22 @@ export async function applyToClinic(input: {
   if (!contactName) return { error: "Tell us who we should speak to." };
   if (!contactEmail.includes("@")) return { error: "That email address does not look right." };
   if (!contactPhone) return { error: "We need a phone number to call you on." };
+
+  /*
+   * 🔴 63.18 / C267 — NAMES, TRIMMED, CAPPED, AND NOTHING ELSE.
+   *
+   * A hundred is the database's ceiling too, so a longer list is refused rather than
+   * silently truncated into an application somebody later reads as complete. The
+   * value of this field is that the operator knows the size of the onboarding; a
+   * list quietly cut to a hundred would tell them the wrong size.
+   */
+  const clinicians = (input.intendedClinicians ?? [])
+    .map((clinician) => clinician.trim().slice(0, 120))
+    .filter(Boolean);
+
+  if (clinicians.length > 100) {
+    return { error: "That is more clinicians than we can take on one application. Call us." };
+  }
 
   /*
    * A slug, because `organizations.slug` is NOT NULL and unique among live rows. Built
@@ -82,6 +102,15 @@ export async function applyToClinic(input: {
     contactName,
     contactEmail,
     contactPhone,
+    /*
+     * 🔴 UNVERIFIED BY US, and the column comment says so. It is what they typed,
+     * and the operator on the call checks it against the register. Storing it does
+     * not make it a credential, which is the same distinction C267 draws about a
+     * clinician's licence one table over.
+     */
+    registrationNumber: input.registrationNumber?.trim().slice(0, 120) || null,
+    registrationAuthority: input.registrationAuthority?.trim().slice(0, 200) || null,
+    intendedClinicians: clinicians,
   });
 
   log.info("clinic enquiry received");
@@ -777,7 +806,12 @@ export async function checkClinicPassword(
 }
 
 /** 54.3 — every clinic, for the admin queue. No clinician, no patient, no session. */
-export async function allClinics() {
+/*
+ * 🔴 NOT EXPORTED. `clinicsForAdmin` below is the only reader, and an export with
+ * one same-file caller is an API somebody calls instead of the one that carries the
+ * counts and the managers.
+ */
+async function allClinics() {
   return controlDb
     .select({
       id: organizations.id,
@@ -791,4 +825,69 @@ export async function allClinics() {
     .from(organizations)
     .where(and(eq(organizations.kind, "clinic"), isNull(organizations.deletedAt)))
     .orderBy(desc(organizations.createdAt));
+}
+
+/**
+ * 🔴 63.4 / C325 — WHAT OUR BACK OFFICE READS ABOUT A PRACTICE, AND WHY IT IS HERE.
+ *
+ * Sprint 63 made every function in `lib/data/clinic.ts` take a `ClinicPrincipal` and
+ * check a capability on the resource. The admin console is not a clinic principal: it
+ * is `super_admin`, which is ours, and it was calling two of those functions with a
+ * bare organisation id.
+ *
+ * The tempting fix is a synthetic principal with every capability. That is a back door
+ * with a friendly name: any call site could then construct one, and the capability
+ * check that the whole sprint rests on would be a function anybody can satisfy by
+ * writing an object literal.
+ *
+ * So the back office reads from HERE, through `requireRole("super_admin")`, with its
+ * own select list. Two principals, two doors, and neither can be mistaken for the
+ * other in a diff.
+ *
+ * 🔴 A COUNT AND NOT A LIST. An operator needs to know whether an onboarding stalled;
+ * a list of a customer's clinicians is what somebody screenshots for the customer who
+ * asked for it. The managers ARE listed, because managing them is what this screen is
+ * for and they are the practice's administrative contacts rather than its clinicians.
+ */
+export async function clinicsForAdmin() {
+  const clinics = await allClinics();
+  if (clinics.length === 0) return [];
+
+  const ids = clinics.map((clinic) => clinic.id);
+
+  const counts = await controlDb
+    .select({
+      organizationId: users.organizationId,
+      clinicians: sql<number>`count(*)::int`,
+    })
+    .from(users)
+    .where(
+      and(
+        inArray(users.organizationId, ids),
+        eq(users.role, "therapist"),
+        isNull(users.deletedAt),
+      ),
+    )
+    .groupBy(users.organizationId);
+
+  const managers = await controlDb
+    .select({
+      id: clinicManagers.id,
+      organizationId: clinicManagers.organizationId,
+      email: clinicManagers.email,
+      role: clinicManagers.role,
+    })
+    .from(clinicManagers)
+    .where(and(inArray(clinicManagers.organizationId, ids), isNull(clinicManagers.deletedAt)))
+    .orderBy(asc(clinicManagers.email));
+
+  const countBy = new Map(counts.map((row) => [row.organizationId, Number(row.clinicians)]));
+
+  return clinics.map((clinic) => ({
+    ...clinic,
+    clinicianCount: countBy.get(clinic.id) ?? 0,
+    managers: managers
+      .filter((manager) => manager.organizationId === clinic.id)
+      .map((manager) => ({ id: manager.id, email: manager.email, role: manager.role })),
+  }));
 }

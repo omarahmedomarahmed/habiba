@@ -538,7 +538,37 @@ async function main() {
      */
     const { clinicBills, clinicSchedule, clinicUsage } = await import("../lib/data/clinic");
 
-    const bills = await clinicBills(org.id);
+    /*
+     * 🔴 63.4 / C325 — EVERY FUNCTION IN THE WALL NOW TAKES A PRINCIPAL.
+     *
+     * Sprint 63 turned an organisation id into a capability set checked on the
+     * resource. This verifier is about the WALL rather than about the permissions,
+     * so it runs as the practice's own admin, which is the principal 54.9's
+     * assertions were always implicitly about. `verify:sprint63` is where every
+     * other role is run against the same functions and asserted to be refused.
+     */
+    const { ADMIN_CAPABILITIES } = await import("../lib/clinic-auth/capabilities");
+
+    /*
+     * A REAL manager row, because `clinicSchedule` now audits every clinic-staff
+     * read (63.12) and `audit_log.actor_clinic_manager_id` is a foreign key. A
+     * fabricated uuid would fail the insert, which is the constraint doing its job.
+     */
+    const [wallManager] = (
+      await db.execute(sql`
+        INSERT INTO clinic_managers (organization_id, email, password_hash, role)
+        VALUES (${org.id}, ${`wall-${fixture}@example.test`}, 'x', 'admin') RETURNING id`)
+    ).rows as { id: string }[];
+
+    const principal = {
+      clinicManagerId: required(wallManager, "a clinic manager for the wall checks").id,
+      clinicOrganizationId: org.id,
+      role: "admin" as const,
+      capabilities: ADMIN_CAPABILITIES,
+      therapistIds: null,
+    };
+
+    const bills = await clinicBills(principal);
     const bill = required(bills[0], "a bill for the clinic");
 
     check(
@@ -594,7 +624,7 @@ async function main() {
      * 🔴 CONTROL — and it actually SUPPRESSES. One session in a week is under any floor
      * that C229 permits, so the week this run created must come back withheld.
      */
-    const usage = await clinicUsage(org.id);
+    const usage = await clinicUsage(principal);
     const thisWeek = usage[usage.length - 1];
 
     check(
@@ -623,7 +653,7 @@ async function main() {
      * would not catch a component that FETCHED a note and printed it; this does.
      */
     const rows = await clinicSchedule({
-      clinicOrganizationId: org.id,
+      actor: principal,
       from: new Date(Date.now() - 24 * 60 * 60 * 1000),
       to: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
@@ -658,6 +688,13 @@ async function main() {
       React.createElement(ClinicChrome, {
         nav: true,
         clinicName: fixture,
+        /*
+         * 🔴 63.4 — the chrome draws only the tabs this principal holds, so a
+         * render with no capabilities has no navigation and the control below
+         * (which asserts a translated tab label is present) would fail. Passing
+         * the admin's set renders the whole bar, which is what 54.9 sweeps.
+         */
+        capabilities: ADMIN_CAPABILITIES,
         children: React.createElement(
           "ul",
           null,
@@ -956,7 +993,7 @@ async function main() {
     const future = required(newOrgSession, "a session in their own practice");
 
     const afterRows = await clinicSchedule({
-      clinicOrganizationId: org.id,
+      actor: principal,
       from: new Date(Date.now() - 24 * 60 * 60 * 1000),
       to: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
@@ -991,7 +1028,7 @@ async function main() {
     await db.execute(sql`DELETE FROM clinician_invitations WHERE email LIKE '%verify54-%'`);
     await db.execute(sql`DELETE FROM clinic_auth_sessions WHERE clinic_manager_id IN
       (SELECT id FROM clinic_managers WHERE email LIKE '%verify54-%')`);
-    await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE '%verify54-%'`);
+    await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE '%verify54-%' OR email LIKE '%wall-%'`);
     await db.execute(sql`DELETE FROM users WHERE email LIKE '%verify54-%'`);
     await db.execute(sql`DELETE FROM organizations WHERE name LIKE 'verify54-%'`);
   }

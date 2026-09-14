@@ -40,7 +40,7 @@ export default async function ClinicBillsPage() {
   const actor = await requireClinic();
   const { t, locale } = await getI18n();
 
-  const bills = await clinicBills(actor.clinicOrganizationId);
+  const bills = await clinicBills(actor);
 
   const money = (cents: number) =>
     new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
@@ -66,6 +66,26 @@ export default async function ClinicBillsPage() {
         </h1>
         {/* 🔴 C263 — why there is no itemised breakdown, where they look for it. */}
         <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("clinic.billsBody")}</p>
+
+        {/*
+          🔴 63.17 / C334 — the export, and only for a principal that holds it.
+
+          Reading a bill on a screen and taking a copy of it away are different acts,
+          so `export` is its own capability rather than a consequence of
+          `bills.read`. The route checks it again and refuses with a 403; this only
+          decides whether a link is drawn.
+
+          A plain link rather than a button: it is a GET that returns a file, which
+          is what a browser already knows how to do.
+        */}
+        {actor.capabilities.includes("export") ? (
+          <a
+            href="/clinic/export?what=bills"
+            className="mt-3 inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            {t("clinic.exportCsv")}
+          </a>
+        ) : null}
       </div>
 
       {bills.length === 0 ? (

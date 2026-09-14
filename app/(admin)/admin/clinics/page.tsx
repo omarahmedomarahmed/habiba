@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 
 import { ClinicManagerList } from "@/components/admin/clinic-manager";
 import { requireRole } from "@/lib/auth/guard";
-import { clinicClinicians, clinicManagersFor } from "@/lib/data/clinic";
-import { allClinics } from "@/lib/data/clinic-admin";
+import { clinicsForAdmin } from "@/lib/data/clinic-admin";
 import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Clinics", robots: { index: false } };
@@ -20,27 +19,17 @@ export default async function AdminClinicsPage() {
   await requireRole("super_admin");
   const { t } = await getI18n();
 
-  const clinics = await allClinics();
-
-  const rows = await Promise.all(
-    clinics.map(async (clinic) => {
-      const [clinicians, managers] = await Promise.all([
-        clinicClinicians(clinic.id),
-        clinicManagersFor(clinic.id),
-      ]);
-
-      return {
-        id: clinic.id,
-        name: clinic.name,
-        clinicState: clinic.clinicState,
-        contactName: clinic.contactName,
-        contactEmail: clinic.contactEmail,
-        contactPhone: clinic.contactPhone,
-        clinicianCount: clinicians.length,
-        managers: managers.map((m) => ({ id: m.id, email: m.email, role: m.role })),
-      };
-    }),
-  );
+  /*
+   * 🔴 63.4 / C325 — THROUGH THE BACK OFFICE'S OWN DOOR, NOT THE CLINIC'S.
+   *
+   * This used to call `clinicClinicians` and `clinicManagersFor` with a bare
+   * organisation id. Those now take a `ClinicPrincipal` and check a capability on
+   * the resource, and a `super_admin` is not one: giving this page a synthetic
+   * principal with every capability would make the check satisfiable by an object
+   * literal, which is the check gone. `clinicsForAdmin` is our own read, with its
+   * own select list, behind `requireRole` above.
+   */
+  const rows = await clinicsForAdmin();
 
   return (
     <div className="space-y-4">

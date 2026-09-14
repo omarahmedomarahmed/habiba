@@ -23,8 +23,8 @@ export default async function ClinicPeoplePage() {
   const { locale } = await getI18n();
 
   const [people, invitations, seats] = await Promise.all([
-    clinicClinicians(actor.clinicOrganizationId),
-    clinicInvitations(actor.clinicOrganizationId),
+    clinicClinicians(actor),
+    clinicInvitations(actor),
     /* 🔴 62.6 / C355 — which seats are live and which are waiting for a period. */
     seatsFor(actor.clinicOrganizationId),
   ]);

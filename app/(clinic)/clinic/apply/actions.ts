@@ -25,6 +25,19 @@ export async function apply(
     contactName: String(formData.get("contactName") ?? ""),
     contactEmail: String(formData.get("contactEmail") ?? ""),
     contactPhone: String(formData.get("contactPhone") ?? ""),
+    /* 🔴 63.18 — the licence and the names, asked here rather than on the call. */
+    registrationNumber: String(formData.get("registrationNumber") ?? ""),
+    registrationAuthority: String(formData.get("registrationAuthority") ?? ""),
+    /*
+     * One per line in a textarea, which is how somebody with a staff list in front
+     * of them actually types. Split here rather than in the data layer: the shape of
+     * a form field is a fact about this form, and `applyToClinic` takes an array so
+     * a second caller never has to know about newlines.
+     */
+    intendedClinicians: String(formData.get("intendedClinicians") ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean),
   });
 
   if (result.error) return { error: result.error };

@@ -12,6 +12,7 @@ import {
   historyGrants,
   invoices,
   notifications,
+  organizations,
   patients,
   people,
   personDocuments,
@@ -95,6 +96,19 @@ export type RadarTherapist = {
     lat: string | null;
     lon: string | null;
   } | null;
+  /**
+   * 🔴 63.13 / C327 / C354 — THE PRACTICE THAT CAN SEE AN APPOINTMENT EXISTS.
+   *
+   * Null for a clinician who works on their own, which is the case where there is
+   * no administrative staff at all: there is nobody at that practice but the person
+   * the patient chose. Set for a clinic-attached one, and the card carries a small
+   * persistent label.
+   *
+   * 🔴 THIS IS NOT NEW INFORMATION ABOUT THE CLINICIAN. The practice is already on
+   * their public profile before anybody books. What is new is the patient being
+   * told what it means for them, which is the whole of C327.
+   */
+  clinicName: string | null;
   sessionRateCents: number;
   /**
    * Star rating, or null until enough people have rated them.
@@ -307,9 +321,19 @@ async function queryBoard() {
       reservedBy: therapistRadar.reservedBy,
       demo: therapistRadar.demo,
       suspendedUntil: therapistRadar.suspendedUntil,
+      /*
+       * 🔴 63.13 — the practice's name when it is a CLINIC, and null otherwise.
+       *
+       * A `CASE` rather than a filter on the join, because a solo clinician's
+       * organisation is an `organizations` row too and an inner join on
+       * `kind = 'clinic'` would drop every solo therapist off the radar. The whole
+       * board vanishing is a considerably worse outcome than a missing label.
+       */
+      clinicName: sql<string | null>`CASE WHEN ${organizations.kind} = 'clinic' THEN ${organizations.name} END`,
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
       and(
         isNull(users.deletedAt),
@@ -421,6 +445,7 @@ function shapeBoard(
        * goes through either way — held by the platform if it has to be — so
        * there is no longer a price nobody can pay.
        */
+      clinicName: row.clinicName,
       sessionRateCents: row.sessionRateCents,
       rating: (() => {
         const found = ratings.get(row.userId);
@@ -528,9 +553,12 @@ export async function publicProfile(
       demo: therapistRadar.demo,
       suspendedUntil: therapistRadar.suspendedUntil,
       lastSeenAt: therapistRadar.lastSeenAt,
+      /* 🔴 63.13 — the same CASE as the board, for the same reason. */
+      clinicName: sql<string | null>`CASE WHEN ${organizations.kind} = 'clinic' THEN ${organizations.name} END`,
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
       and(
         eq(users.id, userId),

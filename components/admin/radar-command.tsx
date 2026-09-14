@@ -130,6 +130,16 @@ export function RadarCommand({
           region: row.region,
           city: row.city,
           practice: null,
+          /*
+           * 🔴 63.13 — null on the OPERATOR's globe, deliberately.
+           *
+           * The label exists to tell a PATIENT that administrative staff at a
+           * practice can see their appointment. This screen has no patient on it
+           * and the operator already reads `organizationName` in the table beside
+           * it, so a label here would be a disclosure repeated to the one person
+           * it is not for.
+           */
+          clinicName: null,
           sessionRateCents: row.sessionRateCents,
           rating: row.rating,
           status: row.status as "online" | "pending" | "in_session",

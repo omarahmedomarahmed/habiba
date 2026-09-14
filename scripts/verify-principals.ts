@@ -175,6 +175,36 @@ const SCOPE: Record<string, Scope> = {
   "clinic-admin": { who: ["admin"] },
   "partner-admin": { who: ["admin"] },
   clinic: { who: ["clinic", "admin"] },
+  /*
+   * 🔴 63.11 — THE SEVENTH PRINCIPAL'S TWO NEW MODULES, AND NEITHER IS CLINICAL.
+   *
+   * > *Clinic staff never reach a record, a note, a transcript, a copilot or a risk
+   * > alert. Proved by the 58.6 matrix, not by a comment.*
+   *
+   * `clinic-team` writes PERMISSIONS: roles, staff and assignments. It touches
+   * `clinic_managers`, `clinic_roles`, `clinic_staff_assignments` and `users` for a
+   * name, and nothing with a note, a transcript or a session in it.
+   */
+  "clinic-team": { who: ["clinic"] },
+  /*
+   * 🔴 63.17 / C334 — the export, and it is declared as the CLINIC's because it is.
+   *
+   * It holds no queries of its own: every row it writes comes back from
+   * `clinicSchedule` and `clinicBills`, so it inherits their capability checks, their
+   * assignment scoping and their shortened patient names. Declaring it clinical would
+   * be declaring `clinic` clinical, which it is not.
+   */
+  "clinic-export": { who: ["clinic"] },
+  /*
+   * 🔴 `clinic-visibility` IS READ BY THE PATIENT, AND THAT IS THE WHOLE POINT OF IT.
+   *
+   * C327 says the patient is TOLD what administrative staff at their therapist's
+   * practice can see. So the module that answers "what do they see about me" belongs
+   * to the person it is about, and the clinic principal has no business reading it:
+   * a practice asking us what it can see about a named patient is a question with a
+   * screen, not an API.
+   */
+  "clinic-visibility": { who: ["patient"] },
   enrolment: { who: ["sponsor", "admin", "patient"] },
   "enrolment-verify": { who: ["sponsor", "admin", "patient"] },
   "instrument-seeds": { who: ["admin"] },

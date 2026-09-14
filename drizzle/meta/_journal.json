@@ -652,6 +652,20 @@
       "when": 1789600000058,
       "tag": "0092_seats",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1789600000059,
+      "tag": "0093_clinic_staff",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1789600000060,
+      "tag": "0094_clinic_application",
+      "breakpoints": true
     }
   ]
 }

@@ -205,6 +205,25 @@ export const organizations = pgTable(
      */
     seats: integer("seats").notNull().default(0),
 
+    /**
+     * 🔴 63.18 — WHAT THE OPERATOR ON THE CALL WOULD HAVE HAD TO ASK FOR ANYWAY.
+     *
+     * 54.3's ruling stands: an enquiry produces a HELD row and a phone call, never
+     * an active clinic. These three columns do not change that; they move the
+     * questions from an email thread nobody can find into the application.
+     *
+     * 🔴 `intendedClinicians` is a `text[]` of NAMES, and the type is the ruling.
+     * C267 says the clinic's word is not evidence, so there is no shape here for a
+     * licence number: adding one would mean changing the column type, which is a
+     * line in a migration somebody reviews rather than a key in a blob.
+     */
+    registrationNumber: text("registration_number"),
+    registrationAuthority: text("registration_authority"),
+    intendedClinicians: text("intended_clinicians")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+
     /* 54.3 — the contact, for the call that happens before anything is activated. */
     contactName: text("contact_name"),
     contactEmail: text("contact_email"),
@@ -544,6 +563,23 @@ export const patients = pgTable(
 
     /** How the record came into being — `join_link` patients typed their own name. */
     source: text("source").$type<"therapist" | "join_link">().notNull().default("therapist"),
+
+    /**
+     * 🔴 63.12 / C327 / C354 — WHEN WE TOLD THEM WHAT THE CLINIC CAN SEE.
+     *
+     * > *A disclosed leak is a trade; an undisclosed one is a breach.*
+     *
+     * A patient of a clinic-affiliated therapist is told that administrative
+     * staff there can see their first name, last initial and appointment times.
+     * The disclosure is a label on the radar card and a section on their record
+     * page (C354: no wall in front of somebody in crisis), and this column is
+     * stamped by the page that renders it.
+     *
+     * Same shape as `clinician_invitations.terms_shown_at` and the same
+     * disclaimer: it is not proof anybody read it, it is proof we said it, in a
+     * column an auditor can read.
+     */
+    clinicVisibilityShownAt: timestamp("clinic_visibility_shown_at", { withTimezone: true }),
 
     lastSessionAt: timestamp("last_session_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -6661,6 +6697,34 @@ export const clinicManagers = pgTable(
     passwordHash: text("password_hash"),
     role: text("role").$type<ClinicRole>().notNull().default("viewer"),
 
+    /**
+     * 🔴 63.3 — the custom role, when they hold one. PLAN.md C326, C353.
+     *
+     * Null means the built-in `admin` or `viewer` above, which are unchanged. A
+     * row with both a `role` of `viewer` and a `role_id` reads its capabilities
+     * from the role; `capabilitiesFor` is the one place that decides, so there
+     * is no second reading of this pair anywhere.
+     *
+     * `set null` rather than cascade: deleting a role must reduce somebody to
+     * the built-in they also carry, never delete the person.
+     */
+    roleId: uuid("role_id").references((): AnyPgColumn => clinicRoles.id, {
+      onDelete: "set null",
+    }),
+
+    /**
+     * 🔴 63.2 / C352 — the clinician row that is the SAME HUMAN as this manager.
+     *
+     * A therapist who upgrades is a clinician and the clinic admin, and the
+     * ruling is two principal rows with the session naming which is active.
+     * Unique, so one clinician cannot be linked to two management principals,
+     * and `switchPrincipal` revokes the other side's sessions on the way through
+     * so no session ever carries both capability sets.
+     */
+    linkedUserId: uuid("linked_user_id").references((): AnyPgColumn => users.id, {
+      onDelete: "set null",
+    }),
+
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -6681,6 +6745,88 @@ export const clinicManagers = pgTable(
 );
 
 export type ClinicManager = typeof clinicManagers.$inferSelect;
+
+/**
+ * 🔴 63.3 / C326 / C353 — UP TO TWO CUSTOM ROLES, NAMED BY THE PRACTICE.
+ *
+ * `slot` is 1 or 2 with a unique index on (organization_id, slot), so "up to
+ * two" is a constraint rather than a count somebody reads and then writes
+ * against. Two requests arriving together both counting one existing role is the
+ * race the sponsor allowance had, and the fix is the same shape.
+ *
+ * 🔴 `capabilities` IS NOT THE VOCABULARY. `lib/clinic-auth/capabilities.ts` is,
+ * and `parseCapabilities` discards anything here it does not recognise. A
+ * capability set stored as editable JSON is an escalation vector exactly when the
+ * check reads it back and trusts it, so nothing reads this back and trusts it.
+ * A database CHECK separately refuses `seats.manage` and `clinicians.manage`,
+ * because "money and membership are never delegable" is the kind of rule that
+ * gets around a single guard through a script or an endpoint nobody has written.
+ */
+export const clinicRoles = pgTable(
+  "clinic_roles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    /** 1 or 2. The limit is the index, not a count. */
+    slot: integer("slot").notNull(),
+    name: text("name").notNull(),
+
+    /** Strings. `parseCapabilities` decides what any of them mean. */
+    capabilities: jsonb("capabilities").$type<string[]>().notNull().default([]),
+
+    createdByManagerId: uuid("created_by_manager_id").references(
+      (): AnyPgColumn => clinicManagers.id,
+      { onDelete: "set null" },
+    ),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("clinic_roles_slot_unique")
+      .on(t.organizationId, t.slot)
+      .where(sql`deleted_at IS NULL`),
+  ],
+);
+
+export type ClinicRoleRow = typeof clinicRoles.$inferSelect;
+
+/**
+ * 🔴 63.4 / C325 — WHICH CLINICIANS A STAFF MEMBER MAY SEE.
+ *
+ * > *Assistant 1 assigned to therapist A is refused therapist B's calendar on the
+ * > same route.*
+ *
+ * Holding `schedule.read` is not permission to see everybody: it is permission to
+ * see the clinicians in this table. No rows means no clinicians, never all of
+ * them, which is the safe direction for an empty list to point.
+ */
+export const clinicStaffAssignments = pgTable(
+  "clinic_staff_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    clinicManagerId: uuid("clinic_manager_id")
+      .notNull()
+      .references((): AnyPgColumn => clinicManagers.id, { onDelete: "cascade" }),
+    /** The clinician they are assigned to. */
+    userId: uuid("user_id")
+      .notNull()
+      .references((): AnyPgColumn => users.id, { onDelete: "cascade" }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("clinic_staff_assignments_unique").on(t.clinicManagerId, t.userId),
+    index("clinic_staff_assignments_org_idx").on(t.organizationId),
+  ],
+);
 
 /** Their sessions. Own cookie, own table, shaped like the sponsor's. */
 export const clinicAuthSessions = pgTable(

@@ -377,6 +377,11 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C409 | 62 | **A clinician who already pays us had no way to join a clinic at all, so C355 and C329 were rules about a flow that did not exist.** Accepting an invitation created a NEW account, which is the case where neither ruling bites. **Ruling: `joinWithExistingAccount`, which takes the seat with their own period end on it and hands the caller an organisation id to stop renewing at period end.** And the caseload question is settled the same way `removeClinician` settles its mirror image: an account with patients on it is REFUSED, in a sentence naming the alternative, because moving a chart between tenancies moves it out from under the grant the patient gave. A migration would have been the other answer and it is not one this product gets to make on somebody's behalf. 2026-09-14. | major | review | **ruled — built** |
 | C410 | 62 | **A body extraction that stops at the first `\n}` extracts a SIGNATURE when the parameters are an object literal.** Sprint 61's version of the same helper was correct only because its function's parameters fit on one line; the sprint 62 copy silently returned 108 characters of type declaration, and both ordering checks over it compared two `-1`s and passed. **Ruling: `\n}\n` for the close, plus a control asserting the extracted body is longer than the signature could be.** This is the §6 family in its purest form: a check that passes by measuring the wrong thing, and the only reason it was caught is that one of the two orderings happened to be genuinely wrong at the time. 2026-09-14. | major | review | **ruled — fixed** |
 | C411 | 62 | **The seat price on a public page is the C291 shape one table over.** A figure that is true when it is written and false the hour somebody reprices, with nothing failing in between, and wrong in a direction that costs money: the marginal reading of the founder's own table gives $439 at five seats against a published $400. **Ruling: `verify:claims` compares every dollar figure in seat copy, in both languages, to the set `seatMonthlyCents` actually produces, and separately refuses a typed price anywhere in the seat dictionary.** The planted offender is $439 and the planted innocent is $400, so the gate cannot be narrowed to nothing without one of the two controls failing. 2026-09-14. | major | review | **ruled — gated** |
+| C412 | 63 | **`clinic_managers` was already the seventh principal, and C324 read as if it were not.** Its own table, its own cookie, its own sessions, since sprint 54. What was missing was everything ABOVE it: roles a practice names, assignments that scope what a role reaches, and the link between one human's two principals. **Ruling: the sprint builds the capability layer rather than a fourth copy of the portal auth pattern.** Worth recording because the obvious reading of C324 is a migration that would have moved live rows between two tables for no gain. 2026-09-14. | major | review | **ruled — built on the existing table** |
+| C413 | 63 | 🔴 **Two separate cookies are how BOTH principals stay live, not how they stay apart.** C352 says never one session carrying both capability sets, and a clinician cookie plus a clinic cookie in one browser is exactly that with an extra step: the only thing between a clinical grant and a management grant is which tab is in front. **Ruling: a switch is a HANDOVER. Every session of the principal being left is revoked BEFORE the one being entered is minted, in that order, audited.** A crash between the two signs somebody out of both, which is an inconvenience; the other order is the thing forbidden. 2026-09-14. | blocker | **loophole in C352 itself** | **ruled — built** |
+| C414 | 63 | 🔴 **An empty assignment list must mean NOBODY, and `[]` reading as "no filter" is the whole hole.** A staff member with no assignments is the default state of every new account, so getting it backwards shows an unassigned assistant the entire practice on their first sign-in. **Ruling: `scopeToAssigned` returns `string[] \| null`, null is the admin and means no restriction, and every consumer handles both. `inArray(column, [])` matches nothing, which is the behaviour we want.** `verify:sprint63` runs an assistant with an empty list against the real query and asserts zero rows. 2026-09-14. | blocker | planning review | **ruled — built and gated** |
+| C415 | 63 | **The admin console was reading the clinic wall with a bare organisation id, and a synthetic principal would have been a back door with a friendly name.** Sprint 63 made every function in `lib/data/clinic.ts` take a `ClinicPrincipal` and check a capability on the resource; `super_admin` is not one. Handing that page `{role: "admin", capabilities: ADMIN_CAPABILITIES}` would make the check satisfiable by an object literal anywhere in the codebase. **Ruling: the back office reads through `clinicsForAdmin`, its own function with its own select list, behind `requireRole`. `clinicManagersFor` and `getClinic` are deleted rather than left taking an id.** Two principals, two doors, neither mistakable for the other in a diff. 2026-09-14. | major | review | **ruled — fixed** |
+| C416 | 63 | **A name-shortening rule written over Latin letters returns the given name alone for a whole alphabet.** `shortenForClinic` takes the first CHARACTER of the family name, not a `[A-Z]` match, so an Arabic or accented surname has an initial too. And a name that cannot be shortened is shown as its first part alone, never in full: a rule that gave up on anything unusual would leak exactly the names that are most identifying. 2026-09-14. | major | review | **ruled — built and gated** |
 
 ---
 
@@ -4100,48 +4105,48 @@ is **retroactive**, not marginal:
 
 ### Sprint 63 — Clinic staff, the seventh principal · ~4 weeks
 
-- [ ] **63.1** 🔴 **Clinic staff is its own principal**, with its own table and its
+- [x] **63.1** 🔴 **Clinic staff is its own principal**, with its own table and its
       own auth session, like `sponsor_users` and `partner_users`. **Never a
       `users` row**, because `staff` and `manager` there are OUR back office and
       one mistake from a clinical grant (C324)
-- [ ] **63.2** 🔴 A human who is both clinician and clinic admin has **two linked
+- [x] **63.2** 🔴 A human who is both clinician and clinic admin has **two linked
       principal rows**, and the cookie names which is ACTIVE. Switching is
       explicit and audited. Never one session carrying both capability sets (C352)
-- [ ] **63.3** Roles: `clinic_admin`, plus up to two **custom roles** the admin
+- [x] **63.3** Roles: `clinic_admin`, plus up to two **custom roles** the admin
       names
-- [ ] **63.4** 🔴 Permissions are a **capability set checked in the data layer, on
+- [x] **63.4** 🔴 Permissions are a **capability set checked in the data layer, on
       the RESOURCE** (C325). Assistant 1 assigned to therapist A is refused
       therapist B's calendar on the same route
-- [ ] **63.5** 🔴 The capability vocabulary is a **closed list in code**. An unknown
+- [x] **63.5** 🔴 The capability vocabulary is a **closed list in code**. An unknown
       capability is refused, never ignored (C353)
-- [ ] **63.6** 🔴 A custom role's capabilities are a **subset of the clinic
+- [x] **63.6** 🔴 A custom role's capabilities are a **subset of the clinic
       admin's**, enforced at write time (C326)
-- [ ] **63.7** 🔴 **Only `clinic_admin` may buy a seat or invite a therapist.**
+- [x] **63.7** 🔴 **Only `clinic_admin` may buy a seat or invite a therapist.**
       Money and membership are never delegable
-- [ ] **63.8** Pages: clinicians and seats, clinic team, calendars, bookings,
+- [x] **63.8** Pages: clinicians and seats, clinic team, calendars, bookings,
       earnings (per therapist and combined), bills, reports, roles
-- [ ] **63.9** 🔴 The clinic sees **nothing** about an invited therapist until they
+- [x] **63.9** 🔴 The clinic sees **nothing** about an invited therapist until they
       accept, and the acceptance screen **enumerates** what will be visible and
       what never will (C328)
-- [ ] **63.10** 🔴 A therapist invited into a clinic must **verify as a therapist
+- [x] **63.10** 🔴 A therapist invited into a clinic must **verify as a therapist
       first**. The invite is visible only after approval
-- [ ] **63.11** 🔴 Clinic staff never reach a record, a note, a transcript, a
+- [x] **63.11** 🔴 Clinic staff never reach a record, a note, a transcript, a
       copilot or a risk alert. Proved by the 58.6 matrix, not by a comment
-- [ ] **63.12** 🔴 Patient identity to clinic staff is **first name plus last
+- [x] **63.12** 🔴 Patient identity to clinic staff is **first name plus last
       initial**, and the patient is **told** (C327). Every read is audited
-- [ ] **63.13** 🔴 The disclosure is a **label on the radar card and a section on
+- [x] **63.13** 🔴 The disclosure is a **label on the radar card and a section on
       the patient's record page**, never a wall in front of somebody in crisis
       (C354)
-- [ ] **63.14** A therapist withdraws their own earnings. The clinic sees the
+- [x] **63.14** A therapist withdraws their own earnings. The clinic sees the
       **log** and can never withdraw on their behalf
-- [ ] **63.15** A therapist's own earnings page and a clinic earnings page are
+- [x] **63.15** A therapist's own earnings page and a clinic earnings page are
       **different pages**. A dual-role human has both, and the clinic one can
       never move a colleague's money
-- [ ] **63.16** 🔴 On departure the clinic keeps the **financial** record and loses
+- [x] **63.16** 🔴 On departure the clinic keeps the **financial** record and loses
       every **live** view instantly (C331). Bookings stay with the therapist
-- [ ] **63.17** 🔴 Every export is **audited, watermarked with the requesting user
+- [x] **63.17** 🔴 Every export is **audited, watermarked with the requesting user
       and the timestamp**, and shows nothing the screen does not (C334)
-- [ ] **63.18** A clinic-admin-first signup path: clinic details, registration
+- [x] **63.18** A clinic-admin-first signup path: clinic details, registration
       licence, therapist names, submitted for approval
 
 - **Accept:** a clinic admin manages calendars, bills and reports for four

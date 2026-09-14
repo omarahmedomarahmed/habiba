@@ -1387,6 +1387,11 @@ export const en = {
   "clinic.apply.name": "Practice name",
   "clinic.apply.contact": "Who should we speak to",
   "clinic.apply.phone": "Phone number",
+  /* 🔴 63.18 — the licence and the names, so the call starts from something. */
+  "clinic.apply.registration": "Your practice registration number, if you have one",
+  "clinic.apply.authority": "Who issued it",
+  "clinic.apply.clinicians": "The clinicians you expect to bring, one name per line",
+  "clinic.apply.cliniciansWhy": "Names only, and we do not need their licences: each of them verifies their own registration with us, personally, exactly as a therapist working alone does. Your word about a colleague is not something we can accept as evidence, and that is what makes the badge on their profile worth anything.",
   "clinic.apply.submit": "Ask us to call",
   "clinic.apply.sent": "Thank you. We will call you.",
   "clinic.apply.sentBody": "Your practice is on our list and nothing is active yet. We set it up with you on the call.",
@@ -1449,7 +1454,98 @@ export const en = {
    * C329 is that promise; a person deciding whether to accept an invitation on
    * the eighth of the month is the person who needs it.
    */
+  /*
+   * 🔴 63.3 to 63.8 — the practice's own staff, and the two roles it may name.
+   *
+   * Every capability carries a label here because `LABELS` in `components/clinic/team.tsx`
+   * is typed `Record<ClinicCapability, MessageKey>`: adding a capability to the closed
+   * vocabulary without a sentence a practice can read does not compile. A checkbox
+   * labelled `earnings.read` is a permission nobody can decide about.
+   */
+  /*
+   * 🔴 63.12 / 63.13 / C327 / C354 — WHAT A PRACTICE CAN SEE, TOLD TO THE PATIENT.
+   *
+   * *A disclosed leak is a trade; an undisclosed one is a breach.* Written for
+   * somebody who may be reading it in distress: what they see, what they never see,
+   * and why the line is where it is, in that order and in plain words. No wall, no
+   * acknowledgement, nothing to dismiss.
+   */
+  "pclinic.title": "What {practice} can see",
+  "pclinic.body": "Your therapist works inside {practice}. The people who run the practice pay for your hour, so their administrative staff can see that an appointment exists.",
+  "pclinic.theySee": "Your name, to them:",
+  "pclinic.andWhen": "And:",
+  "pclinic.andWhenValue": "the day and time of each appointment",
+  "pclinic.never": "They never see a note, a transcript, your journal, a summary, a diagnosis, a risk flag, or anything you say in a session. Not hidden behind a setting: it is not built.",
+  "pclinic.why": "We tell you this rather than leaving you to assume it. If you would rather no practice saw your name at all, you can book with a therapist who works on their own, and that choice is yours to make at any point.",
+  "pclinic.radarLabel": "Practice",
+  "clinic.nav.earnings": "Earnings",
+  /* 🔴 63.17 / C334 — the file says who took it and when, inside the file. */
+  "clinic.exportCsv": "Download as a spreadsheet",
+  "clinic.exportWatermark": "Every export carries your name and the time you took it, on the first two rows, and shows nothing this screen does not.",
+  "clinic.earn.title": "What your clinicians have earned",
+  "clinic.earn.body": "Their share of the sessions they ran here, and a log of the withdrawals they made. You cannot withdraw for them, and you never see where the money goes.",
+  "clinic.earn.empty": "Nothing earned here yet.",
+  "clinic.earn.combined": "Combined",
+  "clinic.earn.noWithdrawals": "No withdrawals yet.",
+  "clinic.earn.theirsOnly": "A therapist withdraws their own earnings, to an account only they can see or change. That is not a setting we have turned off for you: there is no way for a practice to move a clinician's money, by any route.",
+  "clinic.nav.team": "Your team",
+  "clinic.switchToClinician": "Switch to your clinician account",
+  "portal.nav.switchToClinic": "Switch to your practice account",
+  "clinic.team.title": "Your team",
+  "clinic.team.body": "Who works here and what each of them can reach. Nobody here reaches a note, a transcript or anything else from inside a session.",
+  "clinic.team.rolesTitle": "Roles",
+  "clinic.team.rolesEmpty": "You have no roles yet. Make one and you can add people to it.",
+  "clinic.team.roleName": "What is this role called",
+  "clinic.team.canDo": "What it can do",
+  "clinic.team.neverDelegable": "Buying seats and inviting clinicians stay with you. They are not on this list and cannot be added to it, because both commit the practice to money.",
+  "clinic.team.addRole": "Add this role",
+  "clinic.team.saveRole": "Save this role",
+  "clinic.team.editRole": "Change",
+  "clinic.team.removeRole": "Remove",
+  "clinic.team.cancel": "Cancel",
+  "clinic.team.staffTitle": "People",
+  "clinic.team.staffName": "Their name",
+  "clinic.team.theirRole": "Their role",
+  "clinic.team.addStaff": "Add them",
+  "clinic.team.isAdmin": "Runs the practice",
+  "clinic.team.noRole": "No role yet",
+  "clinic.team.adminSeesAll": "They see every clinician here, because they run the practice.",
+  "clinic.team.assignedTo": "Whose work they cover",
+  "clinic.team.noneAssigned": "Nobody yet, so they will see no calendars and no earnings at all.",
+  "clinic.team.saveAssignments": "Save",
+  "clinic.team.saved": "Saved.",
+  "clinic.cap.schedule": "See who is coming and when",
+  "clinic.cap.people": "See the clinician list",
+  "clinic.cap.bills": "See the practice's bills",
+  "clinic.cap.earnings": "See earnings totals",
+  "clinic.cap.reports": "See activity reports",
+  "clinic.cap.team": "Manage this team",
+  "clinic.cap.seats": "Buy seats",
+  "clinic.cap.clinicians": "Invite and remove clinicians",
+  "clinic.cap.export": "Export what they can see",
   "clinic.seatFrom": "This seat is not billed until {date}, because they had already paid for the month when they joined.",
+  /*
+   * 🔴 63.9 / C328 — WHAT THE PRACTICE WILL SEE, ENUMERATED BEFORE THEY ACCEPT.
+   *
+   * *The inviting therapist gains sight of a colleague's earnings and calendar, and
+   * the colleague has to understand that before, not after.* So the list is on the
+   * acceptance screen, itemised, and the second list is what the practice will never
+   * see. It makes the screen longer, on the one screen where length is worth paying
+   * for.
+   */
+  "clinic.join.seesTitle": "What {name} will be able to see",
+  "clinic.join.sees.calendar": "Your calendar: who is coming and when",
+  "clinic.join.sees.names": "Each patient's first name and last initial",
+  "clinic.join.sees.radar": "Whether you are on the radar and taking sessions",
+  "clinic.join.sees.prices": "What you charge for a session",
+  "clinic.join.sees.earnings": "Your earnings totals for the practice",
+  "clinic.join.sees.withdrawals": "A log of withdrawals you make, never the power to make one",
+  "clinic.join.neverTitle": "What they will never see",
+  "clinic.join.never.notes": "Any note, transcript, journal, summary or diagnosis",
+  "clinic.join.never.risk": "Any risk flag or crisis alert",
+  "clinic.join.never.copilot": "Anything you ask the copilot, about any patient",
+  "clinic.join.never.consent": "Which patients turned recording on",
+  "clinic.join.verifyFirst": "You verify your own licence with us first. Until that is approved this invitation does nothing, and the practice cannot complete it for you.",
   "clinic.join.haveAccount": "I already have an account",
   "clinic.join.newHere": "I am new here",
   "clinic.join.signInBody":
@@ -4223,6 +4319,11 @@ export const ar: Record<MessageKey, string> = {
   "clinic.apply.name": "اسم العيادة",
   "clinic.apply.contact": "بمن نتحدث",
   "clinic.apply.phone": "رقم الهاتف",
+  /* 🔴 63.18 — الترخيص والأسماء، ليبدأ الاتصال من شيء. */
+  "clinic.apply.registration": "رقم تسجيل عيادتكم، إن وُجد",
+  "clinic.apply.authority": "الجهة التي أصدرته",
+  "clinic.apply.clinicians": "المعالجون الذين تتوقعون ضمّهم، اسم في كل سطر",
+  "clinic.apply.cliniciansWhy": "أسماء فقط، ولا نحتاج تراخيصهم: كل واحد منهم يوثّق تسجيله معنا بنفسه، تمامًا كمعالج يعمل وحده. كلمتكم عن زميل ليست دليلًا نقبله، وهذا بالضبط ما يجعل شارة التوثيق على ملفه تعني شيئًا.",
   "clinic.apply.submit": "اطلب منا الاتصال",
   "clinic.apply.sent": "شكرًا لكم. سنتصل بكم.",
   "clinic.apply.sentBody": "عيادتكم على قائمتنا ولا شيء مفعّل بعد. نجهّزها معكم في الاتصال.",
@@ -4271,7 +4372,75 @@ export const ar: Record<MessageKey, string> = {
   "clinic.join.done": "أنت بالداخل. وثّق ترخيصك تاليًا.",
 
   /* 🔴 62.6 / 62.7 — المعالج المدعو الذي يدفع لنا بالفعل. */
+  /* 🔴 63.3 إلى 63.8 — فريق العيادة والأدوار التي تسمّيها. */
+  /* 🔴 63.12 / 63.13 / C327 / C354 — ما تراه العيادة، ويُقال للمريض. */
+  "pclinic.title": "ما تستطيع {practice} رؤيته",
+  "pclinic.body": "معالجك يعمل داخل {practice}. من يديرون العيادة يدفعون مقابل ساعتك، لذا يستطيع موظفوهم الإداريون رؤية أن هناك موعدًا.",
+  "pclinic.theySee": "اسمك لديهم:",
+  "pclinic.andWhen": "و:",
+  "pclinic.andWhenValue": "يوم كل موعد ووقته",
+  "pclinic.never": "لا يرون ملاحظة ولا تفريغًا ولا مذكراتك ولا ملخصًا ولا تشخيصًا ولا تنبيه خطر ولا أي شيء تقوله في الجلسة. ليس مخفيًا خلف إعداد: هو غير مبني أصلًا.",
+  "pclinic.why": "نقول لك هذا بدل أن نتركك تفترضه. وإن كنت تفضّل ألا ترى أي عيادة اسمك، يمكنك الحجز مع معالج يعمل بمفرده، والقرار لك في أي وقت.",
+  "pclinic.radarLabel": "عيادة",
+  "clinic.nav.earnings": "الأرباح",
+  "clinic.exportCsv": "نزّله كجدول بيانات",
+  "clinic.exportWatermark": "كل تصدير يحمل اسمك ووقت أخذك له في أول سطرين، ولا يُظهر شيئًا لا تُظهره هذه الشاشة.",
+  "clinic.earn.title": "ما كسبه معالجوك",
+  "clinic.earn.body": "حصتهم من الجلسات التي أجروها هنا، وسجل بالسحوبات التي قاموا بها. لا يمكنك السحب نيابة عنهم، ولا ترى أبدًا إلى أين تذهب النقود.",
+  "clinic.earn.empty": "لا أرباح هنا بعد.",
+  "clinic.earn.combined": "الإجمالي",
+  "clinic.earn.noWithdrawals": "لا سحوبات بعد.",
+  "clinic.earn.theirsOnly": "المعالج يسحب أرباحه بنفسه، إلى حساب لا يراه ولا يغيّره سواه. وهذا ليس إعدادًا أوقفناه لك: لا توجد أي طريقة تتيح لعيادة تحريك نقود معالج.",
+  "clinic.nav.team": "فريقك",
+  "clinic.switchToClinician": "انتقل إلى حسابك كمعالج",
+  "portal.nav.switchToClinic": "انتقل إلى حساب عيادتك",
+  "clinic.team.title": "فريقك",
+  "clinic.team.body": "من يعمل هنا وما الذي يصل إليه كل منهم. لا أحد هنا يصل إلى ملاحظة أو تفريغ أو أي شيء من داخل جلسة.",
+  "clinic.team.rolesTitle": "الأدوار",
+  "clinic.team.rolesEmpty": "لا أدوار بعد. أنشئ دورًا ثم أضف إليه أشخاصًا.",
+  "clinic.team.roleName": "ما اسم هذا الدور",
+  "clinic.team.canDo": "ما الذي يستطيعه",
+  "clinic.team.neverDelegable": "شراء المقاعد ودعوة المعالجين يبقيان معك. ليسا في هذه القائمة ولا يمكن إضافتهما، لأن كليهما يُلزم العيادة بمال.",
+  "clinic.team.addRole": "أضف هذا الدور",
+  "clinic.team.saveRole": "احفظ هذا الدور",
+  "clinic.team.editRole": "تعديل",
+  "clinic.team.removeRole": "إزالة",
+  "clinic.team.cancel": "إلغاء",
+  "clinic.team.staffTitle": "الأشخاص",
+  "clinic.team.staffName": "اسمه",
+  "clinic.team.theirRole": "دوره",
+  "clinic.team.addStaff": "أضفه",
+  "clinic.team.isAdmin": "يدير العيادة",
+  "clinic.team.noRole": "لا دور بعد",
+  "clinic.team.adminSeesAll": "يرى كل معالج هنا، لأنه يدير العيادة.",
+  "clinic.team.assignedTo": "عمل من يغطّي",
+  "clinic.team.noneAssigned": "لا أحد بعد، لذا لن يرى أي جداول أو أي أرباح إطلاقًا.",
+  "clinic.team.saveAssignments": "حفظ",
+  "clinic.team.saved": "تم الحفظ.",
+  "clinic.cap.schedule": "رؤية من سيأتي ومتى",
+  "clinic.cap.people": "رؤية قائمة المعالجين",
+  "clinic.cap.bills": "رؤية فواتير العيادة",
+  "clinic.cap.earnings": "رؤية إجماليات الأرباح",
+  "clinic.cap.reports": "رؤية تقارير النشاط",
+  "clinic.cap.team": "إدارة هذا الفريق",
+  "clinic.cap.seats": "شراء المقاعد",
+  "clinic.cap.clinicians": "دعوة المعالجين وإزالتهم",
+  "clinic.cap.export": "تصدير ما يستطيع رؤيته",
   "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}، لأنه كان قد دفع شهره عند انضمامه.",
+  /* 🔴 63.9 / C328 — ما ستراه العيادة، مُعدَّدًا قبل القبول. */
+  "clinic.join.seesTitle": "ما ستستطيع {name} رؤيته",
+  "clinic.join.sees.calendar": "جدولك: من سيأتي ومتى",
+  "clinic.join.sees.names": "الاسم الأول لكل مريض والحرف الأول من اسم العائلة",
+  "clinic.join.sees.radar": "ما إذا كنت على الرادار وتستقبل جلسات",
+  "clinic.join.sees.prices": "سعر الجلسة لديك",
+  "clinic.join.sees.earnings": "إجماليات أرباحك في العيادة",
+  "clinic.join.sees.withdrawals": "سجلًّا بسحوباتك، دون أي قدرة على السحب نيابة عنك",
+  "clinic.join.neverTitle": "ما لن يروه أبدًا",
+  "clinic.join.never.notes": "أي ملاحظة أو تفريغ أو مذكرات أو ملخص أو تشخيص",
+  "clinic.join.never.risk": "أي تنبيه خطر أو إنذار أزمة",
+  "clinic.join.never.copilot": "أي شيء تسأله للمساعد، عن أي مريض",
+  "clinic.join.never.consent": "أي المرضى شغّلوا التسجيل",
+  "clinic.join.verifyFirst": "توثّق ترخيصك معنا أولًا. وحتى تتم الموافقة لا تفعل هذه الدعوة شيئًا، ولا تستطيع العيادة إكمالها عنك.",
   "clinic.join.haveAccount": "لدي حساب بالفعل",
   "clinic.join.newHere": "أنا جديد هنا",
   "clinic.join.signInBody":

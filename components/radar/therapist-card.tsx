@@ -79,7 +79,7 @@ export function TherapistCard({
             .join(", ") || "Licensed clinician"}
         </span>
 
-        {entry.specialties.length > 0 || entry.practice ? (
+        {entry.specialties.length > 0 || entry.practice || entry.clinicName ? (
           <span className="mt-1 flex flex-wrap items-center gap-1">
             {/* Walk-ins first: it is the one thing on this card that changes
                 what a patient can physically do next. */}
@@ -92,6 +92,27 @@ export function TherapistCard({
               >
                 <DoorOpen className="h-2.5 w-2.5" aria-hidden />
                 {t("radar.walkIns")}
+              </span>
+            ) : null}
+            {/*
+              🔴 63.13 / C327 / C354 — SMALL, PERSISTENT, AND NOT A WALL.
+
+              A clinician inside a practice means administrative staff there can
+              see that an appointment exists. That decides something for some
+              patients, so it is on the card; it is one word rather than a dialog,
+              because the person reading it may be in distress and the ruling is
+              explicit that interrogating them is the wrong trade. The full
+              sentence lives on their record page.
+            */}
+            {entry.clinicName ? (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                  dark ? "bg-white/10 text-white/60" : "bg-slate-100 text-slate-500",
+                )}
+                title={entry.clinicName}
+              >
+                {t("pclinic.radarLabel")}
               </span>
             ) : null}
             {entry.specialties.slice(0, 2).map((item) => (

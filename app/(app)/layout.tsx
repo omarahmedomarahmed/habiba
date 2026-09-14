@@ -10,9 +10,10 @@ import {
   Radio,
   Settings,
   ShieldCheck,
-  Users, Wallet, LogOut } from "lucide-react";
+  Users, Wallet, LogOut, Building2 } from "lucide-react";
 
 import { signOut } from "@/lib/auth/actions";
+import { switchToClinic } from "@/app/(app)/switch-principal/actions";
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
@@ -23,8 +24,8 @@ import { getRadarProfile } from "@/lib/data/radar";
 import { isCleared, practiceState } from "@/lib/data/verification";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { clinicManagers, users } from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
 import { initials } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -76,6 +77,21 @@ export default async function AppLayout({
       .limit(1),
     practiceState(actor.userId),
   ]);
+
+  /*
+   * 🔴 63.2 / C352 — does this human also run a practice here?
+   *
+   * One query against the link column, and null for almost everybody. It is here
+   * rather than in the clinic module because a layout cannot import from
+   * `lib/data/clinic-team.ts` without pulling the permission writer into every
+   * clinician page render.
+   */
+  const [linked] = await db
+    .select({ id: clinicManagers.id })
+    .from(clinicManagers)
+    .where(and(eq(clinicManagers.linkedUserId, actor.userId), isNull(clinicManagers.deletedAt)))
+    .limit(1);
+  const clinicManagerId = linked?.id ?? null;
 
   const cleared = isCleared(actor, state);
 
@@ -203,6 +219,26 @@ export default async function AppLayout({
               <span className="block truncate text-xs text-slate-400">{actor.email}</span>
             </span>
           </Link>
+          {/*
+            🔴 63.2 / C352 — THE SWITCHER, and only for a human who has both.
+
+            A therapist who upgraded is a clinician AND the practice's admin. The
+            two principals have separate cookies, so both could be live at once
+            unless something ends one: pressing this revokes every session of the
+            one being left before minting the other, audited, in that order.
+          */}
+          {clinicManagerId ? (
+            <form action={switchToClinic}>
+              <button
+                type="submit"
+                title={t("portal.nav.switchToClinic")}
+                aria-label={t("portal.nav.switchToClinic")}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <Building2 className="h-4 w-4" aria-hidden />
+              </button>
+            </form>
+          ) : null}
           <form action={signOut}>
             <button
               type="submit"

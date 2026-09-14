@@ -58,8 +58,8 @@ export default async function ClinicOverviewPage({
   prev.setUTCDate(prev.getUTCDate() - 7);
 
   const [rows, usage] = await Promise.all([
-    clinicSchedule({ clinicOrganizationId: actor.clinicOrganizationId, from: monday, to: next }),
-    clinicUsage(actor.clinicOrganizationId),
+    clinicSchedule({ actor, from: monday, to: next }),
+    clinicUsage(actor),
   ]);
 
   /*
@@ -90,6 +90,21 @@ export default async function ClinicOverviewPage({
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {t("clinic.scheduleBody")}
         </p>
+
+        {/* 🔴 63.17 / C334 — and the sentence about the watermark is beside it. */}
+        {actor.capabilities.includes("export") ? (
+          <div className="mt-3">
+            <a
+              href="/clinic/export?what=schedule"
+              className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              {t("clinic.exportCsv")}
+            </a>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+              {t("clinic.exportWatermark")}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

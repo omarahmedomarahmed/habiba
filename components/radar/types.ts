@@ -30,6 +30,24 @@ export type RadarEntry = {
     lat: string | null;
     lon: string | null;
   } | null;
+  /**
+   * 🔴 63.13 / C327 / C354 — THE PRACTICE THAT CAN SEE AN APPOINTMENT EXISTS.
+   *
+   * Null for a clinician who works on their own, which is most of them and is the
+   * case where there is no administrative staff at all: there is nobody at that
+   * practice but the person the patient chose.
+   *
+   * Set for a clinic-attached clinician, and the card carries a small persistent
+   * label. C354 rules out the obvious alternative in as many words: *a disclosure
+   * wall in front of somebody in crisis is the wrong trade.* So this is a label
+   * beside the name rather than a dialog, and the full sentence is on the patient's
+   * own record page, always available.
+   *
+   * 🔴 It is the practice's NAME, which is already on the clinician's public
+   * profile before anybody books. Nothing here is new information about the
+   * clinician; what is new is the patient being told what it means for them.
+   */
+  clinicName: string | null;
   sessionRateCents: number;
   /** Null until enough sessions have been rated for a number to mean anything. */
   rating: { average: number; count: number } | null;
