@@ -303,7 +303,7 @@ These are the ones that end the company if they break.
 |---|---|
 | `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
 | `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
-| `docs/walkthrough-2/` | The last full walkthrough: 134 frames, findings, four film cuts, Arabic and English scripts |
+| `docs/walkthrough-archive/` | The written record of the last full walkthrough: findings, report, edit list and both scripts. **The frames were deleted on 2026-09-14** so a new walkthrough starts against an empty folder rather than a mixture of old screens and new ones |
 
 ---
 
