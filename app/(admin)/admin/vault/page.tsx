@@ -17,6 +17,7 @@ import {
   tractionMetrics,
 } from "@/lib/data/vault";
 import { heldBalances, trialBalance, unbalancedTransactions } from "@/lib/billing/ledger";
+import { reconcileRenewals } from "@/lib/billing/obligations";
 import { allOrganizations } from "@/lib/data/admin";
 import { formatDate } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ export default async function VaultPage() {
     held,
     books,
     unbalanced,
+    renewalDrift,
     orgs,
   ] = await Promise.all([
     ledgerSummary(),
@@ -55,6 +57,15 @@ export default async function VaultPage() {
      * self-check nobody executes is the thing it was written to replace.
      */
     unbalancedTransactions(),
+    /*
+     * 🔴 59.15 — the renewal reconciliation, on the screen rather than in a log.
+     *
+     * C232's lesson from the sponsor pot, applied to subscriptions: a
+     * discrepancy belongs on a page an operator opens every week, not in a
+     * warning nobody tails. Both directions, because asking one of them is how
+     * a discrepancy survives.
+     */
+    reconcileRenewals(),
     allOrganizations(),
   ]);
 
@@ -136,6 +147,37 @@ export default async function VaultPage() {
           </p>
         </Card>
       </div>
+
+      {/*
+        🔴 59.15 — renewals that do not reconcile. Normally renders nothing.
+
+        The second list is the one that produces a support ticket rather than a
+        variance: somebody paid a renewal invoice and nothing recorded what
+        period it bought, so they are entitled to a month the product does not
+        know about.
+      */}
+      {renewalDrift.paidWithNoReference.length > 0 ||
+      renewalDrift.invoicesWithNoObligation.length > 0 ? (
+        <div className="rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">
+          <p className="text-sm font-semibold text-amber-900">Renewals that do not reconcile</p>
+          <ul className="mt-2 space-y-1 text-xs text-amber-900/90">
+            {renewalDrift.paidWithNoReference.length > 0 ? (
+              <li>
+                {renewalDrift.paidWithNoReference.length} obligation
+                {renewalDrift.paidWithNoReference.length === 1 ? "" : "s"} marked paid with no
+                transaction behind them. This is money we believe we have.
+              </li>
+            ) : null}
+            {renewalDrift.invoicesWithNoObligation.length > 0 ? (
+              <li>
+                {renewalDrift.invoicesWithNoObligation.length} paid renewal invoice
+                {renewalDrift.invoicesWithNoObligation.length === 1 ? "" : "s"} that bought no
+                period. Somebody is entitled to a month we are not granting.
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
 
       {/*
         🔴 Normally renders nothing, which is the point. The same construction

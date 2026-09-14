@@ -413,11 +413,31 @@ export async function currentTier(organizationId: string): Promise<PricingTier> 
     0,
   );
 
+  const now = new Date();
+
+  /*
+   * 🔴 59.14 / C310 — THE OBLIGATION, READ BEFORE THE GATEWAY MIRROR.
+   *
+   * `subscriptions` above is what a Stripe webhook last told us. A webhook that
+   * never arrived leaves it saying whatever it said before, and a period end in
+   * the past reads as no entitlement — so a clinician who paid loses their plan
+   * because our endpoint was down, mid-session, with nothing anywhere saying
+   * why.
+   *
+   * 🔴 A SECOND QUERY rather than a join, and awaited after the pair above
+   * rather than inside the `Promise.all`. The obligation table is new: an
+   * organisation with no row falls through to the mirror exactly as before, so
+   * this is additive rather than a migration everybody has to survive first.
+   */
+  const { obligationCovering } = await import("./obligations");
+  const obligation = await obligationCovering(organizationId, now);
+
   return entitledTier({
     tiers: settings.pricing.tiers,
+    obligation,
     subscription: subs[0] ?? null,
     lifetimeSpentCents: lifetimeCents,
-    now: new Date(),
+    now,
   });
 }
 

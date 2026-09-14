@@ -624,6 +624,65 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
       if (subscriptionId && client) {
         const sub = await client.subscriptions.retrieve(subscriptionId);
         await mirrorSubscription(sub);
+
+        /*
+         * 🔴 59.13 — AND THE OBLIGATION, WHICH IS THE ROW WE OWN.
+         *
+         * `mirrorSubscription` above writes what Stripe said. This writes what
+         * we now know independently of Stripe: a period, an amount, a currency
+         * and the fact that it is paid. `entitledTier` reads THIS, so the next
+         * webhook that never arrives cannot end a plan somebody paid for.
+         *
+         * 🔴 Raised and settled in two calls rather than inserted as `paid`.
+         * `raiseObligation` is idempotent against the unique index, and
+         * `settleObligation` is guarded on `state = 'due'`, so this whole block
+         * is safe to run on a delivery Stripe repeats — which every gateway
+         * does, and which is the case a single upsert gets wrong by resetting
+         * an already-settled row.
+         *
+         * 🔴 Best effort. A failure here must not fail the webhook: Stripe
+         * would retry the whole delivery, `mirrorSubscription` would run again,
+         * and the mirror is still the fallback `entitledTier` reads. The
+         * reconciler (59.15) is what finds an obligation this never wrote.
+         */
+        try {
+          const periodStart = new Date(sub.current_period_start * 1000);
+          const periodEnd = new Date(sub.current_period_end * 1000);
+          const [org] = await db
+            .select({ id: organizations.id })
+            .from(organizations)
+            .where(eq(organizations.stripeCustomerId, String(sub.customer)))
+            .limit(1);
+
+          if (org) {
+            const { raiseObligation, settleObligation } = await import("./obligations");
+            await raiseObligation({
+              organizationId: org.id,
+              plan: String(sub.items.data[0]?.price?.lookup_key ?? sub.metadata?.tierKey ?? ""),
+              amountCents: invoice.amount_paid ?? 0,
+              /*
+               * 🔴 Stripe is the USD rail, always. An Egyptian renewal does not
+               * come through here at all: it is an invoice and a payment link
+               * on the Egyptian gateway, settling the same obligation with a
+               * different `settled_via`.
+               */
+              currency: "usd",
+              periodStart,
+              periodEnd,
+              dueAt: periodStart,
+            });
+            await settleObligation({
+              organizationId: org.id,
+              periodStart,
+              via: "stripe",
+              ref: invoice.id ?? subscriptionId,
+            });
+          }
+        } catch (error) {
+          log.error("renewal obligation not written for a paid invoice", {
+            reason: safeErrorMessage(error),
+          });
+        }
       }
       break;
     }

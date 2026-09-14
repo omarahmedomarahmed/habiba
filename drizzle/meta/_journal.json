@@ -624,6 +624,13 @@
       "when": 1789600000054,
       "tag": "0088_a_crisis_line_per_country",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1789600000055,
+      "tag": "0089_renewal_obligations",
+      "breakpoints": true
     }
   ]
 }

@@ -1662,6 +1662,105 @@ export const aiRequestLogs = pgTable(
 
 // ----------------------------------------------------------------- billing ---
 
+export const RENEWAL_STATES = ["due", "paid", "lapsed", "void"] as const;
+export type RenewalState = (typeof RENEWAL_STATES)[number];
+
+export const RENEWAL_RAILS = ["stripe", "egypt_gateway", "manual"] as const;
+export type RenewalRail = (typeof RENEWAL_RAILS)[number];
+
+/**
+ * 🔴 59.13 / C310 / C341 — A SUBSCRIPTION IS AN OBLIGATION WE OWN, AND STRIPE IS
+ * ONE WAY TO SETTLE IT.
+ *
+ * `subscriptions` below is a MIRROR of a Stripe object: a plan key, a status
+ * string Stripe chose, a period end Stripe told us about. `entitledTier` read
+ * it and therefore read Stripe, one table removed. Two things were wrong with
+ * that and only the second is about Egypt.
+ *
+ * ## 🔴 ONE: A MISSED CALLBACK WAS A CANCELLED PLAN
+ *
+ * `mirrorSubscription` writes what the webhook says. A webhook that never
+ * arrives leaves the row saying whatever it said last, and a period end in the
+ * past reads as not entitled. So a clinician who paid could lose their plan
+ * because our endpoint was down for an hour, and nothing anywhere would say
+ * why. C294 already ruled that entitlement is the period paid for rather than a
+ * gateway status; this is the row that makes it true rather than asserted.
+ *
+ * ## 🔴 TWO: THERE IS NO STRIPE IN EGYPT
+ *
+ * An Egyptian renewal is an invoice and a payment link through the Egyptian
+ * gateway. If the only shape a subscription has is Stripe's, the Egyptian rail
+ * needs a parallel billing model — which C226 refused once already for the
+ * corporate pot, in the sentence *"a payment method, not a billing system"*.
+ *
+ * So: a due date, an amount, a currency, a state in OUR vocabulary, and a
+ * nullable reference to whatever settled it.
+ */
+export const renewalObligations = pgTable(
+  "renewal_obligations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+
+    /**
+     * 🔴 A key, not a foreign key. A retired plan must not take a paid
+     * obligation down with it, and `entitledTier` already refuses to grant
+     * anything for a plan key that no longer exists in settings.
+     */
+    plan: text("plan").notNull(),
+
+    /** The amount is a decision; the currency is a fact about where the payer is. */
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").$type<"usd" | "egp">().notNull(),
+
+    /** C294, as two columns: entitlement is the period paid for. */
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+
+    /**
+     * 🔴 OUR vocabulary, never a gateway's. `due` is unpaid and not yet late,
+     * `lapsed` is a due date that passed unpaid, `void` is one we cancelled on
+     * a plan change or a write-off. Mapping Stripe's words into these is the
+     * gateway adapter's job and happens once.
+     */
+    state: text("state").$type<RenewalState>().notNull().default("due"),
+
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+
+    /**
+     * 🔴 Which rail settled it, null until something does. That nullability is
+     * the point of the table: the obligation exists before anybody pays it,
+     * which is what lets a reconciler find an obligation with no transaction
+     * and a transaction with no obligation (59.15).
+     */
+    settledVia: text("settled_via").$type<RenewalRail>(),
+    settledRef: text("settled_ref"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /*
+     * 🔴 One live obligation per organisation per period. Two rows for one
+     * month is how a reconciler finds a double charge, so the database refuses
+     * to create the ambiguity rather than reporting it afterwards.
+     */
+    uniqueIndex("renewal_obligations_period_unique")
+      .on(t.organizationId, t.periodStart)
+      .where(sql`state <> 'void'`),
+    index("renewal_obligations_org_period_idx").on(t.organizationId, t.periodEnd),
+    index("renewal_obligations_due_idx").on(t.state, t.dueAt).where(sql`state = 'due'`),
+    index("renewal_obligations_settled_idx")
+      .on(t.settledVia, t.settledRef)
+      .where(sql`settled_ref IS NOT NULL`),
+  ],
+);
+
+export type RenewalObligation = typeof renewalObligations.$inferSelect;
+
 export const subscriptions = pgTable(
   "subscriptions",
   {
@@ -2096,6 +2195,26 @@ export const LEDGER_ACCOUNTS = [
    * omission: see the comment in `postSessionPayment`.
    */
   "vat_payable",
+  /**
+   * 🔴 59.19 / C339 — FX DIFFERENCE, because a transfer at a frozen rate does
+   * not reconcile to the cent.
+   *
+   * §3c freezes the rate onto a transaction so a receipt and a refund read the
+   * same number. That is right, and it has a consequence: money collected in
+   * EGP at Tuesday's rate and moved to the US entity on Friday arrives as a
+   * different number of dollars than Tuesday said it would.
+   *
+   * Without an account for it, an `entity_transfer` would either fail to
+   * balance — which `journal` refuses outright — or the difference would be
+   * quietly absorbed into `platform_revenue`, where it would read as margin we
+   * earned rather than as a currency movement we did not choose. The second is
+   * worse: a business decision made by rounding.
+   *
+   * It is an expense-shaped account and it goes both ways: a favourable
+   * movement is a negative amount here, which is the same convention
+   * `platform_expense` carries.
+   */
+  "fx_difference",
 ] as const;
 export type LedgerAccount = (typeof LEDGER_ACCOUNTS)[number];
 

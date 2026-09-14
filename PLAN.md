@@ -3893,7 +3893,7 @@ and both are already rows in `country_settings` that almost nothing reads.
 
 **59a · Country, declared and corroborated**
 
-- [ ] **59.1** A patient chooses their country at signup. It sets language and
+- [x] **59.1** A patient chooses their country at signup. It sets language and
       display currency
 - [ ] **59.2** 🔴 It does NOT set VAT on its own (C308). VAT comes from the
       **corroborated** country: card country, then IP, then the sponsor's country
@@ -3903,21 +3903,21 @@ and both are already rows in `country_settings` that almost nothing reads.
       threshold raises an admin flag and never silently reprices
 - [ ] **59.4** A sponsor chooses its HQ country at signup, which fixes its entity
       and its pot currency
-- [ ] **59.5** A therapist prices in their own country's currency, which
+- [x] **59.5** A therapist prices in their own country's currency, which
       `users.rate_currency` already holds and 16.5 already froze onto sessions
 
 **59b · The rail that was a label (C357)**
 
-- [ ] **59.6** 🔴 `hasNoRail` becomes a GATE. A country with no collection
+- [x] **59.6** 🔴 `hasNoRail` becomes a GATE. A country with no collection
       provider and no payout method **refuses radar placement and refuses
       booking**, and the clinician is told on their own dashboard at signup
-- [ ] **59.7** C218's twin, written into §6: *an operator FACT that nothing acts
+- [x] **59.7** C218's twin, written into §6: *an operator FACT that nothing acts
       on is as dead as an operator switch nothing reads*
-- [ ] **59.8** CONTROL: a country with a rail still places and still books
+- [x] **59.8** CONTROL: a country with a rail still places and still books
 
 **59c · Prices, per currency**
 
-- [ ] **59.9** 🔴 Each plan carries a price PER CURRENCY, each its own number set
+- [x] **59.9** 🔴 Each plan carries a price PER CURRENCY, each its own number set
       by an admin (C304). A conversion is a display; a price is a decision
 - [ ] **59.10** 🔴 Subscription currency follows the **verified** country and is
       never chosen (C337). A country change on a live plan needs admin approval
@@ -3929,24 +3929,24 @@ and both are already rows in `country_settings` that almost nothing reads.
 
 **59d · The renewal obligation (C310, C341)**
 
-- [ ] **59.13** 🔴 A subscription becomes a **renewal obligation**: a row with a
+- [x] **59.13** 🔴 A subscription becomes a **renewal obligation**: a row with a
       due date, an amount, a currency and a state. Stripe's subscription is ONE
       implementation; an Egyptian renewal is an invoice plus a payment link
-- [ ] **59.14** 🔴 `entitledTier` reads the OBLIGATION, never the gateway. A
+- [x] **59.14** 🔴 `entitledTier` reads the OBLIGATION, never the gateway. A
       missed callback cannot silently end a plan
-- [ ] **59.15** 🔴 A **reconciler** finds paid gateway transactions with no
+- [x] **59.15** 🔴 A **reconciler** finds paid gateway transactions with no
       obligation and obligations paid with no transaction. The shape 46.14
       already uses per line kind
-- [ ] **59.16** Dunning: a schedule of reminders before a due date lapses, in both
+- [x] **59.16** Dunning: a schedule of reminders before a due date lapses, in both
       languages, admin editable. Sprint 57 named its absence; this is it
 - [ ] **59.17** Proration on a plan change, to the day, stated before the click.
       Sprint 57 named its absence; this is it
 
 **59e · Two balances and two entities**
 
-- [ ] **59.18** 🔴 A held balance carries its **entity** (C306), and moving money
+- [x] **59.18** 🔴 A held balance carries its **entity** (C306), and moving money
       between entities raises a real ledger transaction
-- [ ] **59.19** 🔴 A named ledger account for **FX difference** (C339), because a
+- [x] **59.19** 🔴 A named ledger account for **FX difference** (C339), because a
       transfer at a frozen rate does not reconcile to the cent
 - [ ] **59.20** 🔴 Held and Connect balances are TWO figures on the earnings page,
       never summed, and only the held one has a button (C338)

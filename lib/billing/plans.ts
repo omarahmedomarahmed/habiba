@@ -105,13 +105,65 @@ export type SubscriptionState = {
   currentPeriodEnd: Date | null;
 } | null;
 
+/**
+ * 🔴 59.14 / C310 — THE OBLIGATION, WHICH IS THE THING WE OWN.
+ *
+ * One row from `renewal_obligations`: the plan it buys, the period it covers,
+ * and whether it is paid. Not a status a gateway chose.
+ */
+export type ObligationState = {
+  plan: string;
+  state: "due" | "paid" | "lapsed" | "void";
+  periodStart: Date;
+  periodEnd: Date;
+} | null;
+
 export function entitledTier(input: {
   tiers: PricingTier[];
+  /**
+   * 🔴 59.14 — READ FIRST, AND THE SUBSCRIPTION IS THE FALLBACK.
+   *
+   * A paid obligation covering now IS the entitlement, whatever the gateway
+   * mirror says. That is the whole fix: `mirrorSubscription` writes what a
+   * webhook tells it, so a webhook that never arrived left a period end in the
+   * past, and a clinician who had paid lost their plan because our endpoint was
+   * down for an hour. Nothing on any screen would have said why.
+   *
+   * Null means no obligation row for this period, which is every organisation
+   * that subscribed before 0089 and every one whose obligations we have not
+   * written yet. Those fall through to the Stripe mirror exactly as before, so
+   * this is additive rather than a migration everybody has to survive.
+   */
+  obligation?: ObligationState;
   subscription: SubscriptionState;
   lifetimeSpentCents: number;
   now: Date;
 }): PricingTier {
   const earned = tierForSpend(input.tiers, input.lifetimeSpentCents);
+
+  /*
+   * 🔴 The obligation first, and only when it is PAID and covers now.
+   *
+   * A `due` obligation is one nobody has paid yet: it grants nothing, because
+   * entitlement is the period paid for and not the period invoiced. A `lapsed`
+   * one is the same sentence after the due date. `void` never grants.
+   *
+   * 🔴 And the plan key is looked up with `find` over the live tiers, the same
+   * as below and for the same reason: a retired key is not entitlement, and
+   * `tierByKey`'s fail-closed fallback would hand back the free tier while
+   * claiming a plan was in force.
+   */
+  const ob = input.obligation;
+  if (ob && ob.state === "paid") {
+    const covers =
+      ob.periodStart.getTime() <= input.now.getTime() &&
+      ob.periodEnd.getTime() > input.now.getTime();
+    if (covers) {
+      const bought = input.tiers.find((t) => t.key === ob.plan && t.monthlyCents > 0);
+      if (bought) return bought;
+    }
+  }
+
   const sub = input.subscription;
   if (!sub || sub.status === "cancelled") return earned;
 

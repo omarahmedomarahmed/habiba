@@ -217,6 +217,15 @@ export async function trialBalance() {
      */
     potsHeldCents: zero(-(byAccount.sponsor_pot ?? 0)),
     vatOwedCents: zero(-(byAccount.vat_payable ?? 0)),
+    /*
+     * 🔴 59.19 — what currency movement has cost us, as its own number.
+     *
+     * Positive is a loss. It is reported rather than folded into expense
+     * because it is the one figure on this page nobody decided: it is what the
+     * rate did between a session and a transfer, and a business that cannot see
+     * it will eventually price as though it were zero.
+     */
+    fxDifferenceCents: zero(byAccount.fx_difference ?? 0),
     owedByTherapistsCents: zero(byAccount.therapist_receivable ?? 0),
     revenueCents: zero(-(byAccount.platform_revenue ?? 0)),
     expenseCents: zero(byAccount.platform_expense ?? 0),
@@ -741,6 +750,21 @@ export async function postEntityTransfer(input: {
   fromEntity: Entity;
   toEntity: Entity;
   amountCents: number;
+  /**
+   * 🔴 59.19 / C339 — WHAT ACTUALLY ARRIVED, when it is not what left.
+   *
+   * §3c freezes a rate onto a transaction so a receipt and its refund read the
+   * same number, and that has a consequence: money collected in EGP at
+   * Tuesday's rate and moved on Friday arrives as a different number of
+   * dollars than Tuesday said.
+   *
+   * Omit it and the transfer is exact, which is the only honest default for a
+   * same-currency move. Supply it and the difference is posted to
+   * `fx_difference` rather than absorbed into `platform_revenue`, where it
+   * would read as margin we earned instead of a currency movement we did not
+   * choose.
+   */
+  arrivedCents?: number;
   reason: string;
   adminUserId: string | null;
 }): Promise<{ ok?: boolean; error?: string; txnId?: string }> {
@@ -751,6 +775,22 @@ export async function postEntityTransfer(input: {
     return { error: "Enter a whole number of cents above zero." };
   }
   if (input.reason.trim().length < 5) return { error: "Say what this transfer is for." };
+
+  const arrived = input.arrivedCents ?? input.amountCents;
+  if (!Number.isInteger(arrived) || arrived <= 0) {
+    return { error: "What arrived is a whole number of cents above zero." };
+  }
+
+  /*
+   * 🔴 The difference, and its SIGN.
+   *
+   * `journal` refuses legs that do not sum to zero, so a transfer where less
+   * arrived than left cannot be posted at all without this. The leg is the
+   * balancing figure: positive when we lost on the movement, which is an
+   * expense, and negative when we gained, which is the same convention
+   * `platform_expense` carries and the reason this is not called "fx loss".
+   */
+  const difference = input.amountCents - arrived;
 
   const txnId = await journal({
     kind: "entity_transfer",
@@ -765,10 +805,17 @@ export async function postEntityTransfer(input: {
       },
       {
         account: "cash",
-        amountCents: input.amountCents,
+        amountCents: arrived,
         organizationId: input.organizationId,
         entity: input.toEntity,
         memo: input.reason.trim(),
+      },
+      {
+        account: "fx_difference",
+        amountCents: difference,
+        organizationId: input.organizationId,
+        entity: input.toEntity,
+        memo: `Rate movement between ${input.fromEntity} and ${input.toEntity}`,
       },
     ],
   });

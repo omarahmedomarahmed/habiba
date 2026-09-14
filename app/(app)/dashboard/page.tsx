@@ -12,6 +12,8 @@ import { formatUsd } from "@/lib/billing/plans";
 import { fullName, relativeDay } from "@/lib/utils";
 import { formatDay, resolveZone } from "@/lib/scheduling/tz";
 import { getI18n } from "@/lib/i18n/server";
+import { getCountries } from "@/lib/settings";
+import { radarProblem } from "@/lib/settings/defs";
 
 export const metadata: Metadata = { title: "Home", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -27,6 +29,22 @@ export default async function DashboardPage() {
     unreadNotifications(actor, 3),
     getRadarProfile(actor.userId),
   ]);
+
+  /*
+   * 🔴 59.6 / C357 — TOLD AT SIGNUP, NOT AT PAYOUT.
+   *
+   * `setOnline` refuses a clinician whose country has no rail, and a refusal
+   * that only arrives when somebody presses a button is a refusal they meet
+   * after they have already built a week around being available. `hasNoRail`
+   * spent four sprints being visible only to us, on an admin screen; the person
+   * it is about should be the first to know.
+   */
+  const countries = await getCountries();
+  const railProblem = radarProblem(
+    radar?.country
+      ? (countries.find((c) => c.code === radar.country!.trim().toUpperCase()) ?? null)
+      : null,
+  );
 
   const crisisAlerts = alerts.filter((a) => a.kind === "crisis");
 
@@ -62,6 +80,19 @@ export default async function DashboardPage() {
             <ChevronRight className="h-4 w-4 text-white/60" aria-hidden />
           </div>
         </Link>
+
+        {/*
+          🔴 Above the radar card rather than inside it, because it is the
+          reason the card below does not work and a person reads downward.
+        */}
+        {railProblem ? (
+          <Card className="border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-900">
+              The radar is not open in your country yet
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-amber-900/90">{railProblem}</p>
+          </Card>
+        ) : null}
 
         {/*
           The radar lives on the home screen rather than in the tab bar. It is

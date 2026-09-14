@@ -800,6 +800,52 @@ export function hasNoRail(country: CountrySettings): boolean {
 }
 
 /**
+ * 🔴 59.6 / C357 — WHY THIS CLINICIAN CANNOT BE PUT IN FRONT OF A PATIENT, or null.
+ *
+ * ## The defect this closes, which is C218's shape a third time
+ *
+ * `hasNoRail` has existed since sprint 20 and was read by exactly one thing:
+ * an amber card on the admin settings screen. So an operator could see, in
+ * writing, that a country had no way to take money in and no way to send money
+ * out, while a clinician there went on the radar, was booked by a patient, held
+ * a session, and discovered the problem at payout.
+ *
+ * 59.7 states the rule this is the first instance of: **an operator FACT that
+ * nothing acts on is as dead as an operator switch nothing reads.** C218 ruled
+ * that about `enabled`; C381 found it again on `collection_provider`; this is
+ * the same sentence about `payout_methods`.
+ *
+ * ## 🔴 WHY A CLINICIAN WITH NO COUNTRY IS NOT REFUSED
+ *
+ * Same reasoning `listRadar` already gives about its own country filter: a
+ * clinician who has not filed a verification has no country, and refusing them
+ * would close the radar on everybody mid-onboarding. An unknown country is not
+ * a known-bad one, and the honest failure here is to let them work and to catch
+ * the payout question where it is actually asked.
+ *
+ * ## The message is for the CLINICIAN, not for a patient
+ *
+ * Unlike `collectionProblem`, which a patient reads on a pay page. This one is
+ * shown on the clinician's own dashboard, so it names the thing they can act
+ * on: talk to us, because the answer is a commercial arrangement rather than a
+ * setting they can change.
+ */
+export function radarProblem(country: CountrySettings | null): string | null {
+  if (!country) return null;
+
+  if (!country.enabled) {
+    return "We have not opened in your country yet, so you cannot appear on the radar. Your existing patients and sessions are unaffected. Talk to us and we will tell you where we are.";
+  }
+  if (hasNoRail(country)) {
+    return "There is no way to take a payment or send a payout in your country yet, so you cannot appear on the radar. Everything else works: you can still hold sessions, write notes and invite your own patients. Talk to us before you rely on being paid through us.";
+  }
+  if (country.payoutMethods.length === 0) {
+    return "We have no way to pay you in your country yet, so you cannot appear on the radar. You can still hold sessions and write notes. Talk to us and we will arrange it.";
+  }
+  return null;
+}
+
+/**
  * 🔴 C381 — the collection providers this code can actually USE.
  *
  * `collection_provider` is written by the seed, edited on an admin screen,

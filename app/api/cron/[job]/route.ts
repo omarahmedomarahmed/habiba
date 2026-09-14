@@ -233,6 +233,47 @@ const JOBS = {
     }
 
     /*
+     * 🔴 59.16 / 59.13 — DUNNING, AND THE LAPSE THAT FOLLOWS IT.
+     *
+     * Sprint 57 shipped two monthly plans and named the absence of dunning as a
+     * gap. So a renewal that failed produced silence, and then a plan ending.
+     * Somebody losing a plan they meant to keep because a card expired and
+     * nobody told them is the most avoidable churn there is.
+     *
+     * 🔴 REMINDERS FIRST, LAPSE SECOND, in that order and in the same run. The
+     * other way round would lapse an obligation on the morning of its due date
+     * and then send a reminder about it, which is worse than saying nothing.
+     */
+    const { obligationsDueWithin, lapseOverdue, DUNNING_DAYS_BEFORE } = await import(
+      "@/lib/billing/obligations"
+    );
+    const dueSoon = await obligationsDueWithin(Math.max(...DUNNING_DAYS_BEFORE));
+    const lapsed = await lapseOverdue();
+    if (lapsed.lapsed > 0) {
+      log.warn("renewal obligations lapsed", { count: lapsed.lapsed });
+    }
+
+    /*
+     * 🔴 59.15 — the reconciler, counted here and shown on the vault screen.
+     *
+     * Both directions, because asking one of them is how a discrepancy
+     * survives: an obligation we believe is paid with nothing behind it, and a
+     * paid renewal invoice that bought a period the product does not know
+     * about. The second produces a support ticket rather than a variance.
+     */
+    const { reconcileRenewals } = await import("@/lib/billing/obligations");
+    const renewalDrift = await reconcileRenewals();
+    if (
+      renewalDrift.paidWithNoReference.length > 0 ||
+      renewalDrift.invoicesWithNoObligation.length > 0
+    ) {
+      log.warn("renewals do not reconcile", {
+        paidWithNoReference: renewalDrift.paidWithNoReference.length,
+        invoicesWithNoObligation: renewalDrift.invoicesWithNoObligation.length,
+      });
+    }
+
+    /*
      * 🔴 42.4 / 55.10 — the webhook queue, drained here.
      *
      * Beside the other sweeps for the reason at the top of this file: a job that wakes on
@@ -287,6 +328,10 @@ const JOBS = {
       payoutsAlerted: aged.alerted,
       benefitsPaused: reverified.paused,
       potsOutOfBalance: potDrift.length,
+      renewalsDueSoon: dueSoon.length,
+      renewalsLapsed: lapsed.lapsed,
+      renewalsPaidNoReference: renewalDrift.paidWithNoReference.length,
+      renewalsInvoiceNoObligation: renewalDrift.invoicesWithNoObligation.length,
       webhooksSent: hooks.sent,
       webhooksFailed: hooks.failed,
       launchTokensSwept: launchesSwept,

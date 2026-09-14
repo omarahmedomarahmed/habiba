@@ -25,6 +25,8 @@ import { accessStateFor, isGated, type AccessState } from "@/lib/access/state";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
 import { closedCodes } from "@/lib/data/taxonomy";
 import { log, ref } from "@/lib/logger";
+import { getCountries } from "@/lib/settings";
+import { radarProblem } from "@/lib/settings/defs";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -754,7 +756,46 @@ export async function savePracticeLocation(
  * number, and the session already exists by then.
  */
 export async function setOnline(actor: Actor, online: boolean): Promise<{ error?: string }> {
-  await ensureRadarProfile(actor);
+  const profile = await ensureRadarProfile(actor);
+
+  /*
+   * 🔴 59.6 / C357 — THE RAIL IS A GATE NOW, AND IT IS CHECKED ON THE WAY ON.
+   *
+   * `hasNoRail` has existed since sprint 20 and was read by one amber card on
+   * an admin screen. So an operator could see in writing that a country had no
+   * way to take money in and none to send money out, while a clinician there
+   * went on the radar, was booked, held the session, and found out at payout.
+   *
+   * 59.7 is the rule: an operator FACT that nothing acts on is as dead as an
+   * operator switch nothing reads. C218 said it about `enabled`, C381 found it
+   * again on `collection_provider`, and this is `payout_methods`.
+   *
+   * 🔴 ON THE WAY ON ONLY. Going offline is never refused for this reason: a
+   * clinician already on the radar in a country an operator has just closed
+   * must be able to stand down. Refusing both directions would strand exactly
+   * the person the refusal is meant to protect.
+   */
+  if (online) {
+    /*
+     * 🔴 `getCountries` AND NOT `getCountrySettings`, and the difference is the
+     * whole check.
+     *
+     * `getCountrySettings` returns null for a country that is configured and
+     * DISABLED, because its callers price sessions and a disabled country
+     * cannot be priced. Reading it here would hand `radarProblem` a null and a
+     * null means "we have no row for this country", which is the case that is
+     * deliberately allowed through — so an operator closing a country would
+     * have had the exact opposite of the intended effect, silently.
+     *
+     * The raw row distinguishes the two: no row at all is a clinician
+     * mid-onboarding and is allowed; a row that says disabled, or that has no
+     * payout method, is an operator's decision and is enforced.
+     */
+    const code = (profile.country ?? "").trim().toUpperCase();
+    const row = code ? ((await getCountries()).find((c) => c.code === code) ?? null) : null;
+    const problem = radarProblem(row);
+    if (problem) return { error: problem };
+  }
 
   if (!online) {
     /*

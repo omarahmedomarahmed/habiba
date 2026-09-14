@@ -420,6 +420,83 @@ test("🔴 a subscriber is entitled to the period they PAID FOR, not to a status
   );
 });
 
+test("🔴 59.14 / C310 a paid obligation outranks a gateway mirror that says otherwise", () => {
+  /*
+   * The defect this closes. `subscriptions` is what a Stripe webhook last told
+   * us, so a webhook that never arrived leaves a period end in the past, and a
+   * clinician who paid loses the plan they paid for because our endpoint was
+   * down for an hour. Nothing on any screen would have said why.
+   *
+   * C294 ruled in sprint 57 that entitlement is the period paid for. That was
+   * true of a function and false of the data under it. 0089 is the data.
+   */
+  const now = new Date("2026-06-15T12:00:00Z");
+  const covering = {
+    plan: "practice",
+    state: "paid" as const,
+    periodStart: new Date("2026-06-01T00:00:00Z"),
+    periodEnd: new Date("2026-07-01T00:00:00Z"),
+  };
+
+  const withOb = (
+    obligation: Parameters<typeof entitledTier>[0]["obligation"],
+    subscription: Parameters<typeof entitledTier>[0]["subscription"] = null,
+  ) => entitledTier({ tiers: TIERS, obligation, subscription, lifetimeSpentCents: 0, now }).key;
+
+  assert.equal(
+    withOb(covering, { plan: "practice", status: "cancelled", currentPeriodEnd: null }),
+    "practice",
+    "🔴 the whole point: the obligation is paid, so the mirror does not get to end the plan",
+  );
+
+  assert.equal(
+    withOb(covering),
+    "practice",
+    "and it stands on its own, with no subscription row at all",
+  );
+
+  /*
+   * 🔴 DUE IS NOT PAID. Entitlement is the period paid for, not the period
+   * invoiced, and an obligation raised on the first of the month grants
+   * nothing until somebody settles it.
+   */
+  assert.equal(
+    withOb({ ...covering, state: "due" }),
+    "payg",
+    "🔴 an unpaid obligation grants nothing, however recent",
+  );
+  assert.equal(withOb({ ...covering, state: "lapsed" }), "payg", "and neither does a lapsed one");
+  assert.equal(withOb({ ...covering, state: "void" }), "payg", "nor one we cancelled");
+
+  /* A paid obligation for a period that has ended is history, not entitlement. */
+  assert.equal(
+    withOb({
+      ...covering,
+      periodStart: new Date("2026-04-01T00:00:00Z"),
+      periodEnd: new Date("2026-05-01T00:00:00Z"),
+    }),
+    "payg",
+    "a period that closed is over, whoever paid for it",
+  );
+
+  /* And a retired plan key grants nothing here either, for C294's own reason. */
+  assert.equal(
+    withOb({ ...covering, plan: "growth" }),
+    "payg",
+    "🔴 the same `find` rule as the mirror path, so the two cannot disagree",
+  );
+
+  /*
+   * 🔴 CONTROL: with no obligation at all the old path is untouched. 0089 is
+   * additive, and every organisation that subscribed before it has no row.
+   */
+  assert.equal(
+    withOb(null, { plan: "practice", status: "active", currentPeriodEnd: new Date("2026-07-01T00:00:00Z") }),
+    "practice",
+    "no obligation falls through to the mirror exactly as before",
+  );
+});
+
 test("an unknown tier key fails closed to the most expensive rate", () => {
   // The mirror of the old "unknown plan must not grant unlimited": a typo in a
   // stored key must never hand somebody a free session.

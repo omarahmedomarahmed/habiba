@@ -355,6 +355,61 @@ test("the platform-wide books balance and every transaction is complete", async 
   assert.deepEqual(broken, [], "no transaction has a missing leg");
 });
 
+test("🔴 59.19 / C339 an entity transfer that arrives short posts the difference", async () => {
+  /*
+   * §3c freezes a rate onto a transaction so a receipt and its refund read the
+   * same number. The consequence: money collected in EGP at Tuesday's rate and
+   * moved on Friday arrives as a different number of dollars.
+   *
+   * Without an account for it, `journal` refuses the transfer outright — the
+   * legs do not sum to zero — or somebody absorbs the gap into
+   * platform_revenue, where a currency movement nobody chose reads as margin
+   * we earned. That is a business decision made by rounding.
+   */
+  const { postEntityTransfer } = await import("../lib/billing/ledger");
+
+  const before = await accountBalance("fx_difference");
+
+  const result = await postEntityTransfer({
+    organizationId,
+    fromEntity: "eg",
+    toEntity: "us",
+    amountCents: 100_000,
+    arrivedCents: 99_400,
+    reason: "Monthly sweep of the Egyptian entity",
+    adminUserId: null,
+  });
+
+  assert.equal(result.ok, true, result.error ?? "");
+  assert.equal(await scopedBalance(), 0, "the transaction still balances");
+  assert.equal(
+    await accountBalance("fx_difference"),
+    before + 600,
+    "🔴 positive is a loss, the same convention platform_expense carries",
+  );
+});
+
+test("…and an exact transfer posts no difference leg at all", async () => {
+  const { postEntityTransfer } = await import("../lib/billing/ledger");
+  const before = await accountBalance("fx_difference");
+
+  const result = await postEntityTransfer({
+    organizationId,
+    fromEntity: "us",
+    toEntity: "eg",
+    amountCents: 50_000,
+    reason: "Same currency, nothing lost on the way",
+    adminUserId: null,
+  });
+
+  assert.equal(result.ok, true, result.error ?? "");
+  assert.equal(
+    await accountBalance("fx_difference"),
+    before,
+    "journal drops a zero leg, so an exact transfer leaves no trace here",
+  );
+});
+
 test("cleanup leaves nothing behind", async () => {
   const ids = await db
     .select({ id: ledgerEntries.id })
