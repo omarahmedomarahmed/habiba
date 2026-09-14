@@ -4468,7 +4468,7 @@ state banner usually wins that against a paragraph.
 
 #### Every other portal, and the public site
 
-- [ ] **65.10** **Therapist portal:** the verification requirements, the fee
+- [x] **65.10** **Therapist portal:** the verification requirements, the fee
       explanation, the payout rails and the consent rules become components. The
       fee split is a diagram, not a paragraph about a diagram
 - [x] **65.11** **Clinic portal:** what a clinic can and cannot see is the single
@@ -4548,8 +4548,8 @@ state banner usually wins that against a paragraph.
 
 **The accept line is not met on its first clause and is not close on its second.**
 Measured by the sprint's own instrument, against an `origin` re-measured on the
-commit before it started: **public 30%**, clinic 29%, patient 18%, sponsor 17%,
-clinician 14%, shared 13%, partner 0%, admin 0%, legal 0%. The target was half off
+commit before it started: **public 30%**, clinic 29%, clinician 18%, patient 18%,
+sponsor 17%, shared 13%, partner 0%, admin 0%, legal 0%. The target was half off
 every portal and 80% off the public site.
 
 **Why, said plainly rather than argued away.** Getting the public site to 80% from
@@ -4574,12 +4574,14 @@ words in the ratchet.
       the person they protect will meet them. That is a judgement about liability,
       not a refactor, and it needs the founder rather than a sprint.
 - [ ] **65.5R** 🔴 **The patient app is 18% down and the walls are gone, but "no dead
-      grey text ANYWHERE" is stricter than that.** Thirty-one blocks of 14+ words
-      remain, each on its own screen. They are one-line bodies under titles now, not
-      paragraphs, and each needs looking at on the screen it is on.
-- [ ] **65.10R** 🔴 **Half of the therapist portal's ticket.** The fee split is a
-      diagram (`SplitBar`) and the verification requirements are a `SeesWhat`. The
-      payout rails and the consent rules are still prose.
+      grey text ANYWHERE" is stricter than that.** Nothing over 20 words remains and the
+      longest block on the whole surface is one sentence, but a one-line body under a
+      title is still grey text if the screen did not need it. Deciding that is a walk
+      through the app in both languages, which is 37R's method and not a script's.
+- [x] **65.10R** — **done in the same sprint.** The payout rails are a `FlowStrip`
+      with the clinician's own position ticked on it, the settings screen's fee table
+      is the same `SplitBar` the session form draws, and the recording consent rules
+      are the two columns the patient meets on their own screen.
 - [ ] **65.18R** **Fixtures are hand-written shapes rather than captured from the
       simulation.** 65.19's rule is satisfied more strictly than 65.18 asked for:
       `lib/marketing/fixtures.ts` imports nothing at all, so no path exists from a row

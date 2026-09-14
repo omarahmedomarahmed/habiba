@@ -40,8 +40,8 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {keepsAccess
-            ? t("pinv.keepsAccess")
-            : t("pinv.losesAccess")}
+            ? t("pclaim.doneKept")
+            : t("pclaim.doneDropped")}
         </p>
         <Link href="/patient" className="mt-4 block">
           <Button full>{t("pclaim.goToSessions")}</Button>
