@@ -72,7 +72,7 @@ const EXPORTS_BY_DESIGN: Record<string, string> = {};
  * by hand and this gate could see none of them. Lower it whenever the number
  * drops; it must never rise.
  */
-const DEAD_EXPORT_BASELINE = 84;
+const DEAD_EXPORT_BASELINE = 83;
 
 /* --------------------------------------------------------------- checks -- */
 
@@ -170,14 +170,39 @@ function main() {
       "C229's anti-differencing floor. Without it both sponsor screens render the raw pot balance, so a sponsor watching it drop by one session's price learns that one named person had a session today. That is the exact attack C229 exists to stop.",
     "lib/data/enrolment-verify.ts#unpause":
       "C247's one-step manual unpause. Without it a sponsor whose employee re-verified late has no way back on, and funding stays paused with no operator remedy.",
+    /*
+     * 🔴 THE LAST ONE, and it is genuinely awaiting a sprint rather than
+     * awaiting somebody noticing. Named here so the distinction is legible.
+     *
+     * `upsertSubject` links a partner's own reference to a person, and 55.6
+     * rules that the link takes the PERSON'S own act: they sign in and confirm
+     * it, exactly as a patient claims a record. That flow was never built, so
+     * the function has never had a caller. Sprint 68 builds it, beside the
+     * consent endpoint that has the same shape.
+     *
+     * This entry stays failing on purpose. A ruling with no caller is a promise
+     * that is false today, and moving it to a "planned" list would turn the one
+     * gate that says so into a list of things somebody meant to do.
+     */
     "lib/partner/api.ts#upsertSubject":
       "The only way a `partner_subjects` row can exist. Without it three of the five documented partner API use cases are unreachable in production while the developer page documents them.",
     "lib/partner/webhooks.ts#queueWebhook":
       "The only thing that raises a partner webhook. The registration UI is built, the delivery table exists, and no event has ever fired.",
     "lib/billing/ledger.ts#unbalancedTransactions":
       "Detects a ledger that does not balance. It is the check that would notice money being manufactured, and nothing calls it.",
-    "lib/crisis/level.ts#keywordFloor":
-      "The floor under a crisis level, so a model that under-rates a keyword hit cannot lower the alert below what the keyword alone justifies.",
+    /*
+     * 🔴 `keywordFloor` RESOLVED, 2026-09-14, and not by wiring it.
+     *
+     * It was already called, by `levelFor`, eight lines below it in its own
+     * file. This scanner ignores same-file callers on purpose: a function used
+     * only inside its own module does not need to be exported, and exporting it
+     * makes it look like an API somebody may call instead of the ladder.
+     *
+     * The ruling it was listed for — a model that under-rates a keyword hit
+     * cannot lower the alert below what the keyword alone justifies — is a
+     * property of `levelFor`, which is the function the product calls, and the
+     * test asserts it there. So the entry goes and the export goes with it.
+     */
     "lib/data/usage.ts#consentRate":
       "Total View's consent rate. Sprint 57 shaped the whole unlimited-plan billing change around keeping this answerable, and nothing asks it.",
   };

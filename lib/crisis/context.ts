@@ -88,6 +88,40 @@ export const THIRD_PARTY = [
   "زوجي",
   "زوجتي",
   "جاري",
+  /*
+   * 🔴 Arabizi, added with the phrase list it guards. Sprint 59.
+   *
+   * The scanner learned to read Franco-Arab and the guard did not, so for one
+   * commit every Arabizi crisis phrase was matched with no context test at all:
+   * a lyric, a film plot or a sentence about a brother would have paged a
+   * clinician. A guard that covers one alphabet of a two-alphabet scanner is
+   * the §6 shape with the halves the other way round.
+   *
+   * 🔴 These are plain Latin, so `fold` reaches them: it lowercases and leaves
+   * Latin otherwise alone. They are NOT run through `foldArabizi`, which is the
+   * phrase list's fold, so each is written in the one spelling that is
+   * near-universal rather than relying on a collapse.
+   *
+   * 🔴 `wa7ed` ("someone") is deliberately NOT here. It would suppress "ana
+   * wa7ed 3ayez amoot", which is a person saying it about themselves. A marker
+   * that swallows a real one is the failure this whole file exists to avoid.
+   */
+  "a5oya",
+  "akhoya",
+  "o5ty",
+  "okhty",
+  "o5ti",
+  "omy",
+  "ommy",
+  "mamty",
+  "abooya",
+  "sa7by",
+  "sa7bty",
+  "sahby",
+  "gozy",
+  "meraty",
+  "ebny",
+  "benty",
   "قريبي",
   "خالي",
   "عمي",
@@ -112,6 +146,13 @@ export const PAST = [
   "في الماضي",
   "كنت",
   "ايام",
+  /* Arabizi, for the same reason as the third-party list above. */
+  "zaman",
+  "men sneen",
+  "mn sneen",
+  "kont",
+  "kan",
+  "sanawat fatet",
 ];
 
 /** Said to have ended. The half of "past" that does the real work. */

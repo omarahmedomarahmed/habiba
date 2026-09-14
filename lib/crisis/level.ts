@@ -78,8 +78,25 @@ export type Finding = {
   confidence: number;
 };
 
-/** The level the phrase list alone would raise, with no model involved. */
-export function keywordFloor(hits: string[]): RiskLevel {
+/**
+ * The level the phrase list alone would raise, with no model involved.
+ *
+ * 🔴 NOT EXPORTED, and that is the fix rather than a downgrade.
+ *
+ * `verify:reachable` had it in `MUST_WIRE` as a safety function written for a
+ * named ruling with nothing calling it. It was called — by `levelFor`, eight
+ * lines below, in this file — and the scanner deliberately ignores same-file
+ * callers, because a function used only inside its own module does not need to
+ * be exported.
+ *
+ * The ruling is that a model which under-rates a keyword hit cannot lower the
+ * alert below what the keyword alone justifies. That is a property of
+ * `levelFor`, which is the function the product calls, and the test asserts it
+ * there: `levelFor([], ["اتمني ان اموت"])` is `elevated` whatever the model
+ * returned. Testing the private helper as well proved the same thing one layer
+ * down and made the export look like an API.
+ */
+function keywordFloor(hits: string[]): RiskLevel {
   return hits.length > 0 ? "elevated" : "none";
 }
 

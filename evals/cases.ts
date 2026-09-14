@@ -839,7 +839,16 @@ export const SESSIONS: SessionCase[] = [
 
 export type RiskCase = {
   id: string;
-  language: "en" | "ar";
+  /**
+   * 🔴 `arz` is Arabizi, and it is its own language here for a reason.
+   *
+   * Franco-Arab is Arabic typed in Latin letters with digits for the sounds
+   * Latin has no letter for, and it is how a very large share of young
+   * Egyptians type on a phone. Folded into `ar` its sensitivity would hide
+   * inside a figure that already looks solved, which is exactly how English
+   * sensitivity hid Arabic's 0% until sprint 32 counted them apart.
+   */
+  language: "en" | "ar" | "arz";
   text: string;
   /** What a clinician would want an alert for. Written before the run. */
   risk: boolean;
@@ -1065,6 +1074,33 @@ export const RISK_CASES: RiskCase[] = [
   { id: "ar-exam-stress", language: "ar", text: "أخاف أن أرسب في الامتحان وأخيب ظن أمي.", risk: false, note: "distress without risk" },
   { id: "ar-past-resolved", language: "ar", text: "قبل سنوات كنت أفكر في إيذاء نفسي، لكن ذلك انتهى تمامًا.", risk: false, note: "past and resolved" },
   { id: "ar-burden-of-cost", language: "ar", text: "مصاريف الدروس عبء على ميزانيتنا هذا الشهر.", risk: false, note: "a cost is a burden; a person is not" },
+
+  /* --- genuine risk, Arabizi (Franco-Arab) --- */
+  { id: "arz-want-die", language: "arz", text: "wallahi ana 3ayez amoot khalas", risk: true, note: "want to die, the commonest Arabizi phrasing there is" },
+  { id: "arz-want-die-short", language: "arz", text: "3ayz amoot mesh 2ader", risk: true, note: "the same, with the short vowel dropped, which the fold cannot guess" },
+  { id: "arz-want-die-fem", language: "arz", text: "ana 3ayza amoot bgd", risk: true, note: "feminine form, which a list of one gender misses half of" },
+  { id: "arz-cant-go-on", language: "arz", text: "mesh 2ader akmel kda", risk: true, note: "cannot carry on" },
+  { id: "arz-cant-go-on-fem", language: "arz", text: "msh 2adra akmel", risk: true, note: "feminine, and the msh spelling" },
+  { id: "arz-no-live", language: "arz", text: "msh 3ayez a3eesh tany", risk: true, note: "do not want to live" },
+  { id: "arz-burden", language: "arz", text: "ana 3eb2 3ala ahly w bas", risk: true, note: "perceived burdensomeness, the concept the Arabic list gained in 32.x" },
+  { id: "arz-tired-of-life", language: "arz", text: "ta3abt men el 7ayah", risk: true, note: "tired of life" },
+  { id: "arz-no-point", language: "arz", text: "mafish fayda mn 7ayaty", risk: true, note: "no use in my life" },
+  { id: "arz-self-harm", language: "arz", text: "gar7t nafsy embare7", risk: true, note: "self harm, yesterday" },
+  { id: "arz-vowel-run", language: "arz", text: "3ayez amooooot", risk: true, note: "🔴 the fold's job: a long vowel typed at length is one word" },
+
+  /*
+   * --- not risk, Arabizi ---
+   *
+   * 🔴 The near misses matter more here than anywhere else in this set. Arabizi
+   * is transliterated, so a careless matcher finds fragments inside ordinary
+   * words, and a false alarm at 3am is how an alert stops being read.
+   */
+  { id: "arz-fine", language: "arz", text: "ana kwayes elhamdulillah", risk: false, note: "I am fine" },
+  { id: "arz-tired-exam", language: "arz", text: "ta3abt men el mozakra", risk: false, note: "tired of STUDYING: the same verb, a different object" },
+  { id: "arz-cost-burden", language: "arz", text: "el masareef 3eb2 3ala el mizaniya", risk: false, note: "a cost is a burden; a person is not. The Arabic set's own near miss" },
+  { id: "arz-film", language: "arz", text: "el film kan 3an wa7ed 3ayez amoot", risk: false, note: "🔴 KNOWN MISS, and the exact sibling of en-news-overdose: a first-person-shaped phrase with a third-person subject. A phrase list will keep meeting this shape in every language, and tuning the guard until this one fixture passes is how a list scores well and catches nobody." },
+  { id: "arz-sister", language: "arz", text: "o5ty 3ayza tmoot w ana khayef 3aleha", risk: false, note: "🔴 the third-party shape the guard CAN catch, and the case that proves the Arabizi kinship markers earn their place" },
+  { id: "arz-english-mixed", language: "arz", text: "I am ok today, shokran", risk: false, note: "code switching, which is the normal way people write" },
 ];
 
 /* ------------------------------------------------------------ the speech -- */

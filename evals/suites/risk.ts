@@ -42,6 +42,16 @@ export const risk = {
       RISK_CASES.filter((c) => c.language === "en"),
       (id) => flagged.has(id),
     );
+    /*
+     * 🔴 Arabizi on its own line, because folded into the Arabic figure it
+     * would hide inside a number that already looks solved. That is exactly
+     * how Arabic's 0% hid inside the overall score until sprint 32 counted
+     * them apart, and the market has not changed since.
+     */
+    const arabizi = riskScore(
+      RISK_CASES.filter((c) => c.language === "arz"),
+      (id) => flagged.has(id),
+    );
 
     return [
       {
@@ -86,6 +96,40 @@ export const risk = {
         unit: "rate",
         tolerance: 0.05,
         detail: `missed: ${named(arabic.missed)}`,
+      },
+      {
+        /*
+         * 🔴 The register somebody actually types on a phone at 3am.
+         *
+         * Every phrase in the list was English, Arabic script, or Egyptian
+         * dialect in Arabic script. A patient writing `3ayez amoot` matched
+         * nothing, in the market this product is built for, and no number said
+         * so. This is that number.
+         */
+        key: "risk.sensitivity.arz",
+        label: "  …in Arabizi",
+        value: arabizi.sensitivity,
+        direction: "up",
+        unit: "rate",
+        tolerance: 0.05,
+        detail: `missed: ${named(arabizi.missed)}`,
+      },
+      {
+        /*
+         * 🔴 AND ITS SPECIFICITY, which the other two languages do not report
+         * separately and this one must.
+         *
+         * Arabizi is transliterated, so a careless matcher finds fragments
+         * inside ordinary words. Sensitivity alone would reward a fold that
+         * matched half the language.
+         */
+        key: "risk.specificity.arz",
+        label: "  …Arabizi false alarms",
+        value: arabizi.specificity,
+        direction: "up",
+        unit: "rate",
+        tolerance: 0.05,
+        detail: `false alarms: ${named(arabizi.falseAlarms)}`,
       },
     ];
   },

@@ -3,7 +3,6 @@ import { test } from "node:test";
 
 import {
   atLeast,
-  keywordFloor,
   levelFor,
   recommendedAction,
   shouldAlert,
@@ -35,8 +34,21 @@ test("🔴 the keyword floor cannot be lowered by anything the model returns", (
   // would have raised never being raised at all.
   assert.equal(levelFor([], ["اتمني ان اموت"]), "elevated");
   assert.equal(levelFor([finding("protective_factor")], ["want to die"]), "elevated");
-  assert.equal(keywordFloor(["want to die"]), "elevated");
-  assert.equal(keywordFloor([]), "none");
+
+  /*
+   * 🔴 Asserted through `levelFor` and no longer through the private helper.
+   *
+   * The two lines that were here called `keywordFloor` directly, which proved
+   * the same property one layer below the function the product actually calls,
+   * and kept an export alive for no other reason. The ruling is about the
+   * ladder: no model result lowers the floor. That is what these read.
+   */
+  assert.equal(levelFor([], []), "none", "and no hits is no floor");
+  assert.equal(
+    levelFor([finding("ideation")], ["want to die"]),
+    "elevated",
+    "a hit plus a mild finding is still at least the floor",
+  );
 });
 
 test("…and the model can always raise it", () => {

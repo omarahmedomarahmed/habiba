@@ -87,3 +87,67 @@ export function contains(haystack: string, needle: string): boolean {
 export function foldsToNothing(markers: readonly string[]): string[] {
   return markers.filter((marker) => marker.trim().length > 0 && fold(marker).length === 0);
 }
+
+/* ---------------------------------------------------------------- Arabizi -- */
+
+/**
+ * 🔴 ARABIZI, AND WHY IT NEEDS ITS OWN FOLD RATHER THAN A BRANCH IN THE ONE ABOVE.
+ *
+ * Franco-Arab: Arabic typed in Latin letters with digits standing in for the
+ * sounds Latin has no letter for. `3` is ع, `7` is ح, `2` is a glottal stop or
+ * ق, `5` is خ, `6` is ط, `9` is ص. It is how a very large share of young
+ * Egyptians type on a phone, and the crisis phrase list could not read a word
+ * of it: English, Arabic script and Egyptian dialect in Arabic script, and
+ * nothing for the register somebody actually uses at 3am on WhatsApp.
+ *
+ * That is the same gap sprint 32 found when Arabic sensitivity scored 0%, one
+ * alphabet over. The market is Egypt.
+ *
+ * ## 🔴 A SEPARATE FOLD, BECAUSE THE MAIN ONE MUST NOT CHANGE
+ *
+ * Arabizi has no standard spelling: `3ayez`, `3ayz`, `3aiz`, and `amoot`,
+ * `amout`, `amut` are all the same two words. Collapsing doubled letters and
+ * unifying the vowel runs is what makes a list of them matchable.
+ *
+ * Applying that to `fold` would break the English list in the same file:
+ * "better off dead" would collapse to "beter of dead" and stop matching the
+ * sentence it was written for. So this is its own function, used by its own
+ * matcher, over its own list. Two folds, each total, neither touching the
+ * other's alphabet.
+ *
+ * 🔴 NOT EXPORTED. `containsArabizi` is the whole public surface, the same way
+ * `contains` is for `fold`. A normaliser reachable from outside is a normaliser
+ * somebody applies to half a comparison, and this repository has had two
+ * folding defects already, both from a second normaliser written beside the
+ * first.
+ */
+function foldArabizi(text: string): string {
+  return (
+    text
+      .toLowerCase()
+      /* Anything that is not a letter or one of the six digits is a space. */
+      .replace(/[^a-z234567890]+/g, " ")
+      /* `ou` and `ow` are both the long u everyone writes three ways. */
+      .replace(/o[uw]/g, "o")
+      /* A doubled letter is one letter. `amoot` and `amot` are one word. */
+      .replace(/([a-z])\1+/g, "$1")
+      /* Word-final `y` and `i` are the same sound: `nefsy`, `nefsi`. */
+      .replace(/y\b/g, "i")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+/**
+ * 🔴 The same empty-needle rule as `contains`, for the same reason.
+ *
+ * A phrase that folds to nothing would match every sentence ever written. That
+ * defect has happened twice in this repository already, in two different
+ * normalisers, and both times it turned a scanner into something that alerted
+ * on everything. A third normaliser gets the guard at birth.
+ */
+export function containsArabizi(haystack: string, needle: string): boolean {
+  const folded = foldArabizi(needle);
+  if (folded.length === 0) return false;
+  return foldArabizi(haystack).includes(folded);
+}

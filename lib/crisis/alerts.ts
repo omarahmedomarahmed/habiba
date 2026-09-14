@@ -2,7 +2,7 @@ import "server-only";
 
 import { crisisLine } from "@/lib/crisis/line";
 import { stillCounts } from "@/lib/crisis/context";
-import { contains } from "@/lib/crisis/fold";
+import { contains, containsArabizi } from "@/lib/crisis/fold";
 
 import { and, desc, eq, gt } from "drizzle-orm";
 
@@ -201,6 +201,108 @@ const CRISIS_PHRASES = [
   "حياتي مالهاش لازمه",
 ] as const;
 
+/**
+ * 🔴 ARABIZI. The register the list could not read at all. Sprint 59, 2026-09-14.
+ *
+ * Franco-Arab: Arabic typed in Latin letters with digits for the sounds Latin
+ * has no letter for. It is how a very large share of young Egyptians type on a
+ * phone, and every phrase above is either English, Arabic script, or Egyptian
+ * dialect in Arabic script. Somebody typing `3ayez amoot` into a check-in at
+ * 3am matched nothing at all.
+ *
+ * That is sprint 32's finding one alphabet over. Arabic sensitivity scored 0%
+ * then, in the market this product is built for, and every test passed while it
+ * did.
+ *
+ * ## 🔴 PARITY, NOT INVENTION, and the same discipline the Arabic list states
+ *
+ * Every entry below is the Arabizi spelling of a concept ALREADY in one of the
+ * two lists above: want to die, cannot carry on, a burden on my family, no use
+ * in my life, hurt myself, end my life. Nothing here is a phrase
+ * reverse-engineered from a test sentence, because *"a list tuned to its
+ * fixture scores well and catches nobody."*
+ *
+ * ## ⚠️ A SEED SET, AND IT IS NAMED AS ONE
+ *
+ * Arabizi spelling varies by person and by keyboard. `foldArabizi` absorbs the
+ * predictable part of that — doubled letters, the three ways to write a long u,
+ * final y against final i — and it cannot absorb dialect choice. This list is
+ * the shapes that are unambiguous, written to be extended by somebody who reads
+ * the register natively and measured by the eval rather than assumed. The eval
+ * reports `arz` sensitivity as its own number for exactly that reason: hidden
+ * inside the Arabic figure it would look solved.
+ */
+const ARABIZI_PHRASES = [
+  /* want to die */
+  "3ayez amoot",
+  "3ayza amoot",
+  "3awez amoot",
+  "3awza amoot",
+  "nefsy amoot",
+  "nefsi amoot",
+  "3ayez amout",
+  "bady amoot",
+  "3ayez amot",
+  /*
+   * 🔴 The short vowel people drop. `foldArabizi` collapses doubled letters and
+   * the long-u spellings; it cannot know that `3ayez` and `3ayz` are one word,
+   * because deleting an `e` between consonants would also rewrite English. So
+   * both spellings are listed, which is the honest way to carry a variance a
+   * fold must not guess at.
+   */
+  "3ayz amoot",
+  "3awz amoot",
+  "3ayza amout",
+  "nfsy amoot",
+
+  /* end my life, kill myself */
+  "an7ar",
+  "hant7er",
+  "ha2tel nafsy",
+  "a2tel nafsy",
+  "ba2tel nafsy",
+  "anhy 7ayaty",
+  "anhi 7ayati",
+  "akhls 3ala nafsy",
+
+  /* do not want to live */
+  "mesh 3ayez a3eesh",
+  "msh 3ayez a3eesh",
+  "mesh 3ayz a3eesh",
+  "msh 3ayz a3eesh",
+  "mesh 3ayza a3eesh",
+  "msh 3ayza a3eesh",
+  "mesh 3ayez a3ish",
+
+  /* cannot carry on */
+  "mesh 2ader akmel",
+  "msh 2ader akmel",
+  "mesh 2adra akmel",
+  "msh 2adra akmel",
+  "mesh 2ader astamer",
+  "ta3abt men el 7ayah",
+  "te3ebt men el 7ayah",
+  "ta3abt mn el 7aya",
+
+  /* a burden on them */
+  "3eb2 3ala ahly",
+  "3eb2 3ala 3elty",
+  "3eb2 3alehom",
+  "3eb2 3ala mama",
+
+  /* no use in my life */
+  "mafish fayda mn 7ayaty",
+  "mafish fayda meny",
+  "mafish ma3na le7ayaty",
+
+  /* hurt myself */
+  "azet nafsy",
+  "a2za nafsy",
+  "gar7t nafsy",
+  "bagra7 nafsy",
+] as const;
+
+
 /** Ten minutes. Re-alerting on every mention turns the alert into noise. */
 const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
@@ -222,9 +324,28 @@ const DEDUP_WINDOW_MS = 10 * 60 * 1000;
  * written to be the smallest.
  */
 export function scanForCrisisLanguage(text: string): string[] {
-  return CRISIS_PHRASES.filter(
+  const script = CRISIS_PHRASES.filter(
     (phrase) => contains(text, phrase) && stillCounts(text, phrase),
   );
+
+  /*
+   * 🔴 A SECOND PASS OVER ITS OWN ALPHABET, not a branch inside the first.
+   *
+   * Arabizi needs a fold that collapses doubled letters and the three spellings
+   * of a long u, and applying that to the English list would turn "better off
+   * dead" into "beter of dead" and stop it matching the sentence it was written
+   * for. Two matchers, each total over its own list.
+   *
+   * 🔴 `stillCounts` runs on both. The context guard — is this about this person,
+   * now, rather than a film or a relative or last year — is not language
+   * specific, and skipping it here would make Arabizi the one register where a
+   * quoted lyric pages a clinician at 3am.
+   */
+  const arabizi = ARABIZI_PHRASES.filter(
+    (phrase) => containsArabizi(text, phrase) && stillCounts(text, phrase),
+  );
+
+  return [...script, ...arabizi];
 }
 
 /**
