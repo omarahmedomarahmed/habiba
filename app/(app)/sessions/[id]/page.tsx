@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 
 import { NoteReview } from "@/components/session/note-review";
 import { RiskAssessment } from "@/components/clinical/risk-assessment";
+import { CancelSession } from "@/components/session/cancel-session";
 import { SessionApproval } from "@/components/session/session-approval";
 import { SourcePanel } from "@/components/session/source-panel";
 import { VoicesPanel } from "@/components/session/voices-panel";
@@ -152,6 +153,16 @@ export default async function SessionDetailPage({
                 <ChevronRight className="h-4 w-4" aria-hidden />
               </Button>
             </Link>
+
+            {/*
+              🔴 58.1 — the button the pricing page already promised.
+
+              "What if a session was a mistake? Cancel it instead of completing
+              it and nothing is charged." `abandonSession` did exactly that and
+              nothing called it, so the only thing a clinician could do with a
+              session opened by mistake was complete it and be billed.
+            */}
+            <CancelSession sessionId={id} />
           </Card>
         ) : (
           <>

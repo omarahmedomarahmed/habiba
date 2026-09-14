@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { HeldBalances } from "@/components/admin/held-balances";
+import { LedgerAdjust } from "@/components/admin/ledger-adjust";
 import { VaultInvoiceRow } from "@/components/admin/vault-invoice-row";
 import { VaultPaymentRow } from "@/components/admin/vault-payment-row";
 import { Badge, Card } from "@/components/ui";
@@ -16,6 +17,7 @@ import {
   tractionMetrics,
 } from "@/lib/data/vault";
 import { heldBalances, trialBalance } from "@/lib/billing/ledger";
+import { allOrganizations } from "@/lib/data/admin";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Vault", robots: { index: false } };
@@ -24,7 +26,7 @@ export const dynamic = "force-dynamic";
 export default async function VaultPage() {
   const actor = await requireRole("super_admin");
 
-  const [ledger, months, therapists, traction, kinds, invoices, payments, held, books] =
+  const [ledger, months, therapists, traction, kinds, invoices, payments, held, books, orgs] =
     await Promise.all([
     ledgerSummary(),
     monthlyLedger(6),
@@ -35,6 +37,7 @@ export default async function VaultPage() {
     allSessionPayments(200),
     heldBalances(),
     trialBalance(),
+    allOrganizations(),
   ]);
 
   const peak = Math.max(1, ...months.map((m) => Math.max(m.collected, m.spent)));
@@ -69,6 +72,15 @@ export default async function VaultPage() {
         totalHeldCents={books.heldForTherapistsCents}
         outOfBalanceCents={books.outOfBalanceCents}
       />
+
+      {/*
+        🔴 58.1 — the escape hatch, which existed as a function and as nothing
+        else. `adjustLedger` demanded a reason, recorded who, and posted a
+        balanced pair, and no screen called it. It goes directly under the
+        out-of-balance figure, because that number is the only reason to reach
+        for it.
+      */}
+      <LedgerAdjust organizations={orgs} />
 
       {/* ------------------------------------------------------------ ledger */}
       <section className="space-y-3">

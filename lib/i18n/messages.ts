@@ -1044,6 +1044,13 @@ export const en = {
   "portal.sessions.newTitle": "New session",
   "portal.session.unfinished": "This session has not finished",
   "portal.session.unfinishedBody": "Head back into the room to record and end it.",
+  /*
+   * 🔴 58.1 — cancelling a session, a promise the pricing page made and no
+   * screen kept. `abandonSession` existed and nothing called it.
+   */
+  "portal.session.cancel": "Cancel this session",
+  "portal.session.cancelConfirm": "This cannot be undone, and nothing is charged.",
+  "portal.session.cancelYes": "Yes, cancel it",
   "portal.session.openRoom": "Open room",
   "portal.session.transcript": "Transcript",
   "portal.session.noTranscript": "No transcript was captured for this session.",
@@ -3923,6 +3930,9 @@ export const ar: Record<MessageKey, string> = {
   "portal.sessions.newTitle": "جلسة جديدة",
   "portal.session.unfinished": "لم تنتهِ هذه الجلسة بعد",
   "portal.session.unfinishedBody": "ارجع إلى الغرفة لتسجيلها ثم إنهائها.",
+  "portal.session.cancel": "ألغِ هذه الجلسة",
+  "portal.session.cancelConfirm": "لا يمكن التراجع، ولا تُحتسب عليك أي رسوم.",
+  "portal.session.cancelYes": "نعم، ألغِها",
   "portal.session.openRoom": "افتح الغرفة",
   "portal.session.transcript": "نصّ الجلسة",
   "portal.session.noTranscript": "لم يُسجَّل نصّ لهذه الجلسة.",

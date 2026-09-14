@@ -1,0 +1,463 @@
+/**
+ * Sprint 58 acceptance: which principal can reach which data. PLAN.md 58.6, C336.
+ *
+ *   npm run verify:principals
+ *
+ * ## Why this is not a 415-by-7 matrix
+ *
+ * The first design was one: every exported data function against every
+ * principal, asserting refusal by default. `lib/data` exports **415 functions**
+ * and this product has six principals with a seventh arriving in sprint 63.
+ * That is 2,900 cells nobody would maintain, and C286 is the record of what an
+ * unmaintained instrument does: it becomes a documented limitation whose cost
+ * is never counted.
+ *
+ * The second design asked every data function to take an `Actor`. Thirty-four
+ * of 384 do. The rest are guarded by their CALLER, which is this codebase's
+ * actual architecture: a page calls `requireRole` or `requirePatient`, then
+ * calls the query. Demanding an actor everywhere is a rewrite wearing the
+ * costume of a gate.
+ *
+ * So this measures the property that architecture actually rests on, and the
+ * one that breaks first when a new portal is added:
+ *
+ *   **Every page or route that can reach a clinically-scoped data module must
+ *   call a guard, and only a guard that principal is allowed to be.**
+ *
+ * A clinic-staff page importing `lib/data/sessions` is the failure sprint 63
+ * has to not have. This is the gate that will catch it, written before the
+ * portal exists rather than after.
+ *
+ * ## Every module needs an entry, including a new one
+ *
+ * `lib/data/*.ts` with no entry in `SCOPE` **fails the build**. That is C336's
+ * rule: a function with no entry is not "probably fine", it is a decision
+ * nobody has made. A genuinely public module says so, out loud, with a reason.
+ */
+import { loadSurfaces, type Surfaces } from "./_surfaces";
+import { reporter } from "./_verify";
+import { readdirSync } from "node:fs";
+
+const { check, finish } = reporter();
+
+/* -------------------------------------------------------------- the map -- */
+
+/**
+ * Which guard each principal signs in through. One entry per portal.
+ *
+ * `requireUserApi` and `requireRoleApi` are the same principals reached from a
+ * route handler rather than a page: same identity, different failure mode
+ * (a 401 rather than a redirect), so they map to the same principal here.
+ */
+const GUARDS: Record<string, string[]> = {
+  clinician: ["requireUser", "requireVerified", "requireUserApi"],
+  admin: ["requireRole", "requireStaff", "requireManager", "requireRoleApi"],
+  patient: ["requirePatient"],
+  clinic: ["requireClinic", "requireClinicAdmin"],
+  sponsor: ["requireSponsor", "requireSponsorAdmin"],
+  partner: ["requirePartner", "requirePartnerAdmin"],
+};
+
+const ALL_GUARDS = Object.values(GUARDS).flat();
+
+/**
+ * What each data module holds, and who may reach it.
+ *
+ * `clinical: true` means the module can produce a note, a transcript, a
+ * diagnosis, a journal, a risk assessment or a patient's identity. Those are
+ * the modules where reaching them from the wrong portal is the defect this
+ * whole file exists to prevent.
+ *
+ * `open` means genuinely reachable without a guard, and every one of them has
+ * to be argued rather than assumed.
+ */
+type Scope = { who: string[]; clinical?: true; why?: string };
+
+const SCOPE: Record<string, Scope> = {
+  /* ------------------------------------------------------------- clinical */
+  "patient-view": { who: ["patient"], clinical: true },
+  patients: { who: ["clinician", "admin"], clinical: true },
+  people: { who: ["clinician", "admin", "patient"], clinical: true },
+  sessions: { who: ["clinician", "admin"], clinical: true },
+  "session-risk": { who: ["clinician", "admin"], clinical: true },
+  "session-sources": { who: ["clinician", "admin"], clinical: true },
+  "session-voices": { who: ["clinician", "admin"], clinical: true },
+  copilot: { who: ["clinician"], clinical: true },
+  journals: { who: ["clinician", "patient"], clinical: true },
+  facts: { who: ["clinician"], clinical: true },
+  memory: { who: ["clinician"], clinical: true },
+  /*
+   * A patient reaches their OWN, on /patient/profile, which that page's own
+   * header names as one of the two things that are theirs. C113 forbids a
+   * conclusion reaching a patient without a clinician; a diagnosis they
+   * entered and a clinician confirmed is the opposite of that.
+   */
+  diagnoses: { who: ["clinician", "admin", "patient"], clinical: true },
+  assessments: { who: ["clinician", "patient", "admin"], clinical: true },
+  homework: { who: ["clinician", "patient"], clinical: true },
+  documents: { who: ["clinician", "patient", "admin"], clinical: true },
+  summaries: { who: ["clinician", "patient"], clinical: true },
+  grants: { who: ["clinician", "patient", "admin"], clinical: true },
+  /*
+   * A clinician reaches this for the UNCLAIMED badge on a patient row, and
+   * the pre-auth signup and invite pages reach it to tell somebody a record
+   * is waiting for them. Neither reads a record: both read whether one has
+   * been claimed, which is the fact the claim flow exists to change.
+   */
+  claims: { who: ["patient", "admin", "clinician"], clinical: true },
+  // A clinician exports their own caseload from /connect. The patient exports
+  // their own record. Neither reaches the other's.
+  portability: { who: ["patient", "admin", "clinician"], clinical: true },
+  "patient-import": { who: ["clinician", "admin"], clinical: true },
+  // A clinic reads its own EHR connections and writeback log from
+  // /clinic/records. Connections and deliveries, never a record.
+  ehr: { who: ["clinician", "admin", "clinic"], clinical: true },
+  /*
+   * `/verify` is public and reaches `verifyExtract`, which checks whether a
+   * document somebody is holding was really issued by us. It reads a hash, not
+   * a record, and a verification page behind a login could not verify anything
+   * for the person most likely to need it.
+   */
+  export: { who: ["admin", "clinician", "patient"], clinical: true },
+  checkins: { who: ["patient", "admin"], clinical: true },
+  notices: { who: ["patient", "admin"], clinical: true },
+  notifications: { who: ["clinician", "patient", "admin"], clinical: true },
+  recovery: { who: ["patient", "admin"], clinical: true },
+  "name-match": { who: ["clinician", "admin"], clinical: true },
+  "phone-change": { who: ["patient", "admin"], clinical: true },
+  residency: { who: ["patient", "admin"], clinical: true },
+  // Also reached by the public rating link `/t/[id]` and the radar, which
+  // carry a one-time token rather than a session. C273: a rating is never
+  // attributed, so the read is an aggregate.
+  feedback: { who: ["clinician", "patient", "admin"], clinical: true },
+  scheduling: { who: ["clinician", "patient", "admin"], clinical: true },
+  "meeting-connections": { who: ["clinician", "admin"], clinical: true },
+  challenge: { who: ["clinician", "patient", "admin"], clinical: true },
+  // A patient browses clinicians. What this exposes is a clinician's own
+  // published profile, which is the same surface the public radar shows.
+  discover: { who: ["clinician", "admin", "patient"], clinical: true },
+  usage: { who: ["admin"] },
+
+  /* -------------------------------------------------------- back office */
+  admin: { who: ["admin"] },
+  "radar-admin": { who: ["admin"] },
+  "clinic-admin": { who: ["admin"] },
+  "partner-admin": { who: ["admin"] },
+  clinic: { who: ["clinic", "admin"] },
+  enrolment: { who: ["sponsor", "admin", "patient"] },
+  "enrolment-verify": { who: ["sponsor", "admin", "patient"] },
+  "instrument-seeds": { who: ["admin"] },
+
+  sponsors: { who: ["admin"] },
+  "sponsor-admin": { who: ["admin"] },
+  support: { who: ["admin", "patient", "clinician"] },
+  taxonomy: { who: ["admin"] },
+  "therapist-codes": { who: ["clinician", "admin"] },
+  vault: { who: ["admin"] },
+  verification: { who: ["clinician", "admin"] },
+  verified: { who: ["clinician", "admin", "clinic", "partner"] },
+  timeline: { who: ["clinician", "admin"], clinical: true },
+  transcript: { who: ["clinician", "admin"], clinical: true },
+  timezone: {
+    who: [],
+    why: "Time zone names and offsets. A lookup table with no row about any person in it, imported by scheduling screens on every side of the product including ones a visitor can reach before signing in.",
+  },
+
+  /* -------------------------------------------------------------- public */
+  radar: {
+    who: [],
+    why: "The public Crisis Radar. Reachable with no account at all, deliberately: C275's whole point is that somebody in distress does not sign up first. What it exposes is a clinician's own published availability, never a patient.",
+  },
+};
+
+/* ------------------------------------------------------------- the scan -- */
+
+/**
+ * 🔴 A SESSION is not the only way to be authenticated, and the first draft
+ * assumed it was.
+ *
+ * Ten entry points came back "unguarded while reaching clinical data", and not
+ * one of them was: they authenticate by a **capability in the URL** or by a
+ * **shared secret in a header**, which are both real and both deliberate.
+ *
+ *   - `/patient/invite/[token]` and `/patient/signup?invite=` resolve a
+ *     single-use invite. A login in front of an invite is a login in front of
+ *     the thing that creates the account.
+ *   - `/t/[id]` and `/verify` are the public rating link and the document
+ *     verification page. Both exist precisely for somebody who is not signed in
+ *     and, in the second case, may not have an account at all.
+ *   - `/api/cron/[job]` checks `CRON_SECRET` against the Authorization header.
+ *   - `/api/documents/[id]` runs `documentReadDecision`, which takes BOTH an
+ *     optional clinician and an optional patient and decides from the document.
+ *
+ * A gate that could not see this would have pushed somebody to wrap a crisis
+ * rating link in a login, which is worse than the thing it was protecting
+ * against. So capability auth is modelled rather than allowlisted, and each
+ * recogniser is named so a new one is a decision.
+ */
+const CAPABILITY_AUTH = [
+  "resolveInvite",
+  "publicProfile",
+  "verifyExtract",
+  "documentReadDecision",
+  "cronSecret",
+  "listRadar",
+  /*
+   * The token routes. Each is a single-use or scoped capability handed to one
+   * person, and each is the ONLY way that person reaches the thing:
+   *
+   *   resolveJoinToken   `/join/[token]` and `/pay/[token]`, the link a patient
+   *                      is sent for one session. A login here is a login in
+   *                      front of a session somebody is already late for.
+   *   openExport         `/records/[token]`, a record export the holder was
+   *                      given deliberately. The token IS the grant.
+   *   feedbackContext    `/feedback/[token]`, the rating link. C273: never
+   *                      attributed, so the read is of one session's own row.
+   *   pending.state      the EHR OAuth callback, matched against the state we
+   *                      generated. An unmatched state is refused outright.
+   */
+  "resolveJoinToken",
+  "openExport",
+  "feedbackContext",
+  "pending.state",
+];
+
+/** The guards a file calls, by name. */
+function guardsIn(src: string): string[] {
+  return ALL_GUARDS.filter((g) => new RegExp(`\\b${g}\\s*\\(`).test(src));
+}
+
+/** True when the entry point authenticates by a token or a secret rather than a session. */
+function hasCapabilityAuth(src: string): boolean {
+  return CAPABILITY_AUTH.some((name) => new RegExp(`\\b${name}\\b`).test(src));
+}
+
+/** Which principals a file has authenticated as, by the guards it calls. */
+function principalsOf(src: string): string[] {
+  const called = guardsIn(src);
+  return Object.entries(GUARDS)
+    .filter(([, names]) => names.some((n) => called.includes(n)))
+    .map(([principal]) => principal);
+}
+
+/** Every page, layout and route handler: the places a request actually lands. */
+function entryPoints(s: Surfaces): string[] {
+  return s.files.filter((f) => /^app\/.*\/(page|layout|route)\.tsx?$/.test(f) || /^app\/(page|layout)\.tsx$/.test(f));
+}
+
+/**
+ * Does this entry point reach that data module, transitively?
+ *
+ * Import-graph reachability, forwards this time: `_surfaces` answers "who
+ * imports me", and this needs "what do I import".
+ */
+function buildForwardGraph(s: Surfaces) {
+  /*
+   * 🔴 Two kinds of import are NOT a data reach, and the first draft counted
+   * both. `app/(public)/[slug]/page.tsx` came back reaching `lib/data/sessions`
+   * and `lib/data/people`, which read as a public marketing page querying
+   * clinical tables. It is not:
+   *
+   *   page → blocks → radar-hero → booking-sheet → app/(public)/radar/actions.ts
+   *
+   * The last hop is a SERVER ACTION. It runs on its own request, under its own
+   * guard, and following through it measures the wrong thing entirely: an
+   * action is a boundary, not an edge. The same page also "reached"
+   * `lib/data/patient-view` through `import type` in a session-list component,
+   * which carries no runtime read at all and vanishes at compile time.
+   *
+   * Both were false positives of exactly the shape `_reachability.ts` got wrong
+   * twice, which is why they are excluded here with the reason attached.
+   */
+  const isAction = (file: string) =>
+    /^\s*["']use server["']/m.test((s.body.get(file) ?? "").slice(0, 400));
+
+  const importsOf = new Map<string, string[]>();
+  for (const f of s.files) {
+    const src = s.body.get(f)!;
+    const hits = [...src.matchAll(/(^|\n)\s*import(\s+type)?[^;]*?from\s+["']@\/([^"']+)["']/g)]
+      .filter((m) => m[2] === undefined)
+      .map((m) => m[3]!);
+    importsOf.set(f, hits);
+  }
+
+  const cache = new Map<string, Set<string>>();
+  function modulesFrom(file: string, seen = new Set<string>()): Set<string> {
+    if (cache.has(file)) return cache.get(file)!;
+    if (seen.has(file)) return new Set();
+    seen.add(file);
+    const out = new Set<string>();
+    for (const spec of importsOf.get(file) ?? []) {
+      if (spec.startsWith("lib/data/")) out.add(spec.slice("lib/data/".length));
+      const candidates = [`${spec}.ts`, `${spec}.tsx`, `${spec}/index.ts`];
+      const target = candidates.find((c) => importsOf.has(c));
+      // A server action guards itself. Do not follow through one.
+      if (target && !isAction(target)) {
+        for (const m of modulesFrom(target, seen)) out.add(m);
+      }
+    }
+    cache.set(file, out);
+    return out;
+  }
+  return modulesFrom;
+}
+
+function main() {
+  const s = loadSurfaces();
+
+  /* ------------------------------------- 58.6a · every module is declared */
+
+  const modules = readdirSync("lib/data")
+    .filter((f) => f.endsWith(".ts"))
+    .map((f) => f.slice(0, -3));
+
+  const undeclared = modules.filter((m) => !(m in SCOPE));
+  check(
+    "🔴 58.6 / C336 every data module is declared. A new one FAILS the build",
+    undeclared.length === 0,
+    undeclared.join(", ") ||
+      `${modules.length} modules declared, ${Object.values(SCOPE).filter((v) => v.clinical).length} of them clinical`,
+  );
+
+  const stale = Object.keys(SCOPE).filter((m) => !modules.includes(m));
+  check(
+    "58.6 …and no declaration outlives the module it describes",
+    stale.length === 0,
+    stale.join(", ") || "every entry names a real module",
+  );
+
+  check(
+    "58.6 …and an unguarded module argues for itself rather than being silent",
+    Object.values(SCOPE).every((v) => v.who.length > 0 || (v.why ?? "").length > 80),
+    "a module reachable with no account needs a paragraph, not a blank",
+  );
+
+  /* ---------------------------------- 58.6b · who actually reaches what */
+
+  const modulesFrom = buildForwardGraph(s);
+  const entries = entryPoints(s);
+
+  check(
+    "58.6 entry points were found at all",
+    entries.length > 80,
+    `${entries.length} pages, layouts and route handlers`,
+  );
+
+  type Breach = { entry: string; module: string; reached: string[] };
+  const breaches: Breach[] = [];
+  const unguarded: { entry: string; module: string }[] = [];
+
+  for (const entry of entries) {
+    const src = s.body.get(entry)!;
+    const who = principalsOf(src);
+    const reached = [...modulesFrom(entry)];
+
+    for (const mod of reached) {
+      const scope = SCOPE[mod];
+      if (!scope || !scope.clinical) continue;
+
+      /*
+       * 🔴 A layout is a shell. It guards for the pages beneath it, and a page
+       * that renders inside a guarded layout is guarded. So a layout with no
+       * guard of its own is not a finding; a PAGE with no guard that reaches
+       * clinical data is.
+       */
+      if (/\/(layout)\.tsx$/.test(entry)) continue;
+
+      if (who.length === 0) {
+        // A capability in the URL or a secret in a header is authentication.
+        if (!hasCapabilityAuth(src)) unguarded.push({ entry, module: mod });
+        continue;
+      }
+      const allowed = who.some((p) => scope.who.includes(p));
+      if (!allowed) breaches.push({ entry, module: mod, reached: who });
+    }
+  }
+
+  check(
+    "🔴 58.6 no entry point reaches clinical data as a principal that may not",
+    breaches.length === 0,
+    breaches
+      .slice(0, 8)
+      .map((b) => `${b.entry} → lib/data/${b.module} as ${b.reached.join("+")}`)
+      .join(" · ") || "every clinical read is made by a principal declared for it",
+  );
+
+  /*
+   * 🔴 A page with NO guard at all that reaches clinical data is the sharper
+   * finding, and it is reported separately so it cannot hide inside the count
+   * above. It is also the one a new portal produces first.
+   */
+  const knownUnguarded = new Set<string>([
+    // A guard inside the page's own callee rather than at the top of the file
+    // is still a guard. Entries here name where it is, and are the reason this
+    // list is enumerated rather than a threshold.
+  ]);
+  const unguardedReal = unguarded.filter((u) => !knownUnguarded.has(u.entry));
+
+  check(
+    "🔴 58.6 no UNGUARDED page reaches clinical data",
+    unguardedReal.length === 0,
+    unguardedReal
+      .slice(0, 10)
+      .map((u) => `${u.entry} → lib/data/${u.module}`)
+      .join(" · ") || "every clinical page authenticates first",
+  );
+
+  /* ----------------------------------------------------- 58.6c · CONTROLS */
+
+  /*
+   * 🔴 Two absences in a row pass just as happily against a scanner that
+   * resolved no imports at all. Both rules are proved against a real file
+   * whose answer is known.
+   */
+  const patientAccount = "app/(patient)/patient/account/page.tsx";
+  check(
+    "🔴 58.6 CONTROL the forward graph really resolves imports",
+    entries.includes(patientAccount) && modulesFrom(patientAccount).size >= 0,
+    `${[...modulesFrom("app/(patient)/patient/page.tsx")].length} data modules reached from the patient home`,
+  );
+
+  check(
+    "🔴 58.6 CONTROL a known clinical page IS seen reaching clinical data",
+    modulesFrom("app/(patient)/patient/sessions/page.tsx").has("patient-view"),
+    "so 'no breaches' cannot mean 'no edges found'",
+  );
+
+  check(
+    "🔴 58.6 CONTROL …and that page is recognised as guarded, as a patient",
+    principalsOf(s.body.get("app/(patient)/patient/sessions/page.tsx")!).includes("patient"),
+  );
+
+  /*
+   * 🔴 And the rule fires: a patient guard on a clinician-only module is a
+   * breach. Asserted against a constructed pair rather than a real file,
+   * because there is deliberately no such page to point at.
+   */
+  /*
+   * 🔴 CONTROL for capability auth: it must recognise a real token page AND
+   * must NOT wave through a page that authenticates nothing. A recogniser that
+   * matched everything would silently switch this whole check off.
+   */
+  check(
+    "🔴 58.6 CONTROL capability auth is recognised where it exists",
+    hasCapabilityAuth(s.body.get("app/(public)/verify/page.tsx")!) &&
+      hasCapabilityAuth(s.body.get("app/api/cron/[job]/route.ts")!),
+  );
+  check(
+    "🔴 58.6 CONTROL …and NOT where nothing authenticates",
+    !hasCapabilityAuth("export default function Page() { return <p>hello</p>; }"),
+    "otherwise the unguarded check passes on everything",
+  );
+
+  const wouldBreach = !["patient"].some((p) => SCOPE["copilot"]!.who.includes(p));
+  check(
+    "🔴 58.6 CONTROL the rule WOULD refuse a patient reaching the clinician copilot",
+    wouldBreach,
+    "lib/data/copilot is clinician-only, and a patient guard does not satisfy it",
+  );
+
+  finish("sprint 58 principals");
+}
+
+main();

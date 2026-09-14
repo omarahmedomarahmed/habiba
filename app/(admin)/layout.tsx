@@ -19,6 +19,8 @@ import {
   SlidersHorizontal,
   Users,
   Vault,
+  Gauge,
+  TriangleAlert,
 } from "lucide-react";
 
 import { requireStaff } from "@/lib/auth/guard";
@@ -164,6 +166,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {isOwner ? <AdminLink href="/admin/settings" icon={SlidersHorizontal}>Settings</AdminLink> : null}
           {isOwner ? <AdminLink href="/admin/strings" icon={Languages}>Strings</AdminLink> : null}
           {isManager ? <AdminLink href="/admin/audit" icon={ScrollText}>Audit log</AdminLink> : null}
+          {/*
+            🔴 58.3 — two pages that existed, worked, and were reachable only by
+            typing the URL. `verify:reachable` found both on its first run.
+
+            `/admin/usage` carries the figure its own header calls "the figure
+            that decides the business", cost per session. `/admin/errors` exists
+            because, in its own words, "until this page there was nowhere at all
+            to answer" what is broken and for how long. A page nobody can reach
+            is not a half-built feature, it is a built one nobody is using.
+          */}
+          {isManager ? <AdminLink href="/admin/usage" icon={Gauge}>Usage and cost</AdminLink> : null}
+          {isManager ? <AdminLink href="/admin/errors" icon={TriangleAlert}>Errors</AdminLink> : null}
         </nav>
       </header>
 

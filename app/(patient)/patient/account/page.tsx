@@ -12,6 +12,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, people } from "@/lib/db/schema";
 import { lockUntil } from "@/lib/data/phone-change";
 import { getI18n } from "@/lib/i18n/server";
+import { patientSignOut } from "@/lib/patient-auth/actions";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { zoneLabel } from "@/lib/scheduling/tz";
 import { getCountries } from "@/lib/settings";
@@ -140,6 +141,30 @@ export default async function PatientAccountPage() {
         deliberately no link here to one, and `lib/data/patient-view.ts` is
         what makes that structural rather than a matter of which links exist.
       */}
+
+      {/*
+        🔴 58.1 — THE DOOR OUT, which this page's own header promised and which
+        did not exist.
+
+        `patientSignOut` was written, exported, and called by nothing. The
+        string `paccount.signOut` was written too, in both languages, and
+        rendered by nothing. A patient on a shared or borrowed phone could not
+        sign out of their own medical record, and no test, type or verifier in
+        this repository could see that, because every one of them asks whether
+        code is correct rather than whether a person can reach it.
+
+        `verify:reachable` found it on its first run. A plain form rather than a
+        client component: no JavaScript, which on the phones this product is
+        actually used on is not a hypothetical.
+      */}
+      <form action={patientSignOut}>
+        <button
+          type="submit"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-start text-sm font-semibold text-slate-900 active:bg-slate-50"
+        >
+          {t("paccount.signOut")}
+        </button>
+      </form>
     </main>
   );
 }

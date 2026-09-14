@@ -296,6 +296,24 @@ export default async function PatientHomePage({
         zone={actor.timezone}
       />
 
+      {/*
+        🔴 58.3 — the link to `/patient/sessions`, which did not exist.
+
+        That page is built, works, and groups a patient's sessions into three
+        tabs with the back button and a reload both surviving. Nothing anywhere
+        linked to it: it was reachable by typing the URL, which for the person
+        it was built for is the same as absent. `verify:reachable` found it on
+        its first run, alongside two admin pages in the same state.
+      */}
+      {sessions.length > 0 ? (
+        <Link
+          href="/patient/sessions"
+          className="block text-center text-sm font-semibold text-brand-600"
+        >
+          {t("psessions.title")}
+        </Link>
+      ) : null}
+
       {/* ------------------------------------------------------- your record */}
 
       <Card className="p-4">

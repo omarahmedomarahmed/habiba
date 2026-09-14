@@ -431,3 +431,18 @@ export async function aiUsageByDay(days = 14) {
     .groupBy(sql`date_trunc('day', ${aiRequestLogs.createdAt})`)
     .orderBy(sql`date_trunc('day', ${aiRequestLogs.createdAt}) DESC`);
 }
+
+/**
+ * Every organisation, for a picker. 58.1.
+ *
+ * Added with `LedgerAdjust`, which is the escape hatch's screen. Deleted rows
+ * are excluded: an adjustment against an organisation nobody can reach any more
+ * is a correction nobody will be able to explain.
+ */
+export async function allOrganizations(): Promise<{ id: string; name: string }[]> {
+  return db
+    .select({ id: organizations.id, name: organizations.name })
+    .from(organizations)
+    .where(isNull(organizations.deletedAt))
+    .orderBy(organizations.name);
+}

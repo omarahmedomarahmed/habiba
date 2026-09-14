@@ -272,6 +272,70 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C300 | 57 | **The Stripe receipt is the one piece of copy no gate can see.** The credit line item read "$2.00 per AI session, **yours to keep**" — a rate lock the thresholds no longer grant. It is not a page, it is not in the dictionary, and `verify:claims` cannot reach it, so it would have gone on saying that to every paying therapist indefinitely. **Ruling: fixed, and the fact that it is invisible to every gate is written into the file** so whoever changes the model next finds it. **What it costs:** a named blind spot rather than a silent one, which is all a gate that cannot see a string can honestly offer. 2026-09-13. | minor | **found while shipping sprint 57, 2026-09-13** | **ruled — sprint 57, fixed** |
 | C301 | 57 | 🔴 **Three verifiers whose coverage depended on what happened to be lying around, found by running the whole sweep on a thin branch.** `verify:sprint41` took a second session with `OFFSET 1 LIMIT 1`; on a database with one session the `if` never ran and it reported **"the same bot cannot be attached twice"** as a failure, naming a constraint that was present and working. `verify:sprint49` summed two cost columns across whatever rows existed; with none, both sums are `NULL`, `NULL !== NULL` is false, and it printed `lossy nullc, precise nullc`. `verify:sprint16` launched a child at `NODE_ENV=production` with an incomplete list of dummy keys, so it passed or failed according to the operator's shell — and reported **"a static rate is REFUSED in production"**, a money-safety property, as broken by a missing `OPENAI_API_KEY`. **Ruling: C284 again, three times. Each now PLANTS what it needs and removes it**: a cloned session, a call costing four hundredths of a cent, and every key `lib/env` requires. **What it costs:** three verifiers that can no longer be green or red by accident. All three had been red for months and read as environmental. 2026-09-13. | major | **found by running the full sweep, 2026-09-13** | **ruled — sprint 57, fixed** |
 | C302 | 57 | **A control asserting a phrase the page stopped rendering, invisible because the gate it guards could not run.** `render:check`'s 21R.8 control asserted that `"/ session"` was on the English pricing page, so that a "no English left on the Arabic page" scan could not pass by reading an empty string. `pricing.perSession` stopped being rendered when sprint 46 split the fee in two. The control has been wrong for eleven sprints and nobody saw it, because the whole script needs `en-x-staging` rows against production and there were none. **Ruling: the control list is refreshed, and it now PRINTS which phrase is missing** — "the LIST is stale, not the page" — so the next person is told which of the two moved. **What it costs:** nothing, and it is the reason C295's "a guard with two documented holes beats a guard that makes two documented failures permanent" is worth the words: a gate that cannot run protects nothing and hides its own rot. 2026-09-13. | major | **found by running render:check against production, 2026-09-13** | **ruled — sprint 57, fixed** |
+| C303 | 59 | 🔴 **"The patient pays in their country's Stripe" describes something that does not exist.** Stripe acquires in the countries it supports; a card from anywhere can pay any Stripe account. What actually varies is **which entity collects** and **which currency is presented**. Building to the stated model would produce an account-per-country design Stripe will not give us, and would be discovered only after the accounts were requested. **Ruling: the axis is `country_settings.entity` plus a presented currency, and those two rows are the only source.** **What it costs:** one sentence of correction now instead of a rebuild later. 2026-09-14. | blocker | founder spec, challenged | **ruled — sprint 59** |
+| C304 | 59 | 🔴 **An EGP subscription priced by converting $99 is unhedged FX exposure.** EGP moved more than 100% against USD inside 2024. A therapist signing at 4,800 EGP and paying us 40% less in real terms after a devaluation is a revenue hole nobody decided on. **Ruling: every currency we price in has its OWN number in `platform_settings`, set by an admin.** A conversion is a display; a price is a decision. **What it costs:** an admin has to set a price per currency, and will forget one, which is why C337's floor rail exists. 2026-09-14. | blocker | planning review | **ruled — sprint 59** |
+| C305 | 59 | 🔴 **"Manual Stripe payout button" would be a false label.** If a US patient paid the US entity and the clinician is Egyptian, the money is in our balance and leaves by InstaPay or a wallet from the **Egyptian** entity. Stripe is not in that path. **Ruling: the button says "Request a payout" and the screen names the rail, the entity, the currency and the frozen rate.** `payout_requests` already carries all four. **What it costs:** nothing, and a button that lies about where money comes from is how a support queue is born. 2026-09-14. | major | planning review | **ruled — sprint 59** |
+| C306 | 59 | 🔴 **Cross-border holding is an inter-entity transfer with no journal entry.** The US entity collects, the EG entity pays out, and `heldForTherapistOrg` has one balance with no notion of which entity holds it. **Ruling: a held balance carries its entity, and moving it raises a real ledger transaction.** Money that moves between two legal entities with nothing on the books is the thing an auditor finds. **What it costs:** a ledger account and a rule, before there is enough money for it to matter. 2026-09-14. | blocker | planning review | **ruled — sprint 59** |
+| C307 | 60 | 🔴 **Three currencies land on one sponsored session and `pot.ts` hard-codes `currency: "usd"`.** The sponsor's pot, the therapist's price and the patient's display can all differ. This is not "needs a conversion", it is a literal in a column. **Ruling: a session settles in the THERAPIST'S currency; the pot debit and the patient's view are conversions at a rate frozen onto the transaction**, each shown with its rate, exactly as `session_payments` already does. Never a second conversion of a converted number. **What it costs:** the pot statement gains a rate column, and a sponsor sees exactly what a session cost them in their own money. 2026-09-14. | blocker | **found by reading pot.ts, 2026-09-14** | **ruled — sprint 60** |
+| C308 | 59 | 🔴 **A self-declared country is a VAT decision made by a dropdown.** Egypt is 14%. A patient who picks the wrong country underpays tax and we carry it. **Ruling: the country is declared AND corroborated** (card country, then IP, then the sponsor's country for a sponsored patient). VAT is computed from the corroborated one; the declared one chooses language and display currency only. **What it costs:** a mismatch queue somebody has to work. Self-declared tax residency is tax evasion by dropdown. 2026-09-14. | blocker | planning review | **ruled — sprint 59** |
+| C309 | 64 | **No Egyptian gateway offers Connect-style destination charges.** Paymob, Fawry and Kashier all settle into our merchant account, so every Egyptian session is money we hold. **Ruling: accepted, and §3c already permits it. What is new is that the payout queue becomes the NORMAL path in Egypt rather than the exception**, and has to be staffed as one. **What it costs:** three people and a rota, which C74 already sized, now load-bearing rather than contingency. 2026-09-14. | major | planning review | **ruled — sprint 64** |
+| C310 | 59 | 🔴 **Recurring billing in Egypt is card-on-file, which many Egyptian cards refuse.** Building "Stripe subscriptions" and "Paymob subscriptions" as two things produces two incompatible billing models and two entitlement rules. **Ruling: a subscription is a RENEWAL OBLIGATION with a due date and a payment link.** Stripe's true subscription is one implementation; an Egyptian renewal is an invoice plus a link. `entitledTier` already measures the period paid for, so both rails work with no change to entitlement. **What it costs:** one more table, and it removes the need to ever build a second billing model. 2026-09-14. | blocker | planning review | **ruled — sprint 59** |
+| C311 | 60 | 🔴 **"Lower the coverage rate any time" is the most dangerous sentence in the corporate spec.** A patient nine weeks into treatment at 80%, whose employer drops to 20% on a Tuesday, is a clinical event and not a billing setting. **Ruling: the percentage is FROZEN onto the session at booking and never re-read.** A change applies only to bookings made after it; a **reduction** takes effect after a notice window (setting, default 30 days) and the patient is told before their next booking, with the employer unnamed. **What it costs:** a sponsor cannot cut spending instantly, which is the point. 2026-09-14. | blocker | planning review | **ruled — sprint 60** |
+| C312 | 60 | 🔴 **VAT on a split payment, and the first ruling was WRONG.** Planning ruled "VAT on the full price, apportioned". `lib/billing/pot.ts:196` already reasons the opposite and is right: a pot payment charges zero VAT because **the taxable supply was the top-up**, and taxing the sponsor's share again at the patient's rate taxes the same money twice in a jurisdiction with no claim on it. **Ruling: VAT applies to the PATIENT'S SHARE ONLY.** Both bills say which. **What it costs:** nothing, and it is the second time in two sprints that reading the code corrected the plan rather than the other way round. 2026-09-14. | blocker | **planning ruling overturned by the code, 2026-09-14** | **ruled — sprint 60** |
+| C313 | 60 | 🔴 **A therapist must be paid the full price whatever the split.** If a partly sponsored session pays less, therapists learn to prefer unsponsored patients, and that is a discrimination mechanism built by accident out of a billing detail. **Ruling: the therapist is paid on the full price, always. Our 15% is on the full price. Who paid which part never reaches an earnings screen.** **What it costs:** nothing, and it is the single most important rule in the corporate model. 2026-09-14. | blocker | planning review | **ruled — sprint 60** |
+| C314 | 60 | 🔴 **A partial split would leak sponsorship to the therapist through Stripe itself.** `connect.ts:439` is `const capture = "destination" as const`, with the decision point removed by 1.8. On a destination charge the therapist's own Stripe dashboard shows the patient's 40%, outside any screen we control. Full coverage already avoids this: a pot payment is `capture: "platform"`. **Ruling: `capture` becomes a function of coverage. Any session with a sponsor share is collected by us and settled from held earnings**, and 1.8's rule is amended in writing rather than quietly contradicted for a third time. The therapist sees one settled amount and one status, proved by a verifier that plants a partly covered session. **What it costs:** partial coverage forces the held rail even for a clinician who has Connect, which is more money we hold and more payout queue. 2026-09-14. | blocker | **found by reading connect.ts, 2026-09-14** | **ruled — sprint 60** |
+| C315 | 60 | **Refund and chargeback on a split session.** **Ruling: refunds are apportioned in the FROZEN ratio.** The pot is credited its share, the patient theirs, and a chargeback of the patient's 40% never claws back the sponsor's 60%. **What it costs:** a refund path that has to read a frozen number rather than recompute one. 2026-09-14. | major | planning review | **ruled — sprint 60** |
+| C316 | 60 | **A sponsor will assume "covering the session" includes our platform and AI fees.** Those are billed to the therapist. **Ruling: one sentence on the pot page. A sponsor covers the patient-facing session price only, and a therapist's own subscription is never a sponsor cost.** **What it costs:** a sentence, instead of an invoice argument. 2026-09-14. | minor | planning review | **ruled — sprint 60** |
+| C317 | 60 | **A patient who changes employer mid-treatment.** C249 allows exactly one primary enrolment. **Ruling: coverage follows the primary enrolment at the moment of booking and freezes with everything else. Sessions already booked keep the old sponsor's share and the old sponsor is still billed for them.** **What it costs:** a sponsor can be billed after somebody has left, which is correct: they agreed to fund that booking. 2026-09-14. | major | planning review | **ruled — sprint 60** |
+| C318 | 61 | 🔴 **Receiving an email at a domain proves deliverability, not authority.** Any employee with a mailbox could enrol their employer and put its name in our patient app. **Ruling: two separate proofs. An email code proves the mailbox; a DNS TXT record proves the company.** No sponsor is listed publicly and no enrolment code is issued until both pass and an admin approves. **What it costs:** a slower onboarding for the thing that is most embarrassing to get wrong. 2026-09-14. | blocker | planning review | **ruled — sprint 61** |
+| C319 | 61 | 🔴 **A public list of every company buying mental health cover is a disclosure about those companies**, and some will refuse it. **Ruling: the banner shows opted-in sponsors only** (`sponsors.listed_publicly`, already there, default off), **and a patient whose employer is absent gets a path that never reveals whether that company is a customer.** **What it costs:** a smaller banner, and no customer learns about another from us. 2026-09-14. | blocker | planning review | **ruled — sprint 61** |
+| C320 | 61 | **A closed corporate mail system silently drops our code and the sponsor blames us.** **Ruling: the setup screen reports delivery status per attempt and hands IT a copy-paste block** with the sending domain, the SPF include, the IPs and the exact From address. **Setup is not complete until one code has actually been received.** **What it costs:** an onboarding step that cannot be skipped, which is the point. 2026-09-14. | major | founder spec | **ruled — sprint 61** |
+| C321 | 61 | 🔴 **Two verification methods at once block enrolment whenever either side is down.** **Ruling: they are SEQUENTIAL. An HR match enrols provisionally and funding starts; the email code confirms the mailbox within a window; failure PAUSES funding** using C247's existing pause and touches nothing clinical. **What it costs:** a bounded window in which somebody is funded on one proof, bounded again by C350. 2026-09-14. | blocker | founder spec, challenged | **ruled — sprint 61** |
+| C322 | 61 | **The employment email is a second identifier on a person and will be mistaken for their contact address.** **Ruling: its own column, labelled "employment verification email" on every screen, on a PROVED sponsor domain, never used for anything the patient reads and never shown to a therapist.** **What it costs:** nothing, and it stops a work address becoming a clinical correspondence address. 2026-09-14. | major | founder spec | **ruled — sprint 61** |
+| C323 | 62 | 🔴 **The seat arithmetic in the spec does not add up.** $179 for two is $89.50 a seat, not $90; "$90 each after two" gives $359 at four where the spec says $360; $80 for the fifth gives $439 where the spec says $400. **The stated numbers only work if the rate is RETROACTIVE rather than marginal**: seats 1 to 2 are $179 flat, at 3 to 4 every seat is $90, at 5 or more every seat is $80. That yields exactly $360 and $400. **Ruling: retroactive, because it is the only reading that produces the founder's own figures and the only one explainable on a slider.** The 2 to 3 step is a **+$91 jump** and the slider states it before the click. **What it costs:** one visible cliff, stated, instead of an invisible one discovered on an invoice. 2026-09-14. | blocker | **founder spec, arithmetic checked, 2026-09-14** | **ruled — sprint 62** |
+| C324 | 63 | 🔴 **Clinic staff must not be a `users` row.** `ROLES` is `therapist, staff, manager, super_admin`, and `staff` and `manager` are OUR back office, one mistake away from a clinical grant. **Ruling: clinic staff is a SEVENTH PRINCIPAL with its own table and its own auth session, exactly like `sponsor_users` and `partner_users`.** No role string, no shared table, no shared guard. **What it costs:** a third copy of the portal auth pattern, which is the price of never having to reason about why a clinic admin is not cleared. 2026-09-14. | blocker | founder spec, challenged | **ruled — sprint 63** |
+| C325 | 63 | 🔴 **"Custom access levels to pages" is the classic authorisation hole.** A navigation filter is not a permission. **Ruling: permissions are a CAPABILITY SET checked in the data layer, on the RESOURCE.** Assistant 1 assigned to therapist A is refused therapist B's calendar on the same route. A verifier calls every clinic data function as every role and asserts refusal. **What it costs:** every clinic query takes an actor, which is how the rest of this codebase already works. 2026-09-14. | blocker | founder spec, challenged | **ruled — sprint 63** |
+| C326 | 63 | 🔴 **A custom role must never be grantable a capability its creator lacks**, or a clinic admin escalates by creating a role. **Ruling: a role's capability set is a SUBSET of the clinic admin's, enforced at write time, not at render time.** **What it costs:** nothing, and without it "create a custom role" is "create yourself an admin". 2026-09-14. | blocker | planning review | **ruled — sprint 63** |
+| C327 | 63 | 🔴 **A calendar is a treatment record.** In a two-therapist clinic "Sarah M., Tuesdays 3pm, six months" identifies a person and discloses that they are in therapy. **Ruling: keep the founder's first name plus last initial AND DISCLOSE IT.** A patient booking with a clinic-affiliated therapist is told that clinic administrative staff can see their first name, last initial and appointment times. Every clinic-staff read of a calendar is audited. **A disclosed leak is a trade; an undisclosed one is a breach.** **What it costs:** a sentence on a booking screen that some patients will act on, which is them exercising a choice they are entitled to. 2026-09-14. | blocker | planning review | **ruled — sprint 63** |
+| C328 | 63 | 🔴 **The inviting therapist gains sight of a colleague's earnings and calendar**, and the colleague has to understand that before, not after. **Ruling: the clinic sees NOTHING about an invited therapist until they accept, and the acceptance screen ENUMERATES what the clinic will see** — calendar, bookings, radar status, session prices, earnings totals, withdrawal log — and what it will never see. **What it costs:** a longer acceptance screen, on the screen where length is worth paying for. 2026-09-14. | blocker | planning review | **ruled — sprint 63** |
+| C329 | 62 | **A therapist already on Practice who joins a clinic would pay twice.** **Ruling: on acceptance their own subscription is cancelled at PERIOD END and the clinic seat takes over from the next period.** Nobody pays twice and nobody loses a month they bought, which is C294 reused. **What it costs:** a seat with a future start date, which C355 requires the clinic to see. 2026-09-14. | major | planning review | **ruled — sprint 62** |
+| C330 | 62 | **A clinic whose renewal fails would strip five therapists of unlimited mid-month.** **Ruling: C294 again. The clinic keeps the period it paid for, then the WHOLE clinic drops to pay as you go together.** Never one therapist at a time. **What it costs:** nothing, and it stops a card expiry becoming a staggered outage. 2026-09-14. | major | planning review | **ruled — sprint 62** |
+| C331 | 63 | **A therapist who leaves a clinic.** The clinic paid those bills and has a real accounting claim to the history. **Ruling: the clinic keeps the FINANCIAL record permanently and loses every LIVE view instantly.** Calendar, radar status and earnings go dark at departure; the exported books do not change. Future bookings stay with the therapist and patients are unaffected. **What it costs:** an export that mentions somebody no screen shows any more, which is what an accounting record is. 2026-09-14. | major | planning review | **ruled — sprint 63** |
+| C332 | 62 | **"Remove the pricing section from billing on the clinic plan"** would also remove the only way to buy a seat. **Ruling: REPLACED, never removed** — a seat manager with the slider, the next-seat price and the new monthly total. **What it costs:** nothing. 2026-09-14. | minor | founder spec, challenged | **ruled — sprint 62** |
+| C333 | 62 | **Adding a seat on day 20 of the month.** Sprint 57 left proration explicitly undecided. **Ruling: prorated to the day, with the amount charged today stated before the click.** **What it costs:** the decision sprint 57 deferred, made. 2026-09-14. | major | planning review | **ruled — sprint 62** |
+| C334 | 63 | **A clinic export is an exfiltration surface.** **Ruling: every export is audited with the requesting user, watermarked with their name and the timestamp, and contains nothing the screen does not already show.** **What it costs:** nothing, and an export is the one action that leaves the building. 2026-09-14. | major | planning review | **ruled — sprint 63** |
+| C335 | 58 | 🔴 **NOTHING IN THIS REPOSITORY CHECKS THAT A SERVER ACTION OR AN API ROUTE IS REACHABLE FROM A SCREEN.** `scripts/_reachability.ts` measures tables to screens and explicitly excludes `app/api/**`. So an exported action with no button, or a route no page calls, is invisible to every gate we own. The founder asked whether every backend, route and action has a page and a button; the honest answer was no, and nothing could have told us. **Ruling: `verify:reachable` — every exported server action is reachable from a rendered page, every API route has a caller or a documented external one, every page is linked from somewhere a principal can get to.** Orphans go on an allowlist WITH A REASON, and the gate fails when an allowlisted entry stops being an orphan. **What it costs:** the first run will find real orphans and they will have to be linked up or deleted. 2026-09-14. | blocker | **founder asked, and the answer was no, 2026-09-14** | **ruled — sprint 58** |
+| C336 | 58 | **Seven principals and per-sprint guard tests.** Adding clinic staff makes an authorisation matrix nobody can hold in their head. **Ruling: ONE matrix test — every principal against every exported data function, asserting refusal by default. A function with no entry FAILS THE BUILD; a genuinely public one is declared public explicitly.** **What it costs:** a table somebody has to maintain, which is cheaper than the leak it replaces. 2026-09-14. | blocker | planning review | **ruled — sprint 58** |
+| C337 | 59 | 🔴 **Currency arbitrage on an independently priced plan.** If EGP is its own number, a therapist declares Egypt and pays roughly $40 instead of $99. **Ruling: subscription currency follows the VERIFIED country and is never a choice. A country change on an account with a live plan needs admin approval and does not reprice until renewal. A floor rail refuses any local price below a set fraction of the USD one**, so a stale number during a devaluation cannot open the gap by accident. **What it costs:** an admin cannot set a promotional local price below the floor without raising the floor, on purpose. 2026-09-14. | blocker | **loophole in C304, found in review, 2026-09-14** | **ruled — sprint 59** |
+| C338 | 59 | **Two balances, one button.** A clinician with Connect and held money would request a payout of money already on its way to them. **Ruling: held and Connect balances are two figures, never summed, and only the held one has a button.** **What it costs:** an earnings page with two numbers instead of one, which is what is true. 2026-09-14. | major | **loophole in C305** | **ruled — sprint 59** |
+| C339 | 59 | 🔴 **FX gain and loss has nowhere to go.** An inter-entity transfer at a frozen rate does not reconcile to the cent. **Ruling: a named ledger account for FX difference.** Money that does not reconcile is not a rounding problem, it is an unposted entry. **What it costs:** one account, added before there is enough money for it to matter. 2026-09-14. | blocker | **loophole in C306** | **ruled — sprint 59** |
+| C340 | 59 | 🔴 **There is no card at booking, so VAT cannot be corroborated then**, and a fully sponsored patient never has a card at all. **Ruling: VAT uses the declared country at booking and is RE-CHECKED at settlement; the sponsor's own country corroborates a sponsored patient. A mismatch over a threshold flags to admin rather than silently repricing.** **What it costs:** a queue, and a number that can change between booking and settlement, which is why both are stored. 2026-09-14. | blocker | **loophole in C308** | **ruled — sprint 59** |
+| C341 | 59 | 🔴 **Nothing moves the period forward on a non-Stripe rail**, so a missed gateway callback silently ends a therapist's plan. **Ruling: entitlement reads a RENEWAL OBLIGATION row, never the gateway, and a reconciler finds paid gateway transactions with no obligation** — the same shape as 46.14's per-line-kind reconciler. **What it costs:** one table and one cron, and without them Egypt's billing is a callback away from silent failure. 2026-09-14. | blocker | **loophole in C310** | **ruled — sprint 59** |
+| C342 | 60 | **A reschedule would reprice a session** if it counted as a new booking, so a sponsor lowering coverage would silently reprice every rescheduled appointment. **Ruling: a reschedule keeps the frozen percentage. Only a NEW booking takes the new one.** **What it costs:** nothing. 2026-09-14. | major | **loophole in C311** | **ruled — sprint 60** |
+| C343 | 60 | 🔴 **A series booking can overdraw a pot in one click**, because the pot pays per session at booking. **Ruling: a series RESERVES against the pot at booking. Reservations count against the balance and expire when a session is cancelled.** **What it costs:** a new mechanic, and without it C239's bounded overdraft is bounded per session rather than per click. 2026-09-14. | blocker | **loophole in C311** | **ruled — sprint 60** |
+| C344 | 60 | **Raising coverage is not symmetrical with lowering it.** **Ruling: an INCREASE may apply to unstarted bookings; a DECREASE never does.** An increase only ever costs the sponsor money they chose to spend. **What it costs:** asymmetric code, on purpose, with the reason written where the asymmetry is. 2026-09-14. | minor | **loophole in C311** | **ruled — sprint 60** |
+| C345 | 60 | **0% coverage is not "no benefit".** The roster keeps the person and the money stops, and a patient must not discover that at checkout. **Ruling: 0% is legal, the badge stays, and the patient is told before their next booking.** **What it costs:** a notice nobody enjoys sending. 2026-09-14. | major | **loophole in C311** | **ruled — sprint 60** |
+| C346 | 60 | **Timing leaks sponsorship to the therapist.** A pot session is paid instantly at booking; a card session is not. **Ruling: NAMED AS AN ACCEPTED RESIDUAL LEAK rather than engineered around.** Delaying pot settlement to hide it would cost the patient certainty about whether they owe money, which is worse. **What it costs:** a weak inference available to an attentive clinician, written down rather than denied. 2026-09-14. | minor | **loophole in C314** | **ruled — accepted, documented** |
+| C347 | 60 | **A refund into a closed or expired pot.** **Ruling: to the pot if open; to a named liability account if not, with admin notified. NEVER to the patient**, which would be the patient profiting from their employer's spend. **What it costs:** an account and an alert. 2026-09-14. | major | **loophole in C315** | **ruled — sprint 60** |
+| C348 | 61 | **University IT cannot add a DNS record quickly**, so a DNS-only rule blocks the deals we most want. **Ruling: DNS TXT OR a countersigned agreement, admin approved. Domains are a LIST, each proved separately.** **What it costs:** a manual path that an admin has to work, which is what a university deal is anyway. 2026-09-14. | major | **loophole in C318** | **ruled — sprint 61** |
+| C349 | 61 | 🔴 **Domain guessing enumerates our customers.** A patient typing `@techco.com` into the enrolment flow learns whether TechCo buys from us. **Ruling: the flow answers identically whether or not the domain is a customer.** Constant message, constant timing. Account enumeration defence, applied to companies. **What it costs:** a slightly less helpful error, which is the correct trade. 2026-09-14. | blocker | **loophole in C319** | **ruled — sprint 61** |
+| C350 | 61 | 🔴 **Provisional enrolment spends real money before the mailbox is proved**, so a compromised HR API key books sessions. **Ruling: a provisional person may spend at most N sessions before the code lands. N is a setting, default 1.** **What it costs:** one session of exposure per fake identity instead of unbounded. 2026-09-14. | blocker | **loophole in C321** | **ruled — sprint 61** |
+| C351 | 62 | 🔴 **A retroactive seat rate changes the price of seats already paid for.** Adding seat 5 on day 20 drops seats 1 to 4 from $90 to $80 for the remainder. **Ruling: the remainder of the period is recomputed at the new rate and the difference is charged or credited as ONE figure, shown before the click.** **What it costs:** the arithmetic is harder and the screen is honest. 2026-09-14. | blocker | **loophole in C323** | **ruled — sprint 62** |
+| C352 | 63 | 🔴 **One human with two principals in one session is how a clinical grant reaches a management screen.** A therapist who upgrades is a clinician AND the clinic admin. **Ruling: two principal rows, linked, and the session cookie names which is ACTIVE. Switching is explicit and audited. Never one session carrying both capability sets.** **What it costs:** a switcher in the header and a rule nobody can shortcut. 2026-09-14. | blocker | **loophole in C324** | **ruled — sprint 63** |
+| C353 | 63 | 🔴 **A capability set stored as editable JSON is an escalation vector** if the check reads it back. **Ruling: the capability vocabulary is a CLOSED LIST IN CODE. An unknown capability is refused, never ignored.** **What it costs:** adding a capability needs a deploy, which is correct for a permission. 2026-09-14. | blocker | **loophole in C325** | **ruled — sprint 63** |
+| C354 | 63 | **A disclosure wall in front of somebody in crisis is the wrong trade.** **Ruling: the radar card carries a small persistent "clinic practice" label; the full disclosure lives on the patient's record page, always available. No wall.** **What it costs:** a patient in distress is informed rather than interrogated. 2026-09-14. | major | **loophole in C327** | **ruled — sprint 63** |
+| C355 | 62 | **The clinic would pay for a month the therapist already owns.** **Ruling: a seat is NOT BILLED until the therapist's own period ends, and the seat list shows the start date.** **What it costs:** a seat that exists and is not yet charged, which the bill has to explain. 2026-09-14. | major | **loophole in C329** | **ruled — sprint 62** |
+| C356 | 58 | 🔴 **"Imported by a component" is not reachability** — `_reachability.ts` had exactly this bug and its own header says so. **Ruling: reachability is transitive from a `page.tsx` or a `layout.tsx`, never from any component.** **What it costs:** nothing, and it is the difference between measuring "referenced somewhere" and "a person can get to it". 2026-09-14. | blocker | **loophole in C335** | **ruled — sprint 58** |
+| C357 | 59 | 🔴 **`hasNoRail` is a display, not a gate, and that is true in production today.** It is read by one admin screen and one verifier. Nothing stops a clinician in a country with no collection provider and no payout method from being booked, paid, and then discovering we cannot pay them. C218's rule says a switch an operator can set is read by the code or it does not exist; this is its twin, an operator FACT that nothing acts on. **Ruling: a country with no rail refuses radar placement and refuses booking, with the clinician told why on their own dashboard.** **What it costs:** a clinician somewhere finds out at signup instead of at payout, which is the only humane order. 2026-09-14. | blocker | **found while auditing the rulings, 2026-09-14** | **ruled — sprint 59** |
+| C358 | 58 | 🔴 **A patient could not sign out of their own medical record.** `patientSignOut` was written, exported and called by nothing. The string `paccount.signOut` was written too, in both languages, and rendered by nothing. On a shared or borrowed phone there was no way out. **No test, type or verifier in this repository could see it**, because every one of them asks whether code is correct rather than whether a person can reach it. **Ruling: the button exists, as a plain form with no JavaScript**, and `verify:reachable` is why it was found on the gate's first run. **What it costs:** nothing, and it was live. 2026-09-14. | blocker | **found by `verify:reachable`, first run, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C359 | 58 | 🔴 **The pricing page promised a button that did not exist.** The published billing FAQ says *"What if a session was a mistake? Cancel it instead of completing it and nothing is charged."* `abandonSession` does exactly that and **no screen called it**, so the only thing a clinician could do with a session opened by mistake was complete it and be billed for it. The claim was false in the one direction that costs the reader money. `verify:claims` could not see it: the sentence is true of the code and false of the product. **Ruling: the cancel button exists, on the session screen, arming itself rather than opening a dialog.** **What it costs:** nothing, and it is the sharpest argument yet for both gates existing, because neither alone would have found it. 2026-09-14. | blocker | **found by `verify:reachable`, first run, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C360 | 58 | 🔴 **The accounting escape hatch had no door.** `adjustLedger` demands a reason, records who, and posts a balanced pair so the ledger cannot be made to disagree with itself. All of it was written, typed and exported, and **no screen called it**. The hatch existed in the sense that a function existed. **Ruling: `LedgerAdjust` lives under the out-of-balance figure on the vault page**, which is the only reason to reach for it. **What it costs:** a form, and an escape hatch nobody can open is not a safety feature. 2026-09-14. | major | **found by `verify:reachable`, first run, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C361 | 58 | 🔴 **Three built, working pages that nobody could reach.** `/patient/sessions` groups a patient's sessions into three tabs and survives a reload and the back button. `/admin/usage` carries the figure its own header calls *"the figure that decides the business"*, cost per session. `/admin/errors` exists because, in its own words, *"until this page there was nowhere at all to answer"* what is broken and for how long. All three were reachable by typing a URL and by no other means. **Ruling: linked, and `verify:reachable` keeps them linked.** **What it costs:** three lines of navigation, and a page nobody can reach is not a half-built feature, it is a finished one nobody is using. 2026-09-14. | blocker | **found by `verify:reachable`, first run, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C362 | 58 | 🔴 **The reachability scanner was blind to an entire directory, and the gate written to catch the §6 family contained one.** `["node_modules", ".next", "public", …].includes(entry)` skips ANY directory with those names at any depth. This repository has `components/public/`, which holds the marketing blocks, the pricing cards and the contact form. The scanner reported `submitContact` as an orphan while the form calling it sat in the directory it had skipped. **Ruling: the skip list is anchored at the ROOT**, and a control asserts the scanner sees `components/public`. **What it costs:** nothing, and it was caught because a finding looked wrong rather than because anybody read the code. 2026-09-14. | blocker | **found while building sprint 58, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C363 | 58 | 🔴 **An allowlist written from memory, four of whose five entries were wrong.** The first `ROUTES_BY_DESIGN` exempted `/api/webhooks/stripe`, `/api/cron`, `/api/revalidate` and `/api/partner`, each with a confident paragraph. The real path is `/api/stripe/webhook`; the other three had in-repo callers and were never orphans. Every paragraph would have read as a considered decision for ever. **Ruling: 58.4's stale-entry rule caught it on the first run, which is the entire argument for having it.** An exemption that has stopped being needed is worse than a missing one, because it reads as coverage. **What it costs:** nothing, and it is the second time in two sprints that an allowlist written from memory was wrong. 2026-09-14. | major | **caught by 58.4 on its own first run, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C364 | 58 | 🔴 **A server action is a BOUNDARY in the import graph, not an edge, and neither is a type import.** The first principal scan reported the public marketing page reaching `lib/data/sessions` and `lib/data/people`, which reads as a marketing page querying clinical tables. The path was `page → blocks → radar-hero → booking-sheet → radar/actions.ts`, whose last hop is a server action that runs on its own request under its own guard. **Ruling: do not follow through a `"use server"` module, and do not count `import type`.** Both are the shape `_reachability.ts` got wrong twice. **What it costs:** nothing, and without it the gate's first real output would have been eleven false alarms, which is how a gate gets switched off. 2026-09-14. | blocker | **found while building sprint 58, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C365 | 58 | 🔴 **A session is not the only way to be authenticated.** Ten entry points came back as unguarded pages reaching clinical data, and not one of them was: `/join/[token]`, `/pay/[token]`, `/records/[token]`, `/feedback/[token]`, `/patient/invite/[token]`, `/verify`, `/t/[id]`, the cron route on `CRON_SECRET`, and the EHR callback on a matched OAuth state. Each authenticates by a **capability in the URL or a secret in a header**. A gate that could not see that would have pushed somebody to put a login in front of a crisis rating link, which is worse than the thing it was protecting. **Ruling: capability auth is MODELLED, with each recogniser named so a new one is a decision, never allowlisted.** **What it costs:** a list that has to be kept honest, and two controls that prove the recogniser neither misses a real one nor waves through a page that authenticates nothing. 2026-09-14. | blocker | **found while building sprint 58, 2026-09-14** | **ruled — sprint 58, fixed** |
+| C366 | 58 | 🔴 **The 415-by-7 principal matrix was the wrong instrument and would have become C286.** `lib/data` exports 415 functions across six principals with a seventh arriving, which is 2,900 cells nobody would maintain. The second design asked every data function to take an `Actor`: **34 of 384 do**, and the rest are guarded by their caller, which is this codebase's actual architecture. Demanding an actor everywhere is a rewrite wearing the costume of a gate. **Ruling: measure the property the architecture rests on — every page or route that can reach a clinically-scoped module must authenticate, as a principal declared for that module.** 55 modules declared, 36 clinical, and an undeclared one fails the build. **What it costs:** a table of 55 lines instead of 2,900 cells, and it is the gate a clinic-staff page importing `lib/data/sessions` will hit in sprint 63. 2026-09-14. | blocker | planning review, revised twice | **ruled — sprint 58, built** |
 
 ---
 
@@ -3721,6 +3785,355 @@ nothing else reaches the therapist. Neither is a defect today and both are the
 next thing to decide about money.
 
 
+---
+
+## SPRINTS 58 TO 64 — CROSS-BORDER MONEY, COVERAGE, AND THE CLINIC
+
+> These seven were specified on 2026-09-14 from a founder dictation, then
+> attacked twice: once against the spec, once against the rulings themselves.
+> The second pass overturned two of its own rulings by reading the code, which
+> is why C312 and C314 read the way they do.
+>
+> 🔴 **Sprint 64 is blocked on paperwork, not on code.** A licensed Egyptian
+> entity, a merchant account and a signed gateway contract have lead times
+> measured in weeks. Start them the day this is read.
+
+### Sprint 58 — Can a human reach it? · ~1 week · 🔴 DO THIS FIRST
+
+**Why first.** The founder asked whether every backend, route and action has a
+page and a button behind it. The honest answer was no, and **nothing in this
+repository could have told us**. `scripts/_reachability.ts` measures tables to
+screens and explicitly excludes `app/api/**`. Every sprint below adds pages,
+actions and routes; a gate that catches an orphan is worth more before that
+than after.
+
+- [ ] **58.1** `verify:reachable`. Every **exported server action** (`"use server"`)
+      is reachable, transitively, from a `page.tsx` or `layout.tsx` (C356: never
+      "imported by a component", which is the bug the table scanner already had)
+- [ ] **58.2** Every **API route** has an in-repo caller, or an allowlist entry
+      naming the external caller (Stripe, the gateway, a cron, a partner)
+- [ ] **58.3** Every **page** is linked from somewhere a principal can reach, or
+      is allowlisted as deep-link-only with the reason
+- [ ] **58.4** 🔴 The allowlist carries a REASON per entry and the gate FAILS when
+      an allowlisted entry stops being an orphan. A stale exemption is a rule
+      nobody is checking (the rule `_reachability.ts` already applies to tables)
+- [ ] **58.5** 🔴 CONTROL: a planted orphan action, a planted orphan route and a
+      planted orphan page are each CAUGHT. Three absences in a row pass just as
+      happily against a scanner that reads nothing
+- [ ] **58.6** 🔴 **The principal matrix** (C336). Every principal against every
+      exported data function, asserting refusal by default. A function with no
+      entry FAILS THE BUILD; a genuinely public one is declared public
+- [ ] **58.7** Principals today: patient, therapist, clinic (org), sponsor,
+      partner, admin. Sprint 63 adds **clinic staff** as the seventh, and the
+      matrix is where that addition is proved rather than assumed
+- [ ] **58.8** Both gates in the permanent sweep, beside `verify:claims`
+
+- **Accept:** a new action with no button, a new route with no caller and a new
+      page with no link each fail a gate that runs on every sprint after this
+      one, with a planted offender proving each rule fires.
+
+**🔴 BUILT AND GREEN, 2026-09-14.** `verify:reachable` 13/13 over **233 server
+actions, 26 API routes and 114 pages**. `verify:principals` 12/12 over **55 data
+modules, 36 of them clinical, and 154 entry points**.
+
+**What the first run found, all of it live:**
+
+| Found | Was |
+|---|---|
+| `patientSignOut` | Written, exported, called by nothing. **A patient could not sign out of their own record** (C358) |
+| `abandonSession` | The button the pricing page already promised. **A session opened by mistake had to be completed and billed** (C359) |
+| `adjustLedger` | The accounting escape hatch, with no door (C360) |
+| `/patient/sessions` | Built, working, linked from nowhere (C361) |
+| `/admin/usage` | "The figure that decides the business", reachable only by typing the URL (C361) |
+| `/admin/errors` | "Until this page there was nowhere at all to answer that", same (C361) |
+
+**And four defects in the gate itself**, each caught by a finding looking wrong
+rather than by reading: a skipped directory (C362), an allowlist written from
+memory (C363), server actions counted as import edges (C364), and capability
+auth not modelled at all (C365).
+
+### Sprint 59 — One product, many currencies · ~3 weeks
+
+**The premise the spec got wrong.** There is no "their country's Stripe" (C303).
+What varies is which **entity** collects and which **currency** is presented,
+and both are already rows in `country_settings` that almost nothing reads.
+
+**59a · Country, declared and corroborated**
+
+- [ ] **59.1** A patient chooses their country at signup. It sets language and
+      display currency
+- [ ] **59.2** 🔴 It does NOT set VAT on its own (C308). VAT comes from the
+      **corroborated** country: card country, then IP, then the sponsor's country
+      for a sponsored patient (C340)
+- [ ] **59.3** VAT is computed at booking from the declared country and
+      **re-checked at settlement**. Both are stored. A mismatch over a settable
+      threshold raises an admin flag and never silently reprices
+- [ ] **59.4** A sponsor chooses its HQ country at signup, which fixes its entity
+      and its pot currency
+- [ ] **59.5** A therapist prices in their own country's currency, which
+      `users.rate_currency` already holds and 16.5 already froze onto sessions
+
+**59b · The rail that was a label (C357)**
+
+- [ ] **59.6** 🔴 `hasNoRail` becomes a GATE. A country with no collection
+      provider and no payout method **refuses radar placement and refuses
+      booking**, and the clinician is told on their own dashboard at signup
+- [ ] **59.7** C218's twin, written into §6: *an operator FACT that nothing acts
+      on is as dead as an operator switch nothing reads*
+- [ ] **59.8** CONTROL: a country with a rail still places and still books
+
+**59c · Prices, per currency**
+
+- [ ] **59.9** 🔴 Each plan carries a price PER CURRENCY, each its own number set
+      by an admin (C304). A conversion is a display; a price is a decision
+- [ ] **59.10** 🔴 Subscription currency follows the **verified** country and is
+      never chosen (C337). A country change on a live plan needs admin approval
+      and does not reprice until renewal
+- [ ] **59.11** 🔴 A **floor rail**: no local price may sit below a settable
+      fraction of the USD one, so a stale number during a devaluation cannot open
+      an arbitrage by accident. `settingsProblem` refuses the configuration
+- [ ] **59.12** The pricing page shows the reader's currency, from the same rows
+
+**59d · The renewal obligation (C310, C341)**
+
+- [ ] **59.13** 🔴 A subscription becomes a **renewal obligation**: a row with a
+      due date, an amount, a currency and a state. Stripe's subscription is ONE
+      implementation; an Egyptian renewal is an invoice plus a payment link
+- [ ] **59.14** 🔴 `entitledTier` reads the OBLIGATION, never the gateway. A
+      missed callback cannot silently end a plan
+- [ ] **59.15** 🔴 A **reconciler** finds paid gateway transactions with no
+      obligation and obligations paid with no transaction. The shape 46.14
+      already uses per line kind
+- [ ] **59.16** Dunning: a schedule of reminders before a due date lapses, in both
+      languages, admin editable. Sprint 57 named its absence; this is it
+- [ ] **59.17** Proration on a plan change, to the day, stated before the click.
+      Sprint 57 named its absence; this is it
+
+**59e · Two balances and two entities**
+
+- [ ] **59.18** 🔴 A held balance carries its **entity** (C306), and moving money
+      between entities raises a real ledger transaction
+- [ ] **59.19** 🔴 A named ledger account for **FX difference** (C339), because a
+      transfer at a frozen rate does not reconcile to the cent
+- [ ] **59.20** 🔴 Held and Connect balances are TWO figures on the earnings page,
+      never summed, and only the held one has a button (C338)
+- [ ] **59.21** 🔴 The button says **"Request a payout"** and the screen names the
+      rail, the entity, the currency and the frozen rate (C305)
+
+- **Accept:** a patient in Cairo sees EGP and is charged Egyptian VAT on a
+      corroborated basis; a therapist in Cairo is quoted an EGP plan price an
+      admin set; a clinician in a country with no rail cannot be booked and is
+      told why; a plan survives a missed webhook; and a payout screen never says
+      Stripe when it means a bank transfer.
+
+### Sprint 60 — What the employer covers · ~3 weeks
+
+**60a · The percentage**
+
+- [ ] **60.1** `sponsor_pots` gains `coverage_bps`, settable in 5% steps from 0 to
+      100 on the pot page
+- [ ] **60.2** 🔴 **FROZEN onto the session at booking and never re-read** (C311)
+- [ ] **60.3** 🔴 A **reduction** takes effect after a notice window (setting,
+      default 30 days) and the patient is told before their next booking, with
+      the employer unnamed (C311)
+- [ ] **60.4** 🔴 An **increase** may apply to unstarted bookings; a decrease never
+      does (C344). The asymmetry is deliberate and the reason sits in the code
+- [ ] **60.5** 🔴 A **reschedule keeps the frozen percentage** (C342)
+- [ ] **60.6** 🔴 **0% is legal**: the roster keeps the person, the money stops, and
+      the patient is told before their next booking (C345)
+
+**60b · The money**
+
+- [ ] **60.7** 🔴 The therapist is paid on the **full price**, always, and our 15%
+      is on the full price (C313). Nothing about the split reaches an earnings
+      screen
+- [ ] **60.8** 🔴 **VAT on the patient's share only** (C312). The sponsor's share
+      was taxed when the pot was funded, which `pot.ts` already reasons
+- [ ] **60.9** 🔴 `capture` becomes a **function of coverage** (C314). Any session
+      with a sponsor share is collected by us and settled from held earnings, so
+      the therapist's own Stripe dashboard can never show the patient's share.
+      **1.8's rule is amended here in writing**
+- [ ] **60.10** 🔴 The pot payment carries the **session's currency** and the pot's,
+      with the frozen rate between them (C307). `currency: "usd"` was a literal
+- [ ] **60.11** 🔴 A **reservation** against the pot for a series booking (C343), so
+      one click cannot overdraw what C239 bounded per session
+- [ ] **60.12** Refunds apportioned in the **frozen** ratio; a chargeback of the
+      patient's share never claws back the sponsor's (C315)
+- [ ] **60.13** A refund into a closed pot goes to a named liability account with
+      admin notified, never to the patient (C347)
+
+**60c · What each side sees**
+
+- [ ] **60.14** The patient's bill shows: full price, sponsor share, their share,
+      our take rate, VAT on their share. Every figure, no rounding surprises
+- [ ] **60.15** The confirm screen says **"your employer covers X% of this"** and the
+      button states what they will actually pay
+- [ ] **60.16** A private label on the patient's own profile naming the sponsor and
+      the percentage. Visible to them and to nobody else
+- [ ] **60.17** 🔴 The therapist sees **one settled amount and one status**. A
+      verifier plants a partly covered session and asserts one line
+- [ ] **60.18** The sponsor's statement shows spend, never a person, a date, a
+      session or a therapist. C244 unchanged and re-proved
+- [ ] **60.19** One sentence on the pot page: **a sponsor covers the patient-facing
+      session price only** (C316)
+- [ ] **60.20** ⚠️ **Accepted residual leak, documented** (C346): a pot session
+      settles at booking and a card session does not, so an attentive clinician
+      can infer sponsorship from timing. Hiding it would cost the patient
+      certainty about whether they owe money
+
+- **Accept:** a sponsor sets 60%, a patient books and pays 40% plus VAT on 40%,
+      the therapist is paid 100% and can see nothing about who paid, the sponsor
+      lowers to 20% and every already-booked session still settles at 60%.
+
+### Sprint 61 — Proving a company is a company · ~2.5 weeks
+
+- [ ] **61.1** 🔴 **Two proofs** (C318): an email code proves the mailbox; a DNS TXT
+      record proves the domain. Neither alone issues an enrolment code
+- [ ] **61.2** 🔴 **Or** a countersigned agreement, admin approved, because
+      university IT cannot always add a record quickly (C348)
+- [ ] **61.3** Domains are a **list**, each proved separately
+- [ ] **61.4** The setup screen reports **delivery status per attempt** and hands IT
+      a copy-paste block: sending domain, SPF include, IPs, exact From address.
+      **Setup is not complete until a code has been received** (C320)
+- [ ] **61.5** 🔴 `listed_publicly` stays default off. The patient-app banner shows
+      **opted-in sponsors only** (C319)
+- [ ] **61.6** 🔴 The "is my employer here" flow answers **identically** whether or
+      not a domain is a customer. Constant message, constant timing (C349)
+- [ ] **61.7** 🔴 The employment email lives in its own column, labelled
+      **"employment verification email"**, on a PROVED domain, never used for
+      anything the patient reads, never shown to a therapist (C322)
+- [ ] **61.8** 🔴 HR and student systems: an HR match enrols **provisionally** and
+      funding starts; the email code confirms within a window; failure PAUSES
+      funding through C247's existing pause (C321)
+- [ ] **61.9** 🔴 A provisional person may spend at most **N sessions** before the
+      code lands. Setting, default 1 (C350)
+- [ ] **61.10** Connectors for the common systems first, behind one interface, so
+      the second one is configuration rather than a sprint
+- [ ] **61.11** Re-verification every 3 months, by email and WhatsApp, which C247
+      already schedules
+- [ ] **61.12** The sponsor sees names and last-verified dates. Never usage, never
+      a session, never anything clinical. C244 re-proved
+
+- **Accept:** a company proves its domain two ways, receives a test code, appears
+      on the banner only after opting in, enrols an employee through its HR
+      system who can book one session before confirming their mailbox, and can
+      never learn who used what.
+
+### Sprint 62 — Seats · ~2.5 weeks
+
+**The arithmetic, checked** (C323). The founder's figures only work if the rate
+is **retroactive**, not marginal:
+
+| Seats | Rate | Monthly |
+|---|---|---|
+| 1 to 2 | included | **$179** |
+| 3 to 4 | $90 each | $270 · **$360** |
+| 5 or more | $80 each | **$400** · $480 · … |
+
+- [ ] **62.1** `organizations` gains `seats`. The bill is a function of the count
+      and the reached rate, both from `platform_settings`
+- [ ] **62.2** 🔴 The 2 to 3 step is a **+$91 jump** and the slider states it before
+      the click, never after
+- [ ] **62.3** 🔴 A rate change is **retroactive within the period**: the remainder
+      is recomputed and the difference charged or credited as ONE figure, shown
+      before the click (C351)
+- [ ] **62.4** 🔴 Adding a seat mid-period is **prorated to the day**, stated before
+      the click (C333). The decision sprint 57 deferred
+- [ ] **62.5** Removing a seat: the therapist keeps unlimited to period end and the
+      seat is not renewed. Never refunded, or a clinic cycles seats weekly
+- [ ] **62.6** 🔴 A seat is **not billed until the joining therapist's own
+      subscription period ends** (C355), and the seat list shows the start date
+- [ ] **62.7** 🔴 On acceptance, the therapist's own subscription is cancelled at
+      **period end** (C329). Nobody pays twice, nobody loses a month they bought
+- [ ] **62.8** 🔴 A failed clinic renewal drops the **whole clinic** together at
+      period end (C330). Never one therapist at a time
+- [ ] **62.9** The billing page's upgrade section is **replaced** by a seat manager,
+      never removed (C332)
+- [ ] **62.10** The public pricing page gains the seat slider and the table above
+- [ ] **62.11** `verify:claims` gains a rule: the published seat prices match
+      `platform_settings`, in both languages
+
+- **Accept:** a solo therapist upgrades, adds three seats mid-month, sees one
+      prorated figure before clicking, and a clinic whose card fails keeps the
+      month it bought and then drops as one.
+
+### Sprint 63 — Clinic staff, the seventh principal · ~4 weeks
+
+- [ ] **63.1** 🔴 **Clinic staff is its own principal**, with its own table and its
+      own auth session, like `sponsor_users` and `partner_users`. **Never a
+      `users` row**, because `staff` and `manager` there are OUR back office and
+      one mistake from a clinical grant (C324)
+- [ ] **63.2** 🔴 A human who is both clinician and clinic admin has **two linked
+      principal rows**, and the cookie names which is ACTIVE. Switching is
+      explicit and audited. Never one session carrying both capability sets (C352)
+- [ ] **63.3** Roles: `clinic_admin`, plus up to two **custom roles** the admin
+      names
+- [ ] **63.4** 🔴 Permissions are a **capability set checked in the data layer, on
+      the RESOURCE** (C325). Assistant 1 assigned to therapist A is refused
+      therapist B's calendar on the same route
+- [ ] **63.5** 🔴 The capability vocabulary is a **closed list in code**. An unknown
+      capability is refused, never ignored (C353)
+- [ ] **63.6** 🔴 A custom role's capabilities are a **subset of the clinic
+      admin's**, enforced at write time (C326)
+- [ ] **63.7** 🔴 **Only `clinic_admin` may buy a seat or invite a therapist.**
+      Money and membership are never delegable
+- [ ] **63.8** Pages: clinicians and seats, clinic team, calendars, bookings,
+      earnings (per therapist and combined), bills, reports, roles
+- [ ] **63.9** 🔴 The clinic sees **nothing** about an invited therapist until they
+      accept, and the acceptance screen **enumerates** what will be visible and
+      what never will (C328)
+- [ ] **63.10** 🔴 A therapist invited into a clinic must **verify as a therapist
+      first**. The invite is visible only after approval
+- [ ] **63.11** 🔴 Clinic staff never reach a record, a note, a transcript, a
+      copilot or a risk alert. Proved by the 58.6 matrix, not by a comment
+- [ ] **63.12** 🔴 Patient identity to clinic staff is **first name plus last
+      initial**, and the patient is **told** (C327). Every read is audited
+- [ ] **63.13** 🔴 The disclosure is a **label on the radar card and a section on
+      the patient's record page**, never a wall in front of somebody in crisis
+      (C354)
+- [ ] **63.14** A therapist withdraws their own earnings. The clinic sees the
+      **log** and can never withdraw on their behalf
+- [ ] **63.15** A therapist's own earnings page and a clinic earnings page are
+      **different pages**. A dual-role human has both, and the clinic one can
+      never move a colleague's money
+- [ ] **63.16** 🔴 On departure the clinic keeps the **financial** record and loses
+      every **live** view instantly (C331). Bookings stay with the therapist
+- [ ] **63.17** 🔴 Every export is **audited, watermarked with the requesting user
+      and the timestamp**, and shows nothing the screen does not (C334)
+- [ ] **63.18** A clinic-admin-first signup path: clinic details, registration
+      licence, therapist names, submitted for approval
+
+- **Accept:** a clinic admin manages calendars, bills and reports for four
+      clinicians and cannot reach one clinical byte by any route, proved by the
+      principal matrix; a dual-role human must switch principal to change hats;
+      and a custom role cannot be created with a capability its creator lacks.
+
+### Sprint 64 — The Egyptian rail · ~3 weeks · 🔴 BLOCKED ON PAPERWORK
+
+> Needs a licensed Egyptian entity, a merchant account and a signed gateway
+> contract. **Start those the day this is read**; no amount of code shortens them.
+
+- [ ] **64.1** 🔴 A **provider interface** with one adapter, never a vendor name in
+      a call site. C37 already refuses a static FX rate for the same reason
+- [ ] **64.2** Patient pays for a session in EGP
+- [ ] **64.3** A sponsor funds a pot in EGP
+- [ ] **64.4** A therapist's renewal obligation is paid in EGP by payment link,
+      which 59.13 already made possible without a second billing model
+- [ ] **64.5** Payout to InstaPay or an EGP wallet, which `payout_requests` already
+      models end to end
+- [ ] **64.6** 🔴 Every Egyptian session is money **we hold**, so the payout queue is
+      the normal path here and is staffed as one (C309)
+- [ ] **64.7** The full EGP loop with no USD anywhere: Egyptian patient, Egyptian
+      sponsor, Egyptian therapist, no FX. **Build this case first**, because it
+      is the simplest and the largest
+- [ ] **64.8** Then the cross-border cases, each with its frozen rate and its FX
+      difference posting
+
+- **Accept:** an Egyptian patient books an Egyptian therapist, pays in EGP, their
+      Egyptian employer covers 60%, and the therapist requests a payout in EGP,
+      with every figure reconciling and no USD on any screen.
+
+
 
 
 ## §5 · BUILD LOG
@@ -3911,6 +4324,9 @@ watched fail is a check nobody knows the meaning of.
 | 🔴 **A file with a NUL byte is invisible to every grep in this repository.** `grep` answers `binary file matches` and prints nothing. One file had two, and it was the clinical evidence layer, which is how C214 came to be written backwards (C245) | Hard |
 | 🔴 **A wall is a property of the data, not of the audience.** "The payer never learns" and "no employee of ours can produce the list" are different promises. Build the second or you have neither (C244) | Hard |
 | 🔴 **A known-failing test is a test nobody reads.** Five e2e tests asserted UI that sprints 41 and 47 deliberately changed, and sat red for fifteen sprints behind a standing explanation of "no headless shell" that was itself wrong. A failure carrying a standing explanation gets re-diagnosed on a schedule, or the explanation becomes a lid | Process |
+| 🔴 **Either a screen exists or a ticket owns it, and now a gate decides which.** `verify:reachable` over every server action, API route and page; `verify:principals` over every clinically-scoped data module. A patient who could not sign out and a cancel button the pricing page had already promised were both found on the first run (C335, C358, C359) | Hard |
+| 🔴 **An exemption is written only AFTER the gate reports the orphan.** Four of the first five route exemptions were wrong and every one read as a considered decision. A stale entry fails (C363) | Process |
+| 🔴 **Measure the property the architecture actually rests on, not the one a matrix would test.** 415 data functions by seven principals is 2,900 cells nobody maintains, which is C286 with a bigger table. Ask instead whether every entry point authenticates as a principal declared for what it reaches (C366) | Process |
 | 🔴 **A pure function can be broken by moving its DATA.** `tierForSpend` walked a schedule and was correct until every threshold in it became zero. The function was not edited. When a schedule, list or lookup table changes shape, re-read every function that WALKS it — the diff will not show them (C290) | Hard |
 | 🔴 **A rail is proved by CONSTRUCTING the configuration it must refuse.** Asserting that the good case passes is not a test of a guard. `settingsProblem` reported clean for a table with no free tier in it, because the condition it named had become true of every tier (C289) | Hard |
 | 🔴 **Before adding a refusal, list who legitimately needs past it.** A `writesTo()` on every writer severed the only sanctioned way to publish content to production and the only way to render-check it, and neither failed loudly. Name the exceptions in the script and assert them in a verifier (C295) | Process |

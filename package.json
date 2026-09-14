@@ -115,7 +115,9 @@
     "verify:sprint30": "node --import tsx --conditions=react-server scripts/verify-sprint30.ts",
     "verify:c285": "node --import tsx --conditions=react-server scripts/verify-c285.ts",
     "verify:claims": "node --import tsx --conditions=react-server scripts/verify-claims.ts",
-    "verify:sprint57": "node --import tsx --conditions=react-server scripts/verify-sprint57.ts"
+    "verify:sprint57": "node --import tsx --conditions=react-server scripts/verify-sprint57.ts",
+    "verify:reachable": "node --import tsx scripts/verify-reachable.ts",
+    "verify:principals": "node --import tsx scripts/verify-principals.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",
