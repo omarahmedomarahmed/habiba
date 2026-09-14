@@ -398,6 +398,8 @@ export function CountryEditor({
     idLabelBack: string | null;
     licenceLabel: string | null;
     sampleImageUrl: string | null;
+    crisisLineLabel: string | null;
+    crisisLineTel: string | null;
     enabled: boolean;
     noRail: boolean;
   };
@@ -414,6 +416,9 @@ export function CountryEditor({
         {!country.enabled ? <Badge tone="amber">off</Badge> : null}
         {country.noRail ? (
           <Badge tone="amber">no rail, nobody here can pay or be paid</Badge>
+        ) : null}
+        {country.enabled && !country.crisisLineTel ? (
+          <Badge tone="red">no crisis line</Badge>
         ) : null}
       </div>
 
@@ -434,9 +439,65 @@ export function CountryEditor({
               defaultValue={(country.vatBps / 100).toFixed(2)}
             />
           </Field>
-          <Field label="Currency" htmlFor={`cur-${country.code}`}>
-            <Input id={`cur-${country.code}`} name="currency" defaultValue={country.currency} />
+          {/*
+            🔴 READ ONLY, because it is derived. Two currencies exist, EGP in
+            Egypt and USD everywhere else, and the entity below decides which.
+            An editable box here invites somebody to type `gbp` and produce a
+            checkout in a currency with no acquirer, no VAT rate, no payout rail
+            and no ledger account behind it.
+          */}
+          <Field
+            label="Currency"
+            htmlFor={`cur-${country.code}`}
+            hint="Set by the entity. Two currencies exist."
+          >
+            <Input
+              id={`cur-${country.code}`}
+              value={country.currency.toUpperCase()}
+              readOnly
+              className="bg-slate-50 text-slate-500"
+            />
           </Field>
+        </div>
+
+        {/*
+          🔴 21R.8 / C98 — THE NUMBER A PERSON IN CRISIS PRESSES.
+          Its own module asked for this column in sprint 21R and nothing built
+          it, so the table had one entry while the first market was Egypt.
+        */}
+        <div className="rounded-xl bg-slate-50 p-3">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+            Crisis line
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            Dial it before you save it. A wrong number looks like help, presses like
+            help and does nothing, which is worse than the honest sentence we show
+            without one. Leave both blank until somebody has checked it.
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <Field
+              label="As the reader sees it"
+              htmlFor={`cll-${country.code}`}
+              hint="e.g. 16328, or 0800 12 12 14"
+            >
+              <Input
+                id={`cll-${country.code}`}
+                name="crisisLineLabel"
+                defaultValue={country.crisisLineLabel ?? ""}
+              />
+            </Field>
+            <Field
+              label="What tel: dials"
+              htmlFor={`clt-${country.code}`}
+              hint="Digits only, optionally a leading +."
+            >
+              <Input
+                id={`clt-${country.code}`}
+                name="crisisLineTel"
+                defaultValue={country.crisisLineTel ?? ""}
+              />
+            </Field>
+          </div>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">

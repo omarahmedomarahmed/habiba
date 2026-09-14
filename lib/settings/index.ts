@@ -157,7 +157,16 @@ export async function writeCountrySettings(input: {
       idLabelBack: c.idLabelBack,
       licenceLabel: c.licenceLabel,
       sampleImageUrl: c.sampleImageUrl,
-      enabled: c.enabled,
+      crisisLineLabel: c.crisisLineLabel,
+      crisisLineTel: c.crisisLineTel,
+      /*
+       * 🔴 Stamped whenever a line is present, because "is this number still
+       * right" is asked a year later and answered by a name and a date. Null
+       * when there is no line, so an empty country is not recorded as having
+       * been checked by somebody.
+       */
+      crisisLineVerifiedAt: c.crisisLineTel ? new Date() : null,
+      crisisLineVerifiedBy: c.crisisLineTel ? input.updatedBy : null,
       updatedBy: input.updatedBy,
       updatedAt: new Date(),
     })
@@ -176,6 +185,10 @@ export async function writeCountrySettings(input: {
         idLabelBack: c.idLabelBack,
         licenceLabel: c.licenceLabel,
         sampleImageUrl: c.sampleImageUrl,
+        crisisLineLabel: c.crisisLineLabel,
+        crisisLineTel: c.crisisLineTel,
+        crisisLineVerifiedAt: c.crisisLineTel ? new Date() : null,
+        crisisLineVerifiedBy: c.crisisLineTel ? input.updatedBy : null,
         enabled: c.enabled,
         updatedBy: input.updatedBy,
         updatedAt: new Date(),

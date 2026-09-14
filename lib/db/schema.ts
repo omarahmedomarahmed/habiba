@@ -2709,6 +2709,37 @@ export const countrySettings = pgTable("country_settings", {
   /** 16.9 — which entity collects here. Follows the money in, per §3c. */
   entity: text("entity").$type<Entity>().notNull().default("us"),
 
+  /**
+   * 🔴 21R.8 / C98 / 0088 — THE CRISIS LINE, AS DATA, WHICH `lib/crisis/line.ts`
+   * TOLD US TO DO AND NOBODY DID.
+   *
+   * That module carries a warning it wrote about itself in sprint 21R: the line
+   * *"belongs in `country_settings` beside the payment rail, and adding it there
+   * is the fix rather than growing this list from memory."* Its table still has
+   * one entry, the United States, and Egypt is the first market. An Egyptian
+   * patient in crisis is shown "call your local emergency number", which is
+   * honest and is not a number.
+   *
+   * 🔴 SEEDED EMPTY, and that is the ruling rather than laziness. The same
+   * module: *"a WRONG crisis number is worse than none."* A number recalled by
+   * whoever wrote the migration is precisely what that forbids. An operator
+   * enters each one with a phone in their hand, and the admin screen lists every
+   * enabled country that still has none.
+   *
+   * 🔴 TWO COLUMNS. The label is what a reader sees, the tel is what the dialler
+   * dials, and they are different strings for any line published with spaces.
+   * A `tel:` built by stripping characters out of a display label is a guess
+   * about a phone number, made at the worst possible moment.
+   */
+  crisisLineLabel: text("crisis_line_label"),
+  crisisLineTel: text("crisis_line_tel"),
+  /** "Is this still right" is asked a year later, and answered by a name and a date. */
+  crisisLineVerifiedAt: timestamp("crisis_line_verified_at", { withTimezone: true }),
+  crisisLineVerifiedBy: uuid("crisis_line_verified_by").references(
+    (): AnyPgColumn => users.id,
+    { onDelete: "set null" },
+  ),
+
   /*
    * 20.4 / 20.5 — what we ask a clinician here to prove, and to whom.
    *

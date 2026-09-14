@@ -20,10 +20,26 @@
  * country's number is. Where there is no verified line the copy says "your
  * local emergency number", which is always true and always actionable.
  *
- * ⚠️ **Incomplete until the lines are configured.** Each country the platform
- * opens in needs its crisis line entered and checked by a person — it belongs
- * in `country_settings` beside the payment rail, and adding it there is the
- * fix rather than growing this list from memory.
+ * ## 🔴 0088 — THE WARNING THIS FILE WROTE ABOUT ITSELF IS NOW BUILT
+ *
+ * It used to end: *"incomplete until the lines are configured. Each country the
+ * platform opens in needs its crisis line entered and checked by a person, it
+ * belongs in `country_settings` beside the payment rail, and adding it there is
+ * the fix rather than growing this list from memory."*
+ *
+ * That was written in sprint 21R and nothing acted on it, so the table still
+ * had one entry — the United States — while the first market was Egypt.
+ *
+ * `country_settings.crisis_line_tel` is now that column, entered by an operator
+ * with a phone in their hand and stamped with their name and the date. The
+ * table below stays as the **fallback**, not as the source: a configured line
+ * wins, an unconfigured country falls back to a verified entry here, and a
+ * country in neither renders the sentence that is true everywhere.
+ *
+ * 🔴 The seed writes NOTHING into those columns, including for the United
+ * States. A number recalled by whoever wrote a migration is the exact thing the
+ * paragraph above forbids, and stating 988 in two places is how two places come
+ * to disagree.
  */
 
 import { DIALLING_CODES } from "@/lib/phone/e164";
@@ -48,13 +64,45 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
 /**
  * The line for a country, or null when we do not know one.
  *
- * Null is not a failure — it is the honest state for every country except one,
- * and the components render "call your local emergency number" for it, which
- * is what somebody should do anyway.
+ * Null is not a failure — it is the honest state for a country nobody has
+ * configured, and the components render "call your local emergency number" for
+ * it, which is what somebody should do anyway.
+ *
+ * 🔴 PURE, AND THAT IS WHY THE CONFIGURED LINE COMES IN AS AN ARGUMENT.
+ *
+ * The obvious build reads `country_settings` in here. It cannot: this function
+ * is called from the SOS orb, which is a client component, and from
+ * `lib/crisis/alerts.ts`, and a crisis affordance that needs a database round
+ * trip to know what to print is a crisis affordance that renders nothing while
+ * the query is in flight. So the caller passes what it already loaded, and
+ * `configured` wins when it is there.
  */
-export function crisisLine(country?: string | null): CrisisLine | null {
+export function crisisLine(
+  country?: string | null,
+  configured?: { label: string | null; tel: string | null } | null,
+): CrisisLine | null {
+  if (configured?.label && configured.tel) {
+    return { label: configured.label, tel: configured.tel };
+  }
   if (!country) return null;
   return CRISIS_LINES[country.trim().toUpperCase()] ?? null;
+}
+
+/**
+ * 🔴 Which enabled countries still have nobody's verified number.
+ *
+ * Read by the admin country screen, so the gap is a list somebody is looking at
+ * rather than a paragraph in this file that went unread for four sprints. An
+ * enabled country is one we take money in and let clinicians work in; a person
+ * in crisis there currently gets a sentence rather than a number.
+ */
+export function countriesMissingACrisisLine(
+  countries: { code: string; name: string; enabled: boolean; crisisLineTel: string | null }[],
+): { code: string; name: string }[] {
+  return countries
+    .filter((row) => row.enabled)
+    .filter((row) => !row.crisisLineTel && !CRISIS_LINES[row.code.trim().toUpperCase()])
+    .map((row) => ({ code: row.code, name: row.name }));
 }
 
 /**

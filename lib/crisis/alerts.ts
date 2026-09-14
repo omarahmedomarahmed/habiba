@@ -354,7 +354,18 @@ export async function sweepUndeliveredAlerts(): Promise<number> {
  * clinical detail — only support and a number to call. This shape is asserted
  * by a test so it cannot quietly grow a `level` field.
  */
-export function patientFacingCrisisMessage(country?: string | null): {
+export function patientFacingCrisisMessage(
+  country?: string | null,
+  /*
+   * 🔴 0088 — the operator's own entry for this country, when the caller has it.
+   *
+   * Passed rather than read, because this function is pure and is called from
+   * paths with no database in hand. A configured line wins; without one the
+   * verified fallback table answers; without that the sentence that is true
+   * everywhere.
+   */
+  configured?: { label: string | null; tel: string | null } | null,
+): {
   message: string;
   helpline: string | null;
 } {
@@ -368,7 +379,7 @@ export function patientFacingCrisisMessage(country?: string | null): {
    * there is no verified line the message names the local emergency number,
    * which is true from any phone in any country.
    */
-  const line = crisisLine(country);
+  const line = crisisLine(country, configured);
 
   return {
     message: line

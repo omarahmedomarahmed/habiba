@@ -774,6 +774,16 @@ export type CountrySettings = {
   /** Which entity collects here (§3c). */
   entity: "us" | "eg";
 
+  /**
+   * 🔴 21R.8 / C98 — the crisis line for this country, entered by a person.
+   *
+   * Null is the honest default and renders "call your local emergency number",
+   * which is always true and always actionable. A wrong number is worse than
+   * none, so nothing here is ever seeded or guessed.
+   */
+  crisisLineLabel: string | null;
+  crisisLineTel: string | null;
+
   /** 20.4 / 20.5 — what we ask for here, and who licenses it. */
   regulators: string[];
   idLabelFront: string | null;
@@ -863,6 +873,21 @@ export const COUNTRY_SEED: CountrySettings[] = [
     collectionProvider: "paymob",
     payoutMethods: ["instapay", "wallet"],
     entity: "eg",
+    /*
+     * 🔴 NULL, IN THE FIRST MARKET, AND DELIBERATELY.
+     *
+     * Egypt publishes a national mental health and addiction hotline, and this
+     * file is not where somebody's recollection of it becomes a `tel:` href. A
+     * wrong crisis number is worse than none: it looks like help, presses like
+     * help, and does nothing, which is the exact defect `lib/crisis/line.ts`
+     * was written to fix.
+     *
+     * An operator enters it on the admin country screen, with a phone in their
+     * hand, and the screen carries their name and the date. Until then the
+     * product says "call your local emergency number", which is true.
+     */
+    crisisLineLabel: null,
+    crisisLineTel: null,
     /* 20.4 / 20.5 — seeded from `lib/regulators.ts`, editable from admin. */
     regulators: ["Egyptian Ministry of Health and Population"],
     idLabelFront: "National ID (البطاقة), front",
@@ -880,6 +905,16 @@ export const COUNTRY_SEED: CountrySettings[] = [
     collectionProvider: "stripe",
     payoutMethods: ["stripe"],
     entity: "us",
+    /*
+     * 🔴 Null here too, even though 988 is in `CRISIS_LINES` and correct.
+     *
+     * The seed is what a fresh database gets, and the reader falls back to the
+     * verified table when the column is empty, so 988 still renders. Writing it
+     * here as well would create a second place the United States lifeline is
+     * stated, and two places is how they come to disagree.
+     */
+    crisisLineLabel: null,
+    crisisLineTel: null,
     regulators: [],
     idLabelFront: "Driver's licence or passport, front",
     idLabelBack: "Driver's licence or passport, back",
@@ -898,6 +933,8 @@ export function parseCountry(row: {
   collectionProvider?: string | null;
   payoutMethods?: unknown;
   entity?: string | null;
+  crisisLineLabel?: string | null;
+  crisisLineTel?: string | null;
   regulators?: unknown;
   idLabelFront?: string | null;
   idLabelBack?: string | null;
@@ -936,6 +973,22 @@ export function parseCountry(row: {
     collectionProvider: row.collectionProvider?.trim() || null,
     payoutMethods: list(row.payoutMethods),
     entity: row.entity === "eg" ? "eg" : "us",
+    /*
+     * 🔴 BOTH OR NEITHER, in the parser as well as in the CHECK.
+     *
+     * A label with no tel renders a number nobody can press; a tel with no
+     * label renders a button with no name. Either half alone is a worse state
+     * than the honest empty one, and this is the half of the rule that applies
+     * to a row already in memory.
+     */
+    crisisLineLabel:
+      row.crisisLineLabel?.trim() && row.crisisLineTel?.trim()
+        ? row.crisisLineLabel.trim()
+        : null,
+    crisisLineTel:
+      row.crisisLineLabel?.trim() && row.crisisLineTel?.trim()
+        ? row.crisisLineTel.trim()
+        : null,
     regulators: list(row.regulators),
     /*
      * Empty means "not configured", which the accessor turns into the shipped

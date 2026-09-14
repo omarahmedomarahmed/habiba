@@ -257,6 +257,27 @@ export async function saveCountry(
       .map((v) => v.trim())
       .filter(Boolean);
 
+  /*
+   * 🔴 21R.8 / C98 — the crisis line, validated here and not only by the CHECK.
+   *
+   * Both or neither, and the tel is digits. A constraint violation surfaces to
+   * an operator as a failed save with a constraint name; this is the sentence
+   * that tells them which half they left out, at the moment they are holding
+   * the phone they just dialled.
+   */
+  const crisisLabel = String(formData.get("crisisLineLabel") ?? "").trim();
+  const crisisTel = String(formData.get("crisisLineTel") ?? "").trim();
+
+  if (Boolean(crisisLabel) !== Boolean(crisisTel)) {
+    return {
+      error:
+        "A crisis line needs both: what the reader sees, and what the dialler dials. Leave both blank until somebody has checked the number.",
+    };
+  }
+  if (crisisTel && !/^\+?[0-9]{3,15}$/.test(crisisTel)) {
+    return { error: "The dialled number is digits, optionally with a leading +." };
+  }
+
   const country: CountrySettings = parseCountry({
     code,
     name: String(formData.get("name") ?? "").trim() || code,
@@ -274,6 +295,8 @@ export async function saveCountry(
     idLabelBack: String(formData.get("idLabelBack") ?? "").trim() || null,
     licenceLabel: String(formData.get("licenceLabel") ?? "").trim() || null,
     sampleImageUrl: String(formData.get("sampleImageUrl") ?? "").trim() || null,
+    crisisLineLabel: crisisLabel || null,
+    crisisLineTel: crisisTel || null,
     enabled: formData.get("enabled") === "on",
   });
 
@@ -284,7 +307,13 @@ export async function saveCountry(
     action: "settings.country",
     resourceType: "country_settings",
     resourceId: code,
-    reason: `vat=${country.vatBps}bps currency=${country.currency} enabled=${country.enabled}`,
+    /*
+     * 🔴 The crisis line is IN THE AUDIT REASON, because "who put that number
+     * there and when" is the question asked after somebody dials it and gets
+     * nothing. The column carries the verifier and the date; this carries the
+     * change.
+     */
+    reason: `vat=${country.vatBps}bps currency=${country.currency} enabled=${country.enabled} crisis=${country.crisisLineTel ?? "none"}`,
   });
 
   revalidatePath("/admin/settings");

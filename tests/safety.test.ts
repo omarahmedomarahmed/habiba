@@ -560,6 +560,8 @@ test("🔴 a country whose payment provider we have not built is REFUSED", () =>
     payoutMethods: ["stripe"],
     entity: "us" as const,
     regulators: [],
+    crisisLineLabel: null,
+    crisisLineTel: null,
     idLabelFront: null,
     idLabelBack: null,
     licenceLabel: null,

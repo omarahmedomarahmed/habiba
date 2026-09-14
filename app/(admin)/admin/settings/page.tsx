@@ -13,6 +13,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import { tractionMetrics } from "@/lib/data/vault";
 import { getCountries, getSettings } from "@/lib/settings";
 import { hasNoRail } from "@/lib/settings/defs";
+import { countriesMissingACrisisLine } from "@/lib/crisis/line";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -44,6 +45,23 @@ export default async function SettingsPage() {
   ]);
 
   const unreachable = countries.filter(hasNoRail);
+
+  /*
+   * 🔴 21R.8 / C98 / 0088 — WHERE A PERSON IN CRISIS GETS A SENTENCE, NOT A NUMBER.
+   *
+   * `lib/crisis/line.ts` carried this as a warning about itself for four
+   * sprints and nothing acted on it, because a paragraph in a module is read by
+   * whoever opens that module. This is the same fact on a screen somebody opens
+   * every week, beside the country that needs it.
+   */
+  const noCrisisLine = countriesMissingACrisisLine(
+    countries.map((c) => ({
+      code: c.code,
+      name: c.name,
+      enabled: c.enabled,
+      crisisLineTel: c.crisisLineTel,
+    })),
+  );
 
   return (
     <div className="space-y-4">
@@ -84,6 +102,21 @@ export default async function SettingsPage() {
             {unreachable.map((c) => c.name).join(", ")}, nobody there can pay us and nobody there
             can be paid. A clinician who signs up in one of these is a person we cannot pay, not a
             gap in a spreadsheet.
+          </p>
+        </Card>
+      ) : null}
+
+      {noCrisisLine.length > 0 ? (
+        <Card className="border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-900">
+            {noCrisisLine.length} enabled countr{noCrisisLine.length === 1 ? "y has" : "ies have"}{" "}
+            no crisis line
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-red-900/90">
+            {noCrisisLine.map((c) => c.name).join(", ")}. A person in crisis there is shown
+            &ldquo;call your local emergency number&rdquo;, which is true and is not a number.
+            Enter each one below only after dialling it. A wrong number looks like help, presses
+            like help, and does nothing.
           </p>
         </Card>
       ) : null}
