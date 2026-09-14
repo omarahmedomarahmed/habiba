@@ -12,6 +12,7 @@ import {
   sponsors,
   type ApiEnvironment,
   type ApiScope,
+  type SponsorScope,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 import { consume, subjectKey } from "@/lib/rate-limit";
@@ -157,11 +158,35 @@ export async function mintKey(input: {
   return { key: { raw, prefix: created.prefix, id: created.id } };
 }
 
+/**
+ * 🔴 66.7 — WHEN THIS KEY LAST GOT A REAL ANSWER.
+ *
+ * *Connected means a call succeeded, not a green dot that means "we saved your
+ * settings".*
+ *
+ * Called past every refusal, on the line that returns an answer. `lastUsedAt` is
+ * written by the limiter on every authenticated call including the ones that then
+ * fail on a scope or an attestation, so an indicator built on it goes green for a key
+ * that has never successfully answered anything.
+ */
+export async function stampSuccess(keyId: string): Promise<void> {
+  await controlDb
+    .update(partnerApiKeys)
+    .set({ lastSuccessAt: new Date() })
+    .where(eq(partnerApiKeys.id, keyId));
+}
+
 export type AuthedKey = {
   keyId: string;
-  partnerId: string;
+  /**
+   * 🔴 66.4 — NULL FOR A SPONSOR'S OWN KEY, which has no partner behind it.
+   *
+   * `partnerName` then names the SPONSOR, because every log line and every error
+   * wants "whose key is this" and a null there would read as an anonymous caller.
+   */
+  partnerId: string | null;
   partnerName: string;
-  scopes: ApiScope[];
+  scopes: (ApiScope | SponsorScope)[];
   environment: ApiEnvironment;
   /** 🔴 C265 — the one sponsor this key may ask about, or none. */
   sponsorId: string | null;
@@ -185,7 +210,14 @@ export type KeyFailure = { status: 401 | 403 | 429; error: string };
  */
 export async function authenticateKey(
   header: string | null,
-  required: ApiScope,
+  /*
+   * 🔴 66.3 — `ApiScope | SponsorScope`, because one key table authenticates both.
+   *
+   * A sponsor's key carries `employment:verify` and no partner scope; a partner's
+   * carries the reverse. The scope check below is the same comparison either way,
+   * which is the point of there being one implementation of C265's four defences.
+   */
+  required: ApiScope | SponsorScope,
 ): Promise<{ key: AuthedKey } | { failure: KeyFailure }> {
   const raw = (header ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!raw) return { failure: { status: 401, error: "No API key." } };
@@ -198,24 +230,63 @@ export async function authenticateKey(
       keyHash: partnerApiKeys.keyHash,
       partnerId: partners.id,
       partnerName: partners.name,
+      sponsorOwnerId: sponsors.id,
+      sponsorOwnerName: sponsors.name,
       scopes: partnerApiKeys.scopes,
       environment: partnerApiKeys.environment,
       sponsorId: partnerApiKeys.sponsorId,
+      /* The raw column, to tell a sponsor's key from a held partner's. */
+      partnerIdColumn: partnerApiKeys.partnerId,
     })
     .from(partnerApiKeys)
-    .innerJoin(partners, eq(partners.id, partnerApiKeys.partnerId))
+    /*
+     * 🔴 66.4 — LEFT JOINS, AND THE STATE CHECK MOVED INTO THEM.
+     *
+     * An inner join on `partners` refused every sponsor key, because a sponsor key has
+     * no partner. A left join alone would then admit a key whose partner is held or
+     * suspended, so the state condition moves INTO the join rather than sitting in the
+     * WHERE, where a null partner would make it null and drop the row.
+     *
+     * The owner check below is what makes the pair safe: a key must resolve to one
+     * live owner, and an inactive partner or sponsor resolves to none.
+     */
+    .leftJoin(
+      partners,
+      and(eq(partners.id, partnerApiKeys.partnerId), eq(partners.state, "active")),
+    )
+    .leftJoin(
+      sponsors,
+      and(eq(sponsors.id, partnerApiKeys.sponsorId), eq(sponsors.state, "active")),
+    )
     .where(
       and(
         eq(partnerApiKeys.keyHash, hash),
         isNull(partnerApiKeys.revokedAt),
         /* 🔴 C265 — a suspended key is dead in the WHERE clause, not in a branch. */
         isNull(partnerApiKeys.suspendedAt),
-        eq(partners.state, "active"),
       ),
     )
     .limit(1);
 
-  if (!row) {
+  /*
+   * 🔴 A KEY MUST RESOLVE TO ONE LIVE OWNER.
+   *
+   * With two left joins a row survives the query when neither owner is active, which
+   * is a suspended partner's key answering calls. This is the condition the inner
+   * join used to carry, restated where it can see both kinds of owner.
+   *
+   * 🔴 A SPONSOR'S KEY IS ONE WHOSE `partner_id` IS NULL, so the partner join finding
+   * nothing is normal for it and is a refusal for a partner key. Distinguished by
+   * which column the ROW has rather than by which join succeeded, because a held
+   * partner and a sponsor key both produce a null `partners.id`.
+   */
+  const ownerLive = row
+    ? row.partnerIdColumn
+      ? Boolean(row.partnerId)
+      : Boolean(row.sponsorOwnerId)
+    : false;
+
+  if (!row || !ownerLive) {
     /*
      * 🔴 One message for unknown, revoked, suspended and a held partner.
      *
@@ -278,7 +349,14 @@ export async function authenticateKey(
     key: {
       keyId: row.keyId,
       partnerId: row.partnerId,
-      partnerName: row.partnerName,
+      /*
+       * 🔴 66.4 — WHOSE KEY THIS IS, and a sponsor's names the sponsor.
+       *
+       * Every log line and every error wants to say whose key it was. A null here for
+       * a sponsor's key would read as an anonymous caller, which is the one thing this
+       * field exists to prevent.
+       */
+      partnerName: row.partnerName ?? row.sponsorOwnerName ?? "",
       scopes,
       environment: row.environment,
       sponsorId: row.sponsorId,

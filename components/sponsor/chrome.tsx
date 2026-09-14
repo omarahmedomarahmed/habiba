@@ -38,6 +38,14 @@ const TABS: { href: string; key: MessageKey }[] = [
    * finished (C320) and because somebody has to come back to it days later.
    */
   { href: "/sponsor/domains", key: "sponsor.nav.domains" },
+  /*
+   * 🔴 66.1 — A PAGE, NOT A ROW IN SETTINGS.
+   *
+   * Connecting an HR system is a project somebody schedules. A settings row gets
+   * flipped by whoever is in settings that afternoon; a page with four steps on it
+   * gets opened by the person who came to do this.
+   */
+  { href: "/sponsor/integrations", key: "sponsor.nav.integrations" },
   { href: "/sponsor/settings", key: "sponsor.nav.settings" },
 ];
 

@@ -124,6 +124,7 @@
     "verify:sprint61": "node --import tsx scripts/verify-sprint61.ts",
     "verify:sprint62": "node --import tsx scripts/verify-sprint62.ts",
     "verify:sprint63": "node --import tsx scripts/verify-sprint63.ts",
+    "verify:sprint66": "node --import tsx scripts/verify-sprint66.ts",
     "verify:sprint68": "node --import tsx scripts/verify-sprint68.ts",
     "test:seats": "node --import tsx --test tests/seats.test.ts"
   },

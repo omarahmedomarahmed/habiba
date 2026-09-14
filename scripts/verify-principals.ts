@@ -196,6 +196,15 @@ const SCOPE: Record<string, Scope> = {
    */
   "clinic-export": { who: ["clinic"] },
   /*
+   * 🔴 66.1 to 66.12 — THE SPONSOR'S HR CONNECTION, AND IT IS NOT CLINICAL.
+   *
+   * It touches `sponsors`, `partner_api_keys`, `partner_webhooks` and a COUNT over
+   * `enrolment_attestations`. There is no session in it, no patient, no note, and the
+   * one query that reads an enrolment table returns an integer: C227 removed the
+   * roster and 66.9 keeps it removed by having nowhere to put one.
+   */
+  "sponsor-integrations": { who: ["sponsor"] },
+  /*
    * 🔴 `clinic-visibility` IS READ BY THE PATIENT, AND THAT IS THE WHOLE POINT OF IT.
    *
    * C327 says the patient is TOLD what administrative staff at their therapist's

@@ -26,7 +26,22 @@ import type { ApiScope } from "@/lib/db/schema";
  * failure shape is a response: they are not confusable.
  */
 
-export type Guarded = { key: AuthedKey } | { response: NextResponse };
+/**
+ * 🔴 66.4 — A KEY ON A PARTNER ROUTE HAS A PARTNER, and the type says so.
+ *
+ * Sprint 66 made `partner_id` nullable, because a sponsor mints a key from their own
+ * portal and it has no partner behind it. Every handler here reads `key.partnerId` as
+ * the tenancy it works in, so `withKey` narrows it: a key with no partner is refused
+ * before a handler sees it.
+ *
+ * It is unreachable through a stored key, because a sponsor's key carries only
+ * `employment:verify` and no route under `v1` asks for that scope. Checked anyway,
+ * and the check is what lets every handler below treat the id as a string rather than
+ * each of them writing its own null branch and one of them getting it wrong.
+ */
+export type PartnerKey = AuthedKey & { partnerId: string };
+
+export type Guarded = { key: PartnerKey } | { response: NextResponse };
 
 export async function withKey(
   request: Request,
@@ -57,7 +72,18 @@ export async function withKey(
     };
   }
 
-  return { key: authed.key };
+  if (!authed.key.partnerId) {
+    /*
+     * 🔴 The same message every other refusal gives. Which of the reasons it was is a
+     * fact about our customers, and "that key belongs to a sponsor" tells somebody
+     * probing that they found a real one.
+     */
+    return {
+      response: NextResponse.json({ error: "That key is not valid." }, { status: 401 }),
+    };
+  }
+
+  return { key: { ...authed.key, partnerId: authed.key.partnerId } };
 }
 
 /** A failure, as the same shape every route returns. */

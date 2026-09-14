@@ -386,6 +386,10 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C418 | 68 | 🔴 **A partner-authenticated route imported four clinical data modules to get one pure function.** `lib/ai/notes.ts` writes a note AND stores it, so it reaches `lib/data/copilot`, `feedback`, `facts` and `people`. The sprint 68 note route holds a THIRD PARTY'S API KEY, and the 58.6 matrix reported eight paths from that credential into our clinical data layer the moment it imported `noteFromTranscript`. Nothing was being read; what was true is that a partner's route had become one line away from reading a chart. **Ruling: the pure generator moves to `lib/ai/note-writer.ts`, which has no database in it at all, and `lib/ai/notes.ts` re-exports it so every existing caller and the eval suite are unchanged.** The matrix found this rather than a person, which is what it is for. 2026-09-14. | blocker | gate | **ruled — extracted** |
 | C419 | 68 | **C244's reporting scan asked whether the word "sponsor" appeared in a file, and sprint 58's audit work broke it.** `audit_log.actor_sponsor_user_id` exists because a sponsor user and a clinic manager can both write to that table, and without the join the audit screen rendered their acts with a blank actor: an act nobody performed, on the screen an operator reads to find out who did something. **Ruling: the scan asks what the sponsor is joined TO. A sponsor USER joined to their OWN ACT names no patient, no session and no appointment; a sponsor TABLE joined to `sessions`, `patients` or `people` is the breach.** Two controls bracket it. Same shape as C405 one table over, and the second time a name scan has reported on a rule about joins. 2026-09-14. | major | gate | **ruled — widened** |
 | C420 | 68 | **Every metered API bills overage at the ceiling, and this one must not.** An integrator setting a limit will assume the industry default unless told otherwise on the screen where they type the number. **Ruling: at the limit their product keeps working and ours stops; we do not bill for a session we did not do; and the sentence saying so is on the usage page, in the docs, and in the 409 body.** `partner_sessions` carries two database CHECKs for it: a stopped session can never be billable, and a sandbox session can never be billable or name a real person. A rule with one lock is a rule a script gets around. 2026-09-14. | major | founder spec | **ruled — built and gated** |
+| C421 | 66 | **`employment:verify` needed a key table, and a second one would have been a second C265.** A sponsor mints from their own portal, so the key has no partner, and `partner_api_keys.partner_id` was NOT NULL with an inner join behind it. **Ruling: the column becomes nullable, a CHECK refuses a key nobody owns, and `authenticateKey` left-joins both owner tables with the state condition moved INTO the join.** The tempting build was `sponsor_api_keys`: a second hash comparison, a second rate limiter, a second suspension mechanism, and a second place for C265's four defences to be almost right. `withKey` then narrows to a key that HAS a partner, so no partner route can be reached with a sponsor's credential. 2026-09-14. | major | review | **ruled — one table** |
+| C422 | 66 | 🔴 **A connected indicator built on `last_used_at` goes green for a key that has never answered anything.** The limiter stamps that column on every authenticated call including the ones that then fail on a scope or an attestation. **Ruling: `last_success_at`, stamped past every refusal on the one line that returns an answer, and the page reads only that.** 66.7 says it in as many words — *not a green dot that means "we saved your settings"* — and the difference is whether an HR admin whose integration broke on Tuesday can see that it did. 2026-09-14. | major | founder spec | **ruled — built and gated** |
+| C423 | 66 | **Switching employment verification off has to revoke the keys.** A setting that reads "off" while a key still answers is worse than no setting: it tells an HR admin that nothing can ask about their staff, and something can. **Ruling: `setEmploymentVerification(false)` revokes every key on the account, and the screen says so beside the button rather than after it.** 2026-09-14. | major | review | **ruled — built and gated** |
+| C424 | 66 | **A timing sentence written about our own window read as a promise about a person.** `sint.onlyBody` said we ask the HR system "within a few minutes" of somebody typing their number, which is C265's freshness rule and not a response-time commitment; `verify:claims` flagged the Arabic, where the duration sat closer to the person. **Ruling: reword rather than widen the rule.** The gate was measuring the shape it exists to refuse, and the sentence did not need the unit: "the question is only valid for a short window after they typed it" says the same thing. C275 has now been enforced against copy three times and has been right every time. 2026-09-14. | minor | gate | **ruled — reworded** |
 
 ---
 
@@ -4193,45 +4197,45 @@ is **retroactive**, not marginal:
 > in, and it is their staff. The organisation an identity question is about
 > should be the portal somebody is signed into, not a field on a form.
 
-- [ ] **66.1** A new page, `/sponsor/integrations`, and it is a PAGE rather than
+- [x] **66.1** A new page, `/sponsor/integrations`, and it is a PAGE rather than
       a row in settings. Connecting an HR system is a project somebody schedules,
       not a toggle they flip while looking for something else
-- [ ] **66.2** 🔴 **"Enable employment verification" is off by default and says
+- [x] **66.2** 🔴 **"Enable employment verification" is off by default and says
       what it does before it is on.** C227's whole design removed the roster;
       this is the one thing that touches employment, and the sentence in front of
       it is *we never read your directory, never sync it, and never store a staff
       list*
-- [ ] **66.3** 🔴 **C265 is inherited, not re-implemented.** The endpoint still
+- [x] **66.3** 🔴 **C265 is inherited, not re-implemented.** The endpoint still
       answers only about an identifier somebody typed into their own enrolment
       minutes ago, from `enrolment_attestations`, consumed once. Moving portals
       changed the door and nothing behind it
-- [ ] **66.4** 🔴 **The sponsor scope is now structural rather than a CHECK.** A
+- [x] **66.4** 🔴 **The sponsor scope is now structural rather than a CHECK.** A
       key minted here belongs to the sponsor whose session minted it. There is no
       form field naming an organisation, so there is no way to name the wrong one
-- [ ] **66.5** **Pick your HR system by name**, from a list with logos, and the
+- [x] **66.5** **Pick your HR system by name**, from a list with logos, and the
       steps change to match it. "Generic / other" is on the list and is honest
       about being a webhook and a key
-- [ ] **66.6** **A step-by-step guide, visualised**, from choosing the system to
+- [x] **66.6** **A step-by-step guide, visualised**, from choosing the system to
       the first successful call. Numbered because it genuinely is a sequence
       (65.15), with a copyable snippet per step and the key generated at the step
       that needs it
-- [ ] **66.7** 🔴 **A live indicator: connected, or not, and when it last
+- [x] **66.7** 🔴 **A live indicator: connected, or not, and when it last
       answered.** Not a green dot that means "we saved your settings". It means a
       call succeeded, with the timestamp
-- [ ] **66.8** 🔴 **The delivery log, on their own page**: every webhook we sent
+- [x] **66.8** 🔴 **The delivery log, on their own page**: every webhook we sent
       them, the event, the response code, and the error when there was one. They
       debug their side without a support ticket, and we stop being the only
       people who can see what happened
-- [ ] **66.9** 🔴 **The log names no employee, ever.** An event and an id, the
+- [x] **66.9** 🔴 **The log names no employee, ever.** An event and an id, the
       same payload rule 42.4 put on every delivery. A connection log that named
       the person each call was about would rebuild the roster inside the audit
       trail
-- [ ] **66.10** Rotate and revoke the key from the same page, and a revoked key
+- [x] **66.10** Rotate and revoke the key from the same page, and a revoked key
       shows in the log as the reason a call stopped working
-- [ ] **66.11** 🔴 The spike counter C246 already raises is on this page too, as
+- [x] **66.11** 🔴 The spike counter C246 already raises is on this page too, as
       a NUMBER. Unusual attempts against their joining code is the fact an HR
       admin can act on
-- [ ] **66.12** Arabic and RTL, with the guide's numbered steps reading right to
+- [x] **66.12** Arabic and RTL, with the guide's numbered steps reading right to
       left correctly rather than by accident
 
 - **Accept:** a sponsor admin connects a named HR system, sees the indicator go

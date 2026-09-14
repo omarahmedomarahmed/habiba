@@ -16,7 +16,13 @@ import {
 import { verifiedFlag } from "@/lib/data/verified";
 import { log, ref } from "@/lib/logger";
 
-import type { AuthedKey } from "./keys";
+/*
+ * 🔴 66.4 — `PartnerKey`, NOT `AuthedKey`. Sprint 66 made `partner_id` nullable so a
+ * sponsor could mint a key from their own portal, and every function here scopes on a
+ * partner id. `withKey` refuses a key with no partner before a handler sees one, and
+ * this type is how that refusal reaches the functions behind it.
+ */
+import type { PartnerKey } from "./route";
 
 /**
  * The partner API's other four use cases. PLAN.md 55.5 to 55.8, §7, C277.
@@ -78,7 +84,7 @@ export type ApiFailure = { error: string; status: 400 | 403 | 404 | 409 };
  * no route that would call one.
  */
 export async function whoMayRead(input: {
-  key: AuthedKey;
+  key: PartnerKey;
   externalRef: string;
 }): Promise<{ clinicians: { email: string; verified: boolean }[] } | ApiFailure> {
   const subject = await resolveSubject(input.key.partnerId, input.externalRef);
@@ -170,7 +176,7 @@ export async function whoMayRead(input: {
  * approved that exact text (§7's first hard rule), and a partner's server is not one.
  */
 export async function writeBackSession(input: {
-  key: AuthedKey;
+  key: PartnerKey;
   externalRef: string;
   /** The clinician who held it, by email. They must exist and be verified. */
   clinicianEmail: string;
@@ -340,7 +346,7 @@ export async function writeBackSession(input: {
  * anonymously, which should not exist and is refused here rather than delivered.
  */
 export async function deliverableNote(input: {
-  key: AuthedKey;
+  key: PartnerKey;
   sessionId: string;
 }): Promise<{ content: unknown; approvedAt: string; language: string } | ApiFailure> {
   const [note] = await controlDb

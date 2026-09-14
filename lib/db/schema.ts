@@ -5966,6 +5966,22 @@ export const sponsors = pgTable(
     contactBestTime: text("contact_best_time"),
 
     /**
+     * 🔴 66.2 — "ENABLE EMPLOYMENT VERIFICATION" IS OFF BY DEFAULT.
+     *
+     * C227's whole design removed the roster: we never read a directory, never sync
+     * one, and never store a staff list. This is the one thing in the product that
+     * touches employment at all, so it is a deliberate act with a time on it rather
+     * than a capability that exists because an account does.
+     *
+     * Null is off, and off is what every sponsor starts as and stays as.
+     */
+    employmentVerificationEnabledAt: timestamp("employment_verification_enabled_at", {
+      withTimezone: true,
+    }),
+    /** 🔴 66.5 — which HR system they named, so the guide's steps match it. */
+    hrSystem: text("hr_system"),
+
+    /**
      * 🔴 C256 — RE-VERIFICATION IS ANCHORED HERE, NOT ON A PERSON.
      *
      * *"Last verified" leaks the join date, which §3e forbids.* If each
@@ -7185,6 +7201,22 @@ export const API_SCOPES = [
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
+/**
+ * 🔴 66.3 / 66.4 — THE SPONSOR'S OWN SCOPE, AND IT IS A SEPARATE LIST ON PURPOSE.
+ *
+ * `employment:verify` was a partner scope until sprint 55 cut it: a third party held
+ * a key and asked us about a company's staff. The company is right here, signed in,
+ * and it is their staff.
+ *
+ * It is NOT in `API_SCOPES`, and that separation is load-bearing rather than tidy.
+ * `verify:sprint55` asserts one partner route per partner scope, and the partner
+ * portal's key form draws its checkboxes from that list: putting this back in it
+ * would offer a third party a scope about somebody else's employees, which is the
+ * thing the cut was for.
+ */
+export const SPONSOR_SCOPES = ["employment:verify"] as const;
+export type SponsorScope = (typeof SPONSOR_SCOPES)[number];
+
 export const API_ENVIRONMENTS = ["sandbox", "live"] as const;
 export type ApiEnvironment = (typeof API_ENVIRONMENTS)[number];
 
@@ -7192,9 +7224,14 @@ export const partnerApiKeys = pgTable(
   "partner_api_keys",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    partnerId: uuid("partner_id")
-      .notNull()
-      .references(() => partners.id, { onDelete: "cascade" }),
+    /**
+     * 🔴 66.4 — NULL FOR A KEY A SPONSOR MINTED FROM THEIR OWN PORTAL.
+     *
+     * One key table rather than two, so C265's four defences have one implementation
+     * rather than two that are almost the same: one hash comparison, one rate limiter,
+     * one suspension mechanism. A database CHECK refuses a key with no owner at all.
+     */
+    partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "cascade" }),
 
     /** A name the developer chose, so a list of keys means something. */
     label: text("label").notNull(),
@@ -7203,7 +7240,7 @@ export const partnerApiKeys = pgTable(
     /** The first characters, in clear, so two keys can be told apart. */
     prefix: text("prefix").notNull(),
 
-    scopes: jsonb("scopes").$type<ApiScope[]>().notNull().default([]),
+    scopes: jsonb("scopes").$type<(ApiScope | SponsorScope)[]>().notNull().default([]),
     environment: text("environment").$type<ApiEnvironment>().notNull().default("sandbox"),
 
     /**
@@ -7216,6 +7253,15 @@ export const partnerApiKeys = pgTable(
     sponsorId: uuid("sponsor_id").references(() => sponsors.id, { onDelete: "cascade" }),
 
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    /**
+     * 🔴 66.7 — WHEN THIS KEY LAST GOT A REAL ANSWER.
+     *
+     * *Connected means a call succeeded, not a green dot that means "we saved your
+     * settings".* `lastUsedAt` is stamped by the limiter on every authenticated call
+     * including the ones that then fail on a scope or an attestation, so an indicator
+     * built on it goes green for a key that has never successfully answered anything.
+     */
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
     /**
      * 🔴 C265 — *an abnormal rate SUSPENDS THE KEY* rather than alerting
      * somebody to read a chart later.
@@ -7273,10 +7319,9 @@ export const partnerWebhooks = pgTable(
   "partner_webhooks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    partnerId: uuid("partner_id")
-      .notNull()
-      .references(() => partners.id, { onDelete: "cascade" }),
-
+    /** 🔴 66.8 — null for a registration a SPONSOR made from their own page. */
+    partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "cascade" }),
+    sponsorId: uuid("sponsor_id").references(() => sponsors.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     /** 🔴 Sealed, not hashed: signing a delivery needs the secret back. */
     secretSealed: text("secret_sealed").notNull(),

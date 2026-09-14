@@ -19,7 +19,8 @@ import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
 import { SESSION_COOKIE } from "@/lib/routing";
 
-import type { AuthedKey } from "./keys";
+/* 🔴 66.4 — a launch belongs to a PARTNER, so the key must have one. */
+import type { PartnerKey } from "./route";
 
 /**
  * 🔴 42.3 / 55.9 — THE LAUNCH. THERE STAYS EXACTLY ONE WAY TO BE SIGNED IN.
@@ -96,7 +97,7 @@ export type LaunchResult = { ok: true; url: string } | { error: string; status: 
  * it contributes to is the partner's, not the clinician's.
  */
 export async function launchClinician(input: {
-  key: AuthedKey;
+  key: PartnerKey;
   clinicianEmail: string;
   /** Where in our product the widget wants them. Resolved through the allow list NOW. */
   target?: string;
