@@ -66,8 +66,8 @@ export default async function InvestigatePage({
           You are reading a therapy transcript
         </p>
         <p className="mt-1 text-sm leading-relaxed text-amber-800">
-          This visit is recorded in the audit log against your name, with the report that justified
-          it. It is the only session you can open from here.
+          Audited against your name, with the report that justified it. The only session you can
+          open from here.
         </p>
       </Card>
 

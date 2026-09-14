@@ -80,6 +80,20 @@ const GATES = [
     script: "smoke",
     why: "and every public page still answers with a page",
   },
+  /*
+   * 🔴 C360 — the forecast still cannot charge anybody.
+   *
+   * It belongs in the product's pass rather than in sprint 71's, because the
+   * property it holds is about the module graph and the module graph is what
+   * next sprint changes. One import added to `lib/finance/` in six months turns
+   * a board pack into a billing system, and nothing else in this repository
+   * would notice.
+   */
+  {
+    name: "finance",
+    script: "verify:finance",
+    why: "and the forecast still cannot move a price",
+  },
 ] as const;
 
 function main() {

@@ -152,21 +152,27 @@ A session's model cost has two terms, not one:
 ```
 
 The fixed term is everything that happens once whatever the length: the note writer's system
-prompt, measured at **1,133 tokens**; the note it writes, which is the same shape after three
-minutes or fifty; the risk pass and its verdict; the profile rebuild. The variable term is
-transcription, billed by the audio minute, plus the transcript flowing into those prompts.
+prompt, measured at **995 tokens**; the note it writes, which is **659 tokens and shrinks
+slightly with length**; the risk prompt and its five-token verdict; four copilot turns, whose
+input is **flat at 629 tokens** because `CONTEXT_SEGMENTS = 14`; the diarist's own overhead;
+and the profile rebuild. The variable term is transcription at $0.003 a minute, plus **198
+tokens a minute** into each of the note and risk prompts and **243 a minute** into the diarist.
+
+🔴 **These are measurements, not estimates.** On 2026-09-14 all four prompts were run against
+the live OpenAI API at 3, 8, 20 and 50 minutes, for $0.37 of spend. `evals/physics.json` holds
+every row; `lib/finance/scenarios.ts` reads the two terms out of it.
 
 | | 3 min | 8 min | 50 min |
 |---|---|---|---|
-| Fixed | $0.0195 | $0.0195 | $0.0195 |
-| Variable | $0.0124 | $0.0330 | $0.2065 |
-| **Total** | **$0.032** | **$0.053** | **$0.226** |
+| Fixed | $0.0132 | $0.0132 | $0.0132 |
+| Variable | $0.0122 | $0.0325 | $0.2035 |
+| **Total** | **$0.0254** | **$0.0457** | **$0.2167** |
 
-At three minutes the fixed term is **61%** of the bill. At fifty it is **9%**. So a run of
+At three minutes the fixed term is **52%** of the bill. At fifty it is **6%**. So a run of
 uniform short sessions sits in the regime where linear extrapolation is worst:
 
-> Multiply a 4-minute session by 12.5 to reach 50 and you get **$0.45**.
-> The truth is **$0.226**. Multiplication overstates it by **100%.**
+> Multiply the 3-minute session by 50/3 and you get **$0.4230**.
+> The truth is **$0.2167**. Multiplication overstates it by **95%.**
 
 That is not a rounding argument. At a $1 platform fee plus 15%, it is the difference between
 a business with a gross margin and one without.
@@ -187,8 +193,8 @@ Nothing. It is cheaper than the flat plan it replaces:
 
 | | Audio | Cost |
 |---|---|---|
-| 35 sessions, flat 4 min | 140 min | $1.47 at the old estimate |
-| **24 at 3 min + 11 at 8 min** | **160 min** | **$1.34** |
+| 35 sessions, flat 4 min | 140 min | $1.19 at the measured rate |
+| **24 at 3 min + 11 at 8 min** | **160 min** | **$1.11** |
 
 And the longer sessions are `P3`'s, which is where the copilot exam wants the richest
 transcripts anyway. The calibration and the memory test want the same thing.

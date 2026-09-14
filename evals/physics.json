@@ -1,0 +1,210 @@
+{
+  "measuredOn": "2026-09-14T21:19:22.268Z",
+  "note": "Measured against the live OpenAI API using the product's own prompt functions. No database rows written.",
+  "wordsPerMinute": 150,
+  "durations": [
+    3,
+    8,
+    20,
+    50
+  ],
+  "copilotTurnsPerSession": 4,
+  "profileShare": 0.4,
+  "transcribePerMinuteUsd": 0.003,
+  "measurements": [
+    {
+      "minutes": 3,
+      "kind": "note",
+      "model": "gpt-4o",
+      "inputTokens": 1600,
+      "outputTokens": 604,
+      "usd": 0.01004
+    },
+    {
+      "minutes": 3,
+      "kind": "risk",
+      "model": "gpt-4o",
+      "inputTokens": 1158,
+      "outputTokens": 5,
+      "usd": 0.0029449999999999997
+    },
+    {
+      "minutes": 3,
+      "kind": "copilot",
+      "model": "gpt-4o-mini",
+      "inputTokens": 628,
+      "outputTokens": 49,
+      "usd": 0.0001236
+    },
+    {
+      "minutes": 3,
+      "kind": "diarise",
+      "model": "gpt-4o-mini",
+      "inputTokens": 975,
+      "outputTokens": 258,
+      "usd": 0.00030104999999999997
+    },
+    {
+      "minutes": 8,
+      "kind": "note",
+      "model": "gpt-4o",
+      "inputTokens": 2574,
+      "outputTokens": 605,
+      "usd": 0.012485
+    },
+    {
+      "minutes": 8,
+      "kind": "risk",
+      "model": "gpt-4o",
+      "inputTokens": 2132,
+      "outputTokens": 5,
+      "usd": 0.00538
+    },
+    {
+      "minutes": 8,
+      "kind": "copilot",
+      "model": "gpt-4o-mini",
+      "inputTokens": 628,
+      "outputTokens": 45,
+      "usd": 0.00012119999999999999
+    },
+    {
+      "minutes": 8,
+      "kind": "diarise",
+      "model": "gpt-4o-mini",
+      "inputTokens": 1995,
+      "outputTokens": 672,
+      "usd": 0.0007024499999999999
+    },
+    {
+      "minutes": 20,
+      "kind": "note",
+      "model": "gpt-4o",
+      "inputTokens": 4939,
+      "outputTokens": 607,
+      "usd": 0.0184175
+    },
+    {
+      "minutes": 20,
+      "kind": "risk",
+      "model": "gpt-4o",
+      "inputTokens": 4497,
+      "outputTokens": 5,
+      "usd": 0.011292499999999999
+    },
+    {
+      "minutes": 20,
+      "kind": "copilot",
+      "model": "gpt-4o-mini",
+      "inputTokens": 606,
+      "outputTokens": 50,
+      "usd": 0.0001209
+    },
+    {
+      "minutes": 20,
+      "kind": "diarise",
+      "model": "gpt-4o-mini",
+      "inputTokens": 5001,
+      "outputTokens": 1992,
+      "usd": 0.0019453499999999998
+    },
+    {
+      "minutes": 50,
+      "kind": "note",
+      "model": "gpt-4o",
+      "inputTokens": 10891,
+      "outputTokens": 589,
+      "usd": 0.0331175
+    },
+    {
+      "minutes": 50,
+      "kind": "risk",
+      "model": "gpt-4o",
+      "inputTokens": 10449,
+      "outputTokens": 5,
+      "usd": 0.026172499999999998
+    },
+    {
+      "minutes": 50,
+      "kind": "copilot",
+      "model": "gpt-4o-mini",
+      "inputTokens": 597,
+      "outputTokens": 46,
+      "usd": 0.00011715
+    },
+    {
+      "minutes": 50,
+      "kind": "diarise",
+      "model": "gpt-4o-mini",
+      "inputTokens": 12293,
+      "outputTokens": 4182,
+      "usd": 0.00435315
+    }
+  ],
+  "fits": {
+    "note": {
+      "model": "gpt-4o",
+      "samples": 4,
+      "inputTokens": {
+        "fixed": 995.1997749015195,
+        "perMinute": 197.81729506659164,
+        "r2": 0.9999937777138752
+      },
+      "outputTokens": {
+        "fixed": 608.2279122115925,
+        "perMinute": -0.34458825736259613,
+        "r2": 0.772904308638692
+      }
+    },
+    "risk": {
+      "model": "gpt-4o",
+      "samples": 4,
+      "inputTokens": {
+        "fixed": 553.1997749015195,
+        "perMinute": 197.81729506659164,
+        "r2": 0.9999937777138752
+      },
+      "outputTokens": {
+        "fixed": 5,
+        "perMinute": 0,
+        "r2": 1
+      }
+    },
+    "copilot": {
+      "model": "gpt-4o-mini",
+      "samples": 4,
+      "inputTokens": {
+        "fixed": 628.6792346651661,
+        "perMinute": -0.6878634402551116,
+        "r2": 0.8490054646299214
+      },
+      "outputTokens": {
+        "fixed": 48.115362971299945,
+        "perMinute": -0.030388294879009566,
+        "r2": 0.07239564368234519
+      }
+    },
+    "diarise": {
+      "model": "gpt-4o-mini",
+      "samples": 4,
+      "inputTokens": {
+        "fixed": 155.1148002250984,
+        "perMinute": 242.51284937160008,
+        "r2": 0.9997609667059351
+      },
+      "outputTokens": {
+        "fixed": 85.89420371412507,
+        "perMinute": 83.46201463140123,
+        "r2": 0.9920054272365112
+      }
+    }
+  },
+  "sessionUsd": {
+    "three": 0.02538079316263366,
+    "eight": 0.0457388385574939,
+    "fifty": 0.21674641987432003,
+    "naiveFiftyFromThree": 0.4230132193772277
+  },
+  "benchmarkSpendUsd": 0.12763485,
+  "stoppedEarly": null
+}

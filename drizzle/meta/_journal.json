@@ -708,6 +708,13 @@
       "when": 1789600000066,
       "tag": "0100_reapply_after_two_rejections",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1789600000067,
+      "tag": "0101_financial_model",
+      "breakpoints": true
     }
   ]
 }

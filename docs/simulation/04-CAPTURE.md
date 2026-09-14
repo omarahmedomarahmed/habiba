@@ -17,7 +17,7 @@ docs/walkthrough-3/
     p1-layla/
     c1-nile-practice/
     e1-cairo-foundry/
-    op-nour/                    the whole console, 23 pages, committed (C358)
+    op-nour/                    the whole console, 24 pages, committed (C358)
   db/
     m0.md  m1.md  m3.md         the database at each checkpoint, in words
   ar/                            the Arabic pass, same shape, named subset only
@@ -92,6 +92,7 @@ capture shows a console nobody on the rota actually sees.
 | `/admin/support` | **staff** | A ticket answered |
 | `/admin/vault` | owner | 🔴 The month table: subscriptions, session fees, income, model spend, left over. The acceptance test in `03-MONEY.md` |
 | `/admin/usage` | owner | Cost per session and the consent rate beside it |
+| `/admin/financial-model` | owner | 🔴 The thirty-six month forecast, **after Measure and freeze has been pressed**, so the provenance bar at the top shows this database rather than the shipped estimate. See `07-FINANCIAL-MODEL.md` |
 | `/admin/therapists` | owner | Five clinicians, one of them twice rejected |
 | `/admin/clinics` | owner | Nile Practice, approved, three seats |
 | `/admin/sponsors` | owner | Three employers, one pot empty and one at 10% |
@@ -109,7 +110,7 @@ capture shows a console nobody on the rota actually sees.
 | `/admin/errors` | owner | 🔴 Whatever broke during the run. **An empty errors page after three months of agents is a finding, not a pass** |
 | `/admin/tv` | manager | The wallboard |
 
-**Twenty-three pages, one frame each, at month 3**, plus the four money moments and the
+**Twenty-four pages, one frame each, at month 3**, plus the four money moments and the
 rejection cycle below. They go in `docs/walkthrough-3/m3/op-nour/` named for the page.
 
 🔴 **The console is only worth photographing full.** A dashboard with three months of real
@@ -179,7 +180,7 @@ anyway, because a known gap with no picture of it never gets fixed.
 
 ## Volume, and the cap
 
-Roughly 30 screens per checkpoint across the cast, three checkpoints, plus the **23 console
+Roughly 30 screens per checkpoint across the cast, three checkpoints, plus the **24 console
 pages at month 3**, the money moments, the rejection cycle and the Arabic subset. **Expect
 330 to 480 frames.** If it is heading past 650, the capture is photographing states rather
 than people, and the fix is fewer screens per person rather than fewer people.

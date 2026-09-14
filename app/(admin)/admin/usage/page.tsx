@@ -91,8 +91,8 @@ export default async function AdminUsagePage() {
           </div>
         </dl>
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          The AI fee is incurred by the therapist and switched on by the patient (C209).
-          A decline is the product working. A session nobody asked about is not.
+          The therapist incurs the AI fee; the patient switches it on (C209). A decline is the
+          product working.
         </p>
       </Card>
 

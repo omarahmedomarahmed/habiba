@@ -8,6 +8,7 @@ import {
   sessionReports,
   sessions,
   therapistRadar,
+  therapistVerifications,
   users,
 } from "../lib/db/schema";
 import {
@@ -80,6 +81,26 @@ before(async () => {
     })
     .returning({ id: users.id });
   therapistId = user!.id;
+
+  /*
+   * 🔴 C285 — THE FIXTURE HAS TO BE APPROVED, BECAUSE THE BOARD ASKS.
+   *
+   * `queryBoard` filters on `isVerifiedClinician()`, which is an EXISTS against
+   * `therapist_verifications` rather than a read of the cached column, so a
+   * clinician with no verification row is not on the radar at all. That is the
+   * product behaving correctly, and this fixture predated the filter: it built a
+   * therapist who was online, bookable and invisible, and the three tests that
+   * go through `listRadar` failed with `undefined` while the twenty-seven that
+   * query the table directly passed.
+   *
+   * A fixture that cannot appear on the board cannot test the board. Approved
+   * here, once, in the same place the radar row is made.
+   */
+  await db.insert(therapistVerifications).values({
+    userId: therapistId,
+    organizationId,
+    state: "approved",
+  });
 
   await db
     .insert(therapistRadar)

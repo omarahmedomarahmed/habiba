@@ -387,11 +387,31 @@ function main() {
   }
 
   if (write) {
+    /*
+     * 🔴 C364 — EVERYTHING ALREADY IN THE FILE IS CARRIED, not the four fields
+     * this function happens to know about.
+     *
+     * The previous version built a fresh object from `comment`, `origin`,
+     * `baseline` and `measuredOn`, and silently dropped every other key. By
+     * sprint 71 those other keys were: `translated.removed`, the record of 25
+     * dictionary keys deleted in sprint 65 and what replaced each one, which
+     * `verify:sprint65` READS to assert they are genuinely gone; and the `c349`
+     * and `sprint65` entries, which are the written arguments for two raised
+     * floors. So the documented way to record a lowered baseline destroyed the
+     * evidence behind three gates, and it survived only because nobody had run
+     * `--write` since the block was added.
+     *
+     * That is C205's rule pointed at a writer rather than a reader: a record a
+     * tool can quietly delete is a record no check can rely on. Spreading the
+     * parsed file first makes the default KEEP rather than DROP, which is the
+     * only safe default for a file whose contents outlive the code that writes
+     * it.
+     */
     writeFileSync(
       RATCHET,
       `${JSON.stringify(
         {
-          comment: ratchet ? (ratchet as { comment?: string }).comment : undefined,
+          ...(ratchet as Record<string, unknown>),
           /*
            * 🔴 `origin` IS CARRIED, NEVER RECOMPUTED. A `--write` that refreshed it
            * would make every portal 0% off its own current state, which is the shape

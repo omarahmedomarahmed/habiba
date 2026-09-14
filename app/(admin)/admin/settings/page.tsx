@@ -91,9 +91,8 @@ export default async function SettingsPage() {
           />
         </dl>
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          Cost is what the models actually charged us, summed from microcents and divided once
-          (C17). The percentage is absent rather than zero when nothing has been collected, a
-          margin on no revenue is a division by zero wearing a percent sign.
+          Cost is what the models charged, summed from microcents and divided once (C17). The
+          percentage is absent rather than zero when nothing was collected.
         </p>
       </Card>
 
@@ -153,9 +152,8 @@ export default async function SettingsPage() {
             ))}
           </ul>
           <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
-            Until then an Egyptian patient cannot pay in EGP, and an Egyptian therapist
-            is on the manual payout queue, which is the designed path for them either
-            way. No code shortens the contract: start it the day you read this.
+            Until then an Egyptian patient cannot pay in EGP and the therapist is on the manual
+            payout queue, which is the designed path either way. No code shortens the contract.
           </p>
         </Card>
       ) : null}

@@ -678,8 +678,8 @@ function ClinicianRow({ clinician }: { clinician: Clinician }) {
             Disclose their practice record
           </p>
           <p className="text-xs leading-relaxed text-slate-500">
-            Sessions and note status as a spreadsheet, no transcripts. The clinician is told it
-            happened, and the reason below is kept in the audit record. You are blind-copied.
+            Sessions and note status, no transcripts. The clinician is told, your reason is
+            audited, and you are blind-copied.
           </p>
           <Field label="Send to" htmlFor={`to-${clinician.id}`}>
             <Input

@@ -531,8 +531,8 @@ export default async function VaultPage() {
         <div className="border-b border-slate-100 px-4 py-3">
           <p className="text-sm font-semibold text-slate-900">Patient payments</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            Money that passed through us to a clinician. Only the fee column is ours, refunding
-            here reverses the transfer out of their balance and returns our cut.
+            Money that passed through us. Only the fee column is ours; a refund here reverses the
+            transfer and returns our cut.
           </p>
         </div>
         <ul className="divide-y divide-slate-100">

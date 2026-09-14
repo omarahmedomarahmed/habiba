@@ -159,17 +159,27 @@ the answer comes from `npm run physics`, not from multiplication:
 npm run physics -- --at 50
 ```
 
-The simulation's sessions run 3 and 8 minutes. **Multiplying the short one by 12.5 overstates
-a fifty-minute session by 100%**, because a system prompt, a note and a risk verdict happen
-once per session and not once per minute. The two duration clusters exist precisely so the
-fixed and variable halves can be separated; `01-SEED.md` has the arithmetic.
+The simulation's sessions run 3 and 8 minutes. **Multiplying the short one to reach fifty
+overstates it by 95%**, because a system prompt, a note, a risk verdict and four copilot turns
+happen once per session and not once per minute. The two duration clusters exist precisely so
+the fixed and variable halves can be separated; `01-SEED.md` has the arithmetic.
 
-Measured: **$0.032** at three minutes. Fitted: **$0.226** at fifty. Multiplied: **$0.45**, and
-that last one is the number to never put in a deck.
+Measured: **$0.0254** at three minutes. Fitted: **$0.2167** at fifty. Multiplied: **$0.4230**,
+and that last one is the number to never put in a deck.
 
 **Report the measured figure and the extrapolation separately, and label which is which.**
 Quoting a six-minute session's cost as the unit economics is the most flattering mistake
 available here, and every pricing decision downstream would inherit it.
+
+### 🔴 And where those two numbers go afterwards
+
+`07-FINANCIAL-MODEL.md`. The fit this document produces is the measured half of a
+thirty-six month forecast that already exists on `/admin/financial-model`; the other half is
+assumptions somebody has to defend, and the screen labels which is which. Your job here ends
+at the numbers. **Do not fill in churn, acquisition cost, card fees or video cost** because a
+month table has a gap in it: this run cannot establish any of the four, the model says so on
+its own screen, and an assumption quietly relabelled as a measurement is the one failure that
+whole system exists to prevent.
 
 ## The rules that do not bend
 

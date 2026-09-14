@@ -1,7 +1,7 @@
 # The three-month simulation: start here
 
-**You are the main session. Read all seven of these files before you do anything.** They are
-one design split across seven documents because they are read by different agents.
+**You are the main session. Read all eight of these files before you do anything.** They are
+one design split across eight documents because they are read by different agents.
 
 | Read | What it is | Who reads it |
 |---|---|---|
@@ -12,6 +12,7 @@ one design split across seven documents because they are read by different agent
 | `04-CAPTURE.md` | What is photographed, when, where it is saved, and the video scripts | Every agent |
 | `05-AGEING.md` | How three months happens in one hour, and the one rule that keeps it honest | You, before wave one |
 | `06-COPILOT-EXAM.md` | The test at the end: how much the copilot actually knows about each person | You, after the last wave |
+| `07-FINANCIAL-MODEL.md` | What the run feeds into the thirty-six month forecast, and the four things it can never measure | You, after the money agent closes month three |
 
 ---
 
@@ -40,21 +41,25 @@ That is the constraint everything else was sized against. Read this section befo
 
 | What | Cost |
 |---|---|
-| A 3-minute session: transcribe, diarise, note, risk, 4 copilot turns, profile | **$0.032** |
-| An 8-minute session, same calls | **$0.053** |
-| 24 short + 11 long | **$1.34** |
+| A 3-minute session: transcribe, diarise, note, risk, 4 copilot turns, profile | **$0.0254** |
+| An 8-minute session, same calls | **$0.0457** |
+| 24 short + 11 long | **$1.11** |
 | The copilot exam, one full run | **$0.36** |
 | Journal risk scans, document reading, copilot chats between sessions | **$0.31** |
 | Retries, re-tasked agents, flows run twice: **× 1.6** | |
-| **Planned total** | **≈ $3.25** |
-| **Left of the $10** | **≈ $6.75** |
+| **Planned total** | **≈ $3.00** |
+| **Left of the $10** | **≈ $7.00** |
+
+🔴 **Those three are measured, not estimated.** On 2026-09-14 the four prompts were run
+against the live OpenAI API at four transcript lengths, for $0.37 in total. `evals/physics.json`
+holds every row and `lib/finance/scenarios.ts` reads the two terms out of it.
 
 ### 🔴 Two session lengths, because one cannot be extrapolated from
 
 `01-SEED.md` has the full argument and it is the one part of this design that serves the
 **financial model** rather than the walkthrough. In short: cost is `FIXED + VARIABLE x
-minutes`, the fixed half is 61% of a 3-minute session and 9% of a 50-minute one, and
-multiplying a short session to reach a long one **overstates it by 100%**.
+minutes`, the fixed half is 52% of a 3-minute session and 6% of a 50-minute one, and
+multiplying a short session to reach a long one **overstates it by 95%**.
 
 Two unknowns need two measurements, so the run produces two clusters and
 `npm run physics` solves for both from `ai_request_logs`. It **refuses** to fit a single
@@ -92,7 +97,8 @@ so treat the figure as a floor, and it says so every time it prints.
 ### 🔴 And the number that matters to the business, which is not any of the above
 
 A simulated session is 3 or 8 minutes. **A real one is fifty.** At real length the same
-pipeline costs **$0.226**, computed from the two-term fit rather than by multiplication.
+pipeline costs **$0.2167**, computed from the two-term fit rather than by multiplication.
+Naive multiplication gives **$0.4230**, which is 95% too high.
 
 ```
 npm run physics -- --at 50 --json docs/walkthrough-3/PHYSICS.json
@@ -110,7 +116,7 @@ produce and every pricing decision downstream would inherit either.
 
 ```
   You  ·  Opus 5  ·  the main session
-   │     reads the seven documents, checks the branch, launches the orchestrator,
+   │     reads the eight documents, checks the branch, launches the orchestrator,
    │     checks on it, ages each wave, runs the exam, writes the report
    ▼
   The orchestrator  ·  one agent, the smartest one you can afford
@@ -199,7 +205,7 @@ both scripts this design used to ask you to build are built and have their own v
 
 | # | Step | Command | Gate |
 |---|---|---|---|
-| 1 | Confirm the branch is what this says it is | `npm run verify:migrations` | 101 journal, 101 ledger, 112 tables |
+| 1 | Confirm the branch is what this says it is | `npm run verify:migrations` | 102 journal, 102 ledger, 114 tables |
 | 2 | Confirm the platform is seeded and the applications are waiting | `npm run simulate:seed` | It **refuses**, saying an operator already exists. That refusal is the proof |
 | 3 | Confirm the ageing script obeys its own rule | `npm run verify:age` | 8 checks, including one past and one future timestamp in the same row |
 | 4 | Confirm nothing is spent yet | `npm run spend -- --budget 10` | $0.0000 |
@@ -209,6 +215,7 @@ both scripts this design used to ask you to build are built and have their own v
 | 7 | Waves one to three | | Each wave: capture, then `npm run spend`, then age |
 | 8 | The copilot exam | `npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json` | |
 | 8b | **Fit the cost model** | `npm run physics -- --at 50 --json docs/walkthrough-3/PHYSICS.json` | Every kind fitted, no refusals. A refusal means the durations came out flat |
+| 8c | **Feed the financial model**, per `07-FINANCIAL-MODEL.md` | `npm run forecast` and **Measure and freeze** on `/admin/financial-model` | One row in `finance_benchmarks`, and the provenance split on the page moves |
 | 9 | Re-record accuracy **only if there is budget** | `npm run evals -- --record` | |
 | 10 | The report | | `docs/walkthrough-3/REPORT.md`, and it is honest |
 
@@ -221,11 +228,13 @@ both scripts this design used to ask you to build are built and have their own v
    invented about people it knew nothing about.
 3. **Every defect**, with the screenshot and the person who hit it.
 4. **A verdict per screen**: finished, thin, unstyled.
-5. **What you actually spent**, from `npm run spend`, against the $3.25 estimate, and why it
+5. **What you actually spent**, from `npm run spend`, against the $3.00 estimate, and why it
    differed.
 6. 🔴 **The fitted cost model**, from `npm run physics`: the fixed and variable terms per AI
    kind, the r² on each, and what a fifty-minute session costs. This is the input the
    financial model is built on, and it is the only number in this run that outlives it.
+   `07-FINANCIAL-MODEL.md` says what to do with it, what the model can then say, and the
+   four things it can never measure however long the run goes on.
 7. **The AI accuracy**, if there was budget to measure it, and plainly "not re-recorded, no
    budget" if there was not.
 8. **What you could not simulate**, and why.

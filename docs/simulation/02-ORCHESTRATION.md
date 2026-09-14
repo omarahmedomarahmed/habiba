@@ -148,7 +148,7 @@ and all four look like progress.
 
 ## 🔴 Cost discipline, and it is the hardest constraint in the design
 
-**The whole run has $10 of OpenAI credit and about $3.25 of planned spend**
+**The whole run has $10 of OpenAI credit and about $3.00 of planned spend**
 (`00-START-HERE.md`). It must not stop halfway. That is not a lot of room, and it is easy to
 spend it four times over on agents re-reading documents.
 

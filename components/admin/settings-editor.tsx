@@ -83,11 +83,9 @@ export function PricingEditor({
         both invoice lines at zero however the rate is set.
       */}
       <p className="mt-1 text-xs text-slate-500">
-        These are the figures on the pricing page, on the homepage and on every invoice, with no
-        second copy. A monthly price above zero makes the tier unlimited, and the AI rate and
-        threshold below it stop being charged. Leave the monthly price at zero for a
-        pay-as-you-go tier, where a threshold is what a clinician spends once to hold that AI rate:
-        the rate is theirs afterwards and does not expire when the credit does.
+        The pricing page, the homepage and every invoice read these. A monthly price above zero
+        makes the tier unlimited and stops the AI rate being charged; zero makes it pay as you go,
+        where the threshold is what a clinician spends once to hold that rate for good.
       </p>
 
       <form action={action} className="mt-3 space-y-3">
@@ -470,9 +468,8 @@ export function CountryEditor({
             Crisis line
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Dial it before you save it. A wrong number looks like help, presses like
-            help and does nothing, which is worse than the honest sentence we show
-            without one.
+            Dial it before you save it. A wrong number looks and presses like help and does
+            nothing, which is worse than no number at all.
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <Field

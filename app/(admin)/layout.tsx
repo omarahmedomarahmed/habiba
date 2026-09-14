@@ -22,6 +22,7 @@ import {
   Vault,
   Gauge,
   TriangleAlert,
+  LineChart,
 } from "lucide-react";
 
 import { requireStaff } from "@/lib/auth/guard";
@@ -190,6 +191,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           */}
           {isManager ? <AdminLink href="/admin/usage" icon={Gauge}>Usage and cost</AdminLink> : null}
           {isManager ? <AdminLink href="/admin/errors" icon={TriangleAlert}>Errors</AdminLink> : null}
+          {/*
+            🔴 Sprint 71. Linked, because a page reachable only by typing its
+            URL is the defect `verify:reachable` exists to catch, and this one
+            is the reason the simulation measures what it measures.
+          */}
+          {isManager ? (
+            <AdminLink href="/admin/financial-model" icon={LineChart}>Financial model</AdminLink>
+          ) : null}
         </nav>
       </header>
 

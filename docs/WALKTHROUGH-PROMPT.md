@@ -37,19 +37,20 @@ You are running a three-month simulation of 24Therapy: a swarm of agents behavin
 people, using the real product, producing a database that looks like a quarter of trading
 and a folder of screenshots that proves it.
 
-**Read these seven files from the repository first, in this order, before doing anything:**
+**Read these eight files from the repository first, in this order, before doing anything:**
 
 ```
-docs/simulation/00-START-HERE.md    the shape, the five rules, the order of work, the $10 budget
-docs/simulation/01-SEED.md          the cast: 22 identities, 3 waves, and how often each patient comes
-docs/simulation/02-ORCHESTRATION.md the swarm: who launches what, how claims are verified
-docs/simulation/03-MONEY.md         income, expenses, and Egypt, which has no card rail
-docs/simulation/04-CAPTURE.md       what is photographed, where it goes, the video scripts
-docs/simulation/05-AGEING.md        how three months happens in one hour
-docs/simulation/06-COPILOT-EXAM.md  the test at the end: what the copilot really knows
+docs/simulation/00-START-HERE.md      the shape, the five rules, the order of work, the $10 budget
+docs/simulation/01-SEED.md            the cast: 22 identities, 3 waves, and how often each patient comes
+docs/simulation/02-ORCHESTRATION.md   the swarm: who launches what, how claims are verified
+docs/simulation/03-MONEY.md           income, expenses, and Egypt, which has no card rail
+docs/simulation/04-CAPTURE.md         what is photographed, where it goes, the video scripts
+docs/simulation/05-AGEING.md          how three months happens in one hour
+docs/simulation/06-COPILOT-EXAM.md    the test at the end: what the copilot really knows
+docs/simulation/07-FINANCIAL-MODEL.md what the run feeds into the 36-month forecast, and what it can never measure
 ```
 
-They are one design in seven documents. **Do not start until you have read all seven.**
+They are one design in eight documents. **Do not start until you have read all eight.**
 
 ## In one paragraph
 
@@ -68,13 +69,13 @@ the copilot sits an exam about every one of those patients.
 |---|---|
 | Sessions | **35**: 🔴 **24 at 3 minutes and 11 at 8**, not one length |
 | Total audio | 160 minutes |
-| Planned model spend | **≈ $3.25** |
-| Left over | **≈ $6.75**, which is headroom, not a licence to add sessions |
+| Planned model spend | **≈ $3.00** |
+| Left over | **≈ $7.00**, which is headroom, not a licence to add sessions |
 | In-session copilot | capped at **4** messages. Already set on the branch |
 
 🔴 **The two session lengths are not a detail and must not be flattened.** Session cost is
-`FIXED + VARIABLE x minutes`; the fixed half is 61% of a 3-minute session and 9% of a
-50-minute one, so multiplying a short session to reach a long one **overstates it by 100%**.
+`FIXED + VARIABLE x minutes`; the fixed half is 52% of a 3-minute session and 6% of a
+50-minute one, so multiplying a short session to reach a long one **overstates it by 95%**.
 Two unknowns need two measurements. `01-SEED.md` has the arithmetic, and
 `lib/finance/physics.ts` **refuses** to fit a single cluster rather than returning a
 confident wrong number.
@@ -98,7 +99,7 @@ On it, already:
 
 | | |
 |---|---|
-| Schema | Migrated 0000 to 0100. 101 journal, 101 ledger, 112 tables, 249 foreign keys, every CHECK validated |
+| Schema | Migrated 0000 to 0101. 102 journal, 102 ledger, 114 tables, 252 foreign keys, every CHECK validated |
 | Settings | 9 groups, 2 countries, the rate table |
 | Public site | 14 published pages. All 24 page-and-locale pairs render |
 | Operator | `nour.example@example.com` / `Simulation2026!`, super admin |
@@ -118,7 +119,7 @@ ready is exactly the kind of claim rule 1 exists to distrust. Step 1 below is ho
 
 export DATABASE_URL='postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require'
 
-npm run verify:migrations      # 101 journal, 101 ledger, 112 tables
+npm run verify:migrations      # 102 journal, 102 ledger, 114 tables
 npm run simulate:seed          # MUST REFUSE: "already has an operator". That refusal is the proof
 npm run verify:age             # 8 checks. The ageing script obeys its own rule
 npm run verify:synthetic       # 5 checks. Every person here is invented
@@ -203,13 +204,29 @@ than a simulation that stopped in wave two.
 npm run verify:synthetic       # MUST pass immediately before you commit any operator frame
 ```
 
-🔴 **All 23 admin pages, at month 3, committed.** C80 said admin frames are never committed
+🔴 **All 24 admin pages, at month 3, committed.** C80 said admin frames are never committed
 and its reason was real names; this run has none, and `verify:synthetic` proves it rather
 than assuming it. `04-CAPTURE.md` lists every page and what each frame has to show.
 
-**Four of the 23 are `requireStaff()`** (verifications, payouts, numbers, support).
+**Four of the 24 are `requireStaff()`** (verifications, payouts, numbers, support).
 Photograph those signed in as **staff**, not as the owner, or the capture shows a console
 nobody on the rota actually sees.
+
+### Step 8b · The financial model
+
+```bash
+npm run forecast                 # four scenarios, thirty-six months
+npm run physics -- --at 50       # the two terms, from this run's own rows
+```
+
+Then on `/admin/financial-model`, signed in as the operator: type a label into **Measure and
+freeze** and press it. It writes one row to `finance_benchmarks` and never updates it, so the
+figure is reproducible later. Photograph the page **after** that, so the provenance bar at the
+top says this database rather than the shipped estimate.
+
+🔴 **`07-FINANCIAL-MODEL.md` is the whole brief for this step**, including the four things the
+run can never establish (churn, acquisition cost, card fees, video cost) and the rule that a
+short-session cost is never quoted as unit economics.
 
 ### Step 9 · The report
 
@@ -227,6 +244,8 @@ nobody on the rota actually sees.
 | `npm run verify:boundary` | Nothing hands a function to a client component |
 | `npm run physics` | Fits the two-term session cost model. Refuses one duration cluster |
 | `npm run verify:synthetic` | Proves every person is invented, so the console can be committed |
+| `npm run forecast` | The thirty-six month model, four scenarios, from the command line |
+| `npm run verify:finance` | 30 checks that the forecast is pure, reconciles, and cannot move a price |
 
 ## The five rules, repeated here because they are the whole design
 

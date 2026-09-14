@@ -505,6 +505,47 @@ async function main() {
   );
 
   /*
+   * 🔴 C364 — AND THE TOOL THAT WRITES THIS FILE CANNOT DELETE THE RECORD ABOVE.
+   *
+   * Sprint 71 lowered the admin baseline, ran the documented `npm run prose --
+   * --write`, and watched it rebuild `evals/prose.json` from four named fields:
+   * `comment`, `origin`, `baseline`, `measuredOn`. Everything else went, which
+   * in this file is `translated.removed` — the 25 removals the check directly
+   * above reads — plus the written arguments for two raised floors.
+   *
+   * So the supported way to record an improvement destroyed the evidence behind
+   * three gates, and it had gone unnoticed because nobody had run `--write`
+   * since sprint 65 put data in the file. That is C205's rule aimed at a writer:
+   * a record a tool can quietly drop is a record no check can rely on.
+   *
+   * Asserted on the SOURCE rather than by running the writer, because running it
+   * would rewrite the file this verifier is reading.
+   */
+  const sweepSource = readSource("scripts/prose-sweep.ts");
+  const writeBlock = sweepSource.slice(
+    sweepSource.indexOf("if (write)"),
+    sweepSource.indexOf("if (rose)"),
+  );
+
+  check(
+    "🔴 C364 --write carries the whole file forward instead of rebuilding it from four fields",
+    /\.\.\.\(ratchet as Record<string, unknown>\)/.test(writeBlock),
+    "the writer spreads what it parsed, so an unknown key survives a baseline update",
+  );
+
+  /*
+   * 🔴 CONTROL, in the direction that matters: a writer built from a fixed list
+   * of keys must fail this. Without it the check passes on any file containing
+   * the word "ratchet" and asserts nothing about the writer at all.
+   */
+  const pretendWriter = `if (write) { writeFileSync(RATCHET, JSON.stringify({ comment, origin: ratchet.origin, baseline: byPortal })) }`;
+  check(
+    "🔴 CONTROL …and a writer that names its fields instead is caught",
+    !/\.\.\.\(ratchet as Record<string, unknown>\)/.test(pretendWriter),
+    "watched failing on the shape it was written to reject",
+  );
+
+  /*
    * 🔴 AND WHAT REPLACED IT EXISTS, which is the half that makes the record a pairing
    * rather than a list of deletions.
    */

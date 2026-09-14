@@ -8259,3 +8259,72 @@ export const checkinMutes = pgTable(
 );
 
 export type CheckinMute = typeof checkinMutes.$inferSelect;
+
+// -------------------------------------------------------- financial model ---
+
+/**
+ * 🔴 SPRINT 71 — THE FORECAST, AND WHY IT IS NOT `platform_settings`.
+ *
+ * A number in `platform_settings` prices the product: change it and the next
+ * invoice changes. A forecast input must be structurally incapable of that.
+ * Different tables, a different module, and `verify:finance` asserts that
+ * nothing under `lib/finance/` can import anything that writes money.
+ *
+ * The model READS the real prices through `benchmark.ts` and never defines one.
+ * An operator who types a different session price into a scenario has made a
+ * scenario, and the screen says it differs from what the product charges.
+ */
+
+/**
+ * An immutable, dated measurement of the unit economics.
+ *
+ * 🔴 Never updated. If a forecast read live rows it would change under whoever
+ * quoted it, and a figure shown in a fundraising conversation in March could
+ * not be reproduced in June. Re-measuring writes a new row and the old one
+ * stays, which is the only way a number stays defensible.
+ */
+export const financeBenchmarks = pgTable(
+  "finance_benchmarks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label").notNull(),
+    /** Every measured input, with its sample size and date. */
+    measured: jsonb("measured").$type<Record<string, unknown>>().notNull(),
+    /** What the database looked like, so a reader can judge the sample. */
+    source: jsonb("source").$type<Record<string, unknown>>().default({}).notNull(),
+    takenBy: uuid("taken_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("finance_benchmarks_created_idx").on(t.createdAt)],
+);
+
+/** A named set of assumptions. Editable, clonable, pointed at one measurement. */
+export const financeScenarios = pgTable(
+  "finance_scenarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    /**
+     * The whole `Assumptions` object, in one column, because the model takes it
+     * whole. A forecast assembled from twenty columns is a forecast where
+     * nineteen of them can be stale relative to the twentieth.
+     */
+    assumptions: jsonb("assumptions").$type<Record<string, unknown>>().notNull(),
+    /**
+     * 🔴 Which measurement this was built on. Null means the shipped estimates,
+     * and the screen says so rather than implying a measurement happened.
+     */
+    benchmarkId: uuid("benchmark_id").references(() => financeBenchmarks.id, {
+      onDelete: "set null",
+    }),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("finance_scenarios_slug_unique").on(t.slug)],
+);
+
+export type FinanceBenchmark = typeof financeBenchmarks.$inferSelect;
+export type FinanceScenario = typeof financeScenarios.$inferSelect;
