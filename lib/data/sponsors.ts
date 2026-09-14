@@ -16,6 +16,7 @@ import {
   type Sponsor,
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
+import { getSettings } from "@/lib/settings";
 import { subjectKey } from "@/lib/rate-limit";
 
 /**
@@ -240,18 +241,88 @@ export async function getSponsor(sponsorId: string): Promise<Sponsor | null> {
 export async function potBalance(
   sponsorId: string,
 ): Promise<{ balanceCents: number | null; overdraftCents: number; expiresAt: Date | null }> {
+  /*
+   * 🔴 C377 — THIS FUNCTION DESCRIBED A FLOOR IT DID NOT APPLY, and nothing
+   * called it anyway.
+   *
+   * The docblock above has always said "a balance is only shown once the period
+   * since it last moved has cleared the floor". The body read the live balance
+   * and returned it. Both sponsor screens ignored this function entirely and
+   * rendered `ledgerPotBalance` raw, so the ruling was unenforced twice over: by
+   * a body that did not implement it and by callers that did not call it.
+   *
+   * A comment describing a protection is the most expensive kind of defect in
+   * this repository, because it reads as coverage to the next person.
+   *
+   * The rule, built: a balance is publishable only when the live pot-funded
+   * session count has moved at least `activityFloor` beyond the count at which
+   * the last balance was published. Until then the sponsor sees the balance
+   * they already saw, or null if there has never been one.
+   *
+   * 🔴 Null is NOT zero and must never be rendered as it. "We have not got
+   * enough activity to report" and "the pot is empty" are different facts, and
+   * a sponsor who cannot tell them apart can subtract one from the other, which
+   * is the differencing attack in one subtraction.
+   */
   const [pot] = await controlDb
     .select({
       balanceCents: sponsorPots.balanceCents,
       overdraftCents: sponsorPots.overdraftCents,
       expiresAt: sponsorPots.expiresAt,
+      publishedBalanceCents: sponsorPots.publishedBalanceCents,
+      publishedSessions: sponsorPots.publishedSessions,
     })
     .from(sponsorPots)
     .where(eq(sponsorPots.sponsorId, sponsorId))
     .limit(1);
 
-  if (!pot) return { balanceCents: 0, overdraftCents: 0, expiresAt: null };
-  return pot;
+  if (!pot) return { balanceCents: null, overdraftCents: 0, expiresAt: null };
+
+  const settings = await getSettings();
+  const floor = settings.sponsor.activityFloor;
+
+  /*
+   * The session count comes from `potTotals`, which reads the LEDGER, so this
+   * floor and the weekly heatmap beside it are counting the same events. Two
+   * counts of "how many sessions came out of this pot" would eventually
+   * disagree, and a sponsor able to see both could difference them.
+   */
+  const { potTotals } = await import("@/lib/billing/pot");
+  const { sessions } = await potTotals(sponsorId);
+
+  /*
+   * Enough has happened since the last publication, so a new balance may be
+   * published. The write is conditional on the count we just read, so two
+   * readers racing cannot both publish and reveal a one-session difference
+   * between their two answers.
+   */
+  if (sessions - pot.publishedSessions >= floor) {
+    await controlDb
+      .update(sponsorPots)
+      .set({
+        publishedBalanceCents: pot.balanceCents,
+        publishedSessions: sessions,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(sponsorPots.sponsorId, sponsorId),
+          eq(sponsorPots.publishedSessions, pot.publishedSessions),
+        ),
+      );
+
+    return {
+      balanceCents: pot.balanceCents,
+      overdraftCents: pot.overdraftCents,
+      expiresAt: pot.expiresAt,
+    };
+  }
+
+  return {
+    balanceCents: pot.publishedBalanceCents,
+    overdraftCents: pot.overdraftCents,
+    expiresAt: pot.expiresAt,
+  };
 }
 
 /** 53.9 — the live joining code, or none. */

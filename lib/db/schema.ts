@@ -5979,6 +5979,24 @@ export const sponsorPots = pgTable(
     refundPolicy: text("refund_policy"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
 
+    /**
+     * 🔴 C229, finally built. The anti-differencing floor on the BALANCE.
+     *
+     * `applyActivityFloor` suppresses the weekly heatmap, and the balance sat
+     * beside it unsuppressed, which is the same attack with the chart removed:
+     * a sponsor who reads the balance on Monday and again on Tuesday knows
+     * exactly what was spent in between, and with one employee enrolled that is
+     * one named person's session.
+     *
+     * `published_balance_cents` is the ONLY balance a sponsor surface may
+     * render. Null means not enough has happened yet for any balance to be
+     * publishable, which is a different statement from zero and is shown as
+     * one. It advances only when the live session count has moved at least
+     * `sponsor.activityFloor` beyond `published_sessions`.
+     */
+    publishedBalanceCents: integer("published_balance_cents"),
+    publishedSessions: integer("published_sessions").notNull().default(0),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

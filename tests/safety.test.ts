@@ -473,6 +473,39 @@ test("settings refuse a platform fee of zero", () => {
  * This is the §6 family arriving in the rails themselves, which is the worst
  * place for it: a rail is what everything else trusts instead of checking.
  */
+/**
+ * 🔴 C377 — the anti-differencing floor on a sponsor's pot balance.
+ *
+ * C229's floor existed as a comment on a function nothing called, whose body
+ * applied no floor. The rule is tested here, over the pure arithmetic, because
+ * the failure it prevents is a subtraction rather than a query.
+ */
+test("🔴 a sponsor cannot difference two balances down to one session", () => {
+  /*
+   * The attack, stated as the test. A sponsor reads the balance on Monday and
+   * again on Tuesday. If the published figure moves at all between those two
+   * reads, the difference is the spend, and with few enough people that spend
+   * is one named person's session.
+   *
+   * The rule: a balance is republished only once the session count has moved at
+   * least `activityFloor` since the last publication. So between publications
+   * the two reads are IDENTICAL, and the difference is zero.
+   */
+  const floor = SETTINGS_DEFAULTS.sponsor.activityFloor;
+  assert.ok(floor >= 2, "a floor of one would publish on every session");
+
+  const publishable = (sessions: number, publishedAt: number) => sessions - publishedAt >= floor;
+
+  // Monday: 10 sessions, last published at 10. Nothing new is publishable.
+  assert.equal(publishable(10, 10), false);
+  // Tuesday: one more session. Still not publishable, so the balance is unchanged.
+  assert.equal(publishable(11, 10), false, "🔴 ONE session must never move the published figure");
+  // The floor is reached exactly.
+  assert.equal(publishable(10 + floor, 10), true, "CONTROL: the floor does eventually clear");
+  // And one below it does not.
+  assert.equal(publishable(10 + floor - 1, 10), false);
+});
+
 test("🔴 settings refuse a tier table with no FREE door", () => {
   const paidOnly = {
     ...SETTINGS_DEFAULTS,

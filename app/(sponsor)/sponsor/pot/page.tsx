@@ -4,8 +4,9 @@ import Link from "next/link";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { Card } from "@/components/ui";
 import { topUpHistory } from "@/lib/billing/invoice";
-import { ledgerPotBalance } from "@/lib/billing/pot";
+
 import { potTerms } from "@/lib/data/sponsor-admin";
+import { potBalance } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
@@ -30,8 +31,13 @@ export default async function SponsorPotPage() {
   const { t, locale } = await getI18n();
   const settings = await getSettings();
 
-  const [balanceCents, terms, history] = await Promise.all([
-    ledgerPotBalance(actor.sponsorId),
+  /*
+   * 🔴 C377 — the PUBLISHED balance. The live one moves by one session's price
+   * the moment one session happens, and this page is where a sponsor would
+   * check it twice.
+   */
+  const [pot, terms, history] = await Promise.all([
+    potBalance(actor.sponsorId),
     potTerms(actor.sponsorId),
     topUpHistory(actor.sponsorId),
   ]);
@@ -48,7 +54,7 @@ export default async function SponsorPotPage() {
       <Card className="p-4">
         <p className="text-xs font-medium text-slate-500">{t("sponsor.balance")}</p>
         <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-          {fmt(balanceCents)}
+          {pot.balanceCents === null ? t("sponsor.balanceSuppressed") : fmt(pot.balanceCents)}
         </p>
       </Card>
 

@@ -1186,6 +1186,14 @@ export const en = {
   "sponsor.reason.ended": "The benefit has ended",
   "sponsor.reason.administrative": "An administrative correction",
   "sponsor.removeConfirm": "Their funding and badge end now. Their record, notes and history are untouched and we do not tell them why.",
+  /*
+   * 🔴 C377 — "not enough activity to report" is NOT "the pot is empty".
+   *
+   * A sponsor who cannot tell those apart can subtract one from the other,
+   * which is the differencing attack in a single subtraction. So the
+   * suppressed state says what it is.
+   */
+  "sponsor.balanceSuppressed": "Not enough activity to report yet",
   "sponsor.balance": "Left in your pot",
   "sponsor.spendTitle": "What has been spent, by week",
   /* 🔴 C228 / C229 — the sentence a client asking for a daily chart reads. */
@@ -4026,6 +4034,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.reason.ended": "انتهت الميزة",
   "sponsor.reason.administrative": "تصحيح إداري",
   "sponsor.removeConfirm": "ينتهي تمويله وشارته الآن. ملفه وملاحظاته وتاريخه لا تُمسّ، ولا نخبره بالسبب.",
+  "sponsor.balanceSuppressed": "لا يوجد نشاط كافٍ لعرض رصيد بعد",
   "sponsor.balance": "المتبقي في محفظتك",
   "sponsor.spendTitle": "ما أُنفق، أسبوعًا بأسبوع",
   "sponsor.whyWeekly": "الأسبوع هو أدق ما سنعرضه، لأي عميل، وبأي حجم. إنفاق يوم واحد، إلى جانب شيء تعرفه بالفعل، قد يحدد شخصًا بعينه. والأسبوع لا يفعل ذلك.",

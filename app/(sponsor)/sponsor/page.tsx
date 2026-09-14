@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 
 import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
 import { Card } from "@/components/ui";
-import { ledgerPotBalance, potTotals } from "@/lib/billing/pot";
+import { potTotals } from "@/lib/billing/pot";
 import { potTerms } from "@/lib/data/sponsor-admin";
-import { roster, weeklySpend } from "@/lib/data/sponsors";
+import { potBalance, roster, weeklySpend } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
@@ -46,8 +46,20 @@ export default async function SponsorOverviewPage() {
 
   const floor = settings.sponsor.activityFloor;
 
-  const [balanceCents, totals, people, terms] = await Promise.all([
-    ledgerPotBalance(actor.sponsorId),
+  /*
+   * 🔴 C377 — the PUBLISHED balance, never the live one.
+   *
+   * This read `ledgerPotBalance` directly, which is the exact figure that moves
+   * by one session's price the moment one session happens. A sponsor reading it
+   * on two days differences them and learns what one named person's session
+   * cost, which is the attack the heatmap below is already suppressed to stop.
+   *
+   * `potBalance` applies the same floor the heatmap uses and can return NULL,
+   * which means "not enough has happened to report a balance" and is a
+   * different fact from zero.
+   */
+  const [pot, totals, people, terms] = await Promise.all([
+    potBalance(actor.sponsorId),
     potTotals(actor.sponsorId),
     roster(actor.sponsorId),
     potTerms(actor.sponsorId),
@@ -78,11 +90,18 @@ export default async function SponsorOverviewPage() {
    * which is the whole of "one type with two faces": different words, identical
    * plumbing, and no second query.
    */
+  const balanceCents = pot.balanceCents;
   const recent = weeks.slice(-12).reduce((total, week) => total + (week.spendCents ?? 0), 0);
   const perWeek = recent > 0 ? recent / Math.min(12, Math.max(1, weeks.length)) : 0;
-  const weeksLeft = perWeek > 0 ? Math.floor(balanceCents / perWeek) : null;
-  const putIn = balanceCents + totals.spentCents;
-  const usedPercent = putIn > 0 ? Math.round((totals.spentCents / putIn) * 100) : 0;
+  /*
+   * 🔴 Every figure DERIVED from the balance is suppressed with it. "Weeks left"
+   * and "percent used" are both invertible: a reader who knows the spend and the
+   * percentage can recover the balance, which is the suppression undone by
+   * arithmetic one card to the right.
+   */
+  const weeksLeft = balanceCents !== null && perWeek > 0 ? Math.floor(balanceCents / perWeek) : null;
+  const putIn = balanceCents === null ? null : balanceCents + totals.spentCents;
+  const usedPercent = putIn !== null && putIn > 0 ? Math.round((totals.spentCents / putIn) * 100) : null;
 
   return (
     <div className="space-y-4">
@@ -90,7 +109,7 @@ export default async function SponsorOverviewPage() {
         <Card className="p-4">
           <p className="text-xs font-medium text-slate-500">{t("sponsor.balance")}</p>
           <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-            {fmt(balanceCents)}
+            {balanceCents === null ? t("sponsor.balanceSuppressed") : fmt(balanceCents)}
           </p>
           {terms?.expiresAt ? (
             <p className="mt-1 text-xs text-slate-500">
@@ -132,7 +151,9 @@ export default async function SponsorOverviewPage() {
             ? weeksLeft === null
               ? t("sponsor.planUnknown")
               : t("sponsor.planBody", { weeks: weeksLeft })
-            : t("sponsor.budgetBody", { percent: usedPercent })}
+            : usedPercent === null
+              ? t("sponsor.planUnknown")
+              : t("sponsor.budgetBody", { percent: usedPercent })}
         </p>
       </Card>
 
