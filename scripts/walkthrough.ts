@@ -31,7 +31,7 @@
  * The same two-sided guard as `seed-capture.ts`: production by name, and anything that is not the
  * capture endpoint. A screenshot in a repository is permanent in a way a database row is not (C80).
  */
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { Browser, BrowserContext, Locator, Page } from "playwright";
@@ -343,6 +343,7 @@ async function tour(
   paths: { at: string; name: string; expect?: string | RegExp }[],
 ): Promise<void> {
   for (const item of paths) {
+    walked.add(item.at);
     await page.goto(`${BASE}${item.at}`, { waitUntil: "networkidle" }).catch(() => {});
 
     if (item.expect) {
@@ -365,6 +366,67 @@ async function tour(
 
     await step(page, flow, item.name);
   }
+}
+
+/**
+ * 🔴 EVERY ROUTE IS WALKED, OR IT IS EXEMPT WITH A REASON.
+ *
+ * This instrument was written at sprint 52 and read at sprint 65: it visited 56 of the
+ * product's 122 routes, and everything built in between was invisible to it. Not one of
+ * the clinic's staff screens, neither of the sponsor's new ones, none of the partner's
+ * usage, and six of eighteen admin consoles. The last walkthrough's design verdict on the
+ * admin console was formed from that sixth.
+ *
+ * 🔴 A STALE INSTRUMENT IS WORSE THAN NO INSTRUMENT, because it reports a clean pass.
+ * The same failure as a verifier nobody runs, one layer up: this one ran, and was silent
+ * about two thirds of the product.
+ *
+ * So the route list is derived from the filesystem at startup and compared with what the
+ * flows below actually visit. A route that is neither walked nor exempt stops the run,
+ * which means the next portal somebody builds cannot be quietly left out of the walk.
+ */
+/** Every route this run actually visited. Filled by `tour`, read at the end. */
+const walked = new Set<string>();
+
+const NOT_WALKABLE: Record<string, string> = {
+  "/(public)": "the route group, which is `/` and is walked",
+  "/reset-password": "needs a live reset token, which only an email can produce",
+};
+
+function routesOnDisk(dir = "app", out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const at = path.join(dir, entry.name);
+    if (entry.isDirectory()) routesOnDisk(at, out);
+    else if (entry.name === "page.tsx") {
+      const route = at
+        .replace(/^app/, "")
+        .replace(/\/page\.tsx$/, "")
+        .replace(/\/\([a-z-]+\)/g, "");
+      out.push(route === "" ? "/" : route);
+    }
+  }
+  return out;
+}
+
+function assertEveryRouteIsWalked(): void {
+  const missed = routesOnDisk()
+    /* A dynamic segment needs an id this script cannot invent; the flows reach them by
+       clicking rather than by address, which is the point of a click-by-click walk. */
+    .filter((route) => !route.includes("["))
+    .filter((route) => !walked.has(route) && !(route in NOT_WALKABLE));
+
+  if (missed.length === 0) {
+    console.log(`  every route is walked or exempt (${walked.size} walked)\n`);
+    return;
+  }
+
+  console.log("\n🔴 These routes exist and this walk does not visit them:\n");
+  for (const route of missed.sort()) console.log(`    ${route}`);
+  console.log(
+    "\n  Add them to a flow, or to NOT_WALKABLE with a reason. If a sign-in failed above,\n" +
+      "  fix that first: a flow that could not get in did not walk its screens either.\n",
+  );
+  process.exit(1);
 }
 
 async function main() {
@@ -429,10 +491,29 @@ async function main() {
         { at: "/", name: "home" },
         { at: "/pricing", name: "pricing" },
         { at: "/how-it-works", name: "how-it-works" },
+        /*
+         * 🔴 THE FOUR AUDIENCE PAGES, and two of them are new since the last pass.
+         *
+         * `/for-companies` did not exist and `/for-patients` was never walked, which meant
+         * the last walkthrough looked at a homepage that speaks to four people and then
+         * checked one and a half of their pages.
+         */
+        { at: "/for-patients", name: "for-patients" },
+        { at: "/for-companies", name: "for-companies" },
         { at: "/for-clinics", name: "for-clinics" },
         { at: "/developers", name: "developers" },
         { at: "/integrations", name: "integrations" },
+        { at: "/contact", name: "contact" },
+        { at: "/privacy", name: "privacy" },
+        { at: "/terms", name: "terms" },
+        { at: "/security", name: "security" },
+        { at: "/hipaa", name: "hipaa" },
         { at: "/radar", name: "radar" },
+        /* The doors a stranger meets, which nobody had photographed. */
+        { at: "/signup", name: "signup" },
+        { at: "/login", name: "login" },
+        { at: "/forgot-password", name: "forgot-password" },
+        { at: "/verify", name: "verify" },
       ]);
 
       await context.close();
@@ -443,7 +524,12 @@ async function main() {
       const context = await newContext(PHONE);
       const page = await context.newPage();
 
-      await tour(page, "patient", [{ at: "/patient/signup", name: "signup" }]);
+      await tour(page, "patient", [
+        { at: "/patient/signup", name: "signup" },
+        { at: "/patient/login", name: "login" },
+        { at: "/patient/forgot-password", name: "forgot-password" },
+        { at: "/patient/claim", name: "claim" },
+      ]);
 
       /*
        * 🔴 THE PORTAL THIS PRODUCT IS JUDGED ON, AND THE FIRST PASS NEVER OPENED IT.
@@ -463,8 +549,18 @@ async function main() {
 
       if (inside) {
         await tour(page, "patient", [
-          { at: "/patient", name: "sessions" },
+          { at: "/patient", name: "home" },
+          /*
+           * 🔴 THE RADAR INSIDE THE APP, which the last pass never opened.
+           *
+           * It is the screen this product is named after and it gained a list view, so a
+           * pass that shoots the public radar and not this one has seen neither the new
+           * view nor the chrome a signed-in patient meets it in.
+           */
+          { at: "/patient/radar", name: "radar" },
+          { at: "/patient/sessions", name: "sessions" },
           { at: "/patient/messages", name: "messages" },
+          { at: "/patient/residency", name: "residency" },
           { at: "/patient/homework", name: "homework" },
           { at: "/patient/journal", name: "journal" },
           { at: "/patient/assessments", name: "assessments" },
@@ -508,6 +604,13 @@ async function main() {
           { at: "/connect", name: "connect" },
           { at: "/settings", name: "settings" },
           { at: "/settings/records", name: "settings-records" },
+          /* New since the last pass: the QR codes and the meeting connections. */
+          { at: "/settings/codes", name: "settings-codes" },
+          { at: "/settings/integrations", name: "settings-integrations" },
+          { at: "/onboarding", name: "onboarding" },
+          { at: "/sessions/new", name: "session-new" },
+          { at: "/patients/import", name: "patients-import" },
+          { at: "/copilot", name: "copilot" },
           { at: "/assistant", name: "assistant" },
           { at: "/on-call", name: "on-call" },
           { at: "/support", name: "support" },
@@ -597,7 +700,12 @@ async function main() {
       const context = await newContext(DESK);
       const page = await context.newPage();
 
-      await tour(page, "clinic", [{ at: "/clinic/apply", name: "apply" }]);
+      await tour(page, "clinic", [
+        { at: "/clinic/apply", name: "apply" },
+        { at: "/clinic/sign-in", name: "sign-in" },
+        /* 63 — the delegated member of staff has a door of their own. */
+        { at: "/staff/sign-in", name: "staff-sign-in" },
+      ]);
 
       const inside = await signIn(
         page,
@@ -611,6 +719,9 @@ async function main() {
         await tour(page, "clinic", [
           { at: "/clinic", name: "overview" },
           { at: "/clinic/people", name: "people" },
+          /* Both new since the last pass: delegated staff, and a colleague's earnings. */
+          { at: "/clinic/team", name: "team" },
+          { at: "/clinic/earnings", name: "earnings" },
           { at: "/clinic/bills", name: "bills" },
           { at: "/clinic/records", name: "records" },
         ]);
@@ -624,7 +735,10 @@ async function main() {
       const context = await newContext(DESK);
       const page = await context.newPage();
 
-      await tour(page, "sponsor", [{ at: "/sponsor/apply", name: "apply" }]);
+      await tour(page, "sponsor", [
+        { at: "/sponsor/apply", name: "apply" },
+        { at: "/sponsor/sign-in", name: "sign-in" },
+      ]);
 
       const inside = await signIn(
         page,
@@ -640,6 +754,9 @@ async function main() {
           { at: "/sponsor/people", name: "people" },
           { at: "/sponsor/pot", name: "pot" },
           { at: "/sponsor/code", name: "code" },
+          /* Both new since the last pass: domain proof, and the HR connection. */
+          { at: "/sponsor/domains", name: "domains" },
+          { at: "/sponsor/integrations", name: "integrations" },
           { at: "/sponsor/settings", name: "settings" },
         ]);
       }
@@ -652,7 +769,10 @@ async function main() {
       const context = await newContext(DESK);
       const page = await context.newPage();
 
-      await tour(page, "partner", [{ at: "/partner/apply", name: "apply" }]);
+      await tour(page, "partner", [
+        { at: "/partner/apply", name: "apply" },
+        { at: "/partner/sign-in", name: "sign-in" },
+      ]);
 
       const inside = await signIn(
         page,
@@ -665,6 +785,7 @@ async function main() {
       if (inside) {
         await tour(page, "partner", [
           { at: "/partner", name: "keys" },
+          { at: "/partner/usage", name: "usage" },
           { at: "/partner/webhooks", name: "webhooks" },
           { at: "/partner/deliveries", name: "deliveries" },
         ]);
@@ -694,6 +815,28 @@ async function main() {
       if (inside) {
         await tour(page, "admin", [
           { at: "/admin", name: "dashboard" },
+          /*
+           * 🔴 SIX OF EIGHTEEN ADMIN SCREENS WERE WALKED, and the design verdict on this
+           * console came from that sixth. Every one of them is here now: an operator's
+           * console nobody has looked at is where a rule quietly stops being enforceable.
+           */
+          { at: "/admin/therapists", name: "therapists" },
+          { at: "/admin/verifications", name: "verifications" },
+          { at: "/admin/radar", name: "radar" },
+          { at: "/admin/clinics", name: "clinics" },
+          { at: "/admin/sponsors", name: "sponsors" },
+          { at: "/admin/partners", name: "partners" },
+          { at: "/admin/benefits", name: "benefits" },
+          { at: "/admin/ratings", name: "ratings" },
+          { at: "/admin/taxonomy", name: "taxonomy" },
+          { at: "/admin/numbers", name: "numbers" },
+          { at: "/admin/settings", name: "settings" },
+          { at: "/admin/strings", name: "strings" },
+          { at: "/admin/support", name: "support" },
+          { at: "/admin/audit", name: "audit" },
+          { at: "/admin/errors", name: "errors" },
+          { at: "/admin/announce", name: "announce" },
+          { at: "/admin/tv", name: "tv" },
           { at: "/admin/vault", name: "vault" },
           { at: "/admin/content", name: "content" },
           { at: "/admin/checkins", name: "checkins" },
@@ -719,6 +862,12 @@ async function main() {
   }
 
   await browser.close();
+
+  /*
+   * 🔴 ONLY ON A FULL RUN. `--only patient` is a deliberately partial walk and failing it
+   * for being partial would be a gate that punishes the way people actually use the tool.
+   */
+  if (!only) assertEveryRouteIsWalked();
 
   writeFileSync(
     path.join(OUT, `findings-${locale}.json`),
