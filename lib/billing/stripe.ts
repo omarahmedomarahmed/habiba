@@ -201,6 +201,49 @@ export async function createSubscriptionCheckout(opts: {
   const customerId = await ensureCustomer(opts.organizationId, opts.email);
   if (!customerId) return { error: "Stripe could not identify your account." };
 
+  /*
+   * 🔴 C371 — CANCEL THE OLD SUBSCRIPTION BEFORE OPENING A NEW ONE.
+   *
+   * The portal's "switch to Clinic" button calls this directly, and this opened
+   * a second Stripe subscription without touching the first. `subscriptions`
+   * holds ONE `stripe_subscription_id` per organisation, so the abandoned one
+   * vanished from our books and kept billing: a therapist moving from Practice
+   * to Clinic would have paid $99 and $179 every month, for ever, with our own
+   * screens showing only the $179.
+   *
+   * Cancelled at period end rather than immediately, for the same reason
+   * `cancelSubscription` is: they paid for the month they are in. The two
+   * charges overlap for at most one period and Stripe prorates the new one.
+   *
+   * Ordered before the checkout on purpose. Cancelling after would leave a
+   * window where an abandoned checkout has already cancelled the plan they
+   * still have.
+   */
+  const [existing] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, opts.organizationId))
+    .limit(1);
+
+  if (
+    existing?.stripeSubscriptionId &&
+    existing.status !== "cancelled" &&
+    existing.plan !== tier.key
+  ) {
+    try {
+      await client.subscriptions.update(existing.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+    } catch (error) {
+      // A plan we cannot stop is a plan we must not add to.
+      log.error("could not stop the outgoing subscription", {
+        organization: ref(opts.organizationId),
+        reason: safeErrorMessage(error),
+      });
+      return { error: "We could not close your current plan. Nothing has changed." };
+    }
+  }
+
   try {
     const checkout = await client.checkout.sessions.create({
       mode: "subscription",

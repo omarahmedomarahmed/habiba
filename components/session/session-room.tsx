@@ -80,6 +80,15 @@ export function SessionRoom(props: RoomProps) {
    */
   const [offRecord, setOffRecord] = useState(props.recordingConsent === "declined");
   /*
+   * 🔴 C370 — a ref beside the state, because both recorders are started from
+   * callbacks that would otherwise close over whatever `offRecord` was when the
+   * callback was created.
+   */
+  const offRecordRef = useRef(props.recordingConsent === "declined");
+  useEffect(() => {
+    offRecordRef.current = offRecord;
+  }, [offRecord]);
+  /*
    * The clock's two inputs, mirrored so the countdown ticks every second
    * instead of stepping every five when the poll lands. The poll is still the
    * authority — it is what corrects a tab that was asleep, and it is what
@@ -202,6 +211,17 @@ export function SessionRoom(props: RoomProps) {
         const twoTrack = props.modality === "video" && remoteRecorder.current !== null;
         void uploadChunk(blob, durationSeconds, twoTrack ? "therapist" : "unknown");
       },
+      /*
+       * 🔴 C370 — the recorder starts in the state the SCREEN is already in.
+       *
+       * `offRecord` is initialised from `recordingConsent === "declined"`, so a
+       * session opened after a refusal renders the amber pill immediately. The
+       * recorder was constructed unmuted and only ever muted by the toggle, so
+       * until somebody pressed a button the two disagreed and the microphone
+       * won. Read from the ref rather than the state so a recorder started
+       * inside a callback cannot capture a stale closure.
+       */
+      muted: offRecordRef.current,
     });
     try {
       await recorder.start();
@@ -222,6 +242,9 @@ export function SessionRoom(props: RoomProps) {
       onChunk: ({ blob, durationSeconds }) => {
         void uploadChunk(blob, durationSeconds, "patient");
       },
+      // 🔴 C370. The patient's own track, above all, starts in the state their
+      // answer put the room in.
+      muted: offRecordRef.current,
     });
     try {
       await recorder.start();

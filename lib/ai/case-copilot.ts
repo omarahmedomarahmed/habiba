@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lt } from "drizzle-orm";
 
 import type { Capabilities } from "@/lib/access/state";
 import { keepResolvableCitations, type DocumentRef } from "@/lib/documents/chunk";
@@ -244,9 +244,33 @@ async function buildPatientContext(
       durationMinutes: sessions.durationMinutes,
     })
     .from(sessions)
+    /*
+     * 🔴 C211 / C367 — THE BOUND WAS ON THE WRONG COLUMN, and it was live.
+     *
+     * This read `lt(sessions.createdAt, before)`, where `before` is the live
+     * session's `startedAt`. A booked session's row is created when it is
+     * BOOKED and started days later, so `createdAt < startedAt` is true OF THE
+     * LIVE SESSION ITSELF. The copilot was handed the transcript of the very
+     * session it was being asked about, mid-session, while its own system
+     * prompt promised "I only know what came before this session".
+     *
+     * `verify:sprint48` passed throughout, because it asserts that a `liveSince`
+     * parameter exists and is threaded through. A bound that exists and bounds
+     * the wrong thing is this repository's §6 family, and this is its
+     * fourteenth occurrence.
+     *
+     * Two conditions now, not one. `startedAt` is when a session actually
+     * began, which is what "came before" means; and the live session is
+     * excluded BY ID as well, because a session that has not started has a null
+     * `startedAt` and a null fails every comparison silently.
+     */
     .where(
       before
-        ? and(eq(sessions.patientId, patientId), lt(sessions.createdAt, before))
+        ? and(
+            eq(sessions.patientId, patientId),
+            lt(sessions.startedAt, before),
+            isNotNull(sessions.startedAt),
+          )
         : eq(sessions.patientId, patientId),
     )
     .orderBy(asc(sessions.createdAt))

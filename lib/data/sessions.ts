@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -343,6 +343,14 @@ const TRANSITIONS: Record<string, string[]> = {
   cancelled: [],
 };
 
+/**
+ * The states `TRANSITIONS` says may reach `cancelled`, derived rather than
+ * retyped so the list and the table cannot drift apart. C368.
+ */
+const CANCELLABLE_FROM = Object.entries(TRANSITIONS)
+  .filter(([, to]) => to.includes("cancelled"))
+  .map(([from]) => from) as (typeof sessions.$inferSelect)["status"][];
+
 export class TransitionError extends Error {}
 
 export async function startSession(actor: Actor, sessionId: string) {
@@ -573,11 +581,45 @@ export async function completeSession(actor: Actor, sessionId: string) {
   return { alreadyCompleted: false, patientId: current.patientId };
 }
 
-export async function cancelSession(actor: Actor, sessionId: string) {
-  await db
+/**
+ * 🔴 C368 — this ignored the state machine above it, and sprint 58 made that
+ * reachable.
+ *
+ * `TRANSITIONS` declares `completed: []`, and `startSession` and
+ * `completeSession` both honour it. This did not: a bare UPDATE with no status
+ * guard, which could flip a completed, billed, noted session to `cancelled`.
+ *
+ * It was latent for as long as nothing called it. Sprint 58 wired
+ * `abandonSession` to a button, because the pricing page had promised one, and
+ * a latent defect became a live one. The button only renders while a session is
+ * live, but a server action is an endpoint: a UI condition is not enforcement,
+ * and every other transition in this file is guarded in the database rather
+ * than in a component.
+ *
+ * The guard is IN THE WHERE CLAUSE rather than a read followed by a write, so
+ * two requests racing cannot both pass a check and then both write. Returning
+ * the row count tells the caller whether anything happened, which a bare update
+ * could not.
+ */
+export async function cancelSession(actor: Actor, sessionId: string): Promise<boolean> {
+  const cancelled = await db
     .update(sessions)
     .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
-    .where(and(scope(actor), eq(sessions.id, sessionId)));
+    .where(
+      and(
+        scope(actor),
+        eq(sessions.id, sessionId),
+        inArray(
+          sessions.status,
+          // Exactly the states TRANSITIONS says may reach `cancelled`. Read from
+          // the table rather than retyped, so the two cannot drift apart.
+          CANCELLABLE_FROM,
+        ),
+      ),
+    )
+    .returning({ id: sessions.id });
+
+  return cancelled.length > 0;
 }
 
 // --------------------------------------------------------------- transcript ---

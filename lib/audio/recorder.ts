@@ -50,6 +50,20 @@ export type RecorderOptions = {
    */
   onChunk: (chunk: RecordedChunk) => void;
   onError?: (error: Error) => void;
+  /**
+   * 🔴 C370 — START MUTED, and the absence of this was a live consent breach.
+   *
+   * `muted` defaulted to false and was only ever set by the therapist's toggle.
+   * The session room initialises `offRecord` to true when the patient has
+   * already DECLINED recording, so a declined session opened fresh showed the
+   * amber "off record" pill while the recorder captured, uploaded, transcribed
+   * and crisis-scanned real audio. The screen and the microphone disagreed, and
+   * the screen was the one telling the truth to the patient.
+   *
+   * A default of false is a decision about somebody's consent, made by an
+   * initialiser. The caller now has to say.
+   */
+  muted?: boolean;
 };
 
 export class SessionRecorder {
@@ -60,7 +74,7 @@ export class SessionRecorder {
 
   private buffer: Float32Array[] = [];
   private bufferedFrames = 0;
-  private muted = false;
+  private muted: boolean;
 
   /** Frames of trailing quiet at the tail of the buffer. */
   private silentTailFrames = 0;
@@ -82,6 +96,8 @@ export class SessionRecorder {
     this.track = options.track;
     this.onChunk = options.onChunk;
     this.onError = options.onError;
+    // 🔴 C370. Never assume consent: the caller states it.
+    this.muted = options.muted ?? false;
   }
 
   get isRecording(): boolean {

@@ -1,4 +1,4 @@
-# Sponsor audit — the corporate wall
+# Sponsor audit: the corporate wall
 
 Auditor beat: `app/(sponsor)/**`, `lib/sponsor-auth/**`, `lib/data/enrolment.ts`,
 `lib/data/enrolment-verify.ts`, `lib/data/sponsors.ts`, `lib/data/sponsor-admin.ts`,
@@ -11,7 +11,7 @@ defect would have looked like, so the absence is not just an unread search.
 
 ---
 
-## Finding 1 — the anti-differencing floor is dead code; the sponsor sees a live balance
+## Finding 1: the anti-differencing floor is dead code; the sponsor sees a live balance
 
 **What:** `potBalance()`, the only function in the codebase that gates the pot
 balance behind C229's activity floor, is never called from anywhere. Both
@@ -33,7 +33,7 @@ written to close, live in production right now.
   (lines 63-64, 142-165). The balance card is not inside that guard.
 - `app/(sponsor)/sponsor/pot/page.tsx:7,34,49-53` does the same: `ledgerPotBalance`
   rendered with no floor check at all.
-- `lib/billing/pot.ts:490-505` — `ledgerPotBalance()` is a plain `SUM` over
+- `lib/billing/pot.ts:490-505`: `ledgerPotBalance()` is a plain `SUM` over
   `ledger_entries`, no suppression logic, no activity count, nothing.
 
 **Who is harmed:** Every enrolled patient at every sponsor account. A sponsor
@@ -55,12 +55,12 @@ ruling is correct. It was never wired to the screens that render it. This is
 "the ruling was never built," not a new design question, and it sits directly
 under Invariant 8 and the brief's own worked example ("a pot balance that
 drops by one session's price tells the sponsor somebody had a session
-today") — which is not hypothetical, it is the current behavior of both
+today"): which is not hypothetical, it is the current behavior of both
 sponsor screens.
 
 ---
 
-## Finding 2 — C246's cross-sponsor uniqueness does not exist; the identifier hash is salted per sponsor
+## Finding 2: C246's cross-sponsor uniqueness does not exist; the identifier hash is salted per sponsor
 
 **What:** `hashIdentifier(sponsorId, value)` includes `sponsorId` in the hash
 input, so the same real-world identifier ("20215544") produces a *different*
@@ -71,18 +71,18 @@ identifier being reused **at the same sponsor**. Across sponsors it enforces
 nothing, because the values it compares are never equal to begin with.
 
 **Where:**
-- `lib/data/enrolment.ts:98-102` — `hashIdentifier`:
+- `lib/data/enrolment.ts:98-102`: `hashIdentifier`:
   ```
   createHash("sha256").update(`${env.authSecret}${sponsorId}${value...}`).digest("hex")
   ```
-- `lib/data/enrolment.ts:318` — `enrol()` calls it as
+- `lib/data/enrolment.ts:318`: `enrol()` calls it as
   `hashIdentifier(lookup.sponsorId, input.identifier)`, so every real
   enrolment's hash is sponsor-specific by construction.
-- `lib/db/schema.ts:5907-5915` — the comment directly above
+- `lib/db/schema.ts:5907-5915`: the comment directly above
   `enrolments_identifier_unique` claims: "Across every sponsor, not per
   sponsor: an identifier that crossed one gate must not cross another." The
   index it describes cannot do this given how the hash is built.
-- `scripts/verify-sprint53.ts:608-645` — the verifier titled "C246 — ONE
+- `scripts/verify-sprint53.ts:608-645`: the verifier titled "C246: ONE
   IDENTIFIER, USED ONCE, EVER, ACROSS EVERY SPONSOR" does **not** call
   `hashIdentifier`. It manufactures its own raw hash string
   (`createHash("sha256").update(randomBytes(16))`, line 619) and inserts that
@@ -103,7 +103,7 @@ own pot. A person (or a script) with one plausible-looking number can walk it
 across every corporate client on the platform. Sponsors are the ones who pay
 for this, and it directly contradicts the plain-language promise made to them
 at signup (C246: "the sponsor is told in plain words that it is guessable and
-that they carry the risk" — the risk they were told they carry is bounded by
+that they carry the risk": the risk they were told they carry is bounded by
 "once, ever," and it is not).
 
 **Severity:** blocker.
@@ -118,7 +118,7 @@ wrong thing."
 
 ---
 
-## Finding 3 — the pot's overdraft bound can be exceeded by concurrent bookings, and the failure surfaces after irreversible effects
+## Finding 3: the pot's overdraft bound can be exceeded by concurrent bookings, and the failure surfaces after irreversible effects
 
 **What:** `payFromPot` reads the pot's balance with a plain `SELECT` (no lock,
 no transaction), compares it in application code against the gross price, and
@@ -127,7 +127,7 @@ balance_cents = balance_cents - gross`, relying on the database CHECK
 constraint `sponsor_pots_overdraft_bounded` to refuse it if the sponsor would
 go past their overdraft. But by the time that UPDATE runs, the session has
 already been marked paid, a `session_payments` row has already been inserted,
-and both ledger legs have already been posted — none of which is wrapped in a
+and both ledger legs have already been posted: none of which is wrapped in a
 transaction with the final balance update, and none of which rolls back if
 that update fails.
 
@@ -147,7 +147,7 @@ that update fails.
     write: `UPDATE sponsor_pots SET balance_cents = balance_cents - gross`.
   - No `controlDb.transaction(...)` anywhere in the file (`grep -n
     "transaction"` in `lib/billing/pot.ts` finds nothing but a comment).
-  - `drizzle/0072_corporate.sql:279-282` — the CHECK constraint
+  - `drizzle/0072_corporate.sql:279-282`: the CHECK constraint
     `sponsor_pots_overdraft_bounded` is the only thing that would actually stop
     this at the database, and it fires on the last statement, after the
     session/payment/ledger writes already committed as separate statements.
@@ -164,14 +164,14 @@ that update fails.
 **Who is harmed:**
 - The **sponsor**, whose pot can be pushed further negative than the overdraft
   they were shown and agreed to (C239's entire point was that the overdraft is
-  "a small, bounded, deliberate credit exposure" — the code no longer bounds
+  "a small, bounded, deliberate credit exposure": the code no longer bounds
   it under concurrency).
 - The **patient**, who in the failing (second) booking gets an unhandled
   server error mid-booking, after their session has silently already been
-  marked paid in the database — a broken UI state that also violates "does
+  marked paid in the database: a broken UI state that also violates "does
   the screen tell the truth about what will happen".
 - Silently, this also reintroduces exactly the drift `reconcilePots()` exists
-  to catch (`lib/billing/pot.ts:458-479`), except this is not a rare crash —
+  to catch (`lib/billing/pot.ts:458-479`), except this is not a rare crash:
   it is a foreseeable race under ordinary concurrent use, and `reconcilePots`
   is only ever read by a human opening `/admin/sponsors` (see Finding 6 for
   the equivalent gap on the cron side).
@@ -191,7 +191,7 @@ against the *same* pot, which is the actual gap.
 
 ---
 
-## Finding 4 — a pot-funded session cannot be refunded; the sponsor's pot is never credited back
+## Finding 4: a pot-funded session cannot be refunded; the sponsor's pot is never credited back
 
 **What:** The only refund function in the codebase, `refundSessionPayment`,
 requires `payment.stripePaymentIntentId` to exist and returns an error if it
@@ -202,23 +202,23 @@ exists, and the sponsor's pot balance, once debited at booking, is never
 credited back for a session that is later refunded or that never happened.
 
 **Where:**
-- `lib/billing/connect.ts:771-797` — `refundSessionPayment`: line 794 checks
+- `lib/billing/connect.ts:771-797`: `refundSessionPayment`: line 794 checks
   `payment.status !== "paid"`, line 795-797 checks `!payment.stripePaymentIntentId`
   and returns `{ error: "That payment has no Stripe charge to refund." }`.
-- `lib/billing/pot.ts:218-272` — the `session_payments` insert for a pot
+- `lib/billing/pot.ts:218-272`: the `session_payments` insert for a pot
   payment never sets `stripePaymentIntentId`, confirming it is always null for
   every pot-funded session.
-- `lib/billing/ledger.ts:369-418` — `postSessionRefund`, the function that
+- `lib/billing/ledger.ts:369-418`: `postSessionRefund`, the function that
   would reverse the ledger legs on a refund, is only ever reached from inside
   `refundSessionPayment` (`lib/billing/connect.ts:834-844`), so it is
   unreachable for a pot payment too. There is no `sponsor_pot` leg anywhere in
-  `postSessionRefund`'s leg list even hypothetically — it was written before
+  `postSessionRefund`'s leg list even hypothetically: it was written before
   the pot existed and was never extended for it.
 - Two live callers hit this and handle the failure two different, both wrong,
   ways:
   - `lib/data/recovery.ts:266-283` (`refundNoShow`, the automatic no-show
     refund the platform issues on the clock): calls `refundSessionPayment`,
-    checks `result.error`, `log.error`s it — and then **still returns
+    checks `result.error`, `log.error`s it: and then **still returns
     `{ ok: true, outcome: "refunded" }`** to its own caller regardless
     (line 283 is outside the `if` block). The system reports success while
     the sponsor's money is not returned.
@@ -226,12 +226,12 @@ credited back for a session that is later refunded or that never happened.
     no-show report): wraps the call in `try { await refundSessionPayment(...)
     } catch { /* Already refunded, or payments are not configured here. */ }`
     (lines 96-107). But `refundSessionPayment` does not throw for this case,
-    it resolves normally with `{ error: ... }` — so the `catch` never fires
+    it resolves normally with `{ error: ... }`: so the `catch` never fires
     and the return value is never even inspected. The failure produces no log
     line at all on this path.
 
 **Who is harmed:** The **sponsor**. Once `payFromPot` debits the pot at
-booking (which happens immediately, not at session start — see
+booking (which happens immediately, not at session start: see
 `lib/data/scheduling.ts:502-516`), that money is gone even if the therapist
 never joins, even if the session is cancelled before it starts, even if a
 patient reports a no-show. C239's entire framing ("a session that has started
@@ -252,7 +252,7 @@ not a plan gap.
 
 ---
 
-## Finding 5 — no reschedule mechanic exists; cancel-and-rebook double-spends the pot
+## Finding 5: no reschedule mechanic exists; cancel-and-rebook double-spends the pot
 
 **What:** There is no reschedule feature anywhere in the codebase today
 (`grep -rln "reschedule\|Reschedule"` across `app/` and `lib/` returns
@@ -266,9 +266,9 @@ patient experiences as one appointment: once for the original booking
 (never refunded, per Finding 4) and again for the new one.
 
 **Where:**
-- `lib/data/scheduling.ts:536-578` — `cancelBooking`. No call to any refund
+- `lib/data/scheduling.ts:536-578`: `cancelBooking`. No call to any refund
   or pot-crediting function.
-- `lib/data/scheduling.ts:429-527` — `bookSlot`, called fresh for the new
+- `lib/data/scheduling.ts:429-527`: `bookSlot`, called fresh for the new
   time, calls `payFromPot` again at line 516.
 - No `sessions.rescheduledFromId`, no link between a cancelled session and its
   replacement, anywhere in `lib/db/schema.ts`.
@@ -299,7 +299,7 @@ it is not covered.
 
 ---
 
-## Finding 6 — C247's "reversible by us in one step" has no call site
+## Finding 6: C247's "reversible by us in one step" has no call site
 
 **What:** `unpause()`, the function whose entire purpose per its own doc
 comment is to be the one-step manual override staff use to restore someone's
@@ -309,22 +309,22 @@ enrolment's `pausedAt` is ever cleared is the person themselves successfully
 re-answering their own verification code.
 
 **Where:**
-- `lib/data/enrolment-verify.ts:296-311` — `unpause()`.
+- `lib/data/enrolment-verify.ts:296-311`: `unpause()`.
 - `grep -rn "\bunpause\b"` across `app/` and `lib/` finds only the definition
   (`lib/data/enrolment-verify.ts:304`) and its own doc comment referencing
   itself. No caller.
 - `grep -rln "pausedAt: null"` across the whole codebase finds only
-  `lib/data/enrolment-verify.ts` — the successful re-verification path inside
+  `lib/data/enrolment-verify.ts`: the successful re-verification path inside
   `confirmEnrolmentCode` (lines 197-202), which requires the *person* to
   answer a code sent to *their own* address.
 - `app/(admin)/admin/sponsors/*` has no unpause control, and neither does any
   sponsor-facing screen (removal is the sponsor's only individual-level power
   by design, C234, and a sponsor is never shown who is paused beyond a
-  boolean on the roster — see `roster()` at `lib/data/sponsors.ts:91-127`).
+  boolean on the roster: see `roster()` at `lib/data/sponsors.ts:91-127`).
 
 **Who is harmed:** The patient C247 itself names as the hard case: "a person
 on extended leave who cannot reach their work inbox has their benefit pause...
-so the pause must be reversible by us in one step." Today there is no "us" —
+so the pause must be reversible by us in one step." Today there is no "us":
 no operator has a button. The product's own promise about how this gets fixed
 does not exist as a reachable action. The only remedy left is a direct
 database edit outside the product, which is exactly what C247 says a phone
@@ -339,7 +339,7 @@ exists in the codebase but was never reached from a screen or action.
 
 ---
 
-## Finding 7 — "who did this" is collected from the sponsor and then thrown away
+## Finding 7: "who did this" is collected from the sponsor and then thrown away
 
 **What:** Both individual-affecting sponsor actions accept a "who did this"
 identifier and never persist it anywhere. `removeFromRoster`'s
@@ -349,16 +349,16 @@ saying they are "for the audit," and neither is ever written to a column, a
 log field, or an audit row.
 
 **Where:**
-- `lib/data/sponsors.ts:330-380` — `removeFromRoster`. The type at line 335
+- `lib/data/sponsors.ts:330-380`: `removeFromRoster`. The type at line 335
   declares `bySponsorUserId: string`. The function body (lines 337-379) never
   references `input.bySponsorUserId`. `enrolments` (`lib/db/schema.ts:5843-5930`)
   has no `removed_by_sponsor_user_id` column. The only log line,
   `log.info("enrolment removed", { reason: input.reason })` at line 378, does
   not include it either.
-- `app/(sponsor)/sponsor/people/actions.ts:37-42` — the caller, whose own
-  comment on the *type* says "The sponsor user who did it, for `audit`" —
+- `app/(sponsor)/sponsor/people/actions.ts:37-42`: the caller, whose own
+  comment on the *type* says "The sponsor user who did it, for `audit`,"
   a claim the callee does not honour.
-- `lib/billing/pot.ts:363-368` — `topUpPot`'s `bySponsorUserId` parameter,
+- `lib/billing/pot.ts:363-368`: `topUpPot`'s `bySponsorUserId` parameter,
   same pattern: declared, documented ("Who authorised it, for the audit"),
   never referenced in the function body (lines 369-446).
 
@@ -373,17 +373,17 @@ about being able to answer "who did this" later, and the code cannot answer
 that question despite two separate comments asserting it can.
 
 **Severity:** minor (it is an accountability and dispute-resolution gap, not
-a direct clinical or privacy leak — nothing about a patient is exposed by this
+a direct clinical or privacy leak: nothing about a patient is exposed by this
 absence).
 
 **Already known?** No C-number rules this directly. It is new: a comment
 asserting a wiring the code does not have, the exact pattern `pot.ts:141-149`
-itself calls out as "the second most common defect in this repository" —
+itself calls out as "the second most common defect in this repository,"
 found here in the sibling function to the one that comment is about.
 
 ---
 
-## Finding 8 — `benefit_paused` is fully built and never used
+## Finding 8: `benefit_paused` is fully built and never used
 
 **What:** `PATIENT_NOTICE_KINDS` includes `"benefit_paused"` with complete,
 correct bilingual copy ("Your benefit is paused until you confirm you are
@@ -394,9 +394,9 @@ keep your benefit.") tells the person what to do but never plainly states
 that their funding has, in fact, already stopped.
 
 **Where:**
-- `lib/db/schema.ts:6005-6011` — `PATIENT_NOTICE_KINDS` lists
+- `lib/db/schema.ts:6005-6011`: `PATIENT_NOTICE_KINDS` lists
   `"benefit_paused"`.
-- `lib/i18n/messages.ts:1150,3993` — the copy exists in English and Arabic.
+- `lib/i18n/messages.ts:1150,3993`: the copy exists in English and Arabic.
 - `lib/data/enrolment-verify.ts:275-281` (`pauseUnverified`) inserts
   `kind: "verify_needed"`, not `"benefit_paused"`.
 - `grep -rn '"benefit_paused"'` across `app/` and `lib/` finds only the
@@ -417,7 +417,7 @@ dedicated one and the implementation quietly used a different one.
 
 ---
 
-## Sprint 60 — attacking the coverage-percentage rulings
+## Sprint 60: attacking the coverage-percentage rulings
 
 The rulings in C311, C312, C313, C314, C315, C317, C342, C344, C345, C346,
 C347 are each internally sound as written. None of the built code
@@ -428,7 +428,7 @@ what the ruling set, taken together, does not cover.
 |---|---|---|---|
 | 1 | Reschedule across a notice window | C342: reschedule keeps the frozen percentage | See Finding 5. There is no reschedule mechanic to attach this rule to, and the only existing substitute (cancel + rebook) already double-spends the pot with no refund. Building "reschedule keeps the frozen %" on top of that either has to invent a real reschedule primitive (a schema change not in the sprint 60 ticket list) or silently inherit the double-spend bug into the coverage feature. |
 | 2 | Series booking | C343: a series reserves against the pot at booking, reservations expire on cancellation | The reservation mechanic is specified as expiring "when a session is cancelled" but the ticket list never says what happens to a reservation when the *sponsor's account* changes state (suspended, closed) between the series booking and a later session in it, nor what happens when the patient's *primary enrolment changes* (C249 permits this at any time) mid-series. `payFromPot`'s existing WHERE clause checks `sponsors.state = 'active'` and `enrolments.isPrimary = true` at the moment of payment (`lib/billing/pot.ts:151-166`); a reservation model has to decide whether each session in the series is re-checked against these at spend time or only once at series-booking time, and the ticket list does not say. |
-| 3 | Enrolment changes mid-series | C317: coverage follows the primary enrolment at the moment of booking and freezes | Ruled for a single booking. Not extended to what "at the moment of booking" means for a whole series booked in one click (C343) — is the freeze per-session (each session in the series checks the primary enrolment as it is reserved) or per-series (one freeze covers every session even if the person's primary sponsor changes mid-series)? The two tickets (60.5/C342 and 60.11/C343) do not cross-reference each other on this point. |
+| 3 | Enrolment changes mid-series | C317: coverage follows the primary enrolment at the moment of booking and freezes | Ruled for a single booking. Not extended to what "at the moment of booking" means for a whole series booked in one click (C343): is the freeze per-session (each session in the series checks the primary enrolment as it is reserved) or per-series (one freeze covers every session even if the person's primary sponsor changes mid-series)? The two tickets (60.5/C342 and 60.11/C343) do not cross-reference each other on this point. |
 | 4 | Refund after the percentage changed | C315: refunds apportioned in the frozen ratio | Sound as written, but see Finding 4: there is currently no way to refund a pot-funded payment at all. C315 assumes the refund mechanism it apportions already exists. It does not, and no sprint 60 ticket names fixing the underlying refund path as a precondition, the way C233's terms-before-money was made an explicit precondition of C232. |
 | 5 | Sponsor empties the pot after freezing | C239 (existing) bounds the overdraft; not revisited for split payments | Not directly addressed by sprint 60. If a session is booked with an 80% frozen split and the sponsor's pot subsequently runs past its overdraft before the session happens, does the *sponsor's 80% share* still pay (per C239's "a session that has started always completes") even though the booking may not yet have "started" in the clock sense the overdraft rule uses? The frozen-percentage tickets do not restate or extend C239 for the split case. |
 | 6 | Cancellation | Not named in C311-C317 or C342-C347 at all | A cancelled, never-started, partially sponsored session's split payment has no ruling. Does the sponsor's share get refunded per C315's frozen ratio (as if it were a refund) or is cancellation treated separately? The word "cancel" does not appear in any of C311 to C317 or C342 to C347. |
@@ -443,7 +443,7 @@ none of the six gaps has its own concern. They are new.
 
 ---
 
-## Sprint 61 — attacking domain proof, the banner, and provisional enrolment
+## Sprint 61: attacking domain proof, the banner, and provisional enrolment
 
 Sprint 61 is entirely unbuilt (confirmed: no `listedPublicly` reference
 outside the admin and sponsor-settings screens that manage the flag today, no
@@ -453,7 +453,7 @@ DNS-proof table, no public banner component anywhere in `app/` or
 | # | Attack from the brief | Finding |
 |---|---|---|
 | Domain transfer / company sale | Nothing in PLAN.md addresses this. `grep -n -i "acqui\|domain transfer\|change hands\|reassign"` across the whole file returns nothing relevant to sponsors. C318/61.1 prove a domain **once**, at setup (email code + DNS TXT). No ticket re-checks the TXT record on any schedule after that. A domain that is later abandoned, sold, or re-registered (ordinary events: startups fold, rebrands happen, IT lets a legacy domain lapse) continues to silently authorise enrolment against the *original* sponsor's pot forever, because the plan has no re-proof or expiry for domain ownership, only for the *person's* re-verification (C247, which re-checks the individual, not the sponsor's claim on the domain). |
-| Company acquisition / merger | Same search, same result: no ruling anywhere. Two sponsors merging, or one sponsor's staff moving to an acquirer's domain, has no described path — not a removal, not a domain reassignment, not a pot transfer. This is silent by omission across the whole plan, not just sprint 61. |
+| Company acquisition / merger | Same search, same result: no ruling anywhere. Two sponsors merging, or one sponsor's staff moving to an acquirer's domain, has no described path: not a removal, not a domain reassignment, not a pot transfer. This is silent by omission across the whole plan, not just sprint 61. |
 | Enumeration via domain guessing | C349/61.6 states the *outcome* ("constant message, constant timing") correctly but the ticket gives no mechanism. Compare to the pattern this repo already uses correctly: `checkSponsorPassword` (`lib/data/sponsor-admin.ts:381-419`) achieves constant-time behavior by explicitly hashing a dummy password even on an unknown email (lines 396-398), and the doc comment names *why*. Ticket 61.6 does not name an equivalent mechanism (a padding delay, a decoy DB lookup, or reuse of the same "compute the expensive thing regardless" pattern) for the domain-guessing flow, which given this repo's own history of exactly this bug class is a gap worth naming explicitly before the ticket is picked up, not after. |
 | Provisional enrolment spending more than N | C350/61.9 caps a provisional person at N sessions, default 1, but no ticket specifies the enforcement mechanism. Given Finding 3 above (the existing pot-spend path already has an unguarded read-then-write race on a shared counter), a naive "count sessions this provisional enrolment has spent, compare to N" check implemented the same way `payFromPot`'s overdraft check is implemented today would have exactly the same concurrency hole: two concurrent bookings under one compromised HR-matched identity could each read "0 of N spent" and both proceed, spending 2 sessions against a cap of 1. C350's own stated threat model (a compromised HR API key booking sessions) is precisely the adversary who would exploit this, since a script can fire concurrent requests trivially. |
 | Company appears on the banner without opting in | Not found as a live bug (the banner does not exist yet), but the ticket list has a gap: 61.5 says the banner shows "opted-in sponsors only" using the existing `listed_publicly` column, default off (C236, already correctly defaulted off today, confirmed at `lib/db/schema.ts:5621` and enforced with no form field to set it in `applyToSponsor`, `lib/data/sponsor-admin.ts:69-93`). But sprint 61 also adds two *new* proof states (DNS TXT pending/passed, agreement pending/passed) and does not say whether completing domain proof has any effect on `listed_publicly`, or whether the two are fully independent. If a future implementer conflates "domain proved" with "should be listed" (an easy mistake, since both read as "this company is legitimately a customer now"), a sponsor could end up on the public banner without the separate, deliberate opt-in C236 requires. This is a plan-clarity gap: the ticket list never states explicitly that proof and listing are unrelated toggles. |
@@ -484,7 +484,7 @@ booking, therapist, or `createdAt` column. `weeklySpend()`
 per-session row ever exists in the pipeline. I also checked our own most
 powerful internal screen, Total View (`app/(admin)/admin/tv/page.tsx` and
 `lib/console/reads.ts`), which can search any patient by name or email and
-show their sessions, transcript, and clinician — a `grep -n "sponsor"` over
+show their sessions, transcript, and clinician: a `grep -n "sponsor"` over
 `lib/console/reads.ts` returns nothing, confirming it has no sponsor-facing
 join either. The only way to connect a sponsor's roster (a name) to that
 search box is for one human to read a name off a screen and type it into

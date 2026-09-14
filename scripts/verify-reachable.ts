@@ -19,7 +19,7 @@
  * It reads source. That is deliberate: this has to run on a laptop, in CI, and
  * in the same breath as `verify:claims`, without anybody exporting a URL first.
  */
-import { loadSurfaces, serverActions, unwiredActions, apiRoutes, uncalledRoutes, routePath, pages, unlinkedPages, pagePath } from "./_surfaces";
+import { loadSurfaces, serverActions, unwiredActions, apiRoutes, uncalledRoutes, routePath, pages, unlinkedPages, pagePath, libraryExports, uncalledExports } from "./_surfaces";
 import { reporter } from "./_verify";
 
 const { check, finish } = reporter();
@@ -58,6 +58,21 @@ const ROUTES_BY_DESIGN: Record<string, string> = {
 };
 
 const PAGES_BY_DESIGN: Record<string, string> = {};
+
+/*
+ * 🔴 C369 — exported safety code that legitimately has no caller. Each entry is
+ * a decision, and the stale check below fails when one stops being needed.
+ */
+const EXPORTS_BY_DESIGN: Record<string, string> = {};
+
+/**
+ * 🔴 The floor. 87 exported safety functions have no caller anywhere.
+ *
+ * Measured on 2026-09-14, the day four hostile auditors each found one of these
+ * by hand and this gate could see none of them. Lower it whenever the number
+ * drops; it must never rise.
+ */
+const DEAD_EXPORT_BASELINE = 87;
 
 /* --------------------------------------------------------------- checks -- */
 
@@ -116,6 +131,73 @@ function main() {
     unlinkedReal.map(pagePath).join(" · ") || `${all.length} pages linked`,
   );
 
+  /* --------------------------- 58.9 · exported safety code with no caller */
+
+  /*
+   * 🔴 C369. Four auditors found four of these independently and this gate saw
+   * none of them, because it measured actions, routes and pages and a library
+   * function is none of those.
+   */
+  const exported = libraryExports(s);
+  check(
+    "58.9 exported safety functions were found at all",
+    exported.length > 200,
+    `${exported.length} exported functions across the safety modules`,
+  );
+
+  const dead = uncalledExports(s, exported);
+  const deadNow = new Set(dead.map((f) => `${f.file}#${f.name}`));
+
+  /*
+   * 🔴 A RATCHET, not a pass/fail, and the reason is H20.
+   *
+   * The first run found EIGHTY-SEVEN. A gate that fails with eighty-seven
+   * findings is a gate somebody switches off inside a week, and then the
+   * eighty-eighth arrives unseen. H20 is this repository's record of exactly
+   * that: five e2e tests sat red for fifteen sprints behind a standing
+   * explanation and masked a live defect.
+   *
+   * So the number is a FLOOR that can only go down. A new dead export fails
+   * immediately; clearing an old one is expected to lower the baseline. The
+   * i18n coverage gate already works this way here, for the same reason.
+   *
+   * 🔴 The MUST_WIRE list is the part that is not a ratchet. Each of these was
+   * written to satisfy a named ruling and then wired to nothing, so its absence
+   * is the ruling silently not being enforced. They fail outright.
+   */
+  const MUST_WIRE: Record<string, string> = {
+    "lib/data/sponsors.ts#potBalance":
+      "C229's anti-differencing floor. Without it both sponsor screens render the raw pot balance, so a sponsor watching it drop by one session's price learns that one named person had a session today. That is the exact attack C229 exists to stop.",
+    "lib/data/enrolment-verify.ts#unpause":
+      "C247's one-step manual unpause. Without it a sponsor whose employee re-verified late has no way back on, and funding stays paused with no operator remedy.",
+    "lib/partner/api.ts#upsertSubject":
+      "The only way a `partner_subjects` row can exist. Without it three of the five documented partner API use cases are unreachable in production while the developer page documents them.",
+    "lib/partner/webhooks.ts#queueWebhook":
+      "The only thing that raises a partner webhook. The registration UI is built, the delivery table exists, and no event has ever fired.",
+    "lib/billing/ledger.ts#unbalancedTransactions":
+      "Detects a ledger that does not balance. It is the check that would notice money being manufactured, and nothing calls it.",
+    "lib/crisis/level.ts#keywordFloor":
+      "The floor under a crisis level, so a model that under-rates a keyword hit cannot lower the alert below what the keyword alone justifies.",
+    "lib/data/usage.ts#consentRate":
+      "Total View's consent rate. Sprint 57 shaped the whole unlimited-plan billing change around keeping this answerable, and nothing asks it.",
+  };
+
+  const mustWireMissing = Object.keys(MUST_WIRE).filter((key) => deadNow.has(key));
+  check(
+    "🔴 58.9 every safety function written for a named ruling is WIRED",
+    mustWireMissing.length === 0,
+    mustWireMissing.join(" · ") || `${Object.keys(MUST_WIRE).length} checked, all wired`,
+  );
+
+  check(
+    "🔴 58.9 the dead-export count only goes DOWN",
+    dead.length <= DEAD_EXPORT_BASELINE,
+    `${dead.length} dead of ${exported.length} exported, baseline ${DEAD_EXPORT_BASELINE}` +
+      (dead.length < DEAD_EXPORT_BASELINE
+        ? `. LOWER THE BASELINE to ${dead.length}`
+        : ""),
+  );
+
   /* ------------------------------------------- 58.4 · no stale exemption */
 
   /*
@@ -132,11 +214,15 @@ function main() {
   const staleActions = Object.keys(ACTIONS_BY_DESIGN).filter(
     (key) => !unwired.some((a) => `${a.file}#${a.name}` === key),
   );
+  const staleExports = Object.keys(EXPORTS_BY_DESIGN).filter((key) => !deadNow.has(key));
 
   check(
     "🔴 58.4 no allowlist entry has stopped being an orphan",
-    staleRoutes.length === 0 && stalePages.length === 0 && staleActions.length === 0,
-    [...staleRoutes, ...stalePages, ...staleActions].join(" · ") || "every exemption still earns its place",
+    staleRoutes.length === 0 &&
+      stalePages.length === 0 &&
+      staleActions.length === 0 &&
+      staleExports.length === 0,
+    [...staleRoutes, ...stalePages, ...staleActions, ...staleExports].join(" · ") || "every exemption still earns its place",
   );
 
   check(
@@ -145,6 +231,7 @@ function main() {
       ...Object.values(ROUTES_BY_DESIGN),
       ...Object.values(PAGES_BY_DESIGN),
       ...Object.values(ACTIONS_BY_DESIGN),
+      ...Object.values(EXPORTS_BY_DESIGN),
     ].every((reason) => reason.length > 60),
     "a one-word reason is a shrug with a comma in it",
   );

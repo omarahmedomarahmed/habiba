@@ -41,6 +41,8 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+import { stripCommentsKeepingLines } from "./_dashes";
+
 const ROOT = process.cwd();
 
 /*
@@ -254,6 +256,100 @@ export function unlinkedPages(s: Surfaces, all: string[]): string[] {
         !f.startsWith("scripts/") &&
         !f.startsWith("tests/") &&
         anchored.test(s.body.get(f)!),
+    );
+  });
+}
+
+
+/* ------------------------------------------------- exported library code -- */
+
+/**
+ * 🔴 C369 — the gap four auditors found independently, one layer below actions.
+ *
+ * `verify:reachable` shipped at 13/13 over 233 server actions, 26 API routes and
+ * 114 pages, and could not see a single one of these:
+ *
+ *   lib/partner/api.ts       `upsertSubject`, the ONLY way a `partner_subjects`
+ *                            row can exist. Zero callers, so three of the five
+ *                            documented partner API use cases are unreachable.
+ *   lib/partner/webhooks.ts  `queueWebhook`. Zero callers. The registration UI
+ *                            is built and no event has ever fired.
+ *   lib/data/sponsors.ts     `potBalance`, the anti-differencing floor C229 was
+ *                            written for. Zero callers, so both sponsor screens
+ *                            render the raw balance and a sponsor can infer that
+ *                            one named person had a session today.
+ *   lib/data/enrolment-verify.ts  `unpause`, C247's promised one-step manual
+ *                            unpause. Zero callers.
+ *
+ * Every one is a SAFETY function. That is not a coincidence: a safety function
+ * is exactly the kind that gets written to satisfy a ruling, passes a
+ * source-reading verifier, and is never wired to anything, because nothing
+ * fails when it is absent.
+ *
+ * So the rule widens: an exported function in a safety-critical module is
+ * reachable, or it is an allowlisted decision with a reason. The module list is
+ * explicit rather than "all of lib", because `lib` also holds helpers, types and
+ * pure arithmetic whose call sites are legitimately narrow.
+ */
+export const SAFETY_MODULES = [
+  "lib/data/",
+  "lib/partner/",
+  "lib/billing/",
+  "lib/crisis/",
+  "lib/console/",
+  "lib/access/",
+  "lib/ehr/",
+];
+
+export function libraryExports(s: Surfaces): ActionRef[] {
+  const out: ActionRef[] = [];
+  for (const file of s.files) {
+    if (!SAFETY_MODULES.some((m) => file.startsWith(m))) continue;
+    if (file.endsWith(".d.ts")) continue;
+    const src = s.body.get(file)!;
+    // A `"use server"` file is already covered by `serverActions`.
+    if (/^\s*["']use server["']/m.test(src.slice(0, 400))) continue;
+    for (const m of src.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)) {
+      out.push({ file, name: m[1]! });
+    }
+  }
+  return out;
+}
+
+/**
+ * An exported function is CALLED when its name appears in another non-test,
+ * non-script file. Deliberately looser than the action rule: a library function
+ * called by another library function is legitimately wired, and demanding a path
+ * to a page would flag every helper in the codebase.
+ *
+ * What this catches is the one that nothing anywhere calls, which is the shape
+ * all four findings had.
+ */
+export function uncalledExports(s: Surfaces, fns: ActionRef[]): ActionRef[] {
+  /*
+   * 🔴 COMMENTS STRIPPED FIRST, and the first version of this did not.
+   *
+   * C205 is a standing rule of this repository: strip comments before any scan
+   * of source, without exception, because seven checkers have now matched the
+   * prose describing the defect they hunt. This file broke it immediately:
+   * `queueWebhook` has no caller, and the scan called it wired because
+   * `app/(partner)/partner/webhooks/actions.ts` mentions it IN A COMMENT
+   * explaining why the payload is not configurable.
+   *
+   * A rule forgotten eight times is not a rule, it is a hope. The stripper
+   * keeps line numbers, so nothing downstream shifts.
+   */
+  const code = new Map<string, string>();
+  for (const [file, src] of s.body) code.set(file, stripCommentsKeepingLines(src));
+
+  return fns.filter((fn) => {
+    const pattern = new RegExp(`\\b${fn.name}\\b`);
+    return !s.files.some(
+      (f) =>
+        f !== fn.file &&
+        !f.startsWith("scripts/") &&
+        !f.startsWith("tests/") &&
+        pattern.test(code.get(f)!),
     );
   });
 }
