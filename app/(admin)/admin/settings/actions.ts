@@ -93,16 +93,22 @@ export async function savePricing(
    * prices", which is the shape a spread with a missing key produces silently.
    */
   const seatBands = current.pricing.seatBands;
+  /*
+   * 🔴 68.14 — carried through for the same reason, and the reason is worth having
+   * twice: a spread with a missing key wipes a price silently, and this one is what
+   * a telehealth partner is billed per session.
+   */
+  const partnerSessionCents = current.pricing.partnerSessionCents;
 
   const problem = settingsProblem({
     ...current,
-    pricing: { tiers, creditExpiryMonths, seatBands },
+    pricing: { tiers, creditExpiryMonths, seatBands, partnerSessionCents },
   });
   if (problem) return { error: problem };
 
   await writeSettingsGroup({
     group: "pricing",
-    value: { tiers, creditExpiryMonths, seatBands },
+    value: { tiers, creditExpiryMonths, seatBands, partnerSessionCents },
     updatedBy: actor.userId,
   });
 

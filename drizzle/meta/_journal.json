@@ -666,6 +666,20 @@
       "when": 1789600000060,
       "tag": "0094_clinic_application",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1789600000061,
+      "tag": "0095_partner_platform",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1789600000062,
+      "tag": "0096_partner_content",
+      "breakpoints": true
     }
   ]
 }

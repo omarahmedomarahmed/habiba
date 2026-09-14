@@ -211,6 +211,9 @@ export async function allPartners() {
       contactEmail: partners.contactEmail,
       contactPhone: partners.contactPhone,
       intent: partners.intent,
+      /* 🔴 68.21 — what the owner reads before approving a production key. */
+      documentsUrl: partners.documentsUrl,
+      approvedAt: partners.approvedAt,
       createdAt: partners.createdAt,
     })
     .from(partners)
@@ -258,4 +261,81 @@ export async function sponsorChoices() {
     .from(sponsors)
     .where(eq(sponsors.state, "active"))
     .orderBy(sponsors.name);
+}
+
+/**
+ * 🔴 68.21 / C264 — APPROVE A PARTNER FOR PRODUCTION. A NAMED HUMAN, EVERY TIME.
+ *
+ * *Documents, a named contact, a phone number, an email, and an admin approval.*
+ *
+ * Separate from `setPartnerState`, which is the commercial relationship, because this
+ * is a different decision about a different risk. A partner can be `active` and
+ * unapproved all day: they build against sandbox, which reaches nobody. Approval is
+ * the moment their keys can touch a real person's session, and it is the one C264
+ * calls the owner's act.
+ *
+ * 🔴 `approvedByUserId` IS REQUIRED BY THE DATABASE, not by this function's politeness.
+ * `partners_approval_pair` refuses a row with one and not the other, so an approval
+ * with nobody behind it cannot be written by a script, a fixture, or a future endpoint
+ * that forgot.
+ *
+ * 🔴 AND IT REFUSES WITH NO DOCUMENTS, in a sentence rather than silently. The
+ * documents are the whole reason this step exists: without them the approval is an
+ * operator clicking a button about a company they have read a form from.
+ */
+export async function approveForProduction(input: {
+  partnerId: string;
+  byUserId: string;
+}): Promise<{ ok?: true; error?: string }> {
+  const [partner] = await controlDb
+    .select({
+      documentsUrl: partners.documentsUrl,
+      contactName: partners.contactName,
+      contactPhone: partners.contactPhone,
+      approvedAt: partners.approvedAt,
+    })
+    .from(partners)
+    .where(eq(partners.id, input.partnerId))
+    .limit(1);
+
+  if (!partner) return { error: "That partner no longer exists." };
+  if (partner.approvedAt) return { error: "That partner is already approved." };
+
+  if (!partner.documentsUrl || !partner.contactName || !partner.contactPhone) {
+    return {
+      error:
+        "Documents, a named contact and a phone number first. Approving without them is approving a form.",
+    };
+  }
+
+  await controlDb
+    .update(partners)
+    .set({
+      approvedAt: new Date(),
+      approvedByUserId: input.byUserId,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(partners.id, input.partnerId), isNull(partners.approvedAt)));
+
+  log.info("partner approved for production", { partner: ref(input.partnerId) });
+  return { ok: true };
+}
+
+/**
+ * 🔴 68.21 — AND IT CAN BE WITHDRAWN, which is the half an approval flow forgets.
+ *
+ * Clearing `approvedAt` stops new LIVE keys being minted. It does not revoke the keys
+ * they already hold, and that is deliberate: revoking a live key mid-afternoon stops
+ * transcription in rooms that are open, and a commercial dispute with a platform must
+ * never arrive in somebody's session. `revokeKey` is the separate, deliberate act for
+ * when it must.
+ */
+export async function withdrawApproval(partnerId: string): Promise<{ ok: true }> {
+  await controlDb
+    .update(partners)
+    .set({ approvedAt: null, approvedByUserId: null, updatedAt: new Date() })
+    .where(eq(partners.id, partnerId));
+
+  log.warn("partner production approval withdrawn", { partner: ref(partnerId) });
+  return { ok: true };
 }

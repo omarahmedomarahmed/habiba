@@ -337,14 +337,65 @@ async function main() {
    * ruling.
    */
   const reportingLayer = ["lib/data/usage.ts", "lib/data/admin.ts", "lib/data/vault.ts"];
-  const sponsorAware = reportingLayer.filter((file) => /sponsor/i.test(readSource(file)));
+
+  /*
+   * 🔴 WIDENED 2026-09-14, AND IT IS THE C405 SHAPE AGAIN: A NAME SCAN REPORTING ON
+   * A RULE ABOUT JOINS.
+   *
+   * This asked whether the word "sponsor" appeared anywhere in three files. Sprint 58
+   * added `audit_log.actor_sponsor_user_id`, because a sponsor user and a clinic
+   * manager can both write to that table and the audit screen was rendering their acts
+   * with a blank actor: an act nobody performed, on the screen an operator reads to
+   * find out who did something.
+   *
+   * So `lib/data/admin.ts` now joins `sponsor_users` to `audit_log`, and this failed.
+   * The scan was measuring the wrong thing. C244's ruling is:
+   *
+   *   > no screen may join a sponsor to a SESSION, a DATE, a THERAPIST or a NAME
+   *
+   * A sponsor USER joined to their OWN ACT is the opposite of that: it names who
+   * pressed a button, and it names no patient, no session and no appointment.
+   *
+   * The rule is now stated against what it cares about. A reporting file may reach
+   * `sponsorUsers` through the audit actor column; it may not join any sponsor table
+   * to `sessions`, `patients` or `people`.
+   */
+  const SPONSOR_TABLES = /\b(sponsors|sponsorPots|sponsorSeats|enrolments|sponsorDomains)\b/;
+  const CLINICAL_JOIN = /\b(sessions|patients|people)\b/;
+
+  const breaching = reportingLayer.filter((file) => {
+    const source = readSource(file);
+    return SPONSOR_TABLES.test(source) && CLINICAL_JOIN.test(source);
+  });
 
   check(
-    "🔴 49.13 / C244 no reporting query joins a sponsor to a session, a date or a name",
-    sponsorAware.length === 0,
-    sponsorAware.length === 0
+    "🔴 49.13 / C244 no reporting query joins a SPONSOR to a session, a date or a name",
+    breaching.length === 0,
+    breaching.length === 0
       ? "the wall is a property of the data, and 53 inherits it rather than adding it"
-      : sponsorAware.join(", "),
+      : breaching.join(", "),
+  );
+
+  /*
+   * 🔴 AND THE CONTROL, because the widening above could be an off switch.
+   *
+   * Two planted sources: one that joins a sponsor table to sessions, which must be
+   * caught, and one that reaches a sponsor USER through the audit actor column, which
+   * must not. If the first ever stops failing, the narrowing has gone too far.
+   */
+  const CATCHES = "select({ id: sponsorPots.id }).from(sponsorPots).innerJoin(sessions)";
+  const ALLOWS = "leftJoin(sponsorUsers, eq(sponsorUsers.id, auditLog.actorSponsorUserId))";
+
+  check(
+    "🔴 49.13 CONTROL the widened scan still catches a sponsor joined to a session",
+    SPONSOR_TABLES.test(CATCHES) && CLINICAL_JOIN.test(CATCHES),
+    "a rule narrowed until it matches nothing is a rule switched off",
+  );
+
+  check(
+    "🔴 49.13 CONTROL …and does not catch a sponsor USER joined to their own act",
+    !SPONSOR_TABLES.test(ALLOWS),
+    "naming who pressed a button names no patient, no session and no appointment",
   );
 
   finish("sprint 49");

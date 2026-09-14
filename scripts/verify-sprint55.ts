@@ -1126,10 +1126,50 @@ async function main() {
       `${useCaseKeys.length} use cases, all rendered`,
     );
 
+    /*
+     * 🔴 68.24 — EVERY ENDPOINT THAT EXISTS IS DOCUMENTED, which is the inverse of
+     * the check above and the stronger of the two.
+     *
+     * The old assertion was `useCaseKeys.length === API_SCOPES.length`, one use-case
+     * card per scope. Sprint 68 documents its seven new endpoints as a numbered FLOW
+     * rather than as seven more cards, because the order is the product and a card
+     * per endpoint says they are independent. The count equality would have failed
+     * against correct, complete documentation, which is a gate measuring the shape of
+     * a page rather than whether it is true.
+     *
+     * So the rule is stated directly against the thing it cares about: every route
+     * file under `app/api/partner/v1` has its path printed on the public page. A
+     * route nobody documents is a product nobody can find, and a route documented
+     * that does not exist is caught by the resolution check above. Both directions,
+     * neither depending on how the page is laid out.
+     */
+    const v1Routes = files
+      .filter((f) => f.startsWith("app/api/partner/v1/") && f.endsWith("/route.ts"))
+      .map((f) => `/${f.slice("app/".length, -"/route.ts".length)}`);
+
+    const undocumented = v1Routes.filter((route) => {
+      const wanted = route.split("/");
+      return !printedPaths.some((printed) => {
+        const parts = printed.replace(/^\//, "").split("/");
+        if (parts.length !== wanted.length - 1) return false;
+        return wanted.slice(1).every((segment, i) => {
+          /* A `[param]` folder is documented by any placeholder at that position. */
+          if (segment.startsWith("[")) return true;
+          return segment === parts[i];
+        });
+      });
+    });
+
+    check(
+      "🔴 68.24 every endpoint that EXISTS is printed on the public page",
+      undocumented.length === 0,
+      undocumented.join(", ") || `${v1Routes.length} routes, all documented`,
+    );
+
     check(
       "🔴 55.12 …and no use case string outlives the endpoint it describes",
-      useCaseKeys.length === API_SCOPES.length,
-      `${useCaseKeys.length} use cases against ${API_SCOPES.length} scopes`,
+      useCaseKeys.every((key) => devPage.includes(key)),
+      `${useCaseKeys.length} use cases, every one rendered`,
     );
 
     check(
@@ -1311,9 +1351,22 @@ async function main() {
      * endpoint that serves it. `WEBHOOK_EVENTS` did exactly that for four
      * sprints under a green check. A scope arrives with its route.
      */
+    /*
+     * 🔴 WIDENED BY SPRINT 68, 2026-09-14, and the assertion stays EXACT.
+     *
+     * Seven scopes arrived with seven routes: consent, media, transcript, note,
+     * summary, copilot and memory. The numbers are written out rather than made a
+     * floor for the reason this check exists at all: the failure it guards against
+     * is a scope advertised ahead of the endpoint that serves it, and a floor would
+     * pass the moment somebody added a scope and forgot the route.
+     *
+     * `verify:sprint68` asserts the PAIRING rather than the counts, which is the
+     * stronger half; this one catches the drift a pairing check cannot, which is a
+     * route added with no scope behind it.
+     */
     check(
-      "🔴 55.6-55.8 one scope per telehealth use case, and a route for each",
-      API_SCOPES.length === 3 && routeFiles.length === 4,
+      "🔴 55.6-55.8 / 68.24 one scope per use case, and a route for each",
+      API_SCOPES.length === 10 && routeFiles.length === 11,
       `${API_SCOPES.length} scopes, ${routeFiles.length} routes`,
     );
 

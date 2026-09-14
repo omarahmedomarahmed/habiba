@@ -36,6 +36,9 @@ export default async function AdminPartnersPage() {
         contactEmail: partner.contactEmail,
         contactPhone: partner.contactPhone,
         intent: partner.intent,
+        /* 🔴 68.21 — what the owner reads before approving a production key. */
+        documentsUrl: partner.documentsUrl,
+        approvedAt: partner.approvedAt?.toISOString() ?? null,
         keyCount,
         users,
       };

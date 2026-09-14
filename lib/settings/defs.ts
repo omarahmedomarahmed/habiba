@@ -118,6 +118,21 @@ export type PlatformSettings = {
      * table would be billed a number that never appears on it.
      */
     seatBands: SeatBand[];
+    /**
+     * 🔴 68.14 — WHAT ONE PARTNER SESSION COSTS, AND WHY IT IS PER SESSION.
+     *
+     * *Priced per session, not per call. They do the work; we transcribe, write and
+     * assist.*
+     *
+     * A call-based price makes an integrator optimise against the product: fewer
+     * copilot questions, a shorter transcript, a summary skipped. Per session the
+     * incentive is to use what they already paid for, which is what we want a
+     * therapist on their platform to do.
+     *
+     * A setting, like every other price here, so a reprice is a settings write and
+     * the usage page, the bill and any published figure read the same row.
+     */
+    partnerSessionCents: number;
   };
   session: {
     /** Our cut of a patient payment, in basis points. */
@@ -383,6 +398,14 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
       { from: 3, flatCents: 0, perSeatCents: 9_000 },
       { from: 5, flatCents: 0, perSeatCents: 8_000 },
     ],
+    /*
+     * 🔴 $3 a session. Set against what a session costs us to serve — the
+     * transcription, the note, the copilot's calls — rather than against what a
+     * therapist pays us, because a partner brings volume and brings none of the
+     * support, the radar, the payouts or the patient relationship that our own
+     * per-session fee covers.
+     */
+    partnerSessionCents: 300,
   },
   session: {
     platformFeeBps: 1500,
@@ -744,6 +767,10 @@ export function parseGroup<G extends SettingsGroup>(
       return {
         tiers: parseTiers(v.tiers),
         seatBands: parseSeatBands(v.seatBands, d.pricing.seatBands),
+        partnerSessionCents: int(v.partnerSessionCents, d.pricing.partnerSessionCents, {
+          min: 0,
+          max: 100_000,
+        }),
         creditExpiryMonths: int(v.creditExpiryMonths, d.pricing.creditExpiryMonths, {
           min: 1,
           max: 120,

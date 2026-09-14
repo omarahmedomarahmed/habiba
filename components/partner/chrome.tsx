@@ -32,6 +32,8 @@ const TABS: { href: string; key: MessageKey }[] = [
   { href: "/partner", key: "dev.nav.keys" },
   { href: "/partner/webhooks", key: "dev.nav.webhooks" },
   { href: "/partner/deliveries", key: "dev.nav.deliveries" },
+  /* 🔴 68.15 — the limit they set, what they have spent, and the projection. */
+  { href: "/partner/usage", key: "dev.nav.usage" },
   { href: "/developers", key: "dev.nav.docs" },
 ];
 

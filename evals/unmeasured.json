@@ -1,5 +1,6 @@
 {
   "comment": "The high-water mark for model surfaces with no eval. verify:sprint32 FAILS when it rises. Lowering it is the work; raising it is a decision somebody makes on purpose, in a diff, with a reason in PLAN.md.",
-  "unmeasured": 6,
-  "measuredOn": "2026-09-13"
+  "unmeasured": 7,
+  "measuredOn": "2026-09-14",
+  "raisedBy": "Sprint 68 added lib/partner/copilot.ts, which answers a clinician on a partner's platform from that partner's own sessions. Its citation resolution IS measured, by verify:sprint68, against the material actually sent: a model citing a session that does not exist renders as a link going nowhere in somebody else's interface, and that is the failure mode unique to this surface. What is NOT measured is answer quality, which needs the same labelled question set lib/ai/case-copilot.ts has been waiting for, over a synthetic partner caseload that does not exist. Recorded in PLAN.md as C417 rather than left as a number that moved."
 }

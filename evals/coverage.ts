@@ -30,6 +30,19 @@ export type Surface = {
 
 export const SURFACES: Surface[] = [
   { file: "lib/ai/notes.ts", suite: "notes" },
+  /*
+   * 🔴 THE SAME SUITE, because it is the same prompt and the same call.
+   *
+   * Sprint 68 moved `noteFromTranscript` out of `lib/ai/notes.ts` into its own module
+   * with no database in it, so a partner-authenticated route could import it without
+   * dragging four clinical data modules into the 58.6 matrix behind it.
+   *
+   * The `notes` suite already measures this function: it always did, because
+   * `noteFromTranscript` is what it calls. The module moved and the measurement did
+   * not, which is the correct answer here and the reason this is not a `null` with a
+   * reason beside it.
+   */
+  { file: "lib/ai/note-writer.ts", suite: "notes" },
   /* 34.1 — the same module, grounded. Measured separately because the failure
      mode is different: contamination rather than fabrication. */
   { file: "lib/clinical/context.ts", suite: "grounding" },
@@ -51,6 +64,12 @@ export const SURFACES: Surface[] = [
     suite: null,
     reason:
       "answers about one patient's record, with citations. The citation resolution is already covered by tests/attribution and tests/memory; the ANSWER quality is not, and would need a labelled question set over a synthetic chart. 33 builds that chart, so this waits for it.",
+  },
+  {
+    file: "lib/partner/copilot.ts",
+    suite: null,
+    reason:
+      "the copilot a clinician on a partner's platform talks to, answering from that partner's own sessions and nothing of ours. Its citation resolution is asserted by verify:sprint68 against the material actually sent, which is the failure mode that matters here: a model citing a session that does not exist renders as a link going nowhere in somebody else's interface. ANSWER quality needs the same labelled question set lib/ai/case-copilot.ts is waiting for, over a synthetic partner caseload that does not exist yet.",
   },
   {
     file: "lib/ai/assistant.ts",

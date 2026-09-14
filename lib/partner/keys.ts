@@ -104,6 +104,37 @@ export async function mintKey(input: {
    * sponsor's key is still a key and inherits both.
    */
 
+  /*
+   * 🔴 68.20 / 68.21 / C264 — A SANDBOX KEY IS SELF-SERVE. A LIVE ONE NEEDS A PERSON.
+   *
+   * *Sign up, get a dev key, integrate the same hour.* That is the whole of 68.20 and
+   * it is why nothing above this line asks anybody's permission: a key behind a sales
+   * call is a product nobody evaluates.
+   *
+   * A LIVE key is the other thing entirely. It reaches real people's sessions, so
+   * C264's ruling applies unchanged: activating a partner is the owner's act, by a
+   * named human, after reading documents and speaking to somebody. `approved_at` is
+   * paired with `approved_by_user_id` by a database constraint, so an approval with
+   * nobody behind it cannot be written at all.
+   *
+   * 🔴 CHECKED HERE RATHER THAN ON THE SCREEN, because a screen that hides the live
+   * option is a screen somebody reaches with a form post.
+   */
+  if (input.environment === "live") {
+    const [partner] = await controlDb
+      .select({ approvedAt: partners.approvedAt })
+      .from(partners)
+      .where(eq(partners.id, input.partnerId))
+      .limit(1);
+
+    if (!partner?.approvedAt) {
+      return {
+        error:
+          "This account is not approved for production yet. Send us your documents and a named contact, and we will speak to somebody before any key of yours reaches a real person's session.",
+      };
+    }
+  }
+
   const raw = `${PREFIX[input.environment]}${randomBytes(24).toString("base64url")}`;
 
   const [created] = await controlDb

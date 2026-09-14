@@ -288,6 +288,31 @@ const JOBS = {
     const hooks = await deliverPending();
 
     /*
+     * 🔴 68.16 — THE 80% AND 90% ALERTS, beside the other money work.
+     *
+     * *To the contact on the account, with one tap to raise the limit.* A dashboard
+     * nobody has open is not an alert, so this goes through `notify()` like the
+     * ageing payout alert above and reaches a phone and an email.
+     *
+     * The stamps are claimed with a conditional UPDATE inside
+     * `alertApproachingLimits`, so a cron that overlaps itself does not send twice:
+     * alerting twice is how an alert becomes noise, and noise is how a real one is
+     * missed.
+     */
+    const { alertApproachingLimits } = await import("@/lib/partner/usage");
+    const limits = await alertApproachingLimits();
+
+    /*
+     * 🔴 68.19 — THE MONTHLY BILL, from real usage, on the same ledger.
+     *
+     * Safe to run daily: `postMonthlyBill` bills the PREVIOUS month and refuses to
+     * post twice for one period, asking the ledger rather than a flag. The ledger is
+     * the record, so asking it is asking the thing that decides.
+     */
+    const { billAllPartners } = await import("@/lib/partner/billing");
+    const partnerBills = await billAllPartners();
+
+    /*
      * 🔴 42.3 / 55.9 — the expired launch tokens, swept.
      *
      * Two minutes each, so a busy partner produces thousands a day and every one of them is
@@ -334,6 +359,9 @@ const JOBS = {
       renewalsInvoiceNoObligation: renewalDrift.invoicesWithNoObligation.length,
       webhooksSent: hooks.sent,
       webhooksFailed: hooks.failed,
+      /* 🔴 68.16 / 68.19 — the partner limit alerts and the closed month. */
+      partnerLimitAlerts: limits.alerted,
+      partnerMonthsBilled: partnerBills.billed,
       launchTokensSwept: launchesSwept,
       checkinsSent: checkins.sent,
       checkinsMuteRate: Math.round(checkins.muteRate * 100) / 100,

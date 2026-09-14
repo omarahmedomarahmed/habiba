@@ -6988,9 +6988,25 @@ export const partners = pgTable(
     contactEmail: text("contact_email"),
     contactPhone: text("contact_phone"),
     /** What they say they want to build. Read by an operator, never by code. */
-    intent: text("intent"),
+        intent: text("intent"),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    /**
+     * 🔴 68.21 / C264 — PRODUCTION NEEDS A PERSON.
+     *
+     * A sandbox key is self-serve and is meant to be: *sign up, get a dev key,
+     * integrate the same hour*, because a key behind a sales call is a product
+     * nobody evaluates. A LIVE key reaches real people's sessions, so C264's ruling
+     * applies unchanged: activating a partner is the owner's act.
+     *
+     * 🔴 A DATABASE CHECK PAIRS THE TWO. An approval with no approver is an approval
+     * nobody made, and `mintKey` refuses a live key without `approvedAt`.
+     */
+    documentsUrl: text("documents_url"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvedByUserId: uuid("approved_by_user_id").references((): AnyPgColumn => users.id, {
+      onDelete: "set null",
+    }),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
@@ -7121,6 +7137,14 @@ export const partnerAuthSessions = pgTable(
  * `record.claimed` sat in `WEBHOOK_EVENTS` for four sprints while nothing
  * emitted either, under a green check saying partners were told.
  */
+/**
+ * 🔴 A SCOPE ARRIVES WITH ITS ENDPOINT, NEVER BEFORE IT.
+ *
+ * `WEBHOOK_EVENTS` advertised two events nothing emitted for four sprints, under a
+ * green check, and 55.12 exists because of it. Every entry below has a route under
+ * `app/api/partner/v1` on the day it was added, and `verify:sprint68` asserts the
+ * pairing rather than trusting this comment.
+ */
 export const API_SCOPES = [
   /** 55.6 — read a record the patient granted this clinician. C277. */
   "record:read",
@@ -7128,6 +7152,36 @@ export const API_SCOPES = [
   "session:write",
   /** 55.8 — a clinician-approved note is pushed to their system. */
   "note:deliver",
+
+  /* ------------------------------------------------- sprint 68, the platform */
+
+  /**
+   * 🔴 68.1 / 68.2 — CONSENT, AND IT IS THE FIRST SCOPE FOR A REASON.
+   *
+   * Their patient answers our question on THEIR interface, and the answer reaches
+   * us here. Without it we record nothing, so this is the scope an integration
+   * needs before any other one does anything at all.
+   */
+  "consent:write",
+  /** 68.3 — audio in, by upload or stream. Their video stays theirs. */
+  "session:media",
+  /** 68.5 — the diarised transcript back out, with its source attribution. */
+  "transcript:read",
+  /**
+   * 🔴 68.6 — THE NOTE, AND THE APPROVAL IS THEIR THERAPIST'S.
+   *
+   * `note:review` and not `note:write`. §7's first hard rule does not soften across
+   * a commercial boundary: content in a chart needs a named clinician who approved
+   * that exact text, and a partner's server is not one. The scope names the act it
+   * permits, which is submitting a HUMAN'S approval.
+   */
+  "note:review",
+  /** 68.7 — copilot chat about a patient, with citations that resolve. */
+  "copilot:chat",
+  /** 68.8 — the memory layer and the facts, so continuity survives the boundary. */
+  "memory:read",
+  /** 68.9 — the summary, after their therapist has reviewed and edited it. */
+  "summary:deliver",
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
@@ -7398,6 +7452,185 @@ export type EnrolmentAttestation = typeof enrolmentAttestations.$inferSelect;
 
 /** How long an offering licences one question. Minutes, per C265's own word. */
 export const ATTESTATION_TTL_MINUTES = 10;
+
+/**
+ * 🔴 68.1 / 68.2 — CONSENT ON A PARTNER'S PLATFORM, AND WHY IT IS A LOG.
+ *
+ * Their patient sees our consent question on THEIR interface before the session, and
+ * the answer reaches us here. Without a `given` row we record nothing.
+ *
+ * ## 🔴 THE HARD CASE IS THE ONE THAT MAKES THIS A TABLE
+ *
+ * Somebody can say yes ten minutes in. We start then, the note covers from then, and
+ * the record says the session was PARTLY recorded and when it began. A boolean would
+ * make "consented" and "consented from the start" the same fact, and the note that
+ * came out of it would imply we heard the first ten minutes.
+ *
+ * `answeredAt` is when the PATIENT answered, as their platform reports it, not when
+ * we received it: a queue that ran three minutes late must not move the boundary of
+ * what was recorded, because the boundary is a claim about a person's afternoon.
+ */
+export const partnerConsents = pgTable(
+  "partner_consents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+
+    externalSessionRef: text("external_session_ref").notNull(),
+    externalSubjectRef: text("external_subject_ref").notNull(),
+
+    /** `given` or `withdrawn`. The absence of a row is pending; there is no third. */
+    state: text("state").$type<"given" | "withdrawn">().notNull(),
+
+    answeredAt: timestamp("answered_at", { withTimezone: true }).notNull(),
+    /** Seconds from the session's start. Zero is 68.1; above zero is 68.2. */
+    offsetSeconds: integer("offset_seconds").notNull().default(0),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("partner_consents_session_idx").on(t.partnerId, t.externalSessionRef, t.answeredAt),
+  ],
+);
+
+/**
+ * 🔴 68.3 to 68.11 — A SESSION HELD ON THEIR PLATFORM, AND WHAT WE MADE OF IT.
+ *
+ * Deliberately NOT a row in `sessions`. That table is our clinical record: our
+ * therapist, our patient, our price, our payment. A partner's session has none of
+ * those, and forcing it in would grow an "unless it is a partner's" branch on every
+ * clinical query in the product, one of which would be forgotten.
+ *
+ * 🔴 `environment` is on the ROW and not only on the key, and two database CHECKs
+ * hang off it: a sandbox session can never be billable and can never name a real
+ * person. 68.22's rule is one a query can forget to ask; a constraint cannot.
+ */
+export const partnerSessions = pgTable(
+  "partner_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+    environment: text("environment").$type<ApiEnvironment>().notNull().default("sandbox"),
+
+    externalSessionRef: text("external_session_ref").notNull(),
+    externalSubjectRef: text("external_subject_ref").notNull(),
+
+    /** 🔴 68.10 — null is the NORMAL case: a platform has a caseload before we do. */
+    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
+
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+
+    /** The consent boundary, so the note generator reads a row not a log. */
+    recordingFromSeconds: integer("recording_from_seconds"),
+
+    /** 🔴 68.17 — set when their own limit stopped us. Their session is still theirs. */
+    stoppedReason: text("stopped_reason"),
+
+    /** 🔴 68.14 — the billing unit. False for a session we did not do. */
+    billable: boolean("billable").notNull().default(false),
+
+    /**
+     * 🔴 68.5 / 68.6 / 68.9 — WHAT WE PRODUCED, AND WHO APPROVED IT.
+     *
+     * Here rather than in `transcript_segments` and `session_notes`, which are keyed
+     * on `sessions.id` and carry our therapist and our patient.
+     *
+     * 🔴 `noteDraft` and `noteApprovedText` ARE DIFFERENT COLUMNS BECAUSE THEY ARE
+     * DIFFERENT CLAIMS. One is what the AI wrote; the other is what a named human
+     * read, possibly edited, and put their name to. §7's first hard rule does not
+     * soften across a commercial boundary, and a single column would make the two
+     * indistinguishable the moment anybody read the row. A database CHECK refuses
+     * approved text with no approver and no time.
+     */
+    transcriptText: text("transcript_text"),
+    noteDraft: text("note_draft"),
+    noteApprovedText: text("note_approved_text"),
+    /** Their id for the clinician who approved it. We have no account for them. */
+    noteApprovedByRef: text("note_approved_by_ref"),
+    noteApprovedAt: timestamp("note_approved_at", { withTimezone: true }),
+
+    /** 🔴 68.9 — a CHECK refuses delivery before the note is approved. */
+    summaryText: text("summary_text"),
+    summaryDeliveredAt: timestamp("summary_delivered_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("partner_sessions_ref_unique").on(t.partnerId, t.externalSessionRef),
+    index("partner_sessions_billing_idx").on(
+      t.partnerId,
+      t.environment,
+      t.billable,
+      t.createdAt,
+    ),
+  ],
+);
+
+/**
+ * 🔴 68.15 to 68.17 — THE LIMIT THEY SET, AND WE NEVER EXCEED.
+ *
+ * Not a plan we sold them and not a tier: a number the integrator typed, honoured
+ * exactly, raisable with one tap when an alert arrives.
+ *
+ * 🔴 IN SESSIONS, because 68.14 prices per session and a limit in a different unit
+ * from the bill is a limit somebody has to do arithmetic to trust.
+ *
+ * The alert stamps are columns rather than derived so an 80% alert is sent once per
+ * period: alerting twice is how an alert becomes noise, and noise is how a real one
+ * is missed. The same reasoning `payout_requests.alerted_at` records.
+ */
+export const partnerLimits = pgTable("partner_limits", {
+  partnerId: uuid("partner_id")
+    .primaryKey()
+    .references(() => partners.id, { onDelete: "cascade" }),
+
+  monthlySessionLimit: integer("monthly_session_limit").notNull().default(0),
+  periodStart: timestamp("period_start", { withTimezone: true }).notNull().defaultNow(),
+
+  alerted80At: timestamp("alerted_80_at", { withTimezone: true }),
+  alerted90At: timestamp("alerted_90_at", { withTimezone: true }),
+  /** When we actually stopped, which is not the same as reaching the limit. */
+  stoppedAt: timestamp("stopped_at", { withTimezone: true }),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * 🔴 68.12 / 68.13 — "FOR THERAPISTS ONLY" IS A LABEL, NOT A FILTER WE ENFORCE.
+ *
+ * A general telehealth platform has GPs and physios on it. An opt-in reading *AI
+ * notes, transcripts and a copilot that prepares you for sessions, for therapists*
+ * lets the right people find it without us deciding who is one.
+ *
+ * So there is no profession column here and no check that reads one. What there is
+ * is `enabledAt`: turning it on is an act with a time on it, because 68.13 says
+ * sharing a record for insight is an act with a name rather than a default.
+ */
+export const partnerClinicians = pgTable(
+  "partner_clinicians",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+    externalClinicianRef: text("external_clinician_ref").notNull(),
+
+    enabledAt: timestamp("enabled_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("partner_clinicians_ref_unique").on(t.partnerId, t.externalClinicianRef),
+  ],
+);
 
 /**
  * 🔴 42.3 / 55.9 — THE LAUNCH TOKEN, AND IT EXISTS BECAUSE THE FIRST DESIGN COULD NOT WORK.

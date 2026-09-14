@@ -117,6 +117,128 @@ GET /api/partner/v1/notes/<sessionId>
         />
       </div>
 
+      {/* ══════════════════════════════════════════════════════════ sprint 68 ══ */}
+
+      {/*
+        🔴 68.23 — THE WHOLE INTEGRATION, AS A SEQUENCE, BEFORE THE ENDPOINT LIST.
+        --------------------------------------------------------------------------
+        An integrator reading a list of nine endpoints has to work out the order for
+        themselves, and the order is the product: consent, then audio, then the note
+        their clinician approves, then the summary their patient reads. Getting it
+        wrong is not a 400 they can debug, it is a summary reaching a patient before
+        anybody read it, which every other part of this system then refuses.
+
+        So the steps come first, numbered, because this one genuinely is a sequence
+        and a numbered marker here encodes something true rather than decorating.
+      */}
+      <h2 className="mt-14 text-lg font-bold tracking-tight text-slate-900">
+        {t("devs.flow.title")}
+      </h2>
+      <p className="mt-2 leading-relaxed text-slate-600">{t("devs.flow.body")}</p>
+
+      <ol className="mt-6 space-y-4">
+        {(
+          [
+            ["devs.flow.s1", "devs.flow.s1Body", "POST /api/partner/v1/consent"],
+            ["devs.flow.s2", "devs.flow.s2Body", "POST /api/partner/v1/sessions/<ref>/media"],
+            [
+              "devs.flow.s3",
+              "devs.flow.s3Body",
+              "GET /api/partner/v1/sessions/<ref>/transcript",
+            ],
+            ["devs.flow.s4", "devs.flow.s4Body", "GET /api/partner/v1/sessions/<ref>/note"],
+            ["devs.flow.s5", "devs.flow.s5Body", "POST /api/partner/v1/sessions/<ref>/note"],
+            [
+              "devs.flow.s6",
+              "devs.flow.s6Body",
+              "POST /api/partner/v1/sessions/<ref>/summary",
+            ],
+          ] as const
+        ).map(([title, body, route], i) => (
+          <li key={route} className="flex gap-4">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+              {i + 1}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900">{t(title)}</p>
+              <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{t(body)}</p>
+              <p className="mt-1 overflow-x-auto whitespace-nowrap font-mono text-xs text-slate-500">
+                {route}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      {/*
+        🔴 68.1 / 68.2 — THE ONE THING AN INTEGRATOR MUST GET RIGHT, IN ITS OWN BOX.
+
+        Mid-session consent is the case every integration gets wrong, because the
+        obvious build is a boolean. The offset is the whole difference and it is
+        explained here rather than as a field description in a table.
+      */}
+      <Card className="mt-8 border-slate-200 p-5">
+        <p className="font-semibold text-slate-900">{t("devs.midConsent")}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.midConsentBody")}</p>
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+{`POST /api/partner/v1/consent
+{ "session": "S-1024", "subject": "P-77",
+  "state": "given", "answered_at": "2026-09-14T10:40:00Z",
+  "offset_seconds": 600 }
+
+200 { "recording_from_seconds": 600,
+      "coverage": "Recording started 10 minutes into this
+                   session. Nothing before that was recorded,
+                   and nothing here was written from it.",
+      "stopped_reason": null }`}
+        </pre>
+      </Card>
+
+      {/*
+        🔴 68.7 / 68.8 / 68.12 — THE COPILOT AND THE MEMORY, WHICH ARE NOT IN THE
+        SEQUENCE BECAUSE THEY ARE NOT PART OF A SINGLE SESSION.
+
+        A therapist asks about a patient between sessions and before them. Putting
+        them in the numbered list above would say they belong at a step, and the
+        thing an integrator would then build is a copilot that appears once.
+      */}
+      <Card className="mt-6 border-slate-200 p-5">
+        <p className="font-semibold text-slate-900">{t("devs.copilot")}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.copilotBody")}</p>
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+{`PUT /api/partner/v1/copilot
+{ "clinician": "C-9", "enabled": true }
+
+POST /api/partner/v1/copilot
+{ "subject": "P-77", "clinician": "C-9",
+  "question": "What did we agree in March?" }
+
+200 { "answer": "...[S-1024]...", "citations": ["S-1024"] }
+
+GET /api/partner/v1/subjects/<ref>/memory
+200 { "sessions": [ { "session": "S-1024", "note": "..." } ] }`}
+        </pre>
+      </Card>
+
+      {/*
+        🔴 68.15 / 68.17 / 68.18 — THE LIMIT, AND WHAT HAPPENS AT IT.
+
+        Every metered API an integrator has used bills overage at the ceiling, so
+        they will assume this one does. It does not, and the difference has to be on
+        the docs page rather than discovered in a month where their therapists lost
+        the copilot.
+      */}
+      <Card className="mt-6 border-amber-200 bg-amber-50 p-5">
+        <p className="font-semibold text-amber-900">{t("devs.limit")}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-amber-900">{t("devs.limitBody")}</p>
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-amber-900/90 p-4 text-xs leading-relaxed text-amber-50">
+{`409 { "error": "This account has reached the monthly
+                 session limit it set (500). Your session is
+                 unaffected and is held on your own platform.
+                 Raise the limit to turn the AI back on." }`}
+        </pre>
+      </Card>
+
       {/* 🔴 42.5 — the widget, and the sentence about video. */}
       <h2 className="mt-12 text-lg font-bold tracking-tight text-slate-900">{t("devs.widget")}</h2>
       <p className="mt-2 leading-relaxed text-slate-600">{t("devs.widgetBody")}</p>

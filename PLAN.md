@@ -382,6 +382,10 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C414 | 63 | 🔴 **An empty assignment list must mean NOBODY, and `[]` reading as "no filter" is the whole hole.** A staff member with no assignments is the default state of every new account, so getting it backwards shows an unassigned assistant the entire practice on their first sign-in. **Ruling: `scopeToAssigned` returns `string[] \| null`, null is the admin and means no restriction, and every consumer handles both. `inArray(column, [])` matches nothing, which is the behaviour we want.** `verify:sprint63` runs an assistant with an empty list against the real query and asserts zero rows. 2026-09-14. | blocker | planning review | **ruled — built and gated** |
 | C415 | 63 | **The admin console was reading the clinic wall with a bare organisation id, and a synthetic principal would have been a back door with a friendly name.** Sprint 63 made every function in `lib/data/clinic.ts` take a `ClinicPrincipal` and check a capability on the resource; `super_admin` is not one. Handing that page `{role: "admin", capabilities: ADMIN_CAPABILITIES}` would make the check satisfiable by an object literal anywhere in the codebase. **Ruling: the back office reads through `clinicsForAdmin`, its own function with its own select list, behind `requireRole`. `clinicManagersFor` and `getClinic` are deleted rather than left taking an id.** Two principals, two doors, neither mistakable for the other in a diff. 2026-09-14. | major | review | **ruled — fixed** |
 | C416 | 63 | **A name-shortening rule written over Latin letters returns the given name alone for a whole alphabet.** `shortenForClinic` takes the first CHARACTER of the family name, not a `[A-Z]` match, so an Arabic or accented surname has an initial too. And a name that cannot be shortened is shown as its first part alone, never in full: a rule that gave up on anything unusual would leak exactly the names that are most identifying. 2026-09-14. | major | review | **ruled — built and gated** |
+| C417 | 68 | **An unmeasured model call was added on purpose, and the ratchet made it say so.** `lib/partner/copilot.ts` answers a clinician on a partner's platform. Its CITATION RESOLUTION is measured, by `verify:sprint68`, against the material actually sent: a model citing a session that does not exist renders as a link going nowhere in somebody else's interface, and that is this surface's own failure mode. **Ruling: `evals/unmeasured.json` goes from 6 to 7, deliberately, with the reason in the file and here.** Answer quality needs the labelled question set `lib/ai/case-copilot.ts` has been waiting for since sprint 33, over a synthetic partner caseload that does not exist. The ratchet's own comment names this as the sanctioned path, which is the difference between debt somebody chose and debt that grew quietly. 2026-09-14. | major | gate | **ruled — raised with a reason** |
+| C418 | 68 | 🔴 **A partner-authenticated route imported four clinical data modules to get one pure function.** `lib/ai/notes.ts` writes a note AND stores it, so it reaches `lib/data/copilot`, `feedback`, `facts` and `people`. The sprint 68 note route holds a THIRD PARTY'S API KEY, and the 58.6 matrix reported eight paths from that credential into our clinical data layer the moment it imported `noteFromTranscript`. Nothing was being read; what was true is that a partner's route had become one line away from reading a chart. **Ruling: the pure generator moves to `lib/ai/note-writer.ts`, which has no database in it at all, and `lib/ai/notes.ts` re-exports it so every existing caller and the eval suite are unchanged.** The matrix found this rather than a person, which is what it is for. 2026-09-14. | blocker | gate | **ruled — extracted** |
+| C419 | 68 | **C244's reporting scan asked whether the word "sponsor" appeared in a file, and sprint 58's audit work broke it.** `audit_log.actor_sponsor_user_id` exists because a sponsor user and a clinic manager can both write to that table, and without the join the audit screen rendered their acts with a blank actor: an act nobody performed, on the screen an operator reads to find out who did something. **Ruling: the scan asks what the sponsor is joined TO. A sponsor USER joined to their OWN ACT names no patient, no session and no appointment; a sponsor TABLE joined to `sessions`, `patients` or `people` is the breach.** Two controls bracket it. Same shape as C405 one table over, and the second time a name scan has reported on a rule about joins. 2026-09-14. | major | gate | **ruled — widened** |
+| C420 | 68 | **Every metered API bills overage at the ceiling, and this one must not.** An integrator setting a limit will assume the industry default unless told otherwise on the screen where they type the number. **Ruling: at the limit their product keeps working and ours stops; we do not bill for a session we did not do; and the sentence saying so is on the usage page, in the docs, and in the 409 body.** `partner_sessions` carries two database CHECKs for it: a stopped session can never be billable, and a sandbox session can never be billable or name a real person. A rule with one lock is a rule a script gets around. 2026-09-14. | major | founder spec | **ruled — built and gated** |
 
 ---
 
@@ -4292,87 +4296,87 @@ is **retroactive**, not marginal:
 
 #### What they get
 
-- [ ] **68.1** 🔴 **Consent first, and it is an endpoint before it is anything
+- [x] **68.1** 🔴 **Consent first, and it is an endpoint before it is anything
       else.** Their patient sees our consent question on THEIR interface before
       the session; the answer reaches us; without it we record nothing. Scope
       `consent:write`
-- [ ] **68.2** 🔴 **Mid-session consent, with the boundary recorded.** Somebody
+- [x] **68.2** 🔴 **Mid-session consent, with the boundary recorded.** Somebody
       can say yes ten minutes in. We start then, the note covers from then, and
       the record says the session was partly recorded and when it began. Never a
       note that implies we heard the first ten minutes
-- [ ] **68.3** **Audio in**, by upload or by stream, scope `session:media`. Their
+- [x] **68.3** **Audio in**, by upload or by stream, scope `session:media`. Their
       video stays theirs; we never need the stream to be ours
-- [ ] **68.4** **Or our room on their platform**, `lib/video`'s Daily rooms
+- [x] **68.4** **Or our room on their platform**, `lib/video`'s Daily rooms
       embedded in their interface, for platforms that would rather not build one
-- [ ] **68.5** **Transcript out**, scope `transcript:read`, diarised, with the
+- [x] **68.5** **Transcript out**, scope `transcript:read`, diarised, with the
       same source attribution `session_sources` already carries
-- [ ] **68.6** 🔴 **The note their therapist approves**, and the approval is
+- [x] **68.6** 🔴 **The note their therapist approves**, and the approval is
       theirs. Scope `note:review`. §7's first hard rule is unchanged across a
       commercial boundary: content in a chart needs a named clinician who
       approved that exact text, and a partner's server is not one
-- [ ] **68.7** **Copilot chat about a patient**, scope `copilot:chat`, with the
+- [x] **68.7** **Copilot chat about a patient**, scope `copilot:chat`, with the
       citations that resolve. The same `lib/ai/case-copilot.ts` behind it,
       including C367's and C373's bounds
-- [ ] **68.8** **The memory layer and the facts**, scope `memory:read`, so a
+- [x] **68.8** **The memory layer and the facts**, scope `memory:read`, so a
       therapist on their platform gets the same continuity ours does
-- [ ] **68.9** **The patient summary, delivered to their patient**, scope
+- [x] **68.9** **The patient summary, delivered to their patient**, scope
       `summary:deliver`. Reviewed and edited by their therapist before anybody
       sees it, like ours
-- [ ] **68.10** 🔴 **Unclaimed patients are allowed**, because a telehealth
+- [x] **68.10** 🔴 **Unclaimed patients are allowed**, because a telehealth
       platform has a caseload before it has our accounts. Everything C127 and the
       claim flow already rule applies unchanged: the person can claim it and
       leave, including leaving them
-- [ ] **68.11** 🔴 **The session record is revamped on BOTH sides.** A patient
+- [x] **68.11** 🔴 **The session record is revamped on BOTH sides.** A patient
       who used the platform for a GP call and then for therapy should see the
       difference: the therapy one has the steps, the action plan and the summary.
       This is also 65's work, done once for both audiences
 
 #### Their clinician's own choice
 
-- [ ] **68.12** 🔴 **"For therapists only" is a label, not a filter we enforce.**
+- [x] **68.12** 🔴 **"For therapists only" is a label, not a filter we enforce.**
       A general telehealth platform has GPs and physios on it, and an opt-in that
       says *AI notes, transcripts and a copilot that prepares you for sessions —
       for therapists* lets the right people find it without us deciding who is
       one
-- [ ] **68.13** When a clinician enables it they get the copilot with their own
+- [x] **68.13** When a clinician enables it they get the copilot with their own
       patient list, and a button per patient to share the record for insight.
       Sharing is an act with a name, not a default
 
 #### Money, and the limit they set
 
-- [ ] **68.14** **Priced per session, not per call.** They do the work; we
+- [x] **68.14** **Priced per session, not per call.** They do the work; we
       transcribe, write and assist. A call-based price makes an integrator
       optimise against the product
-- [ ] **68.15** 🔴 **THEY set the limit, and we never exceed it.** A usage page
+- [x] **68.15** 🔴 **THEY set the limit, and we never exceed it.** A usage page
       with the number they chose, what they have spent, and the projection
-- [ ] **68.16** 🔴 **80% and 90% alerts**, to the contact on the account, with
+- [x] **68.16** 🔴 **80% and 90% alerts**, to the contact on the account, with
       one tap to raise the limit
-- [ ] **68.17** 🔴 **At the limit, THEIR product keeps working and OURS stops.**
+- [x] **68.17** 🔴 **At the limit, THEIR product keeps working and OURS stops.**
       No copilot in the room, no transcription, no note, no summary. Their
       session happens, is held on their side, and is theirs. We did not do the
       session, so we do not bill for it
-- [ ] **68.18** 🔴 **The stop is explicit on their therapist's screen**, not a
+- [x] **68.18** 🔴 **The stop is explicit on their therapist's screen**, not a
       silent absence. A copilot that vanishes without a word is read as our
       outage, and their therapist is mid-session
-- [ ] **68.19** Monthly bill from real usage, on the same ledger every other
+- [x] **68.19** Monthly bill from real usage, on the same ledger every other
       figure in this product goes through, with the invoice they can hand to
       their finance team
 
 #### Getting started, and being trusted
 
-- [ ] **68.20** **Sign up, get a dev key, integrate the same hour.** Free, with a
+- [x] **68.20** **Sign up, get a dev key, integrate the same hour.** Free, with a
       daily limit, against a sandbox. "Unlock AI for your therapists" is the
       sentence and the key is behind it, not behind a sales call
-- [ ] **68.21** 🔴 **Production needs a person.** Documents, a named contact, a
+- [x] **68.21** 🔴 **Production needs a person.** Documents, a named contact, a
       phone number, an email, and an admin approval. C264 already rules that
       activating a partner is the owner's act
-- [ ] **68.22** 🔴 **Sandbox reaches no real patient.** `environment` is already
+- [x] **68.22** 🔴 **Sandbox reaches no real patient.** `environment` is already
       on the key and the rule is already written; this is where it is proved
       against every new endpoint rather than the old three
-- [ ] **68.23** **World-class documentation, public, with visuals and runnable
+- [x] **68.23** **World-class documentation, public, with visuals and runnable
       examples.** Readable before sign-in, because docs behind a login are docs
       nobody evaluating us can read
-- [ ] **68.24** 🔴 **Every endpoint documented is an endpoint that exists**,
+- [x] **68.24** 🔴 **Every endpoint documented is an endpoint that exists**,
       asserted by 55.12, which has already caught this exact drift once
 
 - **Accept:** a telehealth platform signs up, gets a dev key, runs a sandbox

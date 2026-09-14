@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
-import { createPartnerUser, setPartnerState } from "@/lib/data/partner-admin";
+import {
+  approveForProduction,
+  createPartnerUser,
+  setPartnerState,
+  withdrawApproval,
+} from "@/lib/data/partner-admin";
 import { PARTNER_STATES, type PartnerState } from "@/lib/db/schema";
 
 export type AdminPartnerState = { error?: string; ok?: boolean };
@@ -76,6 +81,59 @@ export async function addUser(
     action: "partner.user_created",
     resourceType: "partner",
     resourceId: partnerId,
+  });
+
+  revalidatePath("/admin/partners");
+  return { ok: true };
+}
+
+/**
+ * 🔴 68.21 / C264 — APPROVE FOR PRODUCTION, AND THE APPROVER'S NAME GOES ON IT.
+ *
+ * Separate from `setState`, which is the commercial relationship. This is the moment a
+ * partner's keys can touch a real person's session, and C264 calls it the owner's act.
+ *
+ * `actor.userId` is passed rather than assumed, and the database refuses a row with an
+ * approval time and no approver, so an approval nobody made cannot exist.
+ */
+export async function approveProduction(partnerId: string): Promise<AdminPartnerState> {
+  const actor = await requireRole("super_admin");
+
+  const result = await approveForProduction({ partnerId, byUserId: actor.userId });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "partner.approved_for_production",
+    resourceType: "partner",
+    resourceId: partnerId,
+    reason: "their keys may now reach a real person's session",
+  });
+
+  revalidatePath("/admin/partners");
+  return { ok: true };
+}
+
+/**
+ * 🔴 AND IT CAN BE WITHDRAWN, which stops NEW live keys and revokes none.
+ *
+ * Revoking a live key mid-afternoon stops transcription in rooms that are open, and a
+ * commercial dispute with a platform must never arrive in somebody's session. That is
+ * `revoke`, a separate and deliberate act, for when it must.
+ */
+export async function withdrawProduction(partnerId: string): Promise<AdminPartnerState> {
+  const actor = await requireRole("super_admin");
+
+  await withdrawApproval(partnerId);
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "partner.approval_withdrawn",
+    resourceType: "partner",
+    resourceId: partnerId,
+    reason: "no new live keys; the keys they hold are untouched",
   });
 
   revalidatePath("/admin/partners");

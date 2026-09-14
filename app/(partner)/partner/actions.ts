@@ -55,3 +55,44 @@ export async function revoke(formData: FormData): Promise<void> {
   await revokeKey(actor.partnerId, String(formData.get("keyId") ?? ""));
   revalidatePath("/partner");
 }
+
+/**
+ * 🔴 68.15 / 68.16 — THE LIMIT THEY SET, AND ONLY AN ADMIN SETS IT.
+ *
+ * The same rule that guards minting a key, and for the same reason: this number is
+ * what the account spends. A developer on the team reads the usage page; the person
+ * who signed the contract chooses the ceiling.
+ *
+ * 🔴 RAISING IT CLEARS THE STOP AND BOTH ALERT STAMPS, so the 80% alert fires again
+ * against the new number. `setLimit` does that; it is written here because it is the
+ * behaviour somebody reading this action will want to know about.
+ */
+export async function saveLimit(monthlySessionLimit: number): Promise<{ error?: string }> {
+  const actor = await requirePartnerAdmin();
+
+  const { setLimit } = await import("@/lib/partner/usage");
+  const result = await setLimit({
+    partnerId: actor.partnerId,
+    monthlySessionLimit,
+  });
+
+  if (result.error) return { error: result.error };
+
+  /*
+   * 🔴 AUDITED, because a limit is the one setting on this account that can stop a
+   * therapist's copilot mid-session. "Who raised it, and when" is a question support
+   * will be asked, and the answer has to come from a row rather than from a memory.
+   */
+  const { audit } = await import("@/lib/audit");
+  await audit({
+    actor: null,
+    category: "admin",
+    action: "partner.limit.set",
+    resourceType: "partner",
+    resourceId: actor.partnerId,
+    reason: `${Math.max(0, Math.floor(monthlySessionLimit))} sessions a month`,
+  });
+
+  revalidatePath("/partner/usage");
+  return {};
+}

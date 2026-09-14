@@ -81,7 +81,7 @@ const EXPORTS_BY_DESIGN: Record<string, string> = {};
  * by hand and this gate could see none of them. Lower it whenever the number
  * drops; it must never rise.
  */
-const DEAD_EXPORT_BASELINE = 83;
+const DEAD_EXPORT_BASELINE = 82;
 
 /* --------------------------------------------------------------- checks -- */
 
@@ -180,21 +180,20 @@ function main() {
     "lib/data/enrolment-verify.ts#unpause":
       "C247's one-step manual unpause. Without it a sponsor whose employee re-verified late has no way back on, and funding stays paused with no operator remedy.",
     /*
-     * 🔴 THE LAST ONE, and it is genuinely awaiting a sprint rather than
-     * awaiting somebody noticing. Named here so the distinction is legible.
+     * 🔴 `upsertSubject` RESOLVED, 2026-09-14, by sprint 68 building the flow it was
+     * written for rather than by wiring it to something convenient.
      *
-     * `upsertSubject` links a partner's own reference to a person, and 55.6
-     * rules that the link takes the PERSON'S own act: they sign in and confirm
-     * it, exactly as a patient claims a record. That flow was never built, so
-     * the function has never had a caller. Sprint 68 builds it, beside the
-     * consent endpoint that has the same shape.
+     * It sat here failing on purpose for five sprints, and the note said why: 55.6
+     * rules that a partner's reference is linked to a person by the PERSON'S own act,
+     * and that flow did not exist. Sprint 68 is the flow. `openSession` creates the
+     * placeholder a person later claims, because 68.10 makes an unclaimed patient the
+     * normal case for a telehealth platform: they have a caseload before they have our
+     * accounts.
      *
-     * This entry stays failing on purpose. A ruling with no caller is a promise
-     * that is false today, and moving it to a "planned" list would turn the one
-     * gate that says so into a list of things somebody meant to do.
+     * 🔴 LIVE ONLY, and that is the part worth keeping in the record. A claimable row
+     * for a sandbox reference would let somebody claim a subject that was never a
+     * person, so 68.22's rule reaches this too.
      */
-    "lib/partner/api.ts#upsertSubject":
-      "The only way a `partner_subjects` row can exist. Without it three of the five documented partner API use cases are unreachable in production while the developer page documents them.",
     "lib/partner/webhooks.ts#queueWebhook":
       "The only thing that raises a partner webhook. The registration UI is built, the delivery table exists, and no event has ever fired.",
     "lib/billing/ledger.ts#unbalancedTransactions":

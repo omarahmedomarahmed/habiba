@@ -138,7 +138,15 @@ export type Message = {
      * organisation and never a person. 53.2's rule about enrolment strings
      * applies with more force to a message nobody asked for.
      */
-    | "sponsor.domain_confirm";
+    | "sponsor.domain_confirm"
+    /*
+     * 🔴 68.16 — a partner is approaching the session limit THEY set.
+     *
+     * Sent to a commercial contact with no clinical standing, so it names a number
+     * and never a patient, a session or a clinician. The same rule
+     * `sponsor.domain_confirm` follows one principal over.
+     */
+    | "partner.limit_approaching";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

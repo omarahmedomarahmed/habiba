@@ -3,7 +3,12 @@
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
-import { addUser, setState } from "@/app/(admin)/admin/partners/actions";
+import {
+  addUser,
+  approveProduction,
+  setState,
+  withdrawProduction,
+} from "@/app/(admin)/admin/partners/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { PARTNER_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
@@ -43,6 +48,9 @@ export type AdminPartnerRow = {
   contactEmail: string | null;
   contactPhone: string | null;
   intent: string | null;
+  /** 🔴 68.21 — what the owner reads before approving a production key. */
+  documentsUrl: string | null;
+  approvedAt: string | null;
   keyCount: number;
   users: { id: string; email: string; role: string }[];
 };
@@ -71,6 +79,7 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const [userState, userAction] = useActionState(addUser, {});
 
   return (
@@ -130,6 +139,65 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
               </p>
             </div>
           ) : null}
+
+          {/*
+            🔴 68.21 / C264 — PRODUCTION APPROVAL, and it is a different decision
+            from the commercial state beside it.
+
+            A partner can be `active` and unapproved all day: they build against
+            sandbox, which reaches nobody. This is the moment their keys can touch a
+            real person's session, so the documents and the contact are on the screen
+            where the button is rather than in a ticket somebody read last week.
+          */}
+          <div className="rounded-xl bg-slate-50 p-3">
+            <p className="text-xs font-semibold text-slate-700">
+              {partner.approvedAt
+                ? `Approved for production ${partner.approvedAt.slice(0, 10)}`
+                : "Not approved for production"}
+            </p>
+
+            <p className="mt-1 text-xs text-slate-600">
+              {partner.documentsUrl ? (
+                <a href={partner.documentsUrl} className="underline" rel="noreferrer noopener">
+                  Their documents
+                </a>
+              ) : (
+                "No documents yet. Approving without them is approving a form."
+              )}
+            </p>
+
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = partner.approvedAt
+                    ? await withdrawProduction(partner.id)
+                    : await approveProduction(partner.id);
+                  setError(result.error ?? null);
+                })
+              }
+              className="tap-target mt-2 h-9 rounded-xl bg-slate-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              {partner.approvedAt ? "Withdraw approval" : "Approve for production"}
+            </button>
+
+            {/* 🔴 What withdrawing does NOT do, said beside the button that does it. */}
+            {/* 🔴 A refusal is shown. `approveForProduction` refuses without documents. */}
+            {error ? (
+              <p role="alert" className="mt-2 text-xs text-red-600">
+                {error}
+              </p>
+            ) : null}
+
+            {partner.approvedAt ? (
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                Withdrawing stops new live keys. It revokes none of the keys they hold,
+                because a key revoked mid-afternoon stops transcription in rooms that are
+                open, and a dispute with a platform must never arrive in somebody's session.
+              </p>
+            ) : null}
+          </div>
 
           <div className="flex flex-wrap gap-2">
             {PARTNER_STATES.filter((state) => state !== partner.state).map((state) => (
