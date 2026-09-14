@@ -369,6 +369,8 @@ a database, 49 with. §3's patient-email figure could not be checked.
 | C401 | 59 | **The guard learned the alphabet one commit after the scanner did.** For one commit every Arabizi crisis phrase was matched with no context test: a lyric, a film plot or a sentence about a brother would have paged a clinician. A guard covering one alphabet of a two-alphabet scanner is the §6 shape with the halves reversed. **Ruling: the third-party and past markers carry their Arabizi spellings, and `stillCounts` runs on both passes.** 🔴 `wa7ed` ("someone") is deliberately excluded: it would suppress "ana wa7ed 3ayez amoot", which is a person saying it about themselves, and a marker that swallows a real one is the failure the context file exists to avoid. 2026-09-14. | major | review | **ruled — built** |
 | C402 | 59 | **Two MUST_WIRE entries were false positives of the same shape, and the fix was to un-export rather than to wire.** `keywordFloor` was called by `levelFor` eight lines below it in its own file; the scanner ignores same-file callers on purpose, because a function used only inside its own module does not need exporting. The ruling it was listed for is a property of `levelFor`, which is the function the product calls, and the test asserts it there. `foldArabizi` was the same the day it was written. **Ruling: the public surface is the function the product calls, and a test that reaches past it into a private helper keeps an export alive for nothing.** 🔴 `upsertSubject` stays failing, because it is genuinely awaiting sprint 68 rather than awaiting somebody noticing, and moving it to a "planned" list would turn the one gate that says so into a list of things somebody meant to do. 2026-09-14. | major | review | **ruled — MUST_WIRE six to one, ratchet 87 to 83** |
 | C403 | 59 | ⚠️ **A reported finding that was WRONG, recorded so it is not re-found.** The audit reported the crisis retry cron as "documented at 5 minutes, runs daily". The five-minute reference in `app/api/cron/[job]/route.ts` is a HISTORICAL note explaining why the schedule is no longer five minutes: it went 5 min to 15 to hourly to daily, deliberately, because the only time-critical sweep (a patient alone in a room) moved onto the patient's own five-second poll where it fires at ten minutes rather than whenever a cron lands. `sweepUndeliveredAlerts` retries an in-product notification insert, not an external send, so the daily cadence covers a database failure rather than a crisis nobody heard about. **No defect. No change.** | minor | **audit finding, rejected on reading the code** | **closed — not a defect** |
+| C404 | 60 | 🔴 **THE POT'S IDEMPOTENCY GUARD STOPPED GUARDING THE MOMENT COVERAGE WENT PARTIAL, AND IT WOULD HAVE LOOKED UNTOUCHED.** `payFromPot` claimed a booking by moving the session `pending -> paid` conditional on `pending`, so a second call matched nothing and the compensating credit put the money back. That is correct while a pot pays all or nothing. A partly covered session STAYS `pending` — the patient still owes their share — so a `pending -> pending` update matches every time and a second call debits the pot again. **Ruling: `session_payments` is unique on `session_id`, so INSERTING IT is the claim.** Exactly one caller wins whatever the session's status is or becomes. The guard that silently stops guarding while the code around it reads unchanged is this repository's most common defect shape, and this one was created and closed inside the same sprint. 2026-09-14. | blocker | review | **ruled — fixed** |
+| C405 | 60 | **The C244 column scan read a NAME and reported on a rule, and `sponsor_share_cents` was about to fail it.** The ruling is that no clinical or payment table carries a sponsor ID. C311 freezes what an employer covered onto the payment as a number of CENTS, which is money and joins nobody to anything. **Ruling: the scan asks what a column IS — a uuid, a text key, or a foreign key to `sponsors` — rather than what it is called, with a control asserting the frozen split is present so the widened scan cannot be relaxed to nothing.** Renaming the column to dodge the check was the other option, and that is how a gate becomes decorative: the same reasoning that widened 53.12's cash-out scan when `refundToPot` arrived. 2026-09-14. | major | review | **ruled — fixed** |
 
 ---
 
@@ -3963,26 +3965,26 @@ and both are already rows in `country_settings` that almost nothing reads.
 
 **60a · The percentage**
 
-- [ ] **60.1** `sponsor_pots` gains `coverage_bps`, settable in 5% steps from 0 to
+- [x] **60.1** `sponsor_pots` gains `coverage_bps`, settable in 5% steps from 0 to
       100 on the pot page
-- [ ] **60.2** 🔴 **FROZEN onto the session at booking and never re-read** (C311)
-- [ ] **60.3** 🔴 A **reduction** takes effect after a notice window (setting,
+- [x] **60.2** 🔴 **FROZEN onto the session at booking and never re-read** (C311)
+- [x] **60.3** 🔴 A **reduction** takes effect after a notice window (setting,
       default 30 days) and the patient is told before their next booking, with
       the employer unnamed (C311)
-- [ ] **60.4** 🔴 An **increase** may apply to unstarted bookings; a decrease never
+- [x] **60.4** 🔴 An **increase** may apply to unstarted bookings; a decrease never
       does (C344). The asymmetry is deliberate and the reason sits in the code
 - [ ] **60.5** 🔴 A **reschedule keeps the frozen percentage** (C342)
-- [ ] **60.6** 🔴 **0% is legal**: the roster keeps the person, the money stops, and
+- [x] **60.6** 🔴 **0% is legal**: the roster keeps the person, the money stops, and
       the patient is told before their next booking (C345)
 
 **60b · The money**
 
-- [ ] **60.7** 🔴 The therapist is paid on the **full price**, always, and our 15%
+- [x] **60.7** 🔴 The therapist is paid on the **full price**, always, and our 15%
       is on the full price (C313). Nothing about the split reaches an earnings
       screen
-- [ ] **60.8** 🔴 **VAT on the patient's share only** (C312). The sponsor's share
+- [x] **60.8** 🔴 **VAT on the patient's share only** (C312). The sponsor's share
       was taxed when the pot was funded, which `pot.ts` already reasons
-- [ ] **60.9** 🔴 `capture` becomes a **function of coverage** (C314). Any session
+- [x] **60.9** 🔴 `capture` becomes a **function of coverage** (C314). Any session
       with a sponsor share is collected by us and settled from held earnings, so
       the therapist's own Stripe dashboard can never show the patient's share.
       **1.8's rule is amended here in writing**
@@ -3997,9 +3999,9 @@ and both are already rows in `country_settings` that almost nothing reads.
 
 **60c · What each side sees**
 
-- [ ] **60.14** The patient's bill shows: full price, sponsor share, their share,
+- [x] **60.14** The patient's bill shows: full price, sponsor share, their share,
       our take rate, VAT on their share. Every figure, no rounding surprises
-- [ ] **60.15** The confirm screen says **"your employer covers X% of this"** and the
+- [x] **60.15** The confirm screen says **"your employer covers X% of this"** and the
       button states what they will actually pay
 - [ ] **60.16** A private label on the patient's own profile naming the sponsor and
       the percentage. Visible to them and to nobody else
@@ -4007,7 +4009,7 @@ and both are already rows in `country_settings` that almost nothing reads.
       verifier plants a partly covered session and asserts one line
 - [ ] **60.18** The sponsor's statement shows spend, never a person, a date, a
       session or a therapist. C244 unchanged and re-proved
-- [ ] **60.19** One sentence on the pot page: **a sponsor covers the patient-facing
+- [x] **60.19** One sentence on the pot page: **a sponsor covers the patient-facing
       session price only** (C316)
 - [ ] **60.20** ⚠️ **Accepted residual leak, documented** (C346): a pot session
       settles at booking and a card session does not, so an attentive clinician

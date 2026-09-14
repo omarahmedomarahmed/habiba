@@ -553,3 +553,124 @@ export async function weeklySpend(
 
   return applyActivityFloor(weeks, floor);
 }
+
+/* ------------------------------------------------ 60.1 to 60.6 · coverage -- */
+
+/**
+ * 🔴 60.1 / C311 / C344 — SET WHAT THIS EMPLOYER COVERS, with the asymmetry.
+ *
+ * An INCREASE applies at once. A DECREASE waits out a notice window, because a
+ * person being asked for money they were not expecting deserves warning and a
+ * person being asked for less does not.
+ *
+ * ## 🔴 WHY THE WINDOW IS DATA AND NOT A JOB
+ *
+ * The obvious build schedules a task to flip the number when the window closes.
+ * A task that fails leaves an employer paying a percentage they changed three
+ * weeks ago, and nothing on any screen says so. The pending pair applies itself
+ * by being in the past: `coverageNow` reads it, every booking reads
+ * `coverageNow`, and there is nothing to fail.
+ *
+ * ## 🔴 0% IS A SETTING, NOT A REMOVAL (C345)
+ *
+ * Nothing here touches the roster. The person keeps their place and their
+ * badge; the money stops. C234 already separates a badge from funding and this
+ * is the same separation with a number on it.
+ *
+ * ## 🔴 IT NAMES NOBODY
+ *
+ * A percentage is a fact about the account. There is no individual anywhere in
+ * this function, which is C227 unchanged: a sponsor performs no act about any
+ * one person except removal.
+ */
+export async function setCoverage(input: {
+  sponsorId: string;
+  coverageBps: number;
+  /** Days of warning before a REDUCTION bites. An increase ignores it. */
+  noticeDays: number;
+  bySponsorUserId: string;
+}): Promise<{ ok?: true; error?: string; effectiveFrom?: Date }> {
+  const wanted = Math.round(input.coverageBps);
+
+  /*
+   * Validated here as well as in the CHECK, because a constraint violation
+   * reaches a person as a failed save naming a constraint. Five per cent steps
+   * are what a finance team agrees to; anything else is a typo or an API.
+   */
+  if (!Number.isInteger(wanted) || wanted < 0 || wanted > 10_000 || wanted % 500 !== 0) {
+    return { error: "Coverage is a whole percentage in steps of five, from 0 to 100." };
+  }
+
+  const [pot] = await controlDb
+    .select({ id: sponsorPots.id, coverageBps: sponsorPots.coverageBps })
+    .from(sponsorPots)
+    .where(eq(sponsorPots.sponsorId, input.sponsorId))
+    .limit(1);
+
+  if (!pot) return { error: "This account has no pot yet. We open it with you, with the terms agreed." };
+  if (pot.coverageBps === wanted) return { ok: true };
+
+  /*
+   * 🔴 THE ASYMMETRY, C344, in four lines and with the reason beside them.
+   *
+   * More is immediate. Less waits. Somebody reading this later will want to
+   * change it to be consistent, so: consistency here would mean either delaying
+   * good news for no reason, or asking a patient for money on a session they
+   * have already agreed to, and only one of those is a real cost.
+   */
+  if (wanted > pot.coverageBps) {
+    await controlDb
+      .update(sponsorPots)
+      .set({
+        coverageBps: wanted,
+        pendingCoverageBps: null,
+        pendingCoverageFrom: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(sponsorPots.id, pot.id));
+
+    log.info("sponsor coverage raised", { bps: wanted });
+    return { ok: true, effectiveFrom: new Date() };
+  }
+
+  const days = Math.max(0, Math.round(input.noticeDays));
+  const from = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+  await controlDb
+    .update(sponsorPots)
+    .set({
+      pendingCoverageBps: wanted,
+      pendingCoverageFrom: from,
+      updatedAt: new Date(),
+    })
+    .where(eq(sponsorPots.id, pot.id));
+
+  log.info("sponsor coverage reduction scheduled", { bps: wanted, days });
+  return { ok: true, effectiveFrom: from };
+}
+
+/**
+ * What this sponsor covers, for their own screen and for a patient's.
+ *
+ * 🔴 Returns the LIVE figure and the pending one separately rather than
+ * resolving to a single number, because both screens need to say "this is what
+ * we cover, and from the 14th it will be that". A caller that only wants the
+ * number applies `coverageNow`.
+ */
+export async function coverageFor(sponsorId: string): Promise<{
+  coverageBps: number;
+  pendingCoverageBps: number | null;
+  pendingCoverageFrom: Date | null;
+} | null> {
+  const [pot] = await controlDb
+    .select({
+      coverageBps: sponsorPots.coverageBps,
+      pendingCoverageBps: sponsorPots.pendingCoverageBps,
+      pendingCoverageFrom: sponsorPots.pendingCoverageFrom,
+    })
+    .from(sponsorPots)
+    .where(eq(sponsorPots.sponsorId, sponsorId))
+    .limit(1);
+
+  return pot ?? null;
+}

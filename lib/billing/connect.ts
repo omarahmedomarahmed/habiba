@@ -16,7 +16,7 @@ import {
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
-import { collectionProblem } from "@/lib/settings/defs";
+import { collectionProblem, vatOn } from "@/lib/settings/defs";
 import { collectionCurrencyFor, collectionRailFor } from "./money";
 import { quoteFor } from "./fx";
 import { getStripe } from "./stripe";
@@ -476,7 +476,51 @@ export async function createSessionPaymentCheckout(opts: {
 
   const gross = row.session.priceCents;
   const feeBps = settings.session.platformFeeBps;
-  const money = sessionMoney({ grossCents: gross, feeBps, vatBps: country.vatBps });
+
+  /*
+   * 🔴 60.1 / C312 — WHAT THE EMPLOYER HAS ALREADY COVERED, IF ANYTHING.
+   *
+   * `payFromPot` runs at booking. On a fully covered session it marks the
+   * session paid and nobody reaches this function at all. On a PARTIAL it
+   * spends the employer's share, freezes the split onto the payment row, and
+   * leaves the session pending — so this is the moment the patient pays the
+   * rest, and the number they are charged has to be the rest.
+   *
+   * 🔴 READ FROM THE PAYMENT ROW, never recomputed from the pot. The row is the
+   * frozen figure the patient was shown at booking (C311): an employer lowering
+   * their percentage between the booking and the payment must not change what
+   * this person is asked for now.
+   */
+  const [covered] = await db
+    .select({
+      coverageBps: sessionPayments.coverageBps,
+      sponsorShareCents: sessionPayments.sponsorShareCents,
+      patientShareCents: sessionPayments.patientShareCents,
+    })
+    .from(sessionPayments)
+    .where(
+      and(
+        eq(sessionPayments.sessionId, opts.sessionId),
+        eq(sessionPayments.fundingSource, "pot"),
+      ),
+    )
+    .limit(1);
+
+  /*
+   * 🔴 C312 — VAT ON THE PATIENT'S SHARE ONLY.
+   *
+   * The employer's share was taxed when the pot was funded, in the jurisdiction
+   * of the entity that holds it. Charging VAT on it again here would tax the
+   * same money twice, in a country with no claim on it.
+   *
+   * 🔴 C313 — AND OUR CUT IS STILL ON THE FULL PRICE. `feeOn` takes the gross,
+   * not the patient's share: a partly covered session is not a cheaper session,
+   * the therapist is paid on the full price, and a fee that moved with the
+   * split would make a clinician's revenue depend on their patient's employer.
+   */
+  const patientGross = covered ? covered.patientShareCents : gross;
+  const money = sessionMoney({ grossCents: gross, feeBps, vatBps: 0 });
+  const patientVatCents = vatOn(patientGross, country.vatBps);
 
   /*
    * 🔴 WHAT THIS PATIENT IS CHARGED IN, FROM THE RULE RATHER THAN FROM THE ROW.
@@ -521,7 +565,14 @@ export async function createSessionPaymentCheckout(opts: {
     return { error: "We cannot price this session in your currency yet." };
   }
 
-  const presentedTotalCents = convertAtRate(money.patientTotalCents, quote.rateMicro);
+  /*
+   * 🔴 What the patient is charged: THEIR share plus VAT on THEIR share.
+   *
+   * `money.patientTotalCents` is the whole session and would ask a covered
+   * patient for the employer's part again.
+   */
+  const patientTotalCents = patientGross + patientVatCents;
+  const presentedTotalCents = convertAtRate(patientTotalCents, quote.rateMicro);
 
   const cut = money.platformCutCents;
   const net = gross - cut;
@@ -599,22 +650,35 @@ export async function createSessionPaymentCheckout(opts: {
           quantity: 1,
           price_data: {
             currency: collectionCurrency,
-            unit_amount: convertAtRate(gross, quote.rateMicro),
+            unit_amount: convertAtRate(patientGross, quote.rateMicro),
             product_data: {
               name: "Therapy session",
-              description: `With ${[row.therapistFirstName, row.therapistLastName]
-                .filter(Boolean)
-                .join(" ")}`.trim(),
+              /*
+               * 🔴 60.15 — the line says what the employer covered, and it
+               * names no employer.
+               *
+               * A patient seeing a smaller number than the price they were
+               * quoted and no explanation is a patient who thinks we made a
+               * mistake. C244 is untouched: the percentage is a fact about
+               * their own benefit, the organisation behind it is not on this
+               * receipt, and Stripe's own copy of it carries no employer
+               * either.
+               */
+              description: covered && covered.coverageBps > 0
+                ? `With ${[row.therapistFirstName, row.therapistLastName].filter(Boolean).join(" ")}. Your benefit covers ${covered.coverageBps / 100}% of this session.`
+                : `With ${[row.therapistFirstName, row.therapistLastName]
+                    .filter(Boolean)
+                    .join(" ")}`.trim(),
             },
           },
         },
-        ...(money.vatCents > 0
+        ...(patientVatCents > 0
           ? [
               {
                 quantity: 1,
                 price_data: {
                   currency: collectionCurrency,
-                  unit_amount: convertAtRate(money.vatCents, quote.rateMicro),
+                  unit_amount: convertAtRate(patientVatCents, quote.rateMicro),
                   product_data: {
                     name: `VAT (${(country.vatBps / 100).toFixed(country.vatBps % 100 === 0 ? 0 : 1)}%)`,
                     description: `Charged in ${country.name} and paid to the tax authority there.`,
@@ -670,7 +734,7 @@ export async function createSessionPaymentCheckout(opts: {
         payerEmail: opts.payerEmail?.trim().toLowerCase() || null,
         grossCents: gross,
         currency: "usd",
-        vatCents: money.vatCents,
+        vatCents: patientVatCents,
         vatBps: country.vatBps,
         payerCountry: country.code,
         presentedCents: presentedTotalCents,
@@ -694,7 +758,7 @@ export async function createSessionPaymentCheckout(opts: {
           payerEmail: opts.payerEmail?.trim().toLowerCase() || null,
           grossCents: gross,
           currency: "usd",
-          vatCents: money.vatCents,
+          vatCents: patientVatCents,
           vatBps: country.vatBps,
           payerCountry: country.code,
           presentedCents: presentedTotalCents,

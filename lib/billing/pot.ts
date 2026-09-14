@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 import { getSettings, sessionMoney } from "@/lib/settings";
+import { coverageNow, coverageSplit } from "@/lib/settings/defs";
 
 import { journal } from "./ledger";
 import { crossingFor, payoutRailFor } from "./money";
@@ -99,7 +100,14 @@ async function entityVatBps(entity: string): Promise<number> {
 }
 
 /** How much a pot may go below zero is per pot; this is what a missing pot gets. */
-const NO_POT = { potId: null, balanceCents: 0, overdraftCents: 0 } as const;
+const NO_POT = {
+  potId: null,
+  balanceCents: 0,
+  overdraftCents: 0,
+  coverageBps: 0,
+  pendingCoverageBps: null,
+  pendingCoverageFrom: null,
+} as const;
 
 export type PotSpend =
   | { paid: true; sponsorId: string; amountCents: number }
@@ -198,6 +206,33 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   const gross = row.priceCents;
 
   /*
+   * 🔴 60.1 to 60.6 / C311 / C345 — WHAT THE EMPLOYER ACTUALLY COVERS.
+   *
+   * Read ONCE, here, at booking, and written onto the payment row below. Never
+   * re-read when the money moves: an employer lowering their percentage on a
+   * Tuesday must not change what a patient owes for a session they agreed to on
+   * Monday. A price somebody was shown is a price they are owed.
+   *
+   * `coverageNow` applies a pending change by its date rather than by a job,
+   * so there is no scheduled task whose failure leaves an employer paying a
+   * percentage they changed three weeks ago.
+   *
+   * 🔴 0% IS LEGAL AND IS NOT REMOVAL (C345). The person keeps their place on
+   * the roster and their badge; the money stops. C234 already separates a badge
+   * from funding, and this is that separation with a number on it. The pot
+   * spends nothing and the patient pays the ordinary way, which `nothing_to_pay`
+   * below is NOT the right answer for: they do owe, they owe all of it.
+   */
+  const coverageBps = coverageNow(pot, new Date());
+  const split = coverageSplit({ grossCents: gross, coverageBps, vatBps: 0 });
+  const sponsorShare = split.sponsorCents;
+
+  if (sponsorShare <= 0) {
+    log.info("this sponsor covers nothing of this session", { session: ref(sessionId) });
+    return { paid: false, reason: "no_benefit" };
+  }
+
+  /*
    * 🔴 C239 — A SESSION THAT HAS STARTED ALWAYS COMPLETES AND IS ALWAYS PAID,
    * and the overdraft is how that is true without being unbounded.
    *
@@ -229,12 +264,27 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
    * reason: a read followed by a write is not a decision, it is a guess with a
    * window in it.
    */
-  if (pot.balanceCents + pot.overdraftCents < gross) {
+  /*
+   * 🔴 Against the SPONSOR'S SHARE, not the gross. A pot covering 40% of a $70
+   * session needs $28, and refusing on $70 would turn a funded booking away
+   * because a pot could not afford a number nobody is asking it for.
+   */
+  if (pot.balanceCents + pot.overdraftCents < sponsorShare) {
     log.info("pot cannot fund this booking", { session: ref(sessionId) });
     return { paid: false, reason: "insufficient" };
   }
 
   const settings = await getSettings();
+  /*
+   * 🔴 C313 — OUR CUT IS ON THE FULL PRICE, whoever paid which part of it.
+   *
+   * `sessionMoney` still takes the gross. A partly covered session is not a
+   * cheaper session: the therapist is paid on the full price and our 15% is on
+   * the full price, and nothing about the split reaches an earnings screen.
+   * Taking the fee on the sponsor's share alone would make a clinician's
+   * revenue depend on their patient's employer, which is both wrong and a way
+   * to infer who is sponsored.
+   */
   const money = sessionMoney({
     grossCents: gross,
     feeBps: settings.session.platformFeeBps,
@@ -263,11 +313,15 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
    */
   const [debited] = await controlDb
     .update(sponsorPots)
-    .set({ balanceCents: sql`${sponsorPots.balanceCents} - ${gross}`, updatedAt: new Date() })
+    /* 🔴 60.1 — the SPONSOR'S SHARE leaves the pot, never the gross. */
+    .set({
+      balanceCents: sql`${sponsorPots.balanceCents} - ${sponsorShare}`,
+      updatedAt: new Date(),
+    })
     .where(
       and(
         eq(sponsorPots.id, pot.potId),
-        sql`${sponsorPots.balanceCents} + ${sponsorPots.overdraftCents} >= ${gross}`,
+        sql`${sponsorPots.balanceCents} + ${sponsorPots.overdraftCents} >= ${sponsorShare}`,
       ),
     )
     .returning({ id: sponsorPots.id });
@@ -277,34 +331,24 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     return { paid: false, reason: "insufficient" };
   }
 
+  const fullyCovered = gross - sponsorShare <= 0;
+
   /*
-   * The claim on the session, conditional on it still being unpaid. If this
-   * matches nothing, another path already settled it and the pot must be made
-   * whole: the money was taken a moment ago and nothing is going to use it.
+   * 🔴 THE PAYMENT ROW IS THE CLAIM NOW, AND 60.1 IS WHY IT HAD TO MOVE.
+   *
+   * It used to be the session's own status: `pending -> paid`, conditional on
+   * `pending`, so a second call matched nothing and the compensating credit put
+   * the money back. That worked while a pot paid all or nothing.
+   *
+   * It stops working the moment coverage is partial, because a partly covered
+   * session STAYS `pending` — the patient still owes their share — so a
+   * `pending -> pending` update matches every time and a second call would
+   * debit the pot again. The guard would have looked untouched and silently
+   * stopped guarding, which is this repository's most common defect shape.
+   *
+   * `session_payments` is unique on `session_id`, so inserting it is the claim:
+   * exactly one caller wins, whatever the session's status is or becomes.
    */
-  const [claimed] = await controlDb
-    .update(sessions)
-    .set({ paymentStatus: "paid", updatedAt: new Date() })
-    .where(and(eq(sessions.id, sessionId), eq(sessions.paymentStatus, "pending")))
-    .returning({ id: sessions.id });
-
-  if (!claimed) {
-    /*
-     * 🔴 The compensating credit, and it is unconditional on purpose.
-     *
-     * We took this money one statement ago and the thing it was for did not
-     * happen. Putting it back can never be wrong and can never overdraw
-     * anything, so it carries no predicate that could fail and leave a sponsor
-     * short.
-     */
-    await controlDb
-      .update(sponsorPots)
-      .set({ balanceCents: sql`${sponsorPots.balanceCents} + ${gross}`, updatedAt: new Date() })
-      .where(eq(sponsorPots.id, pot.potId));
-
-    return { paid: false, reason: "nothing_to_pay" };
-  }
-
   const [payment] = await controlDb
     .insert(sessionPayments)
     .values({
@@ -318,36 +362,22 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       currency: "usd",
       vatCents: 0,
       vatBps: 0,
+      /*
+       * 🔴 60.2 / C311 — THE FROZEN SPLIT, written here and read for ever after.
+       *
+       * Three numbers because a percentage alone does not survive a rounding
+       * argument, and because a refund has to apportion on the figures the
+       * patient was actually shown rather than on a percentage that may since
+       * have moved (C315).
+       */
+      coverageBps,
+      sponsorShareCents: sponsorShare,
+      patientShareCents: gross - sponsorShare,
       platformFeeCents: money.platformCutCents,
       platformFeeBps: settings.session.platformFeeBps,
-      /*
-       * 🔴 No invoice settlement out of a pot payment, and that is deliberate.
-       *
-       * Netting a clinician's own 24Therapy bills out of an employer's
-       * prepayment would spend a third party's money on our receivable. C69's
-       * netting is against money we hold FOR THE CLINICIAN; this is money we
-       * hold for a sponsor.
-       */
       settledInvoiceCents: 0,
       therapistNetCents: money.therapistNetCents,
-      /*
-       * 🔴 `platform`, and C6 is amended rather than quietly contradicted.
-       *
-       * There is no card charge at session time, so there is nothing for Stripe
-       * to split. The money is already on our balance and leaves it later
-       * through `releaseHeldEarnings`, which is the path this value selects.
-       */
       capture: "platform",
-      /*
-       * 🔴 Which pot crossing, decided from the clinician's rail rather than
-       * assumed.
-       *
-       * `crossingFor` is the one place in the product that answers this, and it
-       * is reused here rather than a literal written in, so a pot session and a
-       * card session cannot disagree about what a rail pair is called. An
-       * Egyptian clinician makes this `pot_held_to_manual`, which `isCrossBorder`
-       * counts and §3c's exposure register needs it to.
-       */
       crossing: crossingFor({
         paidVia: "pot",
         therapist: payoutRailFor({
@@ -360,17 +390,46 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       paidAt: new Date(),
       fundingSource: "pot",
     })
+    .onConflictDoNothing({ target: sessionPayments.sessionId })
     .returning({ id: sessionPayments.id });
 
   if (!payment) {
     /*
-     * The session is marked paid and there is no payment row: that is a figure
-     * that will not reconcile, so it is logged as the error it is rather than
-     * swallowed. The unique index on `session_id` is the only realistic cause,
-     * which means a payment already exists and the session is correctly paid.
+     * 🔴 The compensating credit, and it is unconditional on purpose.
+     *
+     * We took this money one statement ago and the thing it was for did not
+     * happen. Putting it back can never be wrong and can never overdraw
+     * anything, so it carries no predicate that could fail and leave a sponsor
+     * short.
      */
-    log.warn("pot payment row not written", { session: ref(sessionId) });
+    await controlDb
+      .update(sponsorPots)
+      .set({
+        balanceCents: sql`${sponsorPots.balanceCents} + ${sponsorShare}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(sponsorPots.id, pot.potId));
+
     return { paid: false, reason: "nothing_to_pay" };
+  }
+
+  /*
+   * 🔴 AND THE SESSION'S STATUS, AFTER THE CLAIM RATHER THAN AS THE CLAIM.
+   *
+   * `paid` only when the employer covers all of it. A partly covered session is
+   * not a paid session: the patient owes their share, and every screen that
+   * asks `paymentStatus === "paid"` — the join page, the room, the pay page —
+   * would otherwise let them into a session they have not finished paying for
+   * and never show them a link to finish.
+   *
+   * Guarded on `pending` so this cannot reopen a session some other path has
+   * already settled by card.
+   */
+  if (fullyCovered) {
+    await controlDb
+      .update(sessions)
+      .set({ paymentStatus: "paid", updatedAt: new Date() })
+      .where(and(eq(sessions.id, sessionId), eq(sessions.paymentStatus, "pending")));
   }
 
   /*
@@ -411,12 +470,12 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
          * `weeklySpend` read the signs the other way round and would have
          * charted every deposit as expenditure.
          */
-        amountCents: gross,
+        amountCents: sponsorShare,
         memo: "A session spent this sponsor's pot",
       },
       {
         account: "cash",
-        amountCents: -gross,
+        amountCents: -sponsorShare,
         memo: "Funded from the pot; the cash for it arrived at top-up",
       },
     ],
@@ -446,7 +505,13 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   // effect above it. It is now the first thing this function claims.
 
   log.info("session funded from a pot", { session: ref(sessionId) });
-  return { paid: true, sponsorId: benefit.sponsorId, amountCents: gross };
+  /*
+   * 🔴 The SPONSOR'S SHARE is what was paid from the pot, and the caller uses
+   * this to decide whether the patient still owes anything. Returning the gross
+   * here would tell the booking path the whole session was covered when 40% of
+   * it was.
+   */
+  return { paid: true, sponsorId: benefit.sponsorId, amountCents: sponsorShare };
 }
 
 /**
@@ -786,6 +851,10 @@ async function potRow(sponsorId: string) {
       potId: sponsorPots.id,
       balanceCents: sponsorPots.balanceCents,
       overdraftCents: sponsorPots.overdraftCents,
+      /* 🔴 60.1 / C311 — what this employer covers, and any pending change. */
+      coverageBps: sponsorPots.coverageBps,
+      pendingCoverageBps: sponsorPots.pendingCoverageBps,
+      pendingCoverageFrom: sponsorPots.pendingCoverageFrom,
     })
     .from(sponsorPots)
     .where(eq(sponsorPots.sponsorId, sponsorId))

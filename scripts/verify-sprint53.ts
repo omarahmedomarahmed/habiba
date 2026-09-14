@@ -129,12 +129,59 @@ async function main() {
    * booking, a date or a patient name*: if the column does not exist, the join
    * is not one line of SQL away for every operator forever.
    */
+  /*
+   * 🔴 WIDENED, because the name scan was about to be wrong. Sprint 60.
+   *
+   * It matched `column_name LIKE '%sponsor%'` and failed on
+   * `session_payments.sponsor_share_cents`, which is an AMOUNT. C311 freezes
+   * what an employer covered onto the payment as a number of cents; that is
+   * money, not an identifier, and it joins nobody to anything.
+   *
+   * The ruling is that no clinical or payment table carries a sponsor ID. So
+   * the scan now asks what the column IS rather than what it is called: a uuid,
+   * or a foreign key pointing at `sponsors`. Renaming the column to dodge the
+   * check would have been the other option, and that is how a gate becomes
+   * decorative — the same reasoning that widened the 53.12 cash-out scan when
+   * `refundToPot` arrived.
+   *
+   * 🔴 A `text` column whose name says sponsor is still caught, because an id
+   * stored as text is still an id. What is allowed through is an integer, which
+   * cannot be a key to anything.
+   */
   const leaked = await db.execute(sql`
-    SELECT table_name, column_name FROM information_schema.columns
-     WHERE column_name LIKE '%sponsor%'
-       AND table_name IN ('sessions','session_payments','invoices','patients','people',
+    SELECT c.table_name, c.column_name, c.data_type FROM information_schema.columns c
+     WHERE c.column_name LIKE '%sponsor%'
+       AND c.table_name IN ('sessions','session_payments','invoices','patients','people',
                           'session_notes','patient_clinical_facts','availability_slots',
-                          'patient_notifications')`);
+                          'patient_notifications')
+       AND (
+         c.data_type IN ('uuid', 'text', 'character varying')
+         OR EXISTS (
+           SELECT 1 FROM pg_constraint k
+            WHERE k.conrelid = c.table_name::regclass
+              AND k.contype = 'f'
+              AND k.confrelid = 'sponsors'::regclass
+         )
+       )`);
+
+  /*
+   * 🔴 CONTROL for the widening. Without this the relaxed scan could be relaxed
+   * to nothing and still read green: an `AND false` in the predicate finds no
+   * leak and looks identical to a clean database.
+   *
+   * The frozen split is the column that forced the change, so it is the one
+   * asserted present. It is money the patient was shown, and it must be there.
+   */
+  const frozen = await db.execute(sql`
+    SELECT column_name FROM information_schema.columns
+     WHERE table_name = 'session_payments'
+       AND column_name IN ('coverage_bps','sponsor_share_cents','patient_share_cents')`);
+
+  check(
+    "🔴 CONTROL …and the frozen split IS on the payment row, so the scan is not simply empty",
+    frozen.rows.length === 3,
+    `${frozen.rows.length} of 3: C311's figures are money, not a join`,
+  );
 
   check(
     "🔴 C244 no clinical or payment table carries a sponsor id",

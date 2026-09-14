@@ -2043,6 +2043,28 @@ export const sessionPayments = pgTable(
     fxQuotedAt: timestamp("fx_quoted_at", { withTimezone: true }),
 
     /** Our application fee: the platform cut plus anything settled below. */
+    /**
+     * 🔴 60.2 / C311 — THE EMPLOYER PERCENTAGE AS IT STOOD AT BOOKING, FROZEN.
+     *
+     * Never re-read from the pot. The obvious build reads `coverage_bps` when
+     * the money moves, and then an employer lowering their percentage on a
+     * Tuesday changes what a patient owes for a session they agreed to on
+     * Monday. A price somebody was shown is a price they are owed.
+     *
+     * 🔴 THREE NUMBERS, NOT ONE, and the two shares are the reason.
+     *
+     * A percentage alone does not survive a rounding argument: computing both
+     * shares from one percentage gives two numbers that are each defensible and
+     * do not always sum, and the cent falls out of the books in a direction
+     * nobody chose. One is computed, the other is the remainder, both are
+     * stored, and `session_payments_shares_sum` refuses the alternative.
+     *
+     * A refund then apportions on the figures the patient was actually shown
+     * rather than on a percentage that may since have moved (C315).
+     */
+    coverageBps: integer("coverage_bps").notNull().default(0),
+    sponsorShareCents: integer("sponsor_share_cents").notNull().default(0),
+    patientShareCents: integer("patient_share_cents").notNull().default(0),
     platformFeeCents: integer("platform_fee_cents").notNull(),
     /** The cut rate at the moment of payment, in basis points. */
     platformFeeBps: integer("platform_fee_bps").notNull().default(0),
@@ -6221,6 +6243,37 @@ export const sponsorPots = pgTable(
      * top-up screen beside the button. Nullable only because a held sponsor has
      * no pot terms yet; 0072 refuses a funded pot without them.
      */
+    /**
+     * 🔴 60.1 / C311 — WHAT THIS EMPLOYER COVERS, IN FIVE PER CENT STEPS.
+     *
+     * Until 0090 a pot either paid for a session or refused: `payFromPot` spent
+     * the whole gross. Every real corporate conversation is a percentage, and
+     * the moment there is one, C311 arrives with it.
+     *
+     * 🔴 The step is a CHECK rather than a select box, because a form can be
+     * bypassed and an API cannot be, and "60%" is a number a finance team
+     * agreed to rather than an arbitrary basis point.
+     *
+     * 🔴 100% is the default, so every pot that existed before this column
+     * behaves exactly as it did: the whole session, from the pot.
+     */
+    coverageBps: integer("coverage_bps").notNull().default(10000),
+
+    /**
+     * 🔴 C311's NOTICE WINDOW, as data rather than as a job.
+     *
+     * A reduction takes effect after a window an operator sets, because a
+     * person being asked for money they were not expecting deserves warning.
+     * The pair applies itself by being in the past, so there is no scheduled
+     * task whose failure leaves an employer paying a percentage they changed
+     * three weeks ago.
+     *
+     * An INCREASE needs none of this (C344), and the asymmetry is deliberate:
+     * being asked for less than you agreed to needs no protection.
+     */
+    pendingCoverageBps: integer("pending_coverage_bps"),
+    pendingCoverageFrom: timestamp("pending_coverage_from", { withTimezone: true }),
+
     refundPolicy: text("refund_policy"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
 

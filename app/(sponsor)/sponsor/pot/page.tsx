@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CoverageForm } from "@/components/sponsor/coverage-form";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { Card } from "@/components/ui";
 import { topUpHistory } from "@/lib/billing/invoice";
 
 import { potTerms } from "@/lib/data/sponsor-admin";
-import { potBalance } from "@/lib/data/sponsors";
+import { coverageFor, potBalance } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
@@ -36,10 +37,12 @@ export default async function SponsorPotPage() {
    * the moment one session happens, and this page is where a sponsor would
    * check it twice.
    */
-  const [pot, terms, history] = await Promise.all([
+  const [pot, terms, history, coverage] = await Promise.all([
     potBalance(actor.sponsorId),
     potTerms(actor.sponsorId),
     topUpHistory(actor.sponsorId),
+    /* 🔴 60.1 / C311 — the live percentage and any pending change, separately. */
+    coverageFor(actor.sponsorId),
   ]);
 
   const fmt = (cents: number) =>
@@ -57,6 +60,24 @@ export default async function SponsorPotPage() {
           {pot.balanceCents === null ? t("sponsor.balanceSuppressed") : fmt(pot.balanceCents)}
         </p>
       </Card>
+
+      {/*
+        🔴 60.1 / C311 — the percentage, above the money, because it decides
+        what the money buys. Admin only, like every other door on this page:
+        changing it changes what every one of their people is asked to pay.
+      */}
+      {coverage && actor.role === "admin" ? (
+        <CoverageForm
+          coverageBps={coverage.coverageBps}
+          pendingCoverageBps={coverage.pendingCoverageBps}
+          pendingFromLabel={
+            coverage.pendingCoverageFrom
+              ? coverage.pendingCoverageFrom.toISOString().slice(0, 10)
+              : null
+          }
+          noticeDays={settings.sponsor.coverageNoticeDays}
+        />
+      ) : null}
 
       {terms?.refundPolicy && terms.expiresAt ? (
         actor.role === "admin" ? (

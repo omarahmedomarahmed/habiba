@@ -227,6 +227,15 @@ export type PlatformSettings = {
     activityFloor: number;
     /** 53.19b / C247 — how often an identifier is re-checked. */
     verifyCycleMonths: number;
+    /**
+     * 🔴 60.3 / C311 — how much warning a REDUCTION gets, in days.
+     *
+     * Only a reduction. C344's asymmetry: being asked for less than you agreed
+     * to needs no notice, being asked for more does. Thirty days by default,
+     * which is a billing cycle and is long enough that somebody who books
+     * monthly sees it before it reaches them.
+     */
+    coverageNoticeDays: number;
   };
   /**
    * 🔴 44.1 / C97 — THE CHECK-IN CADENCE IS A SETTING BECAUSE THE FOUNDER SAID TO PROVE IT.
@@ -379,6 +388,7 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     minTopUpCents: 500_000,
     activityFloor: 5,
     verifyCycleMonths: 6,
+    coverageNoticeDays: 30,
   },
   checkins: {
     /* 🔴 Off. A channel that messages every patient turns on deliberately or not at all. */
@@ -694,6 +704,19 @@ export function parseGroup<G extends SettingsGroup>(
         verifyCycleMonths: int(v.verifyCycleMonths, d.sponsor.verifyCycleMonths, {
           min: 1,
           max: 60,
+        }),
+        /*
+         * 🔴 A FLOOR OF SEVEN DAYS, and no way to set it to zero.
+         *
+         * The same construction as `activityFloor` above and for the same kind
+         * of reason: the setting exists so an operator can be more generous
+         * than the default, not so a reduction can be made to bite the same
+         * afternoon it is typed. A patient who books weekly needs to see the
+         * change before it reaches them.
+         */
+        coverageNoticeDays: int(v.coverageNoticeDays, d.sponsor.coverageNoticeDays, {
+          min: 7,
+          max: 365,
         }),
       } as PlatformSettings[G];
 
@@ -1081,6 +1104,109 @@ export function parseCountry(row: {
  * rate is zero. The Egyptian refund path does not exist yet, and when it is
  * built it has to issue an ETA credit note rather than a bare reversal.
  */
+/**
+ * 🔴 60.1 / C311 / C312 — HOW A COVERED SESSION SPLITS, AS ARITHMETIC.
+ *
+ * Pure, and in this file rather than in `pot.ts`, for the reason the whole of
+ * `lib/billing/money.ts` gives: money bugs are found by reading arithmetic, and
+ * arithmetic buried in a query is arithmetic nobody reads.
+ *
+ * ## 🔴 ONE SHARE IS COMPUTED AND THE OTHER IS THE REMAINDER
+ *
+ * 60% of $70 is $42 and 40% of $70 is $28, and those happen to sum. 60% of
+ * $69.99 is $41.994 and 40% is $27.996, and rounding each gives $41.99 and
+ * $28.00, which is $69.99 — this time. Change the price and it is not. Two
+ * numbers that are each individually defensible and do not sum is how a cent
+ * falls out of the books in a direction nobody chose, and the database now
+ * refuses to store the result.
+ *
+ * So the sponsor's share is computed, rounded once, and the patient's share is
+ * whatever is left. The remainder always lands on the patient's side, which
+ * costs at most one cent and is the side that can actually see the arithmetic
+ * on their own bill.
+ *
+ * ## 🔴 C312 — VAT IS ON THE PATIENT'S SHARE ONLY
+ *
+ * The sponsor's share was taxed when the pot was funded, in the jurisdiction of
+ * the entity that holds it, which `lib/billing/pot.ts` already reasons at
+ * length. Charging VAT again on the spend would tax the same money twice, and
+ * charging it in the PATIENT's country would invent a tax relationship between
+ * an employee and their employer's purchase.
+ *
+ * ## 🔴 C313 — THE THERAPIST IS PAID ON THE FULL PRICE, ALWAYS
+ *
+ * And our cut is on the full price. Nothing about the split reaches an earnings
+ * screen, because who paid for a session is not a fact about the clinician's
+ * work and putting it there is C243's leak arriving through a new column.
+ */
+export type CoverageSplit = {
+  /** What the employer pays, in cents. Computed and rounded once. */
+  sponsorCents: number;
+  /** What the patient pays before tax. The remainder, so the two always sum. */
+  patientCents: number;
+  /** 🔴 C312 — on the patient's share alone. */
+  vatCents: number;
+  /** What the patient is actually charged. */
+  patientTotalCents: number;
+};
+
+export function coverageSplit(input: {
+  grossCents: number;
+  coverageBps: number;
+  vatBps: number;
+}): CoverageSplit {
+  const gross = Math.max(0, Math.round(input.grossCents));
+  /*
+   * Clamped rather than trusted. The database refuses anything outside the
+   * range and off the 5% step, and this function is called with numbers from a
+   * row that predates the constraint as well as with ones that do not.
+   */
+  const bps = Math.min(10_000, Math.max(0, Math.round(input.coverageBps)));
+
+  const sponsorCents = Math.round((gross * bps) / 10_000);
+  const patientCents = gross - sponsorCents;
+  const vatCents = vatOn(patientCents, input.vatBps);
+
+  return {
+    sponsorCents,
+    patientCents,
+    vatCents,
+    patientTotalCents: patientCents + vatCents,
+  };
+}
+
+/**
+ * 🔴 C311 / C344 — THE PERCENTAGE THAT APPLIES RIGHT NOW, live or pending.
+ *
+ * A pending change applies itself by being in the past. That is why there is no
+ * scheduled job here: a task that flips the live number on a timer is a task
+ * whose failure leaves an employer paying a percentage they changed three weeks
+ * ago, and nothing on any screen would say so.
+ *
+ * 🔴 An INCREASE is allowed to apply immediately and a DECREASE is not, which
+ * is C344 and is the asymmetry the whole notice window exists for. Being asked
+ * for less than you agreed to needs no protection; being asked for more does.
+ * The caller decides the window when it writes the pending pair; this only
+ * reads.
+ */
+export function coverageNow(
+  pot: {
+    coverageBps: number;
+    pendingCoverageBps: number | null;
+    pendingCoverageFrom: Date | null;
+  },
+  now: Date,
+): number {
+  if (
+    pot.pendingCoverageBps !== null &&
+    pot.pendingCoverageFrom !== null &&
+    pot.pendingCoverageFrom.getTime() <= now.getTime()
+  ) {
+    return pot.pendingCoverageBps;
+  }
+  return pot.coverageBps;
+}
+
 export function vatOn(amountCents: number, vatBps: number): number {
   if (amountCents <= 0 || vatBps <= 0) return 0;
   return Math.round((amountCents * vatBps) / 10_000);
