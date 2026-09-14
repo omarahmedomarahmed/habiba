@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/audit";
 import { requireClinicAdmin } from "@/lib/clinic-auth/guard";
 import { inviteClinician, removeClinician, revokeInvitation } from "@/lib/data/clinic-admin";
 import { env } from "@/lib/env";
@@ -65,6 +66,28 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
     },
   );
 
+  /*
+   * 🔴 0086 — INVITING SOMEBODY COMMITS THE PRACTICE TO PAYING FOR THEIR SESSIONS.
+   *
+   * 54.7. Until 0086 no clinic act wrote a single audit row, which meant the
+   * question "who added this clinician to the practice, and when" had no answer
+   * in the product at all: the invitation row says who was invited and the
+   * membership says they joined, and neither says which manager did it.
+   *
+   * 🔴 The row names the INVITATION and no patient. `audit` refuses a clinic
+   * manager beside a patient id outright, because a manager is inside the
+   * tenancy and sees none of the clinical record.
+   */
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "clinic.invited",
+    resourceType: "clinic_invitation",
+    resourceId: result.invitationId ?? null,
+  });
+
   revalidatePath("/clinic/people");
   return { ok: true, link };
 }
@@ -72,6 +95,17 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
 export async function cancelInvitation(invitationId: string): Promise<PeopleState> {
   const actor = await requireClinicAdmin();
   await revokeInvitation(actor.clinicOrganizationId, invitationId);
+
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "clinic.invitation_cancelled",
+    resourceType: "clinic_invitation",
+    resourceId: invitationId,
+  });
+
   revalidatePath("/clinic/people");
   return { ok: true };
 }
@@ -86,6 +120,22 @@ export async function remove(userId: string): Promise<PeopleState> {
   });
 
   if (result.error) return { error: result.error };
+
+  /*
+   * 🔴 C266 — the largest act on this screen. They move to a practice of their
+   * own and the clinic's meeting accounts are disconnected from them. A
+   * clinician who finds themselves outside a practice on a Monday is entitled
+   * to an answer about who did it.
+   */
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "clinic.clinician_removed",
+    resourceType: "user",
+    resourceId: userId,
+  });
 
   revalidatePath("/clinic/people");
   return { ok: true };

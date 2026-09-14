@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/audit";
 import { topUpPot } from "@/lib/billing/pot";
 import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 
@@ -32,6 +33,23 @@ export async function addToPot(_prev: TopUpState, formData: FormData): Promise<T
   });
 
   if (result.error) return { error: result.error };
+
+  /*
+   * 🔴 0086 — money into a pot is a billing act by a named person at a customer.
+   *
+   * The ledger already records that the pot grew. It does not record WHO at the
+   * organisation pressed the button, which is the question asked when a finance
+   * team disputes a top-up.
+   */
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "billing",
+    action: "pot.topped_up",
+    resourceType: "sponsor",
+    resourceId: actor.sponsorId,
+  });
 
   revalidatePath("/sponsor/pot");
   revalidatePath("/sponsor");

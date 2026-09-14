@@ -28,6 +28,23 @@ type AuditInput = {
    * guessing which table the id belongs to.
    */
   patientAccountId?: string | null;
+  /**
+   * 🔴 The sponsor portal user who did it. PLAN.md 53.22, C234, 0086.
+   *
+   * A `SponsorActor` has no `userId` and no `organizationId` on purpose, so it
+   * cannot be passed as an `Actor` and the compiler says so. That seam is
+   * right, and for four sprints its consequence was that the payer's acts went
+   * unrecorded rather than recorded differently. This is the column they go in.
+   */
+  sponsorUserId?: string | null;
+  /**
+   * 🔴 The clinic manager who did it. PLAN.md 54.4, C266, 0086. Same story.
+   *
+   * 🔴 Never set alongside `patientId`. A clinic manager is inside the tenancy
+   * and sees none of the clinical record, so a row naming one beside a patient
+   * would be a record of a read that cannot happen. Enforced below.
+   */
+  clinicManagerId?: string | null;
   category: AuditCategory;
   /** Verb-ish and stable, e.g. "session.read", "note.approve". */
   action: string;
@@ -55,17 +72,44 @@ function isUuid(value: string | null | undefined): value is string {
 export async function audit(input: AuditInput): Promise<void> {
   const [ip, ua] = await Promise.all([clientIp(), clientUserAgent()]);
 
-  if (input.actor && input.patientAccountId) {
-    // Not a defensive check for something that cannot happen — it is the
-    // invariant the column split exists to hold. A row naming both actors
-    // would make every "who did this" query ambiguous.
-    throw new Error("audit: an action has one actor, not both a clinician and a patient");
+  /*
+   * Not a defensive check for something that cannot happen — it is the
+   * invariant the column split exists to hold. A row naming two actors would
+   * make every "who did this" query ambiguous.
+   *
+   * 🔴 Widened in 0086 from two actors to four. The original read
+   * `input.actor && input.patientAccountId`, which was exhaustive when there
+   * were two principals and silently permissive the moment there were four.
+   * That is the same shape as the check it guards against: a rule that was
+   * complete when written and became a rule about half the cases.
+   */
+  const actors = [
+    input.actor ? "clinician" : null,
+    input.patientAccountId ? "patient" : null,
+    input.sponsorUserId ? "sponsor" : null,
+    input.clinicManagerId ? "clinic" : null,
+  ].filter(Boolean);
+
+  if (actors.length > 1) {
+    throw new Error(`audit: an action has one actor, not ${actors.join(" and ")}`);
+  }
+
+  /*
+   * 🔴 A clinic manager is inside the tenancy and sees none of the clinical
+   * record (C259 defence 3). A row naming one beside a patient would be a
+   * record of a read that cannot happen, and the first person to read the log
+   * would reasonably conclude it did.
+   */
+  if (input.clinicManagerId && input.patientId) {
+    throw new Error("audit: a clinic manager's act never names a patient");
   }
 
   await db.insert(auditLog).values({
     organizationId: input.actor?.organizationId ?? null,
     actorUserId: input.actor?.userId ?? null,
     actorAccountId: input.patientAccountId ?? null,
+    actorSponsorUserId: input.sponsorUserId ?? null,
+    actorClinicManagerId: input.clinicManagerId ?? null,
     category: input.category,
     action: input.action,
     resourceType: input.resourceType ?? null,

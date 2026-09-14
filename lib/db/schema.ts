@@ -2313,6 +2313,41 @@ export const auditLog = pgTable(
     actorAccountId: uuid("actor_account_id").references(() => patientAccounts.id, {
       onDelete: "set null",
     }),
+    /**
+     * 🔴 The SPONSOR PORTAL USER who did it. Added in 0086, four sprints late.
+     *
+     * The paragraph above says "exactly one of the two is set on any row", and
+     * it was written when there were two principals. A sponsor user ends
+     * somebody's benefit, changes the identifier gate, tops the pot up and
+     * rotates the joining code, and until 0086 not one of those acts was
+     * written down anywhere. `removeFromRoster` even takes `bySponsorUserId`
+     * with the comment "for `audit`" and passed it to nothing.
+     *
+     * 🔴 A row here says what a payer DID. It never says what a payer may SEE:
+     * C244's wall is untouched by this column, and nothing joins it to a
+     * session, a date or a therapist.
+     */
+    actorSponsorUserId: uuid("actor_sponsor_user_id").references(
+      (): AnyPgColumn => sponsorUsers.id,
+      { onDelete: "set null" },
+    ),
+    /**
+     * 🔴 The CLINIC MANAGER who did it. Added in 0086 for the same reason.
+     *
+     * Inviting a clinician commits the practice to paying for their sessions,
+     * and removing one moves a colleague to their own practice and disconnects
+     * the clinic's meeting accounts. Both are consequential and neither left a
+     * trace.
+     *
+     * 🔴 Rows written with this column carry NO `patient_id`, ever. A clinic
+     * manager is inside the tenancy and sees none of the clinical record, so an
+     * audit row naming one beside a patient would be recording a read that
+     * cannot happen.
+     */
+    actorClinicManagerId: uuid("actor_clinic_manager_id").references(
+      (): AnyPgColumn => clinicManagers.id,
+      { onDelete: "set null" },
+    ),
     category: text("category").$type<AuditCategory>().notNull(),
     action: text("action").notNull(),
     resourceType: text("resource_type"),
@@ -2357,6 +2392,9 @@ export const auditLog = pgTable(
   },
   (t) => [
     index("audit_log_org_idx").on(t.organizationId, t.createdAt),
+    /* "What did this practice do" and "what did this payer do", newest first. */
+    index("audit_log_sponsor_actor_idx").on(t.actorSponsorUserId, t.createdAt),
+    index("audit_log_clinic_actor_idx").on(t.actorClinicManagerId, t.createdAt),
     index("audit_log_patient_idx").on(t.patientId, t.createdAt),
     index("audit_log_category_idx").on(t.category, t.createdAt),
     // The retention purge filters on this. It previously named a column that

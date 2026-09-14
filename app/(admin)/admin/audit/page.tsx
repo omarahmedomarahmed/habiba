@@ -55,7 +55,24 @@ export default async function AdminAuditPage({
               {entry.category.replace("_", " ")}
             </Badge>
             <span className="text-sm font-medium text-slate-900">{entry.action}</span>
-            <span className="text-xs text-slate-500">{entry.actorEmail ?? "system"}</span>
+            {/*
+              🔴 0086 — four principals can write here, so four possible actors.
+              The label says WHICH, because "ahmed@acme.com" means nothing on
+              its own: our operator, their HR admin and their practice manager
+              have entirely different authority, and an audit screen that
+              flattens them answers the wrong question.
+
+              "system" only when every actor column is null, which is a job or a
+              cron rather than a person.
+            */}
+            <span className="text-xs text-slate-500">
+              {entry.actorEmail ??
+                (entry.sponsorActorEmail
+                  ? `sponsor · ${entry.sponsorActorEmail}`
+                  : entry.clinicActorEmail
+                    ? `practice · ${entry.clinicActorEmail}`
+                    : "system")}
+            </span>
             {entry.organizationName ? (
               <span className="text-xs text-slate-400">{entry.organizationName}</span>
             ) : null}

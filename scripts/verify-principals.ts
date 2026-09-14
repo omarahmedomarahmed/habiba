@@ -34,6 +34,7 @@
  * rule: a function with no entry is not "probably fine", it is a decision
  * nobody has made. A genuinely public module says so, out loud, with a reason.
  */
+import { stripCommentsKeepingLines } from "./_dashes";
 import { loadSurfaces, type Surfaces } from "./_surfaces";
 import { reporter } from "./_verify";
 import { readdirSync } from "node:fs";
@@ -525,6 +526,111 @@ function main() {
     "🔴 58.6 CONTROL the rule WOULD refuse a patient reaching the clinician copilot",
     wouldBreach,
     "lib/data/copilot is clinician-only, and a patient guard does not satisfy it",
+  );
+
+  /* ------------------------------- 58.7 · every principal's acts are logged */
+
+  /*
+   * 🔴 A PRINCIPAL WHOSE ACTS ARE NOT WRITTEN DOWN.
+   *
+   * Found by reading rather than by any gate: `audit()` took an `Actor` or a
+   * patient account id, and `SponsorActor` and `ClinicActor` deliberately have
+   * neither, so neither principal could be passed to it and neither was. Ending
+   * somebody's benefit, changing the identifier gate, topping up a pot,
+   * inviting a clinician, removing one, disconnecting a hospital: none of it
+   * left a row, for four sprints.
+   *
+   * The code said otherwise, which is what made it invisible. `removeFromRoster`
+   * takes `bySponsorUserId` with the comment "for `audit`" and passed it
+   * nowhere, and the admin sponsor actions describe the sponsor's own acts as
+   * carrying "a sponsor user id and no actor", which reads as a description of
+   * a second audited path that did not exist.
+   *
+   * So this is the gate that makes the next one fail on the day it is written.
+   * Every action file under a portal, except the ones named below, must call
+   * `audit` at least once.
+   *
+   * 🔴 The exemptions are by PATH and each carries a reason, in the shape
+   * `ROUTES_BY_DESIGN` uses in `verify:reachable`. A blanket "auth files are
+   * exempt" would exempt the next auth file that starts doing something else.
+   */
+  const AUDIT_BY_DESIGN: Record<string, string> = {
+    "app/(sponsor)/sponsor/sign-in/actions.ts":
+      "sign-in and sign-out. The auth trail is sponsor_auth_sessions, which records every session with its own timestamps; a second copy in audit_log would be two places to look for one fact.",
+    "app/(clinic)/clinic/sign-in/actions.ts":
+      "sign-in and sign-out. The auth trail is clinic_auth_sessions, which records every session with its own timestamps and is the table an operator reads when a practice disputes access.",
+    "app/(sponsor)/sponsor/apply/actions.ts":
+      "an application from the public web by somebody who is not yet a principal. There is no sponsor user to name, and the row created IS the record of the act.",
+    "app/(clinic)/clinic/apply/actions.ts":
+      "a practice applying from the public web. Nobody is signed in, so there is no clinic manager to name, and the application row created IS the record of the act.",
+    "app/(clinic)/clinic/join/[token]/actions.ts":
+      "a clinician accepting an invitation. They are not a clinic manager and never become one, so there is no clinic actor here; the invitation row is stamped accepted, which is the record.",
+  };
+
+  const portalActions = s.files.filter(
+    (f) =>
+      /^app\/\((sponsor|clinic)\)\//.test(f) && f.endsWith("actions.ts"),
+  );
+
+  /*
+   * 🔴 COMMENTS STRIPPED, C205, and this scan is exactly where it matters.
+   *
+   * Every one of these files carries a long paragraph about what it does and
+   * does not record. Reading the raw source, a file whose only mention of
+   * auditing is a note explaining why it does not audit would pass, which is
+   * the ninth time this rule has had to be remembered in this repository.
+   */
+  const unaudited = portalActions.filter(
+    (f) =>
+      !(f in AUDIT_BY_DESIGN) &&
+      !/\baudit\s*\(/.test(stripCommentsKeepingLines(s.body.get(f) ?? "")),
+  );
+
+  check(
+    "🔴 58.7 every sponsor and clinic action file records what it did",
+    unaudited.length === 0,
+    unaudited.length === 0
+      ? `${portalActions.length} action files, ${Object.keys(AUDIT_BY_DESIGN).length} exempt with a reason`
+      : `NO AUDIT: ${unaudited.join(", ")}`,
+  );
+
+  /*
+   * 🔴 And the exemptions have to keep earning it, or the allowlist becomes the
+   * answer. Same construction as 58.4: an entry naming a file that no longer
+   * exists is a stale exemption nobody noticed, and a one-word reason is a
+   * shrug with a comma in it.
+   */
+  const staleExempt = Object.keys(AUDIT_BY_DESIGN).filter(
+    (f) => !portalActions.includes(f),
+  );
+
+  check(
+    "58.7 …and no exemption outlives the file it excuses",
+    staleExempt.length === 0,
+    staleExempt.join(", ") || "every exemption names a real action file",
+  );
+
+  check(
+    "58.7 …and every exemption says why in a sentence somebody can argue with",
+    Object.values(AUDIT_BY_DESIGN).every((why) => why.length > 60),
+    "a one-word reason is a shrug with a comma in it",
+  );
+
+  /*
+   * 🔴 CONTROL. The scan must be reading the code and not the comments.
+   *
+   * C205 is the standing rule and this file has broken it before. An action
+   * file whose only mention of `audit` is a paragraph explaining why it does
+   * not audit would pass the check above and record nothing.
+   */
+  check(
+    "🔴 58.7 CONTROL the audit scan reads code, not the prose about it",
+    !/\baudit\s*\(/.test(
+      stripCommentsKeepingLines(
+        '/* we should call audit(...) here one day */\nexport async function go() {}\n',
+      ),
+    ),
+    "a file that only talks about auditing must not read as a file that audits",
   );
 
   finish("sprint 58 principals");

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/audit";
 import { REMOVAL_REASONS, type RemovalReason } from "@/lib/db/schema";
 import { removeFromRoster } from "@/lib/data/sponsors";
 import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
@@ -42,6 +43,31 @@ export async function endBenefit(enrolmentId: string, reason: string): Promise<R
   });
 
   if (result.error) return { error: result.error };
+
+  /*
+   * 🔴 C234 / 0086 — THE PAYER'S ACT, WRITTEN DOWN.
+   *
+   * `removeFromRoster` has taken `bySponsorUserId` since sprint 53 with the
+   * comment "for `audit`" and passed it to nothing, so ending somebody's
+   * funding was the one individual-level power a sponsor has and the one act
+   * in the product nobody could attribute afterwards.
+   *
+   * 🔴 The row names the ENROLMENT and the reason, and no patient. C227 keeps
+   * the payer away from the person; this keeps the person's id out of a row
+   * about what the payer did. "Which of our people did you remove" is
+   * answerable from the enrolment, by us, and is not a question a payer asks
+   * an audit log.
+   */
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "benefit.ended",
+    resourceType: "enrolment",
+    resourceId: enrolmentId,
+    reason,
+  });
 
   revalidatePath("/sponsor/people");
   return { ok: true };

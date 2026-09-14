@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { audit } from "@/lib/audit";
 import { requireClinicAdmin } from "@/lib/clinic-auth/guard";
 import { beginConnection, revokeConnectionsFor } from "@/lib/data/ehr";
 import { putPending } from "@/lib/ehr/pending";
@@ -38,6 +39,24 @@ export async function begin(_prev: { error?: string }, formData: FormData): Prom
   }
 
   /*
+   * 🔴 0086 — audited BEFORE the redirect, because `redirect` throws.
+   *
+   * Nothing after it runs, so an audit written below would never be written at
+   * all. This records the attempt rather than the connection: the connection
+   * itself is made in `/api/ehr/callback` and is the hospital's decision as
+   * much as ours.
+   */
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "records.connect_started",
+    resourceType: "ehr_vendor",
+    resourceId: vendor,
+  });
+
+  /*
    * 🔴 THE VERIFIER IS SEALED INTO A COOKIE AND THE BROWSER IS SENT TO THE HOSPITAL.
    *
    * `redirect` throws, so nothing below it runs and there is no `return` to reach. That is the
@@ -71,5 +90,21 @@ export async function begin(_prev: { error?: string }, formData: FormData): Prom
 export async function disconnect(): Promise<void> {
   const actor = await requireClinicAdmin();
   await revokeConnectionsFor(actor.clinicOrganizationId, null, "disconnected by the practice");
+
+  /*
+   * 🔴 Disconnecting stops note filing for every clinician under the practice,
+   * which is the reason this door is admin-only. It is also the act that will
+   * be denied afterwards, so it leaves a row.
+   */
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "records.disconnected",
+    resourceType: "organization",
+    resourceId: actor.clinicOrganizationId,
+  });
+
   revalidatePath("/clinic/records");
 }

@@ -183,7 +183,7 @@ export async function inviteClinician(input: {
   phone: string | null;
   firstName: string | null;
   lastName: string | null;
-}): Promise<{ token?: string; error?: string }> {
+}): Promise<{ token?: string; invitationId?: string; error?: string }> {
   const email = input.email.trim().toLowerCase();
   if (!email.includes("@")) return { error: "That email address does not look right." };
 
@@ -224,19 +224,28 @@ export async function inviteClinician(input: {
 
   const token = randomBytes(32).toString("base64url");
 
-  await controlDb.insert(clinicianInvitations).values({
-    organizationId: input.clinicOrganizationId,
-    email,
-    phone: input.phone?.trim() || null,
-    firstName: input.firstName?.trim().slice(0, 80) || null,
-    lastName: input.lastName?.trim().slice(0, 80) || null,
-    tokenHash: hashToken(token),
-    expiresAt: new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000),
-    invitedByManagerId: input.byManagerId,
-  });
+  const [created] = await controlDb
+    .insert(clinicianInvitations)
+    .values({
+      organizationId: input.clinicOrganizationId,
+      email,
+      phone: input.phone?.trim() || null,
+      firstName: input.firstName?.trim().slice(0, 80) || null,
+      lastName: input.lastName?.trim().slice(0, 80) || null,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000),
+      invitedByManagerId: input.byManagerId,
+    })
+    /*
+     * 🔴 The ID comes back so the caller can AUDIT it. Never the token: that is
+     * the secret in the invitation link, and an audit log is read by operators,
+     * exported, and kept for years. A row naming it would be a row anybody with
+     * log access could use to join a practice.
+     */
+    .returning({ id: clinicianInvitations.id });
 
   log.info("clinician invited");
-  return { token };
+  return { token, invitationId: created?.id };
 }
 
 export async function revokeInvitation(

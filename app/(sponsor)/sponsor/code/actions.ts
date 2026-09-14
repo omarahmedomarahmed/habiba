@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/audit";
 import { rotateCode } from "@/lib/data/sponsor-admin";
 import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 
@@ -15,6 +16,21 @@ import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 export async function replaceCode(): Promise<{ ok: true }> {
   const actor = await requireSponsorAdmin();
   await rotateCode(actor.sponsorId);
+
+  /*
+   * 🔴 0086 — a rotation strands every printed poster in the building, and the
+   * support call that follows starts with "nobody rotated it". Now it can.
+   */
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "sponsor.code_rotated",
+    resourceType: "sponsor",
+    resourceId: actor.sponsorId,
+  });
+
   revalidatePath("/sponsor/code");
   return { ok: true };
 }

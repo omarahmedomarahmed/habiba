@@ -7,12 +7,14 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   aiRequestLogs,
   auditLog,
+  clinicManagers,
   copilotMessages,
   copilotThreads,
   organizations,
   patients,
   invoices,
   sessions,
+  sponsorUsers,
   subscriptions,
   therapistVerifications,
   transcriptSegments,
@@ -200,10 +202,28 @@ export async function listAuditLog(opts: { category?: string; limit?: number } =
       createdAt: auditLog.createdAt,
       ipAddress: auditLog.ipAddress,
       actorEmail: users.email,
+      /*
+       * 🔴 0086 — THE OTHER TWO PRINCIPALS, or this screen renders them blank.
+       *
+       * A sponsor user and a clinic manager can now write to this table. If the
+       * reader still joined only `users`, every one of their rows would arrive
+       * with `actorEmail: null` and show as an act nobody performed, which is
+       * worse than not recording it: the operator would read "somebody ended
+       * this benefit" off a screen that had the answer and did not select it.
+       *
+       * Separate columns rather than a coalesce, so the screen can say WHICH
+       * kind of principal it was. "ahmed@acme.com" means nothing without
+       * knowing whether that is our operator, their HR admin or their practice
+       * manager, and those three have very different authority.
+       */
+      sponsorActorEmail: sponsorUsers.email,
+      clinicActorEmail: clinicManagers.email,
       organizationName: organizations.name,
     })
     .from(auditLog)
     .leftJoin(users, eq(users.id, auditLog.actorUserId))
+    .leftJoin(sponsorUsers, eq(sponsorUsers.id, auditLog.actorSponsorUserId))
+    .leftJoin(clinicManagers, eq(clinicManagers.id, auditLog.actorClinicManagerId))
     .leftJoin(organizations, eq(organizations.id, auditLog.organizationId))
     .orderBy(desc(auditLog.createdAt))
     .limit(opts.limit ?? 100);
