@@ -48,9 +48,15 @@ docs/simulation/04-CAPTURE.md         what is photographed, where it goes, the v
 docs/simulation/05-AGEING.md          how three months happens in one hour
 docs/simulation/06-COPILOT-EXAM.md    the test at the end: what the copilot really knows
 docs/simulation/07-FINANCIAL-MODEL.md what the run feeds into the 36-month forecast, and what it can never measure
+docs/simulation/08-THE-OFFER.md        🔴 the commercial offer: free month, half price, and the full-price invoice
 ```
 
-They are one design in eight documents. **Do not start until you have read all eight.**
+They are one design in nine documents. **Do not start until you have read all nine.**
+
+🔴 **And read `docs/FINANCIAL-PLAN.md` once before you begin.** It is not part of the run; it
+is the business this run is a rehearsal of. Twenty thousand dollars, Egypt, two salespeople,
+three companies, six clinics, nine therapists, and an offer of one free month then half price.
+Everything the simulation captures is evidence for or against something in that document.
 
 ## In one paragraph
 

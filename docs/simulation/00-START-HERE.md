@@ -1,7 +1,7 @@
 # The three-month simulation: start here
 
-**You are the main session. Read all eight of these files before you do anything.** They are
-one design split across eight documents because they are read by different agents.
+**You are the main session. Read all nine of these files before you do anything.** They are
+one design split across nine documents because they are read by different agents.
 
 | Read | What it is | Who reads it |
 |---|---|---|
@@ -13,6 +13,7 @@ one design split across eight documents because they are read by different agent
 | `05-AGEING.md` | How three months happens in one hour, and the one rule that keeps it honest | You, before wave one |
 | `06-COPILOT-EXAM.md` | The test at the end: how much the copilot actually knows about each person | You, after the last wave |
 | `07-FINANCIAL-MODEL.md` | What the run feeds into the thirty-six month forecast, and the four things it can never measure | You, after the money agent closes month three |
+| `08-THE-OFFER.md` | 🔴 The commercial offer, rehearsed: free month, half price, and the full-price invoice that decides everything | You and the money agent, every wave |
 
 ---
 
@@ -116,7 +117,7 @@ produce and every pricing decision downstream would inherit either.
 
 ```
   You  ·  Opus 5  ·  the main session
-   │     reads the eight documents, checks the branch, launches the orchestrator,
+   │     reads the nine documents, checks the branch, launches the orchestrator,
    │     checks on it, ages each wave, runs the exam, writes the report
    ▼
   The orchestrator  ·  one agent, the smartest one you can afford
@@ -216,6 +217,8 @@ both scripts this design used to ask you to build are built and have their own v
 | 8 | The copilot exam | `npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json` | |
 | 8b | **Fit the cost model** | `npm run physics -- --at 50 --json docs/walkthrough-3/PHYSICS.json` | Every kind fitted, no refusals. A refusal means the durations came out flat |
 | 8c | **Feed the financial model**, per `07-FINANCIAL-MODEL.md` | `npm run forecast` and **Measure and freeze** on `/admin/financial-model` | One row in `finance_benchmarks`, and the provenance split on the page moves |
+| 8d | 🔴 **Bill wave 1 at full price**, per `08-THE-OFFER.md` | `npm run age -- --marker wave4 --start`, then run the billing cycle | An invoice with NO discount line. The single most important frame in the run |
+| 8e | **Print the plan with the counts in hand** | `npm run plan` | The tables in `docs/FINANCIAL-PLAN.md`, re-run against what was measured |
 | 9 | Re-record accuracy **only if there is budget** | `npm run evals -- --record` | |
 | 10 | The report | | `docs/walkthrough-3/REPORT.md`, and it is honest |
 

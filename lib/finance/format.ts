@@ -43,6 +43,17 @@ export function usd(n: number): string {
 }
 
 /**
+ * Egyptian pounds, for a screen whose reader thinks in them.
+ *
+ * 🔴 Same rule as `usd`: no `Intl`, no locale. A price quoted to an Egyptian
+ * clinic is quoted in pounds, and a figure that renders differently depending on
+ * which machine opened the page is not a price.
+ */
+export function egp(usdAmount: number, egpPerUsd: number): string {
+  return `${grouped(String(Math.round(usdAmount * egpPerUsd)))} EGP`;
+}
+
+/**
  * People and sessions.
  *
  * 🔴 Rounded, because the model carries fractions of a therapist and a fraction

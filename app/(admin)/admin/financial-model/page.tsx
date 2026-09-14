@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 
 import { FinancialModel } from "@/components/admin/financial-model";
+import { PlanTables } from "@/components/admin/plan-tables";
 import { Card, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
 import type { Assumptions } from "@/lib/finance/assumptions";
 import { provenanceSplit } from "@/lib/finance/assumptions";
 import type { Measured } from "@/lib/finance/benchmark";
+import { PLANS, PLAN_SLUGS, provenanceCounts } from "@/lib/finance/plans";
 import { allScenarios, latestBenchmark } from "@/lib/finance/store";
 
 export const metadata: Metadata = { title: "Financial model", robots: { index: false } };
@@ -99,6 +101,18 @@ export default async function FinancialModelPage() {
             : "Nothing measured here. The unit costs come from the 2026-09-14 API benchmark, which measures the model and not this business."}
         </p>
       </Card>
+
+      {/*
+        🔴 THE OPERATING PLAN FIRST, THE ABSTRACT MODEL SECOND.
+        One of these is what the company is actually going to do next quarter in
+        Egypt, with a named offer and two named salespeople. The other is a
+        generic growth model. Putting the generic one first would be filing the
+        plan behind the theory.
+      */}
+      <PlanTables
+        plans={PLANS.map((plan, i) => ({ slug: PLAN_SLUGS[i]!, plan }))}
+        provenance={provenanceCounts()}
+      />
 
       <FinancialModel
         scenarios={scenarios.map((s) => ({

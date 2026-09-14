@@ -146,7 +146,9 @@
     "verify:boundary": "node --import tsx scripts/verify-boundary.ts",
     "verify:sprint69": "node --import tsx --conditions=react-server scripts/verify-sprint69.ts",
     "verify:finance": "node --import tsx --conditions=react-server scripts/verify-finance.ts",
+    "verify:plan": "node --import tsx --conditions=react-server scripts/verify-plan.ts",
     "forecast": "node --import tsx --conditions=react-server scripts/forecast.ts",
+    "plan": "node --import tsx --conditions=react-server scripts/plan.ts",
     "test:seats": "node --import tsx --test tests/seats.test.ts"
   },
   "dependencies": {

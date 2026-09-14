@@ -181,8 +181,8 @@ function Patients({ rows }: { rows: Patient[] }) {
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="text-sm font-semibold text-slate-900">Caseload, identifiers only</p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-          If one of these people asks for their data, send it from here. You will never see it: the
-          link goes to their address and the clinician is told.
+          If one asks for their data, send it from here. You never see it: the link goes to their
+          address and the clinician is told.
         </p>
       </div>
       {rows.length === 0 ? (

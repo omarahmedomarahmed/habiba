@@ -646,8 +646,8 @@ function Detail({
             {pending ? "Saving…" : "Save"}
           </Button>
           <p className="text-[11px] leading-relaxed text-slate-400">
-            Audited, and they can change it straight back. For a wrong phone number or a country
-            picked by mistake, not for taking over a profile.
+            Audited, and reversible by them. For a wrong number or country, not for taking over a
+            profile.
           </p>
         </div>
       </Card>

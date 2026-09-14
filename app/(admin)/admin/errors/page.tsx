@@ -51,8 +51,8 @@ export default async function AdminErrorsPage() {
         <Card className="p-8 text-center">
           <p className="text-sm font-medium text-slate-900">Nothing has thrown</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-            Either the product is behaving or nothing is using it. Both are worth knowing, and
-            before this page there was no way to tell them apart.
+            Either the product is behaving or nothing is using it. Before this page there was no
+            way to tell.
           </p>
         </Card>
       ) : null}

@@ -312,8 +312,8 @@ export function PayoutsEditor({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">The manual rail</p>
       <p className="mt-1 text-xs text-slate-500">
-        §3c: adding an Egyptian collection provider is configuration, not code. The two-person
-        threshold cannot be switched off, setting it to 0 makes every payout need two people.
+        §3c: a new Egyptian collection provider is configuration, not code. The two-person
+        threshold cannot be switched off; 0 makes every payout need two people.
       </p>
 
       <form action={action} className="mt-3 space-y-3">
@@ -468,8 +468,7 @@ export function CountryEditor({
             Crisis line
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Dial it before you save it. A wrong number looks and presses like help and does
-            nothing, which is worse than no number at all.
+            Dial it before you save it. A wrong number presses like help and does nothing.
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <Field
@@ -531,7 +530,7 @@ export function CountryEditor({
         <Field
           label="Regulators"
           htmlFor={`reg-${country.code}`}
-          hint="One per line. Offered beside a free-text field, a list that omits somebody's regulator reads as 'you are not welcome here', so it never constrains."
+          hint="One per line, beside a free-text field. A list missing somebody's regulator reads as 'you are not welcome here', so it never constrains."
         >
           <Textarea
             id={`reg-${country.code}`}

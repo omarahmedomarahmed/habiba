@@ -62,9 +62,8 @@ export function LedgerAdjust({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">Adjust the books by hand</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
-        The escape hatch. It posts a balanced pair, never edits a balance, so the books cannot be
-        made to disagree with themselves. Audited with your name and your reason, which is what
-        somebody reads six months from now.
+        The escape hatch. A balanced pair, never an edited balance, so the books cannot disagree
+        with themselves. Audited with your name and your reason.
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">

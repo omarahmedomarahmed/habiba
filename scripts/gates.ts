@@ -94,6 +94,20 @@ const GATES = [
     script: "verify:finance",
     why: "and the forecast still cannot move a price",
   },
+  /*
+   * 🔴 The plan is a different gate from the forecast, and both belong here.
+   *
+   * `verify:finance` guards the ENGINE: pure, reconciling, unable to bill. This
+   * guards the PLAN: that the offer modelled is the offer somebody intends to
+   * run, that a cohort is priced off its own age, and that every guess still
+   * says it is one. An unlabelled number is how a plan becomes evidence for
+   * something nobody measured.
+   */
+  {
+    name: "plan",
+    script: "verify:plan",
+    why: "and the plan still says which numbers are guesses",
+  },
 ] as const;
 
 function main() {
