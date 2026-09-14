@@ -23,6 +23,9 @@
  * platform fee.
  */
 
+import { CURRENCY_BY_ENTITY } from "@/lib/billing/money";
+
+
 /**
  * 🔴 46.3 / C223 — a tier is a price threshold and an AI rate, never a count.
  *
@@ -909,7 +912,26 @@ export function parseCountry(row: {
     code: row.code.toUpperCase(),
     name: row.name,
     vatBps: int(row.vatBps, 0, { min: 0, max: 9_000 }),
-    currency: str(row.currency, "usd").toLowerCase(),
+    /*
+     * 🔴 TWO CURRENCIES, AND THE ENTITY DECIDES WHICH. Founder, 2026-09-14.
+     *
+     * > *Only 2 currencies for now, EGP in Egypt and USD for the rest of the
+     * > world. We will add GBP and EUR soon, but in those countries price with
+     * > USD and pay with USD and payouts in USD.*
+     *
+     * So this column is not a free choice, it is a restatement of the entity,
+     * and it is derived rather than trusted. An operator adding the United
+     * Kingdom types a country, a regulator and a document list; if they also
+     * type `gbp` they have created a Stripe checkout in a currency with no
+     * acquirer, no VAT rate, no payout rail and no ledger account behind it,
+     * and every screen downstream would have shown it working.
+     *
+     * C218's rule, applied to the column next door to the one it was written
+     * about: a switch an operator can set is read by the code, or it does not
+     * exist. Nothing in this product can collect a pound, so nothing may store
+     * one.
+     */
+    currency: CURRENCY_BY_ENTITY[row.entity === "eg" ? "eg" : "us"],
     paymentMethods: list(row.paymentMethods),
     collectionProvider: row.collectionProvider?.trim() || null,
     payoutMethods: list(row.payoutMethods),
@@ -934,10 +956,31 @@ export function parseCountry(row: {
 /**
  * VAT, and the reason it is its own function.
  *
- * §3: the patient pays VAT on top of everything, and a refund returns our cut
- * but never the VAT — because the VAT was remitted to a government that is not
- * refunding it because a session was cancelled. Rounding is half-up on the
+ * §3: the patient pays VAT on top of everything. Rounding is half-up on the
  * patient's side of the line, which is the direction a tax authority expects.
+ *
+ * ## 🔴 THIS COMMENT USED TO STATE A REFUND POLICY THE CODE DOES NOT HAVE
+ *
+ * It read: *"a refund returns our cut but never the VAT, because the VAT was
+ * remitted to a government that is not refunding it because a session was
+ * cancelled."* `refundSession` calls `refunds.create` with no `amount`, which
+ * refunds the WHOLE charge including the tax line, and has always done so.
+ *
+ * So the sentence was a policy nobody implemented, sitting where somebody
+ * reading the arithmetic would take it for a description of the arithmetic.
+ * The same shape as C246's index comment and C377's floor: a rule written in
+ * one place and absent from the one that would perform it.
+ *
+ * 🔴 THE BEHAVIOUR IS KEPT AND THE SENTENCE IS DROPPED, deliberately. Refunding
+ * a tax on a service that never happened is the right answer to a patient, and
+ * the mechanism for reclaiming it exists: a credit note. Keeping a patient's tax
+ * on a cancelled session because reclaiming it is paperwork is not a position
+ * this product should take in a comment nobody argued about.
+ *
+ * 🔴 It is also moot until Egypt opens. VAT here is Egypt only, Egypt collects
+ * through its own gateway, and `refunds.create` is the Stripe path where the
+ * rate is zero. The Egyptian refund path does not exist yet, and when it is
+ * built it has to issue an ETA credit note rather than a bare reversal.
  */
 export function vatOn(amountCents: number, vatBps: number): number {
   if (amountCents <= 0 || vatBps <= 0) return 0;

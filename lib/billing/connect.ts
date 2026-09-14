@@ -17,6 +17,7 @@ import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
 import { collectionProblem } from "@/lib/settings/defs";
+import { collectionCurrencyFor, collectionRailFor } from "./money";
 import { quoteFor } from "./fx";
 import { getStripe } from "./stripe";
 
@@ -478,13 +479,44 @@ export async function createSessionPaymentCheckout(opts: {
   const money = sessionMoney({ grossCents: gross, feeBps, vatBps: country.vatBps });
 
   /*
+   * 🔴 WHAT THIS PATIENT IS CHARGED IN, FROM THE RULE RATHER THAN FROM THE ROW.
+   *
+   * > *Egypt patients pay in EGP even if the therapist is in the UK. Any country
+   * > or patient or therapist outside Egypt is USD and Stripe.* Founder, 2026-09-14.
+   *
+   * `country.currency` is derived from the entity by `parseCountry` and so says
+   * the same thing, and reading the rule here as well is not belt and braces: it
+   * is which of the two is the AUTHORITY. A settings column is a thing an
+   * operator edits; the rule is a thing the business decided. If they ever
+   * disagree, the refusal below is the one that fires, rather than a checkout
+   * opening in whatever somebody typed.
+   *
+   * 🔴 And this is the Stripe path specifically, which is the USD rail. An
+   * Egyptian patient does not reach here at all: `collectionProblem` above
+   * refuses a country whose provider is not implemented, and Egypt's is the
+   * Egyptian gateway. The assertion says so rather than assuming it.
+   */
+  const collectionCurrency = collectionCurrencyFor(country.code);
+  if (collectionRailFor(country.code) !== "stripe_usd" || collectionCurrency !== "usd") {
+    return {
+      error:
+        "Card payments in that country go through a different rail, which is not switched on yet. Ask your therapist for a free link: the session itself works exactly the same.",
+    };
+  }
+
+  /*
    * The rate, quoted once and stored.
    *
    * `quoteFor` reuses a live quote, so the number on the pay page is provably
    * the number this charge is created with (§3/4.4, one hour). A pair we cannot
    * price is refused rather than settled at a guess.
+   *
+   * 🔴 Both sides are USD on this rail, so the quote is the identity today. It
+   * stays here rather than being simplified away, because the presented figures
+   * are stored on the payment row and a stored rate of 1.0 is what makes a
+   * later EGP row and a USD row readable by the same code.
    */
-  const quote = await quoteFor("usd", country.currency);
+  const quote = await quoteFor("usd", collectionCurrency);
   if (!quote) {
     return { error: "We cannot price this session in your currency yet." };
   }
@@ -566,7 +598,7 @@ export async function createSessionPaymentCheckout(opts: {
         {
           quantity: 1,
           price_data: {
-            currency: country.currency,
+            currency: collectionCurrency,
             unit_amount: convertAtRate(gross, quote.rateMicro),
             product_data: {
               name: "Therapy session",
@@ -581,7 +613,7 @@ export async function createSessionPaymentCheckout(opts: {
               {
                 quantity: 1,
                 price_data: {
-                  currency: country.currency,
+                  currency: collectionCurrency,
                   unit_amount: convertAtRate(money.vatCents, quote.rateMicro),
                   product_data: {
                     name: `VAT (${(country.vatBps / 100).toFixed(country.vatBps % 100 === 0 ? 0 : 1)}%)`,
@@ -642,7 +674,7 @@ export async function createSessionPaymentCheckout(opts: {
         vatBps: country.vatBps,
         payerCountry: country.code,
         presentedCents: presentedTotalCents,
-        presentedCurrency: country.currency,
+        presentedCurrency: collectionCurrency,
         fxRateMicro: quote.rateMicro,
         fxQuotedAt: quote.quotedAt,
         platformFeeCents: applicationFee,
@@ -666,7 +698,7 @@ export async function createSessionPaymentCheckout(opts: {
           vatBps: country.vatBps,
           payerCountry: country.code,
           presentedCents: presentedTotalCents,
-          presentedCurrency: country.currency,
+          presentedCurrency: collectionCurrency,
           fxRateMicro: quote.rateMicro,
           fxQuotedAt: quote.quotedAt,
           platformFeeCents: applicationFee,

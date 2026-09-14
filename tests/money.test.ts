@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CURRENCY_BY_ENTITY,
+  SUPPORTED_CURRENCIES,
+  collectionCurrencyFor,
+  collectionRailFor,
   convert,
   crossingFor,
   egpSettlement,
@@ -86,9 +90,83 @@ test("the entity follows the money in, not the person it is owed to", () => {
 });
 
 test("a clinician Stripe cannot pay is on the manual rail", () => {
-  assert.equal(payoutRailFor({ stripeAccountId: "acct_1", payoutsEnabled: true }), "connect");
-  assert.equal(payoutRailFor({ stripeAccountId: "acct_1", payoutsEnabled: false }), "manual");
-  assert.equal(payoutRailFor({ stripeAccountId: null, payoutsEnabled: true }), "manual");
+  const gb = { country: "GB" };
+  assert.equal(payoutRailFor({ ...gb, stripeAccountId: "acct_1", payoutsEnabled: true }), "connect");
+  assert.equal(payoutRailFor({ ...gb, stripeAccountId: "acct_1", payoutsEnabled: false }), "manual");
+  assert.equal(payoutRailFor({ ...gb, stripeAccountId: null, payoutsEnabled: true }), "manual");
+});
+
+test("an Egyptian clinician is manual however good the Stripe row looks", () => {
+  /*
+   * 🔴 Stripe does not pay out to Egypt. A row that says otherwise is a
+   * mis-set flag, an operator fixing something by hand, or a Connect account
+   * opened against a foreign address, and routing on it would record the
+   * crossing as `usd_stripe_to_connect` — the one crossing `holdsMoney`
+   * answers false for. The exposure register §3c exists to keep would have
+   * under-counted, and an under-count reads as good news.
+   */
+  assert.equal(
+    payoutRailFor({ country: "EG", stripeAccountId: "acct_1", payoutsEnabled: true }),
+    "manual",
+  );
+  assert.equal(
+    payoutRailFor({ country: "eg", stripeAccountId: "acct_1", payoutsEnabled: true }),
+    "manual",
+    "the column is not guaranteed to be upper case",
+  );
+  assert.equal(
+    holdsMoney(crossingFor({ paidVia: "stripe_usd", therapist: payoutRailFor({ country: "EG", stripeAccountId: "acct_1", payoutsEnabled: true }) })),
+    true,
+    "a foreign patient paying an Egyptian clinician leaves the money with us",
+  );
+});
+
+test("no verification yet means no Connect payout on an assumption", () => {
+  assert.equal(
+    payoutRailFor({ country: null, stripeAccountId: "acct_1", payoutsEnabled: true }),
+    "connect",
+    "a filed Stripe account with no country on file is still payable",
+  );
+});
+
+test("two currencies, decided by where the PATIENT is", () => {
+  /*
+   * 🔴 The founder's rule, as arithmetic: "Egypt patients pay in EGP even if
+   * the therapist is in the UK". Collection follows the patient; payout
+   * follows the clinician; they are allowed to disagree.
+   */
+  assert.equal(collectionCurrencyFor("EG"), "egp");
+  assert.equal(collectionCurrencyFor("eg"), "egp");
+  assert.equal(collectionCurrencyFor("US"), "usd");
+  assert.equal(collectionCurrencyFor("GB"), "usd", "a pound country still prices in dollars");
+  assert.equal(collectionCurrencyFor("DE"), "usd");
+
+  assert.equal(collectionRailFor("EG"), "local_egp");
+  assert.equal(collectionRailFor("GB"), "stripe_usd");
+
+  /* The pair the rule was written for: EGP in, USD out, across two entities. */
+  const crossing = crossingFor({
+    paidVia: collectionRailFor("EG"),
+    therapist: payoutRailFor({ country: "GB", stripeAccountId: "acct_1", payoutsEnabled: true }),
+  });
+  assert.equal(crossing, "egp_local_to_connect");
+  assert.equal(isCrossBorder(crossing), true, "it needs an explicit entity transfer");
+  assert.equal(entityFor(crossing), "eg", "the money came in to the Egyptian entity");
+
+  /* And the mirror: a foreign patient paying an Egyptian clinician. */
+  const mirror = crossingFor({
+    paidVia: collectionRailFor("US"),
+    therapist: payoutRailFor({ country: "EG", stripeAccountId: null, payoutsEnabled: false }),
+  });
+  assert.equal(mirror, "usd_stripe_to_manual");
+  assert.equal(isCrossBorder(mirror), true);
+  assert.equal(entityFor(mirror), "us");
+});
+
+test("there are exactly two currencies and each entity has one", () => {
+  assert.deepEqual([...SUPPORTED_CURRENCIES], ["usd", "egp"]);
+  assert.equal(CURRENCY_BY_ENTITY.us, "usd");
+  assert.equal(CURRENCY_BY_ENTITY.eg, "egp");
 });
 
 test("there is no such thing as an InstaPay transfer in dollars", () => {

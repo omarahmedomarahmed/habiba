@@ -329,27 +329,56 @@ export async function postSessionPayment(payment: {
   const ourFee = payment.platformFeeCents - payment.settledInvoiceCents;
   const vat = Math.max(0, payment.vatCents);
 
+  /*
+   * 🔴 C392, AS A THROW RATHER THAN A PARAGRAPH.
+   *
+   * A destination charge is Stripe, Stripe is the USD rail, and the USD rail is
+   * every country except Egypt. VAT in this product is Egypt only, and Egypt
+   * collects through its own gateway into its own entity, so a destination
+   * charge carrying tax is a contradiction rather than an edge case.
+   *
+   * Left unchecked, the moment somebody set a non-zero VAT rate on a Stripe
+   * country this branch would swallow the tax in silence: the connected account
+   * is merchant of record, the whole charge including the tax line lands in the
+   * clinician's balance, our application fee contains none of it, and we would
+   * be telling the patient on their own bill that it went to a government while
+   * relying on a clinician who may not be registered to send it there.
+   *
+   * Thrown at the moment of posting, like `audit`'s one-actor check and for the
+   * same reason: this is the invariant the column split exists to hold, not a
+   * defensive check against something that cannot happen.
+   */
+  if (payment.capture === "destination" && vat > 0) {
+    throw new Error(
+      "ledger: a destination charge collected VAT. Stripe is the USD rail and VAT is Egypt only, so that country's settings disagree with the two-currency model",
+    );
+  }
+
   if (payment.capture === "destination") {
     await journal({
       kind: "session_payment",
       refType: "session_payment",
       refId: payment.id,
       /*
-       * 🔴 NO VAT LEG HERE, AND IT IS A DECISION.
+       * 🔴 NO VAT LEG HERE, AND ON THIS PATH THERE IS NEVER ANY VAT TO POST.
        *
-       * On a destination charge the connected account is the merchant of record
-       * (`on_behalf_of`), the whole charge including the tax line lands in the
-       * clinician's Stripe balance, and our application fee is the platform cut
-       * plus any settlement and contains none of it. So the VAT never reaches
-       * our bank and posting a liability for it would say we hold money we do
-       * not.
+       * A destination charge is Stripe, Stripe is the USD rail, and the USD rail
+       * is every country except Egypt. VAT in this product is Egypt only, and
+       * Egypt collects through its own gateway into its own entity. So
+       * `vatCents` is structurally zero here, and the assertion below says so
+       * rather than trusting it.
        *
-       * 🔴 WHICH LEAVES A REAL QUESTION THIS CODE CANNOT ANSWER: whether the
-       * clinician is registered for that tax and remits it. Our own bill tells
-       * the patient it is "paid to the government", and on this path we are
-       * relying on somebody else to do it. Recorded as a concern rather than
-       * decided here, because the answer is a licensing one and not a schema one.
+       * 🔴 THE ASSERTION IS THE POINT. Without it this branch would silently
+       * swallow a tax the moment somebody enabled a non-zero VAT rate on a
+       * Stripe country: the connected account is merchant of record, the whole
+       * charge including a tax line would land in the clinician's balance, our
+       * application fee contains none of it, and we would be telling the patient
+       * on their own bill that it went to a government while relying on a
+       * clinician who may not be registered to send it there. That is C392, and
+       * it is now a thrown error at the moment of posting rather than a
+       * paragraph somebody reads later.
        */
+
       legs: [
         { account: "cash", amountCents: payment.platformFeeCents, organizationId: org, memo: "Application fee on a session payment" },
         { account: "platform_revenue", amountCents: -ourFee, organizationId: org, userId: user, memo: "Platform fee" },

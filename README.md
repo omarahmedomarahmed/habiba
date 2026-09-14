@@ -13,7 +13,8 @@ story that the patient owns and carries.
 
 ## Who signs in, and what each one can never see
 
-Six kinds of person authenticate. The last column is the product.
+Six kinds of person authenticate today. A seventh is being built. The last
+column is the product.
 
 | Portal | Route group | Sees | Never sees |
 |---|---|---|---|
@@ -23,6 +24,37 @@ Six kinds of person authenticate. The last column is the product.
 | **Sponsor** | `app/(sponsor)` | The pot, the enrolled roster, aggregate spend | Who booked, when, with whom, about what |
 | **Partner** | `app/(partner)` | Keys, docs, webhooks, their own subjects | Content. A webhook carries an event and an id |
 | **Admin** | `app/(admin)` | The operating picture | A join between a sponsor and a session, booking, date or name |
+| **Clinic staff** *(sprint 63)* | `app/(clinic)` | Only what their role was granted, on the resources it was granted for | A record, a note, a transcript, a copilot, a risk alert. A patient's full surname |
+
+### The seventh: clinic staff
+
+A practice is not one person. A receptionist books, an office manager chases
+bills, an assistant runs one therapist's calendar. Today all of that requires
+the clinic admin's own login, which is the account that can buy seats and
+invite clinicians.
+
+Six things decide the shape of it, and all six are already ruled:
+
+- **Its own table and its own auth session**, like `sponsor_users` and
+  `partner_users`. Never a `users` row: `staff` and `manager` there are *our*
+  back office and one mistake away from a clinical grant.
+- **`clinic_admin`, plus up to two custom roles the admin names.** Not a
+  permission matrix nobody maintains.
+- **Capabilities are checked in the data layer, on the resource.** An assistant
+  assigned to therapist A is refused therapist B's calendar on the same route,
+  not shown a hidden button.
+- **The capability vocabulary is a closed list in code.** An unknown capability
+  is refused, never ignored, and a custom role is a strict subset of the
+  admin's.
+- **Only the admin buys a seat or invites a clinician.** Money and membership
+  are never delegable.
+- **Patient identity to staff is first name plus last initial, and the patient
+  is told**, on their own record page and on the radar card. Every read is
+  audited.
+
+A human who is both a clinician and a clinic admin gets **two linked principal
+rows**, and the cookie names which one is active. Switching is explicit and
+audited. One session never carries both capability sets.
 
 🔴 **A clinic IS an `organizations` row. A sponsor is NOT.** They look like one
 problem and have opposite answers: a clinic employs clinicians and its patients sit
@@ -85,8 +117,40 @@ is typed into a page, a checkout or a test fixture.
 **The patient never pays us.** They pay their therapist. A sponsored patient pays
 nobody: a corporate pot stands in for their card and changes nothing downstream.
 
-Two entities, two rails: USD through Stripe, EGP through a local provider. Currency
-is a display choice and the rate is frozen onto the transaction.
+### Two currencies, and which one is not a display choice
+
+**EGP in Egypt. USD everywhere else.** There is no third, and adding a country
+does not add one. GBP and EUR countries are coming, and in them the price is
+quoted in USD, paid in USD and paid out in USD.
+
+| | Egypt | Everywhere else |
+|---|---|---|
+| Patient pays | **EGP**, through the Egyptian gateway | **USD**, through Stripe |
+| Entity that collects | The Egyptian one | The US one |
+| VAT | **14%, on top** | None. VAT is Egypt only |
+| Clinician is paid | **Manually**, in EGP, by InstaPay or wallet | Stripe Connect, in USD |
+
+🔴 **Collection follows the patient. Payout follows the clinician. They are
+allowed to disagree.** An Egyptian patient seeing a British therapist pays EGP
+into the Egyptian entity, and that therapist is paid USD out of the US entity
+through Connect. A patient in Germany seeing an Egyptian therapist pays USD into
+the US entity, and that therapist is paid manually in EGP. Both are cross-border
+crossings, both mean **we are holding the money**, and both need an explicit
+`entity_transfer` to settle. `isCrossBorder` counts them and §3c is the register.
+
+🔴 **An Egyptian clinician is always on manual payouts**, whatever the row says,
+because Stripe does not pay out to Egypt. Asking only "do they have a Connect
+account" is a question about our database rather than about the world, and the
+answer would have recorded money we hold as money we do not.
+
+The rate is quoted once and frozen onto the transaction, so the receipt, the
+refund and any later audit read the same number rather than each re-deriving it.
+
+🔴 **The Egyptian rail is not live yet.** The company is being registered and the
+gateway contract signed. Until then `collectionProblem` refuses an Egyptian card
+payment in plain words and points at the free link, because a silent fallback to
+Stripe would collect into the wrong entity, in the wrong currency, under the
+wrong licence, and look like success from every screen.
 
 ---
 
@@ -119,7 +183,7 @@ constraints and triggers, provable by attempting the write.
 | AI | OpenAI. `gpt-4o-mini-transcribe`, `gpt-4o` |
 | Video | Daily.co for our room; Recall.ai for external meetings |
 | Email | Resend |
-| Payments | Stripe, plus a local Egyptian rail |
+| Payments | Stripe (USD). An Egyptian gateway for EGP is contracted, not yet live |
 
 **No WebSocket server and no separate API service.** The browser uploads an audio
 chunk every eight seconds and the response carries new transcript text and any

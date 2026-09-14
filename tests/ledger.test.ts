@@ -137,8 +137,12 @@ test("a destination charge puts only the fee on our books", async () => {
     therapistId,
     capture: "destination",
     grossCents: 5000,
-    /* The patient paid tax too, and on this path it never reaches us. */
-    vatCents: 700,
+    /*
+     * 🔴 Zero, and structurally so. Stripe is the USD rail, VAT is Egypt only,
+     * and Egypt collects through its own gateway. A non-zero number here now
+     * throws rather than posting; the test below is the one that proves it.
+     */
+    vatCents: 0,
     platformFeeCents: 500,
     settledInvoiceCents: 0,
     therapistNetCents: 4500,
@@ -163,6 +167,31 @@ test("a destination charge puts only the fee on our books", async () => {
     0,
     "a destination charge leaves us owing no tax, because we collected none",
   );
+});
+
+test("a destination charge carrying VAT is refused, not quietly swallowed", async () => {
+  /*
+   * 🔴 C392. Stripe is the USD rail and VAT is Egypt only, so this combination
+   * means a country's settings disagree with the two-currency model. Posting it
+   * would put the tax in the clinician's balance while our bill tells the
+   * patient it went to a government.
+   */
+  await assert.rejects(
+    postSessionPayment({
+      id: crypto.randomUUID(),
+      organizationId,
+      therapistId,
+      capture: "destination",
+      grossCents: 5000,
+      vatCents: 700,
+      platformFeeCents: 500,
+      settledInvoiceCents: 0,
+      therapistNetCents: 4500,
+    }),
+    /VAT is Egypt only/,
+  );
+
+  assert.equal(await scopedBalance(), 0, "and it wrote nothing on its way out");
 });
 
 test("a platform capture records the whole charge and what we owe of it", async () => {

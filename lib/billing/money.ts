@@ -94,6 +94,67 @@ export function egpSettlement(input: {
   };
 }
 
+/* ------------------------------------------------- two currencies, no more -- */
+
+/**
+ * 🔴 THE WHOLE CURRENCY MODEL, AS TWO VALUES. Founder, 2026-09-14.
+ *
+ * > *Only 2 currencies for now, EGP in Egypt and USD for the rest of the world.
+ * > We have Stripe for USD and we have an Egyptian gateway for EGP. We will add
+ * > GBP and EUR soon, but in those countries price with USD and pay with USD and
+ * > payouts in USD.*
+ *
+ * So "we support the UK" will never mean "we charge in pounds". A British
+ * patient sees a dollar price, pays dollars on the card rail, and a British
+ * clinician is paid dollars into Connect. Adding GB to `country_settings`
+ * adds a jurisdiction, a regulator and a document list. It does not add a
+ * currency, and `parseCountry` will not let it.
+ *
+ * ## 🔴 WHY THIS IS A HARD LIST AND NOT A SETTING
+ *
+ * `country_settings.currency` is a free text column an operator can type into,
+ * and C218's rule is that a switch an operator can set is read by the code or
+ * it does not exist. There is no code in this product that can collect a pound:
+ * no acquirer, no entity, no VAT rate, no payout rail, no ledger currency. An
+ * operator typing `gbp` would produce a Stripe checkout in a currency our own
+ * fee arithmetic, our invoices and our reconciliation all assume is one of two.
+ *
+ * A guessed currency is the same class of mistake as a guessed VAT rate, which
+ * `COUNTRY_SEED` already refuses to make: *"a guessed 0% is an under-collection
+ * somebody eventually owes"*. This is the same sentence about the other column.
+ */
+export const SUPPORTED_CURRENCIES = ["usd", "egp"] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
+/** The Egyptian entity is the only one that holds anything but dollars. */
+export const CURRENCY_BY_ENTITY: Record<Entity, SupportedCurrency> = {
+  us: "usd",
+  eg: "egp",
+};
+
+/**
+ * 🔴 WHAT THE PATIENT IS CHARGED IN, DECIDED BY WHERE THE PATIENT IS.
+ *
+ * > *Egypt patients pay in EGP even if the therapist is in the UK and gets their
+ * > payout on Stripe in USD, and we collected from the patient in EGP through
+ * > the Egyptian gateway.*
+ *
+ * That sentence is the reason collection and payout are two separate functions
+ * in this file rather than one "rail" answer. They are decided by two different
+ * people's countries and they can disagree, and when they disagree the result is
+ * a cross-border crossing that needs an explicit `entity_transfer` to settle.
+ * The obvious build asks "which rail is this session on" once, and is wrong for
+ * every Egyptian patient seeing a foreign clinician.
+ */
+export function collectionCurrencyFor(patientCountryCode: string): SupportedCurrency {
+  return patientCountryCode.trim().toUpperCase() === "EG" ? "egp" : "usd";
+}
+
+/** Which rail takes the money, by the same rule and for the same reason. */
+export function collectionRailFor(patientCountryCode: string): Rail {
+  return collectionCurrencyFor(patientCountryCode) === "egp" ? "local_egp" : "stripe_usd";
+}
+
 /* ------------------------------------------------------- the four crossings -- */
 
 /**
@@ -182,11 +243,38 @@ export function entityFor(crossing: Crossing): Entity {
   return crossing === "egp_local_to_manual" || crossing === "egp_local_to_connect" ? "eg" : "us";
 }
 
-/** Which rail can actually pay this clinician out. */
+/**
+ * Which rail can actually pay this clinician out.
+ *
+ * 🔴 EGYPT IS ALWAYS MANUAL, WHATEVER ELSE IS TRUE OF THE ROW. Founder, 2026-09-14.
+ *
+ * > *A therapist in Egypt is on manual payouts even if the patient paid in USD
+ * > from abroad.*
+ *
+ * The first version of this read only `stripeAccountId && payoutsEnabled`, which
+ * is a question about our own database and not about the world. Stripe does not
+ * pay out to Egypt at all, so an Egyptian clinician holding those two values —
+ * from a mis-set flag, an operator fixing something by hand, a Connect account
+ * opened against a foreign address — would have been routed to `connect`, the
+ * crossing would have been recorded as `usd_stripe_to_connect`, and
+ * `holdsMoney` would have answered FALSE for money we were definitely holding.
+ *
+ * That is the §6 family pointed at the exposure register itself: the one
+ * predicate §3c exists to count would have under-counted, and the under-count
+ * would have looked like good news.
+ *
+ * 🔴 The country is the clinician's own, from `therapist_verifications.country`,
+ * which is the column that decides which documents we ask them for. A clinician
+ * with no verification row yet has no country, and gets `manual`: we do not pay
+ * an unverified clinician through Connect on an assumption.
+ */
 export function payoutRailFor(input: {
   stripeAccountId: string | null;
   payoutsEnabled: boolean;
+  /** ISO-3166 alpha-2, from their verification. Null before they file one. */
+  country: string | null;
 }): TherapistRail {
+  if ((input.country ?? "").trim().toUpperCase() === "EG") return "manual";
   return input.stripeAccountId && input.payoutsEnabled ? "connect" : "manual";
 }
 

@@ -11,6 +11,7 @@ import {
   sessions,
   sponsorPots,
   sponsors,
+  therapistVerifications,
   users,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
@@ -132,10 +133,18 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       personId: patients.personId,
       stripeAccountId: users.stripeAccountId,
       payoutsEnabled: users.payoutsEnabled,
+      /*
+       * 🔴 Their own country, because Egypt is always a manual payout however
+       * the money arrived. Left-joined: a clinician who has not filed a
+       * verification has no country, and `payoutRailFor` reads that as manual
+       * rather than assuming Connect.
+       */
+      therapistCountry: therapistVerifications.country,
     })
     .from(sessions)
     .innerJoin(patients, eq(patients.id, sessions.patientId))
     .innerJoin(users, eq(users.id, sessions.therapistId))
+    .leftJoin(therapistVerifications, eq(therapistVerifications.userId, users.id))
     .where(eq(sessions.id, sessionId))
     .limit(1);
 
@@ -344,6 +353,7 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
         therapist: payoutRailFor({
           stripeAccountId: row.stripeAccountId,
           payoutsEnabled: row.payoutsEnabled,
+          country: row.therapistCountry,
         }),
       }),
       status: "paid",
