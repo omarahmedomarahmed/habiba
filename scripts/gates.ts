@@ -53,6 +53,33 @@ const GATES = [
     script: "verify:sprint37l",
     why: "and the Arabic half still exists",
   },
+  /*
+   * 🔴 C353 / C354 — the two gates sprint 69 had to write, and why they belong
+   * in the pass that belongs to the product rather than to a sprint.
+   *
+   * `/pricing` answered 500 to every visitor for seven sprints. Six lines
+   * passed a function to a client component, which is a runtime rule that
+   * `tsc` cannot see, that `npm run build` never rendered, and that sixty
+   * sprint verifiers had no reason to look for. The one gate that DID see it,
+   * `verify:sprint21r`, reported it red and the red line was explained away
+   * every time it was read.
+   *
+   *   - **boundary** — nothing hands a function across the client boundary.
+   *     Cheap, source-only, and catches that defect's exact shape.
+   *   - **renders** — and the stupid question nobody was asking: does every
+   *     public page actually come back 200 with words on it. Needs a build, and
+   *     says so rather than passing when there is not one.
+   */
+  {
+    name: "boundary",
+    script: "verify:boundary",
+    why: "and nothing hands a function across the client boundary",
+  },
+  {
+    name: "renders",
+    script: "smoke",
+    why: "and every public page still answers with a page",
+  },
 ] as const;
 
 function main() {

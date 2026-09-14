@@ -66,15 +66,18 @@ Read the `refuses` column before the `knows` column. The report says so in those
 ## What it prints
 
 ```
-  Mostafa Demo            10 sessions ·   9 notes ·  13 journals ·  2 documents · depth 68
-  Layla Demo               5 sessions ·   5 notes ·   8 journals ·  1 documents · depth 38
+  Mostafa Demo            11 sessions ·  11 notes ·  14 journals ·  2 documents · depth 80
+  Layla Demo               6 sessions ·   6 notes ·   8 journals ·  1 documents · depth 43
   ...
-  Mostafa Demo           depth    68  knows 4.6/5  refuses 5.0/5  handover 5/5
-  Karim Example          depth     9  knows 2.1/5  refuses 4.0/5  handover 2/5
+  Mostafa Demo           depth    80  knows 4.6/5  refuses 5.0/5  handover 5/5
+  Karim Example          depth    15  knows 2.1/5  refuses 4.0/5  handover 2/5
 
   Correlation between how much there is to know and how much is known: 0.81
   🟢 The claim holds on this data: more history, better copilot.
 ```
+
+🔴 **A run costs about $0.36**, which is 4% of the whole budget for the most interesting
+question in the simulation. Run it once properly rather than twice quickly.
 
 ## How to read the result, honestly
 

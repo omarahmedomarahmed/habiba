@@ -339,14 +339,25 @@ export async function PricingTiers({
                 headMonthly: t("pricing.seatsHeadMonthly"),
                 sliderLabel: t("pricing.seatsSlider"),
                 /*
-                 * 🔴 Passed as a function so the plural is decided here, where
-                 * the dictionary is, rather than by a client component building
-                 * a string out of two of them.
+                 * 🔴 C353 — RESOLVED HERE, ONE PER SLIDER POSITION, NOT PASSED
+                 * AS A FUNCTION.
+                 *
+                 * This was an arrow function, with a comment saying the plural
+                 * belongs where the dictionary is. That is true and a function
+                 * cannot cross into a client component: React threw while
+                 * rendering and `/pricing` answered 500 in production for every
+                 * visitor from the day the ladder shipped.
+                 *
+                 * Same intent, in the shape `monthlyByCount` above already
+                 * uses. The array is parallel to it, index 0 is one seat, and
+                 * the slider's bounds come from the same length, so the two
+                 * cannot drift apart.
                  */
-                seats: (count: number) =>
-                  count === 1
+                seatsByCount: Array.from({ length: SEAT_MAX }, (_, i) =>
+                  i === 0
                     ? t("pricing.seatsCountOne")
-                    : t("pricing.seatsCount", { count }),
+                    : t("pricing.seatsCount", { count: i + 1 }),
+                ),
               }}
             />
 

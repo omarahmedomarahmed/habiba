@@ -151,9 +151,9 @@ A single reconciliation, and it either balances or the discrepancy is the findin
 
 ### 🔴 And one number that is not in the table, because it is the business
 
-**Cost per real session.** `/admin/usage` computes it from actual rows. The simulation's
-sessions are six minutes long, so the figure it produces is roughly a quarter of what a real
-fifty-minute session costs.
+**Cost per real session.** `/admin/usage` computes it from actual rows, and `npm run spend`
+prints it beside an extrapolation. The simulation's sessions are **four minutes** long, so
+the measured figure is roughly a twelfth of what a real fifty-minute session costs.
 
 **Report the measured figure and the extrapolation separately, and label which is which.**
 Quoting a six-minute session's cost as the unit economics is the most flattering mistake

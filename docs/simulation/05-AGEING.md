@@ -76,10 +76,39 @@ is an integer and is not a timestamp, so it is untouched and should be. Its comp
 `documents_cleared_at` is a past timestamp and moves with the decision it records. Neither
 needed anybody to think about it.
 
-## What `scripts/age.ts` must do
+## 🔴 `scripts/age.ts` is BUILT, and `npm run verify:age` proves it
+
+It no longer has to be written. It exists, it has its own verifier, and that verifier runs
+the gate this document specifies rather than asserting it:
 
 ```
-npm run age -- --since <marker> --days 90
+npm run verify:age          8 checks, on whichever database DATABASE_URL names
+```
+
+Two of those eight are the rule itself, run against a real row: a `person_invites` row with
+`created_at` in the past and `expires_at` ten days out, aged by thirty days, and then read
+back to confirm the first moved by exactly thirty and the second did not move at all.
+
+### How it is used
+
+```
+npm run age -- --marker wave1 --start      BEFORE the wave acts
+  … the wave acts, and is captured …
+npm run age -- --marker wave1 --days 90    AFTER its capture is taken
+```
+
+`--start` writes `.simulation-wave1.json` with the instant the wave began. Only rows created
+at or after that instant are moved, which is how wave two's ageing does not shift wave one a
+second time. `--dry` shows what would move and writes nothing.
+
+🔴 **The marker file is also the refusal.** Ageing a wave twice would put it half a year back
+and nothing in the data would say so, so the second attempt is refused by name, before any
+UPDATE runs, and `verify:age` proves the refusal happens first.
+
+## What it does
+
+```
+npm run age -- --marker <wave> --days 90
 ```
 
 1. **Refuse production by name**, and refuse anything that is not the simulation branch.

@@ -131,6 +131,12 @@
     "verify:sprint66": "node --import tsx scripts/verify-sprint66.ts",
     "verify:sprint67": "node --import tsx scripts/verify-sprint67.ts",
     "verify:sprint68": "node --import tsx scripts/verify-sprint68.ts",
+    "simulate:seed": "node --import tsx --conditions=react-server scripts/simulate-seed.ts",
+    "age": "node --import tsx scripts/age.ts",
+    "spend": "node --import tsx scripts/spend.ts",
+    "smoke": "node --import tsx scripts/smoke-public.ts",
+    "verify:age": "node --import tsx scripts/verify-age.ts",
+    "verify:boundary": "node --import tsx scripts/verify-boundary.ts",
     "verify:sprint69": "node --import tsx --conditions=react-server scripts/verify-sprint69.ts",
     "test:seats": "node --import tsx --test tests/seats.test.ts"
   },

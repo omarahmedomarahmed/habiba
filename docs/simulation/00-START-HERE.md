@@ -5,8 +5,8 @@ one design split across seven documents because they are read by different agent
 
 | Read | What it is | Who reads it |
 |---|---|---|
-| `00-START-HERE.md` | This. The shape, the rules that bind everyone, the order of work, and what it costs | You |
-| `01-SEED.md` | The exact cast: 22 identities, three waves, one scenario each | You and the seed agent |
+| `00-START-HERE.md` | This. The shape, the rules that bind everyone, the order of work, and the budget | You |
+| `01-SEED.md` | The exact cast: 22 identities, three waves, one scenario each, and how often each patient comes | You and the seed agent |
 | `02-ORCHESTRATION.md` | The swarm: who launches what, how agents wait, how claims are verified | You and the orchestrator |
 | `03-MONEY.md` | Income, expenses and the full cycle for three months, including Egypt, which has no card rail | The money agent |
 | `04-CAPTURE.md` | What is photographed, when, where it is saved, and the video scripts | Every agent |
@@ -23,71 +23,77 @@ of agents, each one behaving as a real person with a real reason to be there, in
 At the end you have: a database that looks like a quarter of trading, screenshots of every
 principal's own screens at three points in that history, a full money cycle with income and
 expenses on the operator's own screens, a list of every defect a person hit while trying to
-do something ordinary, the real measured accuracy of the AI, and a mark out of five for how
-well the copilot knows each patient.
+do something ordinary, and a mark out of five for how well the copilot knows each patient.
 
-## Three months, not six, and what that changed
+## 🔴 The budget is $10 and it must not run out halfway
 
-The previous version of this design ran six months with 31 identities. It has been cut to
-**three months and 22 identities**, and the cut was made by merging people rather than by
-dropping scenarios. **Every edge case in the six-month design is still here.**
-
-Two examples of how that was done, because the same judgement applies if you have to cut
-further: the failed enrolment and the work-email enrolment used to be two patients, and are
-now one person who is refused on her staff number and then succeeds on her work address,
-which is a truer story as well as a smaller one. The poached employee and the partial-cover
-employee used to be two, and are now one.
-
-One thing was **added**, not cut: a therapist who is rejected twice, blocked, invited by a
-practice anyway, and who still has to get through verification. That is new product built
-this sprint and nothing has ever exercised it.
-
-## 🔴 What it costs, so you can top up before you start
-
-These are computed from `lib/settings/defs.ts`'s own rate table, which is what the product
-bills itself against. Recompute them if that table has moved.
+That is the constraint everything else was sized against. Read this section before the cast.
 
 | | |
 |---|---|
-| Sessions the simulation produces | **50 to 60** |
-| Approved notes | **one per session**, so the same |
-| Journal entries | **55 to 70** |
-| Copilot conversations | **80 to 100 turns** |
-| Audio per session | **6 minutes**, deliberately short |
+| Sessions | **35** |
+| Approved notes | one per session, so 35 |
+| Journal entries | **29** |
+| Audio per session | **4 minutes**, deliberately short |
+| In-session copilot | **4 messages**, not the shipped 10. The seed sets it |
 
 | What | Cost |
 |---|---|
-| Per simulated session, all in: transcribe, diarise, note, risk, in-session copilot, profile | **$0.06** |
-| 55 sessions | **$3.30** |
-| Journal risk scans, document reading, copilot chats between sessions | **$0.60** |
-| The copilot exam (`06-COPILOT-EXAM.md`), one full run | **$0.51** |
-| `npm run evals -- --record`, one full run | **$2.00** |
-| Retries, re-tasked agents, flows run twice | **× 1.6** |
-| **Total, OpenAI** | **≈ $14** |
-| **Top up** | **$25**, which leaves room for a second eval record and one re-run |
-| Daily, video: 55 sessions × 6 min × 2 people ≈ 660 participant-minutes | **≈ $3**, and the free tier may cover it |
+| Per simulated session: transcribe, diarise, note, risk, 4 copilot turns, profile | **$0.042** |
+| 35 sessions | **$1.47** |
+| The copilot exam, one full run | **$0.36** |
+| Journal risk scans, document reading, copilot chats between sessions | **$0.32** |
+| Retries, re-tasked agents, flows run twice: **× 1.6** | |
+| **Planned total** | **≈ $3.50** |
+| **Left of the $10** | **≈ $6.50** |
 
-### 🔴 And the number that matters to the business, which is not the one above
+### Where the surplus goes, and what it is NOT for
 
-A simulated session is six minutes. **A real one is fifty.** At real length the same pipeline
-costs about **$0.25 per session**, and almost all of the difference is the note and risk
-passes reading a transcript seven times longer.
+`npm run evals -- --record` costs about **$2.00** and re-records the AI accuracy figures. It
+is **last, optional, and paid for out of what is left**, not planned for up front. At a $10
+ceiling, a full eval record is a fifth of the budget spent on a number that does not change
+whether the simulation ran.
 
-Report both. The simulation's bill says what this exercise cost; the per-real-session figure
-is the one every pricing decision downstream depends on, and `/admin/usage` computes it from
-actual rows once the run is over. **Do not quote the simulation's cheap figure as the unit
-economics.** That is the single most misleading number this exercise can produce.
+So: **run the simulation first, check the spend, and re-record only if there is room.** If
+there is not, say so in the report. A figure that was not measured and is reported as not
+measured is worth more than a simulation that stopped in wave two.
+
+The surplus is not for more sessions. Thirty-five is what makes the copilot exam separate a
+deep record from a thin one; sixty would make a prettier chart and answer nothing new.
+
+### 🔴 Check the spend after every wave, with the thing that counts it
+
+```
+npm run spend -- --budget 10
+```
+
+It sums `ai_request_logs.cost_microcents`, which the product writes on every model call. It
+exits non-zero past the line and warns at 70%. **The orchestrator runs it at the end of every
+wave and reports the number upward.** A budget nothing checks is a number somebody read once.
+
+It counts what **the product** spent. Agent reasoning on the same key is not in that table,
+so treat the figure as a floor, and it says so every time it prints.
+
+### 🔴 And the number that matters to the business, which is not any of the above
+
+A simulated session is four minutes. **A real one is fifty.** At real length the same
+pipeline costs roughly **$0.25 per session**, and nearly all the difference is the note and
+risk passes reading a transcript twelve times longer.
+
+Report both, labelled. `npm run spend` prints the extrapolation and marks it as extrapolated.
+**Never quote the four-minute figure as unit economics.** That is the most flattering mistake
+this exercise can produce and every pricing decision downstream would inherit it.
 
 ## The shape
 
 ```
   You  ·  Opus 5  ·  the main session
-   │     reads the seven documents, prepares the branch, builds the two scripts
-   │     that do not exist yet, then hands over and supervises
+   │     reads the seven documents, checks the branch, launches the orchestrator,
+   │     checks on it, ages each wave, runs the exam, writes the report
    ▼
   The orchestrator  ·  one agent, the smartest one you can afford
-   │     owns the clock, the waves, and the truth. Wakes agents, verifies their
-   │     claims against the database, never takes a report at face value
+   │     owns the wave clock. Wakes agents, sequences them, **verifies every claim
+   │     against the database**, watches the depth ladder and the spend
    ├──────────────┬──────────────┬──────────────┬─────────────
    ▼              ▼              ▼              ▼
   growth        money         user agents      capture
@@ -124,9 +130,8 @@ database or it is not true. The same principle governs the agents that exercise 
 ### 2. Act through the product, never around it
 
 Agents sign in through the sign-in form, book through the booking sheet, pay through the
-checkout. **No agent writes to the database directly.** The only scripts that touch rows
-are the seed (before anyone acts), the ageing script (between waves) and the capture
-script (read-only).
+checkout. **No agent writes to the database.** The only scripts that touch rows are the seed
+(already run), the ageing script (between waves) and the capture script (read-only).
 
 An agent that cannot complete a flow through the UI has found a defect. That is the entire
 value of this exercise. Working around it destroys the only thing the simulation produces.
@@ -143,7 +148,7 @@ real name in one frame is a disclosure that cannot be recalled.
 ### 4. Nothing runs against production, ever
 
 The simulation runs on its own branch. `writesTo()` refuses production by name; do not
-remove it, do not work around it, and if a script refuses, read why rather than forcing it.
+remove it, do not work around it, and if a script refuses, read why.
 
 ### 5. A defect is not fixed during the run
 
@@ -167,33 +172,35 @@ one attempt, and reports the refusal. A gate nobody tested is a gate that was as
 
 ## The order of work
 
-| # | Step | Who | Gate before moving on |
-|---|---|---|---|
-| 1 | Create the simulation branch, migrate it, confirm against `information_schema` | You | Ledger matches `drizzle/`'s file count, and `npm run verify:migrations` passes against it |
-| 2 | Build `scripts/age.ts` per `05-AGEING.md` | You | Its own test: age a known row, read it back, and prove a future-dated row did not move |
-| 3 | Build `scripts/simulate-seed.ts` per `01-SEED.md` | You | Every identity exists and can sign in. Prove it by signing in, not by counting rows |
-| 4 | Re-record the AI accuracy | You | `npm run evals -- --record` with real credit, then report the number |
-| 5 | Launch the orchestrator, hand it `02-ORCHESTRATION.md` | You | It reports back its plan before it launches anybody |
-| 6 | Waves one to three | Orchestrator | Each wave's capture is complete and verified before the next begins |
-| 7 | The copilot exam | You | `npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json` |
-| 8 | The report | You | `docs/walkthrough-3/REPORT.md`, and it is honest |
+🔴 **Steps 1 to 3 of the old plan are done.** The branch exists, is migrated, is seeded, and
+both scripts this design used to ask you to build are built and have their own verifiers.
 
-**Do not start step 5 until steps 1 to 4 are done and proved.** A swarm launched against a
-half-migrated database produces twenty agents all finding the same missing column.
+| # | Step | Command | Gate |
+|---|---|---|---|
+| 1 | Confirm the branch is what this says it is | `npm run verify:migrations` | 101 journal, 101 ledger, 112 tables |
+| 2 | Confirm the platform is seeded and the applications are waiting | `npm run simulate:seed` | It **refuses**, saying an operator already exists. That refusal is the proof |
+| 3 | Confirm the ageing script obeys its own rule | `npm run verify:age` | 8 checks, including one past and one future timestamp in the same row |
+| 4 | Confirm nothing is spent yet | `npm run spend -- --budget 10` | $0.0000 |
+| 5 | Mark the start of wave one | `npm run age -- --marker wave1 --start` | Writes `.simulation-wave1.json` |
+| 6 | Launch the orchestrator with `02-ORCHESTRATION.md` | | It reports its plan before it launches anybody |
+| 7 | Waves one to three | | Each wave: capture, then `npm run spend`, then age |
+| 8 | The copilot exam | `npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json` | |
+| 9 | Re-record accuracy **only if there is budget** | `npm run evals -- --record` | |
+| 10 | The report | | `docs/walkthrough-3/REPORT.md`, and it is honest |
 
 ## What you must report at the end
 
-1. **The real AI accuracy**, measured, not remembered. The number in `evals/baseline.json`
-   was recorded on a smaller case set before the account ran out of credit. Re-record it and
-   say what it is now, including where it got worse.
-2. **The money**, end to end, and **as the operator's own screens show it**: income by
+1. **The money**, end to end, and **as the operator's own screens show it**: income by
    source, model spend as the expense against it, what is left over per month, therapists
    paid out, what is still held, what a pot cost an employer, and whether the books balance.
-3. **The copilot exam**: the mark per patient, whether the claim held, and what the copilot
+2. **The copilot exam**: the mark per patient, whether the claim held, and what the copilot
    invented about people it knew nothing about.
-4. **Every defect**, with the screenshot and the person who hit it.
-5. **A verdict per screen**: finished, thin, or unstyled.
-6. **What you actually spent**, against the estimate above, and why it differed.
+3. **Every defect**, with the screenshot and the person who hit it.
+4. **A verdict per screen**: finished, thin, unstyled.
+5. **What you actually spent**, from `npm run spend`, against the $3.50 estimate, and why it
+   differed. And the per-real-session extrapolation, labelled as one.
+6. **The AI accuracy**, if there was budget to measure it, and plainly "not re-recorded, no
+   budget" if there was not.
 7. **What you could not simulate**, and why.
 
 **A clean report means you did not look.** The last two walkthroughs each found defects

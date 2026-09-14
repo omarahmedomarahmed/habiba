@@ -2,14 +2,11 @@
 
 Paste everything below the line into a new session. Nothing above it is part of the prompt.
 
-**Before you paste it:**
+**Before you paste it, two things and no more:**
 
-1. Put a funded `OPENAI_API_KEY` and `DAILY_API_KEY` in `.env.local`. The simulation runs the
-   real AI and real video; without credit it produces three months of empty notes.
-   **Budget about $25 on OpenAI.** The arithmetic is in `docs/simulation/00-START-HERE.md`;
-   the run itself is estimated at $14 and the rest is room for a second eval record.
-2. Keep `STRIPE_SECRET_KEY` on **test** keys.
-3. The branch is already made, empty and migrated. Its string is in the prompt below.
+1. **Top up OpenAI with $10** and put the key in `.env.local` as `OPENAI_API_KEY`.
+   Put `DAILY_API_KEY` there too. Keep `STRIPE_SECRET_KEY` on **test** keys.
+2. Nothing else. The database branch is made, migrated, seeded and ready.
 
 ---
 
@@ -20,8 +17,8 @@ and a folder of screenshots that proves it.
 **Read these seven files from the repository first, in this order, before doing anything:**
 
 ```
-docs/simulation/00-START-HERE.md    the shape, the five binding rules, the order of work, the cost
-docs/simulation/01-SEED.md          the exact cast: 22 identities, 3 waves, one scenario each
+docs/simulation/00-START-HERE.md    the shape, the five rules, the order of work, the $10 budget
+docs/simulation/01-SEED.md          the cast: 22 identities, 3 waves, and how often each patient comes
 docs/simulation/02-ORCHESTRATION.md the swarm: who launches what, how claims are verified
 docs/simulation/03-MONEY.md         income, expenses, and Egypt, which has no card rail
 docs/simulation/04-CAPTURE.md       what is photographed, where it goes, the video scripts
@@ -29,123 +26,177 @@ docs/simulation/05-AGEING.md        how three months happens in one hour
 docs/simulation/06-COPILOT-EXAM.md  the test at the end: what the copilot really knows
 ```
 
-They are one design in seven documents. **Do not start until you have read all seven**,
-because each one assumes the others and the most expensive mistake available is launching
-twenty agents against a database that was not prepared.
+They are one design in seven documents. **Do not start until you have read all seven.**
 
 ## In one paragraph
 
 Twenty-two synthetic people sign themselves up and use the product: five therapists, six
 patients, a practice, three employers, an integrator and an operator. They arrive in three
-waves. Cheap agents act as them. One expensive orchestrator sequences them, makes them wait
-for each other, and **verifies every claim against the database rather than believing the
-agent that made it**. Between waves, a script ages the rows that wave created, so at the end
-the database holds three months of history that was produced in one hour by real
-interactions with the real product. Screenshots are taken at month 0, 1 and 3, per person,
-on the same screens each time, so you can watch one therapist's earnings screen grow up.
-Then the copilot sits an exam about every one of those patients.
+waves. Cheap agents act as them. One expensive orchestrator sequences them and **verifies
+every claim against the database rather than believing the agent that made it**. Between
+waves, a script ages the rows that wave created, so at the end the database holds three
+months of history produced in one hour by real interactions with the real product.
+Screenshots are taken at month 0, 1 and 3, per person, on the same screens each time. Then
+the copilot sits an exam about every one of those patients.
 
-## The database branch, already made and already migrated
+## 🔴 The budget is $10 and it must not run out halfway
+
+| | |
+|---|---|
+| Sessions | **35**, at **4 minutes** of audio each |
+| Planned model spend | **≈ $3.50** |
+| Left over | **≈ $6.50**, which is headroom, not a licence to add sessions |
+| In-session copilot | capped at **4** messages. Already set on the branch |
+
+```
+npm run spend -- --budget 10
+```
+
+**After every wave, without exception.** It sums what the product actually spent, warns at
+70% and exits non-zero past the line. `00-START-HERE.md` has the arithmetic and says what to
+cut first if it runs ahead. The one thing never to cut is `P3` Mostafa's weekly cadence: he
+is the entire top of the copilot exam's ladder.
+
+## The database branch, made, migrated, seeded and ready
 
 ```
 postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 ```
 
-It was created fresh, emptied to zero tables, migrated from migration 0000 to 0100, and
-`npm run verify:migrations` passes against it: **101 in the journal, 101 in the ledger, 112
-tables, 249 foreign keys, every CHECK validated.** It contains no rows of any kind.
+On it, already:
+
+| | |
+|---|---|
+| Schema | Migrated 0000 to 0100. 101 journal, 101 ledger, 112 tables, 249 foreign keys, every CHECK validated |
+| Settings | 9 groups, 2 countries, the rate table |
+| Public site | 14 published pages. All 24 page-and-locale pairs render |
+| Operator | `nour.example@example.com` / `Simulation2026!`, super admin |
+| Waiting in his queue | Nile Practice, Cairo Foundry, Thames Analytics, Delta Logistics. **All four held, none approved** |
+| People | **Zero** therapists, zero patients, zero sessions. They sign themselves up |
+| Spent | **$0.00** |
 
 **Confirm that yourself before you trust this paragraph.** A prompt that says a database is
-ready is exactly the kind of claim rule 1 exists to distrust.
+ready is exactly the kind of claim rule 1 exists to distrust. Step 1 below is how.
 
-## The two things you must build before anybody acts
+## 🔴 Step by step, from a cold start
 
-Neither exists yet. Build them, prove them, then launch.
+### Step 1 · Point at the branch and check it
 
-| # | What | Specified in | Its own gate |
-|---|---|---|---|
-| 1 | `scripts/age.ts` | `05-AGEING.md` | Age a row with one past and one future timestamp. The past one moved, the future one did not |
-| 2 | `scripts/simulate-seed.ts` | `01-SEED.md` | Every seeded identity can actually sign in. Prove it by signing in, not by counting rows |
+```bash
+export DATABASE_URL='postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require'
 
-```
-export DATABASE_URL='<the string above>'
-npm run verify:migrations        # the migrator prints success either way; this one reads the catalogue
-npm run settings:seed
-npm run ship:content
-node --import tsx --conditions=react-server scripts/simulate-seed.ts
+npm run verify:migrations      # 101 journal, 101 ledger, 112 tables
+npm run simulate:seed          # MUST REFUSE: "already has an operator". That refusal is the proof
+npm run verify:age             # 8 checks. The ageing script obeys its own rule
+npm run spend -- --budget 10   # $0.0000, 0.0% used
 ```
 
-## Then, before the swarm: the number you were asked for
+If `simulate:seed` does not refuse, you are pointed at the wrong database. Stop.
 
-```
-npm run evals -- --record
-```
+### Step 2 · Check the product, before twenty agents tell you it is broken
 
-The accuracy figures in `evals/baseline.json` were recorded on a smaller case set, before
-the account ran out of credit, and the file says so about itself. **You now have credit.
-Re-record them and report the real numbers**, including any that got worse. A figure that
-went down and is reported is worth more than one that went up and was not measured.
-
-Budget about **$2** for one full record.
-
-## And after the swarm: the exam
-
-```
-npm run copilot:exam -- --dry
-npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json
+```bash
+npm run build
+npm run gates                  # prose · claims · principals · i18n · boundary · renders
 ```
 
-`06-COPILOT-EXAM.md` is the whole method. In short: it builds questions about each patient
-out of that patient's own rows, asks the copilot, and marks the answers with a blind grader.
-Half the questions are about things the record does **not** contain, and a copilot that
-answers those is failing worse than one that forgets.
+Six gates. `renders` starts the built app and fetches all 24 public pages; it is there
+because `/pricing` answered 500 in production for seven sprints and nothing asked.
 
-The claim under test is that the patient with the thickest record has the best copilot.
-**Report the correlation whichever way it comes out.**
+### Step 3 · Mark the start of wave one
 
-## What you report at the end
+```bash
+npm run age -- --marker wave1 --start
+```
 
-1. **The measured AI accuracy**, per suite, against the previous figures.
-2. **The money**, reconciled, and **read off the operator's own screens**: income split
-   between subscriptions and session fees, model spend as the expense against it, what was
-   left over each month, collected, held, paid out, VAT, per employer pot. The books balance
-   or you say by how much they do not.
-3. **The copilot exam**: the mark per patient, whether the claim held, every invention
-   quoted, and the deep patient's handover beside the thin patient's.
-4. **Every defect a person hit**, with the screenshot and who hit it.
-5. **A verdict per screen**: finished, thin, unstyled.
-6. **Five rewritten video scripts**, built only from frames that exist.
-7. **What you actually spent**, against the $14 estimate, and why it differed.
-8. **What you could not simulate and why.**
+Everything created from this moment is wave one's and ages together. **Do this before any
+agent acts.**
+
+### Step 4 · Launch the orchestrator
+
+Hand it `02-ORCHESTRATION.md` and `01-SEED.md`. Make it report its plan before it launches
+anybody. Six agents awake at most. Wave one is seven identities: the operator, four
+therapists and two patients.
+
+### Step 5 · Each wave, in this order, three times
+
+```bash
+# 1. the wave acts, agents report DID / SAW / ROW, the orchestrator verifies every ROW
+# 2. the capture agent runs                           (04-CAPTURE.md)
+npm run spend -- --budget 10                        # 3. the number, before anything moves
+npm run age -- --marker wave1 --days 90             # 4. only now, and only after the capture
+npm run verify:migrations                           # 5. did the shift break an ordering constraint
+npm run age -- --marker wave2 --start               # 6. open the next wave
+```
+
+Wave 1 ages by **90** days, wave 2 by **60**, wave 3 not at all. Wave 3 is today.
+
+🔴 **Never age before the capture.** The frames would show the wrong dates and cannot be
+retaken.
+
+### Step 6 · The exam
+
+```bash
+npm run copilot:exam -- --dry                                    # who is about to be examined
+npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json   # ≈ $0.36
+```
+
+`06-COPILOT-EXAM.md` is the method. Half the questions are about things the record does
+**not** contain, and a copilot that answers those is failing worse than one that forgets.
+Report the correlation whichever way it comes out.
+
+### Step 7 · The accuracy figures, only if there is money left
+
+```bash
+npm run spend -- --budget 10
+npm run evals -- --record      # ≈ $2.00. Only if the line above leaves room
+```
+
+If it does not, write "not re-recorded, no budget" in the report. That is a better sentence
+than a simulation that stopped in wave two.
+
+### Step 8 · The report
+
+`docs/walkthrough-3/REPORT.md`. What is in it is listed in `00-START-HERE.md`.
+
+## What is already built, so you do not rebuild it
+
+| | |
+|---|---|
+| `npm run simulate:seed` | The operator, the four applications, the copilot quota. Already run |
+| `npm run age` | Wave ageing, with `verify:age` proving the past moves and the future does not |
+| `npm run spend` | The budget guard, over real rows |
+| `npm run copilot:exam` | The memory test |
+| `npm run smoke` | Every public page, every locale, 200 with words on it |
+| `npm run verify:boundary` | Nothing hands a function to a client component |
 
 ## The five rules, repeated here because they are the whole design
 
 1. **A claim without a database row id did not happen.** Agents report what they did, what
    they photographed, and the row that proves it. The orchestrator checks the row itself.
-2. **Act through the product, never around it.** No agent writes to the database. An agent
-   that cannot finish a flow through the UI has found the thing this exercise exists to find.
+2. **Act through the product, never around it.** No agent writes to the database.
 3. **Every person is unmistakably synthetic.** Surname Demo or Example, address at
    `example.com`. These frames are committed and go in a video.
 4. **Never production.** The write scripts refuse it by name. If one refuses, read why.
-5. **Do not fix defects during the run.** Write them down and carry on. A run that stops at
-   the first defect finds one defect.
+5. **Do not fix defects during the run.** Write them down and carry on.
 
 ## Three things this run has that the last one did not
 
 | | |
 |---|---|
-| 🔴 **The rejection cycle** | A therapist rejected twice, his documents deleted, locked out, invited by a practice, **still refused**, and finally approved after reapplying. Thirteen steps in `01-SEED.md`. Built this sprint (C351), never exercised |
+| 🔴 **The rejection cycle** | A therapist rejected twice, his documents deleted, locked out, invited by a practice, **still refused**, and finally approved after reapplying. Thirteen steps in `01-SEED.md`. Built in sprint 69 (C351), never exercised |
 | 🔴 **Expenses beside income** | `/admin/vault` prints subscriptions, session fees, income, model spend and what was left over, per month. Until C349 the chart and the card on that page disagreed about what income meant |
-| 🔴 **Egypt's crisis line** | `lib/crisis/line.ts` now holds 105, with the instruction to press 1 for Arabic and then 1 for mental health. Photograph it in Arabic, as Layla. That button has been empty in the first market since the product opened |
+| 🔴 **Egypt's crisis line** | `lib/crisis/line.ts` now holds 105, with the instruction to press 1 for Arabic and then 1 for mental health. Photograph it in Arabic, as Layla. That button was empty in the first market from the day the product opened |
 
 ## Known environment limits, so they are not filed as bugs
 
 | What | Status |
 |---|---|
-| OpenAI, Daily | **Live and funded.** If notes do not generate, that is a defect, not an environment gap |
+| OpenAI | **Live, and capped at $10.** If notes do not generate, check `npm run spend` before filing a defect |
+| Daily | Live |
 | Stripe | Test mode, deliberately |
 | Egypt card payments | **There is no gateway and the product refuses honestly.** That refusal is correct behaviour and is captured, not worked around. See `03-MONEY.md` |
-| Email and WhatsApp codes | 🔴 **Assumed delivered.** The codes agent reads the real code and types it into the real form. Every agent tries one wrong code first and reports the refusal. See `00-START-HERE.md` |
+| Email and WhatsApp codes | 🔴 **Assumed delivered.** The codes agent reads the real code and types it into the real form. Every agent tries one wrong code first and reports the refusal |
 | Blob storage | Not configured. **Document upload is simulated only as far as the form goes**, which matters for `T4`: his rejection cycle turns on documents being deleted, so record what the row says rather than what storage did |
 | Dates in Arabic | A known gap. Photograph it anyway |
 

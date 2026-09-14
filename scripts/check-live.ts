@@ -88,6 +88,32 @@ export const LIVE_PAGES: { path: string; locales: string[] }[] = [
   { path: "/for-patients", locales: ["en", "ar"] },
   { path: "/features", locales: ["en", "ar"] },
   { path: "/contact", locales: ["en", "ar"] },
+  /*
+   * 🔴 C354 — THE LIST WAS FIVE PAGES OLD, AND THE SITE HAS FOURTEEN.
+   *
+   * Every page below shipped after this array was written and none of them was
+   * added to it, so the live check and the smoke test were both answering
+   * honestly about a third of the public site. `/pricing` was in the list and
+   * was found; `/for-clinics`, which sprint 65 rewrote, was not in it and would
+   * not have been.
+   *
+   * The audiences are hand-built pages rather than CMS rows, which is exactly
+   * why they need to be here: a CMS page that fails to render fails for one
+   * reason, and a hand-built one can fail for any reason its code can.
+   *
+   * The legal pages are English only. That is the product's own state rather
+   * than an omission here: `content_pages` has no Arabic row for them, and
+   * asking for one would report a translation gap as a rendering failure.
+   */
+  { path: "/for-clinics", locales: ["en", "ar"] },
+  { path: "/for-companies", locales: ["en", "ar"] },
+  { path: "/integrations", locales: ["en", "ar"] },
+  { path: "/developers", locales: ["en", "ar"] },
+  { path: "/radar", locales: ["en", "ar"] },
+  { path: "/privacy", locales: ["en"] },
+  { path: "/terms", locales: ["en"] },
+  { path: "/security", locales: ["en"] },
+  { path: "/hipaa", locales: ["en"] },
 ];
 
 export async function readLiveSite(): Promise<LivePageText[]> {

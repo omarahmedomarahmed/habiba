@@ -359,6 +359,17 @@ async function main() {
       );
     await db.delete(patients).where(sql`last_name = ${TAG}`);
     await db.delete(patientAccounts).where(sql`email LIKE ${`${TAG}%`}`);
+    /*
+     * 🔴 C355 — and by number, which is the half that matters.
+     *
+     * Deleting by email cleans up after THIS run, whose tag is random and known
+     * here. It cannot clean up after a run that was killed before its `finally`,
+     * and that leftover row is what made the next run crash on a unique index
+     * rather than report a failure. The phone block is reserved for fiction and
+     * no real account can be in it, so sweeping it is safe and is the only thing
+     * that makes this verifier repeatable.
+     */
+    await db.delete(patientAccounts).where(sql`phone LIKE ${`${PHONE_PREFIX}%`}`);
     // history_grants cascades from people.
     await db.delete(people).where(sql`last_name = ${TAG}`);
     await pool.end();
@@ -378,12 +389,38 @@ async function newPerson(db: Db): Promise<string> {
   return row!.id;
 }
 
+/**
+ * 🔴 C355 — THE NUMBER WAS A CONSTANT UNDER A UNIQUE INDEX.
+ *
+ * `phone: "+201300070001"`, hardcoded, against
+ * `patient_accounts_phone_unique`. So this verifier crashed with a raw
+ * Postgres stack trace, not a red check, the moment either a second account
+ * was needed in one run or a previous run was killed before its `finally`
+ * cleaned up. It had been crashing for sprints and was recorded as "stale
+ * fixture data", which is a description of the symptom.
+ *
+ * A fixture that can only exist once is not a fixture. The number is drawn
+ * from the same reserved Egyptian fiction block and made unique per account
+ * within the run, and the cleanup now deletes by that prefix as well as by
+ * email, so a killed run cannot poison the next one.
+ */
+let accountsMade = 0;
+const PHONE_PREFIX = "+2013000";
+
+function fixturePhone(): string {
+  accountsMade++;
+  /* Six digits of run entropy and two of sequence: unique within a run, and
+     between runs, without reaching for a random number that could collide. */
+  const run = Number.parseInt(TAG.slice(-6).replace(/\D/g, "") || "0", 10) % 1000;
+  return `${PHONE_PREFIX}${String(run).padStart(3, "0")}${String(accountsMade).padStart(2, "0")}`;
+}
+
 async function newAccount(db: Db, personId: string): Promise<string> {
   const [row] = await db
     .insert(patientAccounts)
     .values({
-        // 13.1 — the number is the identity; the database requires one.
-        phone: "+201300070001",
+      // 13.1 — the number is the identity; the database requires one.
+      phone: fixturePhone(),
       personId,
       email: `${TAG}-${randomUUID().slice(0, 6)}@example.invalid`,
       passwordHash: "x",

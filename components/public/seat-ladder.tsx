@@ -48,7 +48,25 @@ export function SeatLadder({
     headRate: string;
     headMonthly: string;
     sliderLabel: string;
-    seats: (count: number) => string;
+    /**
+     * 🔴 C353 — ONE LABEL PER SLIDER POSITION, NOT A FUNCTION.
+     *
+     * This was `seats: (count: number) => string`, and the comment at the call
+     * site explained why: the plural should be decided where the dictionary is,
+     * on the server, rather than by a client component gluing two strings
+     * together. The reasoning was right and the mechanism could not work. A
+     * function cannot cross into a client component, so React threw
+     * "Functions cannot be passed directly to Client Components" while
+     * rendering, and `/pricing` returned 500 in production from the day the
+     * seat ladder shipped until C353.
+     *
+     * The intention survives exactly, in the shape `monthlyByCount` already
+     * uses on the prop above it: the server resolves every label it could need,
+     * one per slider position, and hands over an array. Plural rules stay in
+     * the dictionary, and a language with six plural forms is served correctly
+     * because `t` is called per count with the real number.
+     */
+    seatsByCount: string[];
   };
 }) {
   const [count, setCount] = useState(Math.min(3, monthlyByCount.length));
@@ -109,7 +127,7 @@ export function SeatLadder({
             className="h-2 w-full max-w-xs cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-500"
           />
           <span className="text-sm font-medium tabular-nums text-slate-700">
-            {strings.seats(count)}
+            {strings.seatsByCount[count - 1] ?? ""}
           </span>
           <PriceTag usdCents={selected} rateMicro={rateMicro} locale={locale} size="lg" />
         </div>

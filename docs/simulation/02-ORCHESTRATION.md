@@ -137,6 +137,7 @@ Not at the end. **After every agent action**, in one line:
   [wave 2] [P4]   ok   enrolment refused, staff number not recognised · EXPECTED, captured
   [wave 2] [T4]   ok   invited by C1, accepted, STILL REFUSED at the gate · the point of T4
   [wave 2] [P3]   ??   claims a session happened, no session row found · re-tasking
+  [wave 2] END         depth: P3 6/11 · P1 3/6 · P6 1/3 · spend $0.84 of $10 (8%)
 ```
 
 The main session reads this stream and intervenes when the orchestrator is drifting: taking
@@ -144,10 +145,19 @@ reports on trust, skipping verification to keep up, quietly dropping a scenario 
 was hard, or letting the depth ladder slide. **All four are the failure mode of a swarm**,
 and all four look like progress.
 
-## Cost discipline
+## 🔴 Cost discipline, and it is the hardest constraint in the design
 
-The whole run is budgeted at about **$14 of model spend** (`00-START-HERE.md`). That is not
-a lot, and it is easy to spend it four times over on agents re-reading documents.
+**The whole run has $10 of OpenAI credit and about $3.50 of planned spend**
+(`00-START-HERE.md`). It must not stop halfway. That is not a lot of room, and it is easy to
+spend it four times over on agents re-reading documents.
+
+```
+npm run spend -- --budget 10
+```
+
+**Run it at the end of every wave and report the number upward, in the wave summary line.**
+It sums what the product actually spent, exits non-zero past the line, and warns at 70%. A
+budget nothing checks is a number somebody read once.
 
 - Agents get the **cheapest model that can do their job**. A patient booking a session does
   not need a frontier model.
@@ -156,8 +166,22 @@ a lot, and it is easy to spend it four times over on agents re-reading documents
 - Screenshots are taken by the capture agent at checkpoints, **not by every agent
   continuously**. An agent takes one only when it hits something unexpected.
 - If an agent has nothing to do in a wave, it is not woken.
-- 🔴 **Sessions are six minutes of audio.** Not sixty. The transcription and note passes are
-  the largest single line in the budget and they scale with length.
+- 🔴 **Sessions are 4 minutes of audio.** Not fifty. Transcription and the note pass are the
+  largest line in the budget and both scale with length.
+- 🔴 **The in-session copilot is capped at 4 messages**, which the seed already set on this
+  branch. Do not raise it.
+
+### What to do if the spend is running ahead
+
+In this order, and say in the report which of them you did:
+
+1. **Cut the radar strangers and the partner sessions** (4 sessions). They prove a path each
+   and neither is on the depth ladder.
+2. **Cut `P2` and `P4` to two sessions each.** They are the monthly tier and the exam only
+   needs them as middle ground.
+3. 🔴 **Never cut `P3`.** Eleven weekly sessions is the entire top of the ladder, and without
+   it the copilot exam has nothing to correlate against. Cutting him to save sixty cents
+   throws away the most interesting question in the run.
 
 ## What must never happen
 

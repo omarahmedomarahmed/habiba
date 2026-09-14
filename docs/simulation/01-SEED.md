@@ -5,10 +5,15 @@ specific**, named in its own row. An identity with no scenario is a row in a dat
 person, and this simulation already has enough rows.
 
 `scripts/simulate-seed.ts` creates only what a person could not create for themselves: the
-platform operator, and the invitations that let wave two exist. **Everybody else signs
+platform operator, and the four applications waiting in his queue. **Everybody else signs
 themselves up, through the real forms, as their own agent.** A cast that is seeded into
 existence never walks the sign-up flow, and sign-up is where two of the last three
 walkthroughs found their worst defects.
+
+🔴 **It has already been run.** The simulation branch has the operator, the settings, the
+published site and the four applications on it. Run `npm run simulate:seed` anyway as your
+first act: it will **refuse**, saying an operator already exists, and that refusal is the
+cheapest proof available that you are pointed at the right database.
 
 ## The naming rule, which is not negotiable
 
@@ -110,36 +115,40 @@ product claims to handle and has never been made to.
 
 ---
 
-## 🔴 The record depth ladder, which the copilot exam depends on
+## 🔴 How often each patient comes, which is the whole cost model
 
-The claim being tested is *the patient we know most about has the smartest copilot*. That
-claim cannot be tested on a cast where everybody has three sessions. So the depth is
-**designed**, and these are targets the orchestrator drives towards rather than accidents:
+**Thirty-five sessions across three months, and they are not spread evenly.** The budget is
+$10 (`00-START-HERE.md`) and an even spread would buy a tidy database that answers nothing:
+the claim being tested is that a thick record makes a better copilot, and that cannot be
+tested on a cast where everybody has five sessions.
 
-| Person | Sessions | Journals | Documents | Therapists | Why |
-|---|---|---|---|---|---|
-| `P3` Mostafa | **9 to 11** | **12 to 15** | 2 | 2 | Fully covered, comes weekly, writes between sessions. The deep end |
-| `P1` Layla | 5 | 8 | 1 | 1 | Deep, and entirely in Arabic, so the exam covers both languages |
-| `P5` Priya | 5 | 3 | 0 | 2 | Medium, and split across two employers |
-| `P2` Sarah | 4 | 2 | 1 | 2 | Medium |
-| `P4` Hoda | 3 | 1 | 0 | 1 | Shallow |
-| `P6` Karim | 3 | 0 | 0 | 1 | 🔴 **The thin end.** No account, so no journal and no documents. His copilot has transcripts and nothing else |
+So the cadence is **designed**, and it is the first thing the orchestrator drives towards:
 
-**If the exam does not separate `P3` from `P6`, the memory layer is not reaching the
-answer**, and that is a finding worth more than any screenshot.
+| Who | Comes | Sessions | Journals | Docs | Therapists | Why this cadence |
+|---|---|---|---|---|---|---|
+| `P3` Mostafa | **every week** | **11** | **14** | 2 | 2 | Covered at 100%, so there is nothing to stop him. The deep end of the ladder, and the copilot exam's top mark should be his |
+| `P1` Layla | **every two weeks** | **6** | **8** | 1 | 1 | Self-pay, and entirely in Arabic, so the exam covers both languages at depth |
+| `P5` Priya | **every two weeks** | **5** | 3 | 0 | 2 | Covered at 10%, pays the rest, and changes employer half way |
+| `P2` Sarah | **every month** | **3** | 2 | 1 | 2 | Self-pay by card. An ordinary appointment, kept ordinarily |
+| `P4` Hoda | **every month** | **3** | 1 | 0 | 2 | Enrolled after one refusal. Her second therapist is `T4`, after he is finally approved |
+| `P6` Karim | **every month** | **3** | **0** | **0** | 1 | 🔴 **The thin end.** No account, so no journal and no documents. His copilot has transcripts and nothing else |
+| Radar strangers | once each | 2 | 0 | 0 | 1 | `T3`'s crisis arrivals. Nobody comes back |
+| `D1` through the API | n/a | 2 | 0 | 0 | 1 | A partner opens sessions and gets notes back |
+| | | **35** | **28** | **4** | | |
 
-## The totals, for planning
+**A session is 4 minutes of audio, not fifty.** That is the single biggest lever on the bill
+and it changes nothing about which code paths run: the transcript is short, every pass still
+happens, every screen still fills.
 
-| | Count |
-|---|---|
-| Therapists | 5 (T1 to T4, plus C1-A), one of whom joins a practice and one of whom is rejected twice |
-| Patients | 6 (P1 to P6), one of whom never makes an account |
-| Clinics | 1, with a manager, a delegated staff member and three clinicians |
-| Employers | 3, at 100%, 10%, and a poach |
-| Partners | 1 |
-| Operators | 1 |
-| **Identities** | **22** |
-| Sessions expected | **50 to 60 across three months** |
+### What the ladder has to produce, or the exam measures nothing
+
+`P3` at 11 sessions against `P6` at 3 is a depth score of roughly 80 against 15. If the run
+ends with everybody on four sessions because each agent did its task once and reported
+success, `06-COPILOT-EXAM.md` will correlate nothing and the most interesting question in the
+simulation goes unanswered.
+
+**So the orchestrator reports the ladder at the end of every wave**, and a wave that ends
+with `P3` level with `P6` is a wave that is not finished.
 
 ## What the seed script creates, and nothing more
 
