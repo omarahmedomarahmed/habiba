@@ -158,6 +158,7 @@ async function main() {
   await stubModules();
 
   const { controlDb: db } = await import("../lib/db");
+  const { DICTIONARIES } = await import("../lib/i18n/messages");
   const { sql } = await import("drizzle-orm");
   const {
     API_SCOPES,
@@ -1084,20 +1085,51 @@ async function main() {
       );
     });
 
+    /*
+     * 🔴 THE FLOOR MOVED WITH THE SCOPE CUT, and the reason it is a floor at all
+     * is worth keeping: an empty page resolves every path it prints.
+     *
+     * It was five, matching five use cases. Two of those endpoints were deleted
+     * on 2026-09-14 and this check is what found the docs still advertising
+     * both, with request bodies and example responses, on the page somebody
+     * reads while deciding whether to integrate. It is now tied to the number
+     * of scopes rather than to a number somebody has to remember to change.
+     */
     check(
       "🔴 55.12 every API path printed on /developers resolves to a route file on disk",
-      printedPaths.length >= 5 && unresolved.length === 0,
+      printedPaths.length >= API_SCOPES.length && unresolved.length === 0,
       unresolved.length === 0
-        ? `${printedPaths.length} paths, all real`
+        ? `${printedPaths.length} paths, all real, ${API_SCOPES.length} scopes`
         : `unresolved: ${unresolved.join(", ")}`,
     );
 
+    /*
+     * 🔴 EVERY USE CASE THE DICTIONARY HAS IS ON THE PAGE, AND BOTH DIRECTIONS.
+     *
+     * The old version listed five keys by name, so removing two endpoints left
+     * it asserting strings that described deleted routes. Reading the dictionary
+     * instead means the check cannot go stale, and it now catches the opposite
+     * mistake too: a use case written in the dictionary and never rendered is a
+     * product we describe to nobody, which is how `devs.useCase1` and
+     * `devs.useCase2` would otherwise have sat there describing endpoints that
+     * no longer exist.
+     */
+    const useCaseKeys = Object.keys(DICTIONARIES.en).filter((key) =>
+      /^devs\.useCase\d+$/.test(key),
+    );
+
     check(
-      "🔴 55.12 all five use cases are named on the page, and the widget with them",
-      ["useCase1", "useCase2", "useCase3", "useCase4", "useCase5", "widget"].every((key) =>
-        devPage.includes(`devs.${key}`),
-      ),
-      "an API with no named use case is a set of endpoints nobody can sell",
+      "🔴 55.12 every use case in the dictionary is named on the page, and the widget with it",
+      useCaseKeys.length > 0 &&
+        useCaseKeys.every((key) => devPage.includes(key)) &&
+        devPage.includes("devs.widget"),
+      `${useCaseKeys.length} use cases, all rendered`,
+    );
+
+    check(
+      "🔴 55.12 …and no use case string outlives the endpoint it describes",
+      useCaseKeys.length === API_SCOPES.length,
+      `${useCaseKeys.length} use cases against ${API_SCOPES.length} scopes`,
     );
 
     check(
@@ -1220,7 +1252,22 @@ async function main() {
     /* ================================================================== */
 
     for (const [label, file, key] of [
-      ["C265's sentence is on the form that creates a key", "components/partner/key-list.tsx", "dev.employmentScoped"],
+      /*
+       * 🔴 REMOVED WITH ITS SCOPE, 2026-09-14, and this is the reasoning rather
+       * than a deletion.
+       *
+       * The sentence is C265's: an employment key names the one organisation it
+       * may ask about. It was asserted on the PARTNER key form because that is
+       * where an employment key used to be minted. `employment:verify` is no
+       * longer a partner scope, so requiring the partner form to carry a warning
+       * about a capability it does not have is a check measuring the wrong
+       * screen, and would be satisfied by pasting a sentence nobody needs.
+       *
+       * The requirement did not go away. It goes to the sponsor's own
+       * integrations page in sprint 66, where it is stronger: the organisation
+       * is not a field at all, it is the portal the person is signed into. The
+       * check above already asserts C265's machinery survived the move.
+       */
       ["42.4's sentence is in the portal CHROME, on every screen", "components/partner/chrome.tsx", "dev.noContent"],
       ["C265's refusal is on the ADMIN console too", "components/admin/partner-manager.tsx", "apartner.neverMints"],
       ["55.11's promise about notes is above the file picker", "components/patients/import-patients.tsx", "import.notesNever"],
@@ -1250,10 +1297,52 @@ async function main() {
       (f) => f.startsWith("app/api/partner/v1/") && f.endsWith("route.ts"),
     );
 
+    /*
+     * 🔴 NARROWED TO TELEHEALTH, 2026-09-14, so the count moved with it.
+     *
+     * `employment:verify` went to the sponsor portal, where the organisation an
+     * identity question is about is the portal somebody is signed into rather
+     * than a field on a form. `clinician:verify` went nowhere: a telehealth
+     * platform takes responsibility for its own clinicians' licences, and EHR
+     * and FHIR are a clinic setting reached through `lib/ehr/`.
+     *
+     * 🔴 The assertion is EXACT on both sides rather than a floor, because the
+     * failure this is guarding against is a scope advertised ahead of the
+     * endpoint that serves it. `WEBHOOK_EVENTS` did exactly that for four
+     * sprints under a green check. A scope arrives with its route.
+     */
     check(
-      "🔴 55.4-55.8 there is a route for every use case, and five scopes for five of them",
-      API_SCOPES.length === 5 && routeFiles.length >= 6,
+      "🔴 55.6-55.8 one scope per telehealth use case, and a route for each",
+      API_SCOPES.length === 3 && routeFiles.length === 4,
       `${API_SCOPES.length} scopes, ${routeFiles.length} routes`,
+    );
+
+    check(
+      "🔴 55.4 the two scopes that belonged to other portals are GONE from the partner list",
+      !(API_SCOPES as readonly string[]).includes("employment:verify") &&
+        !(API_SCOPES as readonly string[]).includes("clinician:verify"),
+      "an HR connection belongs to the company, and a licence to the platform that hired them",
+    );
+
+    check(
+      "🔴 55.4 …and their routes are gone too, not merely unadvertised",
+      !files.some((f) => /app\/api\/partner\/v1\/(employment|clinicians)\//.test(f)),
+      "a scope removed from a list while its route still answers is a rename",
+    );
+
+    /*
+     * 🔴 CONTROL. C265's machinery must SURVIVE the move, because it is what
+     * made the employment question safe and the sponsor's own version inherits
+     * all of it: an attestation is written only when somebody typed an
+     * identifier into their own benefit screen, it expires in minutes, and it
+     * is consumed by the one question it licences.
+     */
+    check(
+      "🔴 CONTROL C265's attestation machinery survived the move intact",
+      /enrolmentAttestations/.test(readSource("lib/data/enrolment.ts")) &&
+        /ATTESTATION_TTL_MINUTES/.test(readSource("lib/db/schema.ts")) &&
+        files.includes("lib/partner/employment.ts"),
+      "the endpoint moved portals; the thing that stopped it being an oracle did not move",
     );
 
     /*

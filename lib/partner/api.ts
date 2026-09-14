@@ -41,79 +41,22 @@ import type { AuthedKey } from "./keys";
  */
 export type ApiFailure = { error: string; status: 400 | 403 | 404 | 409 };
 
-/**
- * 🔴 55.5 — IS THIS CLINICIAN VERIFIED WITH US, AND BY WHICH BODY.
+/*
+ * 🔴 `clinicianVerification` WAS HERE AND IS GONE, 2026-09-14.
  *
- * *A boolean and a source, never a document.*
+ * Founder: *"cut the scope of the partner API to telehealth platforms only ...
+ * they take full responsibility of the licence of their therapists."* That is
+ * the deal, so a key that asks us whether one of their clinicians is licensed
+ * is asking us to carry a responsibility the contract puts on them, and
+ * answering it was the whole function.
  *
- * The temptation is to return the licence number, the regulator's reference or the
- * document itself, because a partner doing due diligence would like all three. Sprint 29
- * rebuilt identity documents so that a URL is not a credential (H14); handing one to a
- * partner's server would undo that in a single field.
- *
- * So: verified or not, and the body that says so. A partner who needs more asks the
- * clinician, who holds their own documents.
+ * It was also the weakest thing on the surface by its own description: one
+ * boolean and a regulator name, for which nobody pays. `verify:sprint55` now
+ * asserts the scope and the route are both gone rather than merely
+ * unadvertised, because a scope removed from a list while its route still
+ * answers is a rename.
  */
-export async function clinicianVerification(input: {
-  key: AuthedKey;
-  /** The clinician's email, which is what a partner has. Never an internal id. */
-  email: string;
-}): Promise<{ verified: boolean; source: string | null } | ApiFailure> {
-  const email = input.email.trim().toLowerCase();
-  if (!email.includes("@")) return { error: "No clinician.", status: 400 };
 
-  const [row] = await controlDb
-    .select({
-      /*
-       * 🔴 C285 — asked of `therapist_verifications`, not of the derived column on `users`.
-       * This sentence leaves the building under a commercial agreement; see lib/data/verified.ts.
-       */
-      verified: verifiedFlag(),
-      /*
-       * 🔴 The select list is TWO columns, and what is absent is the ticket: no licence
-       * number, no document url, no date of birth, no national id, no photograph.
-       */
-      regulator: users.profile,
-    })
-    .from(users)
-    .where(and(eq(users.email, email), isNull(users.deletedAt)))
-    .limit(1);
-
-  if (!row) {
-    /*
-     * 🔴 `verified: false` for a clinician we do not have, not a 404.
-     *
-     * A 404 distinguishes "not with us" from "with us and unverified", which turns this
-     * into a directory of who our clinicians are. The honest answer to "is this person
-     * verified with you" is no, for both.
-     */
-    await audit({
-      actor: null,
-      category: "admin",
-      action: "partner.clinician_verify",
-      reason: `key ${input.key.keyId} · unknown`,
-    });
-    return { verified: false, source: null };
-  }
-
-  const verified = row.verified;
-
-  await audit({
-    actor: null,
-    category: "admin",
-    action: "partner.clinician_verify",
-    reason: `key ${input.key.keyId} · ${verified ? "verified" : "not verified"}`,
-  });
-
-  /*
-   * The regulator, from the profile the clinician filled in, and only when verified. An
-   * unverified clinician's claimed regulator is a claim, and repeating it to a partner as
-   * a source would be us vouching for something we have not checked.
-   */
-  const profile = row.regulator as { regulator?: string } | null;
-
-  return { verified, source: verified ? (profile?.regulator ?? "24Therapy") : null };
-}
 
 /**
  * 🔴 55.6 / C277 — READ A RECORD UNDER A GRANT, AND THE GRANT IS THE PATIENT'S.

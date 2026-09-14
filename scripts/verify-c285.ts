@@ -137,7 +137,35 @@ async function main() {
     invalidateRadarBoard();
     return listRadar();
   };
-  const { clinicianVerification } = await import("../lib/partner/api");
+  /*
+   * 🔴 ASKED OF `verifiedFlag()` DIRECTLY, 2026-09-14, and this is closer to the
+   * ruling than what it replaced.
+   *
+   * These three assertions used to call `clinicianVerification`, the partner
+   * endpoint that answered "have you verified this clinician" over HTTP. That
+   * endpoint is gone: a telehealth platform takes responsibility for its own
+   * clinicians' licences, so the scope and its route were cut on 2026-09-14.
+   *
+   * C285's ruling is not about that endpoint. It is that the answer comes from
+   * `therapist_verifications` rather than from the derived column, and
+   * `verifiedFlag()` is the one expression every remaining surface uses:
+   * `whoMayRead`, `writeBackSession`, the public radar and the profile page.
+   * Asserting it directly proves the rule for all four rather than for whichever
+   * caller happened to be convenient, and it cannot go stale the next time a
+   * caller is added or removed.
+   */
+  const { verifiedFlag } = await import("../lib/data/verified");
+  const { users: usersTable } = await import("../lib/db/schema");
+  const { eq } = await import("drizzle-orm");
+
+  const partnerFacingVerified = async (): Promise<boolean> => {
+    const [row] = await db
+      .select({ verified: verifiedFlag() })
+      .from(usersTable)
+      .where(eq(usersTable.id, user.id))
+      .limit(1);
+    return Boolean(row?.verified);
+  };
 
   /*
    * The clinician is put ON the radar directly, because `toggleRadar` would refuse them — and that
@@ -169,15 +197,12 @@ async function main() {
    * 🔴 55.5, the sharp one: a sentence that leaves the building under a commercial agreement.
    * Called with a synthetic key so the answer is the function's, not a route's.
    */
-  const partnerAnswer = await clinicianVerification({
-    key: { keyId: tag, partnerId: tag } as never,
-    email,
-  });
+  const partnerAnswer = await partnerFacingVerified();
 
   check(
-    "🔴 C285 the partner identity answer says NOT verified",
-    "verified" in partnerAnswer && partnerAnswer.verified === false,
-    "55.5 is a named use case on /developers and it was answering from the soft column",
+    "🔴 C285 the partner-facing verified flag says NOT verified",
+    partnerAnswer === false,
+    "every partner surface reads this expression, and it was answering from the soft column",
   );
 
   /* ------------------------------------------- 3. THE CONTROL: approve them for real */
@@ -195,10 +220,7 @@ async function main() {
   const onBoardAfter = (await board()).some((row) => row.userId === user.id);
   const countAfter = await radarCount();
   const profileAfter = await publicProfile(user.id);
-  const partnerAfter = await clinicianVerification({
-    key: { keyId: tag, partnerId: tag } as never,
-    email,
-  });
+  const partnerAfter = await partnerFacingVerified();
 
   check(
     "🔴 C285 CONTROL, the same clinician IS on the radar once genuinely approved",
@@ -219,8 +241,8 @@ async function main() {
   );
 
   check(
-    "🔴 C285 CONTROL, the partner identity answer flips to verified",
-    "verified" in partnerAfter && partnerAfter.verified === true,
+    "🔴 C285 CONTROL, the partner-facing flag flips to verified",
+    partnerAfter === true,
     "the assertion tracks the approval, which is the whole of C285",
   );
 
@@ -230,10 +252,7 @@ async function main() {
     sql`UPDATE therapist_verifications SET state = 'rejected' WHERE user_id = ${user.id}`,
   );
 
-  const withdrawnPartner = await clinicianVerification({
-    key: { keyId: tag, partnerId: tag } as never,
-    email,
-  });
+  const withdrawnPartner = await partnerFacingVerified();
 
   check(
     "🔴 C285 withdrawing the approval reaches the derived column",
@@ -249,7 +268,7 @@ async function main() {
 
   check(
     "🔴 C285 …and the partner is told they are no longer verified",
-    "verified" in withdrawnPartner && withdrawnPartner.verified === false,
+    withdrawnPartner === false,
     "an assertion made once is not an assertion that stays true",
   );
 

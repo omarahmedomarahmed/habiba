@@ -73,7 +73,6 @@ export function KeyList({
    * it again, so this is a courtesy: the point is that the requirement is visible while the
    * choice is being made, not reported afterwards.
    */
-  const [wantsEmployment, setWantsEmployment] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
@@ -174,11 +173,6 @@ export function KeyList({
                       type="checkbox"
                       name="scopes"
                       value={scope}
-                      onChange={
-                        scope === "employment:verify"
-                          ? (event) => setWantsEmployment(event.target.checked)
-                          : undefined
-                      }
                       className="h-4 w-4 rounded border-slate-300"
                     />
                     <code className="font-mono text-xs">{scope}</code>
@@ -187,28 +181,6 @@ export function KeyList({
               </fieldset>
 
               {/* 🔴 C265, on the form, beside the checkbox it is about. */}
-              {wantsEmployment ? (
-                <>
-                  <p className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-slate-700">
-                    {t("dev.employmentScoped")}
-                  </p>
-                  <Field label={t("dev.forOrganisation")} htmlFor="key-sponsor">
-                    <select
-                      id="key-sponsor"
-                      name="sponsorId"
-                      required
-                      className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900"
-                    >
-                      <option value="">-</option>
-                      {sponsors.map((sponsor) => (
-                        <option key={sponsor.id} value={sponsor.id}>
-                          {sponsor.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </>
-              ) : null}
 
               {state.error ? (
                 <p role="alert" className="text-xs text-red-600">

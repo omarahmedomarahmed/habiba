@@ -90,12 +90,19 @@ export async function mintKey(input: {
   if (scopes.length === 0) return { error: "Choose at least one scope." };
   if (scopes.length !== input.scopes.length) return { error: "That is not a scope we have." };
 
-  if (scopes.includes("employment:verify") && !input.sponsorId) {
-    return {
-      error:
-        "An employment key has to name the one organisation it may ask about. That is the whole of how this endpoint stays safe.",
-    };
-  }
+  /*
+   * 🔴 THE EMPLOYMENT CHECK MOVED WITH ITS SCOPE, 2026-09-14.
+   *
+   * It used to refuse an `employment:verify` key with no sponsor, which was
+   * C265 in a guard: an identity oracle is safe only while it can answer about
+   * exactly one organisation. That scope is no longer a partner scope. The rule
+   * did not go away, it went to the sponsor's own integrations page, where the
+   * organisation is not a field on a form at all: it is the portal the person
+   * is signed into.
+   *
+   * `partner_api_keys.sponsor_id` and its CHECK stay on the table, because the
+   * sponsor's key is still a key and inherits both.
+   */
 
   const raw = `${PREFIX[input.environment]}${randomBytes(24).toString("base64url")}`;
 

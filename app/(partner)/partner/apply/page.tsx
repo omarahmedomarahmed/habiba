@@ -33,9 +33,16 @@ export default async function PartnerApplyPage() {
 
       <PartnerApplyForm />
 
-      {/* 🔴 C255, C277 and 42.4, said to the buyer before they buy. */}
+      {/*
+        🔴 C277 and 42.4, said to the buyer before they buy.
+
+        `devs.useCase1Body` used to lead this block and described employment
+        verification, which is no longer a partner product: an HR connection is
+        the sponsor's own, on their own integrations page. The C255 sentence it
+        carried about never syncing a directory went with it, because on this
+        page it now describes a thing this key cannot do.
+      */}
       <div className="space-y-2 rounded-2xl bg-white p-5 text-sm leading-relaxed text-slate-600 ring-1 ring-slate-200">
-        <p>{t("devs.useCase1Body")}</p>
         <p>{t("devs.useCase3Body")}</p>
         <p>{t("dev.noContent")}</p>
         <p>{t("devs.keysNote")}</p>

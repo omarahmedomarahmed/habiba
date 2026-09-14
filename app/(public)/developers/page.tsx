@@ -52,31 +52,22 @@ export default async function DevelopersPage() {
       <p className="mt-3 leading-relaxed text-slate-600">{t("devs.body")}</p>
 
       <div className="mt-10 space-y-8">
-        {/* 🔴 55.4 / C255 / C265 — one identifier, one boolean, one timestamp. */}
-        <UseCase
-          title={t("devs.useCase1")}
-          body={t("devs.useCase1Body")}
-          exampleLabel={t("devs.example")}
-          example={`POST /api/partner/v1/employment/verify
-Authorization: Bearer 24t_sk_live_...
+        {/*
+          🔴 TWO USE CASES REMOVED HERE, 2026-09-14, and 55.12 is what caught them.
+          ----------------------------------------------------------------------
+          `employment/verify` and `clinicians/verify` were deleted from the API
+          and this page still printed both, with request bodies and example
+          responses, on a page whose whole purpose is to be read by somebody
+          deciding whether to integrate. 55.12 exists to resolve every path
+          printed here against a route file on disk, and it failed on exactly
+          those two, which is the check doing its job rather than a tidy-up.
 
-{ "identifier": "the one they typed in your enrolment form" }
-
-200 { "active": true, "asOf": "2026-09-13T09:12:00.000Z" }`}
-        />
-
-        {/* 🔴 55.5 — a boolean and a source. Never a document, never a licence number. */}
-        <UseCase
-          title={t("devs.useCase2")}
-          body={t("devs.useCase2Body")}
-          exampleLabel={t("devs.example")}
-          example={`POST /api/partner/v1/clinicians/verify
-
-{ "email": "dr@example.com" }
-
-200 { "verified": true, "source": "syndicate" }`}
-        />
-
+          Where they went: an HR connection is the SPONSOR's, on their own
+          integrations page, because the organisation an identity question is
+          about should be the portal somebody is signed into rather than a field
+          on a form. EHR and FHIR are the CLINIC's setting, on the clinic plan,
+          through `lib/ehr/`. Neither is a key a third party holds.
+        */}
         {/* 🔴 55.6 / C277 — the key asks WHO MAY. It never reads. */}
         <UseCase
           title={t("devs.useCase3")}

@@ -6611,18 +6611,50 @@ export const partnerAuthSessions = pgTable(
  *
  * ## 🔴 `sponsor_id`, which is C265 in a column
  *
- * *The endpoint is scoped to one sponsor.* A key holding `employment:verify`
- * with no sponsor answers about nobody: the check is in the query, so a missing
- * scope fails closed rather than falling through to every sponsor we have.
+ * *The endpoint is scoped to one sponsor.* Kept on the table after
+ * `employment:verify` moved to the sponsor portal, because the constraint and
+ * the column are what made that endpoint safe and the sponsor's own version
+ * inherits both. A key with no sponsor answers about nobody: the check is in
+ * the query, so it fails closed rather than falling through to every sponsor.
  *
  * ## 🔴 `environment`, because a sandbox key that can reach real people is not a
  *   sandbox
  */
+/**
+ * 🔴 NARROWED TO ONE BUYER, 2026-09-14. Founder: *"cut the scope of the partner
+ * API to telehealth platforms only."*
+ *
+ * It had five scopes serving six imagined customers and one real one. Two of
+ * them were other portals' features wearing an API costume, and both go home:
+ *
+ *   - **`employment:verify` belongs to the SPONSOR.** An HR system connects to
+ *     the company that bought the benefit, not to a third party holding a key
+ *     about that company's staff. It becomes "enable employment verification"
+ *     on the sponsor's own integrations page, where the people whose employment
+ *     is being confirmed are that portal's own population. The C265 machinery
+ *     underneath it — `enrolment_attestations`, the minutes-long consumable
+ *     record of an identifier a person themselves submitted — is unchanged and
+ *     is what keeps it from being an identity oracle whoever owns the door.
+ *   - **`clinician:verify` belongs to nobody.** A telehealth platform takes
+ *     responsibility for its own clinicians' licences; that is the deal. EHR
+ *     and FHIR are a CLINIC setting, on the clinic's own integrations page and
+ *     on the clinic plan, reached through `lib/ehr/` rather than through a key.
+ *
+ * What is left is one product: **a telehealth or teletherapy platform that has
+ * the video, the booking and the clinicians, and wants the intelligence.** They
+ * keep their own interface; we transcribe, write the note their therapist
+ * approves, answer their therapist's questions about the patient, hold the
+ * memory, and hand their patient a summary.
+ *
+ * ## 🔴 A SCOPE ARRIVES WITH ITS ENDPOINT, NEVER BEFORE IT
+ *
+ * The rest of that product is sprint 68, and its scopes are added there, one at
+ * a time, each beside the route that serves it. This list has been an
+ * advertisement for things that did not work once already: `grant.revoked` and
+ * `record.claimed` sat in `WEBHOOK_EVENTS` for four sprints while nothing
+ * emitted either, under a green check saying partners were told.
+ */
 export const API_SCOPES = [
-  /** 55.4 — "is this identifier currently active". One person, one boolean. */
-  "employment:verify",
-  /** 55.5 — is this clinician verified with us, and by which body. */
-  "clinician:verify",
   /** 55.6 — read a record the patient granted this clinician. C277. */
   "record:read",
   /** 55.7 — a session held on their platform lands in our record. */

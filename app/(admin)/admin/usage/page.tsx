@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Badge, Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
 import {
+  consentRate,
   costPerSession,
   formatMicrocents,
   usageByKind,
@@ -29,10 +30,25 @@ export const dynamic = "force-dynamic";
 export default async function AdminUsagePage() {
   await requireRole("super_admin");
 
-  const [perSession, byKind, byTherapist] = await Promise.all([
+  const [perSession, byKind, byTherapist, consent] = await Promise.all([
     costPerSession(30),
     usageByKind(30),
     usageByTherapist(30),
+    /*
+     * 🔴 58.9 — THE NUMBER SPRINT 57 WAS SHAPED AROUND, FINALLY ASKED.
+     *
+     * C209 makes the AI fee conditional on the patient's consent, and the whole
+     * unlimited-plan billing change was designed to keep that consent free of
+     * money pressure. Whether it worked is one query, `consentRate`, and
+     * nothing in the product called it: `verify:reachable` has named it in
+     * MUST_WIRE since the gate existed.
+     *
+     * It belongs here rather than on a dashboard, because the decline rate is
+     * only meaningful beside what a session costs to run. A high decline rate
+     * with a low cost per session is a product working as designed; the same
+     * decline rate with a high one is a margin conversation.
+     */
+    consentRate(30),
   ]);
 
   const totalMicrocents = byKind.reduce((sum, row) => sum + Number(row.microcents ?? 0), 0);
@@ -46,6 +62,39 @@ export default async function AdminUsagePage() {
           Last 30 days. Model spend, audio minutes and what patients paid, no clinical content.
         </p>
       </div>
+
+      {/*
+        🔴 C209 — consent is the patient's and the AI fee rides on it, so the
+        rate is an operating figure rather than a curiosity. "Not asked" is
+        listed beside the other two on purpose: a session where nobody asked is
+        not a session where somebody declined, and collapsing the two would make
+        a process failure look like a patient's choice.
+      */}
+      <Card className="p-4">
+        <p className="text-sm font-semibold text-slate-900">Recording consent, last 30 days</p>
+        <dl className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <dt className="text-xs text-slate-500">Sessions</dt>
+            <dd className="text-lg text-slate-700">{consent.total}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-slate-500">Granted</dt>
+            <dd className="text-lg font-bold text-slate-900">{consent.granted}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-slate-500">Declined</dt>
+            <dd className="text-lg text-slate-700">{consent.declined}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-slate-500">Never asked</dt>
+            <dd className="text-lg text-slate-700">{consent.notAsked}</dd>
+          </div>
+        </dl>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          The AI fee is incurred by the therapist and switched on by the patient (C209).
+          A decline is the product working. A session nobody asked about is not.
+        </p>
+      </Card>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Cost per session" value={formatMicrocents(perSession.perSessionMicrocents)} />
