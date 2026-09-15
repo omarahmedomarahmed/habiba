@@ -4,11 +4,11 @@
   "private": true,
   "description": "24Therapy \u2014 AI clinical documentation for therapists. Single mobile-first Next.js app.",
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=3072 next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

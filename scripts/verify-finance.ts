@@ -121,10 +121,77 @@ async function main() {
     "../lib/finance/scenarios"
   );
 
+  /*
+   * ⚠️ This asserted `BENCHMARK.months === 3` and went red when the simulation
+   * became six months long. It was testing that somebody had typed a 3, not that
+   * the first scenario is a calibration.
+   *
+   * What makes it a calibration is that **it has no payroll**. It models a run,
+   * not a company: no salaries, no office, no round, and a horizon shorter than
+   * the forecasts it exists to be compared against. State it that way and the
+   * next change to the simulation's length does not touch this file.
+   */
   check(
     "four scenarios ship, and the first is a calibration rather than a forecast",
-    SCENARIOS.length === 4 && BENCHMARK.months === 3,
-    `${SCENARIOS.map((s) => s.name.split(":")[0]).join(", ")}`,
+    SCENARIOS.length === 4 &&
+      BENCHMARK.people.length === 0 &&
+      BENCHMARK.money.fundingUsd.value === 0 &&
+      BENCHMARK.months < BASE.months,
+    `${SCENARIOS.map((s) => s.name.split(":")[0]).join(", ")} · the benchmark runs ${BENCHMARK.months} months with nobody on the payroll`,
+  );
+
+  /*
+   * 🔴 THE CHECK THAT EXISTS BECAUSE THE TWO MODELS ONCE DISAGREED IN PUBLIC.
+   *
+   * `plans.ts` is the operating plan and this file is the abstract growth model.
+   * They may differ in structure. They may not differ about what a session
+   * costs a patient, because both put that figure on a screen a founder reads
+   * and for two sprints one said $40 while the other said $20. Nothing on either
+   * screen said why, and the runway figures they produced differed threefold.
+   */
+  const { BETA, EGP_PER_USD } = await import("../lib/finance/plans");
+  check(
+    "🔴 the forecast and the operating plan agree about the price of a session",
+    Math.abs(BASE.unit.sessionPriceUsd.value - BETA.unit.sessionPriceUsd) < 0.005 &&
+      Math.abs(BASE.unit.sessionPriceUsd.value * EGP_PER_USD - 1000) < 0.5,
+    `$${BASE.unit.sessionPriceUsd.value} here and $${BETA.unit.sessionPriceUsd} there, both 1,000 EGP at ${EGP_PER_USD} to the dollar`,
+  );
+
+  check(
+    "🔴 …and about the two metered fees and the cut, which come from settings either way",
+    BASE.unit.platformFeeCents.value / 100 === BETA.unit.platformFeeUsd &&
+      BASE.unit.aiFeeUsdPerSession.value === BETA.unit.aiFeeUsd &&
+      BASE.unit.platformFeeBps.value / 10000 === BETA.unit.takeRate,
+    `$${BETA.unit.platformFeeUsd} room, $${BETA.unit.aiFeeUsd} note, ${BETA.unit.takeRate * 100}% cut`,
+  );
+
+  /*
+   * 🔴 AND ABOUT THE PAYROLL, which was the other half of the disagreement.
+   *
+   * This file used to put two founders on $4,000 plus burden and nobody else,
+   * and reported that the company runs out of cash in month 3 and needs
+   * $58,927. The plan put eight people on $3,500 in total and reported break
+   * even in month 5 on the same $20,000. Both were on the same screen.
+   */
+  const basePayroll = BASE.people.reduce((sum, p) => sum + p.monthlyUsd * (1 + p.burden), 0);
+  const planPayroll = BETA.people.reduce((sum, p) => sum + p.monthlyUsd, 0);
+  check(
+    "🔴 …and about what the team is paid, which is where the threefold disagreement was",
+    Math.abs(basePayroll - planPayroll) < 0.5 && BASE.people.length === BETA.people.length,
+    `$${basePayroll.toFixed(0)} a month across ${BASE.people.length} people, the same roles on both sides`,
+  );
+
+  /*
+   * 🔴 AND THE ONE PERSON WHO IS PAID NOTHING IS A FOUNDER WHO IS ALREADY PAID.
+   *
+   * A second unpaid role in either model would be an unpaid worker the forecast
+   * is quietly relying on, which is the cheapest way to make a plan close.
+   */
+  const unpaid = BASE.people.filter((p) => p.monthlyUsd === 0);
+  check(
+    "🔴 …and exactly one role costs nothing, because that salary is on another line",
+    unpaid.length === 1 && /founder/i.test(unpaid[0]!.role),
+    "one founder sells full time. It is the decision the plan turns on, and it is free only because they already draw $500",
   );
 
   check(
@@ -157,19 +224,51 @@ async function main() {
     broken.length === 0 ? "36 months, all closing" : `months ${broken.map((m) => m.month).join(", ")}`,
   );
 
-  /* And the cash is the running sum, which is a different claim from the above. */
+  /*
+   * And the cash is the running sum, which is a different claim from the above.
+   *
+   * ⚠️ THE TOLERANCE HAS TO GROW WITH THE MONTH, and the first version's flat
+   * five cents was passing by luck. `model.ts` carries cash unrounded and
+   * publishes both `netUsd` and `cashUsd` rounded to the cent, so a check that
+   * re-adds the PUBLISHED nets accumulates up to half a cent a month. At
+   * thirty-six months that is eighteen cents, which is over any flat five-cent
+   * line, and it went red the first time a scenario's rounding stopped
+   * cancelling.
+   *
+   * Half a cent a month is the exact size of the rounding and nothing else, so
+   * this still catches a real error: a real one is dollars, not cents.
+   */
   let cash = BASE.money.openingCashUsd.value;
   const cashBroken: number[] = [];
   for (const m of base.months) {
     if (m.month === BASE.money.fundingMonth.value) cash += BASE.money.fundingUsd.value;
     cash += m.netUsd;
-    if (Math.abs(cash - m.cashUsd) > 0.05) cashBroken.push(m.month);
+    if (Math.abs(cash - m.cashUsd) > 0.005 * m.month + 0.01) cashBroken.push(m.month);
   }
 
   check(
     "🔴 …and the cash line is the running sum of the net line plus the round",
     cashBroken.length === 0,
-    cashBroken.length === 0 ? "opening cash carried through 36 months" : `months ${cashBroken.join(", ")}`,
+    cashBroken.length === 0
+      ? "opening cash carried through 36 months, within the half a cent a month that rounding to the cent costs"
+      : `months ${cashBroken.join(", ")}`,
+  );
+
+  /*
+   * 🔴 CONTROL, because the tolerance above was just widened. A cash line that
+   * drops a month's net entirely must still be caught, or the loosening turned
+   * the check off.
+   */
+  let dropped = BASE.money.openingCashUsd.value;
+  const droppedBroken: number[] = [];
+  for (const m of base.months) {
+    if (m.month !== 5) dropped += m.netUsd;
+    if (Math.abs(dropped - m.cashUsd) > 0.005 * m.month + 0.01) droppedBroken.push(m.month);
+  }
+  check(
+    "🔴 CONTROL the same scan catches a cash line that skipped one month's net",
+    droppedBroken.length > 0,
+    `${droppedBroken.length} months flagged when month 5 is dropped. A cent of tolerance does not hide a month`,
   );
 
   /* ================================================================== */
@@ -236,15 +335,39 @@ async function main() {
    *
    * "Runs out in month three" and "needs thirty-five thousand dollars" are
    * different facts, and a model that reports only the first lets somebody plan
-   * against a tenth of the real number. The base scenario crosses zero in month
-   * 3 and bottoms out in month 13, which is the case this check exists for.
+   * against a tenth of the real number.
+   *
+   * ⚠️ This used to run against `BASE`, and it went red the day BASE stopped
+   * going negative. That was good news being reported as a failure: putting the
+   * founders on the salary they actually take made the base case solvent, and
+   * the check had quietly depended on it not being.
+   *
+   * A property about what happens when cash DOES go negative needs a scenario
+   * where it does, so this makes one rather than hoping the shipped plan stays
+   * broke. Thinner opening cash, everything else identical.
    */
-  const lowest = Math.min(...base.months.map((m) => m.cashUsd));
+  const thin = forecast({
+    ...BASE,
+    money: { ...BASE.money, openingCashUsd: { ...BASE.money.openingCashUsd, value: 2_000 } },
+  });
+  const lowest = Math.min(...thin.months.map((m) => m.cashUsd));
   check(
     "🔴 C363 the deficit is the deepest point on the curve, not the first month below zero",
-    Math.abs(base.deepestDeficitUsd - -lowest) < 0.02 &&
-      base.deepestDeficitMonth !== base.runsOutInMonth,
-    `crosses zero m${base.runsOutInMonth}, bottoms out m${base.deepestDeficitMonth} at ${base.deepestDeficitUsd.toFixed(0)} dollars down. Planning against the first number raises a tenth of what is needed`,
+    lowest < 0 &&
+      Math.abs(thin.deepestDeficitUsd - -lowest) < 0.02 &&
+      thin.deepestDeficitMonth !== thin.runsOutInMonth,
+    `on $2,000 of opening cash: crosses zero m${thin.runsOutInMonth}, bottoms out m${thin.deepestDeficitMonth} at ${thin.deepestDeficitUsd.toFixed(0)} dollars down. Planning against the first number raises a fraction of what is needed`,
+  );
+
+  /*
+   * 🔴 AND THE SHIPPED BASE CASE IS SOLVENT, which is a claim worth asserting
+   * out loud now that it is true. It was not before the salaries were corrected,
+   * and the number on that screen is the one an angel reads.
+   */
+  check(
+    "🔴 the base case never runs out of money on the $20,000, at the salaries the founders take",
+    base.runsOutInMonth === null && base.deepestDeficitUsd === 0,
+    `low point $${Math.min(...base.months.map((m) => m.cashUsd)).toFixed(0)}, break even m${base.breakEvenMonth}`,
   );
 
   /*

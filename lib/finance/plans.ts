@@ -54,8 +54,8 @@ const UNIT = {
    * 🔴 DECIDED, and raised from 500 EGP after the founders set the benchmark.
    *
    * **1,000 EGP, or $20.** This is the number the sponsor screens do their
-   * arithmetic against: $200 of welcome credit is 100 sessions at 10% coverage
-   * or 10 sessions at 100%, and an HR manager moving the coverage slider should
+   * arithmetic against: $100 of welcome credit is 50 sessions at 10% coverage
+   * or 5 sessions at 100%, and an HR manager moving the coverage slider should
    * see exactly that.
    *
    * ⚠️ It sits at the TOP of the Cairo range, not the middle. Private therapy
@@ -194,7 +194,20 @@ const COMPANY = {
    */
   churnAtFullPrice: 0.33,
   churnSteady: 0.03,
-  /** 🔴 DECIDED. $200 of welcome credit, which is their first ~20 sessions. */
+  /**
+   * 🔴 DECIDED. $100 of welcome credit, and the number is an argument rather
+   * than a round figure.
+   *
+   * At 10% coverage a company pays $2 of a $20 session, so $100 is about fifty
+   * sponsored sessions. At 100% it is five. It was $200 and was halved on
+   * purpose: **the number that matters is how many companies try us, not how
+   * long the first one lasts.** Halving it buys twice as many front doors for
+   * the same cash.
+   *
+   * It is CASH leaving, not a discount. A discount is revenue we chose not to
+   * bill; a pot credit is money a therapist actually withdraws. Our 15% comes
+   * straight back, so the true cost is $85 a company.
+   */
   welcomeCreditUsd: 100,
 };
 

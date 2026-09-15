@@ -1,11 +1,38 @@
 /**
  * The four shipped scenarios, and what separates them.
  *
+ * ## 🔴 THIS FILE AND `plans.ts` MUST AGREE ABOUT EVERY DECISION
+ *
+ * There are two models in this repository and they answer different questions.
+ * `plans.ts` is the **operating plan**: Egypt, the $20,000, the offer, the
+ * people actually being hired, and a cohort priced off its own age. This file is
+ * the **abstract growth model**: pick a growth rate in clinicians and see what
+ * falls out over three years.
+ *
+ * Different questions are fine. **Different prices are not.** For two sprints
+ * this file modelled a $40 session and founders on $4,000 while the plan
+ * modelled $20 and $500, and the two reported runway figures that differed by a
+ * factor of three with nothing on either screen saying why. A reader comparing
+ * them would have concluded one of them was broken, and they would have been
+ * right.
+ *
+ * So every DECISION below is the same decision `plans.ts` makes, and the note on
+ * each one says so by name. What is allowed to differ is structure: how growth
+ * arrives, what a cohort is, how long the horizon runs. If a price here stops
+ * matching the plan, that is a defect rather than a scenario.
+ *
  * ## 🔴 Scenario one is not a forecast
  *
- * `benchmark` is the simulation, as it ran: three-minute sessions, twenty-two
- * people, three months. It exists to be **compared against reality**, which is
- * the only way the other three earn any credibility. Read it as a calibration.
+ * `benchmark` is the six-month simulation: 62 sessions in two duration clusters,
+ * twenty-one people. It exists to be **compared against reality**, which is the
+ * only way the other three earn any credibility. Read it as a calibration.
+ *
+ * ⚠️ And read it as the simulation's **design**, not its result, until the run
+ * has happened. Every input in it is `assumed` on purpose: an earlier version
+ * marked the cast size and session count `measured` with a date on them, which
+ * described a run nobody had done. **Measure and freeze** on
+ * `/admin/financial-model` is what replaces them with counts, and the provenance
+ * bar at the top of that page is how a reader tells which state it is in.
  *
  * Everything after it is a forecast, and every forecast is only as good as the
  * measured half of its inputs. The `from` tag on each one says which half it is
@@ -84,19 +111,40 @@ function unitEconomics(sessionMinutes: number) {
     ),
     platformFeeCents: measured(100, "platform_settings.session.platformFeeCents", MEASURED_ON, 1),
     platformFeeBps: measured(1500, "platform_settings.session.platformFeeBps", MEASURED_ON, 1),
-    sessionPriceUsd: assumed(40, "What a patient pays their therapist. Varies by market and by therapist"),
+    sessionPriceUsd: assumed(
+      SESSION_PRICE_USD,
+      "1,000 EGP at 50 to the dollar. 🔴 The same benchmark `plans.ts` runs on, and the most load-bearing guess in either model: at 500 EGP the plan runs out of cash",
+    ),
     recordingConsentRate: assumed(
       0.7,
-      "C209: the AI fee rides on the patient saying yes. The simulation measures this and the figure should be replaced by it",
+      "C209: the AI fee rides on the patient saying yes. The simulation measures this and the figure should be replaced by it. Same guess as `plans.ts`",
     ),
     aiFeeUsdPerSession: measured(3, "platform_settings.pricing payg aiRateCents", MEASURED_ON, 1),
+    /*
+     * 🔴 EGYPT, NOT STRIPE'S US CARD RATE, AND THE PLAN AGREES.
+     *
+     * This was 2.9% + 30c, which is Stripe's published US pricing and is what a
+     * model reaches for by reflex. Nothing in this business is on it: Egypt has
+     * no gateway for us, money arrives by bank transfer, and where a card is
+     * eventually taken the local rails price differently again. 3% and a dime is
+     * `plans.ts`'s pessimistic guess and this uses the same one.
+     */
     paymentPercent: assumed(
-      0.029,
-      "Stripe. 🔴 The simulation runs in test mode and is charged nothing, so this can never be measured by it",
+      0.03,
+      "🔴 Egyptian rails, not Stripe's US 2.9%. Pessimistic on purpose, and the same guess `plans.ts` makes. Test mode is charged nothing, so no run here can ever measure it",
     ),
-    paymentFixedUsd: assumed(0.3, "Stripe, per charge. Same caveat"),
+    paymentFixedUsd: assumed(0.1, "Per charge, on the same Egyptian guess. Same caveat"),
   };
 }
+
+/**
+ * 🔴 ONE PRICE, READ BY BOTH MODELS, SO THEY CANNOT DRIFT APART AGAIN.
+ *
+ * 1,000 EGP at 50 pounds to the dollar. `plans.ts` computes the same figure from
+ * `EGP_PER_USD`, and `verify:finance` asserts the two are equal rather than
+ * trusting anybody to remember.
+ */
+export const SESSION_PRICE_USD = 20;
 
 const flags = {
   aiPerTherapistMonthlyUsd: assumed(
@@ -112,24 +160,37 @@ const flags = {
  * against something that actually happened.
  */
 export const BENCHMARK: Assumptions = {
-  name: "Benchmark: the simulation as it ran",
-  months: 3,
+  name: "Benchmark: the six-month simulation",
+  months: 6,
   unit: {
     ...unitEconomics(3),
-    sessionMinutes: measured(3, "24 of the 35 sessions. The other 11 ran 8", MEASURED_ON, 35),
+    sessionMinutes: assumed(3, "42 of the 62 sessions. The other 20 run 8, which is the split the cost model is fitted from"),
     recordingConsentRate: assumed(1, "Every simulated patient consents, so this is not a measurement of consent"),
   },
+  /*
+   * 🔴 EVERY LINE HERE IS `assumed`, AND THAT IS THE CORRECTION.
+   *
+   * The previous version marked the cast size and the session count `measured`
+   * with a date and a sample count on them. Nothing had been measured: those
+   * were the numbers `01-THE-CAST.md` asks the run to PRODUCE. A design read
+   * back as a measurement is the §6 defect in its purest form, and it was
+   * sitting inside the module built to prevent it.
+   *
+   * They become measurements when somebody presses **Measure and freeze** on
+   * `/admin/financial-model`, which writes one row to `finance_benchmarks` from
+   * real rows and never updates it.
+   */
   market: {
-    startingTherapists: measured(5, "T1 to T4 plus C1-A", MEASURED_ON, 5),
-    therapistsAddedPerMonth: assumed(0, "The cast is fixed"),
-    therapistChurnMonthly: assumed(0, "Three months and nobody left. That is not a churn measurement"),
-    patientsPerTherapist: measured(1.2, "6 patients across 5 therapists", MEASURED_ON, 6),
-    sessionsPerPatientPerMonth: measured(1.9, "35 sessions, 6 patients, 3 months", MEASURED_ON, 35),
-    freeSessionsPerNewTherapist: measured(1, "The first completed session is free, per therapist", MEASURED_ON, 5),
+    startingTherapists: assumed(7, "T1 to T6 plus C1-A, the seven clinicians the cast asks for"),
+    therapistsAddedPerMonth: assumed(0, "The cast is fixed: they arrive in waves, not at a rate"),
+    therapistChurnMonthly: assumed(0, "One scripted cancellation in six months is one observation, and an observation is not a rate"),
+    patientsPerTherapist: assumed(1, "7 patients across 7 clinicians. A simulation's ratio, not a market's"),
+    sessionsPerPatientPerMonth: assumed(1.5, "62 sessions, 7 patients, 6 months"),
+    freeSessionsPerNewTherapist: assumed(1, "The first completed session is free to the patient, per therapist"),
   },
   pricing: {
-    blendedSubscriptionUsd: assumed(27, "One therapist on the $80 plan out of three paying"),
-    payingShare: assumed(0.6, "Three of five"),
+    blendedSubscriptionUsd: assumed(40, "Half of them subscribed and under the offer for most of the run"),
+    payingShare: assumed(0.6, "Four of seven end the run on a plan; the rest are metered"),
   },
   people: [],
   costs: [],
@@ -157,15 +218,33 @@ export const BENCHMARK: Assumptions = {
  */
 export const REAL_SESSIONS: Assumptions = {
   ...BENCHMARK,
-  name: "The same quarter, with real fifty-minute sessions",
+  name: "The same six months, with real fifty-minute sessions",
   unit: { ...unitEconomics(50) },
 };
 
 /* ============================================================== scenario 3 == */
 
-/** Two people, working from home, growing steadily, nobody funding it. */
+/**
+ * The team the operating plan actually hires, held for three years with no
+ * round.
+ *
+ * 🔴 THE SALARY LINE WAS THE OTHER HALF OF THE DISAGREEMENT.
+ *
+ * This scenario used to put two founders on **$4,000 a month plus 15% burden**
+ * and nobody else, which is $9,200 of payroll and a market salary in a market
+ * nobody is being paid by yet. `plans.ts` puts eight people on $3,500 in total,
+ * because $500 each is what the founders said they need to live on and the rail
+ * forces two support staff whether anybody likes it or not.
+ *
+ * The consequence was not cosmetic. At $9,200 of payroll this file reported
+ * "cash runs out in month 3, needs $58,927", while the plan reported break-even
+ * in month 5 on the same $20,000. **Two screens in one product, disagreeing by a
+ * factor of three about whether the company survives**, and neither saying why.
+ *
+ * The salaries below are the plan's. The structure stays this file's own.
+ */
 export const BASE: Assumptions = {
-  name: "Base: two of us, from home, growing steadily",
+  name: "Base: the plan's team, three years, no round",
   months: 36,
   unit: unitEconomics(50),
   market: {
@@ -183,9 +262,26 @@ export const BASE: Assumptions = {
     blendedSubscriptionUsd: assumed(80, "The practice tier, from platform_settings"),
     payingShare: assumed(0.55, "The rest stay on pay as you go"),
   },
+  /*
+   * 🔴 Eight people, $3,500 of payroll, and no employer burden, because at this
+   * size they are contractors. Identical to `plans.ts`, role for role.
+   *
+   * The fifth line is the one worth reading twice: **one of the two founders
+   * sells full time and costs nothing extra**, because their $500 is already on
+   * the first line. It is the decision the operating plan turns on, it is why
+   * the plan breaks even in month 5, and it is the assumption most likely to be
+   * wrong. A founder selling is a founder not building, and neither model has a
+   * line for what stops being built.
+   */
   people: [
-    { role: "Founder, product and engineering", startMonth: 1, monthlyUsd: 4000, burden: 0.15 },
-    { role: "Founder, clinical and operations", startMonth: 1, monthlyUsd: 4000, burden: 0.15 },
+    { role: "Founder, product and engineering", startMonth: 1, monthlyUsd: 500, burden: 0 },
+    { role: "Founder, clinical and operations", startMonth: 1, monthlyUsd: 500, burden: 0 },
+    { role: "Sales, companies and universities", startMonth: 1, monthlyUsd: 500, burden: 0 },
+    { role: "Sales, clinics and therapists", startMonth: 1, monthlyUsd: 500, burden: 0 },
+    { role: "Founder, selling full time", startMonth: 1, monthlyUsd: 0, burden: 0 },
+    { role: "Marketing", startMonth: 1, monthlyUsd: 500, burden: 0 },
+    { role: "Support, the transfer queue", startMonth: 1, monthlyUsd: 500, burden: 0 },
+    { role: "Support, the transfer queue", startMonth: 1, monthlyUsd: 500, burden: 0 },
   ],
   costs: [
     {
@@ -194,9 +290,18 @@ export const BASE: Assumptions = {
       startMonth: 1,
       perTherapistUsd: 1.5,
     },
-    { label: "Tools, accounting, insurance", monthlyUsd: 350, startMonth: 1 },
-    /* 🔴 No office. The founder works from home, and a line that does not exist
-       is worth more than a zero: it disappears from the screen entirely. */
+    { label: "Tools, accounting, insurance", monthlyUsd: 150, startMonth: 1 },
+    /*
+     * 🔴 Marketing is a cost line here and an acquisition cost in `plans.ts`,
+     * which is the same $1,000 counted the same way. The marketer's SALARY is
+     * above, in payroll, and is deliberately not part of it: CAC counts who
+     * sells and what markets, and folding a marketer's pay into it is how a CAC
+     * figure quietly doubles and nobody can say why.
+     */
+    { label: "Marketing: ads, influencers, production", monthlyUsd: 1000, startMonth: 1 },
+    { label: "Company formation and legal", monthlyUsd: 1200, startMonth: 1, endMonth: 1 },
+    /* 🔴 No office. Working from home, and a line that does not exist is worth
+       more than a zero: it disappears from the screen entirely. */
   ],
   money: {
     openingCashUsd: assumed(20_000, "What the two founders have put in, and the only money this scenario ever sees"),
@@ -229,8 +334,23 @@ export const FUNDED: Assumptions = {
     ],
     therapistChurnMonthly: assumed(0.045, "Slightly worse, because bought growth churns harder than referred growth"),
   },
+  /*
+   * 🔴 THE ROUND IS WHAT PAYS THE FOUNDERS PROPERLY, and the model says so on
+   * its own line rather than quietly.
+   *
+   * `Hire` has a start month and no end month, so the two $500 lines inherited
+   * from `BASE` keep running and this adds the difference on top from the month
+   * the money lands: two founders from $500 to $4,000 is $7,000 a month more.
+   * Written as a top-up rather than a replacement because that is what the data
+   * shape can express honestly, and a reader can see both halves.
+   *
+   * ⚠️ It is also a real claim about what a round is for. Living on $500 in
+   * Cairo is a founder subsidising the company, and a plan that assumed it
+   * forever would be forecasting on a subsidy nobody agreed to renew.
+   */
   people: [
     ...BASE.people,
+    { role: "Founders, salary raised to market when the round lands", startMonth: 7, monthlyUsd: 7000, burden: 0.15 },
     { role: "Engineer", startMonth: 7, monthlyUsd: 5500, burden: 0.15 },
     { role: "Clinical lead", startMonth: 8, monthlyUsd: 5000, burden: 0.15 },
     { role: "Growth", startMonth: 7, monthlyUsd: 4500, burden: 0.15 },
