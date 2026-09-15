@@ -33,6 +33,7 @@ import { ticketCounts } from "@/lib/data/support";
 import { countOpenReports } from "@/lib/data/radar-admin";
 import { pendingReviewCount } from "@/lib/data/verification";
 import { waitingCount } from "@/lib/billing/manual";
+import { LanguageCorner } from "@/components/i18n/language-corner";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   /*
@@ -67,6 +68,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-dvh">
+      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
+      <LanguageCorner />
       <header className="border-b border-slate-200 bg-navy-500">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
           <Link href="/admin" className="text-[15px] font-bold tracking-tight text-white">

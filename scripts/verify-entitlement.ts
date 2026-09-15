@@ -50,6 +50,21 @@ const { check, finish } = reporter();
 /** The plan being subscribed to. Read from settings so a rename is caught. */
 const TIER = "practice";
 
+/**
+ * 🔴 ITS PRICE IS READ, NEVER TYPED.
+ *
+ * ⚠️ These two assertions held `9900` as a literal and went red the moment
+ * sprint 75 repriced the plan to $80. A gate that has to be edited every time a
+ * price moves is a gate somebody edits without reading, and the property here
+ * was never the number: it is that the bill raised equals the plan's price.
+ */
+async function tierPriceCents(): Promise<number> {
+  const { getSettings } = await import("../lib/settings");
+  const tier = (await getSettings()).pricing.tiers.find((t) => t.key === TIER);
+  if (!tier) throw new Error(`No tier called ${TIER}`);
+  return tier.monthlyCents;
+}
+
 async function main() {
   writesTo();
 
@@ -83,11 +98,13 @@ async function main() {
 
     /* ---------------------------------------------- subscribing raises a bill */
 
+    const price = await tierPriceCents();
+
     const first = await subscribeByTransfer({ organizationId: orgId, tierKey: TIER });
     check(
-      "🔴 subscribing by transfer raises a bill rather than a checkout",
-      first.ok === true && first.amountCents === 9900,
-      first.error ?? `${first.amountCents} cents`,
+      "🔴 subscribing by transfer raises a bill rather than a checkout, for the plan's own price",
+      first.ok === true && first.amountCents === price,
+      first.error ?? `${first.amountCents} cents against a listed ${price}`,
     );
 
     /*
@@ -109,7 +126,7 @@ async function main() {
       .where(eq(invoices.organizationId, orgId));
     check(
       "🔴 …so there is exactly ONE due invoice, for the plan's monthly price",
-      billed.length === 1 && billed[0]!.status === "due" && billed[0]!.amountCents === 9900,
+      billed.length === 1 && billed[0]!.status === "due" && billed[0]!.amountCents === price,
       billed.map((b) => `${b.status} ${b.amountCents}`).join(", ") || "nothing was billed",
     );
 

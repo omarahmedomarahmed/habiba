@@ -1,5 +1,6 @@
 import { ClinicChrome } from "@/components/clinic/chrome";
 import { getClinicActor } from "@/lib/clinic-auth/session";
+import { LanguageCorner } from "@/components/i18n/language-corner";
 
 /**
  * The clinic shell. PLAN.md 54.12, §3f, C259.
@@ -36,6 +37,8 @@ export default async function ClinicLayout({ children }: { children: React.React
       capabilities={actor?.capabilities ?? []}
       linked={Boolean(actor?.linkedUserId)}
     >
+      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
+      <LanguageCorner />
       {children}
     </ClinicChrome>
   );

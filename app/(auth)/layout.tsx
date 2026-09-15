@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { LanguageCorner } from "@/components/i18n/language-corner";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
+      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
+      <LanguageCorner />
       <header className="px-4 py-5 sm:px-6">
         <Link href="/" className="text-[15px] font-bold tracking-tight text-navy-500">
           24Therapy

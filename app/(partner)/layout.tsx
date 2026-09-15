@@ -1,5 +1,6 @@
 import { PartnerChrome } from "@/components/partner/chrome";
 import { getPartnerActor } from "@/lib/partner-auth/session";
+import { LanguageCorner } from "@/components/i18n/language-corner";
 
 /**
  * The partner developer shell. PLAN.md 55.2, 55.3, C264.
@@ -29,6 +30,8 @@ export default async function PartnerLayout({ children }: { children: React.Reac
 
   return (
     <PartnerChrome nav={actor !== null} partnerName={actor?.partnerName ?? null}>
+      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
+      <LanguageCorner />
       {children}
     </PartnerChrome>
   );

@@ -298,6 +298,7 @@ export function PayoutsEditor({
   alertAfterHours,
   netFeeFromHeldEarnings,
   egpSpreadBps,
+  egpRateMicro,
 }: {
   egyptCollectionProvider: string;
   egyptPayoutMethods: string[];
@@ -305,6 +306,8 @@ export function PayoutsEditor({
   alertAfterHours: number;
   netFeeFromHeldEarnings: boolean;
   egpSpreadBps: number;
+  /** 🔴 75.4 — pounds per dollar, times a million. The daily edit. */
+  egpRateMicro: number;
 }) {
   const [state, action] = useActionState(savePayouts, INITIAL);
 
@@ -312,7 +315,7 @@ export function PayoutsEditor({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">The manual rail</p>
       <p className="mt-1 text-xs text-slate-500">
-        §3c: a new Egyptian collection provider is configuration, not code. The two-person
+        A new Egyptian collection provider is configuration, not code. The two-person
         threshold cannot be switched off; 0 makes every payout need two people.
       </p>
 
@@ -343,6 +346,29 @@ export function PayoutsEditor({
               defaultValue={alertAfterHours}
             />
           </Field>
+          {/*
+            🔴 75.4 — THE RATE EVERY EGYPTIAN PAYER IS QUOTED, AND IT MOVES.
+
+            Not a market feed. `quoteFor` refuses a static rate in production
+            for C37's reason, so a rail built on it would have no number to show
+            anybody at all. And nobody here is hedging: an operator reads a bank
+            statement and matches the figure we asked for, so the figure has to
+            be one we chose and can change the afternoon the pound moves.
+
+            It is stored on every payment it prices, so a row can always be read
+            back against the rate that made it.
+          */}
+          <Field label="Pounds to the dollar, checked daily" htmlFor="egpRate">
+            <Input
+              id="egpRate"
+              name="egpRate"
+              type="number"
+              step="0.01"
+              min="1"
+              max="1000"
+              defaultValue={(egpRateMicro / 1_000_000).toFixed(2)}
+            />
+          </Field>
           <Field label="EGP conversion charge (%)" htmlFor="spreadPercent">
             <Input
               id="spreadPercent"
@@ -364,11 +390,8 @@ export function PayoutsEditor({
             className="mt-1"
           />
           <span>
-            Take the session fee out of held earnings when we hold enough.
-            <span className="block text-xs text-slate-500">
-              Off, the pricing page stops saying it, a sentence describing a mechanic we do not
-              have is forbidden.
-            </span>
+            Take the session fee out of held earnings when we hold enough. Off, the pricing page
+            stops saying so: a sentence describing a mechanic we do not have is forbidden.
           </span>
         </label>
 

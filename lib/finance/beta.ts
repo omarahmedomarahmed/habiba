@@ -213,7 +213,22 @@ export type PlanResult = {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /** One cohort of one segment: when it joined and how many are left. */
-type Cohort = { joinedMonth: number; count: number; creditLeftUsd: number };
+/**
+ * One month's intake, tracked from the month it arrived.
+ *
+ * 🔴 `count` is the part still on a plan and `paygCount` is the part that
+ * decided the plan was not worth it and dropped to the metered rate. They are
+ * separate because they pay us in completely different ways and the whole
+ * forecast turns on the split: a subscriber pays monthly and nothing per
+ * session, and a metered account pays nothing monthly and $1 plus $3 a session.
+ * Both keep giving us 15% of what their patients pay.
+ */
+type Cohort = {
+  joinedMonth: number;
+  count: number;
+  paygCount: number;
+  creditLeftUsd: number;
+};
 
 /**
  * What a cohort pays this month, as a multiple of the list price.
@@ -251,6 +266,9 @@ export function runPlan(plan: Plan): PlanResult {
     let patients = 0;
     let creditBurnUsd = 0;
     let companySessionValueUsd = 0;
+    /* 🔴 Sessions run by accounts paying per session rather than per month. */
+    let paygSessions = 0;
+    let toPayg = 0;
 
     const counts: Record<string, number> = { company: 0, clinic: 0, therapist: 0 };
 
@@ -275,15 +293,44 @@ export function runPlan(plan: Plan): PlanResult {
          * months, so changing the offer moves the cliff with it automatically.
          */
         const hitFullPrice = month > c.joinedMonth && mult > prevMult && mult >= 1;
-        const rate = hitFullPrice
-          ? seg.churnAtFullPrice
-          : mult < 1
-            ? seg.churnInPromo
-            : seg.churnSteady;
 
-        const lost = c.count * rate;
-        left += lost;
-        c.count -= lost;
+        /*
+         * 🔴 THE CLIFF DOES NOT DELETE ANYBODY. IT MOVES THEM TO PAY AS YOU GO.
+         *
+         * ⚠️ This is the correction that mattered most in the whole model. The
+         * first version treated `churnAtFullPrice` as people leaving the
+         * platform: their sessions, their patients and every dollar they
+         * generated vanished from the forecast.
+         *
+         * That is not what happens. A therapist who decides $80 a month is not
+         * worth it **does not stop seeing patients.** They drop to the metered
+         * rate and keep paying us $1 a session, $3 more when the patient
+         * consents, and 15% of everything the patient pays them. A busy
+         * therapist on pay as you go is worth MORE to us than a quiet one on a
+         * plan.
+         *
+         * So the cliff is a move between two ways of paying, and only
+         * `churnSteady` is people actually going away. Modelling the cliff as
+         * departure made the plan pessimistic by roughly the size of the number
+         * the whole beta exists to measure.
+         */
+        if (hitFullPrice) {
+          const moved = c.count * seg.churnAtFullPrice;
+          c.count -= moved;
+          c.paygCount += moved;
+          toPayg += moved;
+        }
+
+        /*
+         * Steady churn is leaving, and it applies to both ways of paying. A
+         * metered therapist who stops working stops being worth anything.
+         */
+        const steady = mult < 1 ? seg.churnInPromo : seg.churnSteady;
+        const lostSub = c.count * steady;
+        const lostPayg = c.paygCount * steady;
+        left += lostSub + lostPayg;
+        c.count -= lostSub;
+        c.paygCount -= lostPayg;
       }
 
       const arriving =
@@ -292,6 +339,8 @@ export function runPlan(plan: Plan): PlanResult {
         list.push({
           joinedMonth: month,
           count: arriving,
+          /* 🔴 Nobody arrives metered: the offer's first month is free. */
+          paygCount: 0,
           creditLeftUsd: arriving * seg.welcomeCreditUsd,
         });
         joined += arriving;
@@ -299,10 +348,12 @@ export function runPlan(plan: Plan): PlanResult {
       }
 
       for (const c of list) {
-        if (c.count <= 0) continue;
-        counts[seg.key] = (counts[seg.key] ?? 0) + c.count;
+        const live = c.count + c.paygCount;
+        if (live <= 0) continue;
+        counts[seg.key] = (counts[seg.key] ?? 0) + live;
 
         const mult = priceMultiplier(plan.promo, c.joinedMonth, month);
+        /* 🔴 Subscription revenue from the subscribed half only. */
         subscriptionUsd += c.count * seg.monthlyUsd * mult;
         subscriptionAtFullPriceUsd += c.count * seg.monthlyUsd;
 
@@ -311,13 +362,20 @@ export function runPlan(plan: Plan): PlanResult {
         const ramp =
           seg.rampMonths <= 1 ? 1 : Math.min(1, (age + 1) / seg.rampMonths);
 
-        const segClinicians = c.count * seg.cliniciansEach;
+        const segClinicians = live * seg.cliniciansEach;
         const segPatients = segClinicians * seg.patientsPerClinician * ramp;
         const segSessions = segPatients * seg.sessionsPerPatient;
 
         clinicians += segClinicians;
         patients += segPatients;
         sessions += segSessions;
+
+        /*
+         * 🔴 The per-session base and AI rates are charged to METERED accounts
+         * only. A subscriber's sessions carry neither: that is what the
+         * subscription bought.
+         */
+        paygSessions += segSessions * (live > 0 ? c.paygCount / live : 0);
 
         /*
          * 🔴 THE WELCOME CREDIT IS REAL MONEY LEAVING, not a discount.
@@ -339,16 +397,37 @@ export function runPlan(plan: Plan): PlanResult {
       /* Cohorts that have emptied stop being carried. */
       cohorts.set(
         seg.key,
-        list.filter((c) => c.count > 0.01),
+        list.filter((c) => c.count + c.paygCount > 0.01),
       );
     }
 
     /* --------------------------------------------------------- the revenue -- */
 
-    const feePerSession =
-      plan.unit.platformFeeUsd + plan.unit.sessionPriceUsd * plan.unit.takeRate;
-    const sessionFeeUsd = sessions * feePerSession;
-    const aiFeeUsd = sessions * plan.unit.consentRate * plan.unit.aiFeeUsd;
+    /*
+     * 🔴 TWO THINGS WE CHARGE, ON TWO DIFFERENT POPULATIONS.
+     *
+     * ⚠️ The first version added `platformFeeUsd` to the take rate and charged
+     * the sum on every session, which was wrong in both directions at once: it
+     * billed subscribers a base rate they do not pay, and it billed metered
+     * accounts the take rate on sessions nobody paid for.
+     *
+     *   1. **The cut.** 15% of what the patient paid, on every PAID session,
+     *      whoever the therapist is and whatever plan they are on.
+     *   2. **The base and AI rates.** $1 for the room and $3 for the note, on
+     *      every session a METERED account runs, paid or free, online or in
+     *      person. A subscriber pays neither: that is what the plan bought.
+     */
+    const takeUsd = sessions * plan.unit.sessionPriceUsd * plan.unit.takeRate;
+    const baseFeeUsd = paygSessions * plan.unit.platformFeeUsd;
+
+    /*
+     * 🔴 C209 — the AI rate rides on consent, and the base rate does not. An
+     * online session where the patient declined bills the $1 and nothing more,
+     * because nothing was transcribed and no note was written.
+     */
+    const aiFeeUsd = paygSessions * plan.unit.consentRate * plan.unit.aiFeeUsd;
+
+    const sessionFeeUsd = takeUsd + baseFeeUsd;
     const revenueUsd = subscriptionUsd + sessionFeeUsd + aiFeeUsd;
 
     /* ----------------------------------------------------------- the costs -- */

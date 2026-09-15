@@ -171,7 +171,7 @@ Two identities and the month the plan is actually tested.
 | # | Who or what | Exists to prove |
 |---|---|---|
 | `T6` | Dr Sameh Demo | Joins on the post-beta offer: **one free month, then $100**. The second therapist to see that sequence, so it is a rule rather than an accident |
-| `P7` | Yousra Demo | 🔴 **The pay-as-you-go-only patient's therapist.** `T6` never subscribes at all: $4 a session on a $20 session, which is why $100 is exactly 25 sessions. A therapist below 25 a month is right to stay metered, and the product must not push them |
+| `P7` | Yousra Demo | 🔴 **The pay-as-you-go-only patient's therapist.** `T6` never subscribes at all: $4 a session on a $20 session, which is why $80 is exactly 20 sessions. A therapist below 20 a month is right to stay metered, and the product must not push them |
 | `churn` | 🔴 **Somebody leaves at $100** | One of wave 1's therapists cancels rather than pay full price. **This is the number the whole forecast turns on** and the run produces exactly one observation of it. One observation is not a rate, and `07-FINANCIAL-MODEL.md` says so; it is still worth more than the guess it replaces |
 | `E3` tops up | Delta Logistics funds its pot | The second company on the transfer rail, so the queue has more than one kind of row in it |
 

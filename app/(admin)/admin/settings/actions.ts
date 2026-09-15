@@ -238,7 +238,20 @@ export async function savePayouts(
     alertAfterHours: Number(String(formData.get("alertHours") ?? "")),
     netFeeFromHeldEarnings: formData.get("netting") === "on",
     egpSpreadBps: Math.round(Number(String(formData.get("spreadPercent") ?? "")) * 100),
+    /* 🔴 75.4 — pounds per dollar, stored the way `fx.ts` quotes rates. */
+    egpRateMicro: Math.round(Number(String(formData.get("egpRate") ?? "")) * 1_000_000),
   };
+
+  /*
+   * 🔴 A FLOOR OF ONE POUND TO THE DOLLAR, not of zero. Zero would pass a
+   * "positive" check and then quote every Egyptian payer "send 0 EGP", which is
+   * a rail that has quietly stopped asking for money. The ceiling is equally
+   * arbitrary and equally deliberate: a fat finger turning 50 into 50,000 must
+   * not reach a patient's screen.
+   */
+  if (!Number.isFinite(value.egpRateMicro) || value.egpRateMicro < 1_000_000 || value.egpRateMicro > 1_000_000_000) {
+    return { error: "The rate has to be between 1 and 1,000 pounds to the dollar." };
+  }
 
   if (!value.egyptCollectionProvider) return { error: "Name the collection provider." };
   if (value.egyptPayoutMethods.length === 0) return { error: "Name at least one payout method." };

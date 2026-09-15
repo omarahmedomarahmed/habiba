@@ -148,8 +148,14 @@ function TransferRow({
           <dt className="text-xs text-slate-500">Proof</dt>
           <dd className="mt-0.5 text-sm">
             {row.proofUrl ? (
+              /*
+                🔴 75.2 — through our own route, which audits the read and then
+                redirects. A link straight to the blob is a read nobody can
+                account for afterwards, and this is a photograph of somebody's
+                banking app.
+              */
               <a
-                href={row.proofUrl}
+                href={`/admin/transfers/receipt/${row.id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="font-medium text-brand-600 underline"

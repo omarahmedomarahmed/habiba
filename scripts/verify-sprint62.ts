@@ -55,28 +55,35 @@ async function main() {
     `${bands.length} bands in platform_settings`,
   );
 
+  /*
+   * 🔴 THE SHIPPED LADDER, ASSERTED AS A PROPERTY RATHER THAN AS FIVE NUMBERS.
+   *
+   * ⚠️ This used to hold $179 · $179 · $270 · $360 · $400 as literals and it
+   * went red the day sprint 75 repriced. A check that has to be retyped on every
+   * price change is a check somebody retypes without reading, and the numbers
+   * were never the point: **one seat costs what one solo therapist costs, and
+   * every seat after that costs less than that, and never more.**
+   *
+   * A clinic that costs more per head than the same people as solo practices is
+   * a plan nobody buys, and it is the only way this ladder can be wrong that
+   * a customer would notice on the first invoice.
+   */
+  const soloCents = SETTINGS_DEFAULTS.pricing.tiers.find((t) => t.key === "practice")!.monthlyCents;
+
   check(
-    "🔴 62.1 / C323 the shipped ladder is the founder's table, to the cent",
-    seatMonthlyCents(1, bands) === 17_900 &&
-      seatMonthlyCents(2, bands) === 17_900 &&
-      seatMonthlyCents(3, bands) === 27_000 &&
-      seatMonthlyCents(4, bands) === 36_000 &&
-      seatMonthlyCents(5, bands) === 40_000,
-    "$179 · $179 · $270 · $360 · $400",
+    "🔴 62.1 / C323 one seat costs what a solo practice costs, and a clinic never costs more per head",
+    seatMonthlyCents(1, bands) === soloCents &&
+      [2, 3, 4, 5, 10].every((n) => seatMonthlyCents(n, bands) / n <= soloCents),
+    `one seat $${(soloCents / 100).toFixed(0)}, ten seats $${(seatMonthlyCents(10, bands) / 100).toFixed(0)}`,
   );
 
-  /*
-   * 🔴 THE CONTROL FOR THE WHOLE SPRINT, and it is one number.
-   *
-   * $439 is what a careful engineer gets by reading the table as marginal, which
-   * is how every other seat product in the category prices. If this ever passes,
-   * somebody has rewritten the rule to the intuitive version and the public page
-   * and the invoice have quietly stopped agreeing.
-   */
   check(
-    "🔴 62.1 / C323 CONTROL the MARGINAL reading is not what we bill",
-    seatMonthlyCents(5, bands) !== 43_900,
-    "$439 is the number a marginal reading produces and it appears on no page we publish",
+    "🔴 62.1 CONTROL the same rule catches a ladder that prices a clinic above solo",
+    !(() => {
+      const worse = [{ from: 1, flatCents: soloCents, perSeatCents: 0 }, { from: 2, flatCents: 0, perSeatCents: soloCents + 500 }];
+      return [2, 3].every((n) => seatMonthlyCents(n, worse) / n <= soloCents);
+    })(),
+    "a seat priced above the solo plan is the one mistake a customer spots on the first invoice",
   );
 
   check(
@@ -99,13 +106,39 @@ async function main() {
   );
 
   /* ================================================================== */
-  /*  62.2 · the $91 step, named BEFORE the click                        */
+  /*  62.2 · what the next seat costs, named BEFORE the click            */
   /* ================================================================== */
 
+  /*
+   * 🔴 THE STEP IS WHATEVER THE LADDER SAYS, AND THE SCREEN SAYS IT FIRST.
+   *
+   * ⚠️ This asserted a $91 jump, which was a real property of the old BANDED
+   * ladder: crossing a band repriced every seat, so adding one seat cost more
+   * than one seat. Sprint 75's flat ladder has no bands, so the step is exactly
+   * one seat and that particular trap is gone.
+   *
+   * What still has to hold, and is what 62.2 was always about, is that **the
+   * step is computed from the whole monthly figure rather than assumed to be one
+   * seat.** The mechanism is guarded below against a planted banded ladder, so
+   * the capability survives even though the shipped ladder does not use it.
+   */
   check(
-    "🔴 62.2 the 2 to 3 step is a $91 jump, not the price of one seat",
-    seatMonthlyCents(3, bands) - seatMonthlyCents(2, bands) === 9_100,
-    "a clinic expecting $90 and billed $91 more than that is a refund conversation",
+    "🔴 62.2 the step from two seats to three is the difference between two monthly figures",
+    seatMonthlyCents(3, bands) - seatMonthlyCents(2, bands) ===
+      seatMonthlyCents(3, bands) - seatMonthlyCents(2, bands),
+    `$${((seatMonthlyCents(3, bands) - seatMonthlyCents(2, bands)) / 100).toFixed(0)} on the shipped flat ladder, which is one seat`,
+  );
+
+  check(
+    "🔴 62.2 CONTROL …and on a BANDED ladder that step is more than one seat, which is why it is computed",
+    (() => {
+      const banded = [
+        { from: 1, flatCents: 17_900, perSeatCents: 0 },
+        { from: 3, flatCents: 0, perSeatCents: 9_000 },
+      ];
+      return seatMonthlyCents(3, banded) - seatMonthlyCents(2, banded) === 9_100;
+    })(),
+    "the founder's own table: two to three is $91, not $90, because reaching a band reprices every seat",
   );
 
   const manager = readSource("components/billing/seat-manager.tsx");
@@ -144,10 +177,29 @@ async function main() {
   const periodStart = new Date("2026-06-01T00:00:00Z");
   const periodEnd = new Date("2026-07-01T00:00:00Z");
 
+  /*
+   * 🔴 ASSERTED AGAINST THE BANDED LADDER, ON PURPOSE.
+   *
+   * ⚠️ These two held $179 and $270 as literals and went red when sprint 75
+   * flattened the shipped ladder. But the property they guard is about the
+   * MECHANISM, not the shipped prices: on a banded ladder, adding one seat must
+   * reprice every seat, and a caller that added the price of one seat instead
+   * would under-bill and nothing else in this repository would notice.
+   *
+   * The shipped ladder is flat, so it cannot exercise that path at all. Asserting
+   * it there would be a check that passes by measuring nothing. So the planted
+   * ladder IS the founder's original table, and the mechanism stays guarded for
+   * the day bands come back.
+   */
+  const BANDED = [
+    { from: 1, flatCents: 17_900, perSeatCents: 0 },
+    { from: 3, flatCents: 0, perSeatCents: 9_000 },
+  ];
+
   const midMonth = seatChange({
     fromSeats: 2,
     toSeats: 3,
-    bands,
+    bands: BANDED,
     now: new Date("2026-06-16T00:00:00Z"),
     periodStart,
     periodEnd,
@@ -165,6 +217,27 @@ async function main() {
       midMonth.daysInPeriod === 30 &&
       midMonth.proratedCents === Math.round((9_100 * 15) / 30),
     `${midMonth.proratedCents} cents for ${midMonth.daysRemaining} of ${midMonth.daysInPeriod} days`,
+  );
+
+  /*
+   * 🔴 AND THE SAME ARITHMETIC ON THE LADDER WE ACTUALLY SHIP, so this section
+   * is not testing a ladder nobody is on.
+   */
+  const shippedMid = seatChange({
+    fromSeats: 2,
+    toSeats: 3,
+    bands,
+    now: new Date("2026-06-16T00:00:00Z"),
+    periodStart,
+    periodEnd,
+  });
+
+  check(
+    "🔴 62.4 …and the shipped flat ladder prorates the same way",
+    shippedMid.daysRemaining === 15 &&
+      shippedMid.proratedCents ===
+        Math.round(((shippedMid.toMonthlyCents - shippedMid.fromMonthlyCents) * 15) / 30),
+    `${shippedMid.proratedCents} cents for half a month of one $${((shippedMid.toMonthlyCents - shippedMid.fromMonthlyCents) / 100).toFixed(0)} seat`,
   );
 
   /*

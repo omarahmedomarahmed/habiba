@@ -18,11 +18,12 @@ Rotate both keys when the run is done. They will have been in a chat transcript.
 OPENAI_API_KEY=sk-paste-yours-here
 DAILY_API_KEY=paste-yours-here
 STRIPE_SECRET_KEY=sk_test_paste-yours-here
+BLOB_READ_WRITE_TOKEN=paste-yours-here
 DATABASE_URL=postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 ```
 
-**Your first action, before reading anything else: write those four lines into `.env.local`
-in the repository root, and add nothing else to that file.** The fourth is already correct
+**Your first action, before reading anything else: write those five lines into `.env.local`
+in the repository root, and add nothing else to that file.** The fifth is already correct
 and is in the block so that the database survives a new shell: an `export` does not, and a
 script that silently falls back to another database is the worst possible way to discover
 that.
@@ -30,7 +31,12 @@ that.
 Then confirm with `npm run spend -- --budget 10`, which needs a database and not a key, and
 with a single cheap call once you reach step 2.
 
-If any of the first three still says "paste-yours-here", **stop and say so**. A run that
+🔴 **`BLOB_READ_WRITE_TOKEN` is not optional in this run.** Without it a payer who attaches a
+receipt to a bank transfer gets a hard failure and **loses the whole payment claim**, which is
+a defect the run would spend an hour chasing. With it, receipts upload and the payments
+operator opens them through `/admin/transfers/receipt/<id>`, which audits the read.
+
+If any of the first four still says "paste-yours-here", **stop and say so**. A run that
 starts without a funded key produces six months of empty notes and spends an afternoon doing
 it.
 
@@ -94,6 +100,32 @@ never carried a real payment, and it is the largest surface this run exercises.
 a business strategist writing one note a month off the operator's own screens, a CFO after
 month 3 and again after month 6, and a CTO keeping the dev log. All four work by clicking.
 `02-ORCHESTRATION.md` says what each one is for.
+
+## 🔴 What we charge, settled in sprint 75, and the run bills against exactly this
+
+| | |
+|---|---|
+| A session | **1,000 EGP, about $20** |
+| Our cut of what the patient paid | **15%**, on PAID sessions only |
+| Metered: the room | **$1 a session**, on EVERY session. Paid, free, radar, invite, in person |
+| Metered: the note | **$3 more**, and ONLY where the patient consented |
+| So pay as you go is | **$4 a session**, or $1 where consent was declined |
+| Solo plan | **$80 a month**, one therapist, no per-session charge at all |
+| Clinic plan | **$72 a seat**, minimum two, so $144. Ten per cent under solo |
+| The offer | Month 1 free, months 2 and 3 at **half price** ($40 solo, $36 a seat), full price after |
+| Joining in months 4 to 6 | **One free month, then full price.** No half price |
+| Pounds to the dollar | **50**, an admin setting on `/admin/settings`, edited daily |
+
+🔴 **The two charges are separate and the run must show both.** The cut is on what the patient
+paid; the base and AI rates are on the session existing at all. A free first session still
+bills $1 and $3, and an in-person session where nobody paid anything still bills $1 and $3.
+An invoice that shows only one of them is a defect.
+
+🔴 **A subscriber pays NEITHER per-session charge.** That is the whole of what $80 buys, and
+`M4-4` checks the promise on the therapist's own screen: at 15 sessions she earns $300, we
+take $45, she pays $80, **she keeps $175.** Her screen shows $255 of earnings, not $300: the
+15% has already come out. A check that compares against the gross number will report a defect
+that is not one.
 
 ## 🔴 The budget is $10 and it must not run out halfway
 
@@ -506,7 +538,7 @@ find, and three of these four exist to be the first person ever to use a screen.
 | Egypt card payments | **There is no gateway.** That is not a limitation to work around, it is the product: money arrives by transfer and an operator confirms it. See `09-THE-RAIL.md` |
 | The pounds-per-dollar rate | An operator's setting, default **50**, not a market feed. `quoteFor` refuses a static rate in production for a good reason, so a rail built on it would have no price to show anybody |
 | Email and WhatsApp codes | 🔴 **Assumed delivered.** The codes agent reads the real code and types it into the real form. Every agent tries one wrong code first and reports the refusal |
-| Blob storage | Not configured. **Document upload is simulated only as far as the form goes**, which matters for `T4`: his rejection cycle turns on documents being deleted, so record what the row says rather than what storage did |
+| Blob storage | **Configured.** Receipts and identity documents upload for real. `T4`'s rejection cycle turns on documents being deleted, so check the row AND that the blob is gone |
 | Dates in Arabic | A known gap. Photograph it anyway |
 
 **A clean report would mean you did not look.**

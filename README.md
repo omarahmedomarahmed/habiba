@@ -92,8 +92,8 @@ There are **two ways to pay, and joining is free either way.**
 | | Costs | A session then costs |
 |---|---|---|
 | **Pay as you go** | nothing to be on | $1 + $3 with AI, $1 without |
-| **Practice** | $99 a month | nothing |
-| **Clinic** | $179 a month | nothing |
+| **Practice** | $80 a month, one therapist | nothing |
+| **Clinic** | $72 a seat, minimum two | nothing |
 
 A monthly plan is **unlimited**: unlimited sessions, unlimited AI, and no
 per-session fee at all. That is also a safety property and not only a price —
@@ -108,7 +108,7 @@ kind keeps working without being told a plan exists.
 
 🔴 **No amount of credit reaches a plan.** A subscription is bought, never
 earned, and `tierForSpend` walks credit tiers only — the one-line filter that
-stops any therapist who ever topped up a dollar from holding the $179 plan for
+stops any therapist who ever topped up a dollar from holding a clinic plan for
 nothing.
 
 Every figure above is a row in `platform_settings`, read at render time. Nothing
@@ -325,7 +325,7 @@ session lengths rather than one.
 ### The plan
 
 Egypt first. A session is **1,000 EGP, about $20**. A therapist pays **$100 a
-month unlimited**, which is exactly 25 pay-as-you-go sessions at $4, so a
+month unlimited**, which is exactly 20 pay-as-you-go sessions at $4, so a
 therapist doing fewer than that is right to stay metered and the product does not
 push them. Two founders at $500 each, two salespeople, one marketer, two support
 staff, because a bank transfer rail needs a person by the minute.
@@ -335,21 +335,29 @@ npm run plan            # five scenarios, thirty-six months
 npm run plan -- beta    # one of them, month by month
 ```
 
-| Scenario | What it asks | Break even | Month 36 |
+| Scenario | What it asks | Break even | Where it ends |
 |---|---|---|---|
-| `beta` | Three months on the angel cheque | not in 3 months | $2,335/mo at m3 |
-| `beta-cliff` | Six months, no new money | not in 6 months | $5,308/mo at m6, $995 of cash left |
-| 🔴 `runway` | **Can the $20k alone do it?** | **month 8** | $13,792/mo at m18, $33,659 of cash |
-| `grandfathered` | Raise at month 6, early adopters keep half price for ever | month 6 | $31,232/mo |
-| `half-price` | Raise at month 6, half price for everybody | month 6 | $50,870/mo |
+| `beta` | Three months on the angel cheque | not in 3 months | $2,240/mo at m3, $5,701 of cash |
+| `beta-cliff` | Six months, no new money | **month 6** | $8,041/mo at m6, $4,501 of cash |
+| 🔴 `runway` | **Can the $20k alone do it?** | **month 6** | $21,318/mo at m18, $92,397 of cash |
+| `grandfathered` | Raise at month 6, early adopters keep half price for ever | month 6 | $47,609/mo at m36 |
+| `half-price` | Raise at month 6, half price for everybody | month 6 | $50,275/mo at m36 |
 
 ### 🔴 The headline, which surprised us
 
-**The $20,000 angel cheque alone reaches break-even at month 8 and never goes
+**The $20,000 angel cheque alone reaches break-even at month 6 and never goes
 negative.** The three-month framing the plan started from understated the
-founders' own runway by a factor of three. On six months with no new money the
-account ends with $995 in it, which is not comfortable and is not insolvent
-either.
+founders' own runway by a factor of six. On six months with no new money the
+account ends with **$4,501** in it and the month itself is profitable.
+
+⚠️ That improved twice in one day and both reasons are worth knowing. The
+pricing was reconciled with what the product actually charges, which had been
+understated. And the model stopped deleting people at the price cliff: a
+therapist who decides $80 is not worth it **does not stop seeing patients**, they
+drop to the metered rate and keep paying $1 a session, $3 more when the patient
+consents, and 15% of everything the patient pays them. Modelling the cliff as
+departure had made the plan pessimistic by roughly the size of the one number the
+whole beta exists to measure.
 
 ### Executive summary of the $20,000
 
@@ -364,7 +372,7 @@ either.
 | AI, Daily video, card and wallet processing, hosting and the rest | $7,556 |
 | **Total spend** | **$36,177** |
 | **Revenue over the six months** | **$17,171** |
-| **Net, against $20,000 of starting cash** | **$995 left** |
+| **Net, against $20,000 of starting cash** | **$4,502 left** |
 
 🔴 **The $4,029 of beta discount is not in that table**, because it is not money
 spent. It is revenue we chose not to charge, and putting it in a spend column
@@ -376,11 +384,11 @@ is the $3,500 a month the plan carries from month 1.
 
 | At month 6 | |
 |---|---|
-| MRR | **$5,308** |
-| Implied ARR | **$63,696** |
-| Gross margin | **71%** |
-| Accounts | 4 companies, 9 clinics, 14 therapists, 54 clinicians |
-| Sessions that month | 1,062 |
+| MRR | **$8,041** |
+| Implied ARR | **$96,492** |
+| Gross margin | **75%** |
+| Accounts | 6 companies, 11 clinics, 19 therapists, 69 clinicians |
+| Sessions that month | 1,396 |
 
 🔴 **How much of that MRR is collected rather than invoiced is a question the
 model cannot answer and the simulation can.** A forecast built on invoiced
@@ -390,9 +398,9 @@ asked for exactly this number at month 3 and again at month 6.
 ### The raise, and what it is for
 
 **Recommended: $20,000 now, and a decision at month 6 rather than a plan for
-one.** The model says the cheque alone reaches break-even at month 8; it also
-says that raising at month 6 takes month-36 revenue from $13,792 to between
-$31,232 and $50,870 a month. Both of those are projections off the same fourteen
+one.** The model says the cheque alone reaches break-even at month 6; it also
+says that raising at that point takes month-36 revenue from $21,318 to between
+$47,609 and $50,275 a month. Both of those are projections off the same fourteen
 guesses. What changes between them is not the product, it is how fast sales and
 marketing are funded.
 
@@ -415,15 +423,15 @@ is valued on revenue at exit:
 
 | Scenario at month 36 | ARR | At 3x ARR | At 5x ARR |
 |---|---|---|---|
-| `grandfathered` | $374,784 | $1.12M | $1.87M |
-| `half-price` | $610,440 | $1.83M | $3.05M |
+| `grandfathered` | $571,308 | $1.71M | $2.86M |
+| `half-price` | $603,300 | $1.81M | $3.02M |
 
 | Stake | Diluted by a later round | `grandfathered`, 5x | `half-price`, 5x |
 |---|---|---|---|
-| 20% on $20k | none | $375k, **19x** | $610k, **31x** |
-| 20% on $20k | 40% | $225k, **11x** | $366k, **18x** |
-| 10% on $10k | none | $187k, **19x** | $305k, **31x** |
-| 10% on $10k | 40% | $112k, **11x** | $183k, **18x** |
+| 20% on $20k | none | $571k, **29x** | $603k, **30x** |
+| 20% on $20k | 40% | $343k, **17x** | $362k, **18x** |
+| 10% on $10k | none | $286k, **29x** | $302k, **30x** |
+| 10% on $10k | 40% | $171k, **17x** | $181k, **18x** |
 
 ⚠️ **Every figure in those two tables is a projection multiplied by an assumption
 about a future round, and both are built on the fourteen guesses named above.**

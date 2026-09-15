@@ -459,8 +459,16 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
        * nobody runs, so fair use is a sentence in the FAQ and not a control.
        */
       { key: "payg", name: "Pay as you go", unlockCents: 0, aiRateCents: 300, monthlyCents: 0 },
-      { key: "practice", name: "Practice", unlockCents: 0, aiRateCents: 0, monthlyCents: 9900 },
-      { key: "clinic", name: "Clinic", unlockCents: 0, aiRateCents: 0, monthlyCents: 17900 },
+      /*
+       * 🔴 $80 solo, and $144 for the smallest clinic, which is two seats at
+       * $72. Both were US numbers until sprint 75: $99 and $179.
+       *
+       * `aiRateCents: 0` on both is the whole of what a plan buys. A subscriber
+       * pays no base rate and no AI rate on any session, ever; a metered
+       * account pays $1 for the room and $3 more when the patient consented.
+       */
+      { key: "practice", name: "Practice", unlockCents: 0, aiRateCents: 0, monthlyCents: 8000 },
+      { key: "clinic", name: "Clinic", unlockCents: 0, aiRateCents: 0, monthlyCents: 14400 },
     ],
     creditExpiryMonths: 12,
     /*
@@ -475,10 +483,33 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
      * clinic adding their third clinician and finding a number they did not
      * expect is a support ticket and a refund conversation.
      */
+    /*
+     * 🔴 $72 A SEAT FROM TWO SEATS UP, AND NO LADDER.
+     *
+     * The clinic plan starts at two clinicians by definition: one clinician is
+     * a solo practice on the $80 plan. $72 is ten per cent off that, which is a
+     * rule rather than a number to remember, and it moves when the solo price
+     * moves.
+     *
+     * ⚠️ It replaces a three-rung ladder starting at a $179 flat fee, which was
+     * a US price nobody had re-pointed at Egypt. A two-clinician Cairo practice
+     * was being asked for $179 where two solo therapists would have paid $160.
+     *
+     * The ladder is gone because it was solving a problem this plan does not
+     * have: per-seat is already the discount, and a second discount at five
+     * seats prices a small clinic above a large one per head for no reason
+     * anybody could explain on a call.
+     *
+     * 🔴 AND THE FIRST BAND IS ONE SEAT AT THE SOLO PRICE, which is not a
+     * rounding of the rule but a hole being closed. `settingsProblem` refuses a
+     * ladder starting at two, and it is right to: a clinic that loses a
+     * clinician and drops to one seat would otherwise be billed NOTHING, having
+     * fallen between the solo plan it is not on and a band it no longer
+     * reaches. One seat costs exactly what one therapist costs.
+     */
     seatBands: [
-      { from: 1, flatCents: 17_900, perSeatCents: 0 },
-      { from: 3, flatCents: 0, perSeatCents: 9_000 },
-      { from: 5, flatCents: 0, perSeatCents: 8_000 },
+      { from: 1, flatCents: 8_000, perSeatCents: 0 },
+      { from: 2, flatCents: 0, perSeatCents: 7_200 },
     ],
     /*
      * 🔴 $3 a session. Set against what a session costs us to serve — the

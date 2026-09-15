@@ -1,5 +1,6 @@
 import { SponsorChrome } from "@/components/sponsor/chrome";
 import { getSponsorActor } from "@/lib/sponsor-auth/session";
+import { LanguageCorner } from "@/components/i18n/language-corner";
 
 /**
  * The sponsor shell. PLAN.md 53.4, C230, C259, C264.
@@ -32,6 +33,8 @@ export default async function SponsorLayout({ children }: { children: React.Reac
       sponsorName={actor?.sponsorName ?? null}
       role={actor?.role ?? null}
     >
+      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
+      <LanguageCorner />
       {children}
     </SponsorChrome>
   );

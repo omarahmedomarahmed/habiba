@@ -94,12 +94,17 @@ split above the tables.
 🔴 **The session price is the most load-bearing number in this document.** At 500 EGP the plan runs out of cash; at 1,000 it breaks even in month 7. See Part 5.
 | Patients who consent to recording | — | 70% | **GUESS.** The beta counts this exactly |
 
-🔴 **I changed your pricing and you should know why.** The product currently
-ships $99 and $179 monthly plans, a $1 session fee and a $3 AI fee. In Egypt that
-$99 plan is about **4,950 EGP a month**, which is more than many Egyptian
-therapists net in a week. And $1 + 15% + $3 on a 500 EGP session is **$5.50 on a
-$10 session — 55% of what the patient paid.** Nobody signs that twice. The prices
-below are what I think is sellable in Egypt; they are inputs, not decisions I have
+🔴 **The pricing was settled in sprint 75, and the product and this plan now
+agree.** They did not before: the product shipped $99 and $179 monthly plans
+against a plan modelling $100 and $60, and the plan had dropped the $1 session fee
+to zero and the AI fee to $1 while the product charged $1 and $3. The product was
+right about the two metered fees and the plan was right that $99 and $179 were US
+numbers nobody had re-pointed at Egypt.
+
+What is settled: **15% of what the patient paid, on paid sessions only**, plus
+**$1 for the room and $3 for the note on every session a metered account runs** —
+paid or free, online or in person. A subscriber pays neither. Solo is $80 and a
+clinic seat is $72. The numbers
 made for you.
 
 ### What each kind of customer pays
@@ -133,19 +138,45 @@ beta is judged on. Volume climbs to full over 2–3 months.
 
 | | |
 |---|---|
-| Unlimited | **$100 a month** |
-| Pay as you go | **$4 a session** |
-| The break-even between them | **exactly 25 sessions** |
+| Unlimited, solo | **$80 a month** |
+| Unlimited, clinic | **$72 a seat**, minimum two |
+| Pay as you go | **$4 a session**: $1 for the room, $3 for the note |
+| The break-even between them | **exactly 20 sessions** |
 
-Below 25 sessions a month, pay as you go is cheaper and they should use it. Above
+Below 20 sessions a month, pay as you go is cheaper and they should use it. Above
 it, unlimited is, and the note writing comes free. Nobody has to be talked into a
 number they can work out on their own.
 
-🔴 **And the promise underneath is arithmetic, not marketing.** At a $20 session,
-**ten sessions earns them $200 against a $100 bill.** A therapist who works at all
-pays for this out of what they earned through it. That is not something we have to
-build: `payouts.netFeeFromHeldEarnings` already takes the fee out of held earnings
-rather than invoicing it separately, which is why the sentence is publishable.
+### 🔴 Why $80 and not $100, and why not $60
+
+⚠️ It was $100 until sprint 75, and $100 put the break-even at 25 sessions while
+**this same plan forecasts a typical therapist doing 20.** We were modelling
+subscription revenue from people for whom the subscription was the worse deal, and
+who would have been right to refuse it.
+
+The floor is set from the other end. A 50-minute session costs us about **$0.62**:
+the measured model time plus video. A flat plan stops paying for itself past
+`price / 0.62` sessions.
+
+| Plan | Worth buying above | We lose money past |
+|---|---|---|
+| $100 | 25 sessions | 162 |
+| **$80** | **20 sessions** | **130** |
+| $60 | 15 sessions | **97** |
+
+A therapist doing six sessions a day, five days a week, reaches about **120 a
+month**, and that is a heavy full-time load. So 97 is inside what one person can
+actually do and $60 would lose money on exactly our best customers. 130 is not.
+`verify:plan` asserts both ends of that, so the next price change has to survive
+the same argument.
+
+🔴 **And the promise underneath is arithmetic, not marketing, stated NET.** At a
+$20 session, **15 sessions earns $300, we take $45, they pay $80, and they keep
+$175.** Their earnings screen shows $255, not $300, because the 15% has already
+come out; quoting the gross number is how a promise gets quoted back at us. A
+therapist who works at all pays for this out of what they earned through it, which
+`payouts.netFeeFromHeldEarnings` already implements rather than something we would
+have to build.
 
 The one case where a session bills with no platform earnings is an **in-person
 session the patient already paid for at the clinic**. The therapist still got

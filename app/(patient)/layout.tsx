@@ -31,12 +31,15 @@
  */
 import { PatientChrome } from "@/components/patient/chrome";
 import { optionalPatient } from "@/lib/patient-auth/guard";
+import { LanguageCorner } from "@/components/i18n/language-corner";
 
 export default async function PatientLayout({ children }: { children: React.ReactNode }) {
   const actor = await optionalPatient();
 
   return (
     <PatientChrome nav={actor !== null} phone={actor?.phone ?? null}>
+      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
+      <LanguageCorner />
       {children}
     </PatientChrome>
   );

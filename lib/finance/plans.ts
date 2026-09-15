@@ -67,22 +67,49 @@ const UNIT = {
   sessionPriceUsd: egp(1000),
 
   /**
-   * 🔴 DECIDED, and changed from the shipped settings.
+   * 🔴 DECIDED. THE MARKETPLACE CUT, and it is one of TWO separate things we
+   * charge. Fifteen per cent of whatever the patient actually paid, taken on the
+   * same charge, so the therapist sees their share and our share on one line.
    *
-   * The product charges $1 a session plus 15%. On a $10 session that is $2.50,
-   * or a quarter of what the patient paid, which no therapist accepts twice.
-   * This plan takes 15% and drops the flat fee: $1.50 on a 500 EGP session,
-   * which is inside what payment processors and marketplaces charge here.
+   * ⚠️ An earlier draft of this file set `platformFeeUsd` to zero and `aiFeeUsd`
+   * to $1, and described the product as charging $4 a session in total. **That
+   * was wrong and the shipped settings were right.** The two are not one number:
+   *
+   *   - This cut applies only to a session somebody PAID for.
+   *   - The two fees below apply to EVERY session, paid or free, online or in
+   *     person, because the room and the note cost us the same either way.
+   *
+   * Modelling them as one line understated the revenue from free and in-person
+   * sessions to zero, which is exactly the sessions a new therapist does most of
+   * in their first month.
    */
   takeRate: 0.15,
-  platformFeeUsd: 0,
 
   /**
-   * 🔴 DECIDED. 50 EGP for the AI on a session, against a MEASURED cost of
-   * $0.2167 at fifty minutes. A 4.6x markup on a line the therapist can see the
-   * value of, and 5% of a 1,000 EGP session.
+   * 🔴 DECIDED. THE BASE RATE: $1 for the room, on every session a
+   * pay-as-you-go therapist runs.
+   *
+   * Every session. A free one, a paid one, one booked through the radar, one
+   * from a link they sent, and an in-person session where the only person in the
+   * room is the therapist with their phone on the desk. We opened a room and
+   * kept a record; that costs the same whoever paid for the hour.
    */
-  aiFeeUsd: egp(50),
+  platformFeeUsd: 1,
+
+  /**
+   * 🔴 DECIDED. THE AI RATE: $3 a session, and it rides on consent.
+   *
+   * Against a MEASURED cost of $0.2167 at fifty minutes, which is a 13.8x markup
+   * on the model call and about 15% of a 1,000 EGP session. It is the line the
+   * therapist can see the value of, because it is the one that wrote the note.
+   *
+   * 🔴 C209 — IT ONLY EXISTS WHERE THE PATIENT SAID YES. An online session with
+   * consent declined bills the $1 and nothing else, because nothing was
+   * transcribed and no note was written. An in-person session bills both: the
+   * patient agreed to the microphone before it was switched on, which is the
+   * same consent asked a different way.
+   */
+  aiFeeUsd: 3,
 
   /**
    * 🔴 GUESS. Seven in ten patients agree to recording.
@@ -178,7 +205,25 @@ const CLINIC = {
   arrivals: [1, 2, 3],
   /** 🔴 GUESS. Two a month once referenceable. */
   steadyPerMonth: 2,
-  monthlyUsd: egp(3000),
+  /**
+   * 🔴 DECIDED: **$72 a seat, minimum two, so a four-clinician clinic pays
+   * $288.** Ten per cent off the solo price, which is a rule rather than a
+   * second number to remember: change the solo plan and this follows.
+   *
+   * ⚠️ This replaces a flat 3,000 EGP for the whole practice, which was $60 for
+   * four clinicians, or $15 each. That was cheaper per head than pay as you go
+   * for a therapist doing four sessions a month, and it priced a clinic below
+   * the cost of the people in it.
+   *
+   * 🔴 THE ONE PRICE HERE WITH REAL EXPOSURE. A seat stops making money past
+   * about 117 sessions a month, and a clinic therapist is likelier to be full
+   * time than a solo one. That is still above what one person does at fifty
+   * minutes a session, and most of the gap is Daily's per-participant-minute
+   * rate, which is a GUESS and where an in-person session costs us a third
+   * less. **If Daily's real invoice comes in above $0.004 a participant-minute,
+   * this is the first price to revisit.**
+   */
+  monthlyUsd: 72 * 4,
   /** 🔴 GUESS. Four practising clinicians in a typical small Cairo clinic. */
   cliniciansEach: 4,
   patientsPerClinician: 10,
@@ -206,21 +251,46 @@ const THERAPIST = {
   /** 🔴 GUESS. Four a month, from referrals and the influencer posts. */
   steadyPerMonth: 4,
   /**
-   * 🔴 DECIDED: **$100 a month**, the unlimited tier the product already ships.
+   * 🔴 DECIDED: **$80 a month**, and the number was chosen by arithmetic rather
+   * than by rounding.
    *
-   * The pitch that makes it defensible is arithmetic the therapist can check
-   * themselves. Pay as you go costs **$4 a session**, so $100 is **exactly 25
-   * sessions**. Below 25 a month, pay as you go is cheaper and they should use
-   * it. Above it, unlimited is, and the note writing comes free. Nobody has to
-   * be talked into a number they can work out.
+   * ## The indifference point has to sit AT the typical caseload, not above it
    *
-   * 🔴 And the promise underneath is arithmetic too, not marketing: at a $20
-   * session, **ten sessions earns them $200 against a $100 bill.** A therapist
-   * who works at all pays for this out of what they earned through it, which is
-   * what `payouts.netFeeFromHeldEarnings` already implements rather than
-   * something we would have to build.
+   * Pay as you go is $4 a session, so a plan at price P is worth buying above
+   * `P / 4` sessions a month. The typical therapist in this very model does
+   * `patientsPerClinician` x `sessionsPerPatient` = **20 sessions a month.**
+   *
+   * ⚠️ At $100 that point is 25 sessions, which means **the typical therapist
+   * in our own forecast is better off metered** and a rational one stays there.
+   * We were modelling subscription revenue from people for whom the
+   * subscription was the worse deal. At $80 the point is exactly 20: the
+   * typical therapist breaks even and everybody busier saves money.
+   *
+   * ## And the floor is set by what a session costs US
+   *
+   * A 50-minute session costs $0.2167 of model time (MEASURED) plus about $0.40
+   * of video, so roughly $0.62. A flat plan stops making money past
+   * `P / 0.62` sessions:
+   *
+   * | Plan | Worth buying above | We lose money past |
+   * |---|---|---|
+   * | $100 | 25 sessions | 162 |
+   * | **$80** | **20 sessions** | **130** |
+   * | $60 | 15 sessions | **97** |
+   *
+   * 🔴 **$60 is the one to refuse.** A therapist doing six sessions a day five
+   * days a week reaches about 120 a month, so 97 is inside what one person can
+   * actually do and the plan would lose money on exactly our best customers.
+   * 130 is not reachable by one clinician, so $80 is safe in a way $60 is not.
+   *
+   * ## The promise underneath, stated NET because that is what their screen says
+   *
+   * At a $20 session and a 15% cut: **15 sessions earns them $300, we take $45,
+   * they pay $80, and they keep $175.** They pay for this out of what they
+   * earned through it, which `payouts.netFeeFromHeldEarnings` already
+   * implements rather than something we would have to build.
    */
-  monthlyUsd: 100,
+  monthlyUsd: 80,
   cliniciansEach: 1,
   patientsPerClinician: 8,
   sessionsPerPatient: 2.5,
@@ -542,9 +612,9 @@ export const PROVENANCE: { path: string; kind: Provenance; why: string }[] = [
   { path: "unit.aiPerMinuteUsd", kind: "measured", why: "Same run. evals/physics.json has every row" },
 
   { path: "unit.sessionPriceUsd", kind: "decided", why: "1,000 EGP, the founders' benchmark. ⚠️ Top of the Cairo range, not the middle" },
-  { path: "unit.takeRate", kind: "decided", why: "15% and no flat fee, so $3 on a 1,000 EGP session" },
-  { path: "unit.platformFeeUsd", kind: "decided", why: "Zero, for the same reason" },
-  { path: "unit.aiFeeUsd", kind: "decided", why: "50 EGP against a measured cost of $0.2167. A 4.6x markup, and 5% of the session" },
+  { path: "unit.takeRate", kind: "decided", why: "15% of what the patient paid, on PAID sessions only. Separate from the two metered fees, not instead of them" },
+  { path: "unit.platformFeeUsd", kind: "decided", why: "$1 a session for the room, on EVERY session a metered account runs: paid, free, online or in person" },
+  { path: "unit.aiFeeUsd", kind: "decided", why: "$3 a session for the note, and only where the patient consented. 13.8x the measured model cost" },
   { path: "unit.consentRate", kind: "guess", why: "70%. The one guess the simulation can replace by counting" },
   { path: "unit.sessionMinutes", kind: "decided", why: "A therapy hour is fifty minutes" },
   { path: "unit.videoPerParticipantMinuteUsd", kind: "guess", why: "Daily, per participant-minute. The invoice is not in our database" },
@@ -558,12 +628,12 @@ export const PROVENANCE: { path: string; kind: Provenance; why: string }[] = [
   { path: "company.rampMonths", kind: "guess", why: "Three months from posters on a wall to a habit" },
 
   { path: "clinic.arrivals", kind: "decided", why: "Six over the quarter. The second salesperson's target" },
-  { path: "clinic.monthlyUsd", kind: "guess", why: "3,000 EGP for up to five clinicians, or 600 a head" },
+  { path: "clinic.monthlyUsd", kind: "decided", why: "$72 a seat, minimum two. Ten per cent off the solo plan, so it moves when that does" },
   { path: "clinic.cliniciansEach", kind: "guess", why: "Four practising clinicians in a small Cairo clinic" },
   { path: "clinic.churnAtFullPrice", kind: "guess", why: "A quarter walk when the half-price months end" },
 
   { path: "therapist.arrivals", kind: "decided", why: "Nine over the quarter, inside the 8 to 10 target" },
-  { path: "therapist.monthlyUsd", kind: "decided", why: "$100 unlimited, which is exactly 25 PAYG sessions at $4. The therapist can check it" },
+  { path: "therapist.monthlyUsd", kind: "decided", why: "$80 unlimited: 20 PAYG sessions at $4, which is the typical caseload in this model. $60 would lose money past 97 sessions" },
   { path: "payg.perSessionUsd", kind: "decided", why: "$4 a session, 20% of a $20 session, and the alternative to the $100 plan" },
   { path: "therapist.patientsPerClinician", kind: "guess", why: "Eight patients, a part-time private caseload" },
   { path: "therapist.churnAtFullPrice", kind: "guess", why: "🔴 40%. The number the whole beta exists to find out" },

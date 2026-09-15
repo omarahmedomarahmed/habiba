@@ -30,6 +30,10 @@ invoice.
 | 3 | **50%** |
 | 4 onward | Full price |
 
+**$80 a month solo** and **$72 a seat for a clinic**, minimum two seats. So the offer is
+free, then $40, then $40, then $80; and for a two-seat clinic free, then $72, then $72, then
+$144.
+
 Plus: a company or university gets **$200 of welcome credit** in its pot.
 
 🔴 **$200 is not a round number, it is an argument.** At 10% coverage a company

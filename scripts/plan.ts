@@ -148,14 +148,25 @@ function detail(slug: string) {
   /* The prices, in the currency the customer actually pays. */
   console.log(
     `\nPrices: session ${egp(plan.unit.sessionPriceUsd)} · our cut ${(plan.unit.takeRate * 100).toFixed(0)}% ` +
-      `(${egp(plan.unit.sessionPriceUsd * plan.unit.takeRate)}) · AI fee ${egp(plan.unit.aiFeeUsd)} · ` +
+      `(${egp(plan.unit.sessionPriceUsd * plan.unit.takeRate)}) · metered ${egp(plan.unit.platformFeeUsd)} + ${egp(plan.unit.aiFeeUsd)} AI · ` +
       `therapist ${egp(plan.segments.find((s) => s.key === "therapist")?.monthlyUsd ?? 0)}/mo · ` +
       `clinic ${egp(plan.segments.find((s) => s.key === "clinic")?.monthlyUsd ?? 0)}/mo`,
   );
 
   console.log("\n🔴 What this cannot know, and the beta exists to find out:");
+  /*
+   * 🔴 THE PRICE IS INTERPOLATED, NOT TYPED.
+   *
+   * ⚠️ This line said "1,000 EGP a month" and went on saying it after sprint 75
+   * repriced the plan to $80, which is 4,000. The five things the model cannot
+   * know are the most-read output this script has, and one of them quoting a
+   * price the product does not charge is worse than not printing it.
+   */
+  const therapistMonthlyUsd =
+    plan.segments.find((s) => s.key === "therapist")?.monthlyUsd ?? 0;
+
   for (const line of [
-    "whether an Egyptian therapist will pay 1,000 EGP a month at all",
+    `whether an Egyptian therapist will pay ${egp(therapistMonthlyUsd)} a month at all`,
     "how many leave the month the discount ends. Assumed 40% of solo therapists",
     "what share of a call centre's staff enrol. Assumed 5%, then 40% of those active monthly",
     "what card and wallet processing actually costs in Egypt. Assumed 3%",

@@ -1373,7 +1373,7 @@ export const en = {
   "apartner.developer": "Developer, reads only",
   "apartner.create": "Create",
   /* 🔴 C265 — the reason this console never mints a key, said on the console. */
-  "apartner.neverMints": "Keys are minted by the partner, in their own portal, and scoped there. Nothing on this screen creates one: a key minted by us would be a credential nobody on their side chose the scope of, and an employment key is an identity oracle pointed at our own patients.",
+  "apartner.neverMints": "Keys are minted by the partner, in their own portal, and scoped there. Nothing on this screen creates one: a key we minted is a credential nobody on their side chose the scope of, and an employment key is an identity oracle pointed at our own patients.",
   "asponsor.nav": "Sponsors",
   "asponsor.title": "Sponsors",
   "asponsor.body": "Corporate and university accounts. A company and a university are one type with two faces: the same controls, different words on their own screens.",
@@ -1899,7 +1899,7 @@ export const en = {
   /* The admin's measurement. C97: "measure the mute rate" — and act on it the same afternoon. */
   "acheckin.nav": "Check-ins",
   "acheckin.title": "Check-ins",
-  "acheckin.body": "A short message asking how somebody is, on a schedule. The cadence was a requirement and the ruling attached to it was to prove it rather than assume it, so every number here is yours to change and the mute rate is the one to watch.",
+  "acheckin.body": "A short message asking how somebody is, on a schedule. The ruling was to prove the cadence rather than assume it, so every number here is yours to change and the mute rate is the one to watch.",
   "acheckin.rate": "The mute rate",
   "acheckin.rateBody": "{muted} of {reachable} people who could be messaged have turned these off. Above {halt} the channel stops sending to everybody, because at that point continuing is choosing to be wrong at everyone.",
   "acheckin.halted": "The channel is halted. Enough people have muted that it stopped on its own.",
@@ -1909,7 +1909,7 @@ export const en = {
   "acheckin.crisisRouted": "{count} went to the crisis path",
   "acheckin.mutedCount": "{count} turned them off",
   "acheckin.unmutedCount": "{count} turned them back on",
-  "acheckin.noBodies": "What people replied is not on this screen and is not on any screen. A worrying reply goes to their own therapist through the crisis path; everything else is kept and read by nobody.",
+  "acheckin.noBodies": "What people replied is on no screen at all. A worrying reply goes to their own therapist through the crisis path; everything else is kept and read by nobody.",
   "checkin.1": "{name}, how are you doing today?",
   "checkin.2": "Thinking of you, {name}. How is today going?",
   "checkin.3": "Hello {name}. How are things right now?",

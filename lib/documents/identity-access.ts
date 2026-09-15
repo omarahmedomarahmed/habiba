@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { therapistVerifications } from "@/lib/db/schema";
+import { BACK_OFFICE_ROLES, therapistVerifications } from "@/lib/db/schema";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -167,6 +167,26 @@ export function localUploadAllowed(path: string, actor: Actor | null): boolean {
   if (!actor) return false;
   if (actor.role === "super_admin") return true;
 
-  const owner = path.split("/")[1];
+  /*
+   * 🔴 75.2 — A TRANSFER RECEIPT IS STAFF'S TO READ, AND NOBODY ELSE'S RULE FITS IT.
+   *
+   * ⚠️ The transfers queue is deliberately `requireStaff()`: somebody is on a
+   * waiting screen for every row in it and it cannot wait for a founder to wake
+   * up. But a receipt is filed under the SESSION it paid for, because the payer
+   * is usually a guest with no account at all (0105), so the owner segment of
+   * the path is a session id and matches nobody's user id. Staff could work the
+   * queue and could not open the evidence they exist to check.
+   *
+   * So `receipt` is the one kind with an audience rather than an owner. It is a
+   * photograph of a banking app, not somebody's passport: the retention rule and
+   * the reason the owner check exists at all are about identity documents, and
+   * this is not one. Every read is audited, which the owner path is not, because
+   * an operator reading a payer's receipt is an act somebody may later ask about.
+   */
+  const [kind, owner] = path.split("/");
+  if (kind === "receipt") {
+    return (BACK_OFFICE_ROLES as readonly string[]).includes(actor.role);
+  }
+
   return Boolean(owner) && owner === actor.userId;
 }

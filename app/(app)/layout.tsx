@@ -30,6 +30,7 @@ import { clinicManagers, users } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { initials } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { LanguageCorner } from "@/components/i18n/language-corner";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -110,6 +111,8 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-dvh bg-slate-50">
+      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
+      <LanguageCorner />
       {/* Desktop is the enhancement: a sidebar appears only at lg and above. */}
       <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-slate-200 bg-white lg:flex">
         <div className="px-5 py-5">

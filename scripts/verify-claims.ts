@@ -521,14 +521,20 @@ check(
 
 check(
   "🔴 62.11 CONTROL …while the retroactive figures on the shipped ladder pass",
-  seatFigureProblem("Five seats is $400 a month") === null &&
-    seatFigureProblem("Three to four seats are $90 each") === null &&
-    seatFigureProblem("One to two seats: $179 a month") === null,
+  /*
+   * ⚠️ These are the SHIPPED ladder's own figures and they change when it does.
+   * Sprint 75 repriced it and this control went red on the old numbers, which is
+   * the check doing its job: a planted innocent that no longer describes the
+   * product is a control that proves nothing.
+   */
+  seatFigureProblem("Five seats is $360 a month") === null &&
+    seatFigureProblem("Two or more seats are $72 each") === null &&
+    seatFigureProblem("One seat: $80 a month") === null,
 );
 
 check(
   "🔴 62.11 CONTROL …and a dollar figure in a sentence about something else is ignored",
-  seatFigureProblem("A session costs $1 plus $2 when the AI runs") === null,
+  seatFigureProblem("A session costs $1 plus $3 when the AI runs") === null,
   "the rule is about seat prices, not about every number on the site",
 );
 

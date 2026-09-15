@@ -378,29 +378,81 @@ async function main() {
   );
 
   /*
-   * 🔴 THE THERAPIST PRICE IS THE ONE A THERAPIST CAN CHECK.
+   * 🔴 THE PLAN HAS TO BE WORTH BUYING FOR THE THERAPIST THIS MODEL DESCRIBES.
    *
-   * $100 unlimited against $4 a session pay as you go is exactly 25 sessions.
-   * A pitch whose arithmetic the customer can do in their head is a pitch that
-   * does not need a salesperson to defend it, and an off-by-anything here turns
-   * "you can check this" into "we rounded it".
+   * Pay as you go is $4 a session, so a plan at price P is worth buying above
+   * `P / 4` sessions a month. That number must sit AT OR BELOW the caseload the
+   * same file forecasts, or we are projecting subscription revenue from people
+   * for whom the subscription is the worse deal and who would be right to
+   * refuse it.
+   *
+   * ⚠️ This check used to assert the literal 25, and it passed for two sprints
+   * while the model's own typical therapist did 20 sessions a month. It was
+   * testing that somebody had typed $100, not that $100 was defensible. The
+   * property is the comparison, and stating it this way is what caught it.
    */
   const therapist = BETA.segments.find((s) => s.key === "therapist")!;
+  const paygSession =
+    BETA.unit.platformFeeUsd + BETA.unit.aiFeeUsd; /* $1 room + $3 note. */
+  const worthBuyingAbove = therapist.monthlyUsd / paygSession;
+  const typicalCaseload = therapist.patientsPerClinician * therapist.sessionsPerPatient;
+
   check(
-    "🔴 the $100 plan is exactly 25 pay-as-you-go sessions, so the pitch is checkable",
-    therapist.monthlyUsd === 100 && therapist.monthlyUsd / 4 === 25,
-    "below 25 sessions pay as you go is cheaper and they should use it; above it, unlimited is",
+    "🔴 the plan is worth buying at or below the caseload this model forecasts",
+    Number.isInteger(worthBuyingAbove) && worthBuyingAbove <= typicalCaseload,
+    `$${therapist.monthlyUsd} is ${worthBuyingAbove} sessions at $${paygSession}, against a typical ${typicalCaseload} a month`,
   );
 
   /*
-   * 🔴 AND THE PROMISE IS TRUE. "Your sessions pay for your subscription" has to
-   * be arithmetic, not marketing, or it is the first thing a churned therapist
-   * quotes back. Ten sessions at a $20 session earns $200 against a $100 bill.
+   * 🔴 AND IT MUST NOT BE CHEAP ENOUGH TO LOSE MONEY ON A BUSY THERAPIST.
+   *
+   * A flat plan stops paying for itself past `price / marginal cost` sessions.
+   * A 50-minute session costs us the measured model time plus video, about
+   * $0.62. A therapist doing six sessions a day, five days a week, reaches
+   * roughly 120 a month, and that is a heavy full-time load.
+   *
+   * So the ceiling has to be **above** what one clinician can physically do, or
+   * the plan loses money on exactly our best customers. At $60 it is 97, which
+   * is reachable. That is why the plan is not $60.
    */
+  const marginalCostUsd =
+    BETA.unit.aiFixedUsd +
+    BETA.unit.aiPerMinuteUsd * BETA.unit.sessionMinutes +
+    BETA.unit.sessionMinutes * 2 * BETA.unit.videoPerParticipantMinuteUsd;
+  const losesMoneyPast = therapist.monthlyUsd / marginalCostUsd;
+
   check(
-    "🔴 ten sessions a month earns a therapist more than the subscription costs",
-    10 * BETA.unit.sessionPriceUsd > therapist.monthlyUsd,
-    `ten sessions earns $${(10 * BETA.unit.sessionPriceUsd).toFixed(0)} against a $${therapist.monthlyUsd} bill`,
+    "🔴 …and not so cheap that one busy clinician can outrun it",
+    losesMoneyPast > 120,
+    `unprofitable past ${losesMoneyPast.toFixed(0)} sessions a month, against about 120 for a heavy full-time load`,
+  );
+
+  /*
+   * 🔴 AND THE PROMISE IS TRUE **NET**, which is what their screen shows.
+   *
+   * ⚠️ This asserted the GROSS figure and said "ten sessions earns $200 against
+   * a $100 bill". Their earnings screen shows what is left after our 15%, which
+   * is $170, not $200. A promise stated in a number the customer cannot find on
+   * any screen is a promise that gets quoted back at us.
+   */
+  const netPerSession = BETA.unit.sessionPriceUsd * (1 - BETA.unit.takeRate);
+  check(
+    "🔴 a typical month's earnings cover the subscription, after our cut",
+    typicalCaseload * netPerSession > therapist.monthlyUsd,
+    `${typicalCaseload} sessions nets them $${(typicalCaseload * netPerSession).toFixed(0)} after our cut, against a $${therapist.monthlyUsd} bill`,
+  );
+
+  /*
+   * 🔴 THE CLINIC SEAT IS THE SOLO PRICE LESS TEN PER CENT, which is a RULE
+   * rather than a second number. Change the solo plan and this follows, and a
+   * clinic can never cost more per head than two solo practices.
+   */
+  const clinic = BETA.segments.find((s) => s.key === "clinic")!;
+  const perSeat = clinic.monthlyUsd / clinic.cliniciansEach;
+  check(
+    "🔴 a clinic seat is ten per cent under the solo plan, never over it",
+    Math.abs(perSeat - therapist.monthlyUsd * 0.9) < 0.01,
+    `$${perSeat.toFixed(0)} a seat against $${therapist.monthlyUsd} solo`,
   );
 
   /*
