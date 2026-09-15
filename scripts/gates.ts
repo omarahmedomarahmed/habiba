@@ -150,6 +150,30 @@ const GATES = [
     script: "verify:board",
     why: "and the board a founder trusts is counting the right things",
   },
+  /*
+   * 🔴 THE THIRTY UNIT SUITES, AND THE REASON THEY ARE HERE IS EMBARRASSING.
+   *
+   * Sprint 75 repriced the product. `tests/seats.test.ts` went 7 red of 12 and
+   * `tests/safety.test.ts` went 1 red of 55, every failure an assertion holding
+   * a price the product no longer charges.
+   *
+   * They stayed red across two sprints of commits. Nothing printed it, because
+   * this pass ran eleven verifiers and none of the thirty suites, so the only
+   * way to see the failure was to type the one script nobody had a reason to
+   * type.
+   *
+   * That is the quiet half of H20. The loud version is *a known-failing gate is
+   * a gate nobody reads*; this is **an unrun gate is a gate nobody reads
+   * either**, and it is the version that costs a sprint rather than an
+   * afternoon. `scripts/suites.ts` discovers them from `package.json` rather
+   * than listing them, so a suite added next sprint is run by a file nobody
+   * edited.
+   */
+  {
+    name: "suites",
+    script: "suites",
+    why: "and all thirty unit suites still agree with what we charge",
+  },
 ] as const;
 
 function main() {

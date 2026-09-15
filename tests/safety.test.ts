@@ -204,11 +204,39 @@ test("the seeded schedule is the one §3c asks for, after the split", () => {
     TIERS.map((t) => [t.key, t.aiRateCents, t.unlockCents, t.monthlyCents]),
     [
       ["payg", 300, 0, 0],
-      ["practice", 0, 0, 9900],
-      ["clinic", 0, 0, 17900],
+      ["practice", 0, 0, 8000],
+      ["clinic", 0, 0, 14400],
     ],
   );
+
+  /*
+   * 🔴 AND THE THREE NUMBERS ABOVE ARE RELATED, so a reprice that moves one and
+   * forgets another is caught here rather than on an invoice.
+   *
+   * ⚠️ This assertion carried $99 and $179 for two sprints after the product was
+   * repriced to $80 and $144, and stayed red without anybody seeing it, because
+   * `npm run gates` did not run this file. It does now.
+   */
+  const solo = TIERS.find((t) => t.key === "practice")!.monthlyCents;
+  const clinic = TIERS.find((t) => t.key === "clinic")!.monthlyCents;
+  const seat = SETTINGS_DEFAULTS.pricing.seatBands[1]!.perSeatCents;
+
+  assert.equal(seat, Math.round(solo * 0.9), "a clinic seat is ten per cent under solo, as a rule");
+  assert.equal(clinic, 2 * seat, "the clinic tier IS the two-seat minimum, not a third price");
+
+  /*
+   * 🔴 AND THE METERED DOOR IS EXACTLY WHAT A SUBSCRIBER STOPS PAYING.
+   *
+   * $1 for the room on every session plus $3 for the note where the patient
+   * consented. $80 is therefore exactly twenty metered sessions, which is the
+   * number a therapist can check on their own screen and the reason the plan is
+   * defensible at all.
+   */
+  const payg = TIERS.find((t) => t.key === "payg")!;
   assert.equal(BOUNDS.platformFeeCents, 100, "a dollar, on every session");
+  assert.equal(payg.aiRateCents, 300, "three dollars for the note, and only where consent was given");
+  assert.equal(solo / (BOUNDS.platformFeeCents + payg.aiRateCents), 20, "$80 is twenty metered sessions");
+
   assert.equal(BOUNDS.platformFeeBps, 1500, "the platform cut is 15%");
   assert.equal(BOUNDS.maxPriceCents, 50_000, "the price cap is $500");
   assert.equal(settingsProblem(SETTINGS_DEFAULTS), null);

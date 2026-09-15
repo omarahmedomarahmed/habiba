@@ -152,7 +152,8 @@
     "verify:board": "node --import tsx --conditions=react-server scripts/verify-board.ts",
     "forecast": "node --import tsx --conditions=react-server scripts/forecast.ts",
     "plan": "node --import tsx --conditions=react-server scripts/plan.ts",
-    "test:seats": "node --import tsx --test tests/seats.test.ts"
+    "test:seats": "node --import tsx --test tests/seats.test.ts",
+    "suites": "node --import tsx scripts/suites.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",
