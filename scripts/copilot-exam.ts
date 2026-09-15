@@ -4,7 +4,7 @@
  *   npm run copilot:exam                 every patient with anything on record
  *   npm run copilot:exam -- --limit 5    the five with the thickest records
  *   npm run copilot:exam -- --patient <id>
- *   npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json
+ *   npm run copilot:exam -- --json docs/simulation-run/COPILOT.json
  *
  * ## 🔴 The claim this exists to test
  *

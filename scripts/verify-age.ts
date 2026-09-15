@@ -8,7 +8,7 @@
  *
  * ## 🔴 Why this exists and is not optional
  *
- * `05-AGEING.md` names this as the script's gate, in these words: *age a table
+ * `06-AGEING.md` names this as the script's gate, in these words: *age a table
  * containing one past and one future timestamp **in the same row**, and prove
  * the past one moved while the future one did not. Without it the script could
  * be shifting everything and nobody would know until a subscription renewed in

@@ -3,7 +3,7 @@
  *
  *   npm run physics
  *   npm run physics -- --at 50        what a fifty-minute session would cost
- *   npm run physics -- --json docs/walkthrough-3/PHYSICS.json
+ *   npm run physics -- --json docs/simulation-run/PHYSICS.json
  *
  * This is the bridge between the simulation and the financial model. The
  * simulation runs short sessions because the budget is $10; the business runs
@@ -25,7 +25,7 @@
  *
  * ## What it refuses
  *
- * A fit through sessions that are all the same length. `01-SEED.md` deliberately
+ * A fit through sessions that are all the same length. `01-THE-CAST.md` deliberately
  * splits the run into two duration clusters so this can answer; if it says it
  * cannot, the run did not produce them and the extrapolation must not be made.
  */
@@ -178,7 +178,7 @@ async function main() {
         "\n  🔴 At least one kind could not be fitted, so the extrapolation below is incomplete.",
       );
       console.log(
-        "     The run needs sessions of at least two different lengths. `01-SEED.md` asks for",
+        "     The run needs sessions of at least two different lengths. `01-THE-CAST.md` asks for",
       );
       console.log("     24 at three minutes and 11 at eight, which is exactly why.\n");
     }

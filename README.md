@@ -300,10 +300,11 @@ These are the ones that end the company if they break.
 ## The business, and the evidence for it
 
 > ⚠️ **Read the provenance line before the numbers.** The operating plan runs on
-> **2 measured inputs, 18 decided ones and 14 guesses**, and `npm run verify:plan`
-> fails if that ratio is ever claimed to be better than it is. Everything below is
-> a model, not a result. The one thing that is measured is the AI cost, and it was
-> measured against the live API rather than estimated.
+> **2 measured inputs, 20 decided ones and 12 guesses**, every one of them
+> labelled in `lib/finance/plans.ts` with a sentence saying why, and
+> `npm run verify:plan` fails if that ratio is ever claimed to be better than it
+> is. Everything below is a model, not a result. The one thing measured is the AI
+> cost, and it was measured against the live API rather than estimated.
 
 ### What it costs to run a session, which is the only number here that was measured
 
@@ -318,90 +319,127 @@ fitted from real calls at four transcript lengths for $0.37 of spend.
 | **50 minutes, a real one** | **$0.2167** |
 
 🔴 **Multiplying the 3-minute figure to reach 50 gives $0.4230, which is 95% too
-high.** At a $1 platform fee plus 15% that is the difference between a business
-with a gross margin and one without, and it is why the simulation runs two
-session lengths rather than one.
+high.** At a $1 room fee plus 15% that is the difference between a business with
+a gross margin and one without, and it is why the simulation runs two session
+lengths rather than one.
+
+### What we charge
+
+Egypt first. A session is **1,000 EGP, about $20**, and we take **15%** of what
+the patient paid.
+
+| | |
+|---|---|
+| Metered, the room | **$1** on **every** session: paid, free, radar, invite, in person |
+| Metered, the note | **$3 more**, and only where the patient consented to recording |
+| So metered is | **$4 a session**, or $1 where consent was declined |
+| Solo plan | **$80 a month**, and a subscriber pays **neither** per-session charge |
+| Clinic plan | **$72 a seat**, minimum two. Ten per cent under solo |
+| The offer | Month 1 free, months 2 and 3 at half price, full price after |
+| Joining later | One free month, then full price. **And nothing after that** |
+
+🔴 **$80 is exactly 20 metered sessions at $4.** A therapist doing fewer than
+twenty a month is right to stay metered and the product does not push them. It is
+also high enough that a full-time clinician cannot outrun it: a session costs us
+about $0.62 all in, so the plan stops paying for itself past 130 sessions a month
+and a heavy full-time load is about 120.
 
 ### The plan
 
-Egypt first. A session is **1,000 EGP, about $20**. A therapist pays **$80 a
-month unlimited**, which is exactly 20 pay-as-you-go sessions at $4, so a
-therapist doing fewer than that is right to stay metered and the product does
-not push them. A clinic is **two or three clinicians at $72 a seat**. Two
-founders at $500 each, two salespeople, one marketer, two support staff, because
-a bank transfer rail needs a person by the minute.
+Two founders at $500 each, two salespeople, one marketer, two support staff,
+because a bank transfer rail needs a person by the minute.
+
+🔴 **And one of the two founders sells full time.** That is the decision the whole
+plan turns on. It costs nothing on the payroll, because they already draw their
+$500, and it buys fifty per cent more selling capacity from month one. Without it
+the six months end at roughly break-even with about a thousand dollars left. With
+it the company is profitable in month 5 and has a buffer.
+
+⚠️ **It is also the assumption most likely to be wrong.** A founder selling is a
+founder not building, and a cash forecast has no line for what stops being built.
 
 ```
-npm run plan            # five scenarios, thirty-six months
-npm run plan -- beta    # one of them, month by month
+npm run plan                  # three scenarios
+npm run plan -- beta-cliff    # the six months, month by month
 ```
 
 ### 🔴 The six months, month by month
 
-This is the plan a $20,000 cheque actually buys. Nothing here is a raise.
+This is what a $20,000 cheque buys. Nothing here is a raise.
 
 | Month | In | Out | Net | **In the bank** |
 |---|---|---|---|---|
 | start | | | | **$20,000** |
-| 1 | $183 | $6,816 | −$6,633 | $13,367 |
-| 2 | $770 | $5,112 | −$4,342 | $9,025 |
-| 3 | $1,715 | $5,309 | −$3,594 | $5,431 |
-| 4 | $3,011 | $5,695 | −$2,684 | $2,747 |
-| 5 | $4,519 | $5,979 | −$1,460 | $1,287 |
-| **6** | **$6,020** | $6,230 | −$210 | **$1,077** |
+| 1 | $305 | $6,952 | −$6,647 | $13,353 |
+| 2 | $1,290 | $5,365 | −$4,075 | $9,278 |
+| 3 | $2,812 | $5,825 | −$3,013 | $6,265 |
+| 4 | $4,810 | $6,299 | −$1,489 | $4,776 |
+| 5 | $7,161 | $6,747 | **+$414** | $5,189 |
+| **6** | **$9,474** | $7,137 | **+$2,337** | **$7,526** |
 
-**Six months of revenue: $16,218. Six months of spend: $35,141.** The month-6
-run rate is $6,020, which is **$72,240 of ARR**, and the month itself is within
-$210 of breaking even.
+**Break-even is month 5.** Six months of revenue: $25,852. Six months of spend:
+$38,325. The month-6 run rate is $9,474, which is **$113,688 of ARR**, at a 75%
+gross margin.
 
-⚠️ **That ending balance is thin and it is the honest number.** $1,077 is about
-five days of payroll. The plan does not run out of money and it does not have a
-buffer either, and anything that slips — a month of slower sales, one company
-not renewing — is felt immediately. This is what a $20,000 cheque buys with
-seven people on it, and the answer to it is either fewer people, more months, or
-a second cheque at month 5 rather than month 6.
+⚠️ **$7,526 is a buffer, not a cushion.** It is about six weeks of payroll. The
+plan does not run out of money and it is not comfortable either, and a month of
+slower sales is felt immediately.
 
 ### Where the money goes
 
 | Line | Six months |
 |---|---|
-| People, seven at $500 | $21,000 |
+| People: seven at $500, plus a founder selling at no extra cost | $21,000 |
 | Marketing: $1,000 a month plus three videos | $6,600 |
-| Welcome credit to companies | $510 |
-| Models, video, card and wallet fees, hosting | $7,031 |
-| **Total** | **$35,141** |
+| Models, video, card and wallet fees, hosting | $9,623 |
+| Welcome credit to companies | $1,105 |
+| **Total** | **$38,325** |
 
 🔴 The **beta discount is not in that table.** It is revenue we chose not to
-charge, not money we spent, and a spend column would count it twice.
+charge, not money we spent, and a spend column would count it twice. Over the six
+months it is **$8,442** of list price never billed.
 
-### 🔴 The angel's return at month 6, which is the one that matters
+### 🔴 The angel's return at month 6
 
-The 36-month numbers are further down. **This is what a cheque today is worth
-when the six months are over**, which is the point an angel can actually check.
+**This is what a cheque today is worth when the six months are over**, which is
+the point an angel can actually check. There is no three-year table any more:
+every extra month multiplies twelve guesses by another month of compounding, and
+a number nobody can check is not evidence.
 
 | | |
 |---|---|
 | The cheque | **$20,000 for 20%** |
 | Implied valuation today | **$100,000 post-money** |
-| Month-6 run rate | **$6,020 a month** |
-| Month-6 ARR | **$72,240** |
+| Month-6 run rate | **$9,474 a month** |
+| Month-6 ARR | **$113,688** |
 
 | If the company is valued at | It is worth | The 20% is | **Return** |
 |---|---|---|---|
-| 2x ARR | $144,480 | $28,896 | **1.4x** |
-| 3x ARR | $216,720 | $43,344 | **2.2x** |
-| 4x ARR | $288,960 | $57,792 | **2.9x** |
-| 5x ARR | $361,200 | $72,240 | **3.6x** |
+| 2x ARR | $227,376 | $45,475 | **2.3x** |
+| 3x ARR | $341,064 | $68,213 | **3.4x** |
+| 4x ARR | $454,752 | $90,950 | **4.5x** |
+| 5x ARR | $568,440 | $113,688 | **5.7x** |
 
-**So: roughly 2x to 3.6x in six months, on paper.** Not 29x. The big multiples
-come from holding for three years and are in the long-horizon table below;
-this is the near one, and it is the one nobody can wave away.
+**So: roughly 2x to 5.7x in six months, on paper.**
 
 ⚠️ **Three things that table is not.** It is not cash: nobody has sold anything,
 and a valuation is what a next investor would pay rather than what is in the
-bank. The ARR multiple is **my assumption**, not an output of the model. And
-every revenue figure it rests on comes from fourteen guesses the beta exists to
-replace.
+bank. The ARR multiple is an **assumption applied by hand**, not an output of the
+model. And every revenue figure it rests on comes from twelve guesses the beta
+exists to replace.
+
+### The longer view, if no round ever happens
+
+The `runway` scenario asks whether the $20,000 alone can do it. It says yes:
+break-even in month 5, and by month 18 the company is at **$24,816 a month** with
+**$119,292** in the bank, having never raised again.
+
+| At month 18 | ARR | 20% at 3x ARR | 20% at 5x ARR |
+|---|---|---|---|
+| $24,816/mo | $297,792 | $178,675, **8.9x** | $297,792, **14.9x** |
+
+🔴 The multiples are assumptions applied by hand. Nothing in the model computes
+them, and eighteen months is far enough out that the guesses dominate.
 
 ### Two angels instead of one
 
@@ -410,116 +448,71 @@ replace.
 | One angel | $20,000 | 20% | $100,000 post-money |
 | Two angels | $10,000 each | 10% each | $100,000 post-money |
 
-The return per dollar is **identical** either way, because both price the
-company the same. Two angels is not a worse deal, it is the same deal split, and
-it is usually the easier one to close.
+The return per dollar is **identical** either way, because both price the company
+the same. Two angels is not a worse deal, it is the same deal split, and it is
+usually the easier one to close.
 
-### 🔴 What "dilution" means here, and why there is a row without it
+### 🔴 What "dilution" means, and why the table above has none in it
 
 If the company raises again later, new shares are issued and every existing
-holder owns a smaller slice of a bigger company. A 40% dilution row means: after
-one normal later round, a 20% stake has become 12%.
+holder owns a smaller slice of a bigger company. After one normal later round a
+20% stake typically becomes about 12%.
 
-**The no-dilution row is not optimism, it is the case where no further round
-happens** — which the `runway` scenario says is genuinely possible, because the
-$20,000 alone reaches break-even. An angel should see both, because the two are
-different bets: one on a company that raises and grows faster, one on a company
-that never needs to.
-
-### The three-year scenarios, and who decides between them
-
-Two of the five scenarios are the same company with a different decision made at
-month 6 about **what early customers pay from then on.**
-
-| | In plain language | Whose decision |
-|---|---|---|
-| **`grandfathered`** | Everybody who joined during the beta **keeps half price for ever.** New customers pay full price | 🔴 **Yours.** It is a promise to the first hundred customers and it cannot be taken back |
-| **`half-price`** | **Everybody** pays half price for ever, old and new, and there is no free first month | 🔴 **Yours.** It is a permanent price cut, not an offer |
-
-`grandfathered` rewards the people who took a risk on an unproven product and
-charges the market rate to everybody after them. `half-price` is a decision that
-the market rate *is* half price, and it buys growth by giving up margin on every
-customer for ever: it reaches more accounts and lower gross margin, and in this
-model it ends up at roughly the same revenue by a longer road.
-
-**Neither is a forecast and neither is mine to make.** The model prices both so
-the decision is made with the difference on a page rather than in a conversation.
-
-| Scenario | What it asks | Break even | Where it ends |
-|---|---|---|---|
-| `beta` | Three months on the cheque | not in 3 | $1,715/mo at m3 |
-| `beta-cliff` | **Six months, no new money** | not in 6 | $6,020/mo, $1,077 of cash |
-| 🔴 `runway` | **Can the $20k alone do it?** | **month 7** | $15,949/mo at m18, $52,977 of cash |
-| `grandfathered` | Raise at m6, early adopters keep half price | month 6 | $35,442/mo at m36 |
-| `half-price` | Raise at m6, half price for everybody | month 14 | $37,951/mo at m36 |
-
-### The three-year table, for completeness
-
-⚠️ **Read the six-month one above first.** This is the same arithmetic held for
-three years, and every extra month multiplies the fourteen guesses by another
-month of compounding. It is here because an angel is entitled to see it, not
-because it is more reliable than the near one.
-
-| Scenario at month 36 | Run rate | ARR | At 3x ARR | At 5x ARR |
-|---|---|---|---|---|
-| `grandfathered` | $35,442/mo | $425,304 | $1.28M | $2.13M |
-| `half-price` | $37,951/mo | $455,412 | $1.37M | $2.28M |
-
-| Stake | Diluted by a later round | `grandfathered`, 5x | `half-price`, 5x |
-|---|---|---|---|
-| 20% on $20k | none | $425k, **21x** | $455k, **23x** |
-| 20% on $20k | 40% | $255k, **13x** | $273k, **14x** |
-| 10% on $10k | none | $213k, **21x** | $228k, **23x** |
-| 10% on $10k | 40% | $128k, **13x** | $137k, **14x** |
-
-🔴 The 3x and 5x multiples and the 40% dilution are **assumptions I applied by
-hand.** Nothing in the model computes them.
+**The tables above assume no further round**, which the `runway` scenario says is
+genuinely possible, because the $20,000 alone reaches break-even and keeps
+compounding. If a round does happen, take roughly 40% off every return figure
+above and the company behind them is larger. Those are two different bets and an
+angel should see both: one on a company that raises and grows faster, one on a
+company that never needs to.
 
 ### The raise, and what it is for
 
 **Recommended: $20,000 now, and a decision at month 6 rather than a plan for
-one.** The model says the cheque alone reaches break-even in month 7 and then
-compounds to $52,977 of cash by month 18 with no round at all. It also says a
-round at month 6 roughly doubles month-36 revenue. Both are projections off the
-same fourteen guesses.
+one.** The model says the cheque alone breaks even in month 5 and then compounds
+with no round at all. It also says a round would buy speed. Both are projections
+off the same twelve guesses.
 
 So the honest shape is: take the $20k, run the six months, **replace the guesses
 with counts**, and decide with evidence rather than committing now to a round
 priced on a model.
 
 🔴 **The first of those guesses is the one that matters.** At 500 EGP a session
-the plan runs out of cash; at 1,000 it ends the six months at break-even with
-$1,077 left. The session price is the most load-bearing number in the business
-and nothing except a real customer can settle it.
+the plan runs out of cash; at 1,000 it breaks even in month 5. The session price
+is the most load-bearing number in the business and nothing except a real
+customer can settle it.
 
 The five things `npm run plan` prints as unknowable every time it runs:
 
 - whether an Egyptian therapist will pay 4,000 EGP a month at all
-- how many leave the month the discount ends. **Assumed 40%**
-- what share of a call centre's staff enrol. **Assumed 5%**, then 40% active monthly
+- how many leave the month the discount ends. **Assumed 40%** of solo therapists
+- what share of a call centre's staff enrol. **Assumed 5%**, then 40% of those
+  active monthly
 - what card and wallet processing actually costs in Egypt. **Assumed 3%**
-- whether a company renews once the welcome credit runs out. **Assumed two in three**
+- whether a company renews once the welcome credit runs out. **Assumed two in
+  three**
 
 ---
 
 ## Run the simulation yourself, on your own keys
 
-**You do not have to take any of the above on trust.** The six-month simulation
-is in this repository and it runs against a database you make, on an OpenAI key
-you top up, for about **$5**.
+**You do not have to take any of the above on trust.** The six-month simulation is
+in this repository and it runs against a database you make, on an OpenAI key you
+top up, for about **$5**.
 
 ```
-docs/WALKTHROUGH-PROMPT.md     paste into a fresh session. It writes .env.local itself
-docs/simulation/               the ten documents it reads first
+docs/SIMULATION-PROMPT.md      paste into a fresh session. It writes .env.local itself
+docs/simulation/               the nine documents it reads first
 ```
 
-What you need: a Neon branch of your own, an OpenAI key with $10 on it, and a
-Stripe **test** key. The write scripts refuse a production endpoint by name.
+What you need: a Neon branch of your own, an OpenAI key with $10 on it, a Stripe
+**test** key and a Vercel Blob token. The write scripts refuse a production
+endpoint by name.
 
-What you get: twenty-eight synthetic people who sign themselves up and use the
-product through its real forms, six months of history aged into place, a full
-money cycle read off the operator's own screens, every defect anybody hit, and an
-exam measuring how much the copilot actually knows about each patient.
+What you get: **twenty-one synthetic people** who sign themselves up and use the
+product through its real forms, across one practice and three companies, six
+months of history aged into place, a full money cycle read off the operator's own
+screens, every defect anybody hit, and an exam measuring how much the copilot
+actually knows about each patient.
 
 🔴 **A clean report means you did not look.** The last two walkthroughs each found
 defects that sixty verifiers had missed.
@@ -532,9 +525,10 @@ defects that sixty verifiers had missed.
 |---|---|
 | `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
 | `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
-| `docs/simulation/` | **The six-month simulation**, in ten documents: the cast, the swarm, the money, the Egyptian payment rail, the capture, and how six months of history is produced in one afternoon. Read with `docs/WALKTHROUGH-PROMPT.md`, which is the prompt that starts it |
-| `docs/FINANCIAL-PLAN.md` | The operating plan the simulation rehearses. Egypt, the $20k, the offer, five scenarios, and every number labelled measured, decided or guessed |
-| `docs/walkthrough-3/` | What that simulation produced: frames per person at month 0, 1, 3 and 6, the database in words at each, the money reconciliation, and the findings |
+| `docs/SIMULATION-PROMPT.md` | **The prompt that starts the simulation.** Keys, the branch, the steps, and what to report back |
+| `docs/simulation/` | The nine documents it reads first: the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, and what the run hands the plan |
+| `docs/FINANCIAL-PLAN.md` | The operating plan the simulation rehearses. Egypt, the $20k, the offer, and every number labelled measured, decided or guessed |
+| `docs/simulation-run/` | What the simulation produced: frames per person at months 0, 1, 3 and 6, the board every week for six months, the database in words at each checkpoint, the money reconciliation, and the findings |
 | `docs/walkthrough-archive/` | The written record of the two earlier walkthroughs. **Their frames were deleted on 2026-09-14**, and both video scripts are marked stale: they were written for a product that had one therapist and one patient in it |
 
 ---

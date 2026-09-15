@@ -18,7 +18,7 @@
  * and the operator's screens are half of what the run exists to show.
  *
  * The right way to relax a rule is to prove its precondition rather than to
- * delete the rule. This is that proof, and `04-CAPTURE.md` makes it the gate: no
+ * delete the rule. This is that proof, and `05-CAPTURE.md` makes it the gate: no
  * operator frame is committed until this passes.
  *
  * ## What it checks

@@ -53,10 +53,10 @@ test("🔴 it REFUSES to fit one cluster, which is the whole point", () => {
 });
 
 test("🔴 CONTROL …and it accepts the spread the simulation actually produces", () => {
-  /* 24 at three minutes, 11 at eight: what `01-SEED.md` now asks for. */
+  /* 42 at three minutes, 20 at eight: the six months `01-THE-CAST.md` asks for. */
   const durations = [
-    ...Array.from({ length: 24 }, () => 3),
-    ...Array.from({ length: 11 }, () => 8),
+    ...Array.from({ length: 42 }, () => 3),
+    ...Array.from({ length: 20 }, () => 8),
   ];
   const f = fit(synthetic(durations, SHAPE));
   assert.equal(f.fitted, true, "a refusal that refuses everything proves nothing");
@@ -109,7 +109,7 @@ test("the note call alone costs what its own tokens and rate say", () => {
 
 test("🔴 the WHOLE session, composed from every kind, lands where the budget says", () => {
   /*
-   * The figure `00-START-HERE.md` and `03-MONEY.md` are both written against,
+   * The figure `00-START-HERE.md` and `03-THE-MONEY.md` are both written against,
    * built from the parts rather than asserted: the note writer's measured
    * 1,133-token system prompt, the risk pass, a profile rebuild on four
    * sessions in ten, the diariser, and four capped copilot turns.

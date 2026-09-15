@@ -4,7 +4,7 @@
  *   npm run age -- --marker wave1 --days 90
  *   npm run age -- --marker wave1 --days 90 --dry
  *
- * Specified by `docs/simulation/05-AGEING.md`. The one rule it implements:
+ * Specified by `docs/simulation/06-AGEING.md`. The one rule it implements:
  *
  * > **A timestamp in the past is a record of something that happened, and it
  * > moves. A timestamp in the future is a deadline, and it does not.**

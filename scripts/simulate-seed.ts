@@ -1,44 +1,46 @@
 /**
- * What a person could not create for themselves, and nothing else.
+ * The simulation seed: what a person could not create for themselves, and nothing else.
  *
  *   DATABASE_URL='<the simulation branch>' npm run settings:seed
  *   DATABASE_URL='<the simulation branch>' npm run ship:content -- 28 24
  *   DATABASE_URL='<the simulation branch>' npm run simulate:seed
  *
  * 🔴 THAT ORDER, AND NOT ANOTHER. `ship:content` lays down the platform
- * organisation; this script puts the operator in it. Run the other way round
- * and the branch gets two organisations called 24Therapy, the operator signs
- * into one, and every other tool looks at the other.
+ * organisation; this script puts the operator inside it. Run it the other way
+ * round and the branch ends up with two organisations called 24Therapy: the
+ * operator signs into one and every other tool in the repository reads the
+ * other. Nothing fails, which is the whole problem with it.
  *
- * Specified by `docs/simulation/01-SEED.md`, which says exactly three things
- * belong here:
+ * ## 🔴 WHAT BELONGS IN A SEED, AND WHY IT IS THIS SHORT
+ *
+ * `docs/simulation/01-THE-CAST.md` names three things and no fourth:
  *
  *   1. The platform operator.
- *   2. Settings, countries, taxonomy and published content.
- *   3. The employer and clinic **applications**, in a pre-approval state.
+ *   2. Settings, countries, taxonomy and published content (the two scripts above).
+ *   3. The clinic and company **applications**, in a pre-approval state.
  *
  * **It creates no therapist, no patient and no session.** Those are people, and
- * people sign themselves up. A cast seeded into existence never walks the
- * sign-up flow, and sign-up is where two of the last three walkthroughs found
- * their worst defects.
+ * people sign themselves up. A cast seeded into existence never walks the sign-up
+ * flow, and sign-up is where two of the last three walkthroughs found their worst
+ * defects.
  *
- * ## 🔴 Why the applications are seeded and the approvals are not
+ * ## Why the applications are seeded and the approvals are not
  *
- * An application is a form a person fills in before they have any account, so
+ * An application is a form somebody fills in before they have any account, so
  * there is nobody to be at the keyboard. An approval is an operator's decision,
- * and the operator agent makes it on camera in wave two: that click, and the
- * screen it happens on, is a thing the simulation exists to photograph.
+ * and the operator agent makes it on camera in wave 2: that click, and the screen
+ * it happens on, is a thing the simulation exists to photograph.
  *
- * They are created by calling `applyToClinic` and `applyToSponsor` rather than
- * by INSERT, so the seed goes through the same validation, the same slug rule
- * and the same "held" default the public form does. A seed that writes rows
- * directly is a seed that can create a state the product cannot.
+ * They are created by calling `applyToClinic` and `applyToSponsor` rather than by
+ * INSERT, so the seed goes through the same validation, the same slug rule and the
+ * same "held" default the public form does. A seed that writes rows directly is a
+ * seed that can create a state the product cannot.
  *
  * ## It refuses production, and it refuses to run twice
  *
- * `writesTo()` refuses the production endpoint by name. And it counts what it
- * is about to create first: a second run would produce two Nile Practices and
- * an operator who cannot tell which one the agents are using.
+ * `writesTo()` refuses the production endpoint by name. And it counts what it is
+ * about to create first: a second run would produce two Nile Practices and an
+ * operator who cannot tell which one the agents are using.
  */
 import { sql } from "drizzle-orm";
 
@@ -52,7 +54,7 @@ export const SIMULATION_PASSWORD = "Simulation2026!";
 
 /**
  * The operator. The only person in this file, because the console has to work
- * before there is anything in it and somebody has to approve the first clinic.
+ * before there is anything in it, and somebody has to approve the first clinic.
  */
 export const OPERATOR = {
   email: "nour.example@example.com",
@@ -61,12 +63,16 @@ export const OPERATOR = {
 } as const;
 
 /**
- * The applications waiting in the operator's queue when the run begins.
+ * 🔴 THREE SEATS, NOT FOUR OR FIVE.
  *
- * 🔴 Three employers and one practice, matching `01-SEED.md` exactly. `E3` is
- * here from the start even though it does nothing until wave three: Delta
- * Logistics hires `P5` away from Thames, and an employer that materialises on
- * the day it poaches somebody is a story the data cannot tell.
+ * A small Cairo practice is two clinicians who share a waiting room, sometimes
+ * three. Four is a different kind of business with a manager and a lease, and
+ * modelling it inflates both seat revenue and sessions per account. The plan in
+ * `lib/finance/plans.ts` averages 2.5 and `verify:plan` holds it between 2 and 3.
+ *
+ * Amira is `T1`, who joins with patients already on her books. Omar is `T4`, who
+ * is rejected twice and still cannot see a patient after this practice invites
+ * him. Both of those are the point of the practice existing.
  */
 export const CLINIC_APPLICATION = {
   name: "Nile Practice",
@@ -81,12 +87,15 @@ export const CLINIC_APPLICATION = {
 /**
  * 🔴 ALL THREE ARE EGYPTIAN, WHICH IS THE POINT OF THE RUN.
  *
- * The earlier cast had a London company in it, which made the go-to-market look
+ * An earlier cast had a London company in it, which made the go-to-market look
  * like two markets and gave the money half of the simulation a card rail to fall
- * back on. There is no card rail in Egypt: `topUpPot` refuses `entity = 'eg'`,
- * and the bank transfer queue is the whole of how money reaches us.
+ * back on. There is no card rail in Egypt: `topUpPot` refuses `entity = 'eg'` and
+ * the bank transfer queue is the whole of how money reaches us. A run with one
+ * non-Egyptian customer would have proved that the easy path works.
  *
- * A run with one non-Egyptian customer would have proved the easy path works.
+ * 🔴 `E3` is here from the start even though it does nothing until wave 3. Delta
+ * Logistics hires `P5` away from Alexandria Textiles, and an employer that
+ * materialises on the day it poaches somebody is a story the data cannot tell.
  */
 export const SPONSOR_APPLICATIONS = [
   {
@@ -146,14 +155,12 @@ async function main() {
      * CREATED IT.
      *
      * `npm run ship:content` runs `db:seed`, which makes the platform
-     * organisation with the slug `24therapy`. This script ran before it and
-     * inserted a second one under a different slug, so the branch ended up with
-     * two organisations both called 24Therapy: the operator signed into one and
-     * every other tool in the repository looked at the other.
+     * organisation with the slug `24therapy`. An earlier version of this script
+     * ran before it and inserted a second one under a different slug, so the
+     * branch ended up with two organisations both called 24Therapy.
      *
-     * Nothing failed. That is the whole problem with it. So the slug is the
-     * canonical one, the row is found before it is created, and the documented
-     * order puts this script LAST, after the two that lay the platform down.
+     * Nothing failed. So the slug is the canonical one, the row is found before
+     * it is created, and the documented order puts this script last.
      */
     const { hashPassword } = await import("../lib/auth/password");
     const passwordHash = await hashPassword(SIMULATION_PASSWORD);
@@ -201,18 +208,18 @@ async function main() {
      * 🔴 THE BUDGET, ENFORCED BY THE PRODUCT RATHER THAN PROMISED IN A DOCUMENT.
      *
      * The run has $10 of OpenAI credit and must not stop halfway. The largest
-     * variable cost per session is the in-session copilot, which the product
-     * caps with `copilot.messagesPerPatientPerSession` and which ships at ten.
-     * Ten times twenty-five sessions is a quarter of the budget spent on
+     * variable cost per session is the in-session copilot, which the product caps
+     * with `copilot.messagesPerPatientPerSession` and which ships at ten. Ten
+     * times sixty-two sessions is a large share of the budget spent on
      * suggestions nobody in a simulation reads.
      *
      * Four is enough to exercise every path the copilot has: it still asks, it
      * still cites, it still refuses, and the quota screen still says what is
      * left. What it cannot do is quietly spend the run.
      *
-     * A quota is the honest lever here because it is a real product feature
-     * used for its real purpose, on one branch. Nothing about the model calls
-     * themselves is changed, so the measured cost per session is still a true
+     * A quota is the honest lever here because it is a real product feature used
+     * for its real purpose, on one branch. Nothing about the model calls
+     * themselves changes, so the measured cost per session is still a true
      * measurement of this product at this setting.
      */
     await db.execute(sql`
@@ -287,11 +294,11 @@ async function main() {
     /*
      * 🔴 THE BANK DETAILS ARE NOT SEEDED, AND THAT IS THE TEST.
      *
-     * `payouts.transferFields` ships empty, so the first Egyptian company to
-     * open its pot is shown "not on the system yet" rather than an account
-     * number somebody committed to a repository. An operator types the real ones
-     * in on camera, in wave one, through `/admin/settings`, and the screens that
-     * were empty fill in.
+     * `payouts.transferFields` ships empty, so the first Egyptian company to open
+     * its pot is shown "not on the system yet" rather than an account number
+     * somebody committed to a repository. An operator types the real ones in on
+     * camera, in wave 1, through `/admin/settings`, and the screens that were
+     * empty fill in behind them.
      *
      * A seed that wrote plausible-looking details would skip the one screen this
      * whole rail depends on, and would put a bank account in git.
@@ -309,10 +316,10 @@ async function main() {
     /*
      * 🔴 AND EVERY APPLICANT IS ON THE `us` ENTITY, WHICH IS ALSO THE TEST.
      *
-     * `applyToSponsor` lands every enquiry there, because which company bills a
-     * customer is a decision somebody makes with the paperwork in front of them.
-     * Moving these three to `eg` is an operator's click in wave one, and it is
-     * the click that puts them on the transfer rail: `sponsorNeedsTransfer`
+     * `applyToSponsor` lands every enquiry there, because which of our companies
+     * bills a customer is a decision somebody makes with the paperwork in front
+     * of them. Moving these three to `eg` is an operator's click in wave 1, and
+     * it is the click that puts them on the transfer rail: `sponsorNeedsTransfer`
      * reads that column.
      *
      * Until sprint 74 nothing could make that click, so this is the assertion
